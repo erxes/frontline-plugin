@@ -3,9 +3,9 @@ import { CSS } from '@dnd-kit/utilities';
 import { IconGripVertical, IconTrash } from '@tabler/icons-react';
 import { Button, Card, Collapsible, Separator } from 'erxes-ui';
 import { FieldPath } from 'react-hook-form';
-import { REPLY_MESSAGE_ACTION_BUTTONS } from '../constants/ReplyMessage';
-import { TBotMessage } from '../states/replyMessageActionForm';
-import { FacebookMessageContent } from '~/widgets/automations/modules/facebook/components/action/components/FacebookMessageContent';
+import { REPLY_MESSAGE_ACTION_BUTTONS } from '../../constants/ReplyMessage';
+import { TBotMessage } from '../../states/replyMessageActionForm';
+import { FacebookMessageContent } from '~/widgets/automations/modules/facebook/components/action/components/replyMessage/FacebookMessageContent';
 
 export const FacebookBotMessage = ({
   index,
@@ -34,6 +34,9 @@ export const FacebookBotMessage = ({
     REPLY_MESSAGE_ACTION_BUTTONS.find(({ type }) => message.type === type) ||
     {};
 
+  const collapsibleTitle =
+    message.type === 'text' ? message.text : `${title} Message`;
+
   return (
     <Card ref={setNodeRef} style={style} {...attributes} className="mt-4 ">
       <Collapsible>
@@ -45,8 +48,8 @@ export const FacebookBotMessage = ({
             >
               <IconGripVertical className="w-4 h-4" />
             </div>
-            <div className="flex-1 flex flex-row gap-2 items-center">
-              {Icon && <Icon />} {`${title} Message`}
+            <div className="flex-1 flex flex-row gap-2 items-center truncate">
+              {Icon && <Icon />} {collapsibleTitle}
             </div>
             <div className="flex flex-row gap-2">
               <Button
