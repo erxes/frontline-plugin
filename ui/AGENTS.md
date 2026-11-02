@@ -5,7 +5,7 @@
 - **Plugin:** `frontline`
 - **Project:** `frontline_ui`
 - **Layer:** `Frontend UI`
-- **Path:** `frontend/plugins/frontline_ui`
+- **Path:** `ui`
 - **Last synchronized:** `2026-10-28`
 
 ## Scope
@@ -720,7 +720,7 @@ owns the setup form and connection actions.
 
 | Area                      | Path                                                                                                                                              | Responsibility                                                                                                                                  |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| App sidebar               | `frontend/plugins/frontline_ui/src/Sidebar.tsx`                                                                                                   | `FrontlineSidebar` (app sidebar) and `FrontlineSidebarFooter` (Settings link), rendered by the `./frontline` entry through `AppLayout`          |
+| App sidebar               | `ui/src/Sidebar.tsx`                                                                                                   | `FrontlineSidebar` (app sidebar) and `FrontlineSidebarFooter` (Settings link), rendered by the `./frontline` entry through `AppLayout`          |
 | Host registration         | `src/config.tsx`                                                                                                                                  | `CONFIG` — navigation, settings, widgets, property inputs, routes, and Module Federation exposes                                                |
 | Federation                | `module-federation.config.ts`                                                                                                                     | Remote name `frontline_ui` and its exposes                                                                                                      |
 | GraphQL codegen           | `codegen.ts`                                                                                                                                      | Generates `src/gql/` (gitignored) from the composed gateway schema                                                                              |
@@ -2655,7 +2655,7 @@ null }`, fall back to the route pipeline and skip without one; never pass
   `scripts/start-ui-dev.js` runs `codegen` once and then `codegen:watch`
   beside the dev server. `codegen:watch` has no `dependsOn` and stays out of
   `serve`, because a watcher never exits.
-- Codegen reads only `backend/gateway/generated/schema.graphql`. Change public contracts in their owning backend; generated SDL is ignored and regenerated through Nx.
+- Codegen reads only `ui/schema.graphql`, a committed snapshot of the composed erxes gateway schema (refresh with `pnpm schema:update`). Change public contracts in their owning backend; generated SDL is ignored and regenerated through Nx.
 - Operation names are unique within the plugin even ignoring case, because
   codegen PascalCases them into type names. `refetchQueries` strings name
   operations, so a rename updates them in the same change.
@@ -2692,8 +2692,8 @@ null }`, fall back to the route pipeline and skip without one; never pass
   `groupCategoriesByParent` and `withoutEmptyCode` specs.
 - `pnpm nx lint frontline_ui` from the repository root; distinguish existing
   baseline lint failures from regressions in touched files.
-- `npx tsc --noEmit -p frontend/plugins/frontline_ui/tsconfig.app.json` - no
-  errors under `frontend/plugins/frontline_ui`; errors reported inside
+- `npx tsc --noEmit -p ui/tsconfig.app.json` - no
+  errors under `ui`; errors reported inside
   `frontend/libs` are pre-existing and owned by those libraries.
 - `project.json` defines `build`, `serve`, `serve-static`, `test`, `codegen`
   and `codegen:watch`.

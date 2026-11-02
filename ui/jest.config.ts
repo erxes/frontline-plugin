@@ -1,12 +1,15 @@
 export default {
   displayName: 'frontline_ui',
-  preset: '../../../jest.preset.js',
   testEnvironment: 'jsdom',
-  moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/modules/$1' },
   transform: {
-    '^(?!.*\\.(js|jsx|ts|tsx|css|json)$)': '@nx/react/plugins/jest',
-    '^.+\\.[tj]sx?$': ['babel-jest', { presets: ['@nx/react/babel'] }],
+    '^.+\\.[tj]sx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json', diagnostics: false }],
   },
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
-  coverageDirectory: '../../../coverage/frontend/plugins/frontline_ui',
+  moduleNameMapper: {
+    '^~/(.*)$': '<rootDir>/src/$1',
+    '^@/(.*)$': '<rootDir>/src/modules/$1',
+  },
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'html'],
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/?(*.)+(spec|test).[tj]s?(x)'],
+  coverageDirectory: '../coverage/ui',
 };

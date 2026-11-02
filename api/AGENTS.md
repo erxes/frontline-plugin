@@ -5,7 +5,7 @@
 - **Plugin:** `frontline`
 - **Project:** `frontline_api`
 - **Layer:** `Backend API`
-- **Path:** `backend/plugins/frontline_api`
+- **Path:** `api`
 - **Last synchronized:** `2026-10-30`
 
 ## Scope
