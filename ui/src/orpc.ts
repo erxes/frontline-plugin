@@ -3,9 +3,7 @@ import { RPCLink } from '@orpc/client/fetch';
 import { createTanstackQueryUtils } from '@orpc/tanstack-query';
 import type { Client } from '@frontline/api';
 import { pluginFetch } from 'erxes-ui';
-
-/** The plugin's name in core. */
-export const PLUGIN = 'frontline';
+import { PLUGIN } from './config.tsx';
 
 const PREFIX = '/rpc';
 

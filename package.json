@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm --filter @frontline/api build && pnpm --filter @frontline/ui build",
+    "budgets": "node tools/budgets.ts",
     "db:generate": "pnpm --filter @frontline/api db:generate",
     "db:check": "pnpm --filter @frontline/api db:check",
     "db:migrate": "pnpm --filter @frontline/api db:migrate",

@@ -5,7 +5,7 @@ description: Show a change works in erxes, not only in tests. Use before calling
 
 Use synthetic data only.
 
-1. Run the gates: `vp run check`, `vp run test`, `pnpm build`.
+1. Run the gates: `vp run check`, `vp run test`, `pnpm build`, `pnpm budgets`.
 2. Start core from an erxes checkout on branch `postgre`, following its
    `verify-feature` skill. Give core
    `CORE_PLUGIN_KEYS=frontline:<32+ character secret>`, and web
