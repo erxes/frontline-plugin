@@ -29,8 +29,13 @@ data only. The inventory reads code, never a database.
    the old code kept unique by checking first gets a unique index. Drop
    columns nothing reads. Update the table's entry in
    `migration/import-map.ts` to match.
-3. Procedures. One per GraphQL operation listed, following the `endpoint`
-   skill and shaped like `api/src/modules/channels`. Name it after what it does
+3. Procedures. `pnpm migrate:api -- <old module> [--to <new module>]` writes
+   one skeleton per GraphQL operation: name, permission and zod input, with
+   each body calling `unported('<old resolver>')` so `vp run check` lists the
+   bodies left. Its worklist is `.scratch/port-api/<module>.md`. Write the
+   bodies following the `endpoint` skill, shaped like
+   `api/src/modules/channels`, porting what the resolver did, never its
+   Mongoose calls. Name each after what it does
    (`tasks.list`, not `getTasks`), and fold operations that only differ by
    filter into one input. A failure the UI acts on gets a typed error. An
    operation the new UI never calls is ticked with no procedure.
@@ -46,13 +51,18 @@ data only. The inventory reads code, never a database.
    drafted with their import from old core's `departments`, `branches` and the
    members' `departmentIds` and `branchIds`. The ids stay the same, so the old
    records' `departmentIds` still match.
-5. Pages. One per UI route, under `ui/src/<module>/`, built from `erxes-ui`
-   the way `ui/src/channels/` is. The old `ui-modules` components don't exist
-   here. Member pickers and names become erxes-ui's `SelectMember` and
-   `MemberInline`; a picker of other records is erxes-ui's `EntityPicker` over
-   the plugin's own query. For erxes-ui components whose props changed, see
-   its old-to-new table, `packages/ui/MIGRATION.md` in the erxes repo (branch
-   `postgre`).
+5. Pages. The UI matches the old one route for route: same pages, layout
+   and actions, unless MIGRATION.md records a decision on that route's line.
+   `pnpm migrate:ui -- <module>` copies the module into `ui/src/<module>/`,
+   moves imports to erxes-ui 4.x and turns Apollo hooks into oRPC options
+   through the OPERATIONS rows in `migration/ui-map.ts` (add a row per
+   procedure; `migrate:api`'s report lists them). Its worklist is
+   `.scratch/port-ui/<module>.md`, then `vp run check`. Delete what the routes
+   don't use. Member pickers and names become erxes-ui's `SelectMember` and
+   `MemberInline`; a picker of other records is `EntityPicker` over the
+   plugin's own query. An import the tool can't map gets a row in
+   `ui-map.ts`'s IMPORTS. erxes-ui's props that changed are in its
+   `packages/ui/MIGRATION.md` (erxes repo, branch `postgre`).
 6. Check parity in the browser, following the `verify` skill: open the old
    page and the new one side by side, and walk the same actions on both.
 7. Tick an item once it works on the new core and its old bugs and
