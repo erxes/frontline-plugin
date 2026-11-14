@@ -2,14 +2,16 @@ import { IconChevronRight } from '@tabler/icons-react';
 import { Button, IconComponent, Skeleton } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
+import { useResponseTemplates } from '../responseTemplates/useResponseTemplates.ts';
 import { CHANNELS_PATH, useChannel, usePanel } from './useChannels.ts';
 
-/** One channel's settings: edit it, and go to its members. */
+/** One channel's settings: edit it, and go to its members and response templates. */
 export const ChannelPage = () => {
   const { t } = useTranslation('frontline');
   const { id = '' } = useParams();
   const { data: channel, isPending, error } = useChannel(id);
   const { openChannel } = usePanel();
+  const templates = useResponseTemplates(id);
 
   if (isPending) return <Skeleton className="m-8 h-40" />;
 
@@ -31,19 +33,40 @@ export const ChannelPage = () => {
         </section>
       )}
 
-      <Link
+      <SectionLink
         to={`${CHANNELS_PATH}/${channel.id}/members`}
-        className="w-full border border-muted-foreground/15 rounded-md p-4 hover:bg-sidebar/50 flex items-center justify-between"
-      >
-        <span>{t('manage-channel-members', 'Manage channel members')}</span>
-        <span className="flex items-center gap-2 text-xs">
-          {t('member-count', {
-            defaultValue: '{{count}} members',
-            count: channel.memberIds.length,
-          })}
-          <IconChevronRight className="size-4" />
-        </span>
-      </Link>
+        label={t('manage-channel-members', 'Manage channel members')}
+        count={t('member-count', {
+          defaultValue: '{{count}} members',
+          count: channel.memberIds.length,
+        })}
+      />
+      <SectionLink
+        to={`${CHANNELS_PATH}/${channel.id}/response`}
+        label={t('response-templates', 'Response templates')}
+        count={
+          templates.totalCount === undefined
+            ? ''
+            : t('template-count', {
+                defaultValue: '{{count}} templates',
+                count: templates.totalCount,
+              })
+        }
+      />
     </div>
   );
 };
+
+/** A card that opens one of the channel's pages, with how many records it holds. */
+const SectionLink = ({ to, label, count }: { to: string; label: string; count: string }) => (
+  <Link
+    to={to}
+    className="w-full border border-muted-foreground/15 rounded-md p-4 hover:bg-sidebar/50 flex items-center justify-between"
+  >
+    <span>{label}</span>
+    <span className="flex items-center gap-2 text-xs">
+      {count}
+      <IconChevronRight className="size-4" />
+    </span>
+  </Link>
+);

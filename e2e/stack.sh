@@ -16,7 +16,9 @@ case "${1:-}" in
       git clone --quiet --depth 1 --branch postgre --filter=blob:none --sparse https://github.com/erxes/erxes "$core"
       git -C "$core" sparse-checkout set deploy
     fi
-    git -C "$core" pull --quiet --depth 1
+    # A shallow pull refuses once postgre moves on; take its tip as it is.
+    git -C "$core" fetch --quiet --depth 1 origin postgre
+    git -C "$core" reset --quiet --hard FETCH_HEAD
     "$core/deploy/make-secrets.sh" > /dev/null
     [ -f "$env_file" ] || {
       echo "DATA_OWNER_PASSWORD=$(openssl rand -hex 16)"

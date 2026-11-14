@@ -72,3 +72,37 @@ export const channelMembers = table(
     check('frontline_channel_members_role_check', sql`${t.role} in ('admin', 'member')`),
   ],
 );
+
+/** A canned reply a channel's members insert into conversations. Deleting the channel deletes its templates. */
+export const responseTemplates = table(
+  'response_templates',
+  {
+    id: text()
+      .primaryKey()
+      .$defaultFn(() => randomUUID()),
+    orgId: text().notNull(),
+    channelId: text().notNull(),
+    name: text().notNull(),
+    /** BlockNote blocks as JSON, from erxes-ui's Editor. */
+    content: text().notNull().default(''),
+    createdBy: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp({ withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => [
+    foreignKey({
+      name: 'frontline_response_templates_channel_fkey',
+      columns: [t.orgId, t.channelId],
+      foreignColumns: [channels.orgId, channels.id],
+    }).onDelete('cascade'),
+    index('frontline_response_templates_org_channel_created_idx').on(
+      t.orgId,
+      t.channelId,
+      t.createdAt.desc(),
+      t.id.desc(),
+    ),
+  ],
+);
