@@ -20,24 +20,29 @@ export const ChannelPage = () => {
   if (error) return <p className="m-8 text-sm text-destructive-text">{error.message}</p>;
 
   // A count still loading shows nothing rather than zero.
-  const counted = (key: string, defaultValue: string, count: number | undefined) =>
-    count === undefined ? '' : t(key, { defaultValue, count });
+  const counted = (key: string, one: string, other: string, count: number | undefined) =>
+    count === undefined ? '' : t(key, { defaultValue_one: one, defaultValue_other: other, count });
 
   const pages = [
     {
       segment: 'members',
       label: t('manage-channel-members', 'Manage channel members'),
-      count: counted('member-count', '{{count}} members', channel.memberIds.length),
+      count: counted(
+        'member-count',
+        '{{count}} member',
+        '{{count}} members',
+        channel.memberIds.length,
+      ),
     },
     {
       segment: 'response',
       label: t('manage-channel-response-templates', 'Manage channel response templates'),
-      count: counted('template-count', '{{count}} templates', templateCount),
+      count: counted('template-count', '{{count}} template', '{{count}} templates', templateCount),
     },
     {
       segment: 'pipelines',
       label: t('manage-channel-pipelines', 'Manage channel pipelines'),
-      count: counted('pipeline-count', '{{count}} pipelines', pipelineCount),
+      count: counted('pipeline-count', '{{count}} pipeline', '{{count}} pipelines', pipelineCount),
     },
   ];
 

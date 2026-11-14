@@ -33,7 +33,7 @@ test("a channel admin writes, edits and deletes the channel's response templates
   const row = page.getByRole('row', { name: /Greeting/ });
 
   await expect(row).toBeVisible();
-  await expect(page.getByText('1 records found')).toBeVisible();
+  await expect(page.getByText('1 record found')).toBeVisible();
   await expectAccessible(page);
 
   await row.getByRole('button', { name: 'Greeting', exact: true }).click();

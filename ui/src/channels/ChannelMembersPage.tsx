@@ -33,7 +33,8 @@ const useRemoveMembers = (channelId: string) => {
   const removeMembers = async (userIds: string[], done?: () => void) => {
     await confirm({
       message: t('remove-members-confirm', {
-        defaultValue: 'Remove {{count}} members from this channel?',
+        defaultValue_one: 'Remove this member from the channel?',
+        defaultValue_other: 'Remove {{count}} members from this channel?',
         count: userIds.length,
       }),
       options: { okLabel: t('remove', 'Remove') },
