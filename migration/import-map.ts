@@ -173,6 +173,7 @@ export const IMPORT_MAP: {
       createdBy: 'created_by',
       name: 'name',
       description: 'description',
+      icon: 'icon',
     },
   },
   {

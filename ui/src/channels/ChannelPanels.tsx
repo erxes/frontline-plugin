@@ -1,0 +1,262 @@
+import { memberQueries } from '@erxes/core-contract/client';
+import { isDefinedError } from '@orpc/client';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+  Button,
+  EntityPicker,
+  IconPicker,
+  Input,
+  Label,
+  MemberInline,
+  memberName,
+  Sheet,
+  Skeleton,
+  Textarea,
+} from 'erxes-ui';
+import { type ReactNode, type SubmitEvent, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import { orpc } from '../orpc.ts';
+import {
+  type Channel,
+  CHANNELS_PATH,
+  useChannel,
+  useChannelChange,
+  usePanel,
+} from './useChannels.ts';
+
+const textOf = (value: FormDataEntryValue | null) => (typeof value === 'string' ? value : '');
+
+/** Team members to pick, several at once, leaving out `exclude`. */
+const MemberPicker = ({
+  value,
+  onValueChange,
+  exclude = [],
+}: {
+  value: string[];
+  onValueChange: (ids: string[]) => void;
+  exclude?: string[];
+}) => {
+  const { t } = useTranslation('frontline');
+  const team = useQuery(memberQueries.team);
+  const items = (team.data?.data ?? []).filter((member) => !exclude.includes(member.id));
+
+  return (
+    <EntityPicker
+      multiple
+      items={items}
+      itemKey={(member) => ({ id: member.id, label: memberName(member) })}
+      renderItem={(member) => <MemberInline memberId={member.id} members={memberQueries} />}
+      value={value}
+      onValueChange={onValueChange}
+      loading={team.isPending}
+      error={team.error}
+      searchPlaceholder={t('search-members', 'Search members')}
+    />
+  );
+};
+
+/** Creates the channel and opens it, or saves the change to `channel` and closes the panel. */
+const useSaveChannel = (channel?: Channel) => {
+  const navigate = useNavigate();
+  const { close } = usePanel();
+  const { onSuccess } = useChannelChange();
+
+  const create = useMutation(
+    orpc.channels.create.mutationOptions({
+      onSuccess: async (created) => {
+        await onSuccess();
+        void navigate(`${CHANNELS_PATH}/${created.id}`);
+      },
+    }),
+  );
+
+  const update = useMutation(
+    orpc.channels.update.mutationOptions({
+      onSuccess: async () => {
+        await onSuccess();
+        close();
+      },
+    }),
+  );
+
+  const { error, isPending } = channel ? update : create;
+
+  const save = (
+    fields: { name: string; description: string; icon: string | null },
+    memberIds: string[],
+  ) => {
+    if (channel) update.mutate({ id: channel.id, ...fields });
+    else create.mutate({ ...fields, memberIds });
+  };
+
+  return { save, error, isPending };
+};
+
+/** A new channel (`channel` undefined) or a change to one. CHANNEL_NAME_TAKEN shows on the name field. */
+const ChannelForm = ({ channel }: { channel?: Channel }) => {
+  const { t } = useTranslation('frontline');
+  const [icon, setIcon] = useState(channel?.icon ?? null);
+  const [memberIds, setMemberIds] = useState<string[]>([]);
+  const { save, error, isPending } = useSaveChannel(channel);
+
+  const takenName =
+    isDefinedError(error) && error.code === 'CHANNEL_NAME_TAKEN' ? error.data.name : null;
+
+  // onSubmit rather than a form action, which would clear the fields when the API refuses them.
+  const submit = (event: SubmitEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+
+    save(
+      { name: textOf(form.get('name')), description: textOf(form.get('description')), icon },
+      memberIds,
+    );
+  };
+
+  return (
+    <form onSubmit={submit} className="flex flex-col gap-4">
+      <div className="flex gap-2">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="channel-icon">{t('icon', 'Icon')}</Label>
+          <IconPicker
+            id="channel-icon"
+            value={icon ?? undefined}
+            onValueChange={setIcon}
+            className="w-min"
+          />
+        </div>
+        <div className="flex flex-1 flex-col gap-2">
+          <Label htmlFor="channel-name">{t('name', 'Name')}</Label>
+          <Input
+            id="channel-name"
+            name="name"
+            required
+            defaultValue={channel?.name}
+            aria-invalid={takenName !== null}
+            aria-describedby={takenName === null ? undefined : 'channel-name-error'}
+          />
+        </div>
+      </div>
+      {takenName !== null && (
+        <p id="channel-name-error" className="text-sm text-destructive-text">
+          {t('name-taken', 'Another channel is already called {{name}}.', { name: takenName })}
+        </p>
+      )}
+      <div className="flex flex-col gap-2">
+        <Label htmlFor="channel-description">{t('description', 'Description')}</Label>
+        <Textarea id="channel-description" name="description" defaultValue={channel?.description} />
+      </div>
+      {!channel && (
+        <div className="flex flex-col gap-2">
+          <span className="text-sm font-medium">{t('members', 'Members')}</span>
+          <MemberPicker value={memberIds} onValueChange={setMemberIds} />
+        </div>
+      )}
+      {error && !isDefinedError(error) && (
+        <p role="alert" className="text-sm text-destructive-text">
+          {error.message}
+        </p>
+      )}
+      <Button type="submit" className="self-end" disabled={isPending}>
+        {channel ? t('update', 'Update') : t('create', 'Create')}
+      </Button>
+    </form>
+  );
+};
+
+/** Picks team members who aren't in the channel yet and adds them. */
+const AddMembersForm = ({ channelId }: { channelId: string }) => {
+  const { t } = useTranslation('frontline');
+  const { close } = usePanel();
+  const { data } = useChannel(channelId);
+  const change = useChannelChange();
+  const [userIds, setUserIds] = useState<string[]>([]);
+
+  const add = useMutation(
+    orpc.channels.addMembers.mutationOptions({
+      ...change,
+      onSuccess: async () => {
+        await change.onSuccess();
+        close();
+      },
+    }),
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      <MemberPicker value={userIds} onValueChange={setUserIds} exclude={data?.memberIds} />
+      <Button
+        className="self-end"
+        disabled={userIds.length === 0 || add.isPending}
+        onClick={() => add.mutate({ id: channelId, userIds })}
+      >
+        {t('add-members', 'Add members')}
+      </Button>
+    </div>
+  );
+};
+
+const Panel = ({
+  open,
+  title,
+  description,
+  children,
+}: {
+  open: boolean;
+  title: string;
+  description: string;
+  children: ReactNode;
+}) => {
+  const { close } = usePanel();
+
+  return (
+    <Sheet open={open} onOpenChange={(next) => !next && close()}>
+      <Sheet.View className="sm:max-w-md">
+        <Sheet.Header>
+          <Sheet.Title>{title}</Sheet.Title>
+          <Sheet.Description className="sr-only">{description}</Sheet.Description>
+          <Sheet.Close />
+        </Sheet.Header>
+        <Sheet.Content>{children}</Sheet.Content>
+      </Sheet.View>
+    </Sheet>
+  );
+};
+
+const EditChannel = ({ id }: { id: string }) => {
+  const { data, error } = useChannel(id);
+
+  if (error) return <p className="text-sm text-destructive-text">{error.message}</p>;
+
+  return data ? <ChannelForm key={data.id} channel={data} /> : <Skeleton className="h-40" />;
+};
+
+/** The side panels the channel pages open: create, edit, and add members. */
+export const ChannelPanels = () => {
+  const { t } = useTranslation('frontline');
+  const { channelId, membersOf } = usePanel();
+
+  return (
+    <>
+      <Panel
+        open={Boolean(channelId)}
+        title={
+          channelId === 'new'
+            ? t('create-channel', 'Create channel')
+            : t('edit-channel', 'Edit channel')
+        }
+        description={t('channel-hint', 'Name the channel. You become its admin.')}
+      >
+        {channelId === 'new' ? <ChannelForm /> : channelId && <EditChannel id={channelId} />}
+      </Panel>
+      <Panel
+        open={Boolean(membersOf)}
+        title={t('add-members', 'Add members')}
+        description={t('add-members-hint', 'Pick the teammates who work this channel.')}
+      >
+        {membersOf && <AddMembersForm channelId={membersOf} />}
+      </Panel>
+    </>
+  );
+};

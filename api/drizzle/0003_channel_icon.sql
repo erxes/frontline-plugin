@@ -1,0 +1,1 @@
+ALTER TABLE "frontline_channels" ADD COLUMN "icon" text;

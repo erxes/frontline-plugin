@@ -29,6 +29,8 @@ export const channels = table(
     orgId: text().notNull(),
     name: text().notNull(),
     description: text().notNull().default(''),
+    /** A Tabler icon name from erxes-ui's IconPicker. */
+    icon: text(),
     createdBy: text().notNull(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })

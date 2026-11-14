@@ -17,7 +17,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 ### Pages
 
 - [ ] `/frontline/erxes-messenger-preview` (ErxesMessengerPreview) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:159`
-- [ ] `/frontline/` (PageContainer) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:164`
+- [x] `/frontline/` (PageContainer) → `ui/src/channels/ChannelsLayout.tsx`, the header with the Channels › channel › Members breadcrumb `frontline_ui/src/modules/channels/components/settings/Settings.tsx:164`
 - [ ] `/frontline/details/:id/:integrationType` (IntegrationDetailPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:181`
 - [ ] `/frontline/:id/pipelines/:pipelineId` (PipelineLayoutPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:189`
 - [ ] `/frontline/:id/pipelines/:pipelineId` (PipelineDetailPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:193`
@@ -219,7 +219,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_channels` from collection `channels` (11 fields, draft `frontlineChannels` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:6`. `memberIds` repeated the members table and the counts go stale, so both are gone; `icon` and `scope` wait for the pages that use them.
+- [x] `frontline_channels` from collection `channels` (11 fields, draft `frontlineChannels` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:6`. `memberIds` repeated the members table and the counts go stale, so both are gone; `icon` holds a Tabler icon name from erxes-ui's IconPicker; `scope` waits for the personal mailbox.
 - [x] `frontline_channel_members` from collection `channel_members` (5 fields, draft `frontlineChannelMembers` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:53`. Roles are admin and member; the old `lead` (add members only) folds into admin, and a role check keeps one admin per channel.
 
 ### Procedures
@@ -232,16 +232,16 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `channelAdd` → `channels.create` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 - [x] mutation `channelUpdate` → `channels.update` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 - [x] mutation `channelRemove` → `channels.remove` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
-- [x] mutation `channelAddMembers` → `channels.addMember` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
-- [x] mutation `channelRemoveMember` → `channels.removeMember` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
-- [x] mutation `channelRemoveMembers` → `channels.removeMember` (the new UI removes one at a time) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] mutation `channelAddMembers` → `channels.addMembers` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] mutation `channelRemoveMember` → `channels.removeMembers` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] mutation `channelRemoveMembers` → `channels.removeMembers`, refused when it would leave no admin `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 - [x] mutation `channelUpdateMember` → `channels.setRole` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 - [ ] mutation `channelMoveResources` → procedure `channel.channelMoveResources` (returns `ChannelMoveResourcesResult`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 
 ### Pages
 
-- [x] `/frontline/:id` (ChannelDetailsPage) → the channel side panel `frontline_ui/src/modules/channels/components/settings/Settings.tsx:173`
-- [x] `/frontline/:id/members` (ChannelMembersPage) → the side panel's members `frontline_ui/src/modules/channels/components/settings/Settings.tsx:177`
+- [x] `/frontline/:id` (ChannelDetailsPage) → `ui/src/channels/ChannelPage.tsx` at `/frontline/settings/channels/:id`. Decision: the pipelines, forms, surveys, response templates and integrations sections come back with those modules. `frontline_ui/src/modules/channels/components/settings/Settings.tsx:173`
+- [x] `/frontline/:id/members` (ChannelMembersPage) → `ui/src/channels/ChannelMembersPage.tsx`. Decision: the role select offers admin and member, since `lead` folds into admin. `frontline_ui/src/modules/channels/components/settings/Settings.tsx:177`
 - [ ] `/frontline/:id/forms` (ChannelFormsPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:227`
 
 ### Events
@@ -252,9 +252,9 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Pages
 
-- [x] `/frontline/` (ChannelsSettingsIndexPage) → `ui/src/channels/ChannelsPage.tsx` `frontline_ui/src/modules/channels/components/settings/Settings.tsx:172`
+- [x] `/frontline/` (ChannelsSettingsIndexPage) → `ui/src/channels/ChannelsPage.tsx` at `/frontline/settings/channels`, where `/frontline` redirects. Decision: the pipelines, forms, templates and integrations columns come back with those modules. `frontline_ui/src/modules/channels/components/settings/Settings.tsx:172`
 - [ ] `/frontline/:id/surveys` (ChannelSurveysPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:231`
-- [ ] `/frontline/channels/*` (ChannelsSettings) `frontline_ui/src/modules/FrontlineSettings.tsx:49`
+- [x] `/frontline/channels/*` (ChannelsSettings) → the `settings/channels` routes in `ui/src/Frontline.tsx` `frontline_ui/src/modules/FrontlineSettings.tsx:49`
 
 ## customdomain
 

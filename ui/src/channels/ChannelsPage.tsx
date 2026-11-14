@@ -1,100 +1,77 @@
-import { IconMessages, IconPlus } from '@tabler/icons-react';
-import {
-  Button,
-  Empty,
-  PageContainer,
-  PageHeader,
-  RecordTable,
-  type RecordTableColumnDef,
-} from 'erxes-ui';
+import { IconBrandTrello, IconSearchOff } from '@tabler/icons-react';
+import { Combobox, Command, Empty, Filter, PageSubHeader } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { ChannelSheet } from './ChannelSheet.tsx';
-import { type Channel, useChannels, useOpenChannel, useRoleNames } from './useChannels.ts';
+import { ChannelsTable } from './ChannelsTable.tsx';
+import { SEARCH_KEY, useChannels } from './useChannels.ts';
 
-const NameCell = ({ channel }: { channel: Channel }) => {
-  const { open } = useOpenChannel();
+/** Search by name, and how many channels match. */
+const ChannelsSubHeader = ({ count }: { count: number | undefined }) => {
+  const { t } = useTranslation('frontline');
 
   return (
-    <Button variant="ghost" className="w-full justify-start" onClick={() => open(channel.id)}>
-      {channel.name}
-    </Button>
+    <Filter id="channels-filter">
+      <PageSubHeader>
+        <Filter.Bar>
+          <Filter.Popover scope="channels-settings-page">
+            <Filter.Trigger />
+            <Combobox.Content>
+              <Filter.View>
+                <Command>
+                  <Filter.CommandInput placeholder={t('filter', 'Filter...')} variant="secondary" />
+                  <Command.List>
+                    <Filter.SearchValueTrigger />
+                  </Command.List>
+                </Command>
+              </Filter.View>
+            </Combobox.Content>
+          </Filter.Popover>
+          <Filter.Dialog>
+            <Filter.View filterKey={SEARCH_KEY} inDialog>
+              <Filter.DialogStringView filterKey={SEARCH_KEY} />
+            </Filter.View>
+          </Filter.Dialog>
+          <Filter.SearchValueBarItem />
+          {count !== undefined && (
+            <span className="text-muted-foreground text-sm font-medium whitespace-nowrap">
+              {t('channels-found', { defaultValue: '{{count}} records found', count })}
+            </span>
+          )}
+        </Filter.Bar>
+      </PageSubHeader>
+    </Filter>
   );
 };
 
-const RoleCell = ({ channel }: { channel: Channel }) => {
-  const roles = useRoleNames();
-
-  return <span className="px-2">{channel.role ? roles[channel.role] : '-'}</span>;
-};
-
-/** Where RecordTable keeps this list's column settings. */
-const TABLE_ID = 'frontline_channels';
-
-const columns: RecordTableColumnDef<Channel>[] = [
-  { id: 'name', header: 'Name', size: 240, cell: ({ row }) => <NameCell channel={row.original} /> },
-  {
-    id: 'description',
-    header: 'Description',
-    size: 360,
-    cell: ({ row }) => <span className="truncate px-2">{row.original.description}</span>,
-  },
-  {
-    id: 'members',
-    header: 'Members',
-    size: 120,
-    cell: ({ row }) => <span className="px-2 tabular-nums">{row.original.memberCount}</span>,
-  },
-  {
-    id: 'role',
-    header: 'Your role',
-    size: 140,
-    cell: ({ row }) => <RoleCell channel={row.original} />,
-  },
-];
-
-/** The channels the member works in, by name; each opens in the side panel. */
+/** The channels the member works in, by name, with search and bulk delete. */
 export const ChannelsPage = () => {
   const { t } = useTranslation('frontline');
-  const { open } = useOpenChannel();
-  const { data, isPending, error } = useChannels();
-  const list = data?.channels ?? [];
+  const { search, data, isPending, error } = useChannels();
+  const channels = data?.channels ?? [];
 
   return (
-    <PageContainer>
-      <PageHeader>
-        <PageHeader.Start>
-          <IconMessages />
-          <h1 className="text-sm font-semibold">{t('channels', 'Channels')}</h1>
-        </PageHeader.Start>
-        <PageHeader.End>
-          {data?.canCreate && (
-            <Button onClick={() => open('new')}>
-              <IconPlus />
-              {t('add-channel', 'Add channel')}
-            </Button>
-          )}
-        </PageHeader.End>
-      </PageHeader>
+    <>
+      <ChannelsSubHeader count={data?.channels.length} />
       {error ? (
         <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+      ) : !isPending && channels.length === 0 ? (
+        <Empty variant="outline" className="m-3">
+          <Empty.Header>
+            <Empty.Media>{search ? <IconSearchOff /> : <IconBrandTrello />}</Empty.Media>
+            <Empty.Title>
+              {search
+                ? t('no-results-found', 'No results found')
+                : t('no-channels-found', 'No channels found')}
+            </Empty.Title>
+            <Empty.Description>
+              {search
+                ? t('try-different-search-term', 'Try a different search term')
+                : t('no-channels-description', 'Create a channel to start organizing your team.')}
+            </Empty.Description>
+          </Empty.Header>
+        </Empty>
       ) : (
-        <RecordTable.Provider columns={columns} data={list} className="m-3" tableId={TABLE_ID}>
-          <RecordTable>
-            <RecordTable.Header />
-            <RecordTable.Body>
-              {isPending ? <RecordTable.RowSkeleton rows={6} /> : <RecordTable.RowList />}
-            </RecordTable.Body>
-          </RecordTable>
-          {!isPending && !list.length && (
-            <Empty className="absolute inset-x-0 top-1/4">
-              <Empty.Header>
-                <Empty.Title>{t('no-channels', 'No channels yet')}</Empty.Title>
-              </Empty.Header>
-            </Empty>
-          )}
-        </RecordTable.Provider>
+        <ChannelsTable channels={channels} isPending={isPending} />
       )}
-      <ChannelSheet channels={list} />
-    </PageContainer>
+    </>
   );
 };
