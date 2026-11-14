@@ -15,8 +15,8 @@ and renders `./frontline` (the `Frontline` export) under `/frontline/*`.
   classes web's stylesheet lacks. erxes-ui's design rules hold here too (its
   `AGENTS.md`, enforced by `vp run check`): no inline styles or raw colours.
 - The plugin's API goes through `src/orpc.ts`:
-  `useQuery(orpc.items.list.queryOptions(...))`,
-  `useMutation(orpc.items.create.mutationOptions(...))`. Types come from
+  `useQuery(orpc.channels.list.queryOptions(...))`,
+  `useMutation(orpc.channels.create.mutationOptions(...))`. Types come from
   `api/src/router.ts`; after a mutation, invalidate `orpc.<group>.key()`.
 - Core's API goes through `orpc` from `@erxes/core-contract/client`, the client
   web uses, with the member's own session; import it as `core` beside the
@@ -25,8 +25,8 @@ and renders `./frontline` (the `Frontline` export) under `/frontline/*`.
   procedure asks for (`team.view` for team members).
 - Members: `SelectMember.Field`, `SelectMember.InlineCell`, `MemberInline` and
   `useMembersById` from erxes-ui, given `members={memberQueries}` from
-  `@erxes/core-contract/client`. `src/items/ItemsPage.tsx` has a member filter
-  and a "Created by" column. erxes-ui's `EntityPicker` is the searchable list
+  `@erxes/core-contract/client`. `src/channels/ChannelMembers.tsx` picks and
+  lists members. erxes-ui's `EntityPicker` is the searchable list
   under them, for a picker of the plugin's own records.
 - Text uses `t(key, 'English default')` from `react-i18next`.
 - Development: `pnpm dev:ui` serves `http://localhost:3099/remoteEntry.js`;

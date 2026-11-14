@@ -27,7 +27,7 @@ describe('server', () => {
   });
 
   it('refuses procedures without a valid session token', async () => {
-    const url = `${base}/api/rpc/items/list`;
+    const url = `${base}/api/rpc/channels/list`;
 
     expect((await fetch(url, { method: 'POST' })).status).toBe(401);
     expect(
@@ -36,7 +36,7 @@ describe('server', () => {
   });
 
   it('lets web call it from the browser', async () => {
-    const response = await fetch(`${base}/api/rpc/items/list`, {
+    const response = await fetch(`${base}/api/rpc/channels/list`, {
       method: 'OPTIONS',
       headers: {
         origin: config.coreUiOrigin,

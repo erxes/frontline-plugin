@@ -15,8 +15,10 @@ export const core = createCoreClient({
 
 /** The actions members can be granted in core's roles. */
 export const PERMISSIONS = {
-  view: 'frontline.item.view',
-  manage: 'frontline.item.manage',
+  /** See the channels you belong to; change the ones you are an admin of. */
+  channelView: 'frontline.channel.view',
+  /** Create channels, and see and change every channel. */
+  channelManage: 'frontline.channel.manage',
 } as const;
 
 /**
@@ -31,7 +33,15 @@ export const manifest = {
   api: { url: `${config.publicUrl}/api` },
   scopes: [],
   permissions: [
-    { action: PERMISSIONS.view, label: 'View items', group: 'Frontline' },
-    { action: PERMISSIONS.manage, label: 'Create and change items', group: 'Frontline' },
+    {
+      action: PERMISSIONS.channelView,
+      label: 'Use the channels you belong to',
+      group: 'Frontline',
+    },
+    {
+      action: PERMISSIONS.channelManage,
+      label: 'Create channels and manage every channel',
+      group: 'Frontline',
+    },
   ],
 } satisfies PluginManifest;
