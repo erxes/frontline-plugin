@@ -1,17 +1,9 @@
-import { IconCircles, IconPlus } from '@tabler/icons-react';
-import {
-  Button,
-  buttonVariants,
-  Kbd,
-  PageContainer,
-  PageHeader,
-  Separator,
-  Skeleton,
-  useScopedHotkeys,
-} from 'erxes-ui';
+import { IconCircles } from '@tabler/icons-react';
+import { buttonVariants, PageContainer, PageHeader, Separator, Skeleton } from 'erxes-ui';
 import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useMatch } from 'react-router-dom';
+import { CreateButton } from '../shared/List.tsx';
 import { ChannelPanels } from './ChannelPanels.tsx';
 import { CHANNELS_PATH, useChannel, useChannels, usePanel } from './useChannels.ts';
 
@@ -61,16 +53,12 @@ const CreateChannel = () => {
   const { data } = useChannels();
   const { openChannel } = usePanel();
 
-  useScopedHotkeys('c', () => data?.canCreate && openChannel('new'), 'app');
-
-  if (!data?.canCreate) return null;
-
   return (
-    <Button onClick={() => openChannel('new')}>
-      <IconPlus />
-      {t('create-channel', 'Create channel')}
-      <Kbd>C</Kbd>
-    </Button>
+    <CreateButton
+      allowed={data?.canCreate ?? false}
+      label={t('create-channel', 'Create channel')}
+      onClick={() => openChannel('new')}
+    />
   );
 };
 

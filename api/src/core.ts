@@ -19,6 +19,14 @@ export const PERMISSIONS = {
   channelView: 'frontline.channel.view',
   /** Create channels, and see and change every channel. */
   channelManage: 'frontline.channel.manage',
+  /** Read every knowledge base topic, category and article. */
+  kbView: 'frontline.knowledgebase.view',
+  /** Create, change and delete topics. */
+  kbTopicManage: 'frontline.knowledgebase_topic.manage',
+  /** Create, change and delete categories. */
+  kbCategoryManage: 'frontline.knowledgebase_category.manage',
+  /** Write, change and delete articles. */
+  kbArticleManage: 'frontline.knowledgebase_article.manage',
 } as const;
 
 /**
@@ -42,6 +50,26 @@ export const manifest = {
       action: PERMISSIONS.channelManage,
       label: 'Create channels and manage every channel',
       group: 'Frontline',
+    },
+    {
+      action: PERMISSIONS.kbView,
+      label: 'Read the knowledge base',
+      group: 'Knowledge base',
+    },
+    {
+      action: PERMISSIONS.kbTopicManage,
+      label: 'Manage knowledge base topics',
+      group: 'Knowledge base',
+    },
+    {
+      action: PERMISSIONS.kbCategoryManage,
+      label: 'Manage knowledge base categories',
+      group: 'Knowledge base',
+    },
+    {
+      action: PERMISSIONS.kbArticleManage,
+      label: 'Manage knowledge base articles',
+      group: 'Knowledge base',
     },
   ],
 } satisfies PluginManifest;

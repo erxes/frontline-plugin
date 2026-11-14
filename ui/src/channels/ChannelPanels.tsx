@@ -6,7 +6,6 @@ import {
   EntityPicker,
   IconPicker,
   Input,
-  Label,
   MemberInline,
   memberName,
   Skeleton,
@@ -17,7 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { orpc } from '../orpc.ts';
 import { textOf } from '../shared/hooks.ts';
-import { SidePanel } from '../shared/SidePanel.tsx';
+import { Field, SidePanel } from '../shared/SidePanel.tsx';
 import {
   type Channel,
   CHANNELS_PATH,
@@ -116,17 +115,15 @@ const ChannelForm = ({ channel }: { channel?: Channel }) => {
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
       <div className="flex gap-2">
-        <div className="flex flex-col gap-2">
-          <Label htmlFor="channel-icon">{t('icon', 'Icon')}</Label>
+        <Field id="channel-icon" label={t('icon', 'Icon')}>
           <IconPicker
             id="channel-icon"
             value={icon ?? undefined}
             onValueChange={setIcon}
             className="w-min"
           />
-        </div>
-        <div className="flex flex-1 flex-col gap-2">
-          <Label htmlFor="channel-name">{t('name', 'Name')}</Label>
+        </Field>
+        <Field id="channel-name" label={t('name', 'Name')} className="flex-1">
           <Input
             id="channel-name"
             name="name"
@@ -135,22 +132,20 @@ const ChannelForm = ({ channel }: { channel?: Channel }) => {
             aria-invalid={takenName !== null}
             aria-describedby={takenName === null ? undefined : 'channel-name-error'}
           />
-        </div>
+        </Field>
       </div>
       {takenName !== null && (
         <p id="channel-name-error" className="text-sm text-destructive-text">
           {t('name-taken', 'Another channel is already called {{name}}.', { name: takenName })}
         </p>
       )}
-      <div className="flex flex-col gap-2">
-        <Label htmlFor="channel-description">{t('description', 'Description')}</Label>
+      <Field id="channel-description" label={t('description', 'Description')}>
         <Textarea id="channel-description" name="description" defaultValue={channel?.description} />
-      </div>
+      </Field>
       {!channel && (
-        <div className="flex flex-col gap-2">
-          <span className="text-sm font-medium">{t('members', 'Members')}</span>
+        <Field label={t('members', 'Members')}>
           <MemberPicker value={memberIds} onValueChange={setMemberIds} />
-        </div>
+        </Field>
       )}
       {error && !isDefinedError(error) && (
         <p role="alert" className="text-sm text-destructive-text">

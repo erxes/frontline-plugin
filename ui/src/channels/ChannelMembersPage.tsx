@@ -1,26 +1,20 @@
 import { memberQueries } from '@erxes/core-contract/client';
-import { IconPlus, IconTrash, IconUser, IconUserShield } from '@tabler/icons-react';
+import { IconTrash, IconUser, IconUserShield } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import {
-  Button,
-  Combobox,
-  Command,
-  CommandBar,
-  Kbd,
   MemberInline,
-  Popover,
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
   Select,
-  Separator,
   Skeleton,
   useConfirm,
-  useScopedHotkeys,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { orpc } from '../orpc.ts';
+import { CreateButton } from '../shared/List.tsx';
+import { DeleteButton, RowActions, SelectionBar } from '../shared/Records.tsx';
 import {
   type Channel,
   type ChannelMember,
@@ -55,25 +49,17 @@ const MoreCell = ({ channel, member }: { channel: Channel; member: ChannelMember
   const { removeMembers } = useRemoveMembers(channel.id);
 
   return (
-    <Popover>
-      <Popover.Trigger
-        render={
-          <RecordTable.MoreButton
-            className="size-full"
-            aria-label={t('member-actions', 'Member actions')}
-          />
-        }
-      />
-      <Combobox.Content>
-        <Command shouldFilter={false}>
-          <Command.List>
-            <Command.Item value="remove" onSelect={() => void removeMembers([member.userId])}>
-              <IconTrash /> {t('remove', 'Remove')}
-            </Command.Item>
-          </Command.List>
-        </Command>
-      </Combobox.Content>
-    </Popover>
+    <RowActions
+      label={t('member-actions', 'Member actions')}
+      actions={[
+        {
+          value: 'remove',
+          icon: <IconTrash />,
+          label: t('remove', 'Remove'),
+          onSelect: () => void removeMembers([member.userId]),
+        },
+      ]}
+    />
   );
 };
 
@@ -143,34 +129,21 @@ const useColumns = (channel: Channel): RecordTableColumnDef<MemberRow>[] => {
   ];
 };
 
+/** Removes the selected members; only admins get the checkboxes that select them. */
 const MembersCommandBar = ({ channel }: { channel: Channel }) => {
   const { t } = useTranslation('frontline');
-  const { table } = RecordTable.useRecordTable();
-
-  const selected = RecordTable.useRecordTableState((_, current) =>
-    current.getFilteredSelectedRowModel().rows.map((row) => row.id),
-  );
-
   const { removeMembers, isPending } = useRemoveMembers(channel.id);
 
   return (
-    <CommandBar open={channel.canManage && selected.length > 0}>
-      <CommandBar.Bar>
-        <CommandBar.Value onClose={() => table.resetRowSelection()}>
-          {t('n-selected', { defaultValue: '{{count}} selected', count: selected.length })}
-        </CommandBar.Value>
-        <Separator.Inline />
-        <Button
-          variant="secondary"
-          tone="destructive"
+    <SelectionBar>
+      {(selected, clear) => (
+        <DeleteButton
+          label={t('remove', 'Remove')}
           disabled={isPending}
-          onClick={() => void removeMembers(selected, () => table.resetRowSelection())}
-        >
-          <IconTrash />
-          {t('remove', 'Remove')}
-        </Button>
-      </CommandBar.Bar>
-    </CommandBar>
+          onClick={() => void removeMembers(selected, clear)}
+        />
+      )}
+    </SelectionBar>
   );
 };
 
@@ -179,19 +152,15 @@ const MembersTable = ({ channel }: { channel: Channel & { members: ChannelMember
   const { addMembers } = usePanel();
   const columns = useColumns(channel);
 
-  useScopedHotkeys('c', () => channel.canManage && addMembers(channel.id), 'app');
-
   return (
     <div className="h-full overflow-auto px-8">
       <div className="flex justify-between py-6">
         <h1 className="text-xl font-semibold">{t('members', 'Members')}</h1>
-        {channel.canManage && (
-          <Button onClick={() => addMembers(channel.id)}>
-            <IconPlus />
-            {t('add-members', 'Add members')}
-            <Kbd>C</Kbd>
-          </Button>
-        )}
+        <CreateButton
+          allowed={channel.canManage}
+          label={t('add-members', 'Add members')}
+          onClick={() => addMembers(channel.id)}
+        />
       </div>
       <RecordTable.Provider
         tableId="frontline_channel_members"

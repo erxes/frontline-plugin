@@ -1,7 +1,6 @@
 import { type QueryKey, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'erxes-ui';
 import { useQueryState } from 'nuqs';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /** The query string key erxes-ui's Filter writes its search to. */
@@ -22,35 +21,6 @@ export const useParamPanel = (key: string) => {
   const [value, setValue] = useQueryState(key);
 
   return { value, open: (next: string) => void setValue(next), close: () => void setValue(null) };
-};
-
-/**
- * Unsaved form values per record, kept while the page is open, so closing a
- * panel loses nothing: reopening the record brings its draft back.
- */
-export const draftsOf = <T extends object>() => {
-  const drafts = new Map<string, T>();
-
-  const useDraft = (key: string, saved: T) => {
-    const [value, setValue] = useState(() => drafts.get(key) ?? saved);
-
-    return {
-      value,
-      dirty: drafts.has(key),
-      change: (patch: Partial<T>) => {
-        const next = { ...(drafts.get(key) ?? saved), ...patch };
-
-        drafts.set(key, next);
-        setValue(next);
-      },
-      clear: () => {
-        drafts.delete(key);
-        setValue(saved);
-      },
-    };
-  };
-
-  return useDraft;
 };
 
 /**

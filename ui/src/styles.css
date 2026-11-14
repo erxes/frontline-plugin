@@ -6,3 +6,4 @@
 @import 'erxes-ui/theme.css' theme(inline);
 @import 'tailwindcss/utilities.css' layer(utilities) source(none);
 @source '.';
+@source not './knowledgebase';
