@@ -1,7 +1,7 @@
 import { addPluginStyles } from 'erxes-ui';
 import { Route, Routes } from 'react-router-dom';
 import { ItemsPage } from './items/ItemsPage.tsx';
-import { PLUGIN } from './orpc.ts';
+import { PLUGIN } from './config.tsx';
 import css from './styles.css?inline';
 
 addPluginStyles(PLUGIN, css);

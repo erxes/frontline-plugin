@@ -2,11 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [postgre]
   pull_request:
+    # labeled: the budget-increase label reruns the budget check.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
 
-permissions:
-  contents: read
+permissions: {}
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -15,6 +16,19 @@ concurrency:
 jobs:
   check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
+      - run: pnpm exec vp run check
+
+  test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
     services:
       postgres:
         image: postgres:18
@@ -24,21 +38,55 @@ jobs:
           POSTGRES_DB: postgres
         ports: ['5432:5432']
         options: --health-cmd "pg_isready -U ci" --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      DATA_TEST_URL: postgres://ci:ci-only-password@127.0.0.1:5432/postgres
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
-          node-version-file: .node-version
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm exec vp run check
+          persist-credentials: false
+      - uses: ./.github/actions/setup
       - run: pnpm exec vp run test
-        env:
-          DATA_TEST_URL: postgres://ci:ci-only-password@127.0.0.1:5432/postgres
       # What lets queries rely on withOrg() instead of org filters (tools/check-rls.sql).
       - run: pnpm check:rls
-        env:
-          DATA_TEST_URL: postgres://ci:ci-only-password@127.0.0.1:5432/postgres
+
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+      - uses: ./.github/actions/setup
       - run: pnpm image:context
-      - run: docker build --build-arg VERSION=${{ github.sha }} -t frontline-plugin .
+      - name: Base branch budgets
+        if: github.event_name == 'pull_request'
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          mkdir -p .scratch
+          git fetch --depth=1 origin "$BASE_REF"
+          git show FETCH_HEAD:budgets.json > .scratch/base-budgets.json || rm -f .scratch/base-budgets.json
+      - run: pnpm budgets --base .scratch/base-budgets.json ${{ contains(github.event.pull_request.labels.*.name, 'budget-increase') && '--allow-increase' || '' }}
+      - run: docker build --build-arg VERSION=${{ github.sha }} -t frontline-plugin:ci .
+      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: frontline-plugin:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+
+  # The one status branch protection requires: green only when every job above is.
+  required:
+    name: Check
+    if: always()
+    needs: [check, test, build]
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            [ "$result" = success ] || { echo "A required job ended $result."; exit 1; }
+          done

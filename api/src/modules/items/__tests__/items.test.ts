@@ -1,24 +1,6 @@
-import type { PluginMember } from '@erxes/plugin-sdk';
-import { createRouterClient } from '@orpc/server';
 import { describe, expect, it } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
-import { router } from '#/router.ts';
-
-/** The typed client the UI uses, served in-process as this member. */
-const clientAs = (orgId: string, permissions: string[] = Object.values(PERMISSIONS)) => {
-  const member: PluginMember = {
-    userId: `user-${orgId}`,
-    orgId,
-    role: 'member',
-    permissions,
-    can: (action) => permissions.includes(action),
-    tier: 'pro',
-    access: 'full',
-    canChange: () => true,
-  };
-
-  return createRouterClient(router, { context: { member } });
-};
+import { clientAs } from '#/test/member.ts';
 
 describe('items', () => {
   it('creates, lists newest first in pages, updates and deletes', async () => {

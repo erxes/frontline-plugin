@@ -38,7 +38,14 @@ without line-by-line review.
 - `vp run check` runs the escape guard, format, lint, types, knip, the docs guard
   and `pnpm check:generated`, which compares the migrations with the schema.
 - Other gates: `vp run test` on real Postgres via `DATA_TEST_URL`,
-  `pnpm check:rls`, `pnpm build`. `vp run fix` formats and fixes lint.
+  `pnpm check:rls`, `pnpm build` then `pnpm budgets`. `vp run fix` formats and
+  fixes lint. CI's one required status is `Check`.
+- `api/src/__tests__/access.test.ts` walks the router: every procedure refuses a
+  member without its permission. Build procedures on `reads`/`writes`, never bare `os`.
+- `budgets.json` caps, gzipped, what web loads on every page (`./config`,
+  `remoteEntry.js`), the page module, and the bytes of these instructions. A
+  number over its ceiling fails; a PR that raises a ceiling needs the
+  `budget-increase` label. `./config` imports nothing but its icon.
 - Core finds the plugin by these names, so they stay fixed: plugin `frontline`,
   remote `frontline_ui` exposing `./config` and `./frontline`, pages under `/frontline/*`.
 - Every table, index and constraint starts with `frontline_`, and every table has
