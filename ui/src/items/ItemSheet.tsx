@@ -49,7 +49,7 @@ const ItemForm = ({ item, onSaved }: { item?: Item; onSaved: () => void }) => {
               aria-describedby={takenName === null ? undefined : 'item-name-error'}
             />
             {takenName !== null && (
-              <p id="item-name-error" className="text-sm text-destructive">
+              <p id="item-name-error" className="text-sm text-destructive-text">
                 {t('name-taken', 'Another item is already called {{name}}.', { name: takenName })}
               </p>
             )}
@@ -59,7 +59,7 @@ const ItemForm = ({ item, onSaved }: { item?: Item; onSaved: () => void }) => {
             <Textarea id="item-description" name="description" defaultValue={item?.description} />
           </div>
           {error && !isDefinedError(error) && (
-            <p role="alert" className="text-sm text-destructive">
+            <p role="alert" className="text-sm text-destructive-text">
               {error.message}
             </p>
           )}

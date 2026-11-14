@@ -1,0 +1,21 @@
+# Laid over core's deploy/docker-compose.yml (e2e/stack.sh): core learns the
+# plugin's key, and the plugin image joins the stack. The browser reaches web
+# on :8080 and the plugin on :3399.
+services:
+  api:
+    environment:
+      CORE_PLUGIN_KEYS: frontline:${PLUGIN_SECRET:?set PLUGIN_SECRET}
+
+  frontline:
+    image: ${FRONTLINE_IMAGE:-frontline-plugin:ci}
+    environment:
+      # e2e/stack.sh creates the role and passes its password.
+      DATA_URL: postgres://erxes_plugin_frontline:${PLUGIN_DATA_PASSWORD:-}@postgres:5432/erxes
+      CORE_URL: http://api:3400
+      PLUGIN_SECRET: ${PLUGIN_SECRET:?set PLUGIN_SECRET}
+      PUBLIC_URL: http://localhost:3399
+      CORE_UI_URL: http://localhost:8080
+    ports:
+      - '3399:3399'
+    depends_on:
+      api: { condition: service_healthy }

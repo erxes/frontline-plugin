@@ -38,8 +38,11 @@ without line-by-line review.
 - `vp run check` runs the escape guard, format, lint, types, knip, the docs guard
   and `pnpm check:generated`, which compares the migrations with the schema.
 - Other gates: `vp run test` on real Postgres via `DATA_TEST_URL`,
-  `pnpm check:rls`, `pnpm build` then `pnpm budgets`. `vp run fix` formats and
-  fixes lint. CI's one required status is `Check`.
+  `pnpm check:rls`, `pnpm image` then `pnpm budgets`, and `pnpm e2e`. `vp run fix`
+  formats and fixes lint. CI's one required status is `Check`.
+- `pnpm e2e:stack up` runs core's released images and the plugin image on a
+  fresh database, web on :8080. `pnpm e2e` drives it in Chromium, light and dark,
+  with axe. A screen a member can reach gets a spec in `e2e/` and its refusal.
 - `api/src/__tests__/access.test.ts` walks the router: every procedure refuses a
   member without its permission. Build procedures on `reads`/`writes`, never bare `os`.
 - `budgets.json` caps, gzipped, what web loads on every page (`./config`,

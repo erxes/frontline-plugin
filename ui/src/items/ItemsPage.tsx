@@ -107,7 +107,6 @@ export const ItemsPage = () => {
         <PageHeader.End>
           {/* md:w-64 is in no class web uses: the plugin's own stylesheet brings it. */}
           <SelectMember.Field
-            aria-label={t('created-by', 'Created by')}
             className="w-40 md:w-64"
             value={createdBy}
             onValueChange={setCreatedBy}
@@ -122,7 +121,7 @@ export const ItemsPage = () => {
         </PageHeader.End>
       </PageHeader>
       {error ? (
-        <p className="m-3 text-sm text-destructive">{error.message}</p>
+        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
       ) : (
         <RecordTable.Provider columns={columns} data={list} className="m-3" tableId={TABLE_ID}>
           <RecordTable.CursorProvider dataLength={list.length} hasNextPage={hasNextPage}>
