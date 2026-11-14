@@ -2,7 +2,7 @@ import { IconChevronRight } from '@tabler/icons-react';
 import { Button, IconComponent, Skeleton } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
-import { useResponseTemplates } from '../responseTemplates/useResponseTemplates.ts';
+import { useTemplateCount } from '../responseTemplates/useResponseTemplates.ts';
 import { CHANNELS_PATH, useChannel, usePanel } from './useChannels.ts';
 
 /** One channel's settings: edit it, and go to its members and response templates. */
@@ -11,7 +11,7 @@ export const ChannelPage = () => {
   const { id = '' } = useParams();
   const { data: channel, isPending, error } = useChannel(id);
   const { openChannel } = usePanel();
-  const templates = useResponseTemplates(id);
+  const templateCount = useTemplateCount(id);
 
   if (isPending) return <Skeleton className="m-8 h-40" />;
 
@@ -43,14 +43,11 @@ export const ChannelPage = () => {
       />
       <SectionLink
         to={`${CHANNELS_PATH}/${channel.id}/response`}
-        label={t('response-templates', 'Response templates')}
+        label={t('manage-channel-response-templates', 'Manage channel response templates')}
         count={
-          templates.totalCount === undefined
+          templateCount === undefined
             ? ''
-            : t('template-count', {
-                defaultValue: '{{count}} templates',
-                count: templates.totalCount,
-              })
+            : t('template-count', { defaultValue: '{{count}} templates', count: templateCount })
         }
       />
     </div>

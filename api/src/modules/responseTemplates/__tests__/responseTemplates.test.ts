@@ -62,6 +62,11 @@ describe('response templates', () => {
 
     expect(rest.templates.map((template) => template.name)).toEqual(['Reply 1', 'Reply 0']);
     expect(rest.nextCursor).toBeNull();
+
+    const count = await owner.responseTemplates.list({ channelId: channel.id, limit: 1 });
+
+    expect(count).toMatchObject({ totalCount: 52, nextCursor: count.templates[0]?.id });
+    expect(count.templates).toHaveLength(1);
   });
 
   it('lets channel members read templates and only admins change them', async () => {

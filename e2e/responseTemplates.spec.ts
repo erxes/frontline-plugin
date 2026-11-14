@@ -12,13 +12,20 @@ test("a channel admin writes, edits and deletes the channel's response templates
   await page.getByRole('dialog').getByPlaceholder('Search members').fill(teammate.fullName);
   await page.getByRole('dialog').getByRole('option', { name: teammate.fullName }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
-  await page.getByRole('link', { name: /Response templates/ }).click();
+  await page.getByRole('link', { name: /response templates/i }).click();
 
   await expect(page.getByText('No responses yet')).toBeVisible();
   await page.getByRole('button', { name: 'Create response template' }).first().click();
   const sheet = page.getByRole('dialog');
 
   await sheet.getByLabel('Name').fill('Greeting');
+
+  // Closing the panel keeps the draft.
+  await page.keyboard.press('Escape');
+  await expect(sheet).toBeHidden();
+  await page.getByRole('button', { name: 'Create response template' }).first().click();
+  await expect(sheet.getByLabel('Name')).toHaveValue('Greeting');
+
   await sheet.getByRole('textbox', { name: 'Content' }).fill('Hello, thanks for writing to us.');
   await expectAccessible(page);
   await sheet.getByRole('button', { name: 'Create' }).click();

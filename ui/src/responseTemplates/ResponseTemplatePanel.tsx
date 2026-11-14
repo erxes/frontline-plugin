@@ -1,9 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
-import { Button, Dialog, Editor, EntityPicker, Input, Label, Skeleton } from 'erxes-ui';
+import { Button, Dialog, Editor, EntityPicker, Input, Label, Skeleton, useConfirm } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '../orpc.ts';
-import { textOf } from '../shared/hooks.ts';
+import { draftsOf } from '../shared/hooks.ts';
 import { SidePanel } from '../shared/SidePanel.tsx';
 import {
   type ResponseTemplate,
@@ -12,7 +12,12 @@ import {
   useTemplatePanel,
 } from './useResponseTemplates.ts';
 
-/** A new template in `channelId` (`template` undefined) or a change to one; saving closes the panel. */
+const useTemplateDraft = draftsOf<{ name: string; content: string }>();
+
+/**
+ * A new template in `channelId` (`template` undefined) or a change to one.
+ * Closing the panel keeps the draft; saving clears it and closes the panel.
+ */
 const TemplateForm = ({
   channelId,
   template,
@@ -21,13 +26,22 @@ const TemplateForm = ({
   template?: ResponseTemplate;
 }) => {
   const { t } = useTranslation('frontline');
+  const { confirm } = useConfirm();
   const { close } = useTemplatePanel();
   const change = useTemplateChange();
-  const [content, setContent] = useState(template?.content ?? '');
+
+  const draft = useTemplateDraft(template?.id ?? `new~${channelId}`, {
+    name: template?.name ?? '',
+    content: template?.content ?? '',
+  });
+
+  // The editor reads its content once, so a discard mounts a fresh one.
+  const [revision, setRevision] = useState(0);
 
   const options = {
     ...change,
     onSuccess: async () => {
+      draft.clear();
       await change.onSuccess();
       close();
     },
@@ -39,31 +53,49 @@ const TemplateForm = ({
 
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const name = textOf(new FormData(event.currentTarget).get('name'));
 
-    if (template) update.mutate({ id: template.id, name, content });
-    else create.mutate({ channelId, name, content });
+    if (template) update.mutate({ id: template.id, ...draft.value });
+    else create.mutate({ channelId, ...draft.value });
+  };
+
+  const discard = async () => {
+    await confirm({ message: t('discard-changes', 'Discard your unsaved changes?') });
+    draft.clear();
+    setRevision((current) => current + 1);
   };
 
   return (
     <form onSubmit={submit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-2">
         <Label htmlFor="template-name">{t('name', 'Name')}</Label>
-        <Input id="template-name" name="name" required defaultValue={template?.name} />
+        <Input
+          id="template-name"
+          required
+          value={draft.value.name}
+          onChange={(event) => draft.change({ name: event.target.value })}
+        />
       </div>
       <div className="flex flex-col gap-2">
         <span className="text-sm font-medium">{t('content', 'Content')}</span>
         <Editor
-          initialContent={template?.content || undefined}
-          onChange={setContent}
+          key={revision}
+          initialContent={draft.value.content || undefined}
+          onChange={(content) => draft.change({ content })}
           label={t('content', 'Content')}
           variant="outline"
           className="min-h-60"
         />
       </div>
-      <Button type="submit" className="self-end" disabled={isPending}>
-        {template ? t('update', 'Update') : t('create', 'Create')}
-      </Button>
+      <div className="flex justify-end gap-2">
+        {draft.dirty && (
+          <Button type="button" variant="ghost" onClick={() => void discard()}>
+            {t('discard', 'Discard')}
+          </Button>
+        )}
+        <Button type="submit" disabled={isPending}>
+          {template ? t('update', 'Update') : t('create', 'Create')}
+        </Button>
+      </div>
     </form>
   );
 };

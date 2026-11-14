@@ -46,7 +46,7 @@ const templateFor = async (
 };
 
 /**
- * A channel's templates, newest first, 50 at a time: pass the last `id` as
+ * A channel's templates, newest first, `limit` at a time: pass the last `id` as
  * `cursor` for the next page. `search` keeps those whose name or content
  * contains it, ignoring case.
  */
@@ -56,6 +56,7 @@ const list = reads(PERMISSIONS.channelView)
       channelId: z.string(),
       search: z.string().trim().max(200).optional(),
       cursor: z.string().optional(),
+      limit: z.number().int().min(1).max(50).default(50),
     }),
   )
   .output(
@@ -68,7 +69,7 @@ const list = reads(PERMISSIONS.channelView)
   )
   .handler(async ({ input, context: { tx, member } }) => {
     const { role } = await channelFor(tx, member, input.channelId, { change: false });
-    const pageSize = 50;
+    const pageSize = input.limit;
 
     const matches = and(
       eq(responseTemplates.channelId, input.channelId),

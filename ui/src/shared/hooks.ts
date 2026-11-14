@@ -1,8 +1,8 @@
 import { type QueryKey, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'erxes-ui';
 import { useQueryState } from 'nuqs';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
 
 /** The query string key erxes-ui's Filter writes its search to. */
 export const SEARCH_KEY = 'searchValue';
@@ -19,23 +19,38 @@ export const useSearch = () => useQueryState(SEARCH_KEY)[0];
  * reopens it: `?template=new` or `?template=<id>`.
  */
 export const useParamPanel = (key: string) => {
-  const [params, setParams] = useSearchParams();
+  const [value, setValue] = useQueryState(key);
 
-  return {
-    value: params.get(key),
-    open: (value: string) =>
-      setParams((current) => {
-        current.set(key, value);
+  return { value, open: (next: string) => void setValue(next), close: () => void setValue(null) };
+};
 
-        return current;
-      }),
-    close: () =>
-      setParams((current) => {
-        current.delete(key);
+/**
+ * Unsaved form values per record, kept while the page is open, so closing a
+ * panel loses nothing: reopening the record brings its draft back.
+ */
+export const draftsOf = <T extends object>() => {
+  const drafts = new Map<string, T>();
 
-        return current;
-      }),
+  const useDraft = (key: string, saved: T) => {
+    const [value, setValue] = useState(() => drafts.get(key) ?? saved);
+
+    return {
+      value,
+      dirty: drafts.has(key),
+      change: (patch: Partial<T>) => {
+        const next = { ...(drafts.get(key) ?? saved), ...patch };
+
+        drafts.set(key, next);
+        setValue(next);
+      },
+      clear: () => {
+        drafts.delete(key);
+        setValue(saved);
+      },
+    };
   };
+
+  return useDraft;
 };
 
 /**

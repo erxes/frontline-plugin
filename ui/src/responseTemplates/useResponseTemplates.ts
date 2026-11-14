@@ -28,6 +28,15 @@ export const useResponseTemplates = (channelId: string) => {
   };
 };
 
+/** How many templates a channel has, read from a one-row page. */
+export const useTemplateCount = (channelId: string) =>
+  useQuery(
+    orpc.responseTemplates.list.queryOptions({
+      input: { channelId, limit: 1 },
+      select: (page) => page.totalCount,
+    }),
+  ).data;
+
 /** One template. */
 export const useResponseTemplate = (id: string) =>
   useQuery(orpc.responseTemplates.get.queryOptions({ input: { id } }));

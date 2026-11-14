@@ -13,24 +13,6 @@ import {
 } from 'drizzle-orm/pg-core';
 import { table } from '../api/src/db/table.ts';
 
-/** From `response_templates` (frontline_api/src/modules/response/db/definitions/responseTemplates.ts:6). */
-export const frontlineResponseTemplates = table(
-  'response_templates',
-  {
-    // The Mongo `_id`, kept as text so references survive the import.
-    id: text().primaryKey(),
-    orgId: text().notNull(),
-    createdAt: timestamp({ withTimezone: true }), // Date
-    createdBy: text(), // String
-    name: text(), // String
-    content: text(), // String
-    channelId: text(), // String
-    files: jsonb(), // Array
-    updatedAt: timestamp({ withTimezone: true }), // Date
-  },
-  (t) => [index('frontline_response_templates_org_idx').on(t.orgId)],
-);
-
 /** From `frontline_tickets_pipeline` (frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22). */
 export const frontlineTicketsPipeline = table(
   'tickets_pipeline',
