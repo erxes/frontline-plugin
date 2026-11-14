@@ -77,7 +77,8 @@ jobs:
           exit-code: '1'
 
   # The one status branch protection requires: green only when every job above is.
-  Check:
+  required:
+    name: Check
     if: always()
     needs: [check, test, build]
     runs-on: ubuntu-latest
