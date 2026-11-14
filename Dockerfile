@@ -1,4 +1,4 @@
-# Packages what `pnpm image:context` built on the host: the bundled API with
+# Packages what `pnpm image` built on the host: the bundled API with
 # its production node_modules (.runtime) and the UI remote, served at /ui.
 FROM node:26-bookworm-slim
 # The runtime only runs node; npm and corepack bring their own dependencies (and advisories).

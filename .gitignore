@@ -2,6 +2,7 @@ node_modules/
 dist/
 .runtime/
 coverage/
+e2e/test-results/
 .scratch/
 *.tsbuildinfo
 *.log

@@ -1,4 +1,4 @@
-# The image only takes what `pnpm image:context` builds.
+# The image only takes what `pnpm image` builds on the host.
 *
 !.runtime
 !ui/dist
