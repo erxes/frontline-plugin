@@ -1,0 +1,39 @@
+{
+  "name": "@frontline/plugin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Inbox, channels, tickets and customer messaging for erxes",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm --filter @frontline/api build && pnpm --filter @frontline/ui build",
+    "db:generate": "pnpm --filter @frontline/api db:generate",
+    "db:check": "pnpm --filter @frontline/api db:check",
+    "db:migrate": "pnpm --filter @frontline/api db:migrate",
+    "check:generated": "node tools/check-generated.ts",
+    "check:rls": "bash tools/check-rls.sh",
+    "dev:api": "pnpm --filter @frontline/api dev",
+    "dev:ui": "pnpm --filter @frontline/ui dev",
+    "image:context": "pnpm build && rm -rf .runtime && pnpm --filter @frontline/api deploy --prod .runtime",
+    "migrate:inventory": "node migration/inventory.ts",
+    "migrate:checklist": "node migration/checklist.ts && vp fmt MIGRATION.md migration",
+    "migrate:import": "node --env-file-if-exists=.env scripts/import-mongo.ts"
+  },
+  "devDependencies": {
+    "@ast-grep/napi": "^0.51.2",
+    "@erxes/lint": "0.1.1",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "drizzle-orm": "0.45.4",
+    "knip": "^6.45.1",
+    "mongodb": "^7.8.0",
+    "pg": "^8.23.1",
+    "tsrs": "0.25.0-ts7.1.0-beta",
+    "typescript": "7.0.2",
+    "vite-plus": "catalog:",
+    "zod": "^4.6.7"
+  },
+  "engines": {
+    "node": ">=26"
+  },
+  "packageManager": "pnpm@12.18.0"
+}

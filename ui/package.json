@@ -1,0 +1,37 @@
+{
+  "name": "@frontline/ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "rsbuild dev",
+    "build": "rsbuild build"
+  },
+  "dependencies": {
+    "@erxes/core-contract": "0.1.0-v2.3",
+    "@orpc/client": "1.16.2",
+    "@orpc/tanstack-query": "1.16.2",
+    "@tabler/icons-react": "3.34.0",
+    "@tanstack/react-query": "^5.107.1",
+    "erxes-ui": "npm:@erxes/ui@4.0.0-v2.4",
+    "jotai": "^3.0.2",
+    "nuqs": "^2.10.3",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "react-hook-form": "^7.92.0",
+    "react-i18next": "^18.0.1",
+    "react-router-dom": "^7.18.5"
+  },
+  "devDependencies": {
+    "@frontline/api": "workspace:*",
+    "@module-federation/rsbuild-plugin": "2.9.3",
+    "@rsbuild/core": "^2.3.2",
+    "@rsbuild/plugin-babel": "^2.1.0",
+    "@rsbuild/plugin-react": "^2.1.1",
+    "@tailwindcss/postcss": "^4.3.5",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "babel-plugin-react-compiler": "^1.0.0",
+    "tailwindcss": "^4.3.5"
+  }
+}
