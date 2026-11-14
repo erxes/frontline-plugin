@@ -4,32 +4,24 @@ import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Attachment } from './useKnowledgeBase.ts';
 
-/** One image with its preview, upload and remove buttons; a removal is `null`. */
+/** One image: its preview uploads or changes it, the remove button clears it to `null`. */
 export const ImageField = ({
   value,
   onChange,
 }: {
   value: string;
   onChange: (file: Attachment | null) => void;
-}) => {
-  const { t } = useTranslation('frontline');
-
-  return (
-    <Upload.Root
-      value={value}
-      onChange={({ url, name, type, size }) =>
-        onChange(url ? { url, name: name ?? url, type, size } : null)
-      }
-    >
-      <Upload.Preview />
-      <Upload.Button type="button" variant="outline">
-        <IconUpload />
-        {t('kb-upload-image', 'Upload image')}
-      </Upload.Button>
-      {value && <Upload.RemoveButton type="button" variant="ghost" />}
-    </Upload.Root>
-  );
-};
+}) => (
+  <Upload.Root
+    value={value}
+    onChange={({ url, name, type, size }) =>
+      onChange(url ? { url, name: name ?? url, type, size } : null)
+    }
+  >
+    <Upload.Preview />
+    {value && <Upload.RemoveButton type="button" variant="ghost" />}
+  </Upload.Root>
+);
 
 /** A button that uploads the file picked; `accept` names the types it takes. */
 export const FilePicker = ({
