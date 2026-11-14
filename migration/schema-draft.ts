@@ -197,43 +197,6 @@ export const frontlineTicketConfigs = table(
   (t) => [index('frontline_ticket_configs_org_idx').on(t.orgId)],
 );
 
-/** From `channels` (frontline_api/src/modules/channel/db/definitions/channel.ts:6). */
-export const frontlineChannels = table(
-  'channels',
-  {
-    // The Mongo `_id`, kept as text so references survive the import.
-    id: text().primaryKey(),
-    orgId: text().notNull(),
-    createdAt: timestamp({ withTimezone: true }), // Date
-    createdBy: text(), // String
-    name: text(), // String
-    icon: text(), // String
-    memberIds: text().array(), // [String]
-    description: text(), // String
-    userId: text(), // String
-    scope: text(), // String
-    conversationCount: doublePrecision(), // Number
-    openConversationCount: doublePrecision(), // Number
-  },
-  (t) => [index('frontline_channels_org_idx').on(t.orgId)],
-);
-
-/** From `channel_members` (frontline_api/src/modules/channel/db/definitions/channel.ts:53). */
-export const frontlineChannelMembers = table(
-  'channel_members',
-  {
-    // The Mongo `_id`, kept as text so references survive the import.
-    id: text().primaryKey(),
-    orgId: text().notNull(),
-    memberId: text(), // String
-    channelId: text(), // String
-    role: text(), // String
-    createdAt: timestamp({ withTimezone: true }), // Date
-    createdBy: text(), // String
-  },
-  (t) => [index('frontline_channel_members_org_idx').on(t.orgId)],
-);
-
 /** From `integrations` (frontline_api/src/modules/inbox/db/definitions/integrations.ts:310). */
 export const frontlineIntegrations = table(
   'integrations',

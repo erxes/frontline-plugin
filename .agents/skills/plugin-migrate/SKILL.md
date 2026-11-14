@@ -30,7 +30,7 @@ data only. The inventory reads code, never a database.
    columns nothing reads. Update the table's entry in
    `migration/import-map.ts` to match.
 3. Procedures. One per GraphQL operation listed, following the `endpoint`
-   skill and shaped like `api/src/modules/items`. Name it after what it does
+   skill and shaped like `api/src/modules/channels`. Name it after what it does
    (`tasks.list`, not `getTasks`), and fold operations that only differ by
    filter into one input. A failure the UI acts on gets a typed error. An
    operation the new UI never calls is ticked with no procedure.
@@ -47,7 +47,7 @@ data only. The inventory reads code, never a database.
    members' `departmentIds` and `branchIds`. The ids stay the same, so the old
    records' `departmentIds` still match.
 5. Pages. One per UI route, under `ui/src/<module>/`, built from `erxes-ui`
-   the way `ui/src/items/` is. The old `ui-modules` components don't exist
+   the way `ui/src/channels/` is. The old `ui-modules` components don't exist
    here. Member pickers and names become erxes-ui's `SelectMember` and
    `MemberInline`; a picker of other records is erxes-ui's `EntityPicker` over
    the plugin's own query. For erxes-ui components whose props changed, see

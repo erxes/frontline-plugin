@@ -4,9 +4,13 @@ import { PERMISSIONS } from '#/core.ts';
 import { router } from '#/router.ts';
 
 /** A signed-in member of `orgId`, as server.ts hands it to procedures. */
-export const memberOf = (orgId: string, permissions: string[] = Object.values(PERMISSIONS)) =>
+export const memberOf = (
+  orgId: string,
+  permissions: string[] = Object.values(PERMISSIONS),
+  userId = `user-${orgId}`,
+) =>
   ({
-    userId: `user-${orgId}`,
+    userId,
     orgId,
     role: 'member',
     permissions,
@@ -17,5 +21,5 @@ export const memberOf = (orgId: string, permissions: string[] = Object.values(PE
   }) satisfies PluginMember;
 
 /** The typed client the UI uses, served in-process as that member. */
-export const clientAs = (orgId: string, permissions?: string[]) =>
-  createRouterClient(router, { context: { member: memberOf(orgId, permissions) } });
+export const clientAs = (orgId: string, permissions?: string[], userId?: string) =>
+  createRouterClient(router, { context: { member: memberOf(orgId, permissions, userId) } });

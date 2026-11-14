@@ -94,12 +94,12 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] permission `conversationsChangeStatus` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:44`
 - [ ] permission `conversationsResolve` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:49`
 - [ ] permission `conversationEditCustomFields` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:54`
-- [ ] permission `showChannels` (channel) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:68`
-- [ ] permission `showAllChannels` (channel) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:74`
-- [ ] permission `channelAdd` (channel) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:79`
-- [ ] permission `channelUpdate` (channel) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:84`
-- [ ] permission `channelRemove` (channel) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:89`
-- [ ] permission `channelManageMembers` (channel) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:94`
+- [x] permission `showChannels` (channel) → `frontline.channel.view` `frontline_api/src/meta/permissions.ts:68`
+- [x] permission `showAllChannels` (channel) → `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:74`
+- [x] permission `channelAdd` (channel) → `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:79`
+- [x] permission `channelUpdate` (channel) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:84`
+- [x] permission `channelRemove` (channel) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:89`
+- [x] permission `channelManageMembers` (channel) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:94`
 - [ ] permission `showIntegrations` (integration) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:108`
 - [ ] permission `integrationsAdd` (integration) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:114`
 - [ ] permission `integrationsEdit` (integration) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:119`
@@ -219,29 +219,29 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [ ] `frontline_channels` from collection `channels` (11 fields, draft `frontlineChannels` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:6`
-- [ ] `frontline_channel_members` from collection `channel_members` (5 fields, draft `frontlineChannelMembers` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:53`
+- [x] `frontline_channels` from collection `channels` (11 fields, draft `frontlineChannels` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:6`. `memberIds` repeated the members table and the counts go stale, so both are gone; `icon` and `scope` wait for the pages that use them.
+- [x] `frontline_channel_members` from collection `channel_members` (5 fields, draft `frontlineChannelMembers` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:53`. Roles are admin and member; the old `lead` (add members only) folds into admin, and a role check keeps one admin per channel.
 
 ### Procedures
 
-- [ ] query `getChannel` → procedure `channel.getChannel` (returns `Channel`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
-- [ ] query `getChannels` → procedure `channel.getChannels` (returns `[Channel]`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
-- [ ] query `getMyChannels` → procedure `channel.getMyChannels` (returns `[Channel]`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
-- [ ] query `getPersonalChannel` → procedure `channel.getPersonalChannel` (returns `Channel`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
-- [ ] query `getChannelMembers` → procedure `channel.getChannelMembers` (returns `[ChannelMember]`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
-- [ ] mutation `channelAdd` → procedure `channel.channelAdd` (returns `Channel`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
-- [ ] mutation `channelUpdate` → procedure `channel.channelUpdate` (returns `Channel`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
-- [ ] mutation `channelRemove` → procedure `channel.channelRemove` (returns `Channel`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
-- [ ] mutation `channelAddMembers` → procedure `channel.channelAddMembers` (returns `[ChannelMember]`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
-- [ ] mutation `channelRemoveMember` → procedure `channel.channelRemoveMember` (returns `ChannelMember`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
-- [ ] mutation `channelRemoveMembers` → procedure `channel.channelRemoveMembers` (returns `[ChannelMember]`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
-- [ ] mutation `channelUpdateMember` → procedure `channel.channelUpdateMember` (returns `ChannelMember`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] query `getChannel` → `channels.get`, with its members `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
+- [x] query `getChannels` → `channels.list` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
+- [x] query `getMyChannels` → `channels.list` (a member sees their own; `frontline.channel.manage` sees all) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
+- [ ] query `getPersonalChannel` → procedure `channel.getPersonalChannel` (returns `Channel`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`. Waits for the personal mailbox, its only user.
+- [x] query `getChannelMembers` → `channels.get` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
+- [x] mutation `channelAdd` → `channels.create` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] mutation `channelUpdate` → `channels.update` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] mutation `channelRemove` → `channels.remove` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] mutation `channelAddMembers` → `channels.addMember` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] mutation `channelRemoveMember` → `channels.removeMember` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] mutation `channelRemoveMembers` → `channels.removeMember` (the new UI removes one at a time) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] mutation `channelUpdateMember` → `channels.setRole` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 - [ ] mutation `channelMoveResources` → procedure `channel.channelMoveResources` (returns `ChannelMoveResourcesResult`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 
 ### Pages
 
-- [ ] `/frontline/:id` (ChannelDetailsPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:173`
-- [ ] `/frontline/:id/members` (ChannelMembersPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:177`
+- [x] `/frontline/:id` (ChannelDetailsPage) → the channel side panel `frontline_ui/src/modules/channels/components/settings/Settings.tsx:173`
+- [x] `/frontline/:id/members` (ChannelMembersPage) → the side panel's members `frontline_ui/src/modules/channels/components/settings/Settings.tsx:177`
 - [ ] `/frontline/:id/forms` (ChannelFormsPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:227`
 
 ### Events
@@ -252,7 +252,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Pages
 
-- [ ] `/frontline/` (ChannelsSettingsIndexPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:172`
+- [x] `/frontline/` (ChannelsSettingsIndexPage) → `ui/src/channels/ChannelsPage.tsx` `frontline_ui/src/modules/channels/components/settings/Settings.tsx:172`
 - [ ] `/frontline/:id/surveys` (ChannelSurveysPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:231`
 - [ ] `/frontline/channels/*` (ChannelsSettings) `frontline_ui/src/modules/FrontlineSettings.tsx:49`
 

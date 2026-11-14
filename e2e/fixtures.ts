@@ -3,7 +3,13 @@ import { CORE_API_PREFIX, coreContract } from '@erxes/core-contract';
 import { createORPCClient } from '@orpc/client';
 import type { ContractRouterClient } from '@orpc/contract';
 import { OpenAPILink } from '@orpc/openapi-client/fetch';
-import { test as base, expect, type APIRequestContext, type Page } from '@playwright/test';
+import {
+  test as base,
+  expect,
+  type APIRequestContext,
+  type BrowserContext,
+  type Page,
+} from '@playwright/test';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
 
@@ -77,9 +83,38 @@ export const expectAccessible = async (page: Page) => {
   expect(blocking, `axe on ${page.url()}`).toEqual([]);
 };
 
-export const test = base.extend<{ api: ReturnType<typeof coreClient> }>({
+/** A member of the owner's organisation, signed in on their own page, whose role holds `permissions`. */
+type NewMember = (permissions: string[]) => Promise<{ page: Page; fullName: string }>;
+
+export const test = base.extend<{ api: ReturnType<typeof coreClient>; newMember: NewMember }>({
   api: async ({ page, baseURL }, use) => {
     await use(coreClient(page.request, baseURL));
+  },
+  newMember: async ({ api, browser, baseURL, colorScheme }, use) => {
+    const contexts: BrowserContext[] = [];
+
+    await use(async (permissions) => {
+      const suffix = unique();
+      const role = await api.roles.create({ name: `Role ${suffix}`, permissions });
+      const fullName = `Teammate ${suffix}`;
+      const credentials = { email: `member-${suffix}@e2e.test`, password: 'Member-pass-12345' };
+
+      await api.users.invite({ ...credentials, role: role.key, fullName });
+
+      const context = await browser.newContext({ baseURL, colorScheme });
+
+      contexts.push(context);
+
+      const page = await context.newPage();
+      const asMember = coreClient(page.request, baseURL);
+
+      await asMember.auth.signIn(credentials);
+      await asMember.auth.onboarded({ language: 'en' });
+
+      return { page, fullName };
+    });
+
+    await Promise.all(contexts.map((context) => context.close()));
   },
 });
 
