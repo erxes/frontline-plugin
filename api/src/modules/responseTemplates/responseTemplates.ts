@@ -1,12 +1,13 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, count, desc, eq, getTableColumns, ilike, or, sql } from 'drizzle-orm';
+import { and, count, eq, getTableColumns, ilike, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { responseTemplates } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { channelFor, likeText } from '../channels/access.ts';
+import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
 
 const { orgId, ...templateColumns } = getTableColumns(responseTemplates);
 
@@ -55,8 +56,7 @@ const list = reads(PERMISSIONS.channelView)
     z.object({
       channelId: z.string(),
       search: z.string().trim().max(200).optional(),
-      cursor: z.string().optional(),
-      limit: z.number().int().min(1).max(50).default(50),
+      ...PageInput,
     }),
   )
   .output(
@@ -69,7 +69,6 @@ const list = reads(PERMISSIONS.channelView)
   )
   .handler(async ({ input, context: { tx, member } }) => {
     const { role } = await channelFor(tx, member, input.channelId, { change: false });
-    const pageSize = input.limit;
 
     const matches = and(
       eq(responseTemplates.channelId, input.channelId),
@@ -81,25 +80,19 @@ const list = reads(PERMISSIONS.channelView)
         : undefined,
     );
 
-    const after = input.cursor
-      ? sql`(${responseTemplates.createdAt}, ${responseTemplates.id}) < (
-          select created_at, id from ${responseTemplates} where id = ${input.cursor}
-        )`
-      : undefined;
-
     const rows = await tx
       .select(templateColumns)
       .from(responseTemplates)
-      .where(and(matches, after))
-      .orderBy(desc(responseTemplates.createdAt), desc(responseTemplates.id))
-      .limit(pageSize + 1);
+      .where(and(matches, after(responseTemplates, input.cursor)))
+      .orderBy(...newestFirst(responseTemplates))
+      .limit(input.limit + 1);
 
     const [total] = await tx.select({ value: count() }).from(responseTemplates).where(matches);
-    const templates = rows.slice(0, pageSize);
+    const { items, nextCursor } = pageOf(rows, input.limit);
 
     return {
-      templates,
-      nextCursor: rows.length > pageSize ? (templates.at(-1)?.id ?? null) : null,
+      templates: items,
+      nextCursor,
       totalCount: total?.value ?? 0,
       canManage: role === 'admin' || member.can(PERMISSIONS.channelManage),
     };

@@ -1,0 +1,180 @@
+import type { PluginMember } from '@erxes/plugin-sdk';
+import { ORPCError } from '@orpc/server';
+import { and, asc, count, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
+import { z } from 'zod';
+import { PERMISSIONS } from '#/core.ts';
+import type { Tx } from '#/db/client.ts';
+import { pipelineStatuses } from '#/db/schema.ts';
+import { reads, writes } from '#/orpc.ts';
+import { Blank, Color, Title } from '../fields.ts';
+import { pipelineFor } from './pipelines.ts';
+
+const { orgId, ...statusColumns } = getTableColumns(pipelineStatuses);
+
+/** The stage, 1 new to 6 cancelled (`STATUS_TYPES`). */
+const Type = z.number().int().min(1).max(6);
+
+const Status = z.object({
+  id: z.string(),
+  pipelineId: z.string(),
+  name: z.string(),
+  description: z.string().nullable(),
+  color: z.string(),
+  type: z.number(),
+  order: z.number(),
+  createdAt: z.date(),
+  updatedAt: z.date(),
+});
+
+/** The status `member` may act on, under the rules of its pipeline. */
+const statusFor = async (
+  tx: Tx,
+  member: PluginMember,
+  id: string,
+  { change }: { change: boolean },
+) => {
+  const [status] = await tx
+    .select(statusColumns)
+    .from(pipelineStatuses)
+    .where(eq(pipelineStatuses.id, id));
+
+  if (!status) throw new ORPCError('NOT_FOUND', { message: 'No such status' });
+
+  await pipelineFor(tx, member, status.pipelineId, { change });
+
+  return status;
+};
+
+/** A pipeline's statuses, by stage, each stage's in its order. */
+const list = reads(PERMISSIONS.channelView)
+  .input(z.object({ pipelineId: z.string() }))
+  .output(z.array(Status))
+  .handler(async ({ input, context: { tx, member } }) => {
+    await pipelineFor(tx, member, input.pipelineId, { change: false });
+
+    return tx
+      .select(statusColumns)
+      .from(pipelineStatuses)
+      .where(eq(pipelineStatuses.pipelineId, input.pipelineId))
+      .orderBy(
+        asc(pipelineStatuses.type),
+        asc(pipelineStatuses.order),
+        asc(pipelineStatuses.createdAt),
+      );
+  });
+
+/**
+ * A new status, last in its stage. Changing a pipeline holds its channel, so
+ * two statuses added at once can't take the same place.
+ */
+const create = writes(PERMISSIONS.channelView)
+  .input(
+    z.object({
+      pipelineId: z.string(),
+      type: Type,
+      name: Title,
+      description: Blank(255).optional(),
+      color: Color.optional(),
+    }),
+  )
+  .output(Status)
+  .handler(async ({ input, context: { tx, member } }) => {
+    await pipelineFor(tx, member, input.pipelineId, { change: true });
+
+    const [created] = await tx
+      .insert(pipelineStatuses)
+      .values({
+        ...input,
+        orgId: member.orgId,
+        order: sql`(
+          select coalesce(max("order") + 1, 0) from ${pipelineStatuses}
+          where pipeline_id = ${input.pipelineId} and type = ${input.type}
+        )`,
+      })
+      .returning(statusColumns);
+
+    if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+    return created;
+  });
+
+/** Renames a status, or changes its description or colour. */
+const update = writes(PERMISSIONS.channelView)
+  .input(
+    z.object({
+      id: z.string(),
+      name: Title.optional(),
+      description: Blank(255).optional(),
+      color: Color.optional(),
+    }),
+  )
+  .output(Status)
+  .handler(async ({ input: { id, ...fields }, context: { tx, member } }) => {
+    await statusFor(tx, member, id, { change: true });
+
+    const [updated] = await tx
+      .update(pipelineStatuses)
+      .set(fields)
+      .where(eq(pipelineStatuses.id, id))
+      .returning(statusColumns);
+
+    if (!updated) throw new ORPCError('NOT_FOUND', { message: 'No such status' });
+
+    return updated;
+  });
+
+/**
+ * Puts a stage's statuses in the order of `ids`, which lists every one of them,
+ * in one statement. CONFLICT when the stage changed since the caller read it.
+ */
+const reorder = writes(PERMISSIONS.channelView)
+  .input(
+    z.object({
+      pipelineId: z.string(),
+      type: Type,
+      ids: z
+        .array(z.string())
+        .min(1)
+        .max(100)
+        .refine((ids) => new Set(ids).size === ids.length, 'Each status once'),
+    }),
+  )
+  .output(z.array(Status))
+  .handler(async ({ input, context: { tx, member } }) => {
+    await pipelineFor(tx, member, input.pipelineId, { change: true });
+
+    const inStage = and(
+      eq(pipelineStatuses.pipelineId, input.pipelineId),
+      eq(pipelineStatuses.type, input.type),
+    );
+
+    const [stage] = await tx.select({ value: count() }).from(pipelineStatuses).where(inStage);
+
+    const moved = await tx
+      .update(pipelineStatuses)
+      .set({
+        order: sql`array_position(${sql.param(input.ids)}::text[], ${pipelineStatuses.id}) - 1`,
+      })
+      .where(and(inStage, inArray(pipelineStatuses.id, input.ids)))
+      .returning(statusColumns);
+
+    if (moved.length !== input.ids.length || stage?.value !== input.ids.length)
+      throw new ORPCError('CONFLICT', {
+        message: 'The statuses changed while you moved them. Reload and try again.',
+      });
+
+    return moved.toSorted((a, b) => a.order - b.order);
+  });
+
+/** Deletes a status. */
+const remove = writes(PERMISSIONS.channelView)
+  .input(z.object({ id: z.string() }))
+  .output(z.object({ id: z.string() }))
+  .handler(async ({ input, context: { tx, member } }) => {
+    await statusFor(tx, member, input.id, { change: true });
+    await tx.delete(pipelineStatuses).where(eq(pipelineStatuses.id, input.id));
+
+    return { id: input.id };
+  });
+
+export const statusProcedures = { list, create, update, reorder, remove };

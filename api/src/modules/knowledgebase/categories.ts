@@ -5,16 +5,14 @@ import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { kbArticles, kbCategories } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
+import { Blank, Stamps, Title } from '../fields.ts';
 import {
-  Blank,
   categoryColumns,
   categoryFor,
   Code,
   codeTaken,
   kbErrors,
   lockTopics,
-  Stamps,
-  Title,
   topicFor,
 } from './shared.ts';
 

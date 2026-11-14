@@ -36,6 +36,14 @@ const TopicSettingsPage = lazy(async () => ({
   default: (await import('./knowledgebase/TopicSettingsPage.tsx')).TopicSettingsPage,
 }));
 
+const PipelinesPage = lazy(async () => ({
+  default: (await import('./pipelines/PipelinesPage.tsx')).PipelinesPage,
+}));
+
+const PipelineLayout = lazy(async () => ({
+  default: (await import('./pipelines/PipelineLayout.tsx')).PipelineLayout,
+}));
+
 /** The old `/:id/response/:responseId` link opens that template in the list's panel. */
 const ResponseTemplateRedirect = () => {
   const { id, responseId } = useParams();
@@ -53,6 +61,8 @@ export const Frontline = () => (
       <Route path=":id/members" element={<ChannelMembersPage />} />
       <Route path=":id/response" element={<ResponseTemplatesPage />} />
       <Route path=":id/response/:responseId" element={<ResponseTemplateRedirect />} />
+      <Route path=":id/pipelines" element={<PipelinesPage />} />
+      <Route path=":id/pipelines/:pipelineId/*" element={<PipelineLayout />} />
     </Route>
     <Route
       path="knowledgebase"

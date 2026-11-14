@@ -8,6 +8,7 @@ import {
   kbCategories,
   kbTopics,
 } from '#/db/schema.ts';
+import { Blank } from '../fields.ts';
 
 const { orgId: topicOrg, ...topicColumns } = getTableColumns(kbTopics);
 const { orgId: categoryOrg, ...categoryColumns } = getTableColumns(kbCategories);
@@ -15,21 +16,8 @@ const { orgId: categoryOrg, ...categoryColumns } = getTableColumns(kbCategories)
 /** What procedures return: the rows without `org_id`, which the caller already knows. */
 export { categoryColumns, topicColumns };
 
-export const Title = z.string().trim().min(1).max(200);
-
-/** Optional text: blank becomes null, so a cleared field reads as unset. */
-export const Blank = (max: number) =>
-  z
-    .string()
-    .trim()
-    .max(max)
-    .nullable()
-    .transform((value) => value || null);
-
 /** A short code for embeds and links, unique in the organisation. */
 export const Code = Blank(100);
-
-export const Stamps = { createdBy: z.string(), createdAt: z.date(), updatedAt: z.date() };
 
 /** The failures a client can branch on: `isDefinedError(error) && error.code === ...`. */
 export const kbErrors = {

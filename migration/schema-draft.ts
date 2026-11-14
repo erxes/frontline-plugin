@@ -13,68 +13,6 @@ import {
 } from 'drizzle-orm/pg-core';
 import { table } from '../api/src/db/table.ts';
 
-/** From `frontline_tickets_pipeline` (frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22). */
-export const frontlineTicketsPipeline = table(
-  'tickets_pipeline',
-  {
-    // The Mongo `_id`, kept as text so references survive the import.
-    id: text().primaryKey(),
-    orgId: text().notNull(),
-    name: text().notNull(), // String
-    userId: text(), // String
-    description: text(), // String
-    channelId: text().notNull(), // String
-    order: doublePrecision(), // Number
-    state: text(), // String
-    isCheckDate: boolean(), // Boolean
-    isCheckUser: boolean(), // Boolean
-    isCheckDepartment: boolean(), // Boolean
-    isCheckBranch: boolean(), // Boolean
-    isHideName: boolean(), // Boolean
-    excludeCheckUserIds: text().array(), // [String]
-    numberConfig: text(), // String
-    numberSize: text(), // String
-    nameConfig: text(), // String
-    lastNum: text(), // String
-    departmentIds: text().array(), // [String]
-    branchIds: text().array(), // [String]
-    tagId: text(), // String
-    visibility: text(), // String
-    memberIds: text().array(), // [String]
-    createLayout: jsonb(), // [[String]]
-    slaPolicy: jsonb(), // slaPolicySchema
-    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [index('frontline_tickets_pipeline_org_idx').on(t.orgId)],
-);
-
-/** From `frontline_tickets_pipeline_status` (frontline_api/src/modules/ticket/db/definitions/status.ts:4). */
-export const frontlineTicketsPipelineStatus = table(
-  'tickets_pipeline_status',
-  {
-    // The Mongo `_id`, kept as text so references survive the import.
-    id: text().primaryKey(),
-    orgId: text().notNull(),
-    name: text().notNull(), // String
-    description: text(), // String
-    pipelineId: text().notNull(), // String
-    color: text(), // String
-    type: doublePrecision().notNull(), // Number
-    order: doublePrecision().notNull(), // Number
-    visibilityType: text(), // String
-    memberIds: text().array(), // [String]
-    canMoveMemberIds: text().array(), // [String]
-    canEditMemberIds: text().array(), // [String]
-    departmentIds: text().array(), // [String]
-    state: text(), // String
-    probability: doublePrecision(), // Number
-    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => [index('frontline_tickets_pipeline_status_org_idx').on(t.orgId)],
-);
-
 /** From `frontline_tickets` (frontline_api/src/modules/ticket/db/definitions/ticket.ts:35). */
 export const frontlineTickets = table(
   'tickets',

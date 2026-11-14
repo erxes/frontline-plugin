@@ -4,28 +4,15 @@ import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { kbTopics } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import {
-  Blank,
-  Code,
-  codeTaken,
-  kbErrors,
-  Stamps,
-  Title,
-  topicColumns,
-  topicFor,
-} from './shared.ts';
-
-const Color = z
-  .string()
-  .regex(/^#[0-9a-f]{6}$/i)
-  .nullable();
+import { Blank, Color, Stamps, Title } from '../fields.ts';
+import { Code, codeTaken, kbErrors, topicColumns, topicFor } from './shared.ts';
 
 const Fields = z
   .object({
     title: Title,
     description: Blank(1000),
     code: Code,
-    color: Color,
+    color: Color.nullable(),
     backgroundImage: Blank(2000),
     languageCode: z
       .string()

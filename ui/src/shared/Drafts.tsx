@@ -4,26 +4,28 @@ import { useTranslation } from 'react-i18next';
 
 /**
  * Unsaved form values per record, kept while the page is open, so closing a
- * panel loses nothing: reopening the record brings its draft back.
+ * panel loses nothing: reopening the record brings its draft back. Without a
+ * draft the form shows `saved`, so a save or a refetch shows the new values.
  */
 export const draftsOf = <T extends object>() => {
   const drafts = new Map<string, T>();
 
   const useDraft = (key: string, saved: T) => {
-    const [value, setValue] = useState(() => drafts.get(key) ?? saved);
+    // The draft lives in state as well as the map: the React Compiler caches what a render reads from the map.
+    const [draft, setDraft] = useState(() => drafts.get(key));
 
     return {
-      value,
-      dirty: drafts.has(key),
+      value: draft ?? saved,
+      dirty: draft !== undefined,
       change: (patch: Partial<T>) => {
         const next = { ...(drafts.get(key) ?? saved), ...patch };
 
         drafts.set(key, next);
-        setValue(next);
+        setDraft(next);
       },
       clear: () => {
         drafts.delete(key);
-        setValue(saved);
+        setDraft(undefined);
       },
     };
   };
