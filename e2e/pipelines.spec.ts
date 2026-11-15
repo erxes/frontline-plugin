@@ -147,6 +147,45 @@ test("a channel admin sets a pipeline's SLA", async ({ page }) => {
   await expect(panel.getByRole('button', { name: /^Warn before 0\.5 h/ })).toBeVisible();
 });
 
+test("a channel admin sets who sees a pipeline's tickets and who moves them, which a member only reads", async ({
+  page,
+  newMember,
+}) => {
+  const teammate = await newMember(['frontline.channel.view']);
+  const panel = recordPanel(page);
+
+  await openChannelPipelines(page, teammate.fullName);
+  await createPipeline(page);
+  const pipelinePanel = page.url();
+
+  await panel.getByRole('tab', { name: 'Permissions' }).click();
+
+  const checkUser = panel.getByRole('switch', {
+    name: 'Members see only tickets they created, hold or follow',
+  });
+
+  await checkUser.click();
+  await expect(checkUser).toBeChecked();
+  await panel.getByRole('switch', { name: 'New is private' }).click();
+  await expect(panel.getByText('Who sees it')).toBeVisible();
+  await expectAccessible(page);
+  await page.reload();
+  await panel.getByRole('tab', { name: 'Permissions' }).click();
+  await expect(checkUser).toBeChecked();
+  await expect(panel.getByRole('switch', { name: 'New is private' })).toBeChecked();
+
+  const theirPanel = recordPanel(teammate.page);
+
+  await teammate.page.goto(pipelinePanel);
+  await theirPanel.getByRole('tab', { name: 'Permissions' }).click();
+  await expect(
+    theirPanel.getByRole('switch', {
+      name: 'Members see only tickets they created, hold or follow',
+    }),
+  ).toBeDisabled();
+  await expectAccessible(teammate.page);
+});
+
 test('a channel admin moves a pipeline to another channel and deletes it there', async ({
   page,
 }) => {

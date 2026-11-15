@@ -124,6 +124,64 @@ test('a member files, filters, changes and deletes tickets in the list, board an
   await display(page, 'List');
 });
 
+/** Adds a settings row by its page's Add button and Name field. */
+const addSetting = async (page: Page, path: string, button: string, name: string) => {
+  await page.goto(`/frontline/settings/${path}`);
+  await page.getByRole('button', { name: button }).click();
+  await page.getByRole('dialog').getByLabel('Name', { exact: true }).fill(name);
+  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('row', { name: new RegExp(name) })).toBeVisible();
+};
+
+test('a member labels a ticket with tags, a department and a property, and filters by them', async ({
+  page,
+}) => {
+  const tag = `Urgent ${unique()}`;
+  const department = `Care ${unique()}`;
+  const property = `Plan ${unique()}`;
+  const name = `Invoice ${unique()}`;
+  const panel = recordPanel(page);
+
+  await addSetting(page, 'tags', 'Add tag', tag);
+  await addSetting(page, 'departments', 'Add department', department);
+  await page.goto('/frontline/settings/ticket-properties');
+  await page.getByRole('button', { name: 'Add property' }).click();
+  await page.getByRole('dialog').getByLabel('Label', { exact: true }).fill(property);
+  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('row', { name: new RegExp(property) })).toBeVisible();
+
+  const channel = await openChannelPipelines(page);
+  const pipeline = await createPipeline(page);
+
+  await page.goto(TICKETS);
+  await page.getByRole('button', { name: 'Create ticket' }).first().click();
+  await pick(page, panel.getByRole('combobox', { name: 'Pipeline' }), `${channel} › ${pipeline}`);
+  await panel.getByLabel('Name').fill(name);
+  await panel.getByRole('button', { name: 'Create ticket' }).click();
+  await expect(panel.getByRole('button', { name: `Name ${name}` })).toBeVisible();
+
+  await panel.getByRole('button', { name: 'Tags' }).click();
+  await page.getByRole('option', { name: tag }).click();
+  await page.keyboard.press('Escape');
+  await expect(panel.getByRole('button', { name: 'Tags' })).toContainText(tag);
+  await panel.getByRole('button', { name: 'Department' }).click();
+  await page.getByRole('option', { name: department }).click();
+  await page.keyboard.press('Escape');
+  await expect(panel.getByRole('button', { name: 'Department' })).toContainText(department);
+  await expect(panel.getByText(property)).toBeVisible();
+  await expect(panel.getByText('Contacts')).toBeVisible();
+  await expectAccessible(page);
+
+  // The filter bar narrows the list by the ticket's tag.
+  await page.goto(TICKETS);
+  await filterBy(page, 'Pipeline', pipeline);
+  await filterBy(page, 'Tags', tag);
+  await expect(ticket(page, name)).toBeVisible();
+  await page.getByRole('button', { name: 'Remove filter' }).last().click();
+  await filterBy(page, 'Department', department);
+  await expect(ticket(page, name)).toBeVisible();
+});
+
 test('a member without frontline permissions is refused the tickets', async ({ newMember }) => {
   const { page } = await newMember(['team.view']);
 

@@ -53,6 +53,30 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await expectAccessible(teammate.page);
 });
 
+test('each member opens their own personal inbox, left out of the channel list', async ({
+  page,
+  newMember,
+}) => {
+  const teammate = await newMember(['frontline.channel.view']);
+  const panel = recordPanel(page);
+
+  await page.goto('/frontline/personal-channel');
+  await expect(page).toHaveURL(new RegExp(`${CHANNELS}/[^/]+$`));
+  await expect(panel.getByRole('button', { name: 'Personal inbox' })).toBeVisible();
+  const mine = page.url();
+
+  await expectAccessible(page);
+  await page.goto('/frontline/personal-channel');
+  await expect(page).toHaveURL(mine);
+  await page.goto(CHANNELS);
+  await expect(page.getByRole('button', { name: 'Personal inbox', exact: true })).toBeHidden();
+
+  await teammate.page.goto('/frontline/personal-channel');
+  await expect(teammate.page).toHaveURL(new RegExp(`${CHANNELS}/[^/]+$`));
+  expect(teammate.page.url()).not.toBe(mine);
+  await expectAccessible(teammate.page);
+});
+
 test('the owner renames a channel, adds a member, removes them, and cannot remove the last admin', async ({
   page,
   newMember,
