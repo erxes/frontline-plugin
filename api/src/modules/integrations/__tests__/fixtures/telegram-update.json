@@ -1,0 +1,23 @@
+{
+  "update_id": 918273001,
+  "message": {
+    "message_id": 41,
+    "from": {
+      "id": 4242,
+      "is_bot": false,
+      "first_name": "Bat",
+      "last_name": "Dorj",
+      "username": "batdorj",
+      "language_code": "mn"
+    },
+    "chat": {
+      "id": 4242,
+      "first_name": "Bat",
+      "last_name": "Dorj",
+      "username": "batdorj",
+      "type": "private"
+    },
+    "date": 1763180000,
+    "text": "Hello, is my order on its way?"
+  }
+}

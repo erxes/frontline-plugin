@@ -57,6 +57,10 @@ export default defineConfig({
           env: {
             CORE_URL: 'http://127.0.0.1:9',
             PLUGIN_SECRET: 'test-secret-'.padEnd(32, 'x'),
+            SECRETS_KEY: Buffer.from('test-secrets-key-32-bytes-long!!').toString('base64'),
+            META_APP_ID: 'test-meta-app',
+            META_APP_SECRET: 'test-meta-app-secret',
+            META_VERIFY_TOKEN: 'test-meta-verify',
             LOG_LEVEL: 'silent',
           },
         },

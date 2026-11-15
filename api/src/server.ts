@@ -10,6 +10,7 @@ import { logger } from '#/logger.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
 import { runAction } from '#/modules/inbox/automations.ts';
+import { webhookRoutes } from '#/modules/integrations/routes.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
 import { router } from '#/router.ts';
 
@@ -35,6 +36,8 @@ export const createApp = () => {
 
   app.disable('x-powered-by');
   app.use(pinoHttp({ logger }));
+  // Providers post webhooks signed out, from their own servers.
+  app.use('/api/public/webhooks', webhookRoutes());
   // Websites embed the messenger and forms: their routes answer any origin, so they come before
   // web's CORS. Forms find the organisation by the key frontline gave it.
   app.use('/api/public/messenger', messengerRoutes());

@@ -29,6 +29,18 @@ const Env = z.object({
   CLOUDFLARE_ZONE_ID: z.string().min(1).optional(),
   /** A member's domain CNAMEs to `<help center key>.<suffix>`. */
   HELPCENTER_DOMAIN_SUFFIX: z.string().min(1).default('helpcenter.erxes.io'),
+  /**
+   * Encrypts page tokens, bot tokens and mail passwords at rest: 32 random bytes in base64
+   * (`openssl rand -base64 32`). Changing it makes every stored secret unreadable.
+   */
+  SECRETS_KEY: z.base64().refine((key) => Buffer.from(key, 'base64').length === 32, {
+    message: 'SECRETS_KEY must be 32 bytes in base64',
+  }),
+  /** The Meta app that Facebook pages and Instagram accounts connect through. */
+  META_APP_ID: z.string().optional(),
+  META_APP_SECRET: z.string().optional(),
+  /** What Meta's webhook subscription sends back as `hub.verify_token`. */
+  META_VERIFY_TOKEN: z.string().optional(),
 });
 
 const env = Env.parse(process.env);
@@ -50,4 +62,10 @@ export const config = {
       ? { apiToken: env.CLOUDFLARE_CUSTOMHOST_API_TOKEN, zoneId: env.CLOUDFLARE_ZONE_ID }
       : null,
   helpCenterDomainSuffix: env.HELPCENTER_DOMAIN_SUFFIX,
+  secretsKey: Buffer.from(env.SECRETS_KEY, 'base64'),
+  meta: {
+    appId: env.META_APP_ID,
+    appSecret: env.META_APP_SECRET,
+    verifyToken: env.META_VERIFY_TOKEN,
+  },
 };

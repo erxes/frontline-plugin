@@ -15,6 +15,11 @@ import { statusProcedures } from '#/modules/pipelines/statuses.ts';
 import { responseTemplateProcedures } from '#/modules/responseTemplates/responseTemplates.ts';
 import { conversationProcedures } from '#/modules/inbox/conversations.ts';
 import { integrationProcedures } from '#/modules/inbox/integrations.ts';
+import { accountProcedures } from '#/modules/integrations/accounts.ts';
+import { discordProcedures } from '#/modules/integrations/providers/discord.ts';
+import { mailProcedures } from '#/modules/integrations/providers/mailConnect.ts';
+import { metaProcedures } from '#/modules/integrations/providers/metaLogin.ts';
+import { telegramProcedures } from '#/modules/integrations/providers/telegram.ts';
 import { messageProcedures } from '#/modules/inbox/messages.ts';
 import { operatorProcedures } from '#/modules/inbox/operator.ts';
 import { presenceProcedures } from '#/modules/inbox/presence.ts';
@@ -46,7 +51,15 @@ export const router = {
     submissions: submissionProcedures,
   },
   surveys: { ...surveyProcedures, ...surveyStatusProcedures },
-  integrations: { ...integrationProcedures, messenger: messengerProcedures },
+  integrations: {
+    ...integrationProcedures,
+    messenger: messengerProcedures,
+    accounts: accountProcedures,
+    meta: metaProcedures,
+    telegram: telegramProcedures,
+    discord: discordProcedures,
+    mail: mailProcedures,
+  },
   conversations: {
     ...conversationProcedures,
     ...operatorProcedures,

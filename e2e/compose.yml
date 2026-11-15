@@ -13,6 +13,8 @@ services:
       DATA_URL: postgres://erxes_plugin_frontline:${PLUGIN_DATA_PASSWORD:-}@postgres:5432/erxes
       CORE_URL: http://api:3400
       PLUGIN_SECRET: ${PLUGIN_SECRET:?set PLUGIN_SECRET}
+      # A throwaway stack with synthetic data: a fixed key is enough.
+      SECRETS_KEY: ZTJlLXNlY3JldHMta2V5LTMyLWJ5dGVzLWxvbmchISE=
       PUBLIC_URL: http://localhost:3399
       CORE_UI_URL: http://localhost:8080
     ports:

@@ -17,6 +17,7 @@ trap 'psql "$server" -qX -c "DROP DATABASE IF EXISTS $name WITH (FORCE)"' EXIT
 psql "$url" -qX -v ON_ERROR_STOP=1 -f api/src/test/core-functions.sql
 # Only DATA_URL matters to a migration; the others satisfy config.ts.
 DATA_URL="$url" CORE_URL=http://127.0.0.1:9 PLUGIN_SECRET=rls-check-only-secret-xxxxxxxxxxxx \
+  SECRETS_KEY=cmxzLXNlY3JldHMta2V5LTMyLWJ5dGVzLWxvbmchISE= \
   LOG_LEVEL=silent pnpm --silent db:migrate > /dev/null
 
 problems=$(psql "$url" -qXAt -v ON_ERROR_STOP=1 -v scope=frontline -v policy=tenant -f tools/check-rls.sql)

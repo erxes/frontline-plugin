@@ -1,0 +1,37 @@
+{
+  "object": "page",
+  "entry": [
+    {
+      "id": "page-1",
+      "time": 1763180000123,
+      "messaging": [
+        {
+          "sender": { "id": "psid-1" },
+          "recipient": { "id": "page-1" },
+          "timestamp": 1763180000001,
+          "message": {
+            "mid": "m_first",
+            "text": "Do you ship to Darkhan?"
+          }
+        },
+        {
+          "sender": { "id": "psid-1" },
+          "recipient": { "id": "page-1" },
+          "timestamp": 1763180000002,
+          "message": {
+            "mid": "m_photo",
+            "attachments": [
+              { "type": "image", "payload": { "url": "https://cdn.example.com/photo.jpg" } }
+            ]
+          }
+        },
+        {
+          "sender": { "id": "page-1" },
+          "recipient": { "id": "psid-1" },
+          "timestamp": 1763180000003,
+          "message": { "mid": "m_echo", "is_echo": true, "text": "Sent from the page" }
+        }
+      ]
+    }
+  ]
+}
