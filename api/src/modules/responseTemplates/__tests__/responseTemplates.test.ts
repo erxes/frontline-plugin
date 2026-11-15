@@ -34,8 +34,8 @@ describe('response templates', () => {
     ).resolves.toMatchObject({ name: 'Welcome', channelId: billing.id, content: greeting.content });
     await expect(names()).resolves.toEqual(['Refund_policy']);
 
-    await expect(owner.responseTemplates.remove({ id: greeting.id })).resolves.toEqual({
-      id: greeting.id,
+    await expect(owner.responseTemplates.remove({ ids: [greeting.id] })).resolves.toEqual({
+      ids: [greeting.id],
     });
     await expect(owner.responseTemplates.get({ id: greeting.id })).rejects.toMatchObject({
       code: 'NOT_FOUND',

@@ -74,7 +74,7 @@ test('a manager files articles under categories that a reader can only read', as
   await expectAccessible(page);
   await sheet.getByRole('button', { name: 'Create Article' }).click();
   await expect(page.getByRole('row', { name: /Refunds/ })).toBeVisible();
-  await expect(page.getByText('1 records found')).toBeVisible();
+  await expect(page.getByText('1 record found')).toBeVisible();
 
   await page.getByRole('button', { name: 'Refunds', exact: true }).click();
   await sheet.getByLabel('Title', { exact: true }).fill('Card refunds');
@@ -127,7 +127,7 @@ test('a manager duplicates and deletes an article, then renames and deletes its 
   await page.getByRole('option', { name: 'Delete' }).click();
   await confirm.getByRole('textbox').fill('delete');
   await confirm.getByRole('button', { name: 'Delete' }).click();
-  await expect(page.getByText('1 records found')).toBeVisible();
+  await expect(page.getByText('1 record found')).toBeVisible();
 
   await page.goto(articles.replace(/articles$/, 'kbsettings'));
   await page.getByLabel('Title', { exact: true }).fill(`${topic} center`);

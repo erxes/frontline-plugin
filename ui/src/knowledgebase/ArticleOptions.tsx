@@ -1,4 +1,5 @@
 import { DatePicker, MultipleSelector, Select, Switch, TimeField } from 'erxes-ui';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Field } from '../shared/SidePanel.tsx';
 import { FileList, FilePicker, ImageField } from './Files.tsx';
@@ -52,6 +53,8 @@ export const Publishing = ({ value, onChange }: Props) => {
   const { t } = useTranslation('frontline');
   const statuses = useStatusNames();
   const at = value.scheduledAt;
+  // Read once per mount, so render stays pure; the API refuses a past time either way.
+  const [today] = useState(() => new Date());
 
   return (
     <>
@@ -77,6 +80,7 @@ export const Publishing = ({ value, onChange }: Props) => {
           <div className="flex gap-2">
             <DatePicker
               value={at ?? undefined}
+              minDate={today}
               onChange={(day) => day instanceof Date && onChange({ scheduledAt: onDay(at, day) })}
               placeholder={t('kb-pick-date', 'Pick a date')}
             />

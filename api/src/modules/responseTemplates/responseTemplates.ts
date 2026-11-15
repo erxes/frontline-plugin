@@ -1,6 +1,6 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, count, eq, getTableColumns, ilike, or } from 'drizzle-orm';
+import { and, count, eq, getTableColumns, ilike, inArray, or } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
@@ -151,15 +151,19 @@ const update = writes(PERMISSIONS.channelView)
     return updated;
   });
 
-/** Deletes a template. */
+/** Deletes the templates, all of them or none when the caller may not delete one. */
 const remove = writes(PERMISSIONS.channelView)
-  .input(z.object({ id: z.string() }))
-  .output(z.object({ id: z.string() }))
+  .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
+  .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
-    await templateFor(tx, member, input.id, { change: true });
-    await tx.delete(responseTemplates).where(eq(responseTemplates.id, input.id));
+    await Promise.all(input.ids.map((id) => templateFor(tx, member, id, { change: true })));
 
-    return { id: input.id };
+    const removed = await tx
+      .delete(responseTemplates)
+      .where(inArray(responseTemplates.id, input.ids))
+      .returning({ id: responseTemplates.id });
+
+    return { ids: removed.map((row) => row.id) };
   });
 
 export const responseTemplateProcedures = { list, get, create, update, remove };

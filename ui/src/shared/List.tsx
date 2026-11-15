@@ -103,7 +103,11 @@ export const SearchSubHeader = ({
           {children}
           {count !== undefined && (
             <span className="text-muted-foreground text-sm font-medium whitespace-nowrap">
-              {t('n-records-found', { defaultValue: '{{count}} records found', count })}
+              {t('n-records-found', {
+                defaultValue_one: '{{count}} record found',
+                defaultValue_other: '{{count}} records found',
+                count,
+              })}
             </span>
           )}
         </Filter.Bar>

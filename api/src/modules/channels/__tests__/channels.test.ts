@@ -33,7 +33,9 @@ describe('channels', () => {
     await expect(
       owner.channels.update({ id: support.id, name: 'Help', description: 'Customer help' }),
     ).resolves.toMatchObject({ name: 'Help', description: 'Customer help', icon: 'IconHeadset' });
-    await expect(owner.channels.remove({ id: support.id })).resolves.toEqual({ id: support.id });
+    await expect(owner.channels.remove({ ids: [support.id] })).resolves.toEqual({
+      ids: [support.id],
+    });
     await expect(owner.channels.get({ id: support.id })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
@@ -134,17 +136,18 @@ describe('channels', () => {
     const ours = clientAs('org-f');
 
     await expect(ours.channels.list({})).resolves.toMatchObject({ channels: [] });
-    await expect(ours.channels.create({ name: 'Shared name' })).resolves.toMatchObject({
-      name: 'Shared name',
-    });
+    const own = await ours.channels.create({ name: 'Shared name' });
+    expect(own).toMatchObject({ name: 'Shared name' });
     await expect(ours.channels.get({ id: theirs.id })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
     await expect(
       ours.channels.addMembers({ id: theirs.id, userIds: ['intruder'] }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
-    await expect(ours.channels.remove({ id: theirs.id })).rejects.toMatchObject({
+    // One refused id removes none of them.
+    await expect(ours.channels.remove({ ids: [own.id, theirs.id] })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
+    await expect(ours.channels.get({ id: own.id })).resolves.toMatchObject({ id: own.id });
   });
 });

@@ -15,7 +15,6 @@ import {
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
-  toast,
   Tooltip,
   useFormat,
   useMembersById,
@@ -32,36 +31,21 @@ import {
 } from '../shared/Records.tsx';
 import { type Channel, CHANNELS_PATH, useChannelChange, usePanel } from './useChannels.ts';
 
-/** Asks for "delete" to be typed, then deletes the channels, reporting any the API refused. */
+/** Asks for "delete" to be typed, then deletes the channels: all of them, or none when the API refuses one. */
 const useDeleteChannels = () => {
   const { t } = useTranslation('frontline');
   const confirm = useConfirmDelete();
-  const change = useChannelChange();
-  const remove = useMutation(orpc.channels.remove.mutationOptions());
+  const remove = useMutation(orpc.channels.remove.mutationOptions(useChannelChange()));
 
   const deleteChannels = async (ids: string[], done?: () => void) => {
     await confirm(
       t('delete-channels-confirm', {
-        defaultValue: 'Delete {{count}} channels?',
+        defaultValue_one: 'Delete this channel?',
+        defaultValue_other: 'Delete {{count}} channels?',
         count: ids.length,
       }),
     );
-    const results = await Promise.allSettled(ids.map((id) => remove.mutateAsync({ id })));
-    const failed = results.filter((result) => result.status === 'rejected');
-
-    done?.();
-    await change.onSuccess();
-
-    if (failed.length > 0)
-      toast({
-        variant: 'destructive',
-        title: t('channels-removed-with-failures', {
-          defaultValue: '{{removed}} removed, {{failed}} failed',
-          removed: ids.length - failed.length,
-          failed: failed.length,
-        }),
-        description: failed[0]?.reason instanceof Error ? failed[0].reason.message : undefined,
-      });
+    remove.mutate({ ids }, { onSuccess: done });
   };
 
   return { deleteChannels, isPending: remove.isPending };

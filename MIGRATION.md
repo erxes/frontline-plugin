@@ -1382,7 +1382,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 ### Core calls
 
 - [ ] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/ticket/db/models/Ticket.ts:205`
-- [ ] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/ticket/graphql/resolvers/customResolvers/pipeline.ts:11`
+- [x] core `users.findOne` → contract: the pipelines list names the creator with `MemberInline` over `memberQueries`, so the API needs no `users:read` `frontline_api/src/modules/ticket/graphql/resolvers/customResolvers/pipeline.ts:11`
 - [ ] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/ticket/graphql/resolvers/customResolvers/status.ts:24`
 - [ ] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/ticket/graphql/resolvers/mutations/ticket.ts:26`
 - [ ] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/ticket/meta/automations/actions/createTicketAction.ts:212`

@@ -24,27 +24,21 @@ import {
   useTemplatePanel,
 } from './useResponseTemplates.ts';
 
-/** Asks for "delete" to be typed, then deletes the templates. */
+/** Asks for "delete" to be typed, then deletes the templates: all of them, or none when the API refuses one. */
 const useDeleteTemplates = () => {
   const { t } = useTranslation('frontline');
   const confirm = useConfirmDelete();
-  const change = useTemplateChange();
-  const remove = useMutation(orpc.responseTemplates.remove.mutationOptions());
+  const remove = useMutation(orpc.responseTemplates.remove.mutationOptions(useTemplateChange()));
 
   const deleteTemplates = async (ids: string[], done?: () => void) => {
     await confirm(
       t('delete-templates-confirm', {
-        defaultValue: 'Delete {{count}} response templates?',
+        defaultValue_one: 'Delete this response template?',
+        defaultValue_other: 'Delete {{count}} response templates?',
         count: ids.length,
       }),
     );
-    const results = await Promise.allSettled(ids.map((id) => remove.mutateAsync({ id })));
-    const failed = results.find((result) => result.status === 'rejected');
-
-    done?.();
-    await change.onSuccess();
-
-    if (failed?.reason instanceof Error) change.onError(failed.reason);
+    remove.mutate({ ids }, { onSuccess: done });
   };
 
   return { deleteTemplates, isPending: remove.isPending };

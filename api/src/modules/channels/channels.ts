@@ -1,6 +1,6 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { type ORPCErrorConstructorMap, ORPCError } from '@orpc/server';
-import { and, asc, desc, eq, ilike, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { type Tx, uniqueViolation } from '#/db/client.ts';
@@ -175,15 +175,19 @@ const update = writes(PERMISSIONS.channelView)
     return channelById(tx, member, id);
   });
 
-/** Deletes the channel and its memberships. */
+/** Deletes the channels and their memberships, all of them or none when the caller may not delete one. */
 const remove = writes(PERMISSIONS.channelView)
-  .input(z.object({ id: z.string() }))
-  .output(z.object({ id: z.string() }))
+  .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
+  .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
-    await channelFor(tx, member, input.id, { change: true });
-    await tx.delete(channels).where(eq(channels.id, input.id));
+    await Promise.all(input.ids.map((id) => channelFor(tx, member, id, { change: true })));
 
-    return input;
+    const removed = await tx
+      .delete(channels)
+      .where(inArray(channels.id, input.ids))
+      .returning({ id: channels.id });
+
+    return { ids: removed.map((row) => row.id) };
   });
 
 export const channelProcedures = { list, get, create, update, remove };
