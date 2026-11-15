@@ -3,6 +3,10 @@ name: plugin-migrate
 description: Port the old erxes plugin this repo was made from onto the new core. Use when working through MIGRATION.md, porting a module, or when someone asks how far the migration is.
 ---
 
+Read `PORTING.md` first. It holds the rules every port follows: what done
+means, which old shapes never carry over, what core owns, and how much
+verification is enough.
+
 The port keeps every feature the old plugin had and fixes its architecture.
 Port what each feature does, never its code: where the old plugin got
 something wrong (a missing check, a race, a workaround for the old core), the

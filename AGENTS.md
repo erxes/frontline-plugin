@@ -65,7 +65,7 @@ without line-by-line review.
   tell a public request's organisation.
 - Skills in `.agents/skills/`: `endpoint` for a procedure, `schema-change` for a
   table or column, `verify` before calling a change done.
-- This repo ports the old erxes `frontline` plugin. Work through
-  the `plugin-migrate` skill. It starts with the inventory and checklist tasks.
+- This repo ports the old erxes `frontline` plugin. Read `PORTING.md`
+  first, then work through the `plugin-migrate` skill.
 - What core promises plugins, and what counts as a breaking change, is core's
   `plugin-contract` skill (erxes repo, branch `postgre`).
