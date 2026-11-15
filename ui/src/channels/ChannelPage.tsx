@@ -2,20 +2,44 @@ import { IconChevronRight } from '@tabler/icons-react';
 import { Button, IconComponent, Skeleton } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link, useParams } from 'react-router-dom';
+import { usePipelineCount } from '../pipelines/usePipelines.ts';
 import { useTemplateCount } from '../responseTemplates/useResponseTemplates.ts';
 import { CHANNELS_PATH, useChannel, usePanel } from './useChannels.ts';
 
-/** One channel's settings: edit it, and go to its members and response templates. */
+/** One channel's settings: edit it, and go to its members, response templates and pipelines. */
 export const ChannelPage = () => {
   const { t } = useTranslation('frontline');
   const { id = '' } = useParams();
   const { data: channel, isPending, error } = useChannel(id);
   const { openChannel } = usePanel();
   const templateCount = useTemplateCount(id);
+  const pipelineCount = usePipelineCount(id);
 
   if (isPending) return <Skeleton className="m-8 h-40" />;
 
   if (error) return <p className="m-8 text-sm text-destructive-text">{error.message}</p>;
+
+  // A count still loading shows nothing rather than zero.
+  const counted = (key: string, defaultValue: string, count: number | undefined) =>
+    count === undefined ? '' : t(key, { defaultValue, count });
+
+  const pages = [
+    {
+      segment: 'members',
+      label: t('manage-channel-members', 'Manage channel members'),
+      count: counted('member-count', '{{count}} members', channel.memberIds.length),
+    },
+    {
+      segment: 'response',
+      label: t('manage-channel-response-templates', 'Manage channel response templates'),
+      count: counted('template-count', '{{count}} templates', templateCount),
+    },
+    {
+      segment: 'pipelines',
+      label: t('manage-channel-pipelines', 'Manage channel pipelines'),
+      count: counted('pipeline-count', '{{count}} pipelines', pipelineCount),
+    },
+  ];
 
   return (
     <div className="w-full px-4 sm:px-8 lg:px-16 py-8 flex flex-col gap-4">
@@ -33,23 +57,14 @@ export const ChannelPage = () => {
         </section>
       )}
 
-      <SectionLink
-        to={`${CHANNELS_PATH}/${channel.id}/members`}
-        label={t('manage-channel-members', 'Manage channel members')}
-        count={t('member-count', {
-          defaultValue: '{{count}} members',
-          count: channel.memberIds.length,
-        })}
-      />
-      <SectionLink
-        to={`${CHANNELS_PATH}/${channel.id}/response`}
-        label={t('manage-channel-response-templates', 'Manage channel response templates')}
-        count={
-          templateCount === undefined
-            ? ''
-            : t('template-count', { defaultValue: '{{count}} templates', count: templateCount })
-        }
-      />
+      {pages.map((page) => (
+        <SectionLink
+          key={page.segment}
+          to={`${CHANNELS_PATH}/${channel.id}/${page.segment}`}
+          label={page.label}
+          count={page.count}
+        />
+      ))}
     </div>
   );
 };

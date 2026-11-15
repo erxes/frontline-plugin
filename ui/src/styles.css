@@ -7,3 +7,4 @@
 @import 'tailwindcss/utilities.css' layer(utilities) source(none);
 @source '.';
 @source not './knowledgebase';
+@source not './pipelines';

@@ -536,11 +536,10 @@ for (const collection of inventory.collections) {
 
   drafted.add(table);
 
-  const kept = IMPORT_MAP.find(
-    (entry) => entry.collection === collection.collection && entry.table === table,
-  );
+  // A ported table may take a better name than its collection's; its entry names it.
+  const kept = IMPORT_MAP.find((entry) => entry.collection === collection.collection);
 
-  if (ported.has(table) && kept) {
+  if (kept && ported.has(kept.table)) {
     imports.push(kept);
     continue;
   }

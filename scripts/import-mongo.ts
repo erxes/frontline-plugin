@@ -5,11 +5,13 @@
 //     pnpm migrate:import [-- --only <collection>]
 //
 // Rows keep the Mongo `_id` as `id`, so running it again skips what it already
-// copied (rows that hit any unique key are skipped). Tables not in the database
-// yet, and fields with no column, are skipped and listed at the end.
+// copied (rows that hit any unique key are skipped). A table imports after the
+// tables its foreign keys point at. Tables not in the database yet, fields with
+// no column, and documents a constraint refuses (a status whose pipeline is
+// gone) are skipped and listed at the end.
 import { parseArgs } from 'node:util';
 import { MongoClient, ObjectId } from 'mongodb';
-import { Pool } from 'pg';
+import { DatabaseError, Pool } from 'pg';
 import { IMPORT_MAP } from '../migration/import-map.ts';
 
 const BATCH = 500;
@@ -22,7 +24,10 @@ if (!MONGO_URL || !DATA_URL || !ORG_ID) {
   process.exit(1);
 }
 
-type Column = { array: boolean; json: boolean };
+type Column = { array: boolean; json: boolean; text: boolean };
+
+/** Not null, foreign key, check, a value its type can't read, a number out of range. */
+const REFUSED = new Set(['23502', '23503', '23514', '22P02', '22003']);
 
 const plain = (value: unknown): unknown => {
   if (value instanceof ObjectId) return value.toHexString();
@@ -39,6 +44,9 @@ const cell = (value: unknown, column: Column) => {
 
   if (flat === undefined || flat === null) return null;
 
+  // Old forms saved a cleared number or id as ''; only a text column can hold it.
+  if (flat === '' && !column.text && !column.json) return null;
+
   if (column.json) return JSON.stringify(flat);
 
   // An array column takes an array as it is and a single value as a one-item array.
@@ -54,7 +62,23 @@ const pool = new Pool({ connectionString: DATA_URL });
 const skipped: string[] = [];
 
 try {
-  for (const { collection, table, columns, values = {}, unwind } of IMPORT_MAP) {
+  const { rows: references } = await pool.query<{ child: string; parent: string }>(
+    `SELECT conrelid::regclass::text AS child, confrelid::regclass::text AS parent
+     FROM pg_constraint WHERE contype = 'f' AND conrelid <> confrelid`,
+  );
+
+  /** How many foreign keys deep a table sits: channels 0, pipelines 1, their statuses 2. */
+  const depth = (table: string, seen: string[] = []): number =>
+    Math.max(
+      0,
+      ...references
+        .filter(({ child, parent }) => child === table && !seen.includes(parent))
+        .map(({ parent }) => 1 + depth(parent, [...seen, table])),
+    );
+
+  const entries = IMPORT_MAP.toSorted((a, b) => depth(a.table) - depth(b.table));
+
+  for (const { collection, table, columns, values = {}, unwind } of entries) {
     if (args.only && args.only !== collection) continue;
 
     const { rows: described } = await pool.query<{ column_name: string; data_type: string }>(
@@ -70,7 +94,11 @@ try {
     const known = new Map(
       described.map(({ column_name, data_type }) => [
         column_name,
-        { array: data_type === 'ARRAY', json: data_type === 'jsonb' || data_type === 'json' },
+        {
+          array: data_type === 'ARRAY',
+          json: data_type === 'jsonb' || data_type === 'json',
+          text: data_type === 'text',
+        },
       ]),
     );
 
@@ -113,7 +141,21 @@ try {
       }
     };
 
-    let batch: unknown[][] = [];
+    type Row = { id: string; values: unknown[] };
+
+    // A batch a constraint refuses goes again a row at a time, so one orphan skips only itself.
+    const write = async (rows: Row[]) => {
+      try {
+        await insert(rows.map((row) => row.values));
+      } catch (error) {
+        if (!(error instanceof DatabaseError && REFUSED.has(error.code ?? ''))) throw error;
+
+        if (rows.length > 1) for (const row of rows) await write([row]);
+        else skipped.push(`${collection} ${rows[0]?.id ?? ''}: ${error.message}`);
+      }
+    };
+
+    let batch: Row[] = [];
 
     for await (const document of cursor) {
       seen += 1;
@@ -129,24 +171,29 @@ try {
         : [document];
 
       for (const copy of copies) {
-        batch.push([
-          ORG_ID,
-          ...constants.map(([, value]) => value),
-          ...fields.map(([field, name]) => {
-            const column = known.get(name) ?? { array: false, json: false };
+        const { _id: documentId } = copy;
 
-            return cell(copy[field], column);
-          }),
-        ]);
+        batch.push({
+          id: JSON.stringify(plain(documentId)),
+          values: [
+            ORG_ID,
+            ...constants.map(([, value]) => value),
+            ...fields.map(([field, name]) => {
+              const column = known.get(name) ?? { array: false, json: false, text: false };
+
+              return cell(copy[field], column);
+            }),
+          ],
+        });
 
         if (batch.length === BATCH) {
-          await insert(batch);
+          await write(batch);
           batch = [];
         }
       }
     }
 
-    if (batch.length > 0) await insert(batch);
+    if (batch.length > 0) await write(batch);
 
     console.info(`${collection} → ${table}: ${copied} rows copied from ${seen} documents`);
   }

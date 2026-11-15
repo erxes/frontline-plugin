@@ -1,5 +1,5 @@
 import { ORPCError } from '@orpc/server';
-import { and, count, desc, eq, getTableColumns, ilike, inArray, lte, or, sql } from 'drizzle-orm';
+import { and, count, eq, getTableColumns, ilike, inArray, lte, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
@@ -7,7 +7,9 @@ import { KB_ARTICLE_STATUSES, kbArticles, kbCategories } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { likeText } from '../channels/access.ts';
 import { subtreeIds } from './categories.ts';
-import { Blank, categoryFor, Stamps, Title, topicFor } from './shared.ts';
+import { Blank, Stamps, Title } from '../fields.ts';
+import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
+import { categoryFor, topicFor } from './shared.ts';
 
 const { orgId, content, reactionChoices, image, attachments, pdfAttachment, ...rowColumns } =
   getTableColumns(kbArticles);
@@ -127,8 +129,7 @@ const list = reads(PERMISSIONS.kbView)
       categoryId: z.string().optional(),
       status: Status.optional(),
       search: z.string().trim().max(200).optional(),
-      cursor: z.string().optional(),
-      limit: z.number().int().min(1).max(50).default(50),
+      ...PageInput,
     }),
   )
   .output(
@@ -162,25 +163,19 @@ const list = reads(PERMISSIONS.kbView)
         : undefined,
     );
 
-    const after = input.cursor
-      ? sql`(${kbArticles.createdAt}, ${kbArticles.id}) < (
-          select created_at, id from ${kbArticles} where id = ${input.cursor}
-        )`
-      : undefined;
-
     const rows = await tx
       .select(rowColumns)
       .from(kbArticles)
-      .where(and(matches, after))
-      .orderBy(desc(kbArticles.createdAt), desc(kbArticles.id))
+      .where(and(matches, after(kbArticles, input.cursor)))
+      .orderBy(...newestFirst(kbArticles))
       .limit(input.limit + 1);
 
     const [total] = await tx.select({ value: count() }).from(kbArticles).where(matches);
-    const articles = rows.slice(0, input.limit);
+    const { items, nextCursor } = pageOf(rows, input.limit);
 
     return {
-      articles,
-      nextCursor: rows.length > input.limit ? (articles.at(-1)?.id ?? null) : null,
+      articles: items,
+      nextCursor,
       totalCount: total?.value ?? 0,
     };
   });

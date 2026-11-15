@@ -43,6 +43,13 @@
       "when": 1794681781023,
       "tag": "0005_knowledgebase",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794685520415,
+      "tag": "0006_pipelines",
+      "breakpoints": true
     }
   ]
 }

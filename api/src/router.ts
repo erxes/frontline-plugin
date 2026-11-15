@@ -4,12 +4,15 @@ import { memberProcedures } from '#/modules/channels/members.ts';
 import { articleProcedures } from '#/modules/knowledgebase/articles.ts';
 import { categoryProcedures } from '#/modules/knowledgebase/categories.ts';
 import { topicProcedures } from '#/modules/knowledgebase/topics.ts';
+import { pipelineProcedures } from '#/modules/pipelines/pipelines.ts';
+import { statusProcedures } from '#/modules/pipelines/statuses.ts';
 import { responseTemplateProcedures } from '#/modules/responseTemplates/responseTemplates.ts';
 
 /** Every procedure, served at `/api/rpc/<group>/<name>`. */
 export const router = {
   channels: { ...channelProcedures, ...memberProcedures },
   responseTemplates: responseTemplateProcedures,
+  pipelines: { ...pipelineProcedures, statuses: statusProcedures },
   knowledgebase: {
     topics: topicProcedures,
     categories: categoryProcedures,

@@ -1,6 +1,6 @@
 import { IconCircles } from '@tabler/icons-react';
 import { buttonVariants, PageContainer, PageHeader, Separator, Skeleton } from 'erxes-ui';
-import { lazy, Suspense } from 'react';
+import { type ComponentType, lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useMatch } from 'react-router-dom';
 import { CreateButton } from '../shared/List.tsx';
@@ -9,9 +9,15 @@ import { CHANNELS_PATH, useChannel, useChannels, usePanel } from './useChannels.
 
 const crumb = buttonVariants({ variant: 'ghost' });
 
-const CreateTemplate = lazy(async () => ({
-  default: (await import('../responseTemplates/ResponseTemplatesPage.tsx')).CreateTemplate,
-}));
+/** The create button a channel's list page puts in the header, by the path after the channel id. */
+const CREATE_BUTTONS: Record<string, ComponentType<{ channelId: string }>> = {
+  response: lazy(async () => ({
+    default: (await import('../responseTemplates/ResponseTemplatesPage.tsx')).CreateTemplate,
+  })),
+  pipelines: lazy(async () => ({
+    default: (await import('../pipelines/PipelinesPage.tsx')).CreatePipeline,
+  })),
+};
 
 /** A channel's pages below its own, by the path segment after its id. */
 const useSubPages = () => {
@@ -20,6 +26,7 @@ const useSubPages = () => {
   return {
     members: t('members', 'Members'),
     response: t('response-templates', 'Response templates'),
+    pipelines: t('pipelines', 'Pipelines'),
   };
 };
 
@@ -67,7 +74,9 @@ export const ChannelsLayout = () => {
   const { t } = useTranslation('frontline');
   const detail = useMatch(`${CHANNELS_PATH}/:id/*`);
   const id = detail?.params.id;
-  const sub = detail?.params['*']?.split('/')[0];
+  const rest = detail?.params['*'] ?? '';
+  const sub = rest.split('/')[0];
+  const Create = CREATE_BUTTONS[rest];
 
   return (
     <PageContainer>
@@ -81,9 +90,9 @@ export const ChannelsLayout = () => {
         </PageHeader.Start>
         <PageHeader.End>
           {!id && <CreateChannel />}
-          {id && sub === 'response' && (
+          {id && Create && (
             <Suspense>
-              <CreateTemplate channelId={id} />
+              <Create channelId={id} />
             </Suspense>
           )}
         </PageHeader.End>

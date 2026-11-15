@@ -1,9 +1,10 @@
-import { useMutation, useQuery } from '@tanstack/react-query';
-import { Dialog, Editor, EntityPicker, Input, Skeleton } from 'erxes-ui';
+import { useMutation } from '@tanstack/react-query';
+import { Editor, Input, Skeleton } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '../orpc.ts';
 import { draftsOf, FormActions } from '../shared/Drafts.tsx';
+import { MoveToChannelDialog } from '../shared/MoveToChannel.tsx';
 import { Field, SidePanel } from '../shared/SidePanel.tsx';
 import {
   type ResponseTemplate,
@@ -137,37 +138,14 @@ export const MoveTemplateDialog = ({
   template: ResponseTemplate;
   onClose: () => void;
 }) => {
-  const { t } = useTranslation('frontline');
-  const channels = useQuery(orpc.channels.list.queryOptions({ input: {} }));
   const move = useMutation(orpc.responseTemplates.update.mutationOptions(useTemplateChange()));
 
-  const targets = (channels.data?.channels ?? []).filter(
-    (channel) => channel.canManage && channel.id !== template.channelId,
-  );
-
   return (
-    <Dialog open onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Content>
-        <Dialog.Header>
-          <Dialog.Title>{t('move-to-channel', 'Move to channel')}</Dialog.Title>
-          <Dialog.Description>
-            {t('move-template-hint', 'Pick the channel {{name}} moves to.', {
-              name: template.name,
-            })}
-          </Dialog.Description>
-        </Dialog.Header>
-        <EntityPicker
-          items={targets}
-          itemKey={(channel) => ({ id: channel.id, label: channel.name })}
-          value={[]}
-          onValueChange={([channelId]) =>
-            channelId && move.mutate({ id: template.id, channelId }, { onSuccess: onClose })
-          }
-          loading={channels.isPending}
-          error={channels.error}
-          searchPlaceholder={t('search-channels', 'Search channels')}
-        />
-      </Dialog.Content>
-    </Dialog>
+    <MoveToChannelDialog
+      name={template.name}
+      channelId={template.channelId}
+      onMove={(channelId) => move.mutateAsync({ id: template.id, channelId })}
+      onClose={onClose}
+    />
   );
 };
