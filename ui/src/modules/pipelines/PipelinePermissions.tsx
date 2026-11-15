@@ -12,6 +12,7 @@ import { useMutation } from '@tanstack/react-query';
 import { PanelField, PanelSection, Spinner, Switch, type TRecordSlotProps } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { ReadOnly } from '~/shared/Panel.tsx';
 import { MembersField } from '~/shared/Pickers.tsx';
 import { WithPipeline } from './PipelinePanel.tsx';
 import {
@@ -145,13 +146,10 @@ const StatusesRights = ({ pipelineId }: { pipelineId: string }) => {
 export const PipelinePermissions = ({ contentId }: TRecordSlotProps) => (
   <WithPipeline id={contentId}>
     {(pipeline) => (
-      <fieldset
-        disabled={!pipeline.canManage}
-        className="contents [&_button:disabled]:cursor-default [&_button:disabled]:opacity-100"
-      >
+      <ReadOnly when={!pipeline.canManage}>
         <VisibilityFields pipeline={pipeline} />
         <StatusesRights pipelineId={pipeline.id} />
-      </fieldset>
+      </ReadOnly>
     )}
   </WithPipeline>
 );

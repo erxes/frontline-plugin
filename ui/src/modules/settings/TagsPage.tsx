@@ -158,6 +158,7 @@ export const TagsPage = () => {
 
   return (
     <SettingsList
+      canManage={canManage}
       id="frontline-tags"
       label={t('tags', 'Tags')}
       allLabel={t('all-tags', 'All tags')}

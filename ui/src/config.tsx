@@ -7,14 +7,17 @@ import {
   IconClockHour4,
   IconFolder,
   IconGitBranch,
+  IconHelpCircle,
   IconLock,
   IconMessageReply,
   IconTicket,
+  IconWorldWww,
 } from '@tabler/icons-react';
 import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
 import { type ComponentType, lazy } from 'react';
 import {
   CHANNEL_TYPE,
+  HELP_CENTER_TYPE,
   KB_ARTICLE_TYPE,
   KB_CATEGORY_TYPE,
   KB_TOPIC_TYPE,
@@ -40,6 +43,7 @@ const slots = (load: () => Promise<Slots>) => ({
 
 const pipeline = () => import('@/pipelines/slots.ts');
 const ticket = () => import('@/tickets/slots.ts');
+const helpCenter = () => import('@/helpcenter/slots.ts');
 const kb = () => import('@/knowledgebase/slots.ts');
 const KB = `/${PLUGIN}/knowledgebase`;
 
@@ -136,6 +140,21 @@ export const CONFIG: IUIConfig = {
       }),
       // The manifest's timeline (`api/src/core.ts`): core's Activity tab shows its events.
       activity: `${PLUGIN}.ticket`,
+    },
+    {
+      contentType: HELP_CENTER_TYPE,
+      title: 'Help center',
+      icon: IconHelpCircle,
+      detailPath: (id) => `/${PLUGIN}/settings/help-centers/${encodeURIComponent(id)}`,
+      ...slots(helpCenter),
+      tabs: [
+        {
+          value: 'domain',
+          label: 'Domain',
+          icon: IconWorldWww,
+          component: lazy(async () => ({ default: (await helpCenter()).HelpCenterDomain })),
+        },
+      ],
     },
   ],
   relationTabs: [

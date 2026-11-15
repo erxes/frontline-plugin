@@ -89,7 +89,7 @@ describe('help centers', () => {
     await owner.helpCenters.remove({ ids: [center.id] });
 
     expect((await fetch(`${base}/help-centers/${center.publicKey}`)).status).toBe(404);
-    await expect(owner.helpCenters.list({})).resolves.toEqual([]);
+    await expect(owner.helpCenters.list({})).resolves.toEqual({ helpCenters: [], canManage: true });
   });
 
   it('resolves only domains Cloudflare serves, and refuses one where Cloudflare is off', async () => {

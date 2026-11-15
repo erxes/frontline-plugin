@@ -15,3 +15,5 @@ export const KB_CATEGORY_TYPE = `${PLUGIN}:kb-category`;
 export const KB_ARTICLE_TYPE = `${PLUGIN}:kb-article`;
 
 export const TICKET_TYPE = `${PLUGIN}:ticket`;
+
+export const HELP_CENTER_TYPE = `${PLUGIN}:help-center`;

@@ -186,6 +186,7 @@ export const PropertiesPage = () => {
 
   return (
     <SettingsList
+      canManage={canManage}
       id="frontline-ticket-properties"
       label={t('ticket-properties', 'Ticket properties')}
       allLabel={t('all-properties', 'All properties')}

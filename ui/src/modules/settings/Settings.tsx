@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { memberQueries } from '@erxes/core-contract/client';
 import { orpc } from '~/orpc.ts';
 import { useChange } from '~/shared/hooks.ts';
+import { ReadOnly } from '~/shared/Panel.tsx';
 import { ListEmpty } from '~/shared/List.tsx';
 import { RowActions, useConfirmDelete } from '~/shared/Records.tsx';
 import { Rows } from '~/shared/Table.tsx';
@@ -84,6 +85,7 @@ const SettingsHeader = ({ label, children }: { label: string; children?: ReactNo
  */
 export const SettingsList = <TRow extends object>({
   id,
+  canManage,
   label,
   allLabel,
   action,
@@ -95,6 +97,7 @@ export const SettingsList = <TRow extends object>({
   empty,
 }: {
   id: string;
+  canManage: boolean;
   label: string;
   allLabel: string;
   action: ReactNode;
@@ -104,35 +107,28 @@ export const SettingsList = <TRow extends object>({
   isPending: boolean;
   error: Error | null;
   empty: { icon: ReactNode; title: string; description: string };
-}) => {
-  const canManage = useCanManageSettings();
-
-  return (
-    <PageContainer>
-      <SettingsHeader label={label}>{canManage && action}</SettingsHeader>
-      <ViewBar allLabel={allLabel}>
-        <ListFilter id={id} fields={fields} members={memberQueries} totalCount={rows.length} />
-      </ViewBar>
-      {error ? (
-        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
-      ) : !isPending && rows.length === 0 ? (
-        <ListEmpty icon={empty.icon} title={empty.title} description={empty.description} />
-      ) : (
-        <fieldset
-          disabled={!canManage}
-          className="contents [&_button:disabled]:cursor-default [&_button:disabled]:opacity-100"
+}) => (
+  <PageContainer>
+    <SettingsHeader label={label}>{canManage && action}</SettingsHeader>
+    <ViewBar allLabel={allLabel}>
+      <ListFilter id={id} fields={fields} members={memberQueries} totalCount={rows.length} />
+    </ViewBar>
+    {error ? (
+      <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+    ) : !isPending && rows.length === 0 ? (
+      <ListEmpty icon={empty.icon} title={empty.title} description={empty.description} />
+    ) : (
+      <ReadOnly when={!canManage}>
+        <RecordTable.Provider
+          key={String(canManage)}
+          tableId={id.replaceAll('-', '_')}
+          columns={columns}
+          data={rows}
+          className="m-3"
         >
-          <RecordTable.Provider
-            key={String(canManage)}
-            tableId={id.replaceAll('-', '_')}
-            columns={columns}
-            data={rows}
-            className="m-3"
-          >
-            <Rows isPending={isPending} />
-          </RecordTable.Provider>
-        </fieldset>
-      )}
-    </PageContainer>
-  );
-};
+          <Rows isPending={isPending} />
+        </RecordTable.Provider>
+      </ReadOnly>
+    )}
+  </PageContainer>
+);

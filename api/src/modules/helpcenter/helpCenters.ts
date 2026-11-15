@@ -79,10 +79,10 @@ const CENTER_FILTER: FilterFields = {
   'subject.createdAt': { kind: 'date', expr: helpCenters.createdAt },
 };
 
-/** Every help center, by title, narrowed by the filter bar. */
+/** Every help center, by title, narrowed by the filter bar, and whether the caller manages them. */
 const list = reads(PERMISSIONS.helpCenterView)
   .input(z.object(FilterInput))
-  .output(z.array(HelpCenter))
+  .output(z.object({ helpCenters: z.array(HelpCenter), canManage: z.boolean() }))
   .handler(async ({ input, context: { tx, member } }) => {
     const rows = await tx
       .select(centerColumns)
@@ -95,7 +95,10 @@ const list = reads(PERMISSIONS.helpCenterView)
       )
       .orderBy(asc(helpCenters.title));
 
-    return rows.map(withTarget);
+    return {
+      helpCenters: rows.map(withTarget),
+      canManage: member.can(PERMISSIONS.helpCenterManage),
+    };
   });
 
 const get = reads(PERMISSIONS.helpCenterView)

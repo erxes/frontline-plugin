@@ -245,6 +245,7 @@ export const TeamsPage = ({ kind }: { kind: Kind }) => {
 
   return (
     <SettingsList
+      canManage={canManage}
       id={`frontline-${kind}`}
       label={labels.page}
       allLabel={labels.all}

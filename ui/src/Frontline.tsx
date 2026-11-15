@@ -5,6 +5,7 @@ import { ChannelMembersPage } from '@/channels/ChannelMembersPage.tsx';
 import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
 import {
   CHANNEL_TYPE,
+  HELP_CENTER_TYPE,
   KB_ARTICLE_TYPE,
   KB_CATEGORY_TYPE,
   KB_TOPIC_TYPE,
@@ -66,6 +67,10 @@ const PropertiesPage = lazy(async () => ({
   default: (await import('@/settings/PropertiesPage.tsx')).PropertiesPage,
 }));
 
+const HelpCentersPage = lazy(async () => ({
+  default: (await import('@/helpcenter/HelpCentersPage.tsx')).HelpCentersPage,
+}));
+
 const TicketsPage = lazy(async () => ({
   default: (await import('@/tickets/TicketsPage.tsx')).TicketsPage,
 }));
@@ -102,11 +107,14 @@ export const Frontline = () => (
       <Route path="departments" element={<TeamsPage key="department" kind="department" />} />
       <Route path="branches" element={<TeamsPage key="branch" kind="branch" />} />
       <Route path="ticket-properties" element={<PropertiesPage />} />
+      <Route path="help-centers" element={<HelpCentersPage />} />
+      <Route path="help-centers/:id" element={<RecordRoute contentType={HELP_CENTER_TYPE} />} />
     </Route>
     <Route
       path="settings/response-templates/:id"
       element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}
     />
+    <Route path="helpcenter" element={<Navigate to="../settings/help-centers" replace />} />
     <Route path="knowledgebase" element={<Lazy />}>
       <Route index element={<TopicsPage />} />
       <Route path="category/:id" element={<RecordRoute contentType={KB_CATEGORY_TYPE} />} />
