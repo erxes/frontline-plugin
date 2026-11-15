@@ -7,6 +7,7 @@ import {
   IconGitBranch,
   IconLetterCase,
   IconProgressCheck,
+  IconTag,
   IconUser,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
@@ -27,6 +28,8 @@ import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
 import { PrioritySelect, StatusSelect } from './TicketCells.tsx';
 import { dayOf } from './TicketFields.tsx';
+import { TagsField } from './TicketLinks.tsx';
+import { PropertyRows } from './TicketProperties.tsx';
 import { useChoices, useTicketChange } from './queries.ts';
 
 /** The pipelines of the member's channels, each after its channel's name. */
@@ -151,6 +154,38 @@ const PlanRows = ({ plan, onChange }: { plan: Plan; onChange: (patch: Partial<Pl
   );
 };
 
+/** A new ticket's tags and the properties its pipeline shows. */
+type Labels = { tagIds: string[]; propertiesData: Record<string, unknown> };
+
+const NO_LABELS: Labels = { tagIds: [], propertiesData: {} };
+
+const LabelRows = ({
+  pipelineId,
+  labels,
+  onChange,
+}: {
+  pipelineId: string;
+  labels: Labels;
+  onChange: (patch: Partial<Labels>) => void;
+}) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <>
+      <PanelFormRow label={t('tags', 'Tags')} icon={IconTag}>
+        <TagsField value={labels.tagIds} onChange={(tagIds) => onChange({ tagIds })} />
+      </PanelFormRow>
+      <PropertyRows
+        pipelineId={pipelineId}
+        values={labels.propertiesData}
+        onChange={(id, value) =>
+          onChange({ propertiesData: { ...labels.propertiesData, [id]: value } })
+        }
+      />
+    </>
+  );
+};
+
 /**
  * A new ticket in core's side panel: its pipeline and status, name, priority, assignee, dates and
  * description. It starts in the opener's pipeline and status (`openNew(TICKET_TYPE, { pipelineId,
@@ -164,6 +199,7 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
   const [statusId, setStatusId] = useState(() => textOf(defaults.statusId));
   const [plan, setPlan] = useState(NO_PLAN);
   const [description, setDescription] = useState('');
+  const [labels, setLabels] = useState(NO_LABELS);
   const pipelineId = picked || (pipelines[0]?.id ?? '');
   const { onSuccess } = useTicketChange();
 
@@ -186,6 +222,7 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
       statusId: statusId || undefined,
       name: textOf(form.get('name')),
       description,
+      ...labels,
       ...plan,
     });
   };
@@ -203,6 +240,7 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
           onPipeline={(next) => {
             setPipelineId(next);
             setStatusId('');
+            setLabels((last) => ({ ...last, propertiesData: {} }));
           }}
           onStatus={setStatusId}
         />
@@ -217,6 +255,11 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
           />
         </PanelFormRow>
         <PlanRows plan={plan} onChange={(patch) => setPlan((last) => ({ ...last, ...patch }))} />
+        <LabelRows
+          pipelineId={pipelineId}
+          labels={labels}
+          onChange={(patch) => setLabels((last) => ({ ...last, ...patch }))}
+        />
         <PanelFormRow label={t('description', 'Description')} icon={IconAlignLeft}>
           <Editor
             onChange={setDescription}

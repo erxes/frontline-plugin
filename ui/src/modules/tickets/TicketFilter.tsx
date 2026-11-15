@@ -8,21 +8,27 @@ import {
   IconCalendarUp,
   IconCalendarX,
   IconCheck,
+  IconBuildingStore,
   IconCircles,
   IconClockCheck,
+  IconEye,
   IconGitBranch,
   IconHash,
   IconLetterCase,
   IconProgressCheck,
   IconSortAscending,
+  IconSitemap,
   IconSortDescending,
+  IconTag,
   IconUser,
+  IconUsers,
 } from '@tabler/icons-react';
 import { Button, type TListFilterField } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { useChannels } from '@/channels/useChannels.ts';
 import { PRIORITIES, usePriorityNames } from '@/pipelines/queries.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
+import { useTeams } from './TicketLinks.tsx';
 import { useChoices, useSlaNames, useTicketSort } from './queries.ts';
 
 /** The fields that pick from the member's channels, pipelines and statuses. */
@@ -59,6 +65,44 @@ const useFilingFields = (): TListFilterField[] => {
       type: 'select',
       icon: IconCircles,
       options: channels.map((channel) => ({ value: channel.id, label: channel.name })),
+    },
+  ];
+};
+
+const teamOptions = (rows: { id: string; name: string }[]) =>
+  rows.map((row) => ({ value: row.id, label: row.name }));
+
+/** Who works or follows the ticket, its tags, branch and department. */
+const useLinkFields = (): TListFilterField[] => {
+  const { t } = useTranslation('frontline');
+
+  return [
+    {
+      path: 'subject.assignedMemberIds',
+      label: t('assigned-members', 'Assigned members'),
+      type: 'member',
+      icon: IconUsers,
+    },
+    {
+      path: 'subject.subscribedUserIds',
+      label: t('followers', 'Followers'),
+      type: 'member',
+      icon: IconEye,
+    },
+    { path: 'subject.tagIds', label: t('tags', 'Tags'), type: 'tags', icon: IconTag },
+    {
+      path: 'subject.branchId',
+      label: t('branch', 'Branch'),
+      type: 'select',
+      icon: IconBuildingStore,
+      options: teamOptions(useTeams('branch')),
+    },
+    {
+      path: 'subject.departmentId',
+      label: t('department', 'Department'),
+      type: 'select',
+      icon: IconSitemap,
+      options: teamOptions(useTeams('department')),
     },
   ];
 };
@@ -114,6 +158,7 @@ export const useTicketFields = (): TListFilterField[] => {
       type: 'member',
       icon: IconUser,
     },
+    ...useLinkFields(),
     {
       path: 'subject.state',
       label: t('state', 'State'),

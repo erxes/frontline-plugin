@@ -61,12 +61,15 @@ const TAG_FILTER: FilterFields = {
   'subject.createdAt': { kind: 'date', expr: tags.createdAt },
 };
 
-/** The tags of one type, by name, narrowed by the filter bar. Every member reads them. */
+/**
+ * The tags of one type, by name, narrowed by the filter bar, as core's `tags.list` gives them so
+ * erxes-ui's tag pickers and filters take the query. Every member reads them.
+ */
 const list = reads(PERMISSIONS.channelView)
   .input(z.object({ type: z.enum(TAG_TYPES), ...FilterInput }))
-  .output(z.array(Tag))
-  .handler(({ input, context: { tx, member } }) =>
-    tx
+  .output(z.object({ data: z.array(Tag) }))
+  .handler(async ({ input, context: { tx, member } }) => ({
+    data: await tx
       .select(tagColumns)
       .from(tags)
       .where(
@@ -77,7 +80,7 @@ const list = reads(PERMISSIONS.channelView)
         ),
       )
       .orderBy(asc(sql`lower(${tags.name})`)),
-  );
+  }));
 
 const get = reads(PERMISSIONS.channelView)
   .input(z.object({ id: z.string() }))

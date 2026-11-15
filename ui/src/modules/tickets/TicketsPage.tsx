@@ -16,6 +16,7 @@ import { TICKET_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
 import { TicketBulkActions } from './TicketBulkActions.tsx';
+import { ticketTags } from './TicketLinks.tsx';
 import { SortMenu, useTicketFields } from './TicketFilter.tsx';
 import { TicketList } from './TicketList.tsx';
 import { TicketsBoard } from './TicketsBoard.tsx';
@@ -92,6 +93,7 @@ export const TicketsPage = () => {
           id={LIST}
           fields={useTicketFields()}
           members={memberQueries}
+          tags={ticketTags}
           totalCount={totalCount}
         >
           <SortMenu />

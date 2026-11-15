@@ -34,17 +34,19 @@ export const StatusSelect = ({
   onChange,
   label,
   variant,
+  disabled,
 }: {
   pipelineId: string;
   value: string;
   onChange: (statusId: string) => void;
   label: string;
   variant?: Variant;
+  disabled?: boolean;
 }) => {
   const statuses = useChoices().statuses.filter((status) => status.pipelineId === pipelineId);
 
   return (
-    <Select value={value} onValueChange={(next) => next && onChange(next)}>
+    <Select value={value} onValueChange={(next) => next && onChange(next)} disabled={disabled}>
       <Select.Trigger variant={variant} aria-label={label}>
         <Select.Value placeholder={label} />
       </Select.Trigger>
@@ -109,6 +111,7 @@ export const StatusCell = ({ ticket }: { ticket: Ticket }) => {
       onChange={(statusId) => edit({ statusId })}
       label={t('status-of', 'Status of {{name}}', { name: ticket.name })}
       variant="flush"
+      disabled={!ticket.canMove}
     />
   );
 };

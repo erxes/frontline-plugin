@@ -14,12 +14,14 @@ describe('tags', () => {
       code: 'TAG_NAME_TAKEN',
     });
 
-    const listed = await owner.tags.list({ type: 'ticket' });
+    const { data: listed } = await owner.tags.list({ type: 'ticket' });
 
     expect(listed.map((tag) => tag.name)).toEqual(['billing', 'Urgent']);
     expect(listed[1]).not.toHaveProperty('orgId');
-    await expect(owner.tags.list({ type: 'ticket', search: 'bil' })).resolves.toHaveLength(1);
-    await expect(clientAs('org-tg-b').tags.list({ type: 'ticket' })).resolves.toEqual([]);
+    await expect(owner.tags.list({ type: 'ticket', search: 'bil' })).resolves.toMatchObject({
+      data: [{ name: 'billing' }],
+    });
+    await expect(clientAs('org-tg-b').tags.list({ type: 'ticket' })).resolves.toEqual({ data: [] });
   });
 
   it('lets members read tags and only settings managers change them', async () => {

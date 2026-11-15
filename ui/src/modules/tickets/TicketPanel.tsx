@@ -30,6 +30,8 @@ import { useChannel } from '@/channels/useChannels.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { PrioritySelect, StatusSelect, useTicketActions } from './TicketCells.tsx';
 import { TicketContent, TicketPlan, TicketSla } from './TicketFields.tsx';
+import { TicketContacts, TicketLabels, TicketPeople } from './TicketLinks.tsx';
+import { TicketPropertiesSection } from './TicketProperties.tsx';
 import { type Ticket, useChoices, useEditTicket, useTicket } from './queries.ts';
 
 /** A slot's ticket: a spinner while it loads, the refusal when the API gives one. */
@@ -135,6 +137,7 @@ const TicketFields = ({ ticket }: { ticket: Ticket }) => {
           onChange={(statusId) => edit({ statusId })}
           label={t('status', 'Status')}
           variant="flush"
+          disabled={!ticket.canMove}
         />
       </PanelField>
       <PanelField icon={IconAlertSquareRounded} label={t('priority', 'Priority')} cell={false}>
@@ -171,7 +174,8 @@ const TicketFields = ({ ticket }: { ticket: Ticket }) => {
 };
 
 /**
- * The Detail tab: the ticket's fields, its plan, its SLA and its description and files, each
+ * The Detail tab: the ticket's fields, people, contacts, labels and properties, its plan, its SLA
+ * and its description and files, each
  * saved as it changes. Core's Activity tab beside it shows what changed (`activity` in config).
  */
 export const TicketDetail = ({ contentId }: TRecordSlotProps) => (
@@ -179,6 +183,10 @@ export const TicketDetail = ({ contentId }: TRecordSlotProps) => (
     {(ticket) => (
       <>
         <TicketFields ticket={ticket} />
+        <TicketPeople ticket={ticket} />
+        <TicketContacts ticket={ticket} />
+        <TicketLabels ticket={ticket} />
+        <TicketPropertiesSection ticket={ticket} />
         <TicketPlan ticket={ticket} />
         <TicketSla ticket={ticket} />
         <TicketContent ticket={ticket} />

@@ -88,7 +88,7 @@ export const parseProperties = async (
 
   if (missing) throw new ORPCError('BAD_REQUEST', { message: `Fill in ${missing.label}` });
 
-  return values;
+  return create ? Object.fromEntries(parsed.filter(([, value]) => value !== null)) : values;
 };
 
 /** Sets the patch's values on the ticket's properties; a null value removes the key. */
