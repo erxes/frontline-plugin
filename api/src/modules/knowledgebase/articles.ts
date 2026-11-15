@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { KB_ARTICLE_STATUSES, kbArticles, kbCategories } from '#/db/schema.ts';
+import { Attachment } from '#/db/table.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Title } from '../fields.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
@@ -24,13 +25,6 @@ const detailColumns = {
 };
 
 const Status = z.enum(KB_ARTICLE_STATUSES);
-
-const Attachment = z.object({
-  url: z.string().max(2000),
-  name: z.string().max(500),
-  type: z.string().max(200).optional(),
-  size: z.number().int().nonnegative().optional(),
-});
 
 const Fields = z
   .object({

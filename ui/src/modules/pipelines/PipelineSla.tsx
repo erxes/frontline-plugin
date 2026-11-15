@@ -2,14 +2,17 @@ import { IconAlarm, IconClockCheck, IconMessage2, IconShieldCheck } from '@table
 import { NumberField, PanelField, PanelSection, Switch, type TRecordSlotProps } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { WithPipeline } from './PipelinePanel.tsx';
-import { type Pipeline, type PipelineFields, useEditPipeline } from './queries.ts';
+import {
+  type Pipeline,
+  type PipelineFields,
+  PRIORITIES,
+  useEditPipeline,
+  usePriorityNames,
+} from './queries.ts';
 
 type SlaPolicy = NonNullable<PipelineFields['slaPolicy']>;
 
 type SlaRule = SlaPolicy['rules'][number];
-
-/** Critical first: the order a support lead reads the promises in. */
-const PRIORITIES = [4, 3, 2, 1, 0] as const;
 
 const toHours = (minutes: number | undefined) =>
   minutes ? Math.round((minutes / 60) * 100) / 100 : 0;
@@ -46,14 +49,7 @@ const SlaFields = ({ pipeline }: { pipeline: Pipeline }) => {
   const edit = useEditPipeline(pipeline.id);
   const policy: SlaPolicy = pipeline.slaPolicy ?? { enabled: false, rules: [] };
   const scope = `frontline-pipeline.${pipeline.id}.sla`;
-
-  const priorities: Record<number, string> = {
-    4: t('critical', 'Critical'),
-    3: t('high', 'High'),
-    2: t('medium', 'Medium'),
-    1: t('minor', 'Minor'),
-    0: t('no-priority', 'No priority'),
-  };
+  const priorities = usePriorityNames();
 
   const save = (patch: Partial<SlaPolicy>) => edit({ slaPolicy: { ...policy, ...patch } });
 

@@ -5,10 +5,10 @@ import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'driz
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { pipelineStatuses } from '#/db/schema.ts';
+import { pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Color, Title } from '../fields.ts';
-import { pipelineFor } from './pipelines.ts';
+import { pipelineFor, refuseUsed } from './pipelines.ts';
 
 const { orgId, ...statusColumns } = getTableColumns(pipelineStatuses);
 
@@ -158,12 +158,16 @@ const reorder = writes(PERMISSIONS.channelView)
     return moved.toSorted((a, b) => a.order - b.order);
   });
 
-/** Deletes statuses: all of them, or none when the caller may not delete one. */
+/**
+ * Deletes statuses: all of them, or none when the caller may not delete one. CONFLICT while
+ * tickets are in one.
+ */
 const remove = writes(PERMISSIONS.channelView)
   .input(z.object({ ids: z.array(z.string()).min(1).max(100) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
     await Promise.all(input.ids.map((id) => statusFor(tx, member, id, { change: true })));
+    await refuseUsed(tx, inArray(tickets.statusId, input.ids), 'A status you picked has tickets');
 
     const removed = await tx
       .delete(pipelineStatuses)

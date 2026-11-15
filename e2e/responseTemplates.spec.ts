@@ -1,4 +1,12 @@
-import { expect, expectAccessible, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
+import {
+  confirmDelete,
+  expect,
+  expectAccessible,
+  newRecordPath,
+  recordPanel,
+  test,
+  unique,
+} from './fixtures.ts';
 
 const CHANNELS = '/frontline/settings/channels';
 
@@ -72,10 +80,7 @@ test("a channel admin writes, edits and deletes the channel's response templates
     .getByRole('checkbox')
     .check();
   await page.getByRole('button', { name: 'Delete' }).click();
-  const confirm = page.getByRole('alertdialog');
-
-  await confirm.getByRole('textbox').fill('delete');
-  await confirm.getByRole('button', { name: 'Delete' }).click();
+  await confirmDelete(page);
   await expect(page.getByText('No responses yet')).toBeVisible();
 });
 

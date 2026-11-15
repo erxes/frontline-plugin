@@ -5,6 +5,7 @@ import {
   Command,
   CommandBar,
   Popover,
+  RecordList,
   RecordTable,
   RecordTableInlineCell,
   Separator,
@@ -85,8 +86,28 @@ export const SelectionBar = ({ children }: { children: BulkActions }) => {
   );
 };
 
+/**
+ * The selection bar under a `RecordList`, for the picked rows of `shown`, the ids the list
+ * shows: a row that left the list stays picked in the list's selection until it is cleared.
+ */
+export const ListSelectionBar = ({
+  shown,
+  children,
+}: {
+  shown: string[];
+  children: BulkActions;
+}) => {
+  const selection = RecordList.useSelection();
+
+  return (
+    <BulkBar selected={shown.filter(selection.has)} clear={selection.clear}>
+      {children}
+    </BulkBar>
+  );
+};
+
 /** The selection bar itself: how many `selected`, and what `children` do with them. */
-export const BulkBar = ({
+const BulkBar = ({
   selected,
   clear,
   children,

@@ -38,11 +38,11 @@ const STAGE_ICONS: Record<number, Icon> = {
   6: IconCircleX,
 };
 
-/** The stage's icon. */
-export const StageIcon = ({ type }: { type: number }) => {
+/** The stage's icon, drawn in a status's own colour when given one. */
+export const StageIcon = ({ type, color }: { type: number; color?: string }) => {
   const StageGlyph = STAGE_ICONS[type] ?? IconCircle;
 
-  return <StageGlyph aria-hidden className="size-4 shrink-0 text-muted-foreground" />;
+  return <StageGlyph aria-hidden color={color} className="size-4 shrink-0 text-muted-foreground" />;
 };
 
 /** Asks for "delete" to be typed, then deletes the statuses, all of them or none. */

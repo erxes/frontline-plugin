@@ -34,6 +34,46 @@ export const recordPanel = (page: Page) => page.locator('aside[data-record-side-
 export const newRecordPath = (list: string, contentType: string) =>
   `${list}?${new URLSearchParams({ panel: `/detail/${contentType}/new` }).toString()}`;
 
+/** Types `delete` into the confirm dialog and confirms. */
+export const confirmDelete = async (page: Page) => {
+  const confirm = page.getByRole('alertdialog');
+
+  await confirm.getByRole('textbox').fill('delete');
+  await confirm.getByRole('button', { name: 'Delete' }).click();
+};
+
+/** Creates a channel, with `memberName` in it when given, and opens its pipelines list. */
+export const openChannelPipelines = async (page: Page, memberName?: string) => {
+  const channel = `Support ${unique()}`;
+  const panel = recordPanel(page);
+
+  await page.goto(newRecordPath('/frontline/settings/channels', 'frontline:channel'));
+  await panel.getByLabel('Name').fill(channel);
+
+  if (memberName) {
+    await panel.getByPlaceholder('Search members').fill(memberName);
+    await panel.getByRole('option', { name: memberName }).click();
+  }
+
+  await panel.getByRole('button', { name: 'Create channel' }).click();
+  await panel.getByRole('link', { name: /Manage channel pipelines/ }).click();
+  await expect(page.getByText('No pipelines yet')).toBeVisible();
+
+  return channel;
+};
+
+/** Drafts a pipeline in core's side panel from the list's header and saves it into the record. */
+export const createPipeline = async (page: Page, name = `Returns ${unique()}`) => {
+  const panel = recordPanel(page);
+
+  await page.getByRole('button', { name: 'Create pipeline' }).click();
+  await panel.getByLabel('Name').fill(name);
+  await panel.getByRole('button', { name: 'Create pipeline' }).click();
+  await expect(panel.getByRole('button', { name: `Name ${name}` })).toBeVisible();
+
+  return name;
+};
+
 /**
  * Core's typed client over Playwright's request context, so it shares the page's
  * session cookie. Writes carry the header browsers send, which core's CSRF check reads.

@@ -1,37 +1,13 @@
 import type { Page } from '@playwright/test';
-import { expect, expectAccessible, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
-
-/** Creates a channel, with `memberName` in it when given, and opens its pipelines list. */
-const openChannelPipelines = async (page: Page, memberName?: string) => {
-  const channel = `Support ${unique()}`;
-  const panel = recordPanel(page);
-
-  await page.goto(newRecordPath('/frontline/settings/channels', 'frontline:channel'));
-  await panel.getByLabel('Name').fill(channel);
-
-  if (memberName) {
-    await panel.getByPlaceholder('Search members').fill(memberName);
-    await panel.getByRole('option', { name: memberName }).click();
-  }
-
-  await panel.getByRole('button', { name: 'Create channel' }).click();
-  await panel.getByRole('link', { name: /Manage channel pipelines/ }).click();
-  await expect(page.getByText('No pipelines yet')).toBeVisible();
-
-  return channel;
-};
-
-/** Drafts a pipeline in core's side panel from the list's header and saves it into the record. */
-const createPipeline = async (page: Page, name = `Returns ${unique()}`) => {
-  const panel = recordPanel(page);
-
-  await page.getByRole('button', { name: 'Create pipeline' }).click();
-  await panel.getByLabel('Name').fill(name);
-  await panel.getByRole('button', { name: 'Create pipeline' }).click();
-  await expect(panel.getByRole('button', { name: `Name ${name}` })).toBeVisible();
-
-  return name;
-};
+import {
+  confirmDelete,
+  createPipeline,
+  expect,
+  expectAccessible,
+  openChannelPipelines,
+  recordPanel,
+  test,
+} from './fixtures.ts';
 
 /** Opens a panel field's in-place editor, types `value` and saves it with Enter. */
 const editField = async (page: Page, field: RegExp, value: string) => {
@@ -138,8 +114,7 @@ test("a channel admin adds, reorders, edits and deletes a pipeline's statuses", 
 
   await open.getByRole('button', { name: 'Actions for Waiting' }).click();
   await page.getByRole('option', { name: 'Delete' }).click();
-  await page.getByRole('alertdialog').getByRole('textbox').fill('delete');
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+  await confirmDelete(page);
   await expect(open.getByRole('listitem')).toHaveCount(1);
 
   // A stage's checkbox picks its statuses, and the bar under the list deletes them at once.
@@ -147,8 +122,7 @@ test("a channel admin adds, reorders, edits and deletes a pipeline's statuses", 
 
   await panel.getByRole('checkbox', { name: 'Select all in Cancelled' }).click();
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
-  await page.getByRole('alertdialog').getByRole('textbox').fill('delete');
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+  await confirmDelete(page);
   await expect(cancelled.getByRole('listitem')).toHaveCount(0);
 });
 
@@ -196,8 +170,7 @@ test('a channel admin moves a pipeline to another channel and deletes it there',
     .getByRole('checkbox')
     .click();
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
-  await page.getByRole('alertdialog').getByRole('textbox').fill('delete');
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+  await confirmDelete(page);
   await expect(page.getByText('Pipeline deleted')).toBeVisible();
   await expect(page.getByText('No pipelines yet')).toBeVisible();
 });

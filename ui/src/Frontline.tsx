@@ -11,6 +11,7 @@ import {
   PIPELINE_TYPE,
   PLUGIN,
   RESPONSE_TEMPLATE_TYPE,
+  TICKET_TYPE,
 } from '~/plugin.ts';
 import css from './styles.css?inline';
 
@@ -53,6 +54,10 @@ const PipelinesPage = lazy(async () => ({
   default: (await import('@/pipelines/PipelinesPage.tsx')).PipelinesPage,
 }));
 
+const TicketsPage = lazy(async () => ({
+  default: (await import('@/tickets/TicketsPage.tsx')).TicketsPage,
+}));
+
 /** The old `/:id/response/:responseId` link opens that template on its own page. */
 const ResponseTemplateRedirect = () => (
   <Navigate
@@ -64,7 +69,11 @@ const ResponseTemplateRedirect = () => (
 /** The page module web renders under `/frontline/*` (loaded as `frontline_ui/frontline`). */
 export const Frontline = () => (
   <Routes>
-    <Route index element={<Navigate to="settings/channels" replace />} />
+    <Route index element={<Navigate to="tickets" replace />} />
+    <Route path="tickets" element={<Lazy />}>
+      <Route index element={<TicketsPage />} />
+      <Route path=":id" element={<RecordRoute contentType={TICKET_TYPE} />} />
+    </Route>
     <Route path="settings/channels">
       <Route index element={<ChannelsPage />} />
       <Route path=":id" element={<RecordRoute contentType={CHANNEL_TYPE} />} />

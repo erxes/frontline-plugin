@@ -169,6 +169,11 @@ const ruleSql = (fields: FilterFields, rule: ConditionRule, userId: string) => {
   throw refuse(rule);
 };
 
+/** Whether a rule of `group`, at any depth, is on `path`: a list's default gives way to it. */
+export const filtersBy = (group: ConditionGroup | undefined, path: string): boolean =>
+  group?.rules.some((part) => ('rules' in part ? filtersBy(part, path) : part.path === path)) ??
+  false;
+
 /**
  * The filter bar's conditions as SQL, on `fields`: all of a group's rules, or any (the advanced
  * filter's groups). A rule on a path the list has no field for, or with a value its field can't

@@ -94,6 +94,22 @@ export const useDeletePipelines = () => {
   return { deletePipelines, isPending: remove.isPending };
 };
 
+/** Critical first: the priorities a ticket takes and an SLA rule promises for. */
+export const PRIORITIES = [4, 3, 2, 1, 0] as const;
+
+/** Each priority's name, 4 critical to 0 none. */
+export const usePriorityNames = (): Record<number, string> => {
+  const { t } = useTranslation('frontline');
+
+  return {
+    4: t('critical', 'Critical'),
+    3: t('high', 'High'),
+    2: t('medium', 'Medium'),
+    1: t('minor', 'Minor'),
+    0: t('no-priority', 'No priority'),
+  };
+};
+
 /** The stages in the order a ticket moves through them, by their `type`. */
 export const useStages = () => {
   const { t } = useTranslation('frontline');

@@ -8,7 +8,7 @@ import {
   RelativeDateDisplay,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { ActionsMenu, BulkBar, type BulkActions } from '~/shared/Records.tsx';
+import { ActionsMenu } from '~/shared/Records.tsx';
 import { ArticleTitle, CategoryPicker, useArticleActions } from './ArticleCells.tsx';
 import { ARTICLE_STATUSES, type Article, useStatusNames } from './useKnowledgeBase.ts';
 
@@ -76,25 +76,5 @@ export const ArticleList = ({ articles, topicId }: { articles: Article[]; topicI
       rowLabel={(article) => article.title}
       renderRow={(article) => <ArticleRow article={article} topicId={topicId} />}
     />
-  );
-};
-
-/**
- * The selection bar under the list, for the picked rows of `shown`, the ids the list shows: a
- * row that left the list stays picked in the list's selection until it is cleared.
- */
-export const ListSelectionBar = ({
-  shown,
-  children,
-}: {
-  shown: string[];
-  children: BulkActions;
-}) => {
-  const selection = RecordList.useSelection();
-
-  return (
-    <BulkBar selected={shown.filter(selection.has)} clear={selection.clear}>
-      {children}
-    </BulkBar>
   );
 };

@@ -1,19 +1,24 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, eq, getTableColumns, ilike, inArray, or } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  eq,
+  getTableColumns,
+  ilike,
+  inArray,
+  isNotNull,
+  or,
+  type SQL,
+} from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import {
-  channelMembers,
-  pipelines,
-  pipelineStatuses,
-  SlaPolicy,
-  STATUS_TYPES,
-} from '#/db/schema.ts';
+import { channelMembers } from '#/db/schema.ts';
+import { pipelines, pipelineStatuses, SlaPolicy, STATUS_TYPES, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
-import { canChangeSql, channelFor, membership } from '../channels/access.ts';
+import { canChangeSql, channelFor, managesAll, membership } from '../channels/access.ts';
 import { Blank, Title } from '../fields.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
 import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
@@ -37,6 +42,14 @@ const Pipeline = createSelectSchema(pipelines, { slaPolicy: () => SlaPolicy })
     /** Whether the caller may edit, move and delete it: its channel's admins may. */
     canManage: z.boolean(),
   });
+
+/** CONFLICT when a ticket matches `used`: deleting what it points to would orphan it. */
+export const refuseUsed = async (tx: Tx, used: SQL, message: string) => {
+  const [ticket] = await tx.select({ id: tickets.id }).from(tickets).where(used).limit(1);
+
+  if (ticket)
+    throw new ORPCError('CONFLICT', { message: `${message}. Move or delete them first.` });
+};
 
 /** What a new pipeline starts with: one status per stage. */
 const DEFAULT_STATUSES = [
@@ -196,12 +209,20 @@ const update = writes(PERMISSIONS.channelView)
     return pipelineById(tx, member, id);
   });
 
-/** Deletes pipelines and their statuses: all of them, or none when the caller may not delete one. */
+/**
+ * Deletes pipelines and their statuses: all of them, or none when the caller may not delete one.
+ * CONFLICT while one has tickets.
+ */
 const remove = writes(PERMISSIONS.channelView)
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
     await Promise.all(input.ids.map((id) => pipelineFor(tx, member, id, { change: true })));
+    await refuseUsed(
+      tx,
+      inArray(tickets.pipelineId, input.ids),
+      'A pipeline you picked has tickets',
+    );
 
     const removed = await tx
       .delete(pipelines)
@@ -211,4 +232,51 @@ const remove = writes(PERMISSIONS.channelView)
     return { ids: removed.map((row) => row.id) };
   });
 
-export const pipelineProcedures = { list, get, create, update, remove };
+const Choice = createSelectSchema(pipelines).pick({ id: true, channelId: true, name: true });
+
+const StatusChoice = createSelectSchema(pipelineStatuses).pick({
+  id: true,
+  pipelineId: true,
+  name: true,
+  color: true,
+  type: true,
+});
+
+/**
+ * Every pipeline of the channels the caller sees, by name, and their statuses by stage and
+ * order: what a ticket is filed under, for the ticket screens' pickers and filters.
+ */
+const choices = reads(PERMISSIONS.channelView)
+  .output(z.object({ pipelines: z.array(Choice), statuses: z.array(StatusChoice) }))
+  .handler(async ({ context: { tx, member } }) => {
+    const seen = managesAll(member) ? undefined : isNotNull(channelMembers.userId);
+
+    const pipelineList = await tx
+      .select({ id: pipelines.id, channelId: pipelines.channelId, name: pipelines.name })
+      .from(pipelines)
+      .leftJoin(channelMembers, membership(member, pipelines.channelId))
+      .where(seen)
+      .orderBy(asc(pipelines.name), asc(pipelines.id));
+
+    const statuses = await tx
+      .select({
+        id: pipelineStatuses.id,
+        pipelineId: pipelineStatuses.pipelineId,
+        name: pipelineStatuses.name,
+        color: pipelineStatuses.color,
+        type: pipelineStatuses.type,
+      })
+      .from(pipelineStatuses)
+      .innerJoin(pipelines, eq(pipelines.id, pipelineStatuses.pipelineId))
+      .leftJoin(channelMembers, membership(member, pipelines.channelId))
+      .where(seen)
+      .orderBy(
+        asc(pipelineStatuses.type),
+        asc(pipelineStatuses.order),
+        asc(pipelineStatuses.createdAt),
+      );
+
+    return { pipelines: pipelineList, statuses };
+  });
+
+export const pipelineProcedures = { list, get, create, update, remove, choices };

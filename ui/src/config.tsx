@@ -8,6 +8,7 @@ import {
   IconFolder,
   IconGitBranch,
   IconMessageReply,
+  IconTicket,
 } from '@tabler/icons-react';
 import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
 import { type ComponentType, lazy } from 'react';
@@ -19,6 +20,7 @@ import {
   PIPELINE_TYPE,
   PLUGIN,
   RESPONSE_TEMPLATE_TYPE,
+  TICKET_TYPE,
 } from '~/plugin.ts';
 
 // web loads this module on every page, so it imports only icons and names. Each record type's
@@ -113,6 +115,13 @@ export const CONFIG: IUIConfig = {
           component: lazy(async () => ({ default: (await kb()).ArticleContent })),
         },
       ],
+    },
+    {
+      contentType: TICKET_TYPE,
+      title: 'Ticket',
+      icon: IconTicket,
+      detailPath: (id) => `/${PLUGIN}/tickets/${encodeURIComponent(id)}`,
+      ...slots(() => import('@/tickets/slots.ts')),
     },
   ],
 };

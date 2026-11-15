@@ -1,5 +1,13 @@
 import type { Page } from '@playwright/test';
-import { expect, expectAccessible, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
+import {
+  confirmDelete,
+  expect,
+  expectAccessible,
+  newRecordPath,
+  recordPanel,
+  test,
+  unique,
+} from './fixtures.ts';
 
 const KB = '/frontline/knowledgebase';
 
@@ -50,14 +58,6 @@ const newArticle = async (page: Page, title: string) => {
   await expect(
     page.getByRole('region', { name: 'Draft' }).getByRole('button', { name: title, exact: true }),
   ).toBeVisible();
-};
-
-/** Types `delete` into the confirm dialog and confirms. */
-const confirmDelete = async (page: Page) => {
-  const confirm = page.getByRole('alertdialog');
-
-  await confirm.getByRole('textbox').fill('delete');
-  await confirm.getByRole('button', { name: 'Delete' }).click();
 };
 
 test('a manager files articles under categories that a reader can only read', async ({
