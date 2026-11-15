@@ -87,7 +87,8 @@ test('a member files, filters, changes and deletes tickets in the list, board an
   await page.reload();
   await expect(ticket(page, refund)).toBeVisible();
   await expect(ticket(page, login)).toBeHidden();
-  await page.getByRole('button', { name: 'Remove filter' }).last().click();
+  // Back to the pipeline alone: other tests' tickets in other pipelines would regroup the list.
+  await page.goto(ofPipeline);
   await expect(ticket(page, login)).toBeVisible();
 
   // A member of the channel changes tickets but can't delete them.
