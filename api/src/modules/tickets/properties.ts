@@ -223,8 +223,8 @@ const remove = writes(PERMISSIONS.settingsManage)
     if (ids.length > 0)
       await tx
         .update(tickets)
-        .set({ propertiesData: sql`${tickets.propertiesData} - ${ids}::text[]` })
-        .where(sql`${tickets.propertiesData} ?| ${ids}::text[]`);
+        .set({ propertiesData: sql`${tickets.propertiesData} - ${sql.param(ids)}::text[]` })
+        .where(sql`${tickets.propertiesData} ?| ${sql.param(ids)}::text[]`);
 
     return { ids };
   });

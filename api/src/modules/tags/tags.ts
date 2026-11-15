@@ -135,9 +135,9 @@ const remove = writes(PERMISSIONS.settingsManage)
       await tx
         .update(tickets)
         .set({
-          tagIds: sql`array(select unnest(${tickets.tagIds}) except select unnest(${ids}::text[]))`,
+          tagIds: sql`array(select unnest(${tickets.tagIds}) except select unnest(${sql.param(ids)}::text[]))`,
         })
-        .where(sql`${tickets.tagIds} && ${ids}::text[]`);
+        .where(sql`${tickets.tagIds} && ${sql.param(ids)}::text[]`);
 
     return { ids };
   });
