@@ -3,6 +3,7 @@ import { IconCheck, IconPlus, IconRefresh, IconTag } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Button, ContactLink, EntityPicker, Popover, SelectMember } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { OperatorButton, VisitorPresence } from './ConversationPresence.tsx';
 import { useKindNames, useStatusNames } from './InboxFilter.tsx';
 import {
   type Conversation,
@@ -103,6 +104,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
           {statuses[conversation.status]}
         </Badge>
         <span className="flex-1" />
+        {conversation.kind === 'messenger' && <OperatorButton conversation={conversation} />}
         <SelectMember.Field
           value={conversation.assigneeId}
           onValueChange={(assigneeId) => assign.mutate({ ids: [conversation.id], assigneeId })}
@@ -122,6 +124,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
           {resolved ? t('reopen', 'Reopen') : t('resolve', 'Resolve')}
         </Button>
       </div>
+      <VisitorPresence conversation={conversation} />
       <TagPicker conversation={conversation} />
     </header>
   );

@@ -1,6 +1,7 @@
 import { ORPCError } from '@orpc/server';
 import { and, eq, sql } from 'drizzle-orm';
-import { CONVERSATION_EVENTS, core } from '#/core.ts';
+import { PLUGIN } from '#/config.ts';
+import { CONVERSATION_EVENTS, core, MESSAGE_RECEIVED_EVENT } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations, customerLinks, integrations, messages } from '#/db/inbox.ts';
 import type { Attachment } from '#/db/table.ts';
@@ -54,6 +55,26 @@ export const customerFor = async (orgId: string, sender: Sender) => {
   return customerId;
 };
 
+/**
+ * Publishes a customer's message for automations, keyed by the message so a replay adds nothing.
+ * The payload names the conversation and whether the bot may still answer it (`operator`).
+ */
+const publishMessageReceived = async (
+  tx: Tx,
+  orgId: string,
+  payload: { conversationId: string; messageId: string; content: string } & Record<string, string>,
+) => {
+  await tx.execute(sql`select core_publish_event(
+    p_org_id => ${orgId},
+    p_source => ${PLUGIN},
+    p_type => ${MESSAGE_RECEIVED_EVENT.type},
+    p_payload => ${JSON.stringify(payload)}::jsonb,
+    p_summary => 'Sent a message',
+    p_link => ${`/${PLUGIN}/inbox?conversationId=${encodeURIComponent(payload.conversationId)}`},
+    p_dedupe_key => ${`message:${payload.messageId}`}
+  )`);
+};
+
 /** A customer's message an adapter received. */
 export type Incoming = {
   integrationId: string;
@@ -69,7 +90,11 @@ export type Incoming = {
 /** The conversation `incoming` belongs to, locked, or a new one with its `started` event. */
 const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
   const [integration] = await tx
-    .select({ channelId: integrations.channelId, isActive: integrations.isActive })
+    .select({
+      channelId: integrations.channelId,
+      isActive: integrations.isActive,
+      kind: integrations.kind,
+    })
     .from(integrations)
     .where(eq(integrations.id, incoming.integrationId));
 
@@ -83,7 +108,11 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
 
   if (match) {
     const [found] = await tx
-      .select({ id: conversations.id, customerId: conversations.customerId })
+      .select({
+        id: conversations.id,
+        customerId: conversations.customerId,
+        operator: conversations.operator,
+      })
       .from(conversations)
       .where(
         and(
@@ -94,7 +123,7 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
       )
       .for('update');
 
-    if (found) return found;
+    if (found) return { ...found, kind: integration.kind };
 
     if (incoming.conversationId)
       throw new ORPCError('NOT_FOUND', { message: 'No such conversation' });
@@ -109,7 +138,11 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
       customerId: incoming.customerId,
       externalId: incoming.externalConversationId,
     })
-    .returning({ id: conversations.id, customerId: conversations.customerId });
+    .returning({
+      id: conversations.id,
+      customerId: conversations.customerId,
+      operator: conversations.operator,
+    });
 
   if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
@@ -123,7 +156,7 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
     },
   ]);
 
-  return created;
+  return { ...created, kind: integration.kind };
 };
 
 /**
@@ -179,6 +212,15 @@ export const receive = (orgId: string, incoming: Incoming) =>
       .where(eq(conversations.id, conversation.id));
 
     await signalConversations(tx, orgId, [conversation]);
+    await publishMessageReceived(tx, orgId, {
+      conversationId: conversation.id,
+      customerId: conversation.customerId,
+      integrationId: incoming.integrationId,
+      kind: conversation.kind,
+      operator: conversation.operator,
+      messageId: message.id,
+      content: message.content,
+    });
 
     return message;
   });

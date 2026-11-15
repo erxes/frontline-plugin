@@ -80,6 +80,10 @@ const InboxPage = lazy(async () => ({
   default: (await import('@/inbox/InboxPage.tsx')).InboxPage,
 }));
 
+const MessengerSettingsPage = lazy(async () => ({
+  default: (await import('@/messenger/MessengerSettingsPage.tsx')).MessengerSettingsPage,
+}));
+
 const TicketsPage = lazy(async () => ({
   default: (await import('@/tickets/TicketsPage.tsx')).TicketsPage,
 }));
@@ -123,6 +127,7 @@ export const Frontline = () => (
     <Route path="inbox" element={<Lazy />}>
       <Route index element={<InboxPage />} />
       <Route path="integrations/:id" element={<RecordRoute contentType={INTEGRATION_TYPE} />} />
+      <Route path="messengers/:id" element={<MessengerSettingsPage />} />
     </Route>
     <Route path="tickets" element={<Lazy />}>
       <Route index element={<TicketsPage />} />

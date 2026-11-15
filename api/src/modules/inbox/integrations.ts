@@ -39,7 +39,7 @@ const integrationRows = (tx: Tx, member: PluginMember) =>
     .leftJoin(channelMembers, membership(member, integrations.channelId))
     .$dynamic();
 
-const integrationById = async (tx: Tx, member: PluginMember, id: string) => {
+export const integrationById = async (tx: Tx, member: PluginMember, id: string) => {
   const [row] = await integrationRows(tx, member).where(
     and(eq(integrations.id, id), seenBy(member)),
   );

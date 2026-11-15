@@ -14,6 +14,7 @@ export default defineConfig({
     './src/db/surveys.ts',
     './src/db/public.ts',
     './src/db/inbox.ts',
+    './src/db/messenger.ts',
   ],
   out: './drizzle',
   casing: 'snake_case',

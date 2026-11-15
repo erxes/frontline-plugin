@@ -9,6 +9,7 @@ import { JOB_RUNS } from '#/jobs.ts';
 import { logger } from '#/logger.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
+import { runAction } from '#/modules/inbox/automations.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
 import { router } from '#/router.ts';
 
@@ -97,6 +98,9 @@ export const createApp = () => {
     logger.info({ job: job.name, jobId: job.jobId, orgId: job.orgId, result }, 'job done');
     res.sendStatus(204);
   });
+
+  // Core runs the manifest's automation actions here, signed.
+  app.post('/api/automations/actions/:type', express.json({ limit: '256kb' }), runAction);
 
   if (config.uiDir) app.use('/ui', express.static(config.uiDir));
 

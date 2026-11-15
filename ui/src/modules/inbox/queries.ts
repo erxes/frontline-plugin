@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import type { Client } from '@frontline/api';
 import { useListFilterParams, useLiveSignal } from 'erxes-ui';
 import { parseAsString, useQueryState } from 'nuqs';
+import { useEffect, useRef, useState } from 'react';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
@@ -11,7 +12,7 @@ type Outputs = InferClientOutputs<Client>;
 
 export type Conversation = Outputs['conversations']['get'];
 
-export type Message = Outputs['conversations']['messages']['create'];
+export type Message = Outputs['conversations']['messages']['list']['messages'][number];
 
 export type Integration = Outputs['integrations']['get'];
 
@@ -93,6 +94,72 @@ export const useSendMessage = () =>
 
 export const usePinMessage = () =>
   useMutation(orpc.conversations.messages.pin.mutationOptions(useInboxChange()));
+
+export const useEditMessage = () =>
+  useMutation(orpc.conversations.messages.update.mutationOptions(useInboxChange()));
+
+export const useSetOperator = () =>
+  useMutation(orpc.conversations.setOperator.mutationOptions(useInboxChange()));
+
+/** How many conversations the member can see wait unread by them. */
+export const useUnreadCount = () => {
+  useInboxSignal();
+
+  return useQuery(orpc.conversations.unreadCount.queryOptions({ input: {} })).data?.count;
+};
+
+/** The conversation's visitor as the messenger last saw them, kept fresh as they come and go. */
+export const useVisitor = (conversationId: string) => {
+  const queryClient = useQueryClient();
+  const options = orpc.conversations.visitor.queryOptions({ input: { id: conversationId } });
+
+  useLiveSignal(PLUGIN, 'visitors', () => {
+    void queryClient.invalidateQueries({ queryKey: options.queryKey });
+  });
+
+  return useQuery(options).data;
+};
+
+/** How long a typing signal shows, and how often the member's typing is sent. */
+const TYPING_MS = 4000;
+
+/** Whether the visitor typed in the last few seconds, from the conversation's typing signal. */
+export const useVisitorTyping = (conversationId: string) => {
+  const [until, setUntil] = useState(0);
+  const [now, setNow] = useState(0);
+
+  useLiveSignal(PLUGIN, `typing.${conversationId.toLowerCase()}`, () => {
+    const at = Date.now();
+
+    setNow(at);
+    setUntil(at + TYPING_MS);
+  });
+
+  useEffect(() => {
+    if (until <= now) return;
+
+    const timer = setTimeout(() => setNow(Date.now()), until - now);
+
+    return () => clearTimeout(timer);
+  }, [until, now]);
+
+  return until > now;
+};
+
+/** Tells the visitor the member is typing, at most once every few seconds. */
+export const useSendTyping = (conversationId: string) => {
+  const typing = useMutation(orpc.conversations.typing.mutationOptions());
+  const last = useRef(0);
+
+  return () => {
+    const at = Date.now();
+
+    if (at - last.current < TYPING_MS) return;
+
+    last.current = at;
+    typing.mutate({ id: conversationId });
+  };
+};
 
 /** The conversation tags, as the filter bar and pickers read them. */
 export const conversationTags = orpc.tags.list.queryOptions({ input: { type: 'conversation' } });

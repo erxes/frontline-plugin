@@ -50,6 +50,9 @@ export const integrations = table(
 
 export const CONVERSATION_STATUSES = ['new', 'open', 'resolved'] as const;
 
+/** Who answers a conversation: automations while `bot`, only members once a `person` took it. */
+export const CONVERSATION_OPERATORS = ['bot', 'person'] as const;
+
 /**
  * One thread with one customer through one integration, whatever its kind. `externalId` is the
  * provider's thread id, so a webhook finds its conversation; the messenger has none. A new
@@ -66,6 +69,7 @@ export const conversations = table(
     customerId: text().notNull(),
     externalId: text(),
     status: text({ enum: CONVERSATION_STATUSES }).notNull().default('new'),
+    operator: text({ enum: CONVERSATION_OPERATORS }).notNull().default('bot'),
     /** A core user id. */
     assigneeId: text(),
     /** The members who wrote in it. */
@@ -118,6 +122,7 @@ export const conversations = table(
     index('frontline_conversations_org_customer_idx').on(t.orgId, t.customerId),
     index('frontline_conversations_org_assignee_idx').on(t.orgId, t.assigneeId),
     check('frontline_conversations_status_check', sql`${t.status} in ('new', 'open', 'resolved')`),
+    check('frontline_conversations_operator_check', sql`${t.operator} in ('bot', 'person')`),
   ],
 );
 

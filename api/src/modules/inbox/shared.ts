@@ -128,24 +128,37 @@ export const publishConversationEvents = (
 /** The Postgres channel the public messenger stream listens on (`messenger/stream.ts`). */
 export const VISITOR_CHANNEL = 'frontline_visitors';
 
-/**
- * Tells the organisation's open inbox screens to refetch, and the conversation's visitor, once
- * the change commits. Neither carries the message: each refetches what it may see.
- */
-export const signalConversations = async (
+/** What a visitor's stream hears: a conversation changed, or a member is typing in it. */
+export const VISITOR_EVENTS = ['changed', 'typing'] as const;
+
+type Notified = { id: string; customerId: string };
+
+/** Tells each conversation's visitor of `event` once the transaction commits. */
+export const notifyVisitors = async (
   tx: Tx,
   orgId: string,
-  changed: { id: string; customerId: string }[],
+  changed: Notified[],
+  event: (typeof VISITOR_EVENTS)[number] = 'changed',
 ) => {
-  await tx.execute(sql`select core_live_signal(${orgId}, ${PLUGIN}, 'conversations')`);
-
   if (changed.length === 0) return;
 
   const notices = changed.map(({ id, customerId }) => {
-    const payload = JSON.stringify({ orgId, conversationId: id, customerId });
+    const payload = JSON.stringify({ orgId, conversationId: id, customerId, event });
 
     return sql`pg_notify(${VISITOR_CHANNEL}, ${payload})`;
   });
 
   await tx.execute(sql`select ${sql.join(notices, sql`, `)}`);
+};
+
+/** The live topic a conversation's typing visitor signals on, for the members who have it open. */
+export const typingTopic = (conversationId: string) => `typing.${conversationId.toLowerCase()}`;
+
+/**
+ * Tells the organisation's open inbox screens to refetch, and the conversation's visitor, once
+ * the change commits. Neither carries the message: each refetches what it may see.
+ */
+export const signalConversations = async (tx: Tx, orgId: string, changed: Notified[]) => {
+  await tx.execute(sql`select core_live_signal(${orgId}, ${PLUGIN}, 'conversations')`);
+  await notifyVisitors(tx, orgId, changed);
 };
