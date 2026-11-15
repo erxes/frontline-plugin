@@ -1,5 +1,6 @@
 import { type AnyProcedure, call, isProcedure, resolveContractProcedures } from '@orpc/server';
 import { describe, expect, it } from 'vite-plus/test';
+import { manifest } from '#/core.ts';
 import { router } from '#/router.ts';
 import { memberOf } from '#/test/member.ts';
 
@@ -20,5 +21,14 @@ describe('every procedure', () => {
     await expect(
       call(procedure, {}, { context: { member: memberOf('org-a', []) } }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+});
+
+// Core refuses the whole manifest when a set names a permission it doesn't declare.
+describe('every permission set', () => {
+  const declared = manifest.permissions.map(({ action }) => action);
+
+  it.each(manifest.permissionSets)('$key names only declared permissions', (set) => {
+    expect(declared).toEqual(expect.arrayContaining(set.permissions));
   });
 });

@@ -284,6 +284,32 @@ export const manifest = {
     },
     { action: PERMISSIONS.callView, label: 'See calls and call queues', group: 'Calls' },
   ],
+  // What an owner adds to a role in one step, as the old plugin's default roles did.
+  permissionSets: [
+    {
+      key: 'frontline.admin',
+      label: 'Frontline admin',
+      description: 'Every Frontline permission',
+      permissions: Object.values(PERMISSIONS),
+    },
+    {
+      key: 'frontline.user',
+      label: 'Frontline user',
+      description: "The inbox and tickets of the member's channels, and the knowledge base",
+      permissions: [
+        PERMISSIONS.channelView,
+        PERMISSIONS.inboxView,
+        PERMISSIONS.kbView,
+        PERMISSIONS.helpCenterView,
+      ],
+    },
+    {
+      key: 'frontline.viewer',
+      label: 'Frontline viewer',
+      description: 'Reads the knowledge base and help centers',
+      permissions: [PERMISSIONS.kbView, PERMISSIONS.helpCenterView],
+    },
+  ],
   notificationKinds: [
     ...TICKET_NOTICES.map(({ event, label }) => ({ kind: event.type, label })),
     ...Object.values(CHANNEL_EVENTS).map(({ type, label }) => ({ kind: type, label })),
