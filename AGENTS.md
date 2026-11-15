@@ -51,7 +51,7 @@ without line-by-line review.
 - `budgets.json` caps, gzipped, what web loads on every page (`./config`,
   `remoteEntry.js`), the page module, and the bytes of these instructions. A
   number over its ceiling fails; a PR that raises a ceiling needs the
-  `budget-increase` label. `./config` imports nothing but its icon.
+  `budget-increase` label. `./config` imports only icons, type names and lazy slots.
 - Core finds the plugin by these names, so they stay fixed: plugin `frontline`,
   remote `frontline_ui` exposing `./config` and `./frontline`, pages under `/frontline/*`.
 - Every table, index and constraint starts with `frontline_`, and every table has
