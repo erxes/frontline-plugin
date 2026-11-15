@@ -75,6 +75,42 @@ export const INBOX_NOTIFICATIONS = {
   mentioned: 'frontline.conversation.mentioned',
 } as const;
 
+/** What a provider's new message publishes, so an automation can start from it. */
+export const MESSAGE_RECEIVED = {
+  telegram: {
+    type: 'frontline.telegram.message_received',
+    label: 'Telegram Message',
+    description: 'A connected bot received a Telegram message',
+  },
+  mail: {
+    type: 'frontline.mail.received',
+    label: 'Email Received',
+    description: 'An email arrived in a connected mailbox',
+  },
+} as const;
+
+/**
+ * Automation steps that reply to the run's customer through a provider: in the conversation the
+ * trigger names, else in the customer's latest conversation of that kind.
+ */
+export const SEND_ACTIONS = {
+  telegram: {
+    type: 'frontline.telegram.send_message',
+    label: 'Send Telegram Message',
+    description: "Reply in the customer's Telegram chat as the bot",
+  },
+  discord: {
+    type: 'frontline.discord.send_message',
+    label: 'Send Discord Message',
+    description: "Reply in the customer's Discord channel as the bot",
+  },
+  mail: {
+    type: 'frontline.mail.send',
+    label: 'Send Email',
+    description: "Reply to the customer's email right away, from the mailbox it came to",
+  },
+} as const;
+
 /** Tells whoever connected an account that the provider stopped accepting it. */
 export const INTEGRATION_BROKEN = 'frontline.integration.broken';
 
@@ -250,6 +286,7 @@ export const manifest = {
       subject: 'customer' as const,
     })),
     MESSAGE_RECEIVED_EVENT,
+    ...Object.values(MESSAGE_RECEIVED).map((event) => ({ ...event, subject: 'customer' as const })),
   ],
   timelines: [
     { type: TICKET_TIMELINE, label: 'Ticket', permission: PERMISSIONS.channelView },
@@ -278,5 +315,10 @@ export const manifest = {
       subject: 'customer',
       fields: [{ key: 'assigneeIds', label: 'Assign to', type: 'members', required: false }],
     },
+    ...Object.values(SEND_ACTIONS).map((action) => ({
+      ...action,
+      subject: 'customer' as const,
+      fields: [{ key: 'message', label: 'Message', type: 'longtext' as const, required: true }],
+    })),
   ],
 } satisfies PluginManifest;

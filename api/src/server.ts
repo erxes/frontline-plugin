@@ -102,7 +102,7 @@ export const createApp = () => {
     res.sendStatus(204);
   });
 
-  // Core runs the manifest's automation actions here, signed.
+  // Core runs the manifest's automation actions here, signed: the inbox's and the send steps.
   app.post('/api/automations/actions/:type', express.json({ limit: '256kb' }), runAction);
 
   if (config.uiDir) app.use('/ui', express.static(config.uiDir));

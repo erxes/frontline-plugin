@@ -1,11 +1,11 @@
-import { enqueueJob } from '@erxes/plugin-sdk';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { JOBS, PERMISSIONS } from '#/core.ts';
+import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { CONVERSATION_OPERATORS, conversations, integrations, messages } from '#/db/inbox.ts';
 import { writes } from '#/orpc.ts';
 import { ADAPTERS } from './adapters.ts';
+import { queueSend } from './post.ts';
 import { conversationsFor, Ids, signalConversations } from './shared.ts';
 
 /** What the customer reads when a person takes the conversation over from the bot. */
@@ -56,13 +56,7 @@ export const addBotMessage = async (
     })
     .where(eq(conversations.id, conversation.id));
 
-  if (queued)
-    await enqueueJob(tx, {
-      orgId,
-      name: JOBS.send.name,
-      payload: { messageId: message.id },
-      dedupeKey: message.id,
-    });
+  if (queued) await queueSend(tx, orgId, message.id, message.id);
 
   return true;
 };

@@ -1,21 +1,18 @@
+import { randomUUID } from 'node:crypto';
 import type { PluginMember } from '@erxes/plugin-sdk';
-import { enqueueJob } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, eq, getTableColumns, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
-import { core, INBOX_NOTIFICATIONS, JOBS, PERMISSIONS } from '#/core.ts';
+import { core, INBOX_NOTIFICATIONS, PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { conversations, integrations, messages } from '#/db/inbox.ts';
+import { messages } from '#/db/inbox.ts';
 import { Attachment } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import { reads, writes } from '#/orpc.ts';
 import { orderOf, PageInput, pageOf } from '../paging.ts';
-import { ADAPTERS } from './adapters.ts';
+import { messageColumns, postMessage, queueSend } from './post.ts';
 import { conversationById, conversationsFor, signalConversations } from './shared.ts';
-
-/** The row without `org_id`, which the caller already knows. */
-const { orgId, providerData, ...messageColumns } = getTableColumns(messages);
 
 export const Message = createSelectSchema(messages, {
   attachments: () => z.array(Attachment),
@@ -97,10 +94,8 @@ const notifyMentioned = async (member: PluginMember, conversationId: string, use
 };
 
 /**
- * A member's reply to the customer, or an internal note with `internal`. A reply waits on its
- * adapter's `send` as a queued job, or is sent once it commits when the adapter has none; the
- * conversation leaves `new` and stops waiting on a reply. A note only adds the caller to the
- * conversation's participants. Mentioned members hear of it.
+ * A member's reply to the customer, or an internal note with `internal`, posted as `postMessage`
+ * says. Mentioned members hear of it.
  */
 const create = writes(PERMISSIONS.inboxView)
   .input(
@@ -124,11 +119,6 @@ const create = writes(PERMISSIONS.inboxView)
 
     if (!conversation) throw new ORPCError('NOT_FOUND', { message: 'No such conversation' });
 
-    const [integration] = await tx
-      .select({ kind: integrations.kind })
-      .from(integrations)
-      .where(eq(integrations.id, conversation.integrationId));
-
     if (input.replyToId) {
       const [quoted] = await tx
         .select({ id: messages.id })
@@ -139,50 +129,8 @@ const create = writes(PERMISSIONS.inboxView)
         throw new ORPCError('BAD_REQUEST', { message: 'Reply to a message of this conversation' });
     }
 
-    const queued = !input.internal && Boolean(ADAPTERS.get(integration?.kind ?? '')?.send);
-
-    const [message] = await tx
-      .insert(messages)
-      .values({
-        ...input,
-        orgId: member.orgId,
-        userId: member.userId,
-        deliveryStatus: input.internal ? null : queued ? 'queued' : 'sent',
-      })
-      .returning(messageColumns);
-
-    if (!message) throw new ORPCError('INTERNAL_SERVER_ERROR');
-
-    const participants = sql`array(select distinct unnest(array_append(${conversations.participantIds}, ${member.userId})))`;
-
-    await tx
-      .update(conversations)
-      .set(
-        input.internal
-          ? { participantIds: participants }
-          : {
-              participantIds: participants,
-              content: input.content,
-              messageCount: sql`${conversations.messageCount} + 1`,
-              lastMessageAt: message.createdAt,
-              customerRespondedLast: false,
-              readBy: sql`array(select distinct unnest(array_append(${conversations.readBy}, ${member.userId})))`,
-              status: sql`case when ${conversations.status} = 'new' then 'open' else ${conversations.status} end`,
-              firstRespondedAt: sql`coalesce(${conversations.firstRespondedAt}, now())`,
-              firstRespondedBy: sql`coalesce(${conversations.firstRespondedBy}, ${member.userId})`,
-            },
-      )
-      .where(eq(conversations.id, conversation.id));
-
-    if (queued)
-      await enqueueJob(tx, {
-        orgId: member.orgId,
-        name: JOBS.send.name,
-        payload: { messageId: message.id },
-        dedupeKey: message.id,
-      });
-
-    await signalConversations(tx, member.orgId, input.internal ? [] : [conversation]);
+    const { conversationId: _conversationId, ...written } = input;
+    const message = await postMessage(tx, member, conversation, written);
 
     afterCommit(() => notifyMentioned(member, conversation.id, input.mentionedUserIds));
 
@@ -242,4 +190,31 @@ const pin = writes(PERMISSIONS.inboxView)
     return updated;
   });
 
-export const messageProcedures = { list, create, update, pin };
+/** Sends a reply that failed again, as a new job with its own attempts. */
+const retry = writes(PERMISSIONS.inboxView)
+  .input(z.object({ id: z.string() }))
+  .output(Message)
+  .handler(async ({ input, context: { tx, member } }) => {
+    const message = await messageFor(tx, member, input.id);
+
+    if (message.deliveryStatus !== 'failed')
+      throw new ORPCError('CONFLICT', { message: 'Only a reply that failed can be sent again' });
+
+    const [updated] = await tx
+      .update(messages)
+      .set({ deliveryStatus: 'queued' })
+      .where(eq(messages.id, input.id))
+      .returning(messageColumns);
+
+    if (!updated) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+    await queueSend(tx, member.orgId, updated.id, `${updated.id}:${randomUUID()}`);
+
+    const [conversation] = await conversationsFor(tx, member, [message.conversationId]);
+
+    await signalConversations(tx, member.orgId, conversation ? [conversation] : []);
+
+    return updated;
+  });
+
+export const messageProcedures = { list, create, update, pin, retry };

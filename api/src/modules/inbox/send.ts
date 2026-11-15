@@ -19,6 +19,7 @@ const outgoingOf = (orgId: string, messageId: string) =>
           content: messages.content,
           attachments: messages.attachments,
           userId: messages.userId,
+          providerData: messages.providerData,
           deliveryStatus: messages.deliveryStatus,
         },
         conversation: {

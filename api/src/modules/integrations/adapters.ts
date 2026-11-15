@@ -1,6 +1,7 @@
 import { ORPCError } from '@orpc/server';
-import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { MESSAGE_RECEIVED } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { customerLinks, integrations, messages } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
@@ -10,10 +11,16 @@ import { type AccountRow, type InboundMessage, inOrder, type ProviderName } from
 import { providerOf } from './providers/index.ts';
 import { accountRow } from './store.ts';
 
+/** The event a provider's new message publishes, for the providers that have one. */
+const RECEIVED: Partial<Record<ProviderName, { type: string }>> = MESSAGE_RECEIVED;
+
 /** An integration of a provider's kind names the connected account its conversations go through. */
 const AccountConfig = z.object({ accountId: z.string().min(1) });
 
-/** What a reply answers: the customer's id at the provider and their last message. */
+/**
+ * What a reply answers: the customer's id at the provider and the last message it follows, the
+ * customer's or one a member began the thread with, such as a new mail.
+ */
 const replyContext = async (
   tx: Tx,
   provider: ProviderName,
@@ -31,7 +38,7 @@ const replyContext = async (
     .where(
       and(
         eq(messages.conversationId, conversationId),
-        isNotNull(messages.customerId),
+        or(isNotNull(messages.customerId), isNotNull(messages.providerData)),
         isNotNull(messages.externalId),
       ),
     )
@@ -70,7 +77,13 @@ const adapterOf = (provider: ProviderName, label: string): Adapter => ({
 
     const externalId = await providerOf(row.provider)
       .open(row)
-      .send({ threadId, text: message.content, attachments: message.attachments, ...context });
+      .send({
+        threadId,
+        text: message.content,
+        attachments: message.attachments,
+        providerData: message.providerData,
+        ...context,
+      });
 
     return { externalId };
   },
@@ -137,12 +150,14 @@ export const deliverInbound = async (row: AccountRow, inbound: InboundMessage[])
               source: row.provider,
               externalId: message.author.externalId,
               firstName: message.author.name || message.author.externalId,
+              email: message.author.email,
             }),
             externalConversationId: message.threadId,
             externalId: message.messageId,
             content: message.text,
             attachments: message.attachments,
             providerData: message.providerData,
+            event: RECEIVED[row.provider]?.type,
           }),
         ),
     ),

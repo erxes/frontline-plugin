@@ -98,7 +98,8 @@ export type ConversationEvent = {
   conversationId: string;
   customerId: string;
   type: string;
-  summary: string;
+  /** What the timeline shows; an event without one, such as an automation trigger, isn't shown. */
+  summary: string | null;
   payload: Record<string, unknown>;
 };
 

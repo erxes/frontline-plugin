@@ -3,8 +3,8 @@ import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
-import { writes } from '#/orpc.ts';
-import { Account, saveAccount } from '../store.ts';
+import { reads, writes } from '#/orpc.ts';
+import { Account, accountRow, saveAccount } from '../store.ts';
 import { defineProvider, type InboundMessage, type WebhookSource } from '../provider.ts';
 import { sameText } from '../secrets.ts';
 
@@ -154,4 +154,56 @@ const connect = writes(PERMISSIONS.integrationManage)
     });
   });
 
-export const telegramProcedures = { connect };
+/** A bot's webhook: where updates go, how many wait, and its last failure. */
+const Webhook = z.object({
+  url: z.string(),
+  hasCustomCertificate: z.boolean(),
+  pendingUpdateCount: z.number().int(),
+  ipAddress: z.string().nullable(),
+  lastErrorAt: z.date().nullable(),
+  lastErrorMessage: z.string().nullable(),
+  maxConnections: z.number().int().nullable(),
+  allowedUpdates: z.array(z.string()),
+});
+
+/** Telegram's `WebhookInfo`, read as `Webhook`. */
+const WebhookInfo = z
+  .object({
+    url: z.string(),
+    has_custom_certificate: z.boolean(),
+    pending_update_count: z.number().int(),
+    ip_address: z.string().optional(),
+    last_error_date: z.number().optional(),
+    last_error_message: z.string().optional(),
+    max_connections: z.number().int().optional(),
+    allowed_updates: z.array(z.string()).optional(),
+  })
+  .transform((info) => ({
+    url: info.url,
+    hasCustomCertificate: info.has_custom_certificate,
+    pendingUpdateCount: info.pending_update_count,
+    ipAddress: info.ip_address ?? null,
+    lastErrorAt: info.last_error_date ? new Date(info.last_error_date * 1000) : null,
+    lastErrorMessage: info.last_error_message ?? null,
+    maxConnections: info.max_connections ?? null,
+    allowedUpdates: info.allowed_updates ?? [],
+  }));
+
+/** The bot's webhook as Telegram sees it, to tell why updates stopped arriving. */
+const webhookInfo = reads(PERMISSIONS.integrationView)
+  .input(z.object({ id: z.string() }))
+  .output(Webhook)
+  .handler(async ({ input, context: { tx } }) => {
+    const row = await accountRow(tx, input.id);
+
+    if (row.provider !== 'telegram')
+      throw new ORPCError('NOT_FOUND', { message: 'No such Telegram bot' });
+
+    const { account } = telegram.open(row);
+
+    return call(account.secret.token, 'getWebhookInfo', WebhookInfo).catch((error: unknown) => {
+      throw new ORPCError('BAD_GATEWAY', { message: `Telegram refused: ${why(error)}` });
+    });
+  });
+
+export const telegramProcedures = { connect, webhookInfo };
