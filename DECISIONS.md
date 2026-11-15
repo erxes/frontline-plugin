@@ -34,12 +34,14 @@ and this file explains each place the port doesn't copy the old plugin.
 
 ## Response templates
 
-| Old                                                      | New                                                         | Why                                               |
-| -------------------------------------------------------- | ----------------------------------------------------------- | ------------------------------------------------- |
-| A `showResponseTemplates` permission                     | The template's channel decides: members read, admins change | A template belongs to a channel                   |
-| A `files` field                                          | Dropped                                                     | No screen set it                                  |
-| `/frontline/:id/response/:responseId` was its own route  | It opens the template in the list's side panel              | The old page did the same                         |
-| `removeChannel` deleted only the channel and its members | Deleting a channel deletes its templates                    | The templates stayed with no screen to reach them |
+| Old                                                      | New                                                                                                                     | Why                                               |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------- |
+| A `showResponseTemplates` permission                     | The template's channel decides: members read, admins change                                                             | A template belongs to a channel                   |
+| A `files` field                                          | Dropped                                                                                                                 | No screen set it                                  |
+| `/frontline/:id/response/:responseId` was its own route  | It opens in core's side panel and expands to `/frontline/settings/response-templates/:id`; the old link redirects there | Records open like core's                          |
+| `removeChannel` deleted only the channel and its members | Deleting a channel deletes its templates                                                                                | The templates stayed with no screen to reach them |
+| Search matched the stored content, markup included       | Search and the Content filter match the words a member reads                                                            | A search for "paragraph" matched every template   |
+| A form with Update saved an edit                         | Each field saves in place in the panel, the channel too                                                                 | Records edit like core's                          |
 
 ## Knowledge base
 

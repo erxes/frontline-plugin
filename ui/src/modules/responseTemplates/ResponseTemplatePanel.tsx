@@ -1,151 +1,181 @@
+import { memberQueries } from '@erxes/core-contract/client';
+import {
+  IconCalendarPlus,
+  IconCalendarUp,
+  IconCircles,
+  IconDots,
+  IconLetterCase,
+  IconTrash,
+  IconUser,
+} from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Editor, Input, Skeleton } from 'erxes-ui';
-import { type SubmitEvent, useState } from 'react';
+import {
+  Button,
+  MemberInline,
+  PanelDescriptionField,
+  PanelField,
+  PanelSection,
+  Select,
+  Skeleton,
+  Spinner,
+  TextField,
+  type TRecordSlotProps,
+  useFormat,
+} from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { useChannel } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
-import { draftsOf, FormActions } from '~/shared/Drafts.tsx';
-import { MoveToChannelDialog } from '~/shared/MoveToChannel.tsx';
-import { Field, SidePanel } from '~/shared/SidePanel.tsx';
+import { ActionsMenu } from '~/shared/Records.tsx';
 import {
   type ResponseTemplate,
+  useDeleteTemplates,
+  useManagedChannels,
   useResponseTemplate,
   useTemplateChange,
-  useTemplatePanel,
 } from './useResponseTemplates.ts';
 
-const useTemplateDraft = draftsOf<{ name: string; content: string }>();
+/** The panel header's title: the template's name. */
+export const ResponseTemplateTitle = ({ contentId }: TRecordSlotProps) => {
+  const template = useResponseTemplate(contentId);
 
-/**
- * A new template in `channelId` (`template` undefined) or a change to one.
- * Closing the panel keeps the draft; saving clears it and closes the panel.
- */
-const TemplateForm = ({
-  channelId,
-  template,
-}: {
-  channelId: string;
-  template?: ResponseTemplate;
-}) => {
-  const { t } = useTranslation('frontline');
-  const { close } = useTemplatePanel();
-  const change = useTemplateChange();
+  if (template.isPending) return <Skeleton className="h-4 w-32" />;
 
-  const draft = useTemplateDraft(template?.id ?? `new~${channelId}`, {
-    name: template?.name ?? '',
-    content: template?.content ?? '',
-  });
-
-  // The editor reads its content once, so a discard mounts a fresh one.
-  const [revision, setRevision] = useState(0);
-
-  const options = {
-    ...change,
-    onSuccess: async () => {
-      draft.clear();
-      await change.onSuccess();
-      close();
-    },
-  };
-
-  const create = useMutation(orpc.responseTemplates.create.mutationOptions(options));
-  const update = useMutation(orpc.responseTemplates.update.mutationOptions(options));
-  const { isPending } = template ? update : create;
-
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (template) update.mutate({ id: template.id, ...draft.value });
-    else create.mutate({ channelId, ...draft.value });
-  };
-
-  const discard = () => {
-    draft.clear();
-    setRevision((current) => current + 1);
-  };
-
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <Field id="template-name" label={t('name', 'Name')}>
-        <Input
-          id="template-name"
-          required
-          value={draft.value.name}
-          onChange={(event) => draft.change({ name: event.target.value })}
-        />
-      </Field>
-      <Field label={t('content', 'Content')}>
-        <Editor
-          key={revision}
-          initialContent={draft.value.content || undefined}
-          onChange={(content) => draft.change({ content })}
-          label={t('content', 'Content')}
-          variant="outline"
-          className="min-h-60"
-        />
-      </Field>
-      <FormActions
-        dirty={draft.dirty}
-        onDiscard={discard}
-        disabled={isPending}
-        submit={template ? t('update', 'Update') : t('create', 'Create')}
-      />
-    </form>
-  );
+  return <span className="truncate">{template.data?.name ?? template.error?.message}</span>;
 };
 
-const EditTemplate = ({ id }: { id: string }) => {
-  const { data, error } = useResponseTemplate(id);
-
-  if (error) return <p className="text-sm text-destructive-text">{error.message}</p>;
-
-  return data ? (
-    <TemplateForm key={data.id} channelId={data.channelId} template={data} />
-  ) : (
-    <Skeleton className="h-60" />
-  );
-};
-
-/** Create and edit beside the list, for the channel the page shows. */
-export const ResponseTemplatePanel = ({ channelId }: { channelId: string }) => {
+/** The header's menu, for its channel's admins: delete it. */
+export const ResponseTemplateActions = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
-  const { value, close } = useTemplatePanel();
+  const template = useResponseTemplate(contentId);
+  const { deleteTemplates } = useDeleteTemplates();
+
+  if (!template.data?.canManage) return null;
 
   return (
-    <SidePanel
-      open={Boolean(value)}
-      onClose={close}
-      title={
-        value === 'new'
-          ? t('create-response-template', 'Create response template')
-          : t('edit-response-template', 'Edit response template')
+    <ActionsMenu
+      trigger={
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t('template-menu', 'Response template actions')}
+        >
+          <IconDots />
+        </Button>
       }
-      description={t('response-template-hint', 'A reply agents insert into conversations.')}
-    >
-      {value === 'new' ? (
-        <TemplateForm channelId={channelId} />
-      ) : (
-        value && <EditTemplate id={value} />
-      )}
-    </SidePanel>
-  );
-};
-
-/** Moves a template to another channel the member is an admin of. */
-export const MoveTemplateDialog = ({
-  template,
-  onClose,
-}: {
-  template: ResponseTemplate;
-  onClose: () => void;
-}) => {
-  const move = useMutation(orpc.responseTemplates.update.mutationOptions(useTemplateChange()));
-
-  return (
-    <MoveToChannelDialog
-      name={template.name}
-      channelId={template.channelId}
-      onMove={(channelId) => move.mutateAsync({ id: template.id, channelId })}
-      onClose={onClose}
+      actions={[
+        {
+          value: 'delete',
+          icon: <IconTrash />,
+          label: t('delete', 'Delete'),
+          onSelect: () => void deleteTemplates([contentId]),
+        },
+      ]}
     />
   );
+};
+
+/** The template's channel; its admins move it to another channel they are an admin of. */
+const ChannelField = ({
+  template,
+  onMove,
+}: {
+  template: ResponseTemplate;
+  onMove: (channelId: string) => void;
+}) => {
+  const { t } = useTranslation('frontline');
+  const channel = useChannel(template.channelId);
+  const managed = useManagedChannels();
+
+  if (!template.canManage) return <span className="px-2 text-xs">{channel.data?.name ?? '…'}</span>;
+
+  const channels = managed.data ?? [];
+  const nameOf = (id: string) => channels.find((each) => each.id === id)?.name ?? '…';
+
+  return (
+    <Select value={template.channelId} onValueChange={onMove}>
+      <Select.Trigger variant="flush" aria-label={t('channel', 'Channel')}>
+        <Select.Value>{(id: string) => nameOf(id)}</Select.Value>
+      </Select.Trigger>
+      <Select.Content>
+        {channels.map((each) => (
+          <Select.Item key={each.id} value={each.id}>
+            {each.name}
+          </Select.Item>
+        ))}
+      </Select.Content>
+    </Select>
+  );
+};
+
+/** The template's fields, edited in place by its channel's admins and read only for its members. */
+const TemplateFields = ({ template }: { template: ResponseTemplate }) => {
+  const { t } = useTranslation('frontline');
+  const format = useFormat();
+  const update = useMutation(orpc.responseTemplates.update.mutationOptions(useTemplateChange()));
+
+  const edit = (fields: { name?: string; content?: string; channelId?: string }) =>
+    update.mutate({ id: template.id, ...fields });
+
+  const scope = `frontline-response-template.${template.id}`;
+
+  return (
+    <PanelSection title={t('response-template', 'Response template')}>
+      <fieldset
+        disabled={!template.canManage}
+        className="contents [&_button:disabled]:cursor-default [&_button:disabled]:opacity-100"
+      >
+        <PanelField icon={IconLetterCase} label={t('name', 'Name')}>
+          <TextField
+            scope={`${scope}.name`}
+            value={template.name}
+            placeholder={t('name', 'Name')}
+            onSave={(name) => {
+              const next = name.trim();
+
+              if (next && next !== template.name) edit({ name: next });
+            }}
+          />
+        </PanelField>
+        <PanelField icon={IconCircles} label={t('channel', 'Channel')} cell={false}>
+          <ChannelField
+            template={template}
+            onMove={(channelId) => channelId !== template.channelId && edit({ channelId })}
+          />
+        </PanelField>
+      </fieldset>
+      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
+        <MemberInline memberId={template.createdBy} members={memberQueries} />
+      </PanelField>
+      <PanelField icon={IconCalendarPlus} label={t('created-at', 'Created at')} cell={false}>
+        <span className="px-2 text-xs">{format.dateTime(template.createdAt)}</span>
+      </PanelField>
+      <PanelField icon={IconCalendarUp} label={t('updated-at', 'Updated at')} cell={false}>
+        <span className="px-2 text-xs">{format.dateTime(template.updatedAt)}</span>
+      </PanelField>
+      <PanelDescriptionField
+        label={t('content', 'Content')}
+        scope={`${scope}.content`}
+        value={template.content}
+        readonly={!template.canManage}
+        onSave={(content) => content !== template.content && edit({ content })}
+      />
+    </PanelSection>
+  );
+};
+
+/** The Detail tab: the template's fields and its content, saved as they change. */
+export const ResponseTemplateDetail = ({ contentId }: TRecordSlotProps) => {
+  const template = useResponseTemplate(contentId);
+
+  if (template.isPending) return <Spinner area="lg" />;
+
+  if (template.isError) {
+    return (
+      <p role="alert" className="p-3 text-xs text-destructive-text">
+        {template.error.message}
+      </p>
+    );
+  }
+
+  return <TemplateFields key={template.data.id} template={template.data} />;
 };

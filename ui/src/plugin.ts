@@ -5,3 +5,5 @@ export const PLUGIN = 'frontline';
 
 /** The plugin's records core's side panel opens: `useOpenRecord().open({ contentType, contentId })`. */
 export const CHANNEL_TYPE = `${PLUGIN}:channel`;
+
+export const RESPONSE_TEMPLATE_TYPE = `${PLUGIN}:response-template`;

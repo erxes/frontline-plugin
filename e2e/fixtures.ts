@@ -27,6 +27,13 @@ export const OWNER = {
 /** A suffix that keeps records from parallel tests and reruns apart. */
 export const unique = () => randomBytes(3).toString('hex');
 
+/** Core's side panel, where records open and new ones are drafted. */
+export const recordPanel = (page: Page) => page.locator('aside[data-record-side-panel]');
+
+/** A list page with a new record of `contentType` drafted in core's side panel. */
+export const newRecordPath = (list: string, contentType: string) =>
+  `${list}?${new URLSearchParams({ panel: `/detail/${contentType}/new` }).toString()}`;
+
 /**
  * Core's typed client over Playwright's request context, so it shares the page's
  * session cookie. Writes carry the header browsers send, which core's CSRF check reads.

@@ -3,8 +3,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom';
 import { ChannelMembersPage } from '@/channels/ChannelMembersPage.tsx';
 import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
-import { CHANNELS_PATH } from '@/channels/useChannels.ts';
-import { CHANNEL_TYPE, PLUGIN } from '~/plugin.ts';
+import { CHANNEL_TYPE, PLUGIN, RESPONSE_TEMPLATE_TYPE } from '~/plugin.ts';
 import css from './styles.css?inline';
 
 addPluginStyles(PLUGIN, css);
@@ -54,12 +53,13 @@ const PipelineLayout = lazy(async () => ({
   default: (await import('@/pipelines/PipelineLayout.tsx')).PipelineLayout,
 }));
 
-/** The old `/:id/response/:responseId` link opens that template in the list's panel. */
-const ResponseTemplateRedirect = () => {
-  const { id, responseId } = useParams();
-
-  return <Navigate to={`${CHANNELS_PATH}/${id}/response?template=${responseId}`} replace />;
-};
+/** The old `/:id/response/:responseId` link opens that template on its own page. */
+const ResponseTemplateRedirect = () => (
+  <Navigate
+    to={`/${PLUGIN}/settings/response-templates/${encodeURIComponent(useParams().responseId ?? '')}`}
+    replace
+  />
+);
 
 /** The page module web renders under `/frontline/*` (loaded as `frontline_ui/frontline`). */
 export const Frontline = () => (
@@ -76,6 +76,10 @@ export const Frontline = () => (
         <Route path=":id/pipelines/:pipelineId/*" element={<PipelineLayout />} />
       </Route>
     </Route>
+    <Route
+      path="settings/response-templates/:id"
+      element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}
+    />
     <Route
       path="knowledgebase"
       element={

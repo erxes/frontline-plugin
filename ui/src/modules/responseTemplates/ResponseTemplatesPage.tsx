@@ -1,117 +1,88 @@
+import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlignLeft,
-  IconArrowBarToRight,
   IconCalendarPlus,
   IconCalendarUp,
-  IconEdit,
-  IconGitBranch,
+  IconLetterCase,
+  IconMessageReply,
+  IconPlus,
   IconTrash,
+  IconUser,
 } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
-import { RecordTable, type RecordTableColumnDef, RecordTableInlineCell } from 'erxes-ui';
-import { useState } from 'react';
+import {
+  Button,
+  editorText,
+  ListFilter,
+  MemberInline,
+  PageContainer,
+  RecordTable,
+  type RecordTableColumnDef,
+  RecordTableInlineCell,
+  type TListFilterField,
+  useOpenRecord,
+  ViewBar,
+} from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
-import { orpc } from '~/orpc.ts';
-import { CreateButton, ListEmpty, SearchSubHeader } from '~/shared/List.tsx';
-import { DeleteButton, RowActions, SelectionBar, useConfirmDelete } from '~/shared/Records.tsx';
+import { ChannelsHeader } from '@/channels/ChannelsHeader.tsx';
+import { type Channel, useChannel } from '@/channels/useChannels.ts';
+import { RESPONSE_TEMPLATE_TYPE } from '~/plugin.ts';
+import { CreateButton, ListEmpty } from '~/shared/List.tsx';
+import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
 import { DateCell, PagedRows } from '~/shared/Table.tsx';
-import { MoveTemplateDialog, ResponseTemplatePanel } from './ResponseTemplatePanel.tsx';
 import {
   type ResponseTemplate,
+  useDeleteTemplates,
   useResponseTemplates,
-  useTemplateChange,
-  useTemplatePanel,
 } from './useResponseTemplates.ts';
 
-/** Asks for "delete" to be typed, then deletes the templates: all of them, or none when the API refuses one. */
-const useDeleteTemplates = () => {
-  const { t } = useTranslation('frontline');
-  const confirm = useConfirmDelete();
-  const remove = useMutation(orpc.responseTemplates.remove.mutationOptions(useTemplateChange()));
-
-  const deleteTemplates = async (ids: string[], done?: () => void) => {
-    await confirm(
-      t('delete-templates-confirm', {
-        defaultValue_one: 'Delete this response template?',
-        defaultValue_other: 'Delete {{count}} response templates?',
-        count: ids.length,
-      }),
-    );
-    remove.mutate({ ids }, { onSuccess: done });
-  };
-
-  return { deleteTemplates, isPending: remove.isPending };
-};
-
-/** "Create response template", with C as its shortcut, for the channel's admins. */
-export const CreateTemplate = ({ channelId }: { channelId: string }) => {
-  const { t } = useTranslation('frontline');
-  const { canManage } = useResponseTemplates(channelId);
-  const { open } = useTemplatePanel();
+/** The name opens the template in core's side panel, as a customer's name does. */
+const NameCell = ({ template }: { template: ResponseTemplate }) => {
+  const { open } = useOpenRecord();
 
   return (
-    <CreateButton
-      allowed={canManage}
-      label={t('create-response-template', 'Create response template')}
-      onClick={() => open('new')}
-    />
+    <RecordTableInlineCell>
+      <Button
+        variant="ghost"
+        className="w-full justify-start"
+        onClick={() => open({ contentType: RESPONSE_TEMPLATE_TYPE, contentId: template.id })}
+      >
+        {template.name}
+      </Button>
+    </RecordTableInlineCell>
   );
 };
 
 const MoreCell = ({ template }: { template: ResponseTemplate }) => {
   const { t } = useTranslation('frontline');
-  const { open } = useTemplatePanel();
   const { deleteTemplates } = useDeleteTemplates();
-  const [moving, setMoving] = useState(false);
 
   return (
-    <>
-      <RowActions
-        label={t('template-actions', 'Actions for {{name}}', { name: template.name })}
-        actions={[
-          {
-            value: 'edit',
-            icon: <IconEdit />,
-            label: t('edit', 'Edit'),
-            onSelect: () => open(template.id),
-          },
-          {
-            value: 'move',
-            icon: <IconArrowBarToRight />,
-            label: t('move-to-channel', 'Move to channel'),
-            onSelect: () => setMoving(true),
-          },
-          {
-            value: 'delete',
-            icon: <IconTrash />,
-            label: t('delete', 'Delete'),
-            onSelect: () => void deleteTemplates([template.id]),
-          },
-        ]}
-      />
-      {moving && <MoveTemplateDialog template={template} onClose={() => setMoving(false)} />}
-    </>
+    <RowActions
+      label={t('template-actions', 'Actions for {{name}}', { name: template.name })}
+      actions={[
+        {
+          value: 'delete',
+          icon: <IconTrash />,
+          label: t('delete', 'Delete'),
+          onSelect: () => void deleteTemplates([template.id]),
+        },
+      ]}
+    />
   );
 };
 
-const NameCell = ({ template }: { template: ResponseTemplate }) => {
-  const { open } = useTemplatePanel();
-
-  return (
-    <RecordTableInlineCell>
-      <button type="button" className="truncate hover:underline" onClick={() => open(template.id)}>
-        {template.name}
-      </button>
-    </RecordTableInlineCell>
-  );
-};
-
+/** Members who can't manage the channel get no row actions or selection. */
 const useColumns = (canManage: boolean): RecordTableColumnDef<ResponseTemplate>[] => {
   const { t } = useTranslation('frontline');
 
   const manage: RecordTableColumnDef<ResponseTemplate>[] = [
-    { id: 'more', cell: ({ row }) => <MoreCell template={row.original} />, size: 33 },
+    {
+      id: 'more',
+      header: () => <RecordTable.ColumnSelector />,
+      cell: ({ row }) => <MoreCell template={row.original} />,
+      size: 33,
+    },
     RecordTable.checkboxColumnOf<ResponseTemplate>(),
   ];
 
@@ -119,9 +90,27 @@ const useColumns = (canManage: boolean): RecordTableColumnDef<ResponseTemplate>[
     ...(canManage ? manage : []),
     {
       id: 'name',
-      header: () => <RecordTable.InlineHead label={t('title', 'Title')} icon={IconAlignLeft} />,
+      header: () => <RecordTable.InlineHead label={t('name', 'Name')} icon={IconLetterCase} />,
       cell: ({ row }) => <NameCell template={row.original} />,
-      size: 400,
+      size: 240,
+    },
+    {
+      id: 'content',
+      header: () => <RecordTable.InlineHead label={t('content', 'Content')} icon={IconAlignLeft} />,
+      cell: ({ row }) => <TextCell value={editorText(row.original.content)} />,
+      size: 320,
+    },
+    {
+      id: 'createdBy',
+      header: () => (
+        <RecordTable.InlineHead label={t('created-by', 'Created by')} icon={IconUser} />
+      ),
+      cell: ({ row }) => (
+        <RecordTableInlineCell>
+          <MemberInline memberId={row.original.createdBy} members={memberQueries} />
+        </RecordTableInlineCell>
+      ),
+      size: 180,
     },
     {
       id: 'createdAt',
@@ -129,7 +118,7 @@ const useColumns = (canManage: boolean): RecordTableColumnDef<ResponseTemplate>[
         <RecordTable.InlineHead label={t('created-at', 'Created at')} icon={IconCalendarPlus} />
       ),
       cell: ({ row }) => <DateCell date={row.original.createdAt} />,
-      size: 140,
+      size: 130,
     },
     {
       id: 'updatedAt',
@@ -137,7 +126,7 @@ const useColumns = (canManage: boolean): RecordTableColumnDef<ResponseTemplate>[
         <RecordTable.InlineHead label={t('updated-at', 'Updated at')} icon={IconCalendarUp} />
       ),
       cell: ({ row }) => <DateCell date={row.original.updatedAt} />,
-      size: 140,
+      size: 130,
     },
   ];
 };
@@ -155,30 +144,71 @@ const TemplatesCommandBar = () => {
   );
 };
 
-/** A channel's response templates, newest first, with search, paging and bulk delete. */
-export const ResponseTemplatesPage = () => {
+/** The fields the filter bar narrows templates by; the API applies their rules. */
+const useFields = (): TListFilterField[] => {
   const { t } = useTranslation('frontline');
-  const { id: channelId = '' } = useParams();
 
-  const { templates, totalCount, canManage, isPending, error, hasNextPage, fetchNextPage } =
-    useResponseTemplates(channelId);
+  return [
+    { path: 'subject.name', label: t('name', 'Name'), type: 'text', icon: IconLetterCase },
+    { path: 'subject.content', label: t('content', 'Content'), type: 'text', icon: IconAlignLeft },
+    {
+      path: 'subject.createdBy',
+      label: t('created-by', 'Created by'),
+      type: 'member',
+      icon: IconUser,
+    },
+    {
+      path: 'subject.createdAt',
+      label: t('created-at', 'Created at'),
+      type: 'date',
+      icon: IconCalendarPlus,
+    },
+    {
+      path: 'subject.updatedAt',
+      label: t('updated-at', 'Updated at'),
+      type: 'date',
+      icon: IconCalendarUp,
+    },
+  ];
+};
 
-  const columns = useColumns(canManage);
+const TemplatesTable = ({ channel, onCreate }: { channel: Channel; onCreate: () => void }) => {
+  const { t } = useTranslation('frontline');
+
+  const { templates, totalCount, isPending, error, hasNextPage, fetchNextPage } =
+    useResponseTemplates(channel.id);
+
+  const columns = useColumns(channel.canManage);
 
   return (
     <>
-      <SearchSubHeader id="response-templates-filter" count={totalCount} />
+      <ViewBar allLabel={t('all-response-templates', 'All response templates')}>
+        <ListFilter
+          id="frontline-response-templates"
+          fields={useFields()}
+          members={memberQueries}
+          totalCount={totalCount}
+        />
+      </ViewBar>
       {error ? (
         <p className="m-3 text-sm text-destructive-text">{error.message}</p>
       ) : !isPending && templates.length === 0 ? (
         <ListEmpty
-          icon={<IconGitBranch />}
+          icon={<IconMessageReply />}
           title={t('no-responses-yet', 'No responses yet')}
           description={t(
             'get-started-creating-first-response',
             'Get started by creating your first response',
           )}
-          action={<CreateTemplate channelId={channelId} />}
+          action={
+            channel.canManage && (
+              // The header's button holds the C shortcut; this one only clicks.
+              <Button variant="secondary" onClick={onCreate}>
+                <IconPlus />
+                {t('create-response-template', 'Create response template')}
+              </Button>
+            )
+          }
         />
       ) : (
         <RecordTable.Provider
@@ -194,10 +224,37 @@ export const ResponseTemplatesPage = () => {
             count={templates.length}
             fetchNextPage={() => void fetchNextPage()}
           />
-          {canManage && <TemplatesCommandBar />}
+          {channel.canManage && <TemplatesCommandBar />}
         </RecordTable.Provider>
       )}
-      <ResponseTemplatePanel channelId={channelId} />
     </>
+  );
+};
+
+/**
+ * A channel's response templates, newest first, under core's list bar. A template opens in
+ * core's side panel; Create response template drafts one there, in this channel.
+ */
+export const ResponseTemplatesPage = () => {
+  const { t } = useTranslation('frontline');
+  const { id = '' } = useParams();
+  const { data, error } = useChannel(id);
+  const { openNew } = useOpenRecord();
+  const create = () => openNew(RESPONSE_TEMPLATE_TYPE, { channelId: id });
+
+  return (
+    <PageContainer>
+      <ChannelsHeader channelId={id} label={t('response-templates', 'Response templates')}>
+        {data && (
+          <CreateButton
+            allowed={data.canManage}
+            label={t('create-response-template', 'Create response template')}
+            onClick={create}
+          />
+        )}
+      </ChannelsHeader>
+      {error && <p className="m-3 text-sm text-destructive-text">{error.message}</p>}
+      {data && <TemplatesTable channel={data} onCreate={create} />}
+    </PageContainer>
   );
 };
