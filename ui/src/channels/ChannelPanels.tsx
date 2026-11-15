@@ -9,14 +9,15 @@ import {
   Label,
   MemberInline,
   memberName,
-  Sheet,
   Skeleton,
   Textarea,
 } from 'erxes-ui';
-import { type ReactNode, type SubmitEvent, useState } from 'react';
+import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { orpc } from '../orpc.ts';
+import { textOf } from '../shared/hooks.ts';
+import { SidePanel } from '../shared/SidePanel.tsx';
 import {
   type Channel,
   CHANNELS_PATH,
@@ -24,8 +25,6 @@ import {
   useChannelChange,
   usePanel,
 } from './useChannels.ts';
-
-const textOf = (value: FormDataEntryValue | null) => (typeof value === 'string' ? value : '');
 
 /** Team members to pick, several at once, leaving out `exclude`. */
 const MemberPicker = ({
@@ -59,7 +58,7 @@ const MemberPicker = ({
 /** Creates the channel and opens it, or saves the change to `channel` and closes the panel. */
 const useSaveChannel = (channel?: Channel) => {
   const navigate = useNavigate();
-  const { close } = usePanel();
+  const { closeChannel } = usePanel();
   const { onSuccess } = useChannelChange();
 
   const create = useMutation(
@@ -75,7 +74,7 @@ const useSaveChannel = (channel?: Channel) => {
     orpc.channels.update.mutationOptions({
       onSuccess: async () => {
         await onSuccess();
-        close();
+        closeChannel();
       },
     }),
   );
@@ -168,7 +167,7 @@ const ChannelForm = ({ channel }: { channel?: Channel }) => {
 /** Picks team members who aren't in the channel yet and adds them. */
 const AddMembersForm = ({ channelId }: { channelId: string }) => {
   const { t } = useTranslation('frontline');
-  const { close } = usePanel();
+  const { closeMembers } = usePanel();
   const { data } = useChannel(channelId);
   const change = useChannelChange();
   const [userIds, setUserIds] = useState<string[]>([]);
@@ -178,7 +177,7 @@ const AddMembersForm = ({ channelId }: { channelId: string }) => {
       ...change,
       onSuccess: async () => {
         await change.onSuccess();
-        close();
+        closeMembers();
       },
     }),
   );
@@ -197,33 +196,6 @@ const AddMembersForm = ({ channelId }: { channelId: string }) => {
   );
 };
 
-const Panel = ({
-  open,
-  title,
-  description,
-  children,
-}: {
-  open: boolean;
-  title: string;
-  description: string;
-  children: ReactNode;
-}) => {
-  const { close } = usePanel();
-
-  return (
-    <Sheet open={open} onOpenChange={(next) => !next && close()}>
-      <Sheet.View className="sm:max-w-md">
-        <Sheet.Header>
-          <Sheet.Title>{title}</Sheet.Title>
-          <Sheet.Description className="sr-only">{description}</Sheet.Description>
-          <Sheet.Close />
-        </Sheet.Header>
-        <Sheet.Content>{children}</Sheet.Content>
-      </Sheet.View>
-    </Sheet>
-  );
-};
-
 const EditChannel = ({ id }: { id: string }) => {
   const { data, error } = useChannel(id);
 
@@ -235,12 +207,13 @@ const EditChannel = ({ id }: { id: string }) => {
 /** The side panels the channel pages open: create, edit, and add members. */
 export const ChannelPanels = () => {
   const { t } = useTranslation('frontline');
-  const { channelId, membersOf } = usePanel();
+  const { channelId, membersOf, closeChannel, closeMembers } = usePanel();
 
   return (
     <>
-      <Panel
+      <SidePanel
         open={Boolean(channelId)}
+        onClose={closeChannel}
         title={
           channelId === 'new'
             ? t('create-channel', 'Create channel')
@@ -249,14 +222,15 @@ export const ChannelPanels = () => {
         description={t('channel-hint', 'Name the channel. You become its admin.')}
       >
         {channelId === 'new' ? <ChannelForm /> : channelId && <EditChannel id={channelId} />}
-      </Panel>
-      <Panel
+      </SidePanel>
+      <SidePanel
         open={Boolean(membersOf)}
+        onClose={closeMembers}
         title={t('add-members', 'Add members')}
         description={t('add-members-hint', 'Pick the teammates who work this channel.')}
       >
         {membersOf && <AddMembersForm channelId={membersOf} />}
-      </Panel>
+      </SidePanel>
     </>
   );
 };

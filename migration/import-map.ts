@@ -18,7 +18,6 @@ export const IMPORT_MAP: {
       name: 'name',
       content: 'content',
       channelId: 'channel_id',
-      files: 'files',
       updatedAt: 'updated_at',
     },
   },

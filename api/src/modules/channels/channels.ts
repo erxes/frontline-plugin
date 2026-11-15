@@ -6,7 +6,7 @@ import { PERMISSIONS } from '#/core.ts';
 import { type Tx, uniqueViolation } from '#/db/client.ts';
 import { CHANNEL_NAME_INDEX, CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { channelColumns, channelFor, insertMembers, managesAll } from './access.ts';
+import { channelColumns, channelFor, insertMembers, likeText, managesAll } from './access.ts';
 
 const Name = z.string().trim().min(1).max(100);
 const Description = z.string().trim().max(1000);
@@ -85,9 +85,6 @@ const channelById = async (tx: Tx, member: PluginMember, id: string) => {
 
   return withAccess(member)(row);
 };
-
-/** `%` and `_` match themselves in a LIKE pattern built from `text`. */
-const likeText = (text: string) => `%${text.replaceAll(/[\\%_]/g, '\\$&')}%`;
 
 /**
  * The caller's channels, or every channel for a member who manages them all,

@@ -193,10 +193,10 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] permission `surveySendToConversation` (survey) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:261`
 - [ ] permission `showCallReports` (callReport) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:275`
 - [ ] permission `showAllCallReports` (callReport) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:281`
-- [ ] permission `showResponseTemplates` (responseTemplate) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:296`
-- [ ] permission `responseTemplatesAdd` (responseTemplate) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:302`
-- [ ] permission `responseTemplatesEdit` (responseTemplate) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:307`
-- [ ] permission `responseTemplatesRemove` (responseTemplate) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:312`
+- [x] permission `showResponseTemplates` (responseTemplate) → `frontline.channel.view`, for the template's channel members. Decision: a template belongs to a channel, so the channel's rights decide, with no grant of its own. `frontline_api/src/meta/permissions.ts:296`
+- [x] permission `responseTemplatesAdd` (responseTemplate) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:302`
+- [x] permission `responseTemplatesEdit` (responseTemplate) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:307`
+- [x] permission `responseTemplatesRemove` (responseTemplate) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:312`
 - [ ] permission `showKnowledgeBase` (knowledgeBase) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:326`
 - [ ] permission `knowledgeBaseTopicsManage` (knowledgeBase) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:332`
 - [ ] permission `knowledgeBaseCategoriesManage` (knowledgeBase) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:337`
@@ -453,7 +453,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Pages
 
-- [x] `/frontline/:id` (ChannelDetailsPage) → `ui/src/channels/ChannelPage.tsx` at `/frontline/settings/channels/:id`. Decision: the pipelines, forms, surveys, response templates and integrations sections come back with those modules. `frontline_ui/src/modules/channels/components/settings/Settings.tsx:173`
+- [x] `/frontline/:id` (ChannelDetailsPage) → `ui/src/channels/ChannelPage.tsx` at `/frontline/settings/channels/:id`. Decision: the pipelines, forms, surveys and integrations sections come back with those modules. `frontline_ui/src/modules/channels/components/settings/Settings.tsx:173`
 - [x] `/frontline/:id/members` (ChannelMembersPage) → `ui/src/channels/ChannelMembersPage.tsx`. Decision: the role select offers admin and member, since `lead` folds into admin. `frontline_ui/src/modules/channels/components/settings/Settings.tsx:177`
 - [ ] `/frontline/:id/forms` (ChannelFormsPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:227`
   - files: 84, 5 only here: `modules/channels/components/settings/channel-details/ChannelFormsSubHeader.tsx`, `modules/forms/components/actions/download-responses.tsx`, `modules/forms/components/actions/toggle-form.tsx`, `modules/forms/components/FormsList.tsx`, `pages/FormsPage.tsx`
@@ -1222,28 +1222,20 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [ ] `frontline_response_templates` from collection `response_templates` (8 fields, draft `frontlineResponseTemplates` in migration/schema-draft.ts) `frontline_api/src/modules/response/db/definitions/responseTemplates.ts:6`
+- [x] `frontline_response_templates` from collection `response_templates` (8 fields, draft `frontlineResponseTemplates` in migration/schema-draft.ts) `frontline_api/src/modules/response/db/definitions/responseTemplates.ts:6`. Decision: `files` is gone, since no screen set it. Deleting a channel deletes its templates.
 
 ### Procedures
 
-- [ ] query `responseTemplates` → procedure `responseTemplates.list` (returns `ResponseTemplateList`) `frontline_api/src/modules/response/graphql/schema.ts:29`
-- [ ] query `responseTemplate` → procedure `responseTemplates.get` (returns `ResponseTemplate`) `frontline_api/src/modules/response/graphql/schema.ts:29`
-- [ ] mutation `responseTemplatesAdd` → procedure `responseTemplates.create` (returns `ResponseTemplate`) `frontline_api/src/modules/response/graphql/schema.ts:38`
-- [ ] mutation `responseTemplatesEdit` → procedure `responseTemplates.update` (returns `ResponseTemplate`) `frontline_api/src/modules/response/graphql/schema.ts:38`
-- [ ] mutation `responseTemplatesRemove` → procedure `responseTemplates.remove` (returns `ResponseTemplate`) `frontline_api/src/modules/response/graphql/schema.ts:38`
+- [x] query `responseTemplates` → `responseTemplates.list`, newest first by cursor, searching name and content `frontline_api/src/modules/response/graphql/schema.ts:29`
+- [x] query `responseTemplate` → `responseTemplates.get` `frontline_api/src/modules/response/graphql/schema.ts:29`
+- [x] mutation `responseTemplatesAdd` → `responseTemplates.create` `frontline_api/src/modules/response/graphql/schema.ts:38`
+- [x] mutation `responseTemplatesEdit` → `responseTemplates.update`, which also moves a template between channels the caller is an admin of `frontline_api/src/modules/response/graphql/schema.ts:38`
+- [x] mutation `responseTemplatesRemove` → `responseTemplates.remove` `frontline_api/src/modules/response/graphql/schema.ts:38`
 
 ### Pages
 
-- [ ] `/frontline/:id/response` (ChannelResponsePage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:219`
-  - files: 34, 6 only here: `modules/responseTemplate/components/CreateResponse.tsx`, `modules/responseTemplate/components/ResponseList.tsx`, `modules/responseTemplate/components/ResponseSubHeader.tsx`, `modules/responseTemplate/graphql/mutations/deleteResponse.ts`, `modules/responseTemplate/hooks/useRemoveResponse.tsx`, `pages/ResponsePage.tsx`
-  - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; inbox: `integrations`; response: `responseTemplates`, `responseTemplatesRemove`
-  - ui-modules: `useSidePanel`
-  - keeps: toast "resources-moved-to-channel" · useQueryState "channelId" · useQueryState "queryKey || 'channelId'" · useSidePanel · useScopedHotkeys "c" · useConfirm · confirm "Are you sure you want to delete this response?" · useMultiQueryState "[ 'searchValue', ]" · fetchMore "{ variables: { filter: { ...baseFilter, cursor: pageInfo?.en" · toast "Response removed successfully"
-- [ ] `/frontline/:id/response/:responseId` (ResponseDetailPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:223`
-  - files: 17, 10 only here: `modules/responseTemplate/components/CreateResponseForm.tsx`, `modules/responseTemplate/components/ResponseDetail.tsx`, `modules/responseTemplate/graphql/mutations/addResponse.ts`, `modules/responseTemplate/graphql/mutations/updateResponse.ts`, `modules/responseTemplate/graphql/queries/getResponse.ts`, `modules/responseTemplate/hooks/useAddResponse.tsx`, `modules/responseTemplate/hooks/useGetRespone.tsx`, `modules/responseTemplate/hooks/useUpdateResponses.tsx`, `modules/responseTemplate/states/responsePanelDrafts.ts`, `pages/ResponseDetailPage.tsx`
-  - calls: response: `responseTemplate`, `responseTemplates`, `responseTemplatesAdd`, `responseTemplatesEdit`
-  - ui-modules: `getSidePanelRecordPath`, `useSidePanel`
-  - keeps: useSidePanel · useScopedHotkeys "esc" · usePanelFormDraft "{ form, recordKey: response?._id ?? `new~${channelId}`, valu" · toast "Response updated successfully" · useConfirm · confirm "{ message: discardMessage }"
+- [x] `/frontline/:id/response` (ChannelResponsePage) → `ui/src/responseTemplates/ResponseTemplatesPage.tsx` at `/frontline/settings/channels/:id/response`, with create and edit in a side panel `frontline_ui/src/modules/channels/components/settings/Settings.tsx:219`
+- [x] `/frontline/:id/response/:responseId` (ResponseDetailPage) → opens the template in the list's panel, as the old page did `frontline_ui/src/modules/channels/components/settings/Settings.tsx:223`
 
 ## settings
 

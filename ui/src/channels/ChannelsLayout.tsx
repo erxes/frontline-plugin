@@ -6,8 +6,10 @@ import {
   PageContainer,
   PageHeader,
   Separator,
+  Skeleton,
   useScopedHotkeys,
 } from 'erxes-ui';
+import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useMatch } from 'react-router-dom';
 import { ChannelPanels } from './ChannelPanels.tsx';
@@ -15,10 +17,25 @@ import { CHANNELS_PATH, useChannel, useChannels, usePanel } from './useChannels.
 
 const crumb = buttonVariants({ variant: 'ghost' });
 
-/** Channels, then the open channel by name, then its members. */
-const ChannelCrumbs = ({ id, members }: { id: string; members: boolean }) => {
+const CreateTemplate = lazy(async () => ({
+  default: (await import('../responseTemplates/ResponseTemplatesPage.tsx')).CreateTemplate,
+}));
+
+/** A channel's pages below its own, by the path segment after its id. */
+const useSubPages = () => {
   const { t } = useTranslation('frontline');
+
+  return {
+    members: t('members', 'Members'),
+    response: t('response-templates', 'Response templates'),
+  };
+};
+
+/** The open channel by name, then the page of it that is open. */
+const ChannelCrumbs = ({ id, sub }: { id: string; sub: string | undefined }) => {
   const { data } = useChannel(id);
+  const pages = useSubPages();
+  const page = Object.entries(pages).find(([segment]) => segment === sub);
 
   return (
     <>
@@ -26,11 +43,11 @@ const ChannelCrumbs = ({ id, members }: { id: string; members: boolean }) => {
       <Link to={`${CHANNELS_PATH}/${id}`} className={crumb}>
         {data?.name ?? '…'}
       </Link>
-      {members && (
+      {page && (
         <>
           <Separator.Inline />
-          <Link to={`${CHANNELS_PATH}/${id}/members`} className={crumb}>
-            {t('members', 'Members')}
+          <Link to={`${CHANNELS_PATH}/${id}/${page[0]}`} className={crumb}>
+            {page[1]}
           </Link>
         </>
       )}
@@ -62,6 +79,7 @@ export const ChannelsLayout = () => {
   const { t } = useTranslation('frontline');
   const detail = useMatch(`${CHANNELS_PATH}/:id/*`);
   const id = detail?.params.id;
+  const sub = detail?.params['*']?.split('/')[0];
 
   return (
     <PageContainer>
@@ -71,11 +89,20 @@ export const ChannelsLayout = () => {
             <IconCircles />
             {t('channels', 'Channels')}
           </Link>
-          {id && <ChannelCrumbs id={id} members={detail.params['*'] === 'members'} />}
+          {id && <ChannelCrumbs id={id} sub={sub} />}
         </PageHeader.Start>
-        <PageHeader.End>{!id && <CreateChannel />}</PageHeader.End>
+        <PageHeader.End>
+          {!id && <CreateChannel />}
+          {id && sub === 'response' && (
+            <Suspense>
+              <CreateTemplate channelId={id} />
+            </Suspense>
+          )}
+        </PageHeader.End>
       </PageHeader>
-      <Outlet />
+      <Suspense fallback={<Skeleton className="m-3 h-40" />}>
+        <Outlet />
+      </Suspense>
       <ChannelPanels />
     </PageContainer>
   );
