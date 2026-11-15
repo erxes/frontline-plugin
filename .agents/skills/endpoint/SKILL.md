@@ -7,10 +7,10 @@ description: Add or change an API procedure. Use when editing api/src/modules, a
    there and into `manifest.permissions`, named `frontline.<record>.<verb>`.
 2. Write the procedure in `api/src/modules/<module>/<module>.ts` on `reads(action)`
    or `writes(action)` from `api/src/orpc.ts`, with a zod `.input()` and an `.output()` built
-   from the table: `createSelectSchema(table).omit({ orgId: true })`, as `items` does
+   from the table: `createSelectSchema(table).omit({ orgId: true })`, as `channels` does
    (`erxes/procedure-output` fails a procedure without one). Query through `context.tx` with no
    org filter: row-level security scopes it. Lists page by cursor, newest first, as
-   `items.list` does.
+   `responseTemplates.list` does.
 3. Return the rows as selected: flat, under their column names (`referenceType` and
    `referenceId`, never `reference: { type, id }`), with no `.map` that renames or strips
    fields. A value the row lacks comes from the query, a join or subquery in the `select`, and

@@ -21,13 +21,16 @@ and this file explains each place the port doesn't copy the old plugin.
 
 ## Channels
 
-| Old                                                                    | New                                                                             | Why                                              |
-| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------ |
-| `memberIds` on the channel beside `channel_members`, and stored counts | Only `frontline_channel_members`, counts computed                               | The two copies drifted and the counts went stale |
-| Roles admin, lead and member                                           | Admin and member, `lead` folds into admin                                       | Lead could only add members, which admins do     |
-| A channel could lose its last admin                                    | `removeMembers` and `setRole` refuse it                                         | Nobody could manage that channel again           |
-| `getChannels` and `getMyChannels`                                      | One `channels.list`: members see their own, `frontline.channel.manage` sees all | They differed only by filter                     |
-| Confirms and counts said "1 channels"                                  | Singular and plural copy                                                        | Plain grammar                                    |
+| Old                                                                    | New                                                                              | Why                                                |
+| ---------------------------------------------------------------------- | -------------------------------------------------------------------------------- | -------------------------------------------------- |
+| `memberIds` on the channel beside `channel_members`, and stored counts | Only `frontline_channel_members`, counts computed                                | The two copies drifted and the counts went stale   |
+| Roles admin, lead and member                                           | Admin and member, `lead` folds into admin                                        | Lead could only add members, which admins do       |
+| A channel could lose its last admin                                    | `removeMembers` and `setRole` refuse it                                          | Nobody could manage that channel again             |
+| `getChannels` and `getMyChannels`                                      | One `channels.list`: members see their own, `frontline.channel.manage` sees all  | They differed only by filter                       |
+| Confirms and counts said "1 channels"                                  | Singular and plural copy                                                         | Plain grammar                                      |
+| A channel list with its own search box, and a form page per channel    | Core's list bar, `frontline:channel` in core's side panel, edited in place       | Same features on core's screens                    |
+| `channels.get` returned the member list                                | `channels.members`, its own list under the filter bar                            | The panel needs only ids, the members page filters |
+| Lists searched only by name                                            | `ListFilter` rules on every field, applied in SQL by `api/src/modules/filter.ts` | Core's filter bar, one compiler for every list     |
 
 ## Response templates
 

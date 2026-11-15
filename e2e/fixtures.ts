@@ -56,6 +56,13 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
   return client;
 };
 
+/** Core's side panel, where records open and new ones are drafted. */
+export const recordPanel = (page: Page) => page.locator('aside[data-record-side-panel]');
+
+/** A list page with a new record of `contentType` drafted in core's side panel. */
+export const newRecordPath = (list: string, contentType: string) =>
+  `${list}?${new URLSearchParams({ panel: `/detail/${contentType}/new` }).toString()}`;
+
 /** Fails on serious or critical axe violations, listing each rule with the elements that break it. */
 export const expectAccessible = async (page: Page) => {
   // Colours are checked at rest; spinners loop forever, so only finite animations are waited for.

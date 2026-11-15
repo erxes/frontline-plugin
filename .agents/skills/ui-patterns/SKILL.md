@@ -6,7 +6,7 @@ description: Make a plugin page look and behave like core's own pages (contacts,
 A member moves between core and plugins without noticing the seam. Core's
 web app (erxes repo, branch `postgre`, `apps/web/src/modules`) is the
 reference: `contacts/customers` and `products` for lists and records,
-`settings/tags` for settings. This repo's `ui/src/modules/items` is the same shape,
+`settings/tags` for settings. This repo's `ui/src/modules/channels` is the same shape,
 built only from what plugins can import. When a page has to differ, say why in
 a comment.
 
@@ -23,8 +23,8 @@ a comment.
 
 ## List
 
-- Under the header, one bar: erxes-ui's `ViewBar` (`allLabel="All items"`) with
-  the list's `ListFilter` inside it, as `ui/src/modules/items/ItemsPage.tsx` has it. The
+- Under the header, one bar: erxes-ui's `ViewBar` (`allLabel="All channels"`) with
+  the list's `ListFilter` inside it, as `ui/src/modules/channels/ChannelsPage.tsx` has it. The
   bar shows the filter's chips, the record count and the filter button. Nothing
   else sits above the table.
 - The table is erxes-ui's `RecordTable` with `RecordTableColumnDef` columns:
@@ -46,8 +46,8 @@ a comment.
 
 ## Filter
 
-erxes-ui's `ListFilter` is core's own filter bar; `ui/src/modules/items/ItemsPage.tsx`
-gives it its fields, and `api/src/modules/items/itemFilter.ts` applies them.
+erxes-ui's `ListFilter` is core's own filter bar; `ui/src/modules/channels/ChannelsPage.tsx`
+gives it its fields, and `api/src/modules/filter.ts` applies them.
 
 - Give it every field the list can be narrowed by: `{ path: 'subject.<column>',
   label, type, options?, icon? }`, type `text`, `number`, `date`, `boolean`,
@@ -82,7 +82,7 @@ gives it its fields, and `api/src/modules/items/itemFilter.ts` applies them.
   The panel opens on Detail; the record's own page opens on Activity, with
   Detail beside it.
 - Each slot gets `contentType` and `contentId` and reads the record itself; the
-  slots share one query (`ui/src/modules/items/ItemPanel.tsx`). The Detail
+  slots share one query (`ui/src/modules/channels/ChannelPanel.tsx`). The Detail
   tab is `PanelSection`s of `PanelField` rows. Never an erxes-ui `Sheet`, a
   header or tabs of the plugin's own, or a `?item=` param.
 - Open a record with `useOpenRecord().open({ contentType, contentId })` and a

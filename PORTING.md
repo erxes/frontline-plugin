@@ -9,8 +9,10 @@ bugs and debt onto the new stack wasted the rewrite.
 
 ## Done means
 
-- Every old feature works, and each screen matches the old one route for
-  route, unless `DECISIONS.md` records why not. [`pnpm e2e`, review]
+- Same features, core's screens. Every old feature, action, field and filter
+  works, unless `DECISIONS.md` records why not, on screens built the way the
+  `ui-patterns` skill says. Never copy the old layout. A record with a status
+  gets a list grouped by status. [`pnpm e2e`, review]
 - Every old bug the code shows is fixed, with its row in `DECISIONS.md` in the
   same commit. [review]
 - The gates pass: `vp run check`, `vp run test`, `pnpm check:rls`,
@@ -62,28 +64,36 @@ segments became saved views, and brands are gone.
 Don't build around it. Check core's guide and contract first. If the feature
 is missing, file an issue that says what the old plugin did and what core
 would need, add a `DECISIONS.md` row, and port the rest of the module. Build
-a plugin-owned version only when core's guide says the plugin owns that job.
+a plugin-owned version only when core's guide, or the list below, says the
+plugin owns that job.
 A workaround that would need a data migration once core ships the feature is
 never fine.
 
-These are open with core now:
+Two asks are open with core:
 
-1. Public routes. Webhooks, the messenger, form embeds and the help center
-   arrive signed out, and core can't tell a plugin their org yet (decision
-   42). Core should hand a plugin's public route a verified org.
-2. Customers by external id. `customers.findOrCreate` needs an email or a
-   phone. Facebook, Instagram, Telegram, Discord and messenger visitors have
-   only a provider user id. Core should find or create by source and external id.
-3. Plugin jobs. Core's pg-boss queue is internal. Mail sync, token refresh,
-   SLA breach checks and send retries need retried, scheduled jobs.
-4. Secrets. Integration tokens need encryption at rest, from one key
-   convention for every plugin, so each plugin doesn't roll its own crypto.
-5. Visitor live updates. Core's stream serves members. Messenger visitors
-   need new messages pushed to them too.
-6. Teams. Core has no departments or branches, so frontline and operation
-   each build teams. That needs a decision on whether teams belong in core.
-7. Org import. Old users and customers have to keep their ids in core
-   (decision 6), because the plugin import maps to them.
+1. Org import. Old users and customers keep their Mongo ids in core, because
+   the plugin import maps to them (the "Mongo `_id` strings" row in
+   `DECISIONS.md`).
+2. Plugin jobs. Core's pg-boss queue is internal. Mail sync, token refresh,
+   SLA breach checks and send retries need retried and cron jobs. Core is
+   building them now.
+
+Frontline builds these in its own tables, with no core change:
+
+- Public routes. Webhooks, the messenger, form embeds and the help center
+  arrive signed out, carrying a key frontline issued. One table maps the key
+  to its org, listed in `tools/no-org-id.sql` with that reason, and the route
+  runs its transaction in that org.
+- Customers by provider id. Facebook, Instagram, Telegram, Discord and
+  messenger visitors have only a provider user id.
+  `frontline_customer_links (org_id, source, external_id, customer_id)`, unique
+  on the first three, finds the customer. A new one is
+  `customers.create({ firstName })` in core, then its link row.
+- Secrets. Page tokens, bot tokens and mail passwords are encrypted at rest
+  with a key from the environment.
+- Visitor live updates. Core's stream serves members, so frontline pushes new
+  messages to messenger visitors itself. Members get `core.signal`.
+- Teams. `frontline_teams`, as above.
 
 ## Verification without theatre
 
@@ -104,7 +114,7 @@ These are open with core now:
 ## Shipping fast
 
 - Work on one module in your own worktree, and commit early.
-- `api/src/modules/channels` and `ui/src/channels` are the reference. Copy
+- `api/src/modules/channels` and `ui/src/modules/channels` are the reference. Copy
   their shape, and search for an existing helper before writing one.
 - Each difference from the old plugin gets its `DECISIONS.md` row in the
   module's commit.
