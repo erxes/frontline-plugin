@@ -21,6 +21,7 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { textOf } from '~/shared/hooks.ts';
 import { Badges, PickerField } from '~/shared/Pickers.tsx';
 import { dayOf } from './TicketFields.tsx';
 import { type Ticket, useEditTicket } from './queries.ts';
@@ -43,8 +44,6 @@ const useProperties = (pipelineId: string) =>
     ...orpc.tickets.properties.list.queryOptions({ input: { pipelineId } }),
     enabled: pipelineId !== '',
   }).data ?? [];
-
-const textOf = (value: unknown) => (typeof value === 'string' ? value : '');
 
 const textsOf = (value: unknown) =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];

@@ -54,6 +54,18 @@ const PipelinesPage = lazy(async () => ({
   default: (await import('@/pipelines/PipelinesPage.tsx')).PipelinesPage,
 }));
 
+const TagsPage = lazy(async () => ({
+  default: (await import('@/settings/TagsPage.tsx')).TagsPage,
+}));
+
+const TeamsPage = lazy(async () => ({
+  default: (await import('@/settings/TeamsPage.tsx')).TeamsPage,
+}));
+
+const PropertiesPage = lazy(async () => ({
+  default: (await import('@/settings/PropertiesPage.tsx')).PropertiesPage,
+}));
+
 const TicketsPage = lazy(async () => ({
   default: (await import('@/tickets/TicketsPage.tsx')).TicketsPage,
 }));
@@ -85,6 +97,12 @@ export const Frontline = () => (
       </Route>
     </Route>
     <Route path="settings/pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
+    <Route path="settings" element={<Lazy />}>
+      <Route path="tags" element={<TagsPage />} />
+      <Route path="departments" element={<TeamsPage key="department" kind="department" />} />
+      <Route path="branches" element={<TeamsPage key="branch" kind="branch" />} />
+      <Route path="ticket-properties" element={<PropertiesPage />} />
+    </Route>
     <Route
       path="settings/response-templates/:id"
       element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}

@@ -7,6 +7,7 @@ import { topicProcedures } from '#/modules/knowledgebase/topics.ts';
 import { pipelineProcedures } from '#/modules/pipelines/pipelines.ts';
 import { statusProcedures } from '#/modules/pipelines/statuses.ts';
 import { responseTemplateProcedures } from '#/modules/responseTemplates/responseTemplates.ts';
+import { settingsProcedures } from '#/modules/settings/settings.ts';
 import { tagProcedures } from '#/modules/tags/tags.ts';
 import { teamProcedures } from '#/modules/teams/teams.ts';
 import { changeProcedures } from '#/modules/tickets/changes.ts';
@@ -19,6 +20,7 @@ export const router = {
   responseTemplates: responseTemplateProcedures,
   pipelines: { ...pipelineProcedures, statuses: statusProcedures },
   tickets: { ...ticketProcedures, ...changeProcedures, properties: propertyProcedures },
+  settings: settingsProcedures,
   tags: tagProcedures,
   teams: teamProcedures,
   knowledgebase: {
