@@ -1,7 +1,8 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, type Column, eq, sql } from 'drizzle-orm';
-import { PERMISSIONS } from '#/core.ts';
+import { PLUGIN } from '#/config.ts';
+import { CHANNEL_EVENTS, PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { type CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
 
@@ -53,7 +54,7 @@ export const insertMembers = async (
 ) => {
   if (userIds.length === 0) return;
 
-  await tx
+  const added = await tx
     .insert(channelMembers)
     .values(
       [...new Set(userIds)].map((userId) => ({
@@ -64,5 +65,39 @@ export const insertMembers = async (
         createdBy: member.userId,
       })),
     )
-    .onConflictDoNothing();
+    .onConflictDoNothing()
+    .returning({ userId: channelMembers.userId });
+
+  await noticeAdded(
+    tx,
+    member,
+    channelId,
+    added.map((row) => row.userId),
+  );
+};
+
+/** Tells the members added to a channel, except the one who added them. */
+const noticeAdded = async (tx: Tx, member: PluginMember, channelId: string, userIds: string[]) => {
+  const others = userIds.filter((id) => id !== member.userId);
+
+  if (others.length === 0) return;
+
+  const [channel] = await tx
+    .select({ name: channels.name })
+    .from(channels)
+    .where(eq(channels.id, channelId));
+
+  const link = `/${PLUGIN}/settings/channels/${encodeURIComponent(channelId)}`;
+  const title = `You were added to ${channel?.name ?? 'a channel'}`;
+
+  await tx.execute(sql`select core_publish_event(
+    p_org_id => ${member.orgId},
+    p_source => ${PLUGIN},
+    p_type => ${CHANNEL_EVENTS.membersAdded.type},
+    p_payload => ${JSON.stringify({ channelId, userIds: others })}::jsonb,
+    p_notify => ${JSON.stringify({ userIds: others, title, link })}::jsonb,
+    p_summary => ${title},
+    p_link => ${link},
+    p_actor_user_id => ${member.userId}
+  )`);
 };

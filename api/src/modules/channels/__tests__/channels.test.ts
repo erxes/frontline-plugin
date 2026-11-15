@@ -1,5 +1,7 @@
+import { sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
+import { withOrg } from '#/db/client.ts';
 import { clientAs } from '#/test/member.ts';
 
 const agent = [PERMISSIONS.channelView];
@@ -185,5 +187,23 @@ describe('channels', () => {
       code: 'NOT_FOUND',
     });
     await expect(ours.channels.get({ id: own.id })).resolves.toMatchObject({ id: own.id });
+  });
+
+  it('tells members they were added, once, and never the one who added them', async () => {
+    const owner = clientAs('org-ch-notice', undefined, 'boss');
+    const channel = await owner.channels.create({ name: 'Billing', memberIds: ['ann', 'boss'] });
+
+    await owner.channels.addMembers({ id: channel.id, userIds: ['ann', 'bob'] });
+
+    const { rows } = await withOrg('org-ch-notice', (tx) =>
+      tx.execute<{ notify: { userIds: string[]; title: string } }>(
+        sql`select notify from core_events where org_id = 'org-ch-notice' and type = 'frontline.channel.members_added' order by seq`,
+      ),
+    );
+
+    expect(rows.map((row) => row.notify)).toEqual([
+      expect.objectContaining({ userIds: ['ann'], title: 'You were added to Billing' }),
+      expect.objectContaining({ userIds: ['bob'] }),
+    ]);
   });
 });

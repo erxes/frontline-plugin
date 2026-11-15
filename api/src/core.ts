@@ -48,6 +48,11 @@ export const TICKET_EVENTS = {
   slaBreached: { type: 'frontline.ticket.sla_breached', label: 'Ticket SLA missed' },
 } as const;
 
+/** What channel members hear about. */
+export const CHANNEL_EVENTS = {
+  membersAdded: { type: 'frontline.channel.members_added', label: 'You are added to a channel' },
+} as const;
+
 /** Core's audit log records a deleted ticket with this action; it has no timeline left. */
 export const TICKET_REMOVED = 'frontline.ticket.removed';
 
@@ -122,7 +127,10 @@ export const manifest = {
       group: 'Help center',
     },
   ],
-  notificationKinds: TICKET_NOTICES.map(({ event, label }) => ({ kind: event.type, label })),
+  notificationKinds: [
+    ...TICKET_NOTICES.map(({ event, label }) => ({ kind: event.type, label })),
+    ...Object.values(CHANNEL_EVENTS).map(({ type, label }) => ({ kind: type, label })),
+  ],
   jobs: Object.values(JOBS),
   // What automations can start on.
   events: [
