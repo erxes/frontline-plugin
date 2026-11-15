@@ -172,7 +172,7 @@ test('a member labels a ticket with tags, a department and a property, and filte
   await page.getByRole('option', { name: department }).click();
   await page.keyboard.press('Escape');
   await expect(panel.getByRole('button', { name: 'Department' })).toContainText(department);
-  await expect(panel.getByText(property)).toBeVisible();
+  await expect(panel.getByRole('button', { name: property })).toBeVisible();
   await expect(panel.getByText('Contacts')).toBeVisible();
   await expectAccessible(page);
 
