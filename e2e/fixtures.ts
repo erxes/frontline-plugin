@@ -77,7 +77,9 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
 
 /** Fails on serious or critical axe violations, listing each rule with the elements that break it. */
 export const expectAccessible = async (page: Page) => {
-  // Colours are checked at rest; spinners loop forever, so only finite animations are waited for.
+  // Colours are checked at rest: once the page's data is in, so nothing fades in under axe, and
+  // its animations end. Spinners loop forever, so only finite animations are waited for.
+  await page.waitForLoadState('networkidle');
   await page.waitForFunction(() =>
     document
       .getAnimations()
