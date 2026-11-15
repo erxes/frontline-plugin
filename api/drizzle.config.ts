@@ -13,6 +13,7 @@ export default defineConfig({
     './src/db/forms.ts',
     './src/db/surveys.ts',
     './src/db/public.ts',
+    './src/db/inbox.ts',
   ],
   out: './drizzle',
   casing: 'snake_case',

@@ -9,6 +9,7 @@ import {
   FORM_SUBMISSION_TYPE,
   FORM_TYPE,
   HELP_CENTER_TYPE,
+  INTEGRATION_TYPE,
   KB_ARTICLE_TYPE,
   KB_CATEGORY_TYPE,
   KB_TOPIC_TYPE,
@@ -75,6 +76,10 @@ const HelpCentersPage = lazy(async () => ({
   default: (await import('@/helpcenter/HelpCentersPage.tsx')).HelpCentersPage,
 }));
 
+const InboxPage = lazy(async () => ({
+  default: (await import('@/inbox/InboxPage.tsx')).InboxPage,
+}));
+
 const TicketsPage = lazy(async () => ({
   default: (await import('@/tickets/TicketsPage.tsx')).TicketsPage,
 }));
@@ -114,7 +119,11 @@ const ResponseTemplateRedirect = () => (
 /** The page module web renders under `/frontline/*` (loaded as `frontline_ui/frontline`). */
 export const Frontline = () => (
   <Routes>
-    <Route index element={<Navigate to="tickets" replace />} />
+    <Route index element={<Navigate to="inbox" replace />} />
+    <Route path="inbox" element={<Lazy />}>
+      <Route index element={<InboxPage />} />
+      <Route path="integrations/:id" element={<RecordRoute contentType={INTEGRATION_TYPE} />} />
+    </Route>
     <Route path="tickets" element={<Lazy />}>
       <Route index element={<TicketsPage />} />
       <Route path=":id" element={<RecordRoute contentType={TICKET_TYPE} />} />

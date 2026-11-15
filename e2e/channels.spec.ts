@@ -123,7 +123,7 @@ test('the owner renames a channel, adds a member, removes them, and cannot remov
 test('a member without frontline permissions is refused', async ({ newMember }) => {
   const { page } = await newMember(['team.view']);
 
-  await page.goto('/frontline');
+  await page.goto('/frontline/settings/channels');
   await expect(page.getByText('You need the frontline.channel.view permission')).toBeVisible();
   await expectAccessible(page);
 });

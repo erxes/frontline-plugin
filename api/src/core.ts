@@ -33,6 +33,27 @@ export const PERMISSIONS = {
   helpCenterView: 'frontline.help_center.view',
   /** Create, change and delete help centers and connect their domains. */
   helpCenterManage: 'frontline.help_center.manage',
+  /** Read and answer the conversations of the channels you belong to. */
+  inboxView: 'frontline.inbox.view',
+} as const;
+
+/** The record type whose Activity tab in core shows a conversation's events. */
+export const CONVERSATION_TIMELINE = 'frontline.conversation';
+
+/** What happens to a conversation, published in the change's transaction. */
+export const CONVERSATION_EVENTS = {
+  started: { type: 'frontline.conversation.started', label: 'Conversation started' },
+  assigned: { type: 'frontline.conversation.assigned', label: 'Conversation assigned' },
+  statusChanged: { type: 'frontline.conversation.status_changed', label: 'Conversation status' },
+} as const;
+
+/** How often core tries a reply before the inbox marks it failed. */
+export const SEND_ATTEMPTS = 5;
+
+/** What the inbox tells members about, through core's notifications. */
+export const INBOX_NOTIFICATIONS = {
+  assigned: 'frontline.conversation.assigned',
+  mentioned: 'frontline.conversation.mentioned',
 } as const;
 
 /** The record type whose Activity tab in core shows a ticket's events. */
@@ -65,12 +86,20 @@ const TICKET_NOTICES = [
   { event: TICKET_EVENTS.slaBreached, label: "Your ticket's SLA is missed" },
 ];
 
-/** Core POSTs each to `/api/jobs/<name>`; a `cron` job runs once per organisation. */
+/**
+ * Core POSTs each to `/api/jobs/<name>` (`jobs.ts`); a `cron` job runs once per organisation.
+ * `retry`: attempts in all, the first wait and the longest, in seconds.
+ */
 export const JOBS = {
   /** Warns assignees before a ticket's SLA runs out, and when it has. */
   sla: { name: 'tickets.sla', cron: '*/5 * * * *' },
   /** Re-reads pending help center domains from Cloudflare until they are served. */
   domains: { name: 'helpcenter.domains', cron: '*/10 * * * *' },
+  /** Hands a queued reply to its adapter (`modules/inbox/send.ts`). */
+  send: {
+    name: 'messages.send',
+    retry: { attempts: SEND_ATTEMPTS, delay: 30, maxDelay: 3600 },
+  },
 } as const;
 
 /** The record type whose Activity tab shows a form's events, and its submissions. */
@@ -104,8 +133,9 @@ export const manifest = {
   version: config.version,
   ui: { remote: 'frontline_ui', entry: config.uiEntryUrl },
   api: { url: `${config.publicUrl}/api` },
-  // A form submission finds or makes its customer.
-  scopes: ['customers:write'],
+  // Form senders, messenger visitors and provider senders become core customers; members hear
+  // of assignments.
+  scopes: ['customers:read', 'customers:write', 'notifications:write'],
   permissions: [
     {
       action: PERMISSIONS.channelView,
@@ -148,10 +178,17 @@ export const manifest = {
       label: 'Manage help centers and their domains',
       group: 'Help center',
     },
+    {
+      action: PERMISSIONS.inboxView,
+      label: "Answer the conversations of the channels you're in",
+      group: 'Inbox',
+    },
   ],
   notificationKinds: [
     ...TICKET_NOTICES.map(({ event, label }) => ({ kind: event.type, label })),
     ...Object.values(CHANNEL_EVENTS).map(({ type, label }) => ({ kind: type, label })),
+    { kind: INBOX_NOTIFICATIONS.assigned, label: 'A conversation is assigned to you' },
+    { kind: INBOX_NOTIFICATIONS.mentioned, label: 'You are mentioned in a conversation' },
   ],
   jobs: Object.values(JOBS),
   // What automations can start on.
@@ -170,10 +207,12 @@ export const manifest = {
     { type: TICKET_TIMELINE, label: 'Ticket', permission: PERMISSIONS.channelView },
     { type: FORM_TIMELINE, label: 'Form', permission: PERMISSIONS.channelView },
     { type: SURVEY_TIMELINE, label: 'Survey', permission: PERMISSIONS.channelView },
+    { type: CONVERSATION_TIMELINE, label: 'Conversation', permission: PERMISSIONS.inboxView },
   ],
   activityTypes: [
     ...activityTypes(TICKET_EVENTS, 'IconTicket'),
     ...activityTypes(FORM_EVENTS, 'IconFileText'),
     ...activityTypes(SURVEY_EVENTS, 'IconChecklist'),
+    ...activityTypes(CONVERSATION_EVENTS, 'IconMessage'),
   ],
 } satisfies PluginManifest;
