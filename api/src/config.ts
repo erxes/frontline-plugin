@@ -24,6 +24,11 @@ const Env = z.object({
   VERSION: z.string().default('0.1.0'),
   /** Traces go to this OTLP collector; the SDK reads the other OTEL_* variables itself. */
   OTEL_EXPORTER_OTLP_ENDPOINT: z.url().optional(),
+  /** Help centers on members' own domains: Cloudflare for SaaS, off unless both are set. */
+  CLOUDFLARE_CUSTOMHOST_API_TOKEN: z.string().min(1).optional(),
+  CLOUDFLARE_ZONE_ID: z.string().min(1).optional(),
+  /** A member's domain CNAMEs to `<help center key>.<suffix>`. */
+  HELPCENTER_DOMAIN_SUFFIX: z.string().min(1).default('helpcenter.erxes.io'),
 });
 
 const env = Env.parse(process.env);
@@ -40,4 +45,9 @@ export const config = {
   logLevel: env.LOG_LEVEL,
   version: env.VERSION,
   tracing: Boolean(env.OTEL_EXPORTER_OTLP_ENDPOINT),
+  cloudflare:
+    env.CLOUDFLARE_CUSTOMHOST_API_TOKEN && env.CLOUDFLARE_ZONE_ID
+      ? { apiToken: env.CLOUDFLARE_CUSTOMHOST_API_TOKEN, zoneId: env.CLOUDFLARE_ZONE_ID }
+      : null,
+  helpCenterDomainSuffix: env.HELPCENTER_DOMAIN_SUFFIX,
 };

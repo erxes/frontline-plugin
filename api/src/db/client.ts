@@ -2,6 +2,7 @@ import { DrizzleQueryError, sql } from 'drizzle-orm';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import { DatabaseError, Pool } from 'pg';
 import { config, PLUGIN } from '#/config.ts';
+import * as helpCenterSchema from './helpcenter.ts';
 import * as schema from './schema.ts';
 import * as tagSchema from './tags.ts';
 import * as teamSchema from './teams.ts';
@@ -11,7 +12,7 @@ export const pool = new Pool({ connectionString: config.dataUrl, application_nam
 
 export const db = drizzle({
   client: pool,
-  schema: { ...schema, ...ticketSchema, ...teamSchema, ...tagSchema },
+  schema: { ...schema, ...ticketSchema, ...teamSchema, ...tagSchema, ...helpCenterSchema },
   casing: 'snake_case',
 });
 

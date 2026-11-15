@@ -7,6 +7,8 @@ export {
   PipelineTitle as Title,
 } from './PipelinePanel.tsx';
 
+export { PipelinePermissions } from './PipelinePermissions.tsx';
+
 export { PipelineSla } from './PipelineSla.tsx';
 
 export { PipelineStatuses } from './PipelineStatuses.tsx';

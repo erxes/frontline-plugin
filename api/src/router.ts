@@ -1,6 +1,7 @@
 import type { RouterClient } from '@orpc/server';
 import { channelProcedures } from '#/modules/channels/channels.ts';
 import { memberProcedures } from '#/modules/channels/members.ts';
+import { helpCenterProcedures } from '#/modules/helpcenter/helpCenters.ts';
 import { articleProcedures } from '#/modules/knowledgebase/articles.ts';
 import { categoryProcedures } from '#/modules/knowledgebase/categories.ts';
 import { topicProcedures } from '#/modules/knowledgebase/topics.ts';
@@ -23,6 +24,7 @@ export const router = {
   settings: settingsProcedures,
   tags: tagProcedures,
   teams: teamProcedures,
+  helpCenters: helpCenterProcedures,
   knowledgebase: {
     topics: topicProcedures,
     categories: categoryProcedures,

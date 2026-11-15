@@ -7,12 +7,15 @@ import { pinoHttp } from 'pino-http';
 import { config, PLUGIN } from '#/config.ts';
 import { JOBS } from '#/core.ts';
 import { logger } from '#/logger.ts';
+import { checkDomains } from '#/modules/helpcenter/domains.ts';
+import { publicRouter } from '#/modules/helpcenter/public.ts';
 import { checkSla } from '#/modules/tickets/sla.ts';
 import { router } from '#/router.ts';
 
 /** What each job in the manifest's `jobs` does for one organisation. */
 const JOB_RUNS: Record<string, (orgId: string) => Promise<unknown>> = {
   [JOBS.sla.name]: checkSla,
+  [JOBS.domains.name]: checkDomains,
 };
 
 const rpc = new RPCHandler(router, {
@@ -58,6 +61,9 @@ export const createApp = () => {
 
     if (!matched) next();
   });
+
+  // Signed out: a help center's visitors, found by the key or domain frontline issued.
+  app.use('/api/public', publicRouter());
 
   // Core POSTs each job attempt here, signed over the raw body; anything but 2xx retries.
   app.post('/api/jobs/:name', express.text({ type: '*/*' }), async (req, res) => {

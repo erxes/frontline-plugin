@@ -7,6 +7,7 @@ import {
   IconClockHour4,
   IconFolder,
   IconGitBranch,
+  IconLock,
   IconMessageReply,
   IconTicket,
 } from '@tabler/icons-react';
@@ -85,6 +86,12 @@ export const CONFIG: IUIConfig = {
           label: 'SLA',
           icon: IconClockHour4,
           component: lazy(async () => ({ default: (await pipeline()).PipelineSla })),
+        },
+        {
+          value: 'permissions',
+          label: 'Permissions',
+          icon: IconLock,
+          component: lazy(async () => ({ default: (await pipeline()).PipelinePermissions })),
         },
       ],
     },

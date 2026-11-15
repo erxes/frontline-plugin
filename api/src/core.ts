@@ -29,6 +29,10 @@ export const PERMISSIONS = {
   kbArticleManage: 'frontline.knowledgebase_article.manage',
   /** Change the tags, teams and ticket properties every channel shares. */
   settingsManage: 'frontline.settings.manage',
+  /** See the help centers. */
+  helpCenterView: 'frontline.help_center.view',
+  /** Create, change and delete help centers and connect their domains. */
+  helpCenterManage: 'frontline.help_center.manage',
 } as const;
 
 /** The record type whose Activity tab in core shows a ticket's events. */
@@ -57,6 +61,8 @@ const TICKET_NOTICES = [
 export const JOBS = {
   /** Warns assignees before a ticket's SLA runs out, and when it has. */
   sla: { name: 'tickets.sla', cron: '*/5 * * * *' },
+  /** Re-reads pending help center domains from Cloudflare until they are served. */
+  domains: { name: 'helpcenter.domains', cron: '*/10 * * * *' },
 } as const;
 
 /**
@@ -105,6 +111,12 @@ export const manifest = {
       action: PERMISSIONS.settingsManage,
       label: 'Manage tags, teams and ticket properties',
       group: 'Frontline',
+    },
+    { action: PERMISSIONS.helpCenterView, label: 'See help centers', group: 'Help center' },
+    {
+      action: PERMISSIONS.helpCenterManage,
+      label: 'Manage help centers and their domains',
+      group: 'Help center',
     },
   ],
   notificationKinds: TICKET_NOTICES.map(({ event, label }) => ({ kind: event.type, label })),

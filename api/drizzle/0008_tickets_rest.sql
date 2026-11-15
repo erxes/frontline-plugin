@@ -48,6 +48,43 @@ CREATE TABLE "frontline_tags" (
 	CONSTRAINT "frontline_tags_type_check" CHECK ("frontline_tags"."type" in ('ticket', 'conversation'))
 );
 --> statement-breakpoint
+CREATE TABLE "frontline_help_centers" (
+	"id" text PRIMARY KEY NOT NULL,
+	"org_id" text NOT NULL,
+	"title" text NOT NULL,
+	"description" text,
+	"language_code" text,
+	"public_key" text NOT NULL,
+	"kb_topic_id" text,
+	"kb_label" text,
+	"color" text,
+	"background_image" text,
+	"styles" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"header" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"footer" jsonb DEFAULT '{}'::jsonb NOT NULL,
+	"hostname" text,
+	"cloudflare_id" text,
+	"domain_status" text,
+	"ssl_status" text,
+	"dns_status" text,
+	"domain_records" jsonb DEFAULT '[]'::jsonb NOT NULL,
+	"domain_errors" text[] DEFAULT '{}' NOT NULL,
+	"domain_check_until" timestamp with time zone,
+	"domain_checked_at" timestamp with time zone,
+	"created_by" text NOT NULL,
+	"created_at" timestamp with time zone DEFAULT now() NOT NULL,
+	"updated_at" timestamp with time zone DEFAULT now() NOT NULL,
+	CONSTRAINT "frontline_help_centers_public_key_key" UNIQUE("public_key"),
+	CONSTRAINT "frontline_help_centers_hostname_key" UNIQUE("hostname"),
+	CONSTRAINT "frontline_help_centers_status_check" CHECK ("frontline_help_centers"."domain_status" in ('pending', 'active') and "frontline_help_centers"."ssl_status" in ('pending', 'active') and "frontline_help_centers"."dns_status" in ('pending', 'active'))
+);
+--> statement-breakpoint
+CREATE TABLE "frontline_public_addresses" (
+	"address" text PRIMARY KEY NOT NULL,
+	"organization_id" text NOT NULL,
+	"help_center_id" text NOT NULL
+);
+--> statement-breakpoint
 ALTER TABLE "frontline_pipeline_statuses" ADD COLUMN "visibility_type" text DEFAULT 'public' NOT NULL;--> statement-breakpoint
 ALTER TABLE "frontline_pipeline_statuses" ADD COLUMN "member_ids" text[] DEFAULT '{}' NOT NULL;--> statement-breakpoint
 ALTER TABLE "frontline_pipeline_statuses" ADD COLUMN "can_edit_member_ids" text[] DEFAULT '{}' NOT NULL;--> statement-breakpoint
@@ -75,6 +112,7 @@ CREATE INDEX "frontline_team_members_org_user_idx" ON "frontline_team_members" U
 CREATE INDEX "frontline_teams_org_kind_name_idx" ON "frontline_teams" USING btree ("org_id","kind","name");--> statement-breakpoint
 CREATE INDEX "frontline_teams_parent_idx" ON "frontline_teams" USING btree ("parent_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "frontline_tags_org_type_name_key" ON "frontline_tags" USING btree ("org_id","type",lower("name"));--> statement-breakpoint
+CREATE INDEX "frontline_help_centers_org_title_idx" ON "frontline_help_centers" USING btree ("org_id","title");--> statement-breakpoint
 CREATE INDEX "frontline_tickets_org_customer_idx" ON "frontline_tickets" USING btree ("org_id","customer_id");--> statement-breakpoint
 CREATE INDEX "frontline_tickets_org_company_idx" ON "frontline_tickets" USING btree ("org_id","company_id");--> statement-breakpoint
 CREATE INDEX "frontline_tickets_tag_ids_idx" ON "frontline_tickets" USING gin ("tag_ids");--> statement-breakpoint
@@ -86,3 +124,5 @@ SELECT core_enable_tenant_rls('frontline_team_members');
 SELECT core_enable_tenant_rls('frontline_teams');
 --> statement-breakpoint
 SELECT core_enable_tenant_rls('frontline_tags');
+--> statement-breakpoint
+SELECT core_enable_tenant_rls('frontline_help_centers');

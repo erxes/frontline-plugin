@@ -29,6 +29,7 @@
     "@opentelemetry/instrumentation-pino": "^0.71.0",
     "@opentelemetry/sdk-node": "^0.301.1",
     "@orpc/server": "1.16.2",
+    "cloudflare": "^7.3.0",
     "cors": "^2.8.6",
     "drizzle-orm": "0.45.4",
     "drizzle-zod": "0.8.3",

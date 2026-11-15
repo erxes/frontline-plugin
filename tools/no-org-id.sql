@@ -3,3 +3,5 @@
 -- (core_enable_tenant_rls's second argument). None yet:
 --   insert into no_org_id (table_name, tenant_key, reason) values
 --     ('frontline_currencies', null, 'One list for every organisation.');
+insert into no_org_id (table_name, tenant_key, reason) values
+  ('frontline_public_addresses', null, 'Finds the organisation of a signed-out request by the key or domain frontline issued.');
