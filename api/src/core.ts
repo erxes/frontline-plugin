@@ -287,13 +287,13 @@ export const manifest = {
   // What an owner adds to a role in one step, as the old plugin's default roles did.
   permissionSets: [
     {
-      key: 'frontline.admin',
+      key: 'admin',
       label: 'Frontline admin',
       description: 'Every Frontline permission',
       permissions: Object.values(PERMISSIONS),
     },
     {
-      key: 'frontline.user',
+      key: 'user',
       label: 'Frontline user',
       description: "The inbox and tickets of the member's channels, and the knowledge base",
       permissions: [
@@ -304,7 +304,7 @@ export const manifest = {
       ],
     },
     {
-      key: 'frontline.viewer',
+      key: 'viewer',
       label: 'Frontline viewer',
       description: 'Reads the knowledge base and help centers',
       permissions: [PERMISSIONS.kbView, PERMISSIONS.helpCenterView],
