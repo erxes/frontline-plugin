@@ -1,25 +1,28 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { type ORPCErrorConstructorMap, ORPCError } from '@orpc/server';
-import { and, asc, desc, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, isNotNull, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { type Tx, uniqueViolation } from '#/db/client.ts';
 import { CHANNEL_NAME_INDEX, CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { channelColumns, channelFor, managesAll } from './access.ts';
+import { channelColumns, channelFor, insertMembers, managesAll } from './access.ts';
 
 const Name = z.string().trim().min(1).max(100);
 const Description = z.string().trim().max(1000);
+const Icon = z.string().max(100).nullable();
 const Role = z.enum(CHANNEL_ROLES);
 
 const Channel = z.object({
   id: z.string(),
   name: Name,
   description: Description,
+  icon: Icon,
   createdBy: z.string(),
   createdAt: z.date(),
   updatedAt: z.date(),
-  memberCount: z.number().int(),
+  /** Its members' core user ids, admins first. */
+  memberIds: z.array(z.string()),
   /** The caller's role, or null when they see it without belonging to it. */
   role: Role.nullable(),
   /** Whether the caller may rename it, delete it and change its members. */
@@ -47,17 +50,17 @@ const nameTaken =
     throw error;
   };
 
-const memberCount =
-  sql`(select count(*) from ${channelMembers} counted where counted.channel_id = ${channels.id})`.mapWith(
-    Number,
-  );
+const memberIds = sql<string[]>`coalesce((
+  select array_agg(listed.user_id order by listed.role, listed.created_at desc)
+  from ${channelMembers} listed where listed.channel_id = ${channels.id}
+), '{}')`;
 
-/** Channels with their member count and the caller's role, visible to `member`. */
+/** Channels with their member ids and the caller's role, visible to `member`. */
 const channelRows = (tx: Tx, member: PluginMember) =>
   tx
     .select({
       ...channelColumns,
-      memberCount,
+      memberIds,
       role: channelMembers.role,
     })
     .from(channels)
@@ -83,13 +86,24 @@ const channelById = async (tx: Tx, member: PluginMember, id: string) => {
   return withAccess(member)(row);
 };
 
-/** The caller's channels, or every channel for a member who manages them all, by name. */
+/** `%` and `_` match themselves in a LIKE pattern built from `text`. */
+const likeText = (text: string) => `%${text.replaceAll(/[\\%_]/g, '\\$&')}%`;
+
+/**
+ * The caller's channels, or every channel for a member who manages them all,
+ * by name; `name` keeps those whose name contains it, ignoring case.
+ */
 const list = reads(PERMISSIONS.channelView)
-  .input(z.object({}))
+  .input(z.object({ name: z.string().trim().max(100).optional() }))
   .output(z.object({ channels: z.array(Channel), canCreate: z.boolean() }))
-  .handler(async ({ context: { tx, member } }) => {
+  .handler(async ({ input, context: { tx, member } }) => {
     const rows = await channelRows(tx, member)
-      .where(managesAll(member) ? undefined : isNotNull(channelMembers.userId))
+      .where(
+        and(
+          managesAll(member) ? undefined : isNotNull(channelMembers.userId),
+          input.name ? ilike(channels.name, likeText(input.name)) : undefined,
+        ),
+      )
       .orderBy(asc(sql`lower(${channels.name})`));
 
     return { channels: rows.map(withAccess(member)), canCreate: managesAll(member) };
@@ -115,34 +129,43 @@ const get = reads(PERMISSIONS.channelView)
     return { ...(await channelById(tx, member, input.id)), members };
   });
 
-/** A new channel, with its creator as its admin. */
+/** A new channel, with its creator as its admin and `memberIds` as members. */
 const create = writes(PERMISSIONS.channelManage)
   .errors(channelErrors)
-  .input(z.object({ name: Name, description: Description.default('') }))
+  .input(
+    z.object({
+      name: Name,
+      description: Description.default(''),
+      icon: Icon.optional(),
+      memberIds: z.array(z.string()).max(500).default([]),
+    }),
+  )
   .output(Channel)
-  .handler(async ({ input, context: { tx, member }, errors }) => {
+  .handler(async ({ input: { memberIds: others, ...fields }, context: { tx, member }, errors }) => {
     const [channel] = await tx
       .insert(channels)
-      .values({ ...input, orgId: member.orgId, createdBy: member.userId })
+      .values({ ...fields, orgId: member.orgId, createdBy: member.userId })
       .returning({ id: channels.id })
-      .catch(nameTaken(errors, input.name));
+      .catch(nameTaken(errors, fields.name));
 
     if (!channel) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
-    await tx.insert(channelMembers).values({
-      orgId: member.orgId,
-      channelId: channel.id,
-      userId: member.userId,
-      role: 'admin',
-      createdBy: member.userId,
-    });
+    await insertMembers(tx, member, channel.id, [member.userId], 'admin');
+    await insertMembers(tx, member, channel.id, others, 'member');
 
     return channelById(tx, member, channel.id);
   });
 
 const update = writes(PERMISSIONS.channelView)
   .errors(channelErrors)
-  .input(z.object({ id: z.string(), name: Name, description: Description.optional() }))
+  .input(
+    z.object({
+      id: z.string(),
+      name: Name,
+      description: Description.optional(),
+      icon: Icon.optional(),
+    }),
+  )
   .output(Channel)
   .handler(async ({ input: { id, ...fields }, context: { tx, member }, errors }) => {
     await channelFor(tx, member, id, { change: true });

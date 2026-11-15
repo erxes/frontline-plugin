@@ -7,13 +7,19 @@ const agent = [PERMISSIONS.channelView];
 describe('channels', () => {
   it('creates a channel with its creator as admin, then renames and deletes it', async () => {
     const owner = clientAs('org-a');
-    const support = await owner.channels.create({ name: 'Support' });
+
+    const support = await owner.channels.create({
+      name: 'Support',
+      icon: 'IconHeadset',
+      memberIds: ['teammate', 'user-org-a'],
+    });
 
     expect(support).toMatchObject({
       name: 'Support',
       description: '',
+      icon: 'IconHeadset',
       createdBy: 'user-org-a',
-      memberCount: 1,
+      memberIds: ['user-org-a', 'teammate'],
       role: 'admin',
       canManage: true,
     });
@@ -22,15 +28,30 @@ describe('channels', () => {
     await owner.channels.create({ name: 'billing' });
     await expect(owner.channels.list({})).resolves.toMatchObject({
       canCreate: true,
-      channels: [{ name: 'billing' }, { name: 'Support' }],
+      channels: [{ name: 'billing', icon: null }, { name: 'Support' }],
     });
     await expect(
       owner.channels.update({ id: support.id, name: 'Help', description: 'Customer help' }),
-    ).resolves.toMatchObject({ name: 'Help', description: 'Customer help' });
+    ).resolves.toMatchObject({ name: 'Help', description: 'Customer help', icon: 'IconHeadset' });
     await expect(owner.channels.remove({ id: support.id })).resolves.toEqual({ id: support.id });
     await expect(owner.channels.get({ id: support.id })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
+  });
+
+  it('finds channels by part of their name, ignoring case and LIKE wildcards', async () => {
+    const owner = clientAs('org-g');
+
+    await owner.channels.create({ name: 'Customer support' });
+    await owner.channels.create({ name: 'Support_VIP' });
+    await owner.channels.create({ name: 'Sales' });
+
+    const names = async (name: string) =>
+      (await owner.channels.list({ name })).channels.map((channel) => channel.name);
+
+    await expect(names('SUPPORT')).resolves.toEqual(['Customer support', 'Support_VIP']);
+    await expect(names('t_v')).resolves.toEqual(['Support_VIP']);
+    await expect(names('%')).resolves.toEqual([]);
   });
 
   it('refuses a name the organisation already uses, ignoring case', async () => {
@@ -54,14 +75,14 @@ describe('channels', () => {
     const other = await owner.channels.create({ name: 'Other' });
 
     await expect(
-      owner.channels.addMember({ id: joined.id, userId: 'user-org-c' }),
-    ).resolves.toEqual({ userId: 'user-org-c', role: 'admin' });
+      owner.channels.addMembers({ id: joined.id, userIds: ['user-org-c'] }),
+    ).resolves.toEqual([{ userId: 'user-org-c', role: 'admin' }]);
 
     // The agent is a different user from the owner in the same organisation.
     const agentId = 'agent-c';
     const asAgent = clientAs('org-c', agent, agentId);
 
-    await owner.channels.addMember({ id: joined.id, userId: agentId });
+    await owner.channels.addMembers({ id: joined.id, userIds: [agentId] });
     await expect(asAgent.channels.list({})).resolves.toEqual({
       canCreate: false,
       channels: [expect.objectContaining({ id: joined.id, role: 'member', canManage: false })],
@@ -88,9 +109,9 @@ describe('channels', () => {
     const owner = clientAs('org-d');
     const channel = await owner.channels.create({ name: 'Ops' });
 
-    await owner.channels.addMember({ id: channel.id, userId: 'teammate' });
+    await owner.channels.addMembers({ id: channel.id, userIds: ['teammate', 'helper'] });
     await expect(
-      owner.channels.removeMember({ id: channel.id, userId: 'user-org-d' }),
+      owner.channels.removeMembers({ id: channel.id, userIds: ['user-org-d', 'helper'] }),
     ).rejects.toMatchObject({ code: 'LAST_ADMIN' });
     await expect(
       owner.channels.setRole({ id: channel.id, userId: 'user-org-d', role: 'member' }),
@@ -98,17 +119,14 @@ describe('channels', () => {
 
     await owner.channels.setRole({ id: channel.id, userId: 'teammate', role: 'admin' });
     await expect(
-      owner.channels.removeMember({ id: channel.id, userId: 'user-org-d' }),
-    ).resolves.toEqual({ userId: 'user-org-d' });
+      owner.channels.removeMembers({ id: channel.id, userIds: ['user-org-d', 'helper', 'nobody'] }),
+    ).resolves.toEqual(expect.arrayContaining([{ userId: 'user-org-d' }, { userId: 'helper' }]));
     await expect(owner.channels.get({ id: channel.id })).resolves.toMatchObject({
-      memberCount: 1,
+      memberIds: ['teammate'],
       role: null,
       canManage: true,
       members: [{ userId: 'teammate', role: 'admin' }],
     });
-    await expect(
-      owner.channels.removeMember({ id: channel.id, userId: 'nobody' }),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it('shows and changes only the channels of its own organisation', async () => {
@@ -123,7 +141,7 @@ describe('channels', () => {
       code: 'NOT_FOUND',
     });
     await expect(
-      ours.channels.addMember({ id: theirs.id, userId: 'intruder' }),
+      ours.channels.addMembers({ id: theirs.id, userIds: ['intruder'] }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     await expect(ours.channels.remove({ id: theirs.id })).rejects.toMatchObject({
       code: 'NOT_FOUND',

@@ -25,9 +25,11 @@ and renders `./frontline` (the `Frontline` export) under `/frontline/*`.
   procedure asks for (`team.view` for team members).
 - Members: `SelectMember.Field`, `SelectMember.InlineCell`, `MemberInline` and
   `useMembersById` from erxes-ui, given `members={memberQueries}` from
-  `@erxes/core-contract/client`. `src/channels/ChannelMembers.tsx` picks and
-  lists members. erxes-ui's `EntityPicker` is the searchable list
-  under them, for a picker of the plugin's own records.
+  `@erxes/core-contract/client`. `src/channels/ChannelPanels.tsx` picks several
+  members with erxes-ui's `EntityPicker`, the searchable list under them, and
+  `src/channels/ChannelMembersPage.tsx` lists them.
+- A side panel is a query param (`usePanel` in `src/channels/useChannels.ts`),
+  so a link or reload reopens it.
 - Text uses `t(key, 'English default')` from `react-i18next`.
 - Development: `pnpm dev:ui` serves `http://localhost:3099/remoteEntry.js`;
   web loads it from the manifest's `UI_ENTRY_URL` or from its own

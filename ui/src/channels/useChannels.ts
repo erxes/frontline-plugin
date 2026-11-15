@@ -2,6 +2,7 @@ import type { InferClientOutputs } from '@orpc/client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
 import { toast } from 'erxes-ui';
+import { useQueryState } from 'nuqs';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { orpc } from '../orpc.ts';
@@ -10,7 +11,23 @@ type Outputs = InferClientOutputs<Client>['channels'];
 
 export type Channel = Outputs['create'];
 
-export const useChannels = () => useQuery(orpc.channels.list.queryOptions({ input: {} }));
+export type ChannelMember = Outputs['get']['members'][number];
+
+/** Where the channel pages live, as the old plugin had them. */
+export const CHANNELS_PATH = '/frontline/settings/channels';
+
+/** The query string key the list's search filter writes. */
+export const SEARCH_KEY = 'searchValue';
+
+/** The channels the member sees, by name, narrowed by the list's search filter. */
+export const useChannels = () => {
+  const [search] = useQueryState(SEARCH_KEY);
+
+  return {
+    search,
+    ...useQuery(orpc.channels.list.queryOptions({ input: { name: search || undefined } })),
+  };
+};
 
 /** The channel with its members. */
 export const useChannel = (id: string) =>
@@ -42,13 +59,31 @@ export const useRoleNames = () => {
   return { admin: t('role-admin', 'Admin'), member: t('role-member', 'Member') };
 };
 
-/** `?channel=<id>` opens that channel in the side panel, `?channel=new` a blank one. */
-export const useOpenChannel = () => {
+/**
+ * The side panel: `?channel=new` creates a channel, `?channel=<id>` edits one,
+ * `?channel-members=<id>` adds members to one.
+ */
+export const usePanel = () => {
   const [params, setParams] = useSearchParams();
 
+  const set = (key: string, value: string) =>
+    setParams((current) => {
+      current.set(key, value);
+
+      return current;
+    });
+
   return {
-    openId: params.get('channel'),
-    open: (id: string) => setParams({ channel: id }),
-    close: () => setParams({}),
+    channelId: params.get('channel'),
+    membersOf: params.get('channel-members'),
+    openChannel: (id: string) => set('channel', id),
+    addMembers: (id: string) => set('channel-members', id),
+    close: () =>
+      setParams((current) => {
+        current.delete('channel');
+        current.delete('channel-members');
+
+        return current;
+      }),
   };
 };
