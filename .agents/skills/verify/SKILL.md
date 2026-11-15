@@ -5,10 +5,7 @@ description: Show a change works in erxes, not only in tests. Use before calling
 
 Use synthetic data only.
 
-1. Run the gates: `vp run check`, `vp run test`, `pnpm image`, `pnpm budgets`,
-   then `pnpm e2e:stack up` and `pnpm e2e`. A failing axe check names the rule and
-   the element; fix the component. Text in a status colour uses its `-text`
-   class (`text-destructive-text`), which reads in both themes.
+1. Run the gates: `vp run check`, `vp run test`, `pnpm build`.
 2. Start core from an erxes checkout on branch `postgre`, following its
    `verify-feature` skill. Give core
    `CORE_PLUGIN_KEYS=frontline:<32+ character secret>`, and web

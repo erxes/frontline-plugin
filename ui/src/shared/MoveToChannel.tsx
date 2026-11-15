@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Dialog, EntityPicker, toast } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { orpc } from '../orpc.ts';
+import { orpc } from '~/orpc.ts';
 
 /**
  * Moves the record `name` out of `channelId` to another channel the member is

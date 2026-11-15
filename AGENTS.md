@@ -4,8 +4,8 @@ Inbox, channels, tickets and customer messaging for erxes
 
 An erxes plugin for the new core (Postgres). `api/` is the API: Express 5,
 oRPC and Drizzle. `ui/` is the Module Federation remote web loads. Read the
-`AGENTS.md` in the folder you edit. `api/src/modules/channels` and `ui/src/channels`
-are the reference feature: copy their shape for a new one.
+`AGENTS.md` in the folder you edit. `api/src/modules/channels` and
+`ui/src/modules/channels` are the reference feature: copy their shape for a new one.
 
 <!-- quality:start -->
 
@@ -21,6 +21,7 @@ without line-by-line review.
 - Use a maintained library when one does the job. Keep dependencies near their latest release and off deprecated APIs. [typescript/no-deprecated, review]
 - One way to do each job. Search for the existing helper before writing one, merge the repeats you find, delete what nothing uses. [knip, review]
 - Types flow from the database schema to the contract to the UI. Infer them, so each shape is written once. [pnpm check:generated, review]
+- API input, output and events are flat rows, as the table stores them: `referenceType` and `referenceId`, never a nested `{ type, id }` object or a `to…Dto` mapper. A value the row lacks comes from the query. [erxes/no-dto-mapper, review]
 - Parse outside input with zod and narrow it, so the code needs no `any`, cast or `!`. [typescript/no-explicit-any, typescript/no-unsafe-type-assertion, typescript/no-non-null-assertion]
 - Lint and type rules are the spec: when one fires, fix the code. Silencing it is never the fix, whether by a disable comment, `@ts-ignore`, an override, an ignore, a weaker option or a raised limit. A rule that is wrong changes in its own PR. [typescript/ban-ts-comment, review]
 - Split a file or function that outgrows its limit by responsibility (router, service, queries). [max-lines, max-lines-per-function, review]
@@ -35,8 +36,10 @@ without line-by-line review.
 
 ## This repo
 
-- `vp run check` runs the escape guard, format, lint, types, knip, the docs guard
-  and `pnpm check:generated`, which compares the migrations with the schema.
+- `vp run check` runs the escape guard, format, lint, types, React Doctor on `ui/`
+  (`doctor.config.jsonc`), knip, the docs guard and `pnpm check:generated`, which
+  compares the migrations with the schema. `pnpm exec react-doctor why <file:line>`,
+  run in `ui/`, explains a React Doctor hit.
 - Other gates: `vp run test` on real Postgres via `DATA_TEST_URL`,
   `pnpm check:rls`, `pnpm image` then `pnpm budgets`, and `pnpm e2e`. `vp run fix`
   formats and fixes lint. CI's one required status is `Check`.
@@ -64,7 +67,8 @@ without line-by-line review.
   with `verifyPluginSession`. There is no public route yet, because core can't
   tell a public request's organisation.
 - Skills in `.agents/skills/`: `endpoint` for a procedure, `schema-change` for a
-  table or column, `verify` before calling a change done.
+  table or column, `ui-patterns` for any page (lists, filters, forms, record
+  details look like core's), `verify` before calling a change done.
 - This repo ports the old erxes `frontline` plugin. Read `PORTING.md`
   first, then work through the `plugin-migrate` skill.
 - What core promises plugins, and what counts as a breaking change, is core's

@@ -1,8 +1,6 @@
 import { IconBox } from '@tabler/icons-react';
 import type { IUIConfig } from 'erxes-ui';
-
-/** The plugin's name in core. */
-export const PLUGIN = 'frontline';
+import { PLUGIN } from '~/orpc.ts';
 
 // web loads this module on every page, so it imports nothing beyond the tab's icon.
 /** What web reads from `./config`: the app tab and the page module under `/frontline/*`. */

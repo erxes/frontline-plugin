@@ -38,6 +38,12 @@ data only. The inventory reads code, never a database.
    (`tasks.list`, not `getTasks`), and fold operations that only differ by
    filter into one input. A failure the UI acts on gets a typed error. An
    operation the new UI never calls is ticked with no procedure.
+   The answer is the table's rows, flat, through the `.output()` the `endpoint` skill builds,
+   not the old GraphQL type. Where the old type nested a reference (`contentType` with
+   `contentTypeId`, `{ type, id }`), store and return the two columns (`referenceType`,
+   `referenceId`). An old field resolver (`createdUser`, `stage`) becomes a join or subquery
+   in the `select`, or the UI's own lookup (`MemberInline` for members), never a mapper after
+   the query.
 4. Core calls. Do what the arrow says: `sdk` is
    `core.forOrg(orgId).<procedure>` in the API with that scope in
    `manifest.scopes`; `contract` is a call from the UI with the member's own
@@ -50,8 +56,8 @@ data only. The inventory reads code, never a database.
    drafted with their import from old core's `departments`, `branches` and the
    members' `departmentIds` and `branchIds`. The ids stay the same, so the old
    records' `departmentIds` still match.
-5. Pages. One per UI route, under `ui/src/<module>/`, built from `erxes-ui`
-   the way `ui/src/channels/` is. The old `ui-modules` components don't exist
+5. Pages. One per UI route, under `ui/src/modules/<module>/`, built from
+   `erxes-ui` the way `ui/src/modules/channels/` is, laid out by the `ui-patterns` skill. The old `ui-modules` components don't exist
    here. Member pickers and names become erxes-ui's `SelectMember` and
    `MemberInline`; a picker of other records is erxes-ui's `EntityPicker` over
    the plugin's own query. For erxes-ui components whose props changed, see

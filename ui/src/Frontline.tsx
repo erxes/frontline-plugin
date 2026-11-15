@@ -1,47 +1,47 @@
 import { addPluginStyles, Skeleton } from 'erxes-ui';
 import { lazy, Suspense } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
-import { ChannelMembersPage } from './channels/ChannelMembersPage.tsx';
-import { ChannelPage } from './channels/ChannelPage.tsx';
-import { ChannelsLayout } from './channels/ChannelsLayout.tsx';
-import { ChannelsPage } from './channels/ChannelsPage.tsx';
-import { CHANNELS_PATH } from './channels/useChannels.ts';
-import { PLUGIN } from './config.tsx';
+import { ChannelMembersPage } from '@/channels/ChannelMembersPage.tsx';
+import { ChannelPage } from '@/channels/ChannelPage.tsx';
+import { ChannelsLayout } from '@/channels/ChannelsLayout.tsx';
+import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
+import { CHANNELS_PATH } from '@/channels/useChannels.ts';
+import { PLUGIN } from '~/orpc.ts';
 import css from './styles.css?inline';
 
 addPluginStyles(PLUGIN, css);
 
 // A module's screens load on first visit, so what web loads on every page stays small.
 const ResponseTemplatesPage = lazy(async () => ({
-  default: (await import('./responseTemplates/ResponseTemplatesPage.tsx')).ResponseTemplatesPage,
+  default: (await import('@/responseTemplates/ResponseTemplatesPage.tsx')).ResponseTemplatesPage,
 }));
 
 const KnowledgeBaseLayout = lazy(async () => ({
-  default: (await import('./knowledgebase/KnowledgeBaseLayout.tsx')).KnowledgeBaseLayout,
+  default: (await import('@/knowledgebase/KnowledgeBaseLayout.tsx')).KnowledgeBaseLayout,
 }));
 
 const TopicsPage = lazy(async () => ({
-  default: (await import('./knowledgebase/TopicsPage.tsx')).TopicsPage,
+  default: (await import('@/knowledgebase/TopicsPage.tsx')).TopicsPage,
 }));
 
 const ArticlesPage = lazy(async () => ({
-  default: (await import('./knowledgebase/ArticlesPage.tsx')).ArticlesPage,
+  default: (await import('@/knowledgebase/ArticlesPage.tsx')).ArticlesPage,
 }));
 
 const CategoriesPage = lazy(async () => ({
-  default: (await import('./knowledgebase/CategoriesPage.tsx')).CategoriesPage,
+  default: (await import('@/knowledgebase/CategoriesPage.tsx')).CategoriesPage,
 }));
 
 const TopicSettingsPage = lazy(async () => ({
-  default: (await import('./knowledgebase/TopicSettingsPage.tsx')).TopicSettingsPage,
+  default: (await import('@/knowledgebase/TopicSettingsPage.tsx')).TopicSettingsPage,
 }));
 
 const PipelinesPage = lazy(async () => ({
-  default: (await import('./pipelines/PipelinesPage.tsx')).PipelinesPage,
+  default: (await import('@/pipelines/PipelinesPage.tsx')).PipelinesPage,
 }));
 
 const PipelineLayout = lazy(async () => ({
-  default: (await import('./pipelines/PipelineLayout.tsx')).PipelineLayout,
+  default: (await import('@/pipelines/PipelineLayout.tsx')).PipelineLayout,
 }));
 
 /** The old `/:id/response/:responseId` link opens that template in the list's panel. */

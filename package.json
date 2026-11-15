@@ -24,8 +24,8 @@
   "devDependencies": {
     "@ast-grep/napi": "^0.51.2",
     "@axe-core/playwright": "^4.14.0",
-    "@erxes/core-contract": "0.1.0-v2.3",
-    "@erxes/lint": "0.1.1",
+    "@erxes/core-contract": "0.1.0-v2.6",
+    "@erxes/lint": "0.1.2",
     "@orpc/client": "1.16.2",
     "@orpc/contract": "1.16.2",
     "@orpc/openapi-client": "1.16.2",
@@ -36,6 +36,7 @@
     "knip": "^6.45.1",
     "mongodb": "^7.8.0",
     "pg": "^8.23.1",
+    "react-doctor": "0.9.23",
     "tsrs": "0.25.0-ts7.1.0-beta",
     "typescript": "7.0.2",
     "vite-plus": "catalog:",
