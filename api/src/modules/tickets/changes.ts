@@ -15,6 +15,7 @@ import {
   nextNumbers,
   refine,
   refreshSla,
+  signalTickets,
   Ticket,
   ticketById,
   ticketsById,
@@ -145,6 +146,8 @@ const changeTickets = async (
       .where(inArray(tickets.id, ids));
 
   if (statusId || pipelineId || fields.priority !== undefined) await refreshSla(tx, ids);
+
+  await signalTickets(tx, member);
 };
 
 /** Changes what is given on one ticket, or moves it to another status of its pipeline. */
@@ -188,6 +191,7 @@ const bulkRemove = writes(PERMISSIONS.channelView)
   .handler(async ({ input, context: { tx, member } }) => {
     await ticketsFor(tx, member, input.ids, { remove: true });
     await tx.delete(tickets).where(inArray(tickets.id, input.ids));
+    await signalTickets(tx, member);
 
     return { ids: input.ids };
   });

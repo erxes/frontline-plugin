@@ -17,6 +17,7 @@ import {
   refreshSla,
   resolutionSla,
   seenBy,
+  signalTickets,
   Ticket,
   ticketById,
   ticketRows,
@@ -162,6 +163,7 @@ const create = writes(PERMISSIONS.channelView)
     if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
     await refreshSla(tx, [created.id]);
+    await signalTickets(tx, member);
 
     return ticketById(tx, member, created.id);
   });

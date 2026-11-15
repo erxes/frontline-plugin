@@ -1,10 +1,11 @@
 import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
-import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
-import { toast, useListFilterParams } from 'erxes-ui';
+import { toast, useListFilterParams, useLiveSignal } from 'erxes-ui';
 import { parseAsStringLiteral, useQueryStates } from 'nuqs';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 
@@ -25,11 +26,21 @@ export const useTicketSort = () =>
     direction: parseAsStringLiteral(['desc', 'asc'] as const).withDefault('desc'),
   });
 
-/** The tickets the filter bar keeps, in the chosen order, a page at a time. */
+/**
+ * The tickets the filter bar keeps, in the chosen order, a page at a time. Another member's
+ * change refetches them, and the open ticket.
+ */
 export const useTickets = () => {
   const params = useListFilterParams();
   const [{ sort, direction }] = useTicketSort();
   const ascending = direction === 'asc';
+  const queryClient = useQueryClient();
+
+  useLiveSignal(
+    PLUGIN,
+    'tickets',
+    () => void queryClient.invalidateQueries({ queryKey: orpc.tickets.key() }),
+  );
 
   const query = useInfiniteQuery(
     orpc.tickets.list.infiniteOptions({

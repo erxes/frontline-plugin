@@ -19,6 +19,19 @@ const database = `frontline_test_${randomBytes(4).toString('hex')}`;
 // Core's tenant functions, which plugin migrations call.
 const CORE_FUNCTIONS = readFileSync(new URL('./core-functions.sql', import.meta.url), 'utf8');
 
+// Core's core_live_signal(), with core's signature (erxes packages/db/drizzle/0010 and
+// 0012_tenant_isolation.sql), less its check of core's plugin installations. Core should ship
+// it in core-functions.sql (erxes/erxes#10575).
+const CORE_LIVE = `
+CREATE OR REPLACE FUNCTION core_live_signal(p_org_id text, p_plugin text, p_topic text, p_user_ids text[] DEFAULT NULL)
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  IF p_plugin !~ '^[a-z][a-z0-9_]{0,39}$' OR p_topic !~ '^[a-z0-9][a-z0-9._:-]{0,99}$' THEN
+    RAISE EXCEPTION 'core_live_signal: invalid plugin or topic';
+  END IF;
+  PERFORM pg_notify('core_live', json_build_object('o', p_org_id, 'k', 'plugin', 'p', p_plugin, 't', p_topic, 'u', p_user_ids)::text);
+END $$;`;
+
 const urlOf = (name: string, role?: string) => {
   const url = new URL(adminUrl);
 
@@ -52,7 +65,7 @@ await run(
 
 await run(adminUrl, `CREATE DATABASE ${database} OWNER ${ROLE}`);
 
-await run(urlOf(database), CORE_FUNCTIONS);
+await run(urlOf(database), `${CORE_FUNCTIONS}${CORE_LIVE}`);
 
 process.env.DATA_URL = urlOf(database, ROLE);
 

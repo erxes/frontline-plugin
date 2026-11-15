@@ -218,3 +218,7 @@ export const refreshSla = (tx: Tx, ids: string[]) =>
     })
     .from(pipelines)
     .where(and(eq(pipelines.id, tickets.pipelineId), inArray(tickets.id, ids)));
+
+/** Tells the organisation's open ticket screens to refetch, once the change commits. */
+export const signalTickets = (tx: Tx, member: PluginMember) =>
+  tx.execute(sql`select core_live_signal(${member.orgId}, 'frontline', 'tickets')`);
