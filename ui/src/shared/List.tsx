@@ -1,5 +1,14 @@
-import { IconSearchOff } from '@tabler/icons-react';
-import { Combobox, Command, Empty, Filter, PageSubHeader } from 'erxes-ui';
+import { IconPlus, IconSearchOff } from '@tabler/icons-react';
+import {
+  Button,
+  Combobox,
+  Command,
+  Empty,
+  Filter,
+  Kbd,
+  PageSubHeader,
+  useScopedHotkeys,
+} from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SEARCH_KEY, useSearch } from './hooks.ts';
@@ -33,8 +42,39 @@ export const ListEmpty = ({
   );
 };
 
-/** The bar above a list: a search filter, and how many records match. */
-export const SearchSubHeader = ({ id, count }: { id: string; count: number | undefined }) => {
+/** A list's create button, with C as its shortcut, for members who may create; others see none. */
+export const CreateButton = ({
+  allowed,
+  label,
+  onClick,
+}: {
+  allowed: boolean;
+  label: string;
+  onClick: () => void;
+}) => {
+  useScopedHotkeys('c', () => allowed && onClick(), 'app');
+
+  if (!allowed) return null;
+
+  return (
+    <Button onClick={onClick}>
+      <IconPlus />
+      {label}
+      <Kbd>C</Kbd>
+    </Button>
+  );
+};
+
+/** The bar above a list: a search filter, `children` such as more filters, and how many records match. */
+export const SearchSubHeader = ({
+  id,
+  count,
+  children,
+}: {
+  id: string;
+  count: number | undefined;
+  children?: ReactNode;
+}) => {
   const { t } = useTranslation('frontline');
 
   return (
@@ -60,6 +100,7 @@ export const SearchSubHeader = ({ id, count }: { id: string; count: number | und
             </Filter.View>
           </Filter.Dialog>
           <Filter.SearchValueBarItem />
+          {children}
           {count !== undefined && (
             <span className="text-muted-foreground text-sm font-medium whitespace-nowrap">
               {t('n-records-found', { defaultValue: '{{count}} records found', count })}

@@ -5,30 +5,17 @@ import {
   IconCalendarUp,
   IconEdit,
   IconGitBranch,
-  IconPlus,
   IconTrash,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import {
-  Button,
-  Combobox,
-  Command,
-  CommandBar,
-  Kbd,
-  Popover,
-  RecordTable,
-  type RecordTableColumnDef,
-  RecordTableInlineCell,
-  RelativeDateDisplay,
-  Separator,
-  useConfirm,
-  useScopedHotkeys,
-} from 'erxes-ui';
+import { RecordTable, type RecordTableColumnDef, RecordTableInlineCell } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { orpc } from '../orpc.ts';
-import { ListEmpty, SearchSubHeader } from '../shared/List.tsx';
+import { CreateButton, ListEmpty, SearchSubHeader } from '../shared/List.tsx';
+import { DeleteButton, RowActions, SelectionBar, useConfirmDelete } from '../shared/Records.tsx';
+import { DateCell, PagedRows } from '../shared/Table.tsx';
 import { MoveTemplateDialog, ResponseTemplatePanel } from './ResponseTemplatePanel.tsx';
 import {
   type ResponseTemplate,
@@ -40,18 +27,17 @@ import {
 /** Asks for "delete" to be typed, then deletes the templates. */
 const useDeleteTemplates = () => {
   const { t } = useTranslation('frontline');
-  const { confirm } = useConfirm();
+  const confirm = useConfirmDelete();
   const change = useTemplateChange();
   const remove = useMutation(orpc.responseTemplates.remove.mutationOptions());
 
   const deleteTemplates = async (ids: string[], done?: () => void) => {
-    await confirm({
-      message: t('delete-templates-confirm', {
-        defaultValue: "Delete {{count}} response templates? This can't be undone.",
+    await confirm(
+      t('delete-templates-confirm', {
+        defaultValue: 'Delete {{count}} response templates?',
         count: ids.length,
       }),
-      options: { confirmationValue: 'delete', okLabel: t('delete', 'Delete') },
-    });
+    );
     const results = await Promise.allSettled(ids.map((id) => remove.mutateAsync({ id })));
     const failed = results.find((result) => result.status === 'rejected');
 
@@ -70,16 +56,12 @@ export const CreateTemplate = ({ channelId }: { channelId: string }) => {
   const { canManage } = useResponseTemplates(channelId);
   const { open } = useTemplatePanel();
 
-  useScopedHotkeys('c', () => canManage && open('new'), 'app');
-
-  if (!canManage) return null;
-
   return (
-    <Button onClick={() => open('new')}>
-      <IconPlus />
-      {t('create-response-template', 'Create response template')}
-      <Kbd>C</Kbd>
-    </Button>
+    <CreateButton
+      allowed={canManage}
+      label={t('create-response-template', 'Create response template')}
+      onClick={() => open('new')}
+    />
   );
 };
 
@@ -91,31 +73,29 @@ const MoreCell = ({ template }: { template: ResponseTemplate }) => {
 
   return (
     <>
-      <Popover>
-        <Popover.Trigger
-          render={
-            <RecordTable.MoreButton
-              className="size-full"
-              aria-label={t('template-actions', 'Actions for {{name}}', { name: template.name })}
-            />
-          }
-        />
-        <Combobox.Content>
-          <Command shouldFilter={false}>
-            <Command.List>
-              <Command.Item value="edit" onSelect={() => open(template.id)}>
-                <IconEdit /> {t('edit', 'Edit')}
-              </Command.Item>
-              <Command.Item value="move" onSelect={() => setMoving(true)}>
-                <IconArrowBarToRight /> {t('move-to-channel', 'Move to channel')}
-              </Command.Item>
-              <Command.Item value="delete" onSelect={() => void deleteTemplates([template.id])}>
-                <IconTrash /> {t('delete', 'Delete')}
-              </Command.Item>
-            </Command.List>
-          </Command>
-        </Combobox.Content>
-      </Popover>
+      <RowActions
+        label={t('template-actions', 'Actions for {{name}}', { name: template.name })}
+        actions={[
+          {
+            value: 'edit',
+            icon: <IconEdit />,
+            label: t('edit', 'Edit'),
+            onSelect: () => open(template.id),
+          },
+          {
+            value: 'move',
+            icon: <IconArrowBarToRight />,
+            label: t('move-to-channel', 'Move to channel'),
+            onSelect: () => setMoving(true),
+          },
+          {
+            value: 'delete',
+            icon: <IconTrash />,
+            label: t('delete', 'Delete'),
+            onSelect: () => void deleteTemplates([template.id]),
+          },
+        ]}
+      />
       {moving && <MoveTemplateDialog template={template} onClose={() => setMoving(false)} />}
     </>
   );
@@ -132,14 +112,6 @@ const NameCell = ({ template }: { template: ResponseTemplate }) => {
     </RecordTableInlineCell>
   );
 };
-
-const DateCell = ({ date }: { date: Date }) => (
-  <RecordTableInlineCell>
-    <RelativeDateDisplay value={date.toISOString()}>
-      <RelativeDateDisplay.Value value={date.toISOString()} />
-    </RelativeDateDisplay>
-  </RecordTableInlineCell>
-);
 
 const useColumns = (canManage: boolean): RecordTableColumnDef<ResponseTemplate>[] => {
   const { t } = useTranslation('frontline');
@@ -178,33 +150,14 @@ const useColumns = (canManage: boolean): RecordTableColumnDef<ResponseTemplate>[
 
 /** Deletes the selected templates from the bar under the table. */
 const TemplatesCommandBar = () => {
-  const { t } = useTranslation('frontline');
-  const { table } = RecordTable.useRecordTable();
-
-  const selected = RecordTable.useRecordTableState((_, current) =>
-    current.getFilteredSelectedRowModel().rows.map((row) => row.id),
-  );
-
   const { deleteTemplates, isPending } = useDeleteTemplates();
 
   return (
-    <CommandBar open={selected.length > 0}>
-      <CommandBar.Bar>
-        <CommandBar.Value onClose={() => table.resetRowSelection()}>
-          {t('n-selected', { defaultValue: '{{count}} selected', count: selected.length })}
-        </CommandBar.Value>
-        <Separator.Inline />
-        <Button
-          variant="secondary"
-          tone="destructive"
-          disabled={isPending}
-          onClick={() => void deleteTemplates(selected, () => table.resetRowSelection())}
-        >
-          <IconTrash />
-          {t('delete', 'Delete')}
-        </Button>
-      </CommandBar.Bar>
-    </CommandBar>
+    <SelectionBar>
+      {(selected, clear) => (
+        <DeleteButton disabled={isPending} onClick={() => void deleteTemplates(selected, clear)} />
+      )}
+    </SelectionBar>
   );
 };
 
@@ -241,16 +194,12 @@ export const ResponseTemplatesPage = () => {
           stickyColumns={['more', 'checkbox', 'name']}
           className="m-3"
         >
-          <RecordTable.CursorProvider hasNextPage={hasNextPage} dataLength={templates.length}>
-            <RecordTable>
-              <RecordTable.Header />
-              <RecordTable.Body>
-                {isPending && <RecordTable.RowSkeleton rows={10} />}
-                <RecordTable.RowList />
-                <RecordTable.CursorForwardSkeleton handleFetchMore={() => void fetchNextPage()} />
-              </RecordTable.Body>
-            </RecordTable>
-          </RecordTable.CursorProvider>
+          <PagedRows
+            isPending={isPending}
+            hasNextPage={hasNextPage}
+            count={templates.length}
+            fetchNextPage={() => void fetchNextPage()}
+          />
           {canManage && <TemplatesCommandBar />}
         </RecordTable.Provider>
       )}

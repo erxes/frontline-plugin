@@ -1,15 +1,35 @@
 import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import {
+  boolean,
   check,
   foreignKey,
   index,
+  integer,
+  jsonb,
   primaryKey,
   text,
   timestamp,
+  unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 import { table } from './table.ts';
+
+/** A text id: a random UUID, or the Mongo `_id` an imported row keeps. */
+const id = () =>
+  text()
+    .primaryKey()
+    .$defaultFn(() => randomUUID());
+
+/** Who made the row and when, and when it last changed. */
+const stamps = () => ({
+  createdBy: text().notNull(),
+  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp({ withTimezone: true })
+    .notNull()
+    .defaultNow()
+    .$onUpdate(() => new Date()),
+});
 
 /** Names are unique per organisation, ignoring case. A write that breaks it fails with 23505. */
 export const CHANNEL_NAME_INDEX = 'frontline_channels_org_name_key';
@@ -23,20 +43,13 @@ export const CHANNEL_NAME_INDEX = 'frontline_channels_org_name_key';
 export const channels = table(
   'channels',
   {
-    id: text()
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
+    id: id(),
     orgId: text().notNull(),
     name: text().notNull(),
     description: text().notNull().default(''),
     /** A Tabler icon name from erxes-ui's IconPicker. */
     icon: text(),
-    createdBy: text().notNull(),
-    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp({ withTimezone: true })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    ...stamps(),
   },
   (t) => [
     uniqueIndex(CHANNEL_NAME_INDEX).on(t.orgId, sql`lower(${t.name})`),
@@ -77,20 +90,13 @@ export const channelMembers = table(
 export const responseTemplates = table(
   'response_templates',
   {
-    id: text()
-      .primaryKey()
-      .$defaultFn(() => randomUUID()),
+    id: id(),
     orgId: text().notNull(),
     channelId: text().notNull(),
     name: text().notNull(),
     /** BlockNote blocks as JSON, from erxes-ui's Editor. */
     content: text().notNull().default(''),
-    createdBy: text().notNull(),
-    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp({ withTimezone: true })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    ...stamps(),
   },
   (t) => [
     foreignKey({
@@ -103,6 +109,125 @@ export const responseTemplates = table(
       t.channelId,
       t.createdAt.desc(),
       t.id.desc(),
+    ),
+  ],
+);
+
+/** Codes are unique per organisation; a write that breaks one fails with 23505. */
+export const KB_TOPIC_CODE_INDEX = 'frontline_knowledgebase_topics_org_code_key';
+export const KB_CATEGORY_CODE_INDEX = 'frontline_knowledgebase_categories_org_code_key';
+
+/** A knowledge base: the categories and articles one help center publishes. */
+export const kbTopics = table(
+  'knowledgebase_topics',
+  {
+    id: id(),
+    orgId: text().notNull(),
+    title: text().notNull(),
+    description: text(),
+    /** A short code embeds and links use. */
+    code: text(),
+    /** A hex colour, from erxes-ui's ColorPicker. */
+    color: text(),
+    /** A file address from erxes-ui's Upload. */
+    backgroundImage: text(),
+    /** An ISO 639-1 language code. */
+    languageCode: text(),
+    ...stamps(),
+  },
+  (t) => [
+    unique('frontline_knowledgebase_topics_org_id_key').on(t.orgId, t.id),
+    uniqueIndex(KB_TOPIC_CODE_INDEX).on(t.orgId, t.code),
+  ],
+);
+
+/**
+ * A group of articles in a topic, under another category of the same topic or
+ * at its top level. Deleting the topic deletes its categories; deleting a
+ * category moves its subcategories to the top level.
+ */
+export const kbCategories = table(
+  'knowledgebase_categories',
+  {
+    id: id(),
+    orgId: text().notNull(),
+    topicId: text().notNull(),
+    parentId: text(),
+    title: text().notNull(),
+    description: text(),
+    code: text(),
+    /** A Tabler icon name from erxes-ui's IconPicker. */
+    icon: text(),
+    ...stamps(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'frontline_knowledgebase_categories_topic_fkey',
+      columns: [t.orgId, t.topicId],
+      foreignColumns: [kbTopics.orgId, kbTopics.id],
+    }).onDelete('cascade'),
+    foreignKey({
+      name: 'frontline_knowledgebase_categories_parent_fkey',
+      columns: [t.parentId],
+      foreignColumns: [t.id],
+    }).onDelete('set null'),
+    unique('frontline_knowledgebase_categories_org_id_key').on(t.orgId, t.id),
+    uniqueIndex(KB_CATEGORY_CODE_INDEX).on(t.orgId, t.code),
+    index('frontline_knowledgebase_categories_org_topic_idx').on(t.orgId, t.topicId),
+    index('frontline_knowledgebase_categories_parent_idx').on(t.parentId),
+  ],
+);
+
+export const KB_ARTICLE_STATUSES = ['draft', 'publish', 'scheduled', 'archived'] as const;
+
+/** A file on core's storage, as erxes-ui's Upload reports it. */
+export type KbAttachment = { url: string; name: string; type?: string; size?: number };
+
+/** An article of a category. Deleting the category deletes its articles. */
+export const kbArticles = table(
+  'knowledgebase_articles',
+  {
+    id: id(),
+    orgId: text().notNull(),
+    categoryId: text().notNull(),
+    title: text().notNull(),
+    summary: text(),
+    /** HTML, from erxes-ui's Editor. */
+    content: text().notNull().default(''),
+    status: text({ enum: KB_ARTICLE_STATUSES }).notNull().default('draft'),
+    /** When a scheduled article goes live. */
+    scheduledAt: timestamp({ withTimezone: true }),
+    publishedAt: timestamp({ withTimezone: true }),
+    isPrivate: boolean().notNull().default(false),
+    /** Image addresses readers react with. */
+    reactionChoices: text()
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    viewCount: integer().notNull().default(0),
+    image: jsonb().$type<KbAttachment>(),
+    attachments: jsonb().$type<KbAttachment[]>().notNull().default([]),
+    pdfAttachment: jsonb().$type<{ pdf: KbAttachment }>(),
+    ...stamps(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'frontline_knowledgebase_articles_category_fkey',
+      columns: [t.orgId, t.categoryId],
+      foreignColumns: [kbCategories.orgId, kbCategories.id],
+    }).onDelete('cascade'),
+    index('frontline_knowledgebase_articles_org_category_created_idx').on(
+      t.orgId,
+      t.categoryId,
+      t.createdAt.desc(),
+      t.id.desc(),
+    ),
+    index('frontline_knowledgebase_articles_org_scheduled_idx')
+      .on(t.orgId, t.scheduledAt)
+      .where(sql`${t.status} = 'scheduled'`),
+    check(
+      'frontline_knowledgebase_articles_status_check',
+      sql`${t.status} in ('draft', 'publish', 'scheduled', 'archived')`,
     ),
   ],
 );

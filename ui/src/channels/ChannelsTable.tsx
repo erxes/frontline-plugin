@@ -11,42 +11,41 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import {
   Avatar,
-  Button,
-  Combobox,
-  Command,
-  CommandBar,
   memberName,
-  Popover,
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
-  Separator,
   toast,
   Tooltip,
-  useConfirm,
   useFormat,
   useMembersById,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { orpc } from '../orpc.ts';
+import {
+  DeleteButton,
+  RowActions,
+  SelectionBar,
+  TextCell,
+  useConfirmDelete,
+} from '../shared/Records.tsx';
 import { type Channel, CHANNELS_PATH, useChannelChange, usePanel } from './useChannels.ts';
 
 /** Asks for "delete" to be typed, then deletes the channels, reporting any the API refused. */
 const useDeleteChannels = () => {
   const { t } = useTranslation('frontline');
-  const { confirm } = useConfirm();
+  const confirm = useConfirmDelete();
   const change = useChannelChange();
   const remove = useMutation(orpc.channels.remove.mutationOptions());
 
   const deleteChannels = async (ids: string[], done?: () => void) => {
-    await confirm({
-      message: t('delete-channels-confirm', {
-        defaultValue: "Delete {{count}} channels? This can't be undone.",
+    await confirm(
+      t('delete-channels-confirm', {
+        defaultValue: 'Delete {{count}} channels?',
         count: ids.length,
       }),
-      options: { confirmationValue: 'delete', okLabel: t('delete', 'Delete') },
-    });
+    );
     const results = await Promise.allSettled(ids.map((id) => remove.mutateAsync({ id })));
     const failed = results.filter((result) => result.status === 'rejected');
 
@@ -76,28 +75,23 @@ const MoreCell = ({ channel }: { channel: Channel }) => {
   if (!channel.canManage) return null;
 
   return (
-    <Popover>
-      <Popover.Trigger
-        render={
-          <RecordTable.MoreButton
-            className="size-full"
-            aria-label={t('channel-actions', 'Actions for {{name}}', { name: channel.name })}
-          />
-        }
-      />
-      <Combobox.Content>
-        <Command shouldFilter={false}>
-          <Command.List>
-            <Command.Item value="edit" onSelect={() => openChannel(channel.id)}>
-              <IconEdit /> {t('edit', 'Edit')}
-            </Command.Item>
-            <Command.Item value="delete" onSelect={() => void deleteChannels([channel.id])}>
-              <IconTrash /> {t('delete', 'Delete')}
-            </Command.Item>
-          </Command.List>
-        </Command>
-      </Combobox.Content>
-    </Popover>
+    <RowActions
+      label={t('channel-actions', 'Actions for {{name}}', { name: channel.name })}
+      actions={[
+        {
+          value: 'edit',
+          icon: <IconEdit />,
+          label: t('edit', 'Edit'),
+          onSelect: () => openChannel(channel.id),
+        },
+        {
+          value: 'delete',
+          icon: <IconTrash />,
+          label: t('delete', 'Delete'),
+          onSelect: () => void deleteChannels([channel.id]),
+        },
+      ]}
+    />
   );
 };
 
@@ -174,11 +168,7 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
           icon={IconFileDescription}
         />
       ),
-      cell: ({ row }) => (
-        <RecordTableInlineCell>
-          <span className="truncate text-muted-foreground">{row.original.description}</span>
-        </RecordTableInlineCell>
-      ),
+      cell: ({ row }) => <TextCell value={row.original.description} />,
       size: 260,
     },
     {
@@ -213,33 +203,14 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
 
 /** Deletes the selected channels from the bar under the table. */
 const ChannelsCommandBar = () => {
-  const { t } = useTranslation('frontline');
-  const { table } = RecordTable.useRecordTable();
-
-  const selected = RecordTable.useRecordTableState((_, current) =>
-    current.getFilteredSelectedRowModel().rows.map((row) => row.id),
-  );
-
   const { deleteChannels, isPending } = useDeleteChannels();
 
   return (
-    <CommandBar open={selected.length > 0}>
-      <CommandBar.Bar>
-        <CommandBar.Value onClose={() => table.resetRowSelection()}>
-          {t('n-selected', { defaultValue: '{{count}} selected', count: selected.length })}
-        </CommandBar.Value>
-        <Separator.Inline />
-        <Button
-          variant="secondary"
-          tone="destructive"
-          disabled={isPending}
-          onClick={() => void deleteChannels(selected, () => table.resetRowSelection())}
-        >
-          <IconTrash />
-          {t('delete', 'Delete')}
-        </Button>
-      </CommandBar.Bar>
-    </CommandBar>
+    <SelectionBar>
+      {(selected, clear) => (
+        <DeleteButton disabled={isPending} onClick={() => void deleteChannels(selected, clear)} />
+      )}
+    </SelectionBar>
   );
 };
 
