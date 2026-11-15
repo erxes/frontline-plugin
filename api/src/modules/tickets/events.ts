@@ -1,6 +1,6 @@
 import { eq, inArray, sql } from 'drizzle-orm';
 import { PLUGIN } from '#/config.ts';
-import { TICKET_EVENTS, TICKET_TIMELINE } from '#/core.ts';
+import { TICKET_EVENTS, TICKET_REMOVED, TICKET_TIMELINE } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { pipelineStatuses, tickets } from '#/db/tickets.ts';
 
@@ -79,8 +79,43 @@ export const publish = async (tx: Tx, actor: Actor, events: TicketEvent[]) => {
       p_actor_user_id => ${actor.userId},
       p_entity_type => ${TICKET_TIMELINE},
       p_entity_id => ${event.ticketId}
-    )`;
+    ), ${auditSql(actor, { action: event.type, ticketId: event.ticketId, changes: event.payload })}`;
   });
+
+  await tx.execute(sql`select ${sql.join(calls, sql`, `)}`);
+};
+
+/** One row of core's audit log for a ticket: who did what to it, with what changed. */
+const auditSql = (
+  actor: Actor,
+  entry: { action: string; ticketId: string; label?: string; changes: unknown },
+) => sql`core_record_audit(
+  p_org_id => ${actor.orgId},
+  p_source => ${PLUGIN},
+  p_action => ${entry.action},
+  p_actor_user_id => ${actor.userId},
+  p_target_type => ${TICKET_TIMELINE},
+  p_target_id => ${entry.ticketId},
+  p_target_label => ${entry.label ?? null},
+  p_changes => ${JSON.stringify(entry.changes)}::jsonb
+)`;
+
+/** Records the deleted tickets in core's audit log, which outlives their timelines. */
+export const auditRemoved = async (
+  tx: Tx,
+  actor: Actor,
+  removed: { id: string; name: string }[],
+) => {
+  if (removed.length === 0) return;
+
+  const calls = removed.map((ticket) =>
+    auditSql(actor, {
+      action: TICKET_REMOVED,
+      ticketId: ticket.id,
+      label: ticket.name,
+      changes: { name: ticket.name },
+    }),
+  );
 
   await tx.execute(sql`select ${sql.join(calls, sql`, `)}`);
 };

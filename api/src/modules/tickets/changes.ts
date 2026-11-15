@@ -15,7 +15,7 @@ import { statusRights } from '../pipelines/rights.ts';
 import { assertTags } from '../tags/tags.ts';
 import { assertTeam } from '../teams/teams.ts';
 import { mergeProperties, parseProperties, PropertiesPatch } from './properties.ts';
-import { changeEvents, publish, snapshot } from './events.ts';
+import { auditRemoved, changeEvents, publish, snapshot } from './events.ts';
 import {
   firstStatusOf,
   Ids,
@@ -298,7 +298,13 @@ const bulkRemove = writes(PERMISSIONS.channelView)
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
     await ticketsFor(tx, member, input.ids, { remove: true });
-    await tx.delete(tickets).where(inArray(tickets.id, input.ids));
+
+    const removed = await tx
+      .delete(tickets)
+      .where(inArray(tickets.id, input.ids))
+      .returning({ id: tickets.id, name: tickets.name });
+
+    await auditRemoved(tx, member, removed);
     await signalTickets(tx, member);
 
     return { ids: input.ids };

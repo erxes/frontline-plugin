@@ -110,6 +110,58 @@ BEGIN
 END $$;
 `;
 
+// Core's audit log and core_record_audit(), with core's signature and body (erxes
+// packages/db/drizzle/0012_tenant_isolation.sql), less core_enter_org()'s installation check.
+// Core should ship both in core-functions.sql (erxes/erxes#10575).
+const CORE_AUDIT = `
+CREATE TABLE core_audit_logs (
+  id text PRIMARY KEY,
+  org_id text NOT NULL,
+  source text NOT NULL,
+  actor_type text NOT NULL,
+  actor_id text NOT NULL,
+  action text NOT NULL,
+  target_type text,
+  target_id text,
+  target_label text,
+  changes jsonb,
+  metadata jsonb,
+  ip text,
+  user_agent text,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+GRANT SELECT, INSERT ON core_audit_logs TO ${ROLE};
+CREATE OR REPLACE FUNCTION core_record_audit(
+  p_org_id text,
+  p_source text,
+  p_action text,
+  p_actor_user_id text DEFAULT NULL,
+  p_target_type text DEFAULT NULL,
+  p_target_id text DEFAULT NULL,
+  p_target_label text DEFAULT NULL,
+  p_changes jsonb DEFAULT NULL,
+  p_metadata jsonb DEFAULT NULL,
+  p_ip text DEFAULT NULL,
+  p_user_agent text DEFAULT NULL
+) RETURNS text
+LANGUAGE plpgsql AS $$
+DECLARE
+  v_id text := replace(gen_random_uuid()::text, '-', '');
+BEGIN
+  IF p_action NOT LIKE p_source || '.%' THEN
+    RAISE EXCEPTION 'core_record_audit: the action must start with "%."', p_source;
+  END IF;
+  INSERT INTO core_audit_logs (
+    id, org_id, source, actor_type, actor_id, action, target_type, target_id, target_label, changes, metadata, ip, user_agent
+  ) VALUES (
+    v_id, p_org_id, p_source, CASE WHEN p_actor_user_id IS NULL THEN 'plugin' ELSE 'user' END,
+    coalesce(p_actor_user_id, p_source), p_action, p_target_type, p_target_id, p_target_label,
+    p_changes, p_metadata, p_ip, p_user_agent
+  );
+  RETURN v_id;
+END $$;
+`;
+
 const urlOf = (name: string, role?: string) => {
   const url = new URL(adminUrl);
 
@@ -146,6 +198,8 @@ await run(adminUrl, `CREATE DATABASE ${database} OWNER ${ROLE}`);
 await run(urlOf(database), `${CORE_FUNCTIONS}${CORE_LIVE}`);
 
 await run(urlOf(database), CORE_EVENTS);
+
+await run(urlOf(database), CORE_AUDIT);
 
 process.env.DATA_URL = urlOf(database, ROLE);
 

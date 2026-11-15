@@ -171,6 +171,27 @@ describe('ticket fields', () => {
       ['frontline.ticket.moved', ['bob']],
     ]);
   });
+
+  it("records each change and the deletion in core's audit log, by who made it", async () => {
+    const { owner, ann, pipeline } = await setUp('org-tf-h');
+    const ticket = await ann.tickets.create({ pipelineId: pipeline.id, name: 'Refund' });
+
+    await ann.tickets.update({ id: ticket.id, name: 'Refund twice' });
+    await owner.tickets.bulkRemove({ ids: [ticket.id] });
+
+    const { rows } = await withOrg('org-tf-h', (tx) =>
+      tx.execute<{ action: string; actor_id: string; target_label: string | null }>(
+        sql`select action, actor_id, target_label from core_audit_logs
+            where target_id = ${ticket.id} order by created_at, action`,
+      ),
+    );
+
+    expect(rows).toEqual([
+      { action: 'frontline.ticket.created', actor_id: 'ann', target_label: null },
+      { action: 'frontline.ticket.fields_changed', actor_id: 'ann', target_label: null },
+      { action: 'frontline.ticket.removed', actor_id: 'user-org-tf-h', target_label: 'Refund twice' },
+    ]);
+  });
 });
 
 describe('status rights', () => {

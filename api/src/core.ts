@@ -48,6 +48,9 @@ export const TICKET_EVENTS = {
   slaBreached: { type: 'frontline.ticket.sla_breached', label: 'Ticket SLA missed' },
 } as const;
 
+/** Core's audit log records a deleted ticket with this action; it has no timeline left. */
+export const TICKET_REMOVED = 'frontline.ticket.removed';
+
 /** What a ticket's people hear about, each sent with the event it names (`notify`). */
 const TICKET_NOTICES = [
   { event: TICKET_EVENTS.assigned, label: 'A ticket is assigned to you' },
