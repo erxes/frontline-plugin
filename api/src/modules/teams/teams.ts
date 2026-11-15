@@ -195,11 +195,19 @@ const remove = writes(PERMISSIONS.settingsManage)
     return { ids: removed.map((row) => row.id) };
   });
 
-/** The teams `userId` is in or supervises, which department and branch checks let them see. */
+/**
+ * The teams `userId` is in or supervises, and the teams under those, which department and
+ * branch checks let them see.
+ */
 export const teamsOf = (userId: string) => sql`(
-  select ${teamMembers.teamId} from ${teamMembers} where ${teamMembers.userId} = ${userId}
-  union
-  select ${teams.id} from ${teams} where ${teams.supervisorId} = ${userId}
+  with recursive held(id) as (
+    select ${teamMembers.teamId} from ${teamMembers} where ${teamMembers.userId} = ${userId}
+    union
+    select ${teams.id} from ${teams} where ${teams.supervisorId} = ${userId}
+    union
+    select ${teams.id} from ${teams} join held on ${teams.parentId} = held.id
+  )
+  select id from held
 )`;
 
 export const teamProcedures = { list, get, create, update, remove };

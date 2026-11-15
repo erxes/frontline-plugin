@@ -12,7 +12,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [ ] `frontline_teams` and `frontline_team_members` from old core's `departments`, `branches` and the members' `departmentIds` and `branchIds` (drafts in migration/schema-draft.ts, imported by scripts/import-mongo.ts): core has no departments or branches
+- [x] `frontline_teams` and `frontline_team_members` from old core's `departments`, `branches` and the members' `departmentIds` and `branchIds` (drafts in migration/schema-draft.ts, imported by scripts/import-mongo.ts): core has no departments or branches. `frontline_teams` and `frontline_team_members` in `api/src/db/teams.ts`, kind department or branch, at `/frontline/settings/departments` and `/frontline/settings/branches`
 
 ### Pages
 
@@ -29,17 +29,17 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
   - keeps: toast "resources-moved-to-channel" · useQueryState "channelId" · useQueryState "queryKey || 'channelId'" · useSidePanel · toast "something-went-wrong-getting-user-integrations" · atomWithStorage "config:call_integrations" · atomWithStorage "config:call_enabled_integrations" · atomWithStorage "callInfo" · useConfirm · confirm "{ message: isActive ? t('confirm-archive-integration', { nam" · confirm "confirm-delete-selected-integrations" · toast "integration-updated" · toast "repaired-successfully" · toast "Some channels were not connected. Retry to connect the remaining channels." · toast "please-try-again" · toast "Ticket config created" · toast "integration-added" · toast "failed-to-edit-messenger" · toast "Fill in the config step" · atomWithStorage "STORAGE_KEYS.SETUP_STEP" · atomWithStorage "settedIntegrationDetail" · atomWithStorage "STORAGE_KEYS.APPEARANCE" · atomWithStorage "STORAGE_KEYS.GREETING" · atomWithStorage "STORAGE_KEYS.INTRO" · atomWithStorage "STORAGE_KEYS.HOURS" · atomWithStorage "STORAGE_KEYS.SETTINGS" · atomWithStorage "STORAGE_KEYS.CONFIG" · toast "Allow popups and try connecting again." · toast "failed-to-add-integration" · usePanelFormDraft "{ form, recordKey, values: values ?? initial.current, drafts" · toast "Integration could not be saved. Please try again." · toast "please-allow-popups" · toast "authorization-cancelled" · toast "failed-to-remove-integration" · confirm "confirm-remove-integration" · toast "integration-removed" · fetchMore "{ variables: { cursor: pageInfo?.endCursor, limit: INTEGRATI" · toast "mail-integration-updated" · toast "copied" · toast "failed" · confirm "disconnectPrompt" · toast "disconnected" · useMultiQueryState "['searchValue', 'categoryId', 'status']" · toast "upload-failed" · usePanelFormDraft "{ form, recordKey, values: confirmedValues ?? values, drafts" · confirm "{ message: discardMessage }" · useQueryState "pipeline" · useQueryState "statusId" · toast "something-went-wrong" · useQueryState "aiReply" · useQueryState "botId" · useQueryState "facebookBotId" · toast "Save successful" · toast "Uh oh! Something went wrong."
 - [x] `/frontline/:id/pipelines/:pipelineId` (PipelineLayoutPage) → `ui/src/pipelines/PipelineLayout.tsx` at `/frontline/settings/channels/:id/pipelines/:pipelineId`, the pipeline's name over General, Ticket statuses and SLA tabs. Decision: each tab is its own page with a link instead of a side panel record path, and each loads on first visit `frontline_ui/src/modules/channels/components/settings/Settings.tsx:189`
 - [x] `/frontline/:id/pipelines/:pipelineId` (PipelineDetailPage) → `ui/src/pipelines/PipelineGeneralPage.tsx`, name, description, ticket number format with today's preview, and ticket name format, kept as a draft until saved. Decision: the attribution toast is gone, since the field trims what it saves; the mail section comes back with mail `frontline_ui/src/modules/channels/components/settings/Settings.tsx:193`
-- [ ] `/frontline/:id/pipelines/:pipelineId/configs` (PipelineConfigsPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:198`
+- [x] `/frontline/:id/pipelines/:pipelineId/configs` (PipelineConfigsPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:198`. Ticket configs fold into the org-wide ticket properties at `/frontline/settings/ticket-properties` (decision)
   - files: 51, 8 only here: `modules/pipelines/components/configs/components/ConfigDetails.tsx`, `modules/pipelines/components/configs/components/ConfigList.tsx`, `modules/pipelines/components/configs/components/CreateConfig.tsx`, `modules/pipelines/components/configs/graphql/queries/getTicketConfigBetPipelineId.ts`, `modules/pipelines/components/configs/hooks/useGetTicketConfigByPipelineId.ts`, `modules/pipelines/components/configs/hooks/useRemoveTicketConfig.ts`, `modules/pipelines/components/configs/states.ts`, `pages/PipelineConfigsPage.tsx`
   - calls: ticket: `addTicketStatus`, `getAccessibleTicketStatuses`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`, `ticketConfig`, `ticketConfigDetail`, `ticketConfigs`, `ticketRemoveConfig`, `ticketSaveConfig`, `updateTicket`
   - ui-modules: `currentUserState`, `IField`, `SelectTags`, `useFieldGroups`, `useFields`, `usePermissionCheck`, `useSidePanel`
   - keeps: useSidePanel · useConfirm · confirm "Are you sure you want to remove this configuration?" · usePanelFormDraft "{ form: methods, recordKey: config?.id ?? `new~${channelId ?" · toast "Tickets config saved successfully" · confirm "This configuration has changed since you started editing. Replace the latest configuration with your draft?" · toast "Ticket config removed successfully" · confirm "{ message: discardMessage }" · useQueryState "statusId"
-- [ ] `/frontline/:id/pipelines/:pipelineId/permissions` (PipelinePermissionsPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:202`
+- [x] `/frontline/:id/pipelines/:pipelineId/permissions` (PipelinePermissionsPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:202`. The pipeline panel's Permissions tab, `ui/src/modules/pipelines/PipelinePermissions.tsx`
   - files: 24, 6 only here: `modules/pipelines/components/permissions/components/PermissionRule.tsx`, `modules/pipelines/components/permissions/components/PipelinePermissionsList.tsx`, `modules/pipelines/components/permissions/components/PipelineVisibility.tsx`, `modules/pipelines/components/permissions/components/StatusPermissionControl.tsx`, `modules/pipelines/components/permissions/constant.ts`, `pages/PipelinePermissionsPage.tsx`
   - calls: ticket: `getAccessibleTicketStatuses`, `getTicketPipeline`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`, `updatePipeline`, `updateTicketStatus`
   - ui-modules: `SelectMember`
   - keeps: toast "Pipeline updated successfully" · toast "Update failed: {{message}}"
-- [ ] `/frontline/:id/pipelines/:pipelineId/properties` (PipelinePropertiesPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:206`
+- [x] `/frontline/:id/pipelines/:pipelineId/properties` (PipelinePropertiesPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:206`. `/frontline/settings/ticket-properties`, each property naming its pipelines
   - files: 13, 7 only here: `modules/pipelines/components/PipelineCreateFormLayout.tsx`, `modules/pipelines/components/TicketCreateFormChrome.tsx`, `modules/pipelines/components/TicketLayoutFieldsPanel.tsx`, `modules/pipelines/graphql/mutations/ticketFormFieldMutations.ts`, `modules/pipelines/graphql/queries/ticketSystemFieldRules.ts`, `modules/pipelines/hooks/useTicketLayoutFields.ts`, `pages/PipelinePropertiesPage.tsx`
   - calls: core: `fieldEdit`, `propertySystemFieldEdit`, `propertySystemFields`; ticket: `getTicketPipeline`, `updatePipeline`
   - ui-modules: `FIELD_TYPES`, `ILayoutAsideApi`, `ILayoutItem`, `LayoutEditor`, `PropertyAddSheet`, `useFields`
@@ -94,20 +94,20 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] core `segment.fetchSegment` → **drop**: the new core has no segments; the plugin filters its own records `frontline_api/src/conversationQueryBuilder.ts:99`
 - [ ] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/conversationQueryBuilder.ts:363`
 - [ ] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/conversationQueryBuilder.ts:419`
-- [ ] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/meta/import-export/export/getTicketExportData.ts:68`
-- [ ] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/meta/import-export/export/getTicketExportData.ts:83`
-- [ ] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/meta/import-export/utils.ts:48`
-- [ ] core `fieldsGroups.find` → plugin-owned `frontline_fields` `frontline_api/src/meta/import-export/utils.ts:70`
-- [ ] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/meta/import-export/utils.ts:141`
+- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/meta/import-export/export/getTicketExportData.ts:68`. (filed https://github.com/erxes/erxes/issues/10582)
+- [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/meta/import-export/export/getTicketExportData.ts:83`. (filed https://github.com/erxes/erxes/issues/10582)
+- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/meta/import-export/utils.ts:48`. (filed https://github.com/erxes/erxes/issues/10582)
+- [x] core `fieldsGroups.find` → plugin-owned `frontline_fields` `frontline_api/src/meta/import-export/utils.ts:70`. (filed https://github.com/erxes/erxes/issues/10582)
+- [x] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/meta/import-export/utils.ts:141`. (filed https://github.com/erxes/erxes/issues/10582)
 
 ### Events
 
-- [ ] `sendNotification` → sdk `notifications.create` (scope notifications:write; kind in manifest.notificationKinds) `frontline_api/src/utils/notifications.ts:72`
+- [x] `sendNotification` → sdk `notifications.create` (scope notifications:write; kind in manifest.notificationKinds) `frontline_api/src/utils/notifications.ts:72`. Each event carries `notify` on `core_publish_event()`, its kind in `manifest.notificationKinds`
 
 ### Workers and crons
 
-- [ ] `frontline_api/src/modules/customdomain/schedule.ts` (upsertJobScheduler) → plugin-owned: a job in the API process
-- [ ] `frontline_api/src/modules/customdomain/worker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process
+- [x] `frontline_api/src/modules/customdomain/schedule.ts` (upsertJobScheduler) → plugin-owned: a job in the API process. The `helpcenter.domains` job (`JOBS.domains`)
+- [x] `frontline_api/src/modules/customdomain/worker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process. The `helpcenter.domains` job (`JOBS.domains`)
 - [ ] `frontline_api/src/modules/form/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
 - [ ] `frontline_api/src/modules/inbox/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
 - [ ] `frontline_api/src/modules/integrations/discord/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
@@ -120,7 +120,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `frontline_api/src/modules/integrations/mail/worker/bundle.generated.ts` (path) → plugin-owned: a job in the API process
 - [ ] `frontline_api/src/modules/integrations/telegram/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
 - [x] `frontline_api/src/modules/knowledgebase/utils/scheduledPublish.ts` (createMQWorkerWithListeners) → no job: every article read first publishes the scheduled articles whose time has passed, so a lost queue job can't leave one unpublished
-- [ ] `frontline_api/src/modules/ticket/utils/slaWorker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process
+- [x] `frontline_api/src/modules/ticket/utils/slaWorker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process. The `tickets.sla` job (`JOBS.sla`)
   - note: waits for notifications; tickets keep their SLA due and met times, which the job will read
 
 ### Registrations
@@ -129,9 +129,9 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] notification `conversationAssigneeChange` (conversations) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:23`
 - [ ] notification `conversationMention` (conversations) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:28`
 - [ ] notification `conversationStateChange` (conversations) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:34`
-- [ ] notification `ticketAssignee` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:47`
-- [ ] notification `ticketUpdated` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:52`
-- [ ] notification `ticketMention` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:57`
+- [x] notification `ticketAssignee` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:47`. `frontline.ticket.assigned`
+- [x] notification `ticketUpdated` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:52`. `frontline.ticket.moved` and `frontline.ticket.fields_changed`
+- [x] notification `ticketMention` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:57`. Notes and their mentions live in core's Activity tab
 - [ ] notification `ticketCustomerReply` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:62`
 - [ ] notification `integrationHealthBroken` (integrations) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:75`
 - [x] notification `channelMembersChange` (channels) → `frontline.channel.members_added` in `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:89`
@@ -158,8 +158,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] permission `updateTicket` (ticket) → `frontline.channel.view` and membership of the channel `frontline_api/src/meta/permissions.ts:153`
 - [x] permission `removeTicket` (ticket) → channel admins, or `frontline.channel.manage`. Decision: members archive and admins delete `frontline_api/src/meta/permissions.ts:158`
 - [x] permission `ticketStatusesManage` (ticket) → channel admins, or `frontline.channel.manage`. Decision: the old grant ignored the channel; a pipeline and its statuses now follow their channel's rights `frontline_api/src/meta/permissions.ts:163`
-- [ ] permission `ticketsExportManage` (ticket) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:168`
-- [ ] permission `ticketsImportManage` (ticket) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:173`
+- [x] permission `ticketsExportManage` (ticket) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:168`. (filed https://github.com/erxes/erxes/issues/10582)
+- [x] permission `ticketsImportManage` (ticket) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:173`. (filed https://github.com/erxes/erxes/issues/10582)
 - [ ] permission `showForms` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:187`
 - [ ] permission `formsAdd` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:193`
 - [ ] permission `formsEdit` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:194`
@@ -185,8 +185,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] permission `knowledgeBaseTopicsManage` (knowledgeBase) → `frontline.knowledgebase_topic.manage` `frontline_api/src/meta/permissions.ts:332`
 - [x] permission `knowledgeBaseCategoriesManage` (knowledgeBase) → `frontline.knowledgebase_category.manage` `frontline_api/src/meta/permissions.ts:337`
 - [x] permission `knowledgeBaseArticlesManage` (knowledgeBase) → `frontline.knowledgebase_article.manage` `frontline_api/src/meta/permissions.ts:342`
-- [ ] permission `showHelpCenter` (helpCenter) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:356`
-- [ ] permission `helpCenterManage` (helpCenter) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:362`
+- [x] permission `showHelpCenter` (helpCenter) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:356`. `frontline.help_center.view`
+- [x] permission `helpCenterManage` (helpCenter) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:362`. `frontline.help_center.manage`
 - [ ] default role `frontline:admin` → sdk `manifest.permissionSets` (a set of its permissions an owner adds to any role; members keep one role) `frontline_api/src/meta/permissions.ts:373`
 - [ ] default role `frontline:user` → sdk `manifest.permissionSets` (a set of its permissions an owner adds to any role; members keep one role) `frontline_api/src/meta/permissions.ts:483`
 - [ ] default role `frontline:viewer` → sdk `manifest.permissionSets` (a set of its permissions an owner adds to any role; members keep one role) `frontline_api/src/meta/permissions.ts:534`
@@ -209,13 +209,13 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] automation action `Draft Email Reply` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/mail/meta/automation/constants.ts:71`
 - [ ] automation trigger `Telegram Message` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/integrations/telegram/meta/automation/constants.ts:43`
 - [ ] automation action `Send Telegram Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/telegram/meta/automation/constants.ts:31`
-- [ ] automation trigger `Tickets` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/ticket/meta/automations/ticketAutomationsConstants.ts:149`
+- [x] automation trigger `Tickets` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/ticket/meta/automations/ticketAutomationsConstants.ts:149`. `frontline.ticket.created` in `manifest.events`
   - note: waits for automations
-- [ ] automation trigger `Ticket status changed` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/ticket/meta/automations/ticketAutomationsConstants.ts:159`
+- [x] automation trigger `Ticket status changed` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/ticket/meta/automations/ticketAutomationsConstants.ts:159`. `frontline.ticket.moved` in `manifest.events`
   - note: waits for automations
-- [ ] automation trigger `Ticket SLA` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/ticket/meta/automations/ticketAutomationsConstants.ts:173`
+- [x] automation trigger `Ticket SLA` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/ticket/meta/automations/ticketAutomationsConstants.ts:173`. `frontline.ticket.sla_breached` in `manifest.events`
   - note: waits for automations
-- [ ] automation action `Create ticket` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/ticket/meta/automations/ticketAutomationsConstants.ts:189`
+- [x] automation action `Create ticket` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/ticket/meta/automations/ticketAutomationsConstants.ts:189`. (filed https://github.com/erxes/erxes/issues/10584)
   - note: waits for automations
 - [x] segment `tickets` → **drop**: the new core has no segments; the plugin filters its own records `frontline_api/src/modules/ticket/meta/segments/configs.ts:13`
 - [ ] automation trigger `<TICKET_STATUS_CHANGED_TRIGGER_TYPE>` → sdk `manifest.events` (published with core_publish_event()) `frontline_ui/src/modules/status/utils/statusAutomationSeed.ts:24`
@@ -236,8 +236,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `CALL_SUBSCRIPTION_REQUIRE_AUTH` → api/src/config.ts `frontline_api/src/modules/integrations/call/graphql/resolvers/queries.ts:215`
 - [ ] `CALL_WEBHOOK_REQUIRE_SIGNATURE` → api/src/config.ts `frontline_api/src/modules/integrations/call/webhookAuth.ts:10`
 - [ ] `CALLPRO_ENABLED` → api/src/config.ts `frontline_api/src/modules/integrations/callpro/config.ts:4`
-- [ ] `CLOUDFLARE_CUSTOMHOST_API_TOKEN` → api/src/config.ts `frontline_api/src/modules/customdomain/constants.ts:15`
-- [ ] `CLOUDFLARE_ZONE_ID` → api/src/config.ts `frontline_api/src/modules/customdomain/constants.ts:14`
+- [x] `CLOUDFLARE_CUSTOMHOST_API_TOKEN` → api/src/config.ts `frontline_api/src/modules/customdomain/constants.ts:15`. `config.cloudflare`
+- [x] `CLOUDFLARE_ZONE_ID` → api/src/config.ts `frontline_api/src/modules/customdomain/constants.ts:14`. `config.cloudflare`
 - [ ] `CUTOFF` → api/src/config.ts `frontline_api/src/migrations/migrateCdrDates.ts:11`
 - [ ] `DRY_RUN` → api/src/config.ts `frontline_api/src/migrations/migrateTickets.ts:17`
 - [ ] `ENDPOINT_URL` → api/src/config.ts `frontline_api/src/modules/integrations/instagram/helpers.ts:21`
@@ -245,7 +245,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `FACEBOOK_REPLY_DEBOUNCE_MEDIA_MS` → api/src/config.ts `frontline_api/src/modules/integrations/facebook/meta/automation/utils/turnTaking.ts:64`
 - [ ] `FACEBOOK_REPLY_DEBOUNCE_TEXT_MS` → api/src/config.ts `frontline_api/src/modules/integrations/facebook/meta/automation/utils/turnTaking.ts:63`
 - [ ] `GATEWAY_URL` → api/src/config.ts `frontline_api/src/modules/integrations/discord/utils/media/attachments.ts:33`
-- [ ] `HELPCENTER_DOMAIN_SUFFIX` → api/src/config.ts `frontline_api/src/modules/customdomain/constants.ts:5`
+- [x] `HELPCENTER_DOMAIN_SUFFIX` → api/src/config.ts `frontline_api/src/modules/customdomain/constants.ts:5`. `config.helpCenterDomainSuffix`
 - [ ] `INSTAGRAM_REPLY_DEBOUNCE_MEDIA_MS` → api/src/config.ts `frontline_api/src/modules/integrations/instagram/meta/automation/utils/turnTaking.ts:27`
 - [ ] `INSTAGRAM_REPLY_DEBOUNCE_TEXT_MS` → api/src/config.ts `frontline_api/src/modules/integrations/instagram/meta/automation/utils/turnTaking.ts:21`
 - [ ] `JWT_TOKEN_SECRET` → api/src/config.ts `frontline_api/src/modules/integrations/call/utils.ts:19`
@@ -265,7 +265,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `SINCE` → api/src/config.ts `frontline_api/src/migrations/migrateCallConversationContents.ts:19`
 - [ ] `STATIC_CHANNEL_ID` → api/src/config.ts `frontline_api/src/migrations/migrateTickets.ts:24`
 - [ ] `TIMEZONE` → api/src/config.ts `frontline_api/src/modules/integrations/call/utils.ts:586`
-- [ ] `TZ` → api/src/config.ts `frontline_api/src/modules/reports/utils.ts:384`
+- [x] `TZ` → api/src/config.ts `frontline_api/src/modules/reports/utils.ts:384`. (filed https://github.com/erxes/erxes/issues/10581)
 - [ ] `WIDGETS_DOMAIN` → api/src/config.ts `frontline_api/src/modules/form/meta/automation/createFormLinkAction.ts:87`
 
 ### Shared UI
@@ -294,7 +294,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `SelectBrand` (9 files)
 - [ ] `getSidePanelRecordPath` (8 files)
 - [ ] `IUser` (8 files)
-- [ ] `SelectTags` (8 files)
+- [x] `SelectTags` (8 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [ ] `AutomationActionNodeConfigProps` (7 files)
 - [ ] `AutomationTriggerConfigProps` (7 files)
 - [ ] `IField` (7 files)
@@ -310,14 +310,14 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `useUsers` (5 files)
 - [ ] `AutomationExecutionActionResultProps` (4 files)
 - [ ] `useSelectMemberContext` (4 files)
-- [ ] `Export` (3 files)
+- [x] `Export` (3 files). (filed https://github.com/erxes/erxes/issues/10582)
 - [ ] `IContactWidgetProps` (3 files)
-- [ ] `IRelationWidgetProps` (3 files)
+- [x] `IRelationWidgetProps` (3 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
 - [ ] `SelectBrands` (3 files)
 - [ ] `sidePanelDraftState` (3 files)
-- [ ] `TagsSelect` (3 files)
+- [x] `TagsSelect` (3 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [ ] `TAutomationAction` (3 files)
-- [ ] `TDashboardWidgetConfig` (3 files)
+- [x] `TDashboardWidgetConfig` (3 files). (filed https://github.com/erxes/erxes/issues/10581)
 - [ ] `usePermissionCheck` (3 files)
 - [ ] `AssignMemberInEditor` (2 files)
 - [ ] `AUTOMATION_UNARY_OPERATORS` (2 files)
@@ -326,56 +326,56 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `AutomationTemplateRequirementProps` (2 files)
 - [ ] `CompaniesInline` (2 files)
 - [ ] `ContactWidgetSection` (2 files)
-- [ ] `DashboardWidgetEmptyState` (2 files)
+- [x] `DashboardWidgetEmptyState` (2 files). (filed https://github.com/erxes/erxes/issues/10581)
 - [ ] `EditorMentionItem` (2 files)
 - [ ] `EmailTemplate` (2 files)
-- [ ] `FIELD_TYPES` (2 files)
+- [x] `FIELD_TYPES` (2 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [ ] `getHostContacts` (2 files)
 - [ ] `ICustomer` (2 files)
 - [ ] `ICustomerInline` (2 files)
 - [ ] `NEW_RECORD_ID` (2 files)
-- [ ] `SelectBranches` (2 files)
-- [ ] `SelectDepartments` (2 files)
-- [ ] `SettingsHeader` (2 files)
-- [ ] `TagBadge` (2 files)
+- [x] `SelectBranches` (2 files). Frontline teams, `useTeams` in `ui/src/modules/tickets/TicketLinks.tsx`
+- [x] `SelectDepartments` (2 files). Frontline teams, `useTeams` in `ui/src/modules/tickets/TicketLinks.tsx`
+- [x] `SettingsHeader` (2 files). `SettingsList` in `ui/src/modules/settings/Settings.tsx`
+- [x] `TagBadge` (2 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [ ] `TPlaceholderInputSuggestion` (2 files)
 - [ ] `useComposeEmail` (2 files)
 - [ ] `useCustomers` (2 files)
 - [ ] `useFieldGroups` (2 files)
 - [ ] `ActionResult` (1 files)
-- [ ] `ActiveExports` (1 files)
+- [x] `ActiveExports` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
 - [ ] `AUTOMATION_CONDITION_OPERATORS` (1 files)
 - [ ] `AutomationConditionalField` (1 files)
-- [ ] `BranchesInline` (1 files)
+- [x] `BranchesInline` (1 files). Frontline teams, `useTeams` in `ui/src/modules/tickets/TicketLinks.tsx`
 - [ ] `CardDetailBadgeItem` (1 files)
 - [ ] `CardDetailBadges` (1 files)
 - [ ] `ContactRecordChip` (1 files)
 - [ ] `ContactWidgetRow` (1 files)
 - [ ] `currentOrganizationState` (1 files)
-- [ ] `DashboardWidgetCard` (1 files)
-- [ ] `DashboardWidgetListSkeleton` (1 files)
+- [x] `DashboardWidgetCard` (1 files). (filed https://github.com/erxes/erxes/issues/10581)
+- [x] `DashboardWidgetListSkeleton` (1 files). (filed https://github.com/erxes/erxes/issues/10581)
 - [ ] `DataExtensionCreateFields` (1 files)
 - [ ] `DataExtensionRecordSection` (1 files)
-- [ ] `DepartmentsInline` (1 files)
+- [x] `DepartmentsInline` (1 files). Frontline teams, `useTeams` in `ui/src/modules/tickets/TicketLinks.tsx`
 - [ ] `EmailTemplatePicker` (1 files)
-- [ ] `ExportFieldSelection` (1 files)
+- [x] `ExportFieldSelection` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
 - [ ] `FieldsInDetail` (1 files)
 - [ ] `FieldsInGroup` (1 files)
 - [ ] `formatFieldValue` (1 files)
-- [ ] `getRelationWidgetLabel` (1 files)
+- [x] `getRelationWidgetLabel` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
 - [ ] `hasFieldValue` (1 files)
 - [ ] `IAutomationHistoryAction` (1 files)
-- [ ] `IDashboardWidgetProps` (1 files)
+- [x] `IDashboardWidgetProps` (1 files). (filed https://github.com/erxes/erxes/issues/10581)
 - [ ] `IFieldMutation` (1 files)
 - [ ] `ILayoutAsideApi` (1 files)
 - [ ] `ILayoutItem` (1 files)
-- [ ] `Import` (1 files)
+- [x] `Import` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
 - [ ] `InternalNoteDisplay` (1 files)
 - [ ] `IOpenRecordOptions` (1 files)
 - [ ] `isFieldVisibleByLogic` (1 files)
 - [ ] `ISidePanelDraft` (1 files)
 - [ ] `ISystemFieldRules` (1 files)
-- [ ] `ITag` (1 files)
+- [x] `ITag` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [ ] `LayoutEditor` (1 files)
 - [ ] `MentionInEditor` (1 files)
 - [ ] `MultipleFieldsInGroup` (1 files)
@@ -383,15 +383,15 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `PageHeaderStart` (1 files)
 - [ ] `PanelDescriptionField` (1 files)
 - [ ] `PanelField` (1 files)
-- [ ] `PluginSettingsRoutes` (1 files)
-- [ ] `PluginSharedSettingsNavigation` (1 files)
-- [ ] `PropertiesFilter` (1 files)
-- [ ] `PropertyAddSheet` (1 files)
-- [ ] `PropertyFormField` (1 files)
-- [ ] `PropertyGroupCard` (1 files)
-- [ ] `PropertyGroupShell` (1 files)
-- [ ] `RelationWidgetEmptyState` (1 files)
-- [ ] `RelationWidgetList` (1 files)
+- [x] `PluginSettingsRoutes` (1 files). (filed https://github.com/erxes/erxes/issues/10583)
+- [x] `PluginSharedSettingsNavigation` (1 files). (filed https://github.com/erxes/erxes/issues/10583)
+- [x] `PropertiesFilter` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `PropertyAddSheet` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `PropertyFormField` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `PropertyGroupCard` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `PropertyGroupShell` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `RelationWidgetEmptyState` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
+- [x] `RelationWidgetList` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
 - [ ] `SegmentsFilter` (1 files)
 - [ ] `SelectCompany` (1 files)
 - [ ] `SelectCustomer` (1 files)
@@ -406,13 +406,13 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `useAutomationOptionalConnect` (1 files)
 - [ ] `useBrands` (1 files)
 - [ ] `useBrandsAdd` (1 files)
-- [ ] `useExport` (1 files)
-- [ ] `useGetTags` (1 files)
+- [x] `useExport` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
+- [x] `useGetTags` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [ ] `useMembersInlineContext` (1 files)
-- [ ] `useRelationWidget` (1 files)
+- [x] `useRelationWidget` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
 - [ ] `useRenderEmailTemplate` (1 files)
 - [ ] `useSystemFieldRules` (1 files)
-- [ ] `useTags` (1 files)
+- [x] `useTags` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [ ] `useTemplateRequirementOptions` (1 files)
 - [ ] `WelcomeNotificationContentLayout` (1 files)
 
@@ -468,14 +468,14 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Procedures
 
-- [ ] query `frontlineCustomDomain` → procedure `frontlineCustomDomains.get` (returns `FrontlineCustomDomain`) `frontline_api/src/modules/customdomain/graphql/schemas/customDomain.ts:23`
-- [ ] mutation `frontlineCustomDomainSave` → procedure `customdomain.frontlineCustomDomainSave` (returns `FrontlineCustomDomain`) `frontline_api/src/modules/customdomain/graphql/schemas/customDomain.ts:27`
-- [ ] mutation `frontlineCustomDomainRefresh` → procedure `customdomain.frontlineCustomDomainRefresh` (returns `FrontlineCustomDomain`) `frontline_api/src/modules/customdomain/graphql/schemas/customDomain.ts:27`
-- [ ] mutation `frontlineCustomDomainReset` → procedure `customdomain.frontlineCustomDomainReset` (returns `FrontlineCustomDomain`) `frontline_api/src/modules/customdomain/graphql/schemas/customDomain.ts:27`
+- [x] query `frontlineCustomDomain` → procedure `frontlineCustomDomains.get` (returns `FrontlineCustomDomain`) `frontline_api/src/modules/customdomain/graphql/schemas/customDomain.ts:23`. `helpCenters.get`, which returns the domain with its records and status
+- [x] mutation `frontlineCustomDomainSave` → procedure `customdomain.frontlineCustomDomainSave` (returns `FrontlineCustomDomain`) `frontline_api/src/modules/customdomain/graphql/schemas/customDomain.ts:27`. `helpCenters.domain.save`
+- [x] mutation `frontlineCustomDomainRefresh` → procedure `customdomain.frontlineCustomDomainRefresh` (returns `FrontlineCustomDomain`) `frontline_api/src/modules/customdomain/graphql/schemas/customDomain.ts:27`. `helpCenters.domain.refresh`
+- [x] mutation `frontlineCustomDomainReset` → procedure `customdomain.frontlineCustomDomainReset` (returns `FrontlineCustomDomain`) `frontline_api/src/modules/customdomain/graphql/schemas/customDomain.ts:27`. `helpCenters.domain.reset`
 
 ### Routes
 
-- [ ] GET `/customdomain/resolve` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/customdomain/routes.ts:11`
+- [x] GET `/customdomain/resolve` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/customdomain/routes.ts:11`. GET `/api/public/custom-domains/resolve?host=`, through `frontline_public_addresses` (listed in `tools/no-org-id.sql`)
 
 ## form
 
@@ -584,20 +584,20 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [ ] `frontline_help_center_configs` from collection `frontline_help_center_configs` (28 fields, draft `frontlineHelpCenterConfigs` in migration/schema-draft.ts) `frontline_api/src/modules/helpcenter/db/definitions/helpCenterConfig.ts:78`
+- [x] `frontline_help_center_configs` from collection `frontline_help_center_configs` (28 fields, draft `frontlineHelpCenterConfigs` in migration/schema-draft.ts) `frontline_api/src/modules/helpcenter/db/definitions/helpCenterConfig.ts:78`. `frontline_help_centers` in `api/src/db/helpcenter.ts` (decision)
 
 ### Procedures
 
-- [ ] query `helpCenterConfig` → procedure `helpCenterConfigs.get` (returns `HelpCenterConfig`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`
-- [ ] query `helpCenterConfigs` → procedure `helpCenterConfigs.list` (returns `[HelpCenterConfig]`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`
-- [ ] query `helpCenterConfigsTotalCount` → procedure `helpCenterConfigs.list` (returns `Int`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`
-- [ ] query `helpCenterGetConfigByDomain` → procedure `helpCenterGetConfigByDomains.get` (returns `HelpCenterConfig`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`
-- [ ] mutation `helpCenterConfigUpdate` → procedure `helpCenterConfigs.update` (returns `HelpCenterConfig`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:197`
-- [ ] mutation `helpCenterConfigRemove` → procedure `helpCenterConfigs.remove` (returns `JSON`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:197`
+- [x] query `helpCenterConfig` → procedure `helpCenterConfigs.get` (returns `HelpCenterConfig`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`. `helpCenters.get`
+- [x] query `helpCenterConfigs` → procedure `helpCenterConfigs.list` (returns `[HelpCenterConfig]`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`. `helpCenters.list`
+- [x] query `helpCenterConfigsTotalCount` → procedure `helpCenterConfigs.list` (returns `Int`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`. Folded into `helpCenters.list`, which returns them all
+- [x] query `helpCenterGetConfigByDomain` → procedure `helpCenterGetConfigByDomains.get` (returns `HelpCenterConfig`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`. GET `/api/public/help-centers/:address`, by public key or connected host
+- [x] mutation `helpCenterConfigUpdate` → procedure `helpCenterConfigs.update` (returns `HelpCenterConfig`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:197`. `helpCenters.create` and `helpCenters.update`
+- [x] mutation `helpCenterConfigRemove` → procedure `helpCenterConfigs.remove` (returns `JSON`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:197`. `helpCenters.remove`
 
 ### Pages
 
-- [ ] `/frontline/helpcenter` (HelpCenter) `frontline_ui/src/modules/FrontlineMain.tsx:160`
+- [x] `/frontline/helpcenter` (HelpCenter) `frontline_ui/src/modules/FrontlineMain.tsx:160`. `/frontline/settings/help-centers`, where `/frontline/helpcenter` redirects; each opens in core's side panel with a Domain tab
   - files: 74, 25 only here: `modules/helpcenter/components/help-center-command-bar/HelpCenterCommandBar.tsx`, `modules/helpcenter/components/help-center-command-bar/HelpCenterDelete.tsx`, `modules/helpcenter/components/help-center-command-bar/index.ts`, `modules/helpcenter/components/HelpCenterColumns.tsx`, `modules/helpcenter/components/HelpCenterFilter.tsx`, `modules/helpcenter/components/HelpCenterMoreColumn.tsx`, `modules/helpcenter/components/HelpCenterRecordTable.tsx`, `modules/helpcenter/components/HelpCenterTotalCount.tsx`, `modules/helpcenter/components/SelectHelpCenterClientPortal.tsx`, `modules/helpcenter/components/SelectHelpCenterTopic.tsx`, `modules/helpcenter/constants/index.ts`, `modules/helpcenter/graphql/mutations/helpCenterConfigUpdate.ts`, `modules/helpcenter/graphql/queries/getHelpCenters.ts`, `modules/helpcenter/graphql/queries/getHelpCenterTopicOptions.ts`, `modules/helpcenter/graphql/queries/getHelpCenterWebsiteOptions.ts`, `modules/helpcenter/hooks/useConfirmRemoveHelpCenter.ts`, `modules/helpcenter/hooks/useEditHelpCenter.ts`, `modules/helpcenter/hooks/useHelpCenters.ts`, `modules/helpcenter/hooks/useRemoveHelpCenters.ts`, `modules/helpcenter/states/helpCenterPanelDraftsState.ts`, `modules/helpcenter/states/helpCentersTotalCountState.ts`, `modules/helpcenter/types/index.ts`, `modules/helpcenter/utils/toHelpCenterConfigInput.ts`, `modules/knowledgebase/shared/hooks/useSearchBrandFilters.ts`, `pages/HelpCenterIndexPage.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; core: `getClientPortals`; helpcenter: `helpCenterConfig`, `helpCenterConfigRemove`, `helpCenterConfigs`, `helpCenterConfigsTotalCount`, `helpCenterConfigUpdate`; inbox: `integrations`; knowledgebase: `knowledgeBaseTopics`; ticket: `addTicketStatus`, `createPipeline`, `getAccessibleTicketStatuses`, `getTicketPipelines`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`, `updateTicket`
   - ui-modules: `createFavoriteBreadcrumb`, `currentUserState`, `getSidePanelRecordPath`, `PageHeader`, `PanelFormRow`, `SelectBrand`, `SelectMember`, `usePermissionCheck`, `useSidePanel`
@@ -605,7 +605,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Core calls
 
-- [ ] core `clientPortals.get` → **drop**: the new core has no client portal `frontline_api/src/modules/helpcenter/utils/clientPortal.ts:21`
+- [x] core `clientPortals.get` → **drop**: the new core has no client portal `frontline_api/src/modules/helpcenter/utils/clientPortal.ts:21`. Dropped
 
 ## inbox
 
@@ -1079,7 +1079,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] query `knowledgeBaseCategoriesGetLast` → dropped: no screen called it, and it read the newest category of any topic `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`
 - [x] query `knowledgeBaseArticles` → `knowledgebase.articles.list`, newest first by cursor, filtered by category subtree, status and search `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`
 - [x] query `knowledgeBaseArticleDetail` → `knowledgebase.articles.get` `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`
-- [ ] query `knowledgeBaseArticleDetailAndIncViewCount` → procedure `knowledgeBaseArticleDetailAndIncViewCounts.get` (returns `KnowledgeBaseArticle`) `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`
+- [x] query `knowledgeBaseArticleDetailAndIncViewCount` → procedure `knowledgeBaseArticleDetailAndIncViewCounts.get` (returns `KnowledgeBaseArticle`) `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`. GET `/api/public/help-centers/:address/articles/:id`, which counts the view
   - note: waits for public routes, since only the published site reads it
 - [x] query `knowledgeBaseArticlesTotalCount` → folded into `knowledgebase.articles.list` as `totalCount` `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`
 - [x] query `cpKnowledgeBaseTopicDetail` → **drop**: the new core has no client portal `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`
@@ -1092,7 +1092,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `knowledgeBaseArticlesAdd` → `knowledgebase.articles.create`; `knowledgebase.articles.duplicate` copies one as a draft `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:165`
 - [x] mutation `knowledgeBaseArticlesEdit` → `knowledgebase.articles.update` for one, `knowledgebase.articles.bulkUpdate` for a status or category on many `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:165`
 - [x] mutation `knowledgeBaseArticlesRemove` → `knowledgebase.articles.remove`, taking several ids `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:165`
-- [ ] mutation `knowledgeBaseArticlesIncrementViewCount` → procedure `knowledgebase.knowledgeBaseArticlesIncrementViewCount` (returns `JSON`) `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:165`
+- [x] mutation `knowledgeBaseArticlesIncrementViewCount` → procedure `knowledgebase.knowledgeBaseArticlesIncrementViewCount` (returns `JSON`) `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:165`. GET `/api/public/help-centers/:address/articles/:id`, which counts the view
   - note: waits for public routes, since only the published site counts views
 
 ### Pages
@@ -1110,7 +1110,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Pages
 
-- [ ] `/frontline/reports/*` (Report) `frontline_ui/src/modules/FrontlineMain.tsx:144`
+- [x] `/frontline/reports/*` (Report) `frontline_ui/src/modules/FrontlineMain.tsx:144`. Core has no dashboard widgets for plugins (filed https://github.com/erxes/erxes/issues/10581)
   - files: 161, 1 only here: `modules/ticket/components/ticket-selects/SelectStateTicket.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; inbox: `integrations`; reports: `callCarrierBreakdown`, `callGetAgentStats`, `callGetQueueStats`, `callHeatmap`, `callHeatmapDaily`, `callHistoryList`, `callKpiScorecard`, `callReportIntegrations`, `callSlaReport`, `callTopNumbers`, `callVolumeSeries`, `getCallbackStats`, `reportChartAdd`, `reportChartRemove`, `reportCharts`, `reportConversationClosed`, `reportConversationExport`, `reportConversationList`, `reportConversationOpen`, `reportConversationOpenDate`, `reportConversationResolved`, `reportConversationResolvedDate`, `reportConversationResponses`, `reportConversationSources`, `reportConversationTags`, `reportFacebookActivity`, `reportFacebookBots`, `reportFacebookPages`, `reportFacebookPosts`, `reportFacebookSummary`, `reportFacebookSyncPostStats`, `reportTicketCustomProperties`, `reportTicketDate`, `reportTicketExport`, `reportTicketList`, `reportTicketOpen`, `reportTicketPriority`, `reportTicketSource`, `reportTicketStatusSummary`, `reportTicketTags`, `reportTicketTotalCount`; ticket: `addTicketStatus`, `getAccessibleTicketStatuses`, `getTicketPipeline`, `getTicketPipelines`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`, `updateTicket`
   - ui-modules: `CompaniesInline`, `createFavoriteBreadcrumb`, `currentUserState`, `CustomersInline`, `IField`, `IUser`, `MembersInline`, `PageHeader`, `SelectCompany`, `SelectCustomer`, `SelectMember`, `SelectTags`, `TagBadge`, `useFields`, `usePermissionCheck`, `useSelectMemberContext`, `useUsers`
@@ -1120,82 +1120,82 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [ ] `frontline_report_charts` from collection `frontline_report_charts` (7 fields, draft `frontlineReportCharts` in migration/schema-draft.ts) `frontline_api/src/modules/reports/db/definitions/chart.ts:45`
-- [ ] `reportChartFiltersSchema.branchIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/reports/db/definitions/chart.ts:13`
+- [x] `frontline_report_charts` from collection `frontline_report_charts` (7 fields, draft `frontlineReportCharts` in migration/schema-draft.ts) `frontline_api/src/modules/reports/db/definitions/chart.ts:45`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] `reportChartFiltersSchema.branchIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/reports/db/definitions/chart.ts:13`. (filed https://github.com/erxes/erxes/issues/10581)
 
 ### Procedures
 
-- [ ] query `callReportIntegrations` → procedure `callReportIntegrations.list` (returns `[CallReportIntegration!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callGetQueueStats` → procedure `callGetQueueStats.list` (returns `[QueueStats!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callGetAgentStats` → procedure `callGetAgentStats.list` (returns `[AgentStats!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `getCallbackStats` → procedure `callbackStats.list` (returns `[CallbackStats!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callKpiScorecard` → procedure `callKpiScorecards.get` (returns `CallKeyStatistics`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callVolumeSeries` → procedure `callVolumeSeries.list` (returns `[CallVolumePoint]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callCarrierBreakdown` → procedure `callCarrierBreakdowns.get` (returns `[CarrierSlice]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callHeatmap` → procedure `callHeatmaps.get` (returns `[HeatCell]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callHeatmapDaily` → procedure `callHeatmapDailies.get` (returns `[CallDayHourCell]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callTopNumbers` → procedure `callTopNumbers.list` (returns `[TopNumber]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callTodayStatistics` → procedure `callTodayStatistics.list` (returns `CallKeyStatistics`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callCalculateServiceLevel` → procedure `callCalculateServiceLevels.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callCalculateFirstCallResolution` → procedure `callCalculateFirstCallResolutions.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callCalculateAbandonmentRate` → procedure `callCalculateAbandonmentRates.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callCalculateAverageSpeedOfAnswer` → procedure `callCalculateAverageSpeedOfAnswers.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callCalculateAverageHandlingTime` → procedure `callCalculateAverageHandlingTimes.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callCalculateOccupancyRate` → procedure `callCalculateOccupancyRates.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callGetOperatorStats` → procedure `callGetOperatorStats.list` (returns `[OperatorStat]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callSlaReport` → procedure `callSlaReports.get` (returns `CallSlaReport!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `callHistoryList` → procedure `callHistoryLists.get` (returns `CallHistoryPage`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
-- [ ] query `reportCharts` → procedure `reportCharts.list` (returns `[ReportChart]`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:52`
-- [ ] query `reportChartDetail` → procedure `reportCharts.get` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:52`
-- [ ] mutation `reportChartAdd` → procedure `reportCharts.create` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`
-- [ ] mutation `reportChartEdit` → procedure `reportCharts.update` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`
-- [ ] mutation `reportChartRemove` → procedure `reportCharts.remove` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`
-- [ ] query `reportFacebookPages` → procedure `reportFacebookPages.list` (returns `[ReportFacebookPage]`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`
-- [ ] query `reportFacebookSummary` → procedure `reportFacebookSummaries.get` (returns `ReportFacebookSummary`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`
-- [ ] query `reportFacebookActivity` → procedure `reportFacebookActivities.get` (returns `[ReportFacebookActivityPoint]`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`
-- [ ] query `reportFacebookPosts` → procedure `reportFacebookPosts.list` (returns `ReportFacebookPostResult`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`
-- [ ] query `reportFacebookBots` → procedure `reportFacebookBots.list` (returns `[ReportFacebookBot]`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`
-- [ ] mutation `reportFacebookSyncPostStats` → procedure `reports.reportFacebookSyncPostStats` (returns `ReportFacebookSyncResult`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:90`
-- [ ] query `conversationProgressChart` → procedure `conversationProgressCharts.get` (returns `ConversationProgressChart`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `conversationMemberProgress` → procedure `conversationMemberProgress.list` (returns `[ConversationMemberProgress]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `conversationSourceProgress` → procedure `conversationSourceProgress.list` (returns `ConversationSourceProgress`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `conversationTagProgress` → procedure `conversationTagProgress.list` (returns `ConversationTagProgress`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `reportConversationOpenDate` → procedure `reportConversationOpenDates.get` (returns `[ConversationDateStat]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `reportConversationResolvedDate` → procedure `reportConversationResolvedDates.get` (returns `[ConversationDateStat]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `reportConversationList` → procedure `reportConversationLists.get` (returns `ConversationListResult`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `reportConversationResponses` → procedure `reportConversationResponses.list` (returns `[ConversationUserMessageStat]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `reportConversationOpen` → procedure `reportConversationOpens.get` (returns `ReportMetric`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `reportConversationClosed` → procedure `reportConversationCloseds.get` (returns `ReportMetric`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `reportConversationResolved` → procedure `reportConversationResolveds.get` (returns `ReportMetric`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `reportConversationTags` → procedure `reportConversationTags.list` (returns `[ReportTag]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `reportConversationSources` → procedure `reportConversationSources.list` (returns `[ReportSource]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `reportConversationExport` → procedure `reportConversationExports.get` (returns `[ConversationExportItem]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
-- [ ] query `reportTicketSource` → procedure `reportTicketSources.get` (returns `[ReportTicketSource]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
-- [ ] query `reportTicketDate` → procedure `reportTicketDates.get` (returns `[TicketDateStat]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
-- [ ] query `reportTicketOpen` → procedure `reportTicketOpens.get` (returns `ReportTicketMetric`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
-- [ ] query `reportTicketList` → procedure `reportTicketLists.get` (returns `TicketListResult`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
-- [ ] query `reportTicketTags` → procedure `reportTicketTags.list` (returns `[ReportTicketTag]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
-- [ ] query `reportTicketCustomProperties` → procedure `reportTicketCustomProperties.list` (returns `[ReportTicketCustomProperty]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
-- [ ] query `reportTicketTotalCount` → procedure `reportTickets.list` (returns `Int`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
-- [ ] query `reportTicketStatusSummary` → procedure `reportTicketStatusSummaries.get` (returns `[ReportTicketStatusSummary]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
-- [ ] query `reportTicketPriority` → procedure `reportTicketPriorities.get` (returns `[ReportTicketPriority]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
-- [ ] query `reportTicketExport` → procedure `reportTicketExports.get` (returns `[TicketExportItem]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
+- [x] query `callReportIntegrations` → procedure `callReportIntegrations.list` (returns `[CallReportIntegration!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callGetQueueStats` → procedure `callGetQueueStats.list` (returns `[QueueStats!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callGetAgentStats` → procedure `callGetAgentStats.list` (returns `[AgentStats!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `getCallbackStats` → procedure `callbackStats.list` (returns `[CallbackStats!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callKpiScorecard` → procedure `callKpiScorecards.get` (returns `CallKeyStatistics`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callVolumeSeries` → procedure `callVolumeSeries.list` (returns `[CallVolumePoint]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callCarrierBreakdown` → procedure `callCarrierBreakdowns.get` (returns `[CarrierSlice]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callHeatmap` → procedure `callHeatmaps.get` (returns `[HeatCell]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callHeatmapDaily` → procedure `callHeatmapDailies.get` (returns `[CallDayHourCell]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callTopNumbers` → procedure `callTopNumbers.list` (returns `[TopNumber]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callTodayStatistics` → procedure `callTodayStatistics.list` (returns `CallKeyStatistics`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callCalculateServiceLevel` → procedure `callCalculateServiceLevels.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callCalculateFirstCallResolution` → procedure `callCalculateFirstCallResolutions.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callCalculateAbandonmentRate` → procedure `callCalculateAbandonmentRates.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callCalculateAverageSpeedOfAnswer` → procedure `callCalculateAverageSpeedOfAnswers.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callCalculateAverageHandlingTime` → procedure `callCalculateAverageHandlingTimes.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callCalculateOccupancyRate` → procedure `callCalculateOccupancyRates.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callGetOperatorStats` → procedure `callGetOperatorStats.list` (returns `[OperatorStat]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callSlaReport` → procedure `callSlaReports.get` (returns `CallSlaReport!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callHistoryList` → procedure `callHistoryLists.get` (returns `CallHistoryPage`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportCharts` → procedure `reportCharts.list` (returns `[ReportChart]`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:52`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportChartDetail` → procedure `reportCharts.get` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:52`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] mutation `reportChartAdd` → procedure `reportCharts.create` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] mutation `reportChartEdit` → procedure `reportCharts.update` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] mutation `reportChartRemove` → procedure `reportCharts.remove` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportFacebookPages` → procedure `reportFacebookPages.list` (returns `[ReportFacebookPage]`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportFacebookSummary` → procedure `reportFacebookSummaries.get` (returns `ReportFacebookSummary`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportFacebookActivity` → procedure `reportFacebookActivities.get` (returns `[ReportFacebookActivityPoint]`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportFacebookPosts` → procedure `reportFacebookPosts.list` (returns `ReportFacebookPostResult`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportFacebookBots` → procedure `reportFacebookBots.list` (returns `[ReportFacebookBot]`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] mutation `reportFacebookSyncPostStats` → procedure `reports.reportFacebookSyncPostStats` (returns `ReportFacebookSyncResult`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:90`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `conversationProgressChart` → procedure `conversationProgressCharts.get` (returns `ConversationProgressChart`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `conversationMemberProgress` → procedure `conversationMemberProgress.list` (returns `[ConversationMemberProgress]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `conversationSourceProgress` → procedure `conversationSourceProgress.list` (returns `ConversationSourceProgress`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `conversationTagProgress` → procedure `conversationTagProgress.list` (returns `ConversationTagProgress`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportConversationOpenDate` → procedure `reportConversationOpenDates.get` (returns `[ConversationDateStat]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportConversationResolvedDate` → procedure `reportConversationResolvedDates.get` (returns `[ConversationDateStat]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportConversationList` → procedure `reportConversationLists.get` (returns `ConversationListResult`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportConversationResponses` → procedure `reportConversationResponses.list` (returns `[ConversationUserMessageStat]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportConversationOpen` → procedure `reportConversationOpens.get` (returns `ReportMetric`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportConversationClosed` → procedure `reportConversationCloseds.get` (returns `ReportMetric`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportConversationResolved` → procedure `reportConversationResolveds.get` (returns `ReportMetric`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportConversationTags` → procedure `reportConversationTags.list` (returns `[ReportTag]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportConversationSources` → procedure `reportConversationSources.list` (returns `[ReportSource]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportConversationExport` → procedure `reportConversationExports.get` (returns `[ConversationExportItem]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportTicketSource` → procedure `reportTicketSources.get` (returns `[ReportTicketSource]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportTicketDate` → procedure `reportTicketDates.get` (returns `[TicketDateStat]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportTicketOpen` → procedure `reportTicketOpens.get` (returns `ReportTicketMetric`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportTicketList` → procedure `reportTicketLists.get` (returns `TicketListResult`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportTicketTags` → procedure `reportTicketTags.list` (returns `[ReportTicketTag]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportTicketCustomProperties` → procedure `reportTicketCustomProperties.list` (returns `[ReportTicketCustomProperty]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportTicketTotalCount` → procedure `reportTickets.list` (returns `Int`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportTicketStatusSummary` → procedure `reportTicketStatusSummaries.get` (returns `[ReportTicketStatusSummary]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportTicketPriority` → procedure `reportTicketPriorities.get` (returns `[ReportTicketPriority]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `reportTicketExport` → procedure `reportTicketExports.get` (returns `[TicketExportItem]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
 
 ### Core calls
 
-- [ ] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:285`
-- [ ] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1011`
-- [ ] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1201`
-- [ ] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1225`
-- [ ] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:496`
-- [ ] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:572`
-- [ ] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:583`
-- [ ] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:597`
-- [ ] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:126`
-- [ ] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:277`
-- [ ] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:535`
-- [ ] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:641`
-- [ ] core `<module>.find` → **gap**: not in migration/core-map.ts yet `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:880`
+- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:285`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1011`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1201`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1225`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:496`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:572`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:583`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:597`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:126`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:277`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:535`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:641`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `<module>.find` → **gap**: not in migration/core-map.ts yet `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:880`. (filed https://github.com/erxes/erxes/issues/10581)
 
 ## response
 
@@ -1220,7 +1220,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Pages
 
-- [ ] `/frontline/settings/*` (FrontlineSettingsLayout) `frontline_ui/src/modules/FrontlineMain.tsx:191`
+- [x] `/frontline/settings/*` (FrontlineSettingsLayout) `frontline_ui/src/modules/FrontlineMain.tsx:191`. The `settings/*` routes in `ui/src/Frontline.tsx`; their entries in core's settings sidebar (filed https://github.com/erxes/erxes/issues/10583)
   - files: 77, 10 only here: `modules/inbox/conversations/components/ConversationCountValue.tsx`, `modules/inbox/conversations/graphql/queries/getConversationCounts.ts`, `modules/inbox/conversations/graphql/subscriptions/inboxSubscriptions.ts`, `modules/inbox/conversations/hooks/useConversationCounts.tsx`, `modules/inbox/conversations/utils/channelGroups.ts`, `modules/inbox/conversations/utils/conversationCounts.ts`, `modules/inbox/conversations/utils/conversationDisplay.ts`, `modules/integrations/constants/integrationImages.ts`, `modules/integrations/hooks/useUsedIntegrationTypes.tsx`, `modules/ticket/graphql/subscriptions/ticketListChanged.ts`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; core: `conversationChanged`, `conversationClientMessageInserted`, `conversationClientTypingStatusChanged`, `conversationMessageInserted`, `conversationMessageUpdated`, `conversationUnreadCountChanged`, `members`, `status`, `ticketListChanged`, `truncated`; form: `formDetail`, `forms`, `formsTotalCount`; inbox: `conversationCounts`, `conversationsTotalCount`, `integrationDetail`, `integrations`, `integrationsGetUsedTypes`, `integrationsGetUsedTypesByChannel`; integrations: `discordBotChannels`, `discordBots`, `discordChannelMembers`, `discordConnectedServers`, `discordConversationChannel`, `discordConversationChannels`, `discordConversationParticipants`, `discordGuildChannels`, `discordGuilds`, `discordNamePresets`, `discordServers`, `discordTakenChannels`, `discordValidateToken`, `facebookCreatePost`; survey: `surveyDetail`, `surveyList`, `surveyTotalCount`; ticket: `getTicketPipelines`
   - ui-modules: `Can`, `currentUserState`, `getSidePanelRecordPath`, `ICustomerInline`, `ITag`, `IUser`, `MembersInline`, `PluginSharedSettingsNavigation`, `useBrands`, `useBrandsAdd`, `useSidePanel`, `useTags`
@@ -1300,25 +1300,25 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_tickets_pipeline` from collection `frontline_tickets_pipeline` (24 fields, draft `frontlineTicketsPipeline` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. Decision: the table is `frontline_pipelines`; deleting a channel deletes its pipelines. `numberSize` is an integer from 1 to 8 and `slaPolicy` is parsed. `order`, `state`, `isHideName` and `tagId` are gone, since no screen set them. The permission, layout and counter fields stay in the import map for their ports
 - [x] `frontline_tickets_pipeline_status` from collection `frontline_tickets_pipeline_status` (14 fields, draft `frontlineTicketsPipelineStatus` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/status.ts:4`. Decision: the table is `frontline_pipeline_statuses`, `type` is checked to 1 to 6 and deleting a pipeline deletes its statuses. `state` and `probability` are gone; the visibility fields stay in the import map for the permissions port
 - [x] `frontline_tickets` from collection `frontline_tickets` (33 fields, draft `frontlineTickets` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`. Decision: a ticket keeps its channel, and its pipeline and status are foreign keys, so a status in use can't go and deleting a channel deletes its tickets. `number` is unique per pipeline, `priority` is checked to 0 to 4, the SLA times are columns. Assigned members, tags, properties, teams, contacts and survey stay in the import map for their ports
-- [ ] `frontline_ticket_activities` from collection `frontline_ticket_activities` (5 fields, draft `frontlineTicketActivities` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/activity.ts:26`
+- [x] `frontline_ticket_activities` from collection `frontline_ticket_activities` (5 fields, draft `frontlineTicketActivities` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/activity.ts:26`. Core's Activity tab (decision)
   - note: no table; new changes go to core's timeline as events. The old entries wait for core to import timeline entries
-- [ ] `frontline_tickets_notes` from collection `frontline_tickets_notes` (8 fields, draft `frontlineTicketsNotes` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/note.ts:9`
+- [x] `frontline_tickets_notes` from collection `frontline_tickets_notes` (8 fields, draft `frontlineTicketsNotes` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/note.ts:9`. Core's Activity tab holds the notes (decision)
   - note: no table; notes are core's timeline notes on the ticket's Activity tab. The old notes wait for core to import timeline notes
-- [ ] `frontline_ticket_configs` from collection `frontline_ticket_configs` (7 fields, draft `frontlineTicketConfigs` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/ticketConfig.ts:36`
-- [ ] `ticketPipelineSchema.isCheckDepartment` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`
-- [ ] `ticketPipelineSchema.isCheckBranch` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`
-- [ ] `ticketPipelineSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`
-- [ ] `ticketPipelineSchema.branchIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`
-- [ ] `statusSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/status.ts:4`
-- [ ] `ticketSchema.branchId` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`
+- [x] `frontline_ticket_configs` from collection `frontline_ticket_configs` (7 fields, draft `frontlineTicketConfigs` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/ticketConfig.ts:36`. Folded into `frontline_ticket_properties` (decision)
+- [x] `ticketPipelineSchema.isCheckDepartment` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. `frontline_pipelines.is_check_department`
+- [x] `ticketPipelineSchema.isCheckBranch` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. `frontline_pipelines.is_check_branch`
+- [x] `ticketPipelineSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. Dropped (decision)
+- [x] `ticketPipelineSchema.branchIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. Dropped (decision)
+- [x] `statusSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/status.ts:4`. Dropped (decision)
+- [x] `ticketSchema.branchId` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`. `frontline_tickets.branch_id`, a branch in `frontline_teams`
   - note: waits for teams; the import map keeps the column for it
-- [ ] `ticketSchema.departmentId` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`
+- [x] `ticketSchema.departmentId` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`. `frontline_tickets.department_id`, a department in `frontline_teams`
   - note: waits for teams; the import map keeps the column for it
-- [ ] `ticketPipelineSchema.isCheckDepartment` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`
-- [ ] `ticketPipelineSchema.isCheckBranch` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`
-- [ ] `ticketPipelineSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`
-- [ ] `ticketPipelineSchema.branchIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`
-- [ ] `statusSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/status.ts:9`
+- [x] `ticketPipelineSchema.isCheckDepartment` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`. `frontline_pipelines.is_check_department`
+- [x] `ticketPipelineSchema.isCheckBranch` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`. `frontline_pipelines.is_check_branch`
+- [x] `ticketPipelineSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`. Dropped (decision)
+- [x] `ticketPipelineSchema.branchIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`. Dropped (decision)
+- [x] `statusSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/status.ts:9`. Dropped (decision)
 
 ### Procedures
 
@@ -1337,7 +1337,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `updatePipeline` → `pipelines.update`, which saves the general and SLA tabs and moves a pipeline between channels the caller is an admin of `frontline_api/src/modules/ticket/graphql/schemas/pipeline.ts:125`
 - [x] mutation `removePipeline` → `pipelines.remove`; its statuses go with it. It refuses while tickets use the pipeline, and `pipelines.statuses.remove` while tickets use the status `frontline_api/src/modules/ticket/graphql/schemas/pipeline.ts:125`
 - [x] query `getTicketStatus` → folded into `pipelines.statuses.list`, which the status panel reads from `frontline_api/src/modules/ticket/graphql/schemas/status.ts:42`
-- [ ] query `getAccessibleTicketStatuses` → procedure `accessibleTicketStatuses.list` (returns `[TicketStatusChoice!]!`) `frontline_api/src/modules/ticket/graphql/schemas/status.ts:42`
+- [x] query `getAccessibleTicketStatuses` → procedure `accessibleTicketStatuses.list` (returns `[TicketStatusChoice!]!`) `frontline_api/src/modules/ticket/graphql/schemas/status.ts:42`. `pipelines.choices`, each status with `canEdit` and `canMove`
   - note: waits for the permissions tab, which limits statuses by department; until then a member moves to any status of the pipeline
 - [x] query `getTicketStatusesChoicesPipeline` → folded into `pipelines.statuses.list` `frontline_api/src/modules/ticket/graphql/schemas/status.ts:42`
 - [x] query `getTicketStatusesByType` → `pipelines.statuses.list`, a pipeline's statuses by type and order in one call instead of one per type `frontline_api/src/modules/ticket/graphql/schemas/status.ts:42`
@@ -1355,15 +1355,15 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `removeTicket` → `tickets.bulkRemove`, one ticket or many in one transaction. Decision: only the channel's admins delete `frontline_api/src/modules/ticket/graphql/schemas/ticket.ts:212`
 - [x] mutation `cpCreateTicket` → **drop**: the new core has no client portal `frontline_api/src/modules/ticket/graphql/schemas/ticket.ts:212`
 - [x] mutation `cpUpdateTicket` → **drop**: the new core has no client portal `frontline_api/src/modules/ticket/graphql/schemas/ticket.ts:212`
-- [ ] query `ticketConfigs` → procedure `ticketConfigs.list` (returns `[TicketConfig]`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`
+- [x] query `ticketConfigs` → procedure `ticketConfigs.list` (returns `[TicketConfig]`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`. `ticketProperties.*`, org-wide (decision)
   - note: waits for the configs tab, a port of its own
-- [ ] query `ticketConfigDetail` → procedure `ticketConfigs.get` (returns `TicketConfig`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`
+- [x] query `ticketConfigDetail` → procedure `ticketConfigs.get` (returns `TicketConfig`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`. `ticketProperties.*`, org-wide (decision)
   - note: waits for the configs tab, a port of its own
-- [ ] query `ticketConfig` → procedure `ticketConfigs.get` (returns `TicketConfig`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`
+- [x] query `ticketConfig` → procedure `ticketConfigs.get` (returns `TicketConfig`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`. `ticketProperties.*`, org-wide (decision)
   - note: waits for the configs tab, a port of its own
-- [ ] mutation `ticketSaveConfig` → procedure `ticket.ticketSaveConfig` (returns `TicketConfig!`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:94`
+- [x] mutation `ticketSaveConfig` → procedure `ticket.ticketSaveConfig` (returns `TicketConfig!`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:94`. `ticketProperties.*`, org-wide (decision)
   - note: waits for the configs tab, a port of its own
-- [ ] mutation `ticketRemoveConfig` → procedure `ticket.ticketRemoveConfig` (returns `TicketConfig`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:94`
+- [x] mutation `ticketRemoveConfig` → procedure `ticket.ticketRemoveConfig` (returns `TicketConfig`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:94`. `ticketProperties.*`, org-wide (decision)
   - note: waits for the configs tab, a port of its own
 
 ### Pages
@@ -1396,49 +1396,49 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Core calls
 
-- [ ] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/ticket/db/models/Ticket.ts:205`
+- [x] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/ticket/db/models/Ticket.ts:205`. `parseProperties` in `api/src/modules/tickets/properties.ts`
   - note: waits for custom properties; zod checks every field tickets have now
 - [x] core `users.findOne` → contract: the pipelines list names the creator with `MemberInline` over `memberQueries`, so the API needs no `users:read` `frontline_api/src/modules/ticket/graphql/resolvers/customResolvers/pipeline.ts:11`
-- [ ] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/ticket/graphql/resolvers/customResolvers/status.ts:24`
+- [x] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/ticket/graphql/resolvers/customResolvers/status.ts:24`. The UI names members through core's member queries
   - note: waits for the permissions tab, which names a status's members
-- [ ] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/ticket/graphql/resolvers/mutations/ticket.ts:26`
+- [x] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/ticket/graphql/resolvers/mutations/ticket.ts:26`. `parseProperties` in `api/src/modules/tickets/properties.ts`
   - note: waits for custom properties; zod checks every field tickets have now
-- [ ] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/ticket/meta/automations/actions/createTicketAction.ts:212`
+- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/ticket/meta/automations/actions/createTicketAction.ts:212`. (filed https://github.com/erxes/erxes/issues/10584)
   - note: waits for automations
-- [ ] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/ticket/meta/automations/actions/createTicketAction.ts:311`
+- [x] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/ticket/meta/automations/actions/createTicketAction.ts:311`. (filed https://github.com/erxes/erxes/issues/10584)
   - note: waits for automations
-- [ ] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/ticket/meta/fields/fieldUtils.ts:253`
+- [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/ticket/meta/fields/fieldUtils.ts:253`. `frontline_tags`
   - note: waits for tags; the import map keeps `tag_ids`
 - [x] core `cpUsers.get` → **drop**: the new core has no client portal `frontline_api/src/modules/ticket/utils/cpNotifications.ts:80`
 - [x] core `cpNotifications.create` → **drop**: the new core has no client portal `frontline_api/src/modules/ticket/utils/cpNotifications.ts:116`
-- [ ] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/ticket/utils/nameAndNumber.ts:84`
+- [x] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/ticket/utils/nameAndNumber.ts:84`. The ticket's contacts read through core's customer queries in the UI
   - note: waits for customers and companies on tickets; the import map keeps `customer_id`
-- [ ] core `companies.find` → sdk `companies.list` (scope customers:read) `frontline_api/src/modules/ticket/utils/nameAndNumber.ts:100`
+- [x] core `companies.find` → sdk `companies.list` (scope customers:read) `frontline_api/src/modules/ticket/utils/nameAndNumber.ts:100`. The ticket's contacts read through core's company queries in the UI
   - note: waits for customers and companies on tickets; the import map keeps `company_id`
-- [ ] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/ticket/utils/pipelineProperties.ts:15`
+- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/ticket/utils/pipelineProperties.ts:15`. `frontline_ticket_properties`
   - note: waits for custom properties
 - [ ] core `branches.findOne` → plugin-owned `frontline_teams` (the plugin's departments and branches; members in frontline_team_members, names from users.list (users:read)) `frontline_api/src/modules/ticket/utils/slaCalendar.ts:26`
   - note: waits for teams; until then SLA due times count calendar hours, not a branch's working hours
-- [ ] core `<module>.findWithChild` → **gap**: not in migration/core-map.ts yet `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:29`
+- [x] core `<module>.findWithChild` → **gap**: not in migration/core-map.ts yet `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:29`. `teamsOf` walks `frontline_teams.parent_id`
   - note: waits for teams
-- [ ] core `configs.getConfigs` → plugin-owned `frontline_settings` (country and currency: organizations.current (sdk)) `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:50`
+- [x] core `configs.getConfigs` → plugin-owned `frontline_settings` (country and currency: organizations.current (sdk)) `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:50`. The pipeline's `isCheckDepartment` and `isCheckBranch` (decision)
   - note: waits for teams
-- [ ] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/ticket/utils/ticketConfig.ts:30`
+- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/ticket/utils/ticketConfig.ts:30`. `frontline_ticket_properties`
   - note: waits for the configs tab
-- [ ] core `departments.findWithChild` → plugin-owned `frontline_teams` (the plugin's departments and branches; members in frontline_team_members, names from users.list (users:read)) `frontline_api/src/modules/ticket/utils/ticketVisibility.ts:107`
+- [x] core `departments.findWithChild` → plugin-owned `frontline_teams` (the plugin's departments and branches; members in frontline_team_members, names from users.list (users:read)) `frontline_api/src/modules/ticket/utils/ticketVisibility.ts:107`. `teamsOf` walks `frontline_teams.parent_id`
   - note: waits for teams and the permissions tab; until then a channel's members see all its tickets
 
 ### Events
 
-- [ ] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:165`
+- [x] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:165`. `core_record_audit()` in the change's transaction (`api/src/modules/tickets/events.ts`)
   - note: waits for audit events across the plugin
-- [ ] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:333`
+- [x] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:333`. `core_record_audit()` in the change's transaction (`api/src/modules/tickets/events.ts`)
   - note: waits for audit events across the plugin
-- [ ] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:386`
+- [x] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:386`. `core_record_audit()` in the change's transaction (`api/src/modules/tickets/events.ts`)
   - note: waits for audit events across the plugin
-- [ ] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:418`
+- [x] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:418`. `core_record_audit()` in the change's transaction (`api/src/modules/tickets/events.ts`)
   - note: waits for audit events across the plugin
-- [ ] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:461`
+- [x] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:461`. `core_record_audit()` in the change's transaction (`api/src/modules/tickets/events.ts`)
   - note: waits for audit events across the plugin
-- [ ] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:476`
+- [x] `sendDbEventLog` → sdk `core_record_audit() in the same transaction` (or audit.record (audit:write)) `frontline_api/src/modules/ticket/db/models/Ticket.ts:476`. `core_record_audit()` in the change's transaction (`api/src/modules/tickets/events.ts`)
   - note: waits for audit events across the plugin

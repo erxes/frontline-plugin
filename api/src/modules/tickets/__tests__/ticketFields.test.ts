@@ -283,6 +283,18 @@ describe('status rights', () => {
     expect(await seen()).toEqual(new Set([followed.id, unheld.id, careTicket.id]));
     expect(ids((await ann.tickets.list({})).tickets)).toContain(mine.id);
 
+    // A team under Care is Care's too.
+    const vip = await owner.teams.create({ kind: 'department', name: 'VIP', parentId: care.id });
+
+    const vipTicket = await owner.tickets.create({
+      pipelineId: pipeline.id,
+      name: 'VIP',
+      assigneeId: 'ann',
+      departmentId: vip.id,
+    });
+
+    expect(await seen()).toContain(vipTicket.id);
+
     await owner.pipelines.update({ id: pipeline.id, excludeCheckUserIds: ['bob'] });
 
     expect(await seen()).toContain(anns.id);
