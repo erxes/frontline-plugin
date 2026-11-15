@@ -74,7 +74,7 @@ const PropertyInput = ({
         <TextField
           scope={`${scope}.${property.id}`}
           value={textOf(value)}
-          placeholder={empty}
+          placeholder={property.label}
           onSave={(next) => onChange(next.trim() || null)}
         />
       );
@@ -83,7 +83,7 @@ const PropertyInput = ({
         <NumberField
           scope={`${scope}.${property.id}`}
           value={typeof value === 'number' ? value : 0}
-          placeholder={empty}
+          placeholder={property.label}
           onSave={onChange}
         />
       );
