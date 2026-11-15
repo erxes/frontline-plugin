@@ -1,28 +1,47 @@
 import { memberQueries } from '@erxes/core-contract/client';
-import { IconTrash, IconUser, IconUserShield } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
 import {
+  IconCalendarPlus,
+  IconPlus,
+  IconTrash,
+  IconUser,
+  IconUserShield,
+} from '@tabler/icons-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+  Button,
+  ListFilter,
   MemberInline,
+  memberName,
+  PageContainer,
+  Popover,
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
   Select,
-  Skeleton,
+  type TListFilterField,
   useConfirm,
+  useListFilterParams,
+  useMembersById,
+  ViewBar,
 } from 'erxes-ui';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
-import { CreateButton } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar } from '~/shared/Records.tsx';
+import { DateCell, Rows } from '~/shared/Table.tsx';
+import { MemberPicker } from './ChannelNew.tsx';
+import { ChannelsHeader } from './ChannelsHeader.tsx';
 import {
   type Channel,
   type ChannelMember,
   useChannel,
   useChannelChange,
-  usePanel,
   useRoleNames,
 } from './useChannels.ts';
+
+/** A member as a table row, keyed by their user id. */
+type MemberRow = ChannelMember & { id: string };
 
 /** Asks, then removes members; the API refuses to leave the channel without an admin. */
 const useRemoveMembers = (channelId: string) => {
@@ -45,7 +64,28 @@ const useRemoveMembers = (channelId: string) => {
   return { removeMembers, isPending: remove.isPending };
 };
 
-const MoreCell = ({ channel, member }: { channel: Channel; member: ChannelMember }) => {
+/**
+ * The channel's members, narrowed by the filter bar. The API applies its rules; names live in
+ * core, so the search matches the names this page shows.
+ */
+const useMemberRows = (channelId: string) => {
+  const { filter, search } = useListFilterParams();
+  const query = useQuery(orpc.channels.members.queryOptions({ input: { id: channelId, filter } }));
+  const members = useMembersById(query.data?.map((row) => row.userId) ?? [], memberQueries);
+  const needle = search?.toLowerCase();
+
+  const rows: MemberRow[] = (query.data ?? [])
+    .filter((row) => {
+      const member = members.get(row.userId);
+
+      return !needle || (member ? memberName(member).toLowerCase().includes(needle) : false);
+    })
+    .map((row) => ({ ...row, id: row.userId }));
+
+  return { ...query, rows };
+};
+
+const MoreCell = ({ channel, member }: { channel: Channel; member: MemberRow }) => {
   const { t } = useTranslation('frontline');
   const { removeMembers } = useRemoveMembers(channel.id);
 
@@ -64,7 +104,7 @@ const MoreCell = ({ channel, member }: { channel: Channel; member: ChannelMember
   );
 };
 
-const RoleCell = ({ channel, member }: { channel: Channel; member: ChannelMember }) => {
+const RoleCell = ({ channel, member }: { channel: Channel; member: MemberRow }) => {
   const { t } = useTranslation('frontline');
   const roles = useRoleNames();
   const setRole = useMutation(orpc.channels.setRole.mutationOptions(useChannelChange()));
@@ -92,9 +132,6 @@ const RoleCell = ({ channel, member }: { channel: Channel; member: ChannelMember
     </RecordTableInlineCell>
   );
 };
-
-/** A member as a table row, keyed by their user id. */
-type MemberRow = ChannelMember & { id: string };
 
 /** Members who can't manage the channel get no row actions or selection. */
 const useColumns = (channel: Channel): RecordTableColumnDef<MemberRow>[] => {
@@ -127,6 +164,14 @@ const useColumns = (channel: Channel): RecordTableColumnDef<MemberRow>[] => {
       cell: ({ row }) => <RoleCell channel={channel} member={row.original} />,
       size: 160,
     },
+    {
+      id: 'createdAt',
+      header: () => (
+        <RecordTable.InlineHead label={t('added-at', 'Added')} icon={IconCalendarPlus} />
+      ),
+      cell: ({ row }) => <DateCell date={row.original.createdAt} />,
+      size: 130,
+    },
   ];
 };
 
@@ -148,49 +193,111 @@ const MembersCommandBar = ({ channel }: { channel: Channel }) => {
   );
 };
 
-const MembersTable = ({ channel }: { channel: Channel & { members: ChannelMember[] } }) => {
+/** The header's action: pick teammates who aren't in the channel yet, then add them. */
+const AddMembers = ({ channel }: { channel: Channel }) => {
   const { t } = useTranslation('frontline');
-  const { addMembers } = usePanel();
-  const columns = useColumns(channel);
+  const change = useChannelChange();
+  const [open, setOpen] = useState(false);
+  const [userIds, setUserIds] = useState<string[]>([]);
+
+  const add = useMutation(
+    orpc.channels.addMembers.mutationOptions({
+      ...change,
+      onSuccess: async () => {
+        await change.onSuccess();
+        setUserIds([]);
+        setOpen(false);
+      },
+    }),
+  );
+
+  if (!channel.canManage) return null;
 
   return (
-    <div className="h-full overflow-auto px-8">
-      <div className="flex justify-between py-6">
-        <h1 className="text-xl font-semibold">{t('members', 'Members')}</h1>
-        <CreateButton
-          allowed={channel.canManage}
-          label={t('add-members', 'Add members')}
-          onClick={() => addMembers(channel.id)}
+    <Popover open={open} onOpenChange={setOpen}>
+      <Popover.Trigger render={<Button />}>
+        <IconPlus />
+        {t('add-members', 'Add members')}
+      </Popover.Trigger>
+      <Popover.Content align="end" className="w-80">
+        <div className="flex flex-col gap-2 p-2">
+          <MemberPicker value={userIds} onValueChange={setUserIds} exclude={channel.memberIds} />
+          <Button
+            className="self-end"
+            disabled={userIds.length === 0 || add.isPending}
+            onClick={() => add.mutate({ id: channel.id, userIds })}
+          >
+            {t('add-members', 'Add members')}
+          </Button>
+        </div>
+      </Popover.Content>
+    </Popover>
+  );
+};
+
+const MembersTable = ({ channel }: { channel: Channel }) => {
+  const { t } = useTranslation('frontline');
+  const { rows, isPending, error } = useMemberRows(channel.id);
+  const columns = useColumns(channel);
+
+  const fields: TListFilterField[] = [
+    { path: 'subject.userId', label: t('member', 'Member'), type: 'member', icon: IconUser },
+    {
+      path: 'subject.role',
+      label: t('role', 'Role'),
+      type: 'select',
+      icon: IconUserShield,
+      options: Object.entries(useRoleNames()).map(([value, label]) => ({ value, label })),
+    },
+    {
+      path: 'subject.createdAt',
+      label: t('added-at', 'Added'),
+      type: 'date',
+      icon: IconCalendarPlus,
+    },
+  ];
+
+  return (
+    <>
+      <ViewBar allLabel={t('all-members', 'All members')}>
+        <ListFilter
+          id="frontline-channel-members"
+          fields={fields}
+          members={memberQueries}
+          totalCount={isPending ? undefined : rows.length}
         />
-      </div>
-      <RecordTable.Provider
-        tableId="frontline_channel_members"
-        columns={columns}
-        data={channel.members.map((member) => ({ ...member, id: member.userId }))}
-        stickyColumns={['more', 'checkbox', 'member']}
-      >
-        <RecordTable.Scroll>
-          <RecordTable>
-            <RecordTable.Header />
-            <RecordTable.Body>
-              <RecordTable.RowList />
-            </RecordTable.Body>
-          </RecordTable>
-        </RecordTable.Scroll>
-        <MembersCommandBar channel={channel} />
-      </RecordTable.Provider>
-    </div>
+      </ViewBar>
+      {error ? (
+        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+      ) : (
+        <RecordTable.Provider
+          tableId="frontline_channel_members"
+          columns={columns}
+          data={rows}
+          stickyColumns={['more', 'checkbox', 'member']}
+          className="m-3"
+        >
+          <Rows isPending={isPending} skeletons={6} />
+          <MembersCommandBar channel={channel} />
+        </RecordTable.Provider>
+      )}
+    </>
   );
 };
 
 /** A channel's members: add several, change roles, remove one or many. */
 export const ChannelMembersPage = () => {
+  const { t } = useTranslation('frontline');
   const { id = '' } = useParams();
-  const { data, isPending, error } = useChannel(id);
+  const { data, error } = useChannel(id);
 
-  if (isPending) return <Skeleton className="m-8 h-40" />;
-
-  if (error) return <p className="m-8 text-sm text-destructive-text">{error.message}</p>;
-
-  return <MembersTable channel={data} />;
+  return (
+    <PageContainer>
+      <ChannelsHeader channelId={id} label={t('members', 'Members')}>
+        {data && <AddMembers channel={data} />}
+      </ChannelsHeader>
+      {error && <p className="m-3 text-sm text-destructive-text">{error.message}</p>}
+      {data && <MembersTable channel={data} />}
+    </PageContainer>
+  );
 };

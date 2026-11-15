@@ -1,15 +1,25 @@
-import { addPluginStyles, Skeleton } from 'erxes-ui';
+import { addPluginStyles, RecordPage, Skeleton } from 'erxes-ui';
 import { lazy, Suspense } from 'react';
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom';
 import { ChannelMembersPage } from '@/channels/ChannelMembersPage.tsx';
-import { ChannelPage } from '@/channels/ChannelPage.tsx';
-import { ChannelsLayout } from '@/channels/ChannelsLayout.tsx';
 import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
 import { CHANNELS_PATH } from '@/channels/useChannels.ts';
-import { PLUGIN } from '~/orpc.ts';
+import { CHANNEL_TYPE, PLUGIN } from '~/plugin.ts';
 import css from './styles.css?inline';
 
 addPluginStyles(PLUGIN, css);
+
+/** A record on its own page, where its panel's expand button leads: core draws it full size. */
+const RecordRoute = ({ contentType }: { contentType: string }) => (
+  <RecordPage contentType={contentType} contentId={useParams().id ?? ''} />
+);
+
+/** The lazy pages under it, with a placeholder while one loads. */
+const Lazy = () => (
+  <Suspense fallback={<Skeleton className="m-3 h-40" />}>
+    <Outlet />
+  </Suspense>
+);
 
 // A module's screens load on first visit, so what web loads on every page stays small.
 const ResponseTemplatesPage = lazy(async () => ({
@@ -55,14 +65,16 @@ const ResponseTemplateRedirect = () => {
 export const Frontline = () => (
   <Routes>
     <Route index element={<Navigate to="settings/channels" replace />} />
-    <Route path="settings/channels" element={<ChannelsLayout />}>
+    <Route path="settings/channels">
       <Route index element={<ChannelsPage />} />
-      <Route path=":id" element={<ChannelPage />} />
+      <Route path=":id" element={<RecordRoute contentType={CHANNEL_TYPE} />} />
       <Route path=":id/members" element={<ChannelMembersPage />} />
-      <Route path=":id/response" element={<ResponseTemplatesPage />} />
-      <Route path=":id/response/:responseId" element={<ResponseTemplateRedirect />} />
-      <Route path=":id/pipelines" element={<PipelinesPage />} />
-      <Route path=":id/pipelines/:pipelineId/*" element={<PipelineLayout />} />
+      <Route element={<Lazy />}>
+        <Route path=":id/response" element={<ResponseTemplatesPage />} />
+        <Route path=":id/response/:responseId" element={<ResponseTemplateRedirect />} />
+        <Route path=":id/pipelines" element={<PipelinesPage />} />
+        <Route path=":id/pipelines/:pipelineId/*" element={<PipelineLayout />} />
+      </Route>
     </Route>
     <Route
       path="knowledgebase"

@@ -14,7 +14,7 @@ import { Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet } from 'react-router-dom';
 import { z } from 'zod';
-import { PLUGIN } from '~/orpc.ts';
+import { PLUGIN } from '~/plugin.ts';
 import { CreateButton } from '~/shared/List.tsx';
 import { ArticlePanel } from './ArticlePanel.tsx';
 import { CategoryPanel } from './CategoryPanel.tsx';

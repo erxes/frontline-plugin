@@ -1,6 +1,17 @@
-// Table parts only lazy pages use. Records.tsx holds the ones channels need,
-// which load with the page module on every page, so these stay out of it.
 import { RecordTable, RecordTableInlineCell, RelativeDateDisplay } from 'erxes-ui';
+
+/** A table's rows, all at once: skeletons while loading. */
+export const Rows = ({ isPending, skeletons = 10 }: { isPending: boolean; skeletons?: number }) => (
+  <RecordTable.Scroll>
+    <RecordTable>
+      <RecordTable.Header />
+      <RecordTable.Body>
+        {isPending && <RecordTable.RowSkeleton rows={skeletons} />}
+        <RecordTable.RowList />
+      </RecordTable.Body>
+    </RecordTable>
+  </RecordTable.Scroll>
+);
 
 /** A table's rows a page at a time: skeletons while loading, the next page fetched on scroll. */
 export const PagedRows = ({

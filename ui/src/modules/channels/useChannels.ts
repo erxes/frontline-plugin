@@ -1,28 +1,24 @@
 import type { InferClientOutputs } from '@orpc/client';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
+import { useListFilterParams } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { useChange, useParamPanel, useSearch } from '~/shared/hooks.ts';
+import { useChange } from '~/shared/hooks.ts';
+import { useConfirmDelete } from '~/shared/Records.tsx';
 
 type Outputs = InferClientOutputs<Client>['channels'];
 
 export type Channel = Outputs['create'];
 
-export type ChannelMember = Outputs['get']['members'][number];
+export type ChannelMember = Outputs['members'][number];
 
 /** Where the channel pages live, as the old plugin had them. */
 export const CHANNELS_PATH = '/frontline/settings/channels';
 
-/** The channels the member sees, by name, narrowed by the list's search filter. */
-export const useChannels = () => {
-  const search = useSearch();
-
-  return {
-    search,
-    ...useQuery(orpc.channels.list.queryOptions({ input: { name: search || undefined } })),
-  };
-};
+/** The channels the member sees, by name, narrowed by the filter bar. */
+export const useChannels = () =>
+  useQuery(orpc.channels.list.queryOptions({ input: useListFilterParams() }));
 
 /** The channel with its members. */
 export const useChannel = (id: string) =>
@@ -38,20 +34,22 @@ export const useRoleNames = () => {
   return { admin: t('role-admin', 'Admin'), member: t('role-member', 'Member') };
 };
 
-/**
- * The side panels: `?channel=new` creates a channel, `?channel=<id>` edits one,
- * `?channel-members=<id>` adds members to one.
- */
-export const usePanel = () => {
-  const channel = useParamPanel('channel');
-  const members = useParamPanel('channel-members');
+/** Asks for "delete" to be typed, then deletes the channels: all of them, or none when the API refuses one. */
+export const useDeleteChannels = () => {
+  const { t } = useTranslation('frontline');
+  const confirm = useConfirmDelete();
+  const remove = useMutation(orpc.channels.remove.mutationOptions(useChannelChange()));
 
-  return {
-    channelId: channel.value,
-    membersOf: members.value,
-    openChannel: channel.open,
-    addMembers: members.open,
-    closeChannel: channel.close,
-    closeMembers: members.close,
+  const deleteChannels = async (ids: string[], done?: () => void) => {
+    await confirm(
+      t('delete-channels-confirm', {
+        defaultValue_one: 'Delete this channel?',
+        defaultValue_other: 'Delete {{count}} channels?',
+        count: ids.length,
+      }),
+    );
+    remove.mutate({ ids }, { onSuccess: done });
   };
+
+  return { deleteChannels, isPending: remove.isPending };
 };

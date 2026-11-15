@@ -5,7 +5,7 @@ import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { KB_ARTICLE_STATUSES, kbArticles, kbCategories } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { likeText } from '../channels/access.ts';
+import { likeText } from '../filter.ts';
 import { subtreeIds } from './categories.ts';
 import { Blank, Stamps, Title } from '../fields.ts';
 import { after, newestFirst, PageInput, pageOf } from '../paging.ts';

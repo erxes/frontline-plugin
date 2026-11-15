@@ -7,13 +7,14 @@ import {
   Filter,
   Kbd,
   PageSubHeader,
+  useListFilterParams,
   useScopedHotkeys,
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SEARCH_KEY, useSearch } from './hooks.ts';
+import { SEARCH_KEY } from './hooks.ts';
 
-/** What an empty list says: "No results" while searching, otherwise `title` and how to start. */
+/** What an empty list says: "No results" while filtered, otherwise `title` and how to start. */
 export const ListEmpty = ({
   icon,
   title,
@@ -26,7 +27,8 @@ export const ListEmpty = ({
   action?: ReactNode;
 }) => {
   const { t } = useTranslation('frontline');
-  const search = useSearch();
+  const { filter, search: text } = useListFilterParams();
+  const search = Boolean(filter ?? text);
 
   return (
     <Empty variant="outline" className="m-3">

@@ -5,7 +5,8 @@ import { addPluginStyles, toast } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { CHANNELS_PATH, useChannel } from '@/channels/useChannels.ts';
-import { orpc, PLUGIN } from '~/orpc.ts';
+import { orpc } from '~/orpc.ts';
+import { PLUGIN } from '~/plugin.ts';
 import { useChange, useParamPanel } from '~/shared/hooks.ts';
 import css from './styles.css?inline';
 

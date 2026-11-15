@@ -6,7 +6,8 @@ import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { responseTemplates } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { channelFor, likeText } from '../channels/access.ts';
+import { channelFor } from '../channels/access.ts';
+import { likeText } from '../filter.ts';
 import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
 
 const { orgId, ...templateColumns } = getTableColumns(responseTemplates);

@@ -1,17 +1,9 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, eq, getTableColumns } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { type CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
-
-const { orgId, ...columns } = getTableColumns(channels);
-
-/** What a procedure returns: the row without `org_id`, which the caller already knows. */
-export const channelColumns = columns;
-
-/** A LIKE pattern for rows containing `text`, where `%` and `_` match themselves. */
-export const likeText = (text: string) => `%${text.replaceAll(/[\\%_]/g, '\\$&')}%`;
 
 /** Whether `member` sees every channel, not only the ones they belong to. */
 export const managesAll = (member: PluginMember) => member.can(PERMISSIONS.channelManage);
@@ -28,7 +20,7 @@ export const channelFor = async (
   { change }: { change: boolean },
 ) => {
   const [row] = await tx
-    .select({ channel: channelColumns, role: channelMembers.role })
+    .select({ role: channelMembers.role })
     .from(channels)
     .leftJoin(
       channelMembers,

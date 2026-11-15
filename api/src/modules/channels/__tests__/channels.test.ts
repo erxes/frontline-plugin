@@ -48,12 +48,37 @@ describe('channels', () => {
     await owner.channels.create({ name: 'Support_VIP' });
     await owner.channels.create({ name: 'Sales' });
 
-    const names = async (name: string) =>
-      (await owner.channels.list({ name })).channels.map((channel) => channel.name);
+    const names = async (search: string) =>
+      (await owner.channels.list({ search })).channels.map((channel) => channel.name);
 
     await expect(names('SUPPORT')).resolves.toEqual(['Customer support', 'Support_VIP']);
     await expect(names('t_v')).resolves.toEqual(['Support_VIP']);
     await expect(names('%')).resolves.toEqual([]);
+  });
+
+  it("narrows channels by the filter bar's rules and refuses a field the list lacks", async () => {
+    const owner = clientAs('org-h');
+
+    await owner.channels.create({ name: 'Billing', memberIds: ['agent-h'] });
+    await owner.channels.create({ name: 'Sales' });
+
+    const names = async (rules: unknown[], match = 'all') =>
+      (await owner.channels.list({ filter: JSON.stringify({ match, rules }) })).channels.map(
+        (channel) => channel.name,
+      );
+
+    const withAgent = { path: 'subject.memberIds', op: 'in', value: ['agent-h'] };
+    const named = { path: 'subject.name', op: 'contains', value: 'sal' };
+
+    await expect(names([withAgent])).resolves.toEqual(['Billing']);
+    await expect(names([withAgent, named])).resolves.toEqual([]);
+    await expect(names([withAgent, named], 'any')).resolves.toEqual(['Billing', 'Sales']);
+    await expect(
+      names([{ path: 'subject.createdBy', op: 'eq', value: 'me' }]),
+    ).resolves.toHaveLength(2);
+    await expect(
+      names([{ path: 'subject.orgId', op: 'eq', value: 'org-a' }]),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
   it('refuses a name the organisation already uses, ignoring case', async () => {
@@ -127,8 +152,19 @@ describe('channels', () => {
       memberIds: ['teammate'],
       role: null,
       canManage: true,
-      members: [{ userId: 'teammate', role: 'admin' }],
     });
+    await expect(owner.channels.members({ id: channel.id })).resolves.toMatchObject([
+      { userId: 'teammate', role: 'admin' },
+    ]);
+    await expect(
+      owner.channels.members({
+        id: channel.id,
+        filter: JSON.stringify({
+          match: 'all',
+          rules: [{ path: 'subject.role', op: 'eq', value: 'member' }],
+        }),
+      }),
+    ).resolves.toEqual([]);
   });
 
   it('shows and changes only the channels of its own organisation', async () => {
