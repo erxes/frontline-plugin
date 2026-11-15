@@ -10,8 +10,7 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   const teammate = await newMember(['frontline.channel.view']);
   const panel = recordPanel(page);
 
-  await page.goto('/frontline');
-  await expect(page).toHaveURL(/\/frontline\/settings\/channels$/);
+  await page.goto(CHANNELS);
   await page.getByRole('button', { name: 'Create channel' }).click();
 
   await panel.getByLabel('Name').fill(name);
@@ -39,7 +38,7 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
 
   const theirPanel = recordPanel(teammate.page);
 
-  await teammate.page.goto('/frontline');
+  await teammate.page.goto(CHANNELS);
   await expect(teammate.page.getByRole('button', { name: 'Create channel' })).toBeHidden();
   await teammate.page.getByRole('button', { name, exact: true }).click();
   await expect(theirPanel.getByRole('button', { name })).toBeDisabled();

@@ -152,7 +152,6 @@ const TicketFields = ({ ticket }: { ticket: Ticket }) => {
           members={memberQueries}
           noneLabel={t('no-assignee', 'No assignee')}
           placeholder={t('no-assignee', 'No assignee')}
-          aria-label={t('assignee', 'Assignee')}
         />
       </PanelField>
       <Filing ticket={ticket} />

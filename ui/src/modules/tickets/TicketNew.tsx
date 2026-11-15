@@ -131,7 +131,6 @@ const PlanRows = ({ plan, onChange }: { plan: Plan; onChange: (patch: Partial<Pl
           members={memberQueries}
           noneLabel={t('no-assignee', 'No assignee')}
           placeholder={t('no-assignee', 'No assignee')}
-          aria-label={t('assignee', 'Assignee')}
         />
       </PanelFormRow>
       <PanelFormRow label={t('start-date', 'Start date')} icon={IconCalendarBolt}>
