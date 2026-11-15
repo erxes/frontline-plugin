@@ -103,6 +103,7 @@ export const HelpCentersPage = () => {
   return (
     <SettingsList
       canManage={canManage}
+      readOnly={false}
       id="frontline-help-centers"
       label={t('help-centers', 'Help centers')}
       allLabel={t('all-help-centers', 'All help centers')}

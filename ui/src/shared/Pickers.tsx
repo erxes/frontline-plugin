@@ -42,7 +42,7 @@ export const PickerField = ({
   onSearchChange?: (search: string) => void;
 }) => (
   <Popover>
-    <RecordTableInlineCell.Trigger variant="field" aria-label={label} empty={value.length === 0}>
+    <RecordTableInlineCell.Trigger variant="field" empty={value.length === 0}>
       {value.length === 0 ? (
         <span className="truncate text-muted-foreground">{placeholder}</span>
       ) : (

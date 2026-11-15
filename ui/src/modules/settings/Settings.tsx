@@ -81,11 +81,13 @@ const SettingsHeader = ({ label, children }: { label: string; children?: ReactNo
 
 /**
  * A settings list, as core's Settings › Tags draws one: the header with its add button, the list
- * bar with its filter, then the table of every row. A member who can't manage settings reads it.
+ * bar with its filter, then the table of every row. A member who can't manage settings reads it,
+ * its cells disabled unless `readOnly` is false, for rows that only open their record.
  */
 export const SettingsList = <TRow extends object>({
   id,
   canManage,
+  readOnly = !canManage,
   label,
   allLabel,
   action,
@@ -98,6 +100,7 @@ export const SettingsList = <TRow extends object>({
 }: {
   id: string;
   canManage: boolean;
+  readOnly?: boolean;
   label: string;
   allLabel: string;
   action: ReactNode;
@@ -118,7 +121,7 @@ export const SettingsList = <TRow extends object>({
     ) : !isPending && rows.length === 0 ? (
       <ListEmpty icon={empty.icon} title={empty.title} description={empty.description} />
     ) : (
-      <ReadOnly when={!canManage}>
+      <ReadOnly when={readOnly}>
         <RecordTable.Provider
           key={String(canManage)}
           tableId={id.replaceAll('-', '_')}
