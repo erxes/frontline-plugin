@@ -15,6 +15,11 @@ const topicWithCategory = async (orgId: string) => {
   return { owner, topic, category };
 };
 
+/** The filter bar holding one condition, as the UI sends it. */
+const rule = (path: string, op: string, value: unknown) => ({
+  filter: JSON.stringify({ match: 'all', rules: [{ path, op, value }] }),
+});
+
 describe('knowledge base articles', () => {
   it('writes, finds, edits, copies and deletes articles', async () => {
     const { owner, topic, category } = await topicWithCategory('org-kba-a');
@@ -32,7 +37,12 @@ describe('knowledge base articles', () => {
       attachments: [{ url: 'files/terms.pdf', name: 'terms.pdf', size: 120 }],
     });
 
-    expect(refunds).toMatchObject({ status: 'draft', publishedAt: null, viewCount: 0 });
+    expect(refunds).toMatchObject({
+      topicId: topic.id,
+      status: 'draft',
+      publishedAt: null,
+      viewCount: 0,
+    });
     expect(refunds).not.toHaveProperty('orgId');
 
     await owner.knowledgebase.articles.create({
@@ -41,15 +51,24 @@ describe('knowledge base articles', () => {
       status: 'publish',
     });
 
-    const titles = async (filter: { categoryId?: string; status?: 'publish'; search?: string }) =>
-      (await owner.knowledgebase.articles.list({ topicId: topic.id, ...filter })).articles.map(
+    const titles = async (input: { filter?: string; search?: string }) =>
+      (await owner.knowledgebase.articles.list({ topicId: topic.id, ...input })).articles.map(
         (row) => row.title,
       );
 
     await expect(titles({})).resolves.toEqual(['Card fees', 'Refunds']);
-    await expect(titles({ categoryId: category.id })).resolves.toEqual(['Card fees', 'Refunds']);
-    await expect(titles({ categoryId: sub.id })).resolves.toEqual(['Card fees']);
-    await expect(titles({ status: 'publish' })).resolves.toEqual(['Card fees']);
+    // A category keeps its subcategories' articles.
+    await expect(titles(rule('subject.categoryId', 'eq', category.id))).resolves.toEqual([
+      'Card fees',
+      'Refunds',
+    ]);
+    await expect(titles(rule('subject.categoryId', 'eq', sub.id))).resolves.toEqual(['Card fees']);
+    await expect(titles(rule('subject.categoryId', 'neq', sub.id))).resolves.toEqual(['Refunds']);
+    await expect(titles(rule('subject.status', 'eq', 'publish'))).resolves.toEqual(['Card fees']);
+    await expect(titles(rule('subject.isPrivate', 'eq', false))).resolves.toHaveLength(2);
+    await expect(titles(rule('subject.content', 'contains', 'x'))).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
     await expect(titles({ search: 'MONEY' })).resolves.toEqual(['Refunds']);
     await expect(titles({ search: '5_d' })).resolves.toEqual(['Refunds']);
     await expect(titles({ search: '%' })).resolves.toEqual([]);
@@ -155,7 +174,7 @@ describe('knowledge base articles', () => {
 
     const moved = await owner.knowledgebase.articles.list({
       topicId: topic.id,
-      categoryId: other.id,
+      ...rule('subject.categoryId', 'eq', other.id),
     });
 
     expect(moved.articles).toHaveLength(2);

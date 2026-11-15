@@ -8,3 +8,8 @@ export const CHANNEL_TYPE = `${PLUGIN}:channel`;
 
 export const RESPONSE_TEMPLATE_TYPE = `${PLUGIN}:response-template`;
 export const PIPELINE_TYPE = `${PLUGIN}:pipeline`;
+export const KB_TOPIC_TYPE = `${PLUGIN}:kb-topic`;
+
+export const KB_CATEGORY_TYPE = `${PLUGIN}:kb-category`;
+
+export const KB_ARTICLE_TYPE = `${PLUGIN}:kb-article`;

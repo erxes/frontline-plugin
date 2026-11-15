@@ -14,5 +14,3 @@ export const Blank = (max: number) =>
 
 /** A hex colour such as `#4F46E5`, as erxes-ui's ColorPicker writes it. */
 export const Color = z.string().regex(/^#[0-9a-f]{6}$/i);
-
-export const Stamps = { createdBy: z.string(), createdAt: z.date(), updatedAt: z.date() };

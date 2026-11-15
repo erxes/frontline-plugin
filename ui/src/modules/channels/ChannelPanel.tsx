@@ -2,7 +2,6 @@ import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlignLeft,
   IconCalendarPlus,
-  IconChevronRight,
   IconDots,
   IconIcons,
   IconLetterCase,
@@ -25,12 +24,11 @@ import {
   type TRecordSlotProps,
   useFormat,
 } from 'erxes-ui';
-import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
 import { usePipelineCount } from '@/pipelines/usePipelines.ts';
 import { useTemplateCount } from '@/responseTemplates/useResponseTemplates.ts';
 import { orpc } from '~/orpc.ts';
+import { PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import {
   type Channel,
@@ -83,20 +81,6 @@ const useEditChannel = (channel: Channel) => {
   return (fields: { name?: string; description?: string; icon?: string | null }) =>
     update.mutate({ id: channel.id, name: channel.name, ...fields });
 };
-
-/** A link to one of the channel's pages, with how many records it holds. */
-const PageLink = ({ to, label, count }: { to: string; label: string; count: ReactNode }) => (
-  <Link
-    to={to}
-    className="flex h-8 w-full items-center justify-between rounded px-2 text-xs hover:bg-accent"
-  >
-    <span>{label}</span>
-    <span className="flex items-center gap-1 text-muted-foreground">
-      {count}
-      <IconChevronRight className="size-4" />
-    </span>
-  </Link>
-);
 
 /** The channel's members, response templates and pipelines, each a page of its own. */
 const ChannelPages = ({ channel }: { channel: Channel }) => {
@@ -163,10 +147,7 @@ const ChannelFields = ({ channel }: { channel: Channel }) => {
 
   return (
     <PanelSection title={t('channel', 'Channel')}>
-      <fieldset
-        disabled={!channel.canManage}
-        className="contents [&_button:disabled]:cursor-default [&_button:disabled]:opacity-100"
-      >
+      <ReadOnly when={!channel.canManage}>
         <PanelField icon={IconLetterCase} label={t('name', 'Name')}>
           <TextField
             scope={`${scope}.name`}
@@ -195,7 +176,7 @@ const ChannelFields = ({ channel }: { channel: Channel }) => {
             className="w-min"
           />
         </PanelField>
-      </fieldset>
+      </ReadOnly>
       <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
         <MemberInline memberId={channel.createdBy} members={memberQueries} />
       </PanelField>

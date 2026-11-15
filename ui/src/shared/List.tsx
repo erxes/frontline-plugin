@@ -1,18 +1,7 @@
 import { IconPlus, IconSearchOff } from '@tabler/icons-react';
-import {
-  Button,
-  Combobox,
-  Command,
-  Empty,
-  Filter,
-  Kbd,
-  PageSubHeader,
-  useListFilterParams,
-  useScopedHotkeys,
-} from 'erxes-ui';
+import { Button, Empty, Kbd, useListFilterParams, useScopedHotkeys } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { SEARCH_KEY } from './hooks.ts';
 
 /** What an empty list says: "No results" while filtered, otherwise `title` and how to start. */
 export const ListEmpty = ({
@@ -64,56 +53,5 @@ export const CreateButton = ({
       {label}
       <Kbd>C</Kbd>
     </Button>
-  );
-};
-
-/** The bar above a list: a search filter, `children` such as more filters, and how many records match. */
-export const SearchSubHeader = ({
-  id,
-  count,
-  children,
-}: {
-  id: string;
-  count: number | undefined;
-  children?: ReactNode;
-}) => {
-  const { t } = useTranslation('frontline');
-
-  return (
-    <Filter id={id}>
-      <PageSubHeader>
-        <Filter.Bar>
-          <Filter.Popover scope={id}>
-            <Filter.Trigger />
-            <Combobox.Content>
-              <Filter.View>
-                <Command>
-                  <Filter.CommandInput placeholder={t('filter', 'Filter...')} variant="secondary" />
-                  <Command.List>
-                    <Filter.SearchValueTrigger />
-                  </Command.List>
-                </Command>
-              </Filter.View>
-            </Combobox.Content>
-          </Filter.Popover>
-          <Filter.Dialog>
-            <Filter.View filterKey={SEARCH_KEY} inDialog>
-              <Filter.DialogStringView filterKey={SEARCH_KEY} />
-            </Filter.View>
-          </Filter.Dialog>
-          <Filter.SearchValueBarItem />
-          {children}
-          {count !== undefined && (
-            <span className="text-muted-foreground text-sm font-medium whitespace-nowrap">
-              {t('n-records-found', {
-                defaultValue_one: '{{count}} record found',
-                defaultValue_other: '{{count}} records found',
-                count,
-              })}
-            </span>
-          )}
-        </Filter.Bar>
-      </PageSubHeader>
-    </Filter>
   );
 };

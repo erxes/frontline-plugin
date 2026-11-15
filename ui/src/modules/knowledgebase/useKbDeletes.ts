@@ -3,97 +3,95 @@ import { toast } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
-import { useKbChange, useKbPanels } from './useKnowledgeBase.ts';
+import { useKbChange } from './useKnowledgeBase.ts';
 
-type Copy = {
-  one: (title: string) => string;
-  many: (count: number) => string;
-  deleted: (count: number) => string;
-};
+type Copy = { confirm: (count: number) => string; deleted: (count: number) => string };
 
-type Panel = ReturnType<typeof useKbPanels>['article'];
-
-/**
- * Asks for "delete" to be typed, naming the record when there is one, then
- * removes the records, closes the panel of any it removed and says it's done.
- */
-const useDeleteFlow = (
-  copy: Copy,
-  panel: Panel,
-  remove: (ids: string[], onDone: () => void) => void,
-) => {
+/** Asks for "delete" to be typed, then removes the records and says it's done. */
+const useDeleteFlow = (copy: Copy, remove: (ids: string[], onDone: () => void) => void) => {
   const confirm = useConfirmDelete();
 
-  return async (records: { id: string; title?: string }[], done?: () => void) => {
-    const ids = records.map((record) => record.id);
-    const title = records.length === 1 ? records[0]?.title : undefined;
-
-    await confirm(title === undefined ? copy.many(ids.length) : copy.one(title));
+  return async (ids: string[], done?: () => void) => {
+    await confirm(copy.confirm(ids.length));
     remove(ids, () => {
-      if (panel.value && ids.includes(panel.value)) panel.close();
-
       done?.();
       toast({ title: copy.deleted(ids.length) });
     });
   };
 };
 
-export const useDeleteArticles = () => {
+export const useDeleteTopics = () => {
   const { t } = useTranslation('frontline');
-  const { article } = useKbPanels();
-  const remove = useMutation(orpc.knowledgebase.articles.remove.mutationOptions(useKbChange()));
+  const remove = useMutation(orpc.knowledgebase.topics.remove.mutationOptions(useKbChange()));
 
-  const deleteArticles = useDeleteFlow(
+  const deleteTopics = useDeleteFlow(
     {
-      one: (title) =>
-        t('kb-confirm-delete-article', {
-          defaultValue: 'Are you sure you want to delete "{{title}}"?',
-          title,
-        }),
-      many: (count) =>
-        t('kb-confirm-delete-articles', {
-          defaultValue: 'Are you sure you want to delete {{count}} articles?',
+      confirm: (count) =>
+        t('kb-confirm-delete-topics', {
+          defaultValue_one: 'Delete this topic? All of its categories and articles go with it.',
+          defaultValue_other:
+            'Delete {{count}} topics? All of their categories and articles go with them.',
           count,
         }),
       deleted: (count) =>
-        count === 1
-          ? t('kb-article-deleted', 'Article deleted')
-          : t('kb-articles-deleted', 'Articles deleted'),
+        t('kb-topics-deleted', {
+          defaultValue_one: 'Topic deleted',
+          defaultValue_other: '{{count}} topics deleted',
+          count,
+        }),
     },
-    article,
     (ids, onDone) => remove.mutate({ ids }, { onSuccess: onDone }),
   );
 
-  return { deleteArticles, isPending: remove.isPending };
+  return { deleteTopics, isPending: remove.isPending };
 };
 
 export const useDeleteCategories = () => {
   const { t } = useTranslation('frontline');
-  const { category } = useKbPanels();
   const remove = useMutation(orpc.knowledgebase.categories.remove.mutationOptions(useKbChange()));
 
   const deleteCategories = useDeleteFlow(
     {
-      one: (title) =>
-        t('kb-confirm-delete-category', {
-          defaultValue:
-            'Are you sure you want to delete "{{title}}"? This will also delete all associated articles.',
-          title,
-        }),
-      many: (count) =>
+      confirm: (count) =>
         t('kb-confirm-delete-categories', {
-          defaultValue:
-            'Are you sure you want to delete {{count}} categories? This will also delete all associated articles.',
+          defaultValue_one: 'Delete this category? Its articles go with it.',
+          defaultValue_other: 'Delete {{count}} categories? Their articles go with them.',
           count,
         }),
       deleted: (count) =>
-        count === 1
-          ? t('kb-category-deleted', 'Category deleted')
-          : t('kb-categories-deleted', 'Categories deleted'),
+        t('kb-categories-deleted', {
+          defaultValue_one: 'Category deleted',
+          defaultValue_other: '{{count}} categories deleted',
+          count,
+        }),
     },
-    category,
     (ids, onDone) => remove.mutate({ ids }, { onSuccess: onDone }),
   );
 
   return { deleteCategories, isPending: remove.isPending };
+};
+
+export const useDeleteArticles = () => {
+  const { t } = useTranslation('frontline');
+  const remove = useMutation(orpc.knowledgebase.articles.remove.mutationOptions(useKbChange()));
+
+  const deleteArticles = useDeleteFlow(
+    {
+      confirm: (count) =>
+        t('kb-confirm-delete-articles', {
+          defaultValue_one: 'Delete this article?',
+          defaultValue_other: 'Delete {{count}} articles?',
+          count,
+        }),
+      deleted: (count) =>
+        t('kb-articles-deleted', {
+          defaultValue_one: 'Article deleted',
+          defaultValue_other: '{{count}} articles deleted',
+          count,
+        }),
+    },
+    (ids, onDone) => remove.mutate({ ids }, { onSuccess: onDone }),
+  );
+
+  return { deleteArticles, isPending: remove.isPending };
 };

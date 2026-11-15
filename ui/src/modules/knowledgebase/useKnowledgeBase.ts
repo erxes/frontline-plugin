@@ -1,18 +1,23 @@
 import type { InferClientOutputs } from '@orpc/client';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
-import { parseAsStringLiteral, useQueryState } from 'nuqs';
-import { useEffect } from 'react';
+import { addPluginStyles, listFilterQuery, useListFilterParams } from 'erxes-ui';
+import { createSerializer } from 'nuqs';
 import { useTranslation } from 'react-i18next';
-import { useMatch } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
-import { useChange, useParamPanel, useSearch } from '~/shared/hooks.ts';
+import { PLUGIN } from '~/plugin.ts';
+import { useChange } from '~/shared/hooks.ts';
+import css from './styles.css?inline';
+
+// Every knowledge base page and panel slot imports this module, so its utilities load with the
+// first of them and stay out of the page module web loads.
+addPluginStyles(`${PLUGIN}:knowledgebase`, css);
 
 type Outputs = InferClientOutputs<Client>['knowledgebase'];
 
 export type Topic = Outputs['topics']['get'];
 
-export type Category = Outputs['categories']['list']['categories'][number];
+export type Category = Outputs['categories']['get'];
 
 export type Article = Outputs['articles']['list']['articles'][number];
 
@@ -26,8 +31,21 @@ export type Attachment = ArticleDetail['attachments'][number];
 export const KB_PATH = '/frontline/knowledgebase';
 
 /** A topic's pages, by the path segment after its id. */
-const KB_SECTIONS = ['articles', 'categories', 'kbsettings'] as const;
+export const topicPath = (topicId: string, page: 'articles' | 'categories' | 'kbsettings') =>
+  `${KB_PATH}/${encodeURIComponent(topicId)}/${page}`;
 
+const filterLink = createSerializer(listFilterQuery);
+
+/** The topic's articles, narrowed to a category and the ones under it, as the filter bar holds it. */
+export const categoryArticlesPath = (topicId: string, categoryId: string) =>
+  filterLink(topicPath(topicId, 'articles'), {
+    advanced: {
+      match: 'all',
+      rules: [{ path: 'subject.categoryId', op: 'eq', value: categoryId }],
+    },
+  });
+
+/** The statuses in the order the list groups them. */
 export const ARTICLE_STATUSES = [
   'draft',
   'scheduled',
@@ -61,31 +79,41 @@ export const useStatusNames = (): Record<ArticleStatus, string> => {
   };
 };
 
-/** The open topic and its page, from the path; empty on the knowledge base's root. */
-export const useKbRoute = () => {
-  const match = useMatch(`${KB_PATH}/:topicId/:section`);
+/** A language code's name in the member's language. */
+export const useLanguageName = () => {
+  const { i18n } = useTranslation('frontline');
+  const names = new Intl.DisplayNames([i18n.language], { type: 'language' });
 
-  return {
-    topicId: match?.params.topicId ?? '',
-    section: KB_SECTIONS.find((section) => section === match?.params.section),
-  };
+  return (code: string) => names.of(code) ?? code;
 };
 
 /** Every topic by title, with what the member may change. */
-export const useTopics = () => useQuery(orpc.knowledgebase.topics.list.queryOptions({ input: {} }));
+const topicsQuery = (input: { filter?: string; search?: string }) =>
+  orpc.knowledgebase.topics.list.queryOptions({ input });
+
+/** The topics the filter bar leaves. */
+export const useTopics = () => useQuery(topicsQuery(useListFilterParams()));
 
 /** What the member may change; nothing until the topics load. */
 export const useKbAccess = () =>
-  useTopics().data?.can ?? { topics: false, categories: false, articles: false };
+  useQuery({ ...topicsQuery({}), select: (data) => data.can }).data ?? {
+    topics: false,
+    categories: false,
+    articles: false,
+  };
+
+/** Every topic, for a pick of one. */
+export const useAllTopics = () =>
+  useQuery({ ...topicsQuery({}), select: (data) => data.topics }).data ?? [];
 
 export const useTopic = (id: string) =>
   useQuery(orpc.knowledgebase.topics.get.queryOptions({ input: { id }, enabled: Boolean(id) }));
 
 /** A topic's categories in tree order, each with the articles in it and under it. */
-export const useCategories = (topicId: string) =>
+export const useCategories = (topicId: string, filter: { filter?: string; search?: string } = {}) =>
   useQuery(
     orpc.knowledgebase.categories.list.queryOptions({
-      input: { topicId },
+      input: { topicId, ...filter },
       enabled: Boolean(topicId),
       select: (data) => categoryTree(data.categories),
     }),
@@ -94,28 +122,13 @@ export const useCategories = (topicId: string) =>
 export const useCategory = (id: string) =>
   useQuery(orpc.knowledgebase.categories.get.queryOptions({ input: { id } }));
 
-/** The articles filters in the query string, as the old page kept them. */
-export const useArticleFilters = () => {
-  const [status, setStatus] = useQueryState('status', parseAsStringLiteral(ARTICLE_STATUSES));
-  const [categoryId, setCategoryId] = useQueryState('categoryId');
-
-  return { status, setStatus, categoryId, setCategoryId };
-};
-
-/** The topic's articles newest first, a page at a time, narrowed by the filters. */
+/** The topic's articles newest first, a page at a time, narrowed by the filter bar. */
 export const useArticles = (topicId: string) => {
-  const search = useSearch() || undefined;
-  const { status, categoryId } = useArticleFilters();
+  const filter = useListFilterParams();
 
   const query = useInfiniteQuery(
     orpc.knowledgebase.articles.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({
-        topicId,
-        search,
-        status: status ?? undefined,
-        categoryId: categoryId ?? undefined,
-        cursor,
-      }),
+      input: (cursor: string | undefined) => ({ topicId, ...filter, cursor }),
       initialPageParam: undefined,
       getNextPageParam: (page) => page.nextCursor ?? undefined,
     }),
@@ -133,31 +146,6 @@ export const useArticle = (id: string) =>
 
 /** Refetches every knowledge base query after a change, and shows a refusal. */
 export const useKbChange = () => useChange(orpc.knowledgebase.key());
-
-/**
- * The side panels: `?topic=new` creates a topic and `?topic=<id>` edits one;
- * `category` and `article` work the same within the open topic.
- */
-export const useKbPanels = () => ({
-  topic: useParamPanel('topic'),
-  category: useParamPanel('category'),
-  article: useParamPanel('article'),
-});
-
-/**
- * An old plugin link's query param, `key`, handed to `open` and dropped:
- * `?editId=<id>` opens that record's panel, `?createTopic=true` the new topic's.
- */
-export const useOldLink = (key: 'editId' | 'createTopic', open: (value: string) => void) => {
-  const [value, setValue] = useQueryState(key);
-
-  useEffect(() => {
-    if (!value) return;
-
-    void setValue(null);
-    open(value);
-  }, [value, open, setValue]);
-};
 
 /** A category in tree order, with how deep it sits. */
 export type CategoryRow = Category & { depth: number };

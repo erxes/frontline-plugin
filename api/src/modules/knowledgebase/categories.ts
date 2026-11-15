@@ -1,11 +1,13 @@
 import { ORPCError } from '@orpc/server';
-import { asc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { kbArticles, kbCategories } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { Blank, Stamps, Title } from '../fields.ts';
+import { Blank, Title } from '../fields.ts';
+import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
 import {
   categoryColumns,
   categoryFor,
@@ -28,19 +30,13 @@ const Fields = z
   })
   .partial();
 
-const Category = z.object({
-  id: z.string(),
-  topicId: z.string(),
-  parentId: z.string().nullable(),
-  title: z.string(),
-  description: z.string().nullable(),
-  code: z.string().nullable(),
-  icon: z.string().nullable(),
-  ...Stamps,
-});
+/** The row, with the articles in it and its subcategories, which the query counts. */
+const Category = createSelectSchema(kbCategories)
+  .omit({ orgId: true })
+  .extend({ articleCount: z.number() });
 
 /** The ids of `id` and every category under it. UNION stops on a cycle an import brought in. */
-export const subtreeIds = async (tx: Tx, id: string) => {
+const subtreeIds = async (tx: Tx, id: string) => {
   const { rows } = await tx.execute<{ id: string }>(sql`
     with recursive sub(id) as (
       select ${id}::text
@@ -70,53 +66,79 @@ const checkParent = async (tx: Tx, topicId: string, parentId: string | null, id?
     });
 };
 
-/** Each row's article count with its subcategories' counts added in. */
-const withSubtreeCounts = <T extends { id: string; parentId: string | null; own: number }>(
-  rows: T[],
-) => {
-  const children = Map.groupBy(rows, (row) => row.parentId);
+/**
+ * Categories, each counting the articles in it and under it. UNION stops on a cycle. A one-table
+ * select leaves columns bare, so the outer id is named.
+ */
+const categoryRows = (tx: Tx) =>
+  tx
+    .select({
+      ...categoryColumns,
+      articleCount: sql<number>`(
+        select count(*)::int from ${kbArticles} filed where filed.category_id in (
+          with recursive sub(id) as (
+            select ${kbCategories}.id
+            union
+            select child.id from ${kbCategories} child join sub on child.parent_id = sub.id
+          )
+          select id from sub
+        )
+      )`,
+    })
+    .from(kbCategories)
+    .$dynamic();
 
-  const total = (row: T, seen: Set<string>): number => {
-    if (seen.has(row.id)) return 0;
+const categoryById = async (tx: Tx, id: string) => {
+  const [category] = await categoryRows(tx).where(eq(kbCategories.id, id));
 
-    seen.add(row.id);
+  if (!category) throw new ORPCError('NOT_FOUND', { message: 'No such category' });
 
-    return (children.get(row.id) ?? []).reduce((sum, child) => sum + total(child, seen), row.own);
-  };
-
-  return rows.map((row) => {
-    const { own, ...fields } = row;
-
-    return { ...fields, articleCount: total(row, new Set()) };
-  });
+  return category;
 };
 
-/** A topic's categories by title, each counting the articles in it and its subcategories. */
+/** What the categories list's filter bar narrows them by (`CategoriesPage.tsx` in the UI). */
+const CATEGORY_FILTER: FilterFields = {
+  'subject.title': { kind: 'text', expr: kbCategories.title },
+  'subject.description': { kind: 'text', expr: kbCategories.description },
+  'subject.code': { kind: 'text', expr: kbCategories.code },
+  'subject.parentId': { kind: 'select', expr: kbCategories.parentId },
+  'subject.createdBy': { kind: 'member', expr: kbCategories.createdBy },
+  'subject.createdAt': { kind: 'date', expr: kbCategories.createdAt },
+};
+
+/**
+ * A topic's categories by title, each counting the articles in it and its subcategories,
+ * narrowed by the filter bar: `search` matches the title or description, ignoring case.
+ */
 const list = reads(PERMISSIONS.kbView)
-  .input(z.object({ topicId: z.string() }))
-  .output(z.object({ categories: z.array(Category.extend({ articleCount: z.number() })) }))
-  .handler(async ({ input, context: { tx } }) => {
+  .input(z.object({ topicId: z.string(), ...FilterInput }))
+  .output(z.object({ categories: z.array(Category) }))
+  .handler(async ({ input, context: { tx, member } }) => {
     await topicFor(tx, input.topicId);
 
-    const rows = await tx
-      .select({
-        ...categoryColumns,
-        own: sql<number>`(
-          select count(*)::int from ${kbArticles} filed where filed.category_id = ${kbCategories}.id
-        )`,
-      })
-      .from(kbCategories)
-      .where(eq(kbCategories.topicId, input.topicId))
+    const categories = await categoryRows(tx)
+      .where(
+        and(
+          eq(kbCategories.topicId, input.topicId),
+          input.search
+            ? or(
+                ilike(kbCategories.title, likeText(input.search)),
+                ilike(kbCategories.description, likeText(input.search)),
+              )
+            : undefined,
+          input.filter ? filterSql(CATEGORY_FILTER, input.filter, member.userId) : undefined,
+        ),
+      )
       .orderBy(asc(sql`lower(${kbCategories.title})`), asc(kbCategories.id));
 
-    return { categories: withSubtreeCounts(rows) };
+    return { categories };
   });
 
 /** One category. */
 const get = reads(PERMISSIONS.kbView)
   .input(z.object({ id: z.string() }))
   .output(Category)
-  .handler(({ input, context: { tx } }) => categoryFor(tx, input.id));
+  .handler(({ input, context: { tx } }) => categoryById(tx, input.id));
 
 const create = writes(PERMISSIONS.kbCategoryManage)
   .errors(kbErrors)
@@ -129,12 +151,12 @@ const create = writes(PERMISSIONS.kbCategoryManage)
     const [created] = await tx
       .insert(kbCategories)
       .values({ ...input, orgId: member.orgId, createdBy: member.userId })
-      .returning(categoryColumns)
+      .returning({ id: kbCategories.id })
       .catch(codeTaken(errors, input.code));
 
     if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
-    return created;
+    return categoryById(tx, created.id);
   });
 
 /**
@@ -170,7 +192,7 @@ const update = writes(PERMISSIONS.kbCategoryManage)
     if (moves)
       await tx.update(kbCategories).set({ topicId }).where(inArray(kbCategories.id, subtree));
 
-    return categoryFor(tx, id);
+    return categoryById(tx, id);
   });
 
 /** Deletes the categories with their articles; their subcategories move to the top level. */

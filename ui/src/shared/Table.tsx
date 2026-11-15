@@ -1,4 +1,24 @@
-import { RecordTable, RecordTableInlineCell, RelativeDateDisplay } from 'erxes-ui';
+import {
+  RecordTable,
+  type RecordTableColumnDef,
+  RecordTableInlineCell,
+  RelativeDateDisplay,
+} from 'erxes-ui';
+import type { ComponentProps, ReactNode } from 'react';
+
+/** A column headed by `label` and its icon, drawing each row with `render`. */
+export const column = <TRow extends object>(
+  id: string,
+  label: string,
+  icon: ComponentProps<typeof RecordTable.InlineHead>['icon'],
+  size: number,
+  render: (row: TRow) => ReactNode,
+): RecordTableColumnDef<TRow> => ({
+  id,
+  header: () => <RecordTable.InlineHead label={label} icon={icon} />,
+  cell: ({ row }) => render(row.original),
+  size,
+});
 
 /** A table's rows, all at once: skeletons while loading. */
 export const Rows = ({ isPending, skeletons = 10 }: { isPending: boolean; skeletons?: number }) => (

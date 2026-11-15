@@ -1,201 +1,206 @@
+import { memberQueries } from '@erxes/core-contract/client';
+import {
+  IconCalendarPlus,
+  IconCalendarUp,
+  IconDots,
+  IconEye,
+  IconFolder,
+  IconLetterCase,
+  IconNotes,
+  IconUser,
+  IconWorldUpload,
+} from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Editor, Input, Select, Separator, Skeleton, Textarea } from 'erxes-ui';
-import { type SubmitEvent, useState } from 'react';
+import {
+  Button,
+  MemberInline,
+  PanelDescriptionEditor,
+  PanelField,
+  PanelSection,
+  Skeleton,
+  Spinner,
+  TextField,
+  type TRecordSlotProps,
+  useFormat,
+} from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { draftsOf, FormActions } from '~/shared/Drafts.tsx';
-import { Field, SidePanel } from '~/shared/SidePanel.tsx';
-import { type ArticleDraft, Media, Publishing } from './ArticleOptions.tsx';
-import { CategoryOptions } from './CategoryTree.tsx';
-import {
-  type ArticleDetail,
-  useArticle,
-  useArticleFilters,
-  useCategories,
-  useKbChange,
-  useKbPanels,
-  useKbRoute,
-} from './useKnowledgeBase.ts';
+import { ReadOnly } from '~/shared/Panel.tsx';
+import { ActionsMenu } from '~/shared/Records.tsx';
+import { useArticleActions } from './ArticleCells.tsx';
+import { type ArticleEdit, Media, Publishing } from './ArticleOptions.tsx';
+import { CategorySelect } from './CategoryTree.tsx';
+import { type ArticleDetail, useArticle, useKbAccess, useKbChange } from './useKnowledgeBase.ts';
 
-const useArticleDraft = draftsOf<ArticleDraft>();
+/** Saves one change to the article at a time, refetching the lists after it. */
+const useEditArticle = (article: ArticleDetail) => {
+  const update = useMutation(orpc.knowledgebase.articles.update.mutationOptions(useKbChange()));
 
-const draftOf = (article: ArticleDetail | undefined, categoryId: string): ArticleDraft => ({
-  title: article?.title ?? '',
-  categoryId: article?.categoryId ?? categoryId,
-  summary: article?.summary ?? '',
-  content: article?.content ?? '',
-  status: article?.status ?? 'draft',
-  scheduledAt: article?.scheduledAt ?? null,
-  isPrivate: article?.isPrivate ?? false,
-  reactionChoices: article?.reactionChoices ?? [],
-  image: article?.image ?? null,
-  attachments: article?.attachments ?? [],
-  pdfAttachment: article?.pdfAttachment ?? null,
-});
+  return (fields: ArticleEdit) => update.mutate({ id: article.id, ...fields });
+};
 
-/** The topic's categories to file the article under. */
-const CategorySelect = ({ value, onChange }: { value: string; onChange: (id: string) => void }) => {
-  const { topicId } = useKbRoute();
-  const rows = useCategories(topicId).data ?? [];
+/** The panel header's title: the article's title. */
+export const ArticleTitleSlot = ({ contentId }: TRecordSlotProps) => {
+  const article = useArticle(contentId);
+
+  if (article.isPending) return <Skeleton className="h-4 w-32" />;
+
+  return <span className="truncate">{article.data?.title ?? article.error?.message}</span>;
+};
+
+const ArticleMenu = ({ article }: { article: ArticleDetail }) => {
+  const { t } = useTranslation('frontline');
+  const actions = useArticleActions(article);
+
+  if (actions.length === 0) return null;
 
   return (
-    <Select value={value} onValueChange={onChange}>
-      <Select.Trigger id="article-category">
-        <Select.Value />
-      </Select.Trigger>
-      <Select.Content>
-        <CategoryOptions rows={rows} />
-      </Select.Content>
-    </Select>
+    <ActionsMenu
+      trigger={
+        <Button variant="ghost" size="icon" aria-label={t('kb-article-menu', 'Article actions')}>
+          <IconDots />
+        </Button>
+      }
+      actions={actions}
+    />
   );
 };
 
-/** The article's title, category, summary and content. */
-const General = ({
-  value,
-  onChange,
-}: {
-  value: ArticleDraft;
-  onChange: (patch: Partial<ArticleDraft>) => void;
-}) => {
+/** The header's menu, for article managers: copy or delete it. */
+export const ArticleActions = ({ contentId }: TRecordSlotProps) => {
+  const article = useArticle(contentId).data;
+
+  return article ? <ArticleMenu article={article} /> : null;
+};
+
+/** The article's title, summary and category. */
+const General = ({ article }: { article: ArticleDetail }) => {
   const { t } = useTranslation('frontline');
+  const edit = useEditArticle(article);
+  const scope = `frontline-kb-article.${article.id}`;
+
+  return (
+    <PanelSection title={t('kb-article', 'Article')}>
+      <PanelField icon={IconLetterCase} label={t('title', 'Title')}>
+        <TextField
+          scope={`${scope}.title`}
+          value={article.title}
+          placeholder={t('title', 'Title')}
+          onSave={(title) => {
+            const next = title.trim();
+
+            if (next && next !== article.title) edit({ title: next });
+          }}
+        />
+      </PanelField>
+      <PanelField icon={IconNotes} label={t('kb-summary', 'Summary')}>
+        <TextField
+          scope={`${scope}.summary`}
+          value={article.summary ?? ''}
+          placeholder={t('kb-summary', 'Summary')}
+          onSave={(summary) => edit({ summary })}
+        />
+      </PanelField>
+      <PanelField icon={IconFolder} label={t('kb-category', 'Category')}>
+        <CategorySelect
+          topicId={article.topicId}
+          value={article.categoryId}
+          onChange={(categoryId) => edit({ categoryId })}
+          label={t('kb-category', 'Category')}
+          flush
+        />
+      </PanelField>
+    </PanelSection>
+  );
+};
+
+/** Who wrote it, when it changed and went live, and how often it was read. */
+const History = ({ article }: { article: ArticleDetail }) => {
+  const { t } = useTranslation('frontline');
+  const format = useFormat();
+
+  const at = (label: string, icon: typeof IconCalendarPlus, date: Date | null) =>
+    date && (
+      <PanelField icon={icon} label={label} cell={false}>
+        <span className="px-2 text-xs">{format.dateTime(date)}</span>
+      </PanelField>
+    );
+
+  return (
+    <PanelSection title={t('kb-history', 'History')}>
+      <PanelField icon={IconEye} label={t('kb-views', 'Views')} cell={false}>
+        <span className="px-2 text-xs">{article.viewCount}</span>
+      </PanelField>
+      {at(t('kb-published-at', 'Published at'), IconWorldUpload, article.publishedAt)}
+      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
+        <MemberInline memberId={article.createdBy} members={memberQueries} />
+      </PanelField>
+      {at(t('created-at', 'Created at'), IconCalendarPlus, article.createdAt)}
+      {at(t('updated-at', 'Updated at'), IconCalendarUp, article.updatedAt)}
+    </PanelSection>
+  );
+};
+
+/** The article's fields, each saved as soon as it changes. */
+const ArticleFields = ({ article }: { article: ArticleDetail }) => {
+  const can = useKbAccess();
+  const edit = useEditArticle(article);
 
   return (
     <>
-      <Field id="article-title" label={t('title', 'Title')}>
-        <Input
-          id="article-title"
-          required
-          placeholder={t('kb-enter-article-title', 'Enter article title')}
-          value={value.title}
-          onChange={(event) => onChange({ title: event.target.value })}
-        />
-      </Field>
-      <Field id="article-category" label={t('kb-category', 'Category')}>
-        <CategorySelect
-          value={value.categoryId}
-          onChange={(categoryId) => onChange({ categoryId })}
-        />
-      </Field>
-      <Field id="article-summary" label={t('kb-summary', 'Summary')}>
-        <Textarea
-          id="article-summary"
-          placeholder={t('kb-enter-article-summary', 'Enter article summary')}
-          value={value.summary}
-          onChange={(event) => onChange({ summary: event.target.value })}
-        />
-      </Field>
-      <Field label={t('content', 'Content')}>
-        <Editor
-          isHTML
-          initialContent={value.content || undefined}
-          onChange={(content) => onChange({ content })}
-          label={t('content', 'Content')}
-          variant="outline"
-          className="min-h-60"
-        />
-      </Field>
+      <ReadOnly when={!can.articles}>
+        <General article={article} />
+        <Publishing article={article} edit={edit} />
+        <Media article={article} edit={edit} />
+      </ReadOnly>
+      <History article={article} />
     </>
   );
 };
 
-/** A new article in the filtered or first category, or a change to `article`; saving closes the panel. */
-const ArticleForm = ({ article, categoryId }: { article?: ArticleDetail; categoryId: string }) => {
-  const { t } = useTranslation('frontline');
-  const { article: panel } = useKbPanels();
-  const { topicId } = useKbRoute();
-  const change = useKbChange();
-  const draft = useArticleDraft(article?.id ?? `new~${topicId}`, draftOf(article, categoryId));
-  // The editor reads its content once, so a discard mounts fresh fields.
-  const [revision, setRevision] = useState(0);
+/** The Detail tab: the article's fields, publishing, files and history. */
+export const ArticleDetailSlot = ({ contentId }: TRecordSlotProps) => {
+  const article = useArticle(contentId);
 
-  const options = {
-    ...change,
-    onSuccess: async () => {
-      draft.clear();
-      await change.onSuccess();
-      panel.close();
-    },
-  };
+  if (article.isPending) return <Spinner area="lg" />;
 
-  const create = useMutation(orpc.knowledgebase.articles.create.mutationOptions(options));
-  const update = useMutation(orpc.knowledgebase.articles.update.mutationOptions(options));
-  const { isPending } = article ? update : create;
+  if (article.isError)
+    return (
+      <p role="alert" className="p-3 text-xs text-destructive-text">
+        {article.error.message}
+      </p>
+    );
 
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  return <ArticleFields article={article.data} />;
+};
 
-    if (article) update.mutate({ id: article.id, ...draft.value });
-    else create.mutate(draft.value);
-  };
-
-  const discard = () => {
-    draft.clear();
-    setRevision((current) => current + 1);
-  };
+const ContentEditor = ({ article }: { article: ArticleDetail }) => {
+  const can = useKbAccess();
+  const edit = useEditArticle(article);
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <General key={revision} value={draft.value} onChange={draft.change} />
-      <Separator />
-      <Publishing value={draft.value} onChange={draft.change} />
-      <Separator />
-      <Media value={draft.value} onChange={draft.change} />
-      <FormActions
-        dirty={draft.dirty}
-        onDiscard={discard}
-        disabled={isPending || !draft.value.categoryId}
-        submit={
-          article ? t('kb-save-changes', 'Save Changes') : t('kb-create-article', 'Create Article')
-        }
-      />
-    </form>
+    <PanelDescriptionEditor
+      value={article.content}
+      scope={`frontline-kb-article.${article.id}.content`}
+      readonly={!can.articles}
+      isHTML
+      onSave={(content) => edit({ content })}
+    />
   );
 };
 
-const EditArticle = ({ id }: { id: string }) => {
-  const { data, error } = useArticle(id);
+/** The Content tab: the article's body, rich text saved when the editor loses focus. */
+export const ArticleContent = ({ contentId }: TRecordSlotProps) => {
+  const article = useArticle(contentId);
 
-  if (error) return <p className="text-sm text-destructive-text">{error.message}</p>;
+  if (article.isPending) return <Spinner area="lg" />;
 
-  return data ? (
-    <ArticleForm key={data.id} article={data} categoryId={data.categoryId} />
-  ) : (
-    <Skeleton className="h-60" />
-  );
-};
+  if (article.isError)
+    return (
+      <p role="alert" className="p-3 text-xs text-destructive-text">
+        {article.error.message}
+      </p>
+    );
 
-/** Write an article in the open topic, `?article=new`, or edit one, `?article=<id>`. */
-export const ArticlePanel = () => {
-  const { t } = useTranslation('frontline');
-  const { article } = useKbPanels();
-  const { topicId } = useKbRoute();
-  const { categoryId } = useArticleFilters();
-  const categories = useCategories(topicId);
-
-  return (
-    <SidePanel
-      open={Boolean(article.value)}
-      onClose={article.close}
-      title={
-        article.value === 'new'
-          ? t('kb-new-article', 'New Article')
-          : t('kb-edit-article', 'Edit Article')
-      }
-      description={t('kb-article-hint', "An article readers find in the topic's help center.")}
-    >
-      {article.value === 'new' ? (
-        categories.data ? (
-          <ArticleForm
-            key={`new~${topicId}`}
-            categoryId={categoryId ?? categories.data[0]?.id ?? ''}
-          />
-        ) : (
-          <Skeleton className="h-60" />
-        )
-      ) : (
-        article.value && <EditArticle id={article.value} />
-      )}
-    </SidePanel>
-  );
+  return <ContentEditor key={article.data.id} article={article.data} />;
 };

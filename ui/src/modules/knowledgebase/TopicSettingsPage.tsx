@@ -1,136 +1,213 @@
 import { IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Button, Skeleton, toast } from 'erxes-ui';
-import { type SubmitEvent } from 'react';
+import { Button, ColorPicker, Form, PageContainer, ScrollArea, Skeleton, toast } from 'erxes-ui';
+import type { ReactNode } from 'react';
+import { useForm, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
-import { useConfirmDelete } from '~/shared/Records.tsx';
-import { FormActions } from '~/shared/Drafts.tsx';
-import { TopicFields, topicDraftOf, topicInput } from './TopicFields.tsx';
-import { useTopicDraft } from './TopicPanel.tsx';
-import {
-  KB_PATH,
-  type Topic,
-  useKbAccess,
-  useKbChange,
-  useKbRoute,
-  useTopic,
-} from './useKnowledgeBase.ts';
+import { ImageField } from './Files.tsx';
+import { KbHeader } from './KbHeader.tsx';
+import { LanguageSelect } from './LanguageSelect.tsx';
+import { useDeleteTopics } from './useKbDeletes.ts';
+import { KB_PATH, type Topic, useKbAccess, useKbChange, useTopic } from './useKnowledgeBase.ts';
 
-/** Asks for "delete" to be typed, then deletes the topic with its categories and articles. */
-const DangerZone = ({ topic }: { topic: Topic }) => {
-  const { t } = useTranslation('frontline');
-  const navigate = useNavigate();
-  const confirm = useConfirmDelete();
-  const change = useKbChange();
+/** What the help center card edits; an empty colour or image is unset. */
+type HelpCenter = { languageCode: string | null; color: string; backgroundImage: string };
 
-  const remove = useMutation(
-    orpc.knowledgebase.topics.remove.mutationOptions({
-      ...change,
-      onSuccess: async () => {
-        toast({ title: t('kb-topic-deleted', 'Topic deleted') });
-        void navigate(KB_PATH);
-        await change.onSuccess();
-      },
-    }),
-  );
+const valuesOf = (topic: Topic): HelpCenter => ({
+  languageCode: topic.languageCode,
+  color: topic.color ?? '',
+  backgroundImage: topic.backgroundImage ?? '',
+});
 
-  const deleteTopic = async () => {
-    await confirm(
-      t('kb-confirm-delete-topic', {
-        defaultValue:
-          'Are you sure you want to delete "{{title}}"? All of its categories and articles will be removed.',
-        title: topic.title,
-      }),
-    );
-    remove.mutate({ id: topic.id });
-  };
+/** One card of the page: a title, a line saying what it's for, then its fields. */
+const Card = ({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description: string;
+  children: ReactNode;
+}) => (
+  <section className="space-y-4 rounded-lg border bg-background p-5">
+    <div>
+      <h2 className="text-base font-semibold">{title}</h2>
+      <p className="text-sm text-muted-foreground">{description}</p>
+    </div>
+    {children}
+  </section>
+);
 
-  return (
-    <section className="flex flex-col gap-3 rounded-lg border border-destructive p-4">
-      <h2 className="font-medium">{t('kb-danger-zone', 'Danger zone')}</h2>
-      <p className="text-muted-foreground text-sm">
-        {t(
-          'kb-delete-topic-description',
-          'Deleting this topic removes all of its categories and articles.',
-        )}
-      </p>
-      <Button
-        variant="secondary"
-        tone="destructive"
-        className="self-start"
-        disabled={remove.isPending}
-        onClick={() => void deleteTopic()}
-      >
-        <IconTrash />
-        {t('kb-delete-topic', 'Delete Topic')}
-      </Button>
-    </section>
-  );
-};
-
-/** The topic's fields, saved in place; the side panel's draft of the topic is the same one. */
-const SettingsForm = ({ topic }: { topic: Topic }) => {
+/** How the topic's help center reads: its language, colour and background image. */
+const HelpCenterForm = ({ topic, editable }: { topic: Topic; editable: boolean }) => {
   const { t } = useTranslation('frontline');
   const change = useKbChange();
-  const draft = useTopicDraft(topic.id, topicDraftOf(topic));
+
+  const form = useForm({ defaultValues: valuesOf(topic) });
 
   const update = useMutation(
     orpc.knowledgebase.topics.update.mutationOptions({
       ...change,
-      onSuccess: async () => {
-        draft.clear();
+      onSuccess: async (saved) => {
+        form.reset(valuesOf(saved));
         await change.onSuccess();
         toast({ title: t('kb-topic-saved', 'Topic saved') });
       },
     }),
   );
 
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    update.mutate({ id: topic.id, ...topicInput(draft.value) });
-  };
+  const save = form.handleSubmit((values) =>
+    update.mutate({
+      id: topic.id,
+      languageCode: values.languageCode,
+      color: values.color || null,
+      backgroundImage: values.backgroundImage,
+    }),
+  );
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <TopicFields value={draft.value} onChange={draft.change} error={update.error} />
-      <FormActions
-        dirty={draft.dirty}
-        onDiscard={draft.clear}
-        disabled={update.isPending}
-        submit={update.isPending ? t('saving', 'Saving…') : t('save', 'Save')}
+    <Form {...form}>
+      <form onSubmit={(event) => void save(event)} className="flex flex-col gap-4">
+        <fieldset disabled={!editable} className="contents">
+          <HelpCenterCard />
+        </fieldset>
+        {editable && (
+          <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-background/95 py-3 backdrop-blur">
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={!form.formState.isDirty}
+              onClick={() => form.reset()}
+            >
+              {t('discard', 'Discard')}
+            </Button>
+            <Button type="submit" disabled={update.isPending}>
+              {update.isPending ? t('saving', 'Saving…') : t('save', 'Save')}
+            </Button>
+          </div>
+        )}
+      </form>
+    </Form>
+  );
+};
+
+/** The help center card's fields, in the page's one form. */
+const HelpCenterCard = () => {
+  const { t } = useTranslation('frontline');
+  const { control } = useFormContext<HelpCenter>();
+
+  return (
+    <Card
+      title={t('kb-help-center', 'Help center')}
+      description={t(
+        'kb-help-center-description',
+        'How the published help center of this topic reads and looks.',
+      )}
+    >
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Form.Field
+          control={control}
+          name="languageCode"
+          render={({ field }) => (
+            <Form.Item>
+              <Form.Label>{t('language', 'Language')}</Form.Label>
+              <Form.Control>
+                <LanguageSelect value={field.value} onChange={field.onChange} />
+              </Form.Control>
+              <Form.Message />
+            </Form.Item>
+          )}
+        />
+        <Form.Field
+          control={control}
+          name="color"
+          render={({ field }) => (
+            <Form.Item>
+              <Form.Label>{t('kb-color', 'Color')}</Form.Label>
+              <Form.Control>
+                <ColorPicker
+                  aria-label={t('kb-color', 'Color')}
+                  value={field.value || undefined}
+                  onValueChange={field.onChange}
+                  className="w-min"
+                />
+              </Form.Control>
+              <Form.Message />
+            </Form.Item>
+          )}
+        />
+      </div>
+      <Form.Field
+        control={control}
+        name="backgroundImage"
+        render={({ field }) => (
+          <Form.Item>
+            <Form.Label>{t('kb-background-image', 'Background image')}</Form.Label>
+            <ImageField value={field.value} onChange={(file) => field.onChange(file?.url ?? '')} />
+            <Form.Message />
+          </Form.Item>
+        )}
       />
-    </form>
+    </Card>
+  );
+};
+
+/** Deletes the topic with its categories and articles, then goes back to the topics. */
+const DeleteTopic = ({ topic }: { topic: Topic }) => {
+  const { t } = useTranslation('frontline');
+  const navigate = useNavigate();
+  const { deleteTopics, isPending } = useDeleteTopics();
+
+  return (
+    <Card
+      title={t('kb-delete-topic', 'Delete topic')}
+      description={t(
+        'kb-delete-topic-description',
+        'Deleting this topic removes all of its categories and articles.',
+      )}
+    >
+      <Button
+        variant="secondary"
+        tone="destructive"
+        disabled={isPending}
+        onClick={() => void deleteTopics([topic.id], () => void navigate(KB_PATH))}
+      >
+        <IconTrash />
+        {t('kb-delete-topic', 'Delete topic')}
+      </Button>
+    </Card>
   );
 };
 
 /**
- * A topic's settings: its fields and, past the danger line, its deletion. Members
- * without the topics permission read the topic here and change nothing.
+ * A topic's help center settings, laid out like core's settings pages: one centered column of
+ * cards and one Save. Members without the topics permission read them and change nothing.
  */
 export const TopicSettingsPage = () => {
-  const { topicId } = useKbRoute();
+  const { t } = useTranslation('frontline');
+  const topicId = useParams().topicId ?? '';
   const can = useKbAccess();
   const { data, error } = useTopic(topicId);
 
-  if (error) return <p className="m-3 text-sm text-destructive-text">{error.message}</p>;
-
-  if (!data) return <Skeleton className="m-3 h-60" />;
-
   return (
-    <div className="flex h-full flex-col gap-8 overflow-auto p-6 md:max-w-2xl">
-      {can.topics ? (
-        <>
-          <SettingsForm key={data.id} topic={data} />
-          <DangerZone topic={data} />
-        </>
-      ) : (
-        <dl className="flex flex-col gap-1 text-sm">
-          <dt className="font-medium">{data.title}</dt>
-          <dd className="text-muted-foreground">{data.description}</dd>
-        </dl>
-      )}
-    </div>
+    <PageContainer>
+      <KbHeader topicId={topicId} label={t('settings', 'Settings')} />
+      <ScrollArea>
+        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
+          {error ? (
+            <p className="text-sm text-destructive-text">{error.message}</p>
+          ) : data ? (
+            <>
+              <HelpCenterForm key={data.id} topic={data} editable={can.topics} />
+              {can.topics && <DeleteTopic topic={data} />}
+            </>
+          ) : (
+            <Skeleton className="h-60" />
+          )}
+        </div>
+      </ScrollArea>
+    </PageContainer>
   );
 };

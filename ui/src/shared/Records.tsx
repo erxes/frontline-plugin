@@ -65,23 +65,37 @@ export const TextCell = ({ value }: { value: string | null }) => (
   </RecordTableInlineCell>
 );
 
+export type BulkActions = (selected: string[], clear: () => void) => ReactNode;
+
 /**
  * The bar under a table while rows are selected: how many, and what `children`
  * do with their ids. `clear` unselects them.
  */
-export const SelectionBar = ({
-  children,
-}: {
-  children: (selected: string[], clear: () => void) => ReactNode;
-}) => {
-  const { t } = useTranslation('frontline');
+export const SelectionBar = ({ children }: { children: BulkActions }) => {
   const { table } = RecordTable.useRecordTable();
 
   const selected = RecordTable.useRecordTableState((_, current) =>
     current.getFilteredSelectedRowModel().rows.map((row) => row.id),
   );
 
-  const clear = () => table.resetRowSelection();
+  return (
+    <BulkBar selected={selected} clear={() => table.resetRowSelection()}>
+      {children}
+    </BulkBar>
+  );
+};
+
+/** The selection bar itself: how many `selected`, and what `children` do with them. */
+export const BulkBar = ({
+  selected,
+  clear,
+  children,
+}: {
+  selected: string[];
+  clear: () => void;
+  children: BulkActions;
+}) => {
+  const { t } = useTranslation('frontline');
 
   return (
     <CommandBar open={selected.length > 0}>

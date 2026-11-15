@@ -3,7 +3,15 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom';
 import { ChannelMembersPage } from '@/channels/ChannelMembersPage.tsx';
 import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
-import { CHANNEL_TYPE, PIPELINE_TYPE, PLUGIN, RESPONSE_TEMPLATE_TYPE } from '~/plugin.ts';
+import {
+  CHANNEL_TYPE,
+  KB_ARTICLE_TYPE,
+  KB_CATEGORY_TYPE,
+  KB_TOPIC_TYPE,
+  PIPELINE_TYPE,
+  PLUGIN,
+  RESPONSE_TEMPLATE_TYPE,
+} from '~/plugin.ts';
 import css from './styles.css?inline';
 
 addPluginStyles(PLUGIN, css);
@@ -23,10 +31,6 @@ const Lazy = () => (
 // A module's screens load on first visit, so what web loads on every page stays small.
 const ResponseTemplatesPage = lazy(async () => ({
   default: (await import('@/responseTemplates/ResponseTemplatesPage.tsx')).ResponseTemplatesPage,
-}));
-
-const KnowledgeBaseLayout = lazy(async () => ({
-  default: (await import('@/knowledgebase/KnowledgeBaseLayout.tsx')).KnowledgeBaseLayout,
 }));
 
 const TopicsPage = lazy(async () => ({
@@ -76,16 +80,11 @@ export const Frontline = () => (
       path="settings/response-templates/:id"
       element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}
     />
-    <Route
-      path="knowledgebase"
-      element={
-        <Suspense fallback={<Skeleton className="m-3 h-40" />}>
-          <KnowledgeBaseLayout />
-        </Suspense>
-      }
-    >
+    <Route path="knowledgebase" element={<Lazy />}>
       <Route index element={<TopicsPage />} />
-      <Route path=":topicId" element={<Navigate to="articles" replace />} />
+      <Route path="category/:id" element={<RecordRoute contentType={KB_CATEGORY_TYPE} />} />
+      <Route path="article/:id" element={<RecordRoute contentType={KB_ARTICLE_TYPE} />} />
+      <Route path=":id" element={<RecordRoute contentType={KB_TOPIC_TYPE} />} />
       <Route path=":topicId/articles" element={<ArticlesPage />} />
       <Route path=":topicId/categories" element={<CategoriesPage />} />
       <Route path=":topicId/kbsettings" element={<TopicSettingsPage />} />

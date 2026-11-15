@@ -22,6 +22,18 @@ describe('knowledge base topics and categories', () => {
     expect(listed.topics.map((row) => row.title)).toEqual(['about us', 'Help']);
     expect(listed.can).toEqual({ topics: true, categories: true, articles: true });
 
+    const byCode = await owner.knowledgebase.topics.list({
+      filter: JSON.stringify({
+        match: 'all',
+        rules: [{ path: 'subject.code', op: 'eq', value: 'HELP' }],
+      }),
+    });
+
+    expect(byCode.topics.map((row) => row.title)).toEqual(['Help']);
+    await expect(owner.knowledgebase.topics.list({ search: 'ABOUT' })).resolves.toMatchObject({
+      topics: [{ title: 'about us' }],
+    });
+
     await expect(
       owner.knowledgebase.topics.update({ id: topic.id, color: '#4f46e5', description: '  ' }),
     ).resolves.toMatchObject({ title: 'Help', color: '#4f46e5', description: null });
@@ -43,8 +55,12 @@ describe('knowledge base topics and categories', () => {
       title: 'Refunds',
     });
 
-    await expect(owner.knowledgebase.topics.remove({ id: topic.id })).resolves.toEqual({
-      id: topic.id,
+    await expect(owner.knowledgebase.topics.get({ id: topic.id })).resolves.toMatchObject({
+      categoryCount: 1,
+      articleCount: 1,
+    });
+    await expect(owner.knowledgebase.topics.remove({ ids: [topic.id] })).resolves.toEqual({
+      ids: [topic.id],
     });
     await expect(owner.knowledgebase.categories.get({ id: category.id })).rejects.toMatchObject({
       code: 'NOT_FOUND',
@@ -77,6 +93,20 @@ describe('knowledge base topics and categories', () => {
       );
 
     await expect(counts()).resolves.toEqual({ Deep: 1, Guides: 2, Setup: 1 });
+
+    const under = await owner.knowledgebase.categories.list({
+      topicId: topic.id,
+      filter: JSON.stringify({
+        match: 'all',
+        rules: [{ path: 'subject.parentId', op: 'eq', value: guides.id }],
+      }),
+    });
+
+    // A filtered category still counts the articles under it.
+    expect(under.categories).toMatchObject([{ title: 'Setup', articleCount: 1 }]);
+    await expect(
+      owner.knowledgebase.categories.list({ topicId: topic.id, search: 'dee' }),
+    ).resolves.toMatchObject({ categories: [{ title: 'Deep' }] });
 
     await expect(
       owner.knowledgebase.categories.update({ id: guides.id, parentId: deep.id }),

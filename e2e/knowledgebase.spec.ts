@@ -1,50 +1,63 @@
 import type { Page } from '@playwright/test';
-import { expect, expectAccessible, test, unique } from './fixtures.ts';
+import { expect, expectAccessible, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
 
-/** Creates a topic from the side panel; returns its articles page. */
+const KB = '/frontline/knowledgebase';
+
+/** Drafts a topic in core's side panel and creates it; returns its articles page. */
 const newTopic = async (page: Page, title: string) => {
-  const sheet = page.getByRole('dialog');
+  const panel = recordPanel(page);
 
-  await page.goto('/frontline/knowledgebase?topic=new');
-  await sheet.getByLabel('Title', { exact: true }).fill(title);
+  await page.goto(newRecordPath(KB, 'frontline:kb-topic'));
+  await panel.getByLabel('Title', { exact: true }).fill(title);
   await expectAccessible(page);
-  await sheet.getByRole('button', { name: 'Create Topic' }).click();
+  await panel.getByRole('button', { name: 'Create topic' }).click();
 
-  // Creating opens the new topic's articles, closing the panel.
-  await expect(sheet).toBeHidden();
+  // The topic takes the draft's place in the panel, and joins the list.
+  await expect(panel.getByRole('button', { name: title, exact: true })).toBeVisible();
+  await expect(page.getByRole('row', { name: new RegExp(title) })).toBeVisible();
+  await panel.getByRole('link', { name: /Manage articles/ }).click();
   await expect(page).toHaveURL(/\/knowledgebase\/[^/]+\/articles$/);
-  await expect(page.getByRole('link', { name: title }).first()).toBeVisible();
   await expect(page.getByText('No articles yet')).toBeVisible();
 
   return page.url();
 };
 
-/** Writes an article in the open topic's first category. */
-const newArticle = async (page: Page, title: string) => {
-  const sheet = page.getByRole('dialog');
+/** Creates a category from the categories page's New button, or under `parent` from its row. */
+const newCategory = async (page: Page, title: string, parent?: string) => {
+  const panel = recordPanel(page);
 
-  await page.getByRole('button', { name: 'New Article' }).first().click();
-  await sheet.getByLabel('Title', { exact: true }).fill(title);
-  await sheet.getByRole('textbox', { name: 'Content' }).fill('Refunds reach your card in 5 days.');
-  await sheet.getByRole('button', { name: 'Create Article' }).click();
+  if (parent) {
+    await page.getByRole('button', { name: `Actions for ${parent}` }).click();
+    await page.getByRole('option', { name: 'New subcategory' }).click();
+  } else {
+    await page.getByRole('button', { name: 'New category' }).first().click();
+  }
+
+  await panel.getByLabel('Title', { exact: true }).fill(title);
+  await panel.getByRole('button', { name: 'Create category' }).click();
+  await expect(panel.getByRole('button', { name: title, exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: new RegExp(title) })).toBeVisible();
 };
 
-/** Opens a category's side panel from the categories page and creates it under `parent`. */
-const newCategory = async (page: Page, title: string, parent?: string) => {
-  const sheet = page.getByRole('dialog');
+/** Creates a draft article in the open topic's first category. */
+const newArticle = async (page: Page, title: string) => {
+  const panel = recordPanel(page);
 
-  await page.getByRole('button', { name: 'New Category' }).first().click();
-  await sheet.getByLabel('Title', { exact: true }).fill(title);
+  await page.getByRole('button', { name: 'New article' }).first().click();
+  await panel.getByLabel('Title', { exact: true }).fill(title);
+  await panel.getByLabel('Summary').fill('How long a refund takes.');
+  await panel.getByRole('button', { name: 'Create article' }).click();
+  await expect(
+    page.getByRole('region', { name: 'Draft' }).getByRole('button', { name: title, exact: true }),
+  ).toBeVisible();
+};
 
-  if (parent) {
-    await sheet.getByRole('combobox', { name: 'Parent category' }).click();
-    await page.getByRole('option', { name: parent }).click();
-  }
+/** Types `delete` into the confirm dialog and confirms. */
+const confirmDelete = async (page: Page) => {
+  const confirm = page.getByRole('alertdialog');
 
-  await sheet.getByRole('button', { name: 'Create Category' }).click();
-  await expect(sheet).toBeHidden();
-  await expect(page.getByRole('row', { name: new RegExp(title) })).toBeVisible();
+  await confirm.getByRole('textbox').fill('delete');
+  await confirm.getByRole('button', { name: 'Delete' }).click();
 };
 
 test('a manager files articles under categories that a reader can only read', async ({
@@ -52,65 +65,63 @@ test('a manager files articles under categories that a reader can only read', as
   newMember,
 }) => {
   const reader = await newMember(['frontline.knowledgebase.view']);
-  const sheet = page.getByRole('dialog');
+  const panel = recordPanel(page);
   const articles = await newTopic(page, `Help ${unique()}`);
+  const categories = articles.replace(/articles$/, 'categories');
 
-  await page.goto(articles.replace(/articles$/, 'categories'));
+  await page.goto(categories);
   await newCategory(page, 'Billing');
   await newCategory(page, 'Cards', 'Billing');
   await expectAccessible(page);
 
   await page.goto(articles);
-  await page.getByRole('button', { name: 'New Article' }).first().click();
-  await sheet.getByLabel('Title', { exact: true }).fill('Refunds');
-
-  // Closing the panel keeps the draft.
-  await page.keyboard.press('Escape');
-  await expect(sheet).toBeHidden();
-  await page.getByRole('button', { name: 'New Article' }).first().click();
-  await expect(sheet.getByLabel('Title', { exact: true })).toHaveValue('Refunds');
-
-  await sheet.getByRole('textbox', { name: 'Content' }).fill('Refunds reach your card in 5 days.');
+  await newArticle(page, 'Refunds');
   await expectAccessible(page);
-  await sheet.getByRole('button', { name: 'Create Article' }).click();
-  await expect(page.getByRole('row', { name: /Refunds/ })).toBeVisible();
-  await expect(page.getByText('1 record found')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Refunds', exact: true }).click();
-  await sheet.getByLabel('Title', { exact: true }).fill('Card refunds');
-  await sheet.getByRole('button', { name: 'Save Changes' }).click();
-  await expect(sheet).toBeHidden();
+  // The article opened in the panel when it was created; its fields are edited in place.
+  await panel.getByRole('button', { name: 'Refunds', exact: true }).click();
+  await page.getByPlaceholder('Title', { exact: true }).fill('Card refunds');
+  await page.keyboard.press('Enter');
+  await expect(panel.getByRole('button', { name: 'Card refunds', exact: true })).toBeVisible();
 
-  const status = page.getByRole('combobox', { name: 'Status of Card refunds' });
-
-  await status.click();
+  await panel.getByRole('combobox', { name: 'Status', exact: true }).click();
   await page.getByRole('option', { name: 'Published' }).click();
-  await expect(status).toHaveText('Published');
+
+  const published = page.getByRole('region', { name: 'Published' });
+
+  await expect(published.getByRole('button', { name: 'Card refunds', exact: true })).toBeVisible();
+  await expect(page.getByRole('region', { name: 'Draft' })).toBeHidden();
   await expectAccessible(page);
 
-  // The sidebar narrows the list to a category and everything under it.
-  const sidebar = page.getByRole('navigation', { name: 'Knowledge Base' });
-
-  await sidebar.getByRole('link', { name: /Cards/ }).click();
+  // A category's articles are the ones in it and under it.
+  await page.goto(categories);
+  await page.getByRole('button', { name: 'Actions for Cards' }).click();
+  await page.getByRole('option', { name: 'View articles' }).click();
   await expect(page.getByText('No articles yet')).toBeVisible();
-  await sidebar.getByRole('link', { name: /Billing/ }).click();
-  await expect(page.getByRole('row', { name: /Card refunds/ })).toBeVisible();
+  await page.goto(categories);
+  await page.getByRole('button', { name: 'Actions for Billing' }).click();
+  await page.getByRole('option', { name: 'View articles' }).click();
+  await expect(published.getByRole('button', { name: 'Card refunds', exact: true })).toBeVisible();
 
   // A reader sees the article and can't change it.
   await reader.page.goto(articles);
-  await expect(reader.page.getByRole('row', { name: /Card refunds/ })).toBeVisible();
-  await expect(reader.page.getByRole('button', { name: 'New Article' })).toBeHidden();
+  await expect(
+    reader.page.getByRole('button', { name: 'Card refunds', exact: true }),
+  ).toBeVisible();
+  await expect(reader.page.getByRole('button', { name: 'New article' })).toBeHidden();
   await expect(reader.page.getByRole('button', { name: 'Actions for Card refunds' })).toBeHidden();
+  await reader.page.getByRole('button', { name: 'Card refunds', exact: true }).click();
+  await expect(
+    recordPanel(reader.page).getByRole('button', { name: 'Card refunds', exact: true }),
+  ).toBeDisabled();
   await expectAccessible(reader.page);
 });
 
-test('a manager duplicates and deletes an article, then renames and deletes its topic', async ({
+test('a manager duplicates and deletes an article, then sets up and deletes its topic', async ({
   page,
 }) => {
   const topic = `Guides ${unique()}`;
   const articles = await newTopic(page, topic);
-  const confirm = page.getByRole('alertdialog');
-  const sidebar = page.getByRole('navigation', { name: 'Knowledge Base' });
 
   await page.goto(articles.replace(/articles$/, 'categories'));
   await newCategory(page, 'General');
@@ -119,28 +130,28 @@ test('a manager duplicates and deletes an article, then renames and deletes its 
 
   await page.getByRole('button', { name: 'Actions for Refunds' }).click();
   await page.getByRole('option', { name: 'Duplicate' }).click();
-  await expect(page.getByRole('row', { name: /Refunds \(copy\)/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Refunds (copy)', exact: true })).toBeVisible();
   // Picking an action closes its menu.
   await expect(page.getByRole('option', { name: 'Duplicate' })).toBeHidden();
 
   await page.getByRole('button', { name: 'Actions for Refunds (copy)' }).click();
   await page.getByRole('option', { name: 'Delete' }).click();
-  await confirm.getByRole('textbox').fill('delete');
-  await confirm.getByRole('button', { name: 'Delete' }).click();
-  await expect(page.getByText('1 record found')).toBeVisible();
+  await confirmDelete(page);
+  await expect(page.getByRole('button', { name: 'Refunds (copy)', exact: true })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Refunds', exact: true })).toBeVisible();
 
   await page.goto(articles.replace(/articles$/, 'kbsettings'));
-  await page.getByLabel('Title', { exact: true }).fill(`${topic} center`);
+  await page.getByRole('combobox', { name: 'Language' }).click();
+  await page.getByRole('option', { name: 'English' }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Topic saved')).toBeVisible();
-  await expect(sidebar.getByRole('link', { name: `${topic} center` })).toBeVisible();
   await expectAccessible(page);
 
-  await page.getByRole('button', { name: 'Delete Topic' }).click();
-  await confirm.getByRole('textbox').fill('delete');
-  await confirm.getByRole('button', { name: 'Delete' }).click();
+  await page.getByRole('button', { name: 'Delete topic' }).click();
+  await confirmDelete(page);
   await expect(page.getByText('Topic deleted')).toBeVisible();
-  await expect(sidebar.getByRole('link', { name: `${topic} center` })).toBeHidden();
+  await expect(page).toHaveURL(new RegExp(`${KB}$`));
+  await expect(page.getByRole('row', { name: new RegExp(topic) })).toBeHidden();
 });
 
 test('a member without the knowledge base permission is refused', async ({ newMember }) => {

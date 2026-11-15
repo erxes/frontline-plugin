@@ -1,44 +1,52 @@
+import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconArticle,
   IconCalendarPlus,
   IconCode,
-  IconEdit,
   IconFileDescription,
   IconFolder,
-  IconLabelFilled,
+  IconFolderUp,
+  IconLetterCase,
+  IconPlus,
   IconTrash,
+  IconUser,
 } from '@tabler/icons-react';
 import {
+  Button,
   IconComponent,
+  ListFilter,
+  MemberInline,
+  PageContainer,
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
+  type TListFilterField,
+  useListFilterParams,
+  useOpenRecord,
+  ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
-import { useSearch } from '~/shared/hooks.ts';
-import { CreateButton, ListEmpty, SearchSubHeader } from '~/shared/List.tsx';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { KB_CATEGORY_TYPE } from '~/plugin.ts';
+import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
-import { DateCell } from '~/shared/Table.tsx';
+import { DateCell, Rows } from '~/shared/Table.tsx';
 import { Indent } from './CategoryTree.tsx';
+import { KbHeader } from './KbHeader.tsx';
+import { OldLink } from './OldLink.tsx';
 import { useDeleteCategories } from './useKbDeletes.ts';
 import {
   type CategoryRow,
-  KB_PATH,
+  categoryArticlesPath,
   useCategories,
-  useOldLink,
   useKbAccess,
-  useKbPanels,
-  useKbRoute,
 } from './useKnowledgeBase.ts';
-
-const articlesOf = (topicId: string, categoryId: string) =>
-  `${KB_PATH}/${topicId}/articles?categoryId=${categoryId}`;
 
 const MoreCell = ({ category }: { category: CategoryRow }) => {
   const { t } = useTranslation('frontline');
+  const can = useKbAccess();
   const navigate = useNavigate();
-  const { category: panel } = useKbPanels();
+  const { openNew } = useOpenRecord();
   const { deleteCategories } = useDeleteCategories();
 
   return (
@@ -46,67 +54,71 @@ const MoreCell = ({ category }: { category: CategoryRow }) => {
       label={t('kb-category-actions', 'Actions for {{title}}', { title: category.title })}
       actions={[
         {
-          value: 'edit',
-          icon: <IconEdit />,
-          label: t('edit', 'Edit'),
-          onSelect: () => panel.open(category.id),
-        },
-        {
           value: 'articles',
           icon: <IconArticle />,
           label: t('kb-view-articles', 'View articles'),
-          onSelect: () => void navigate(articlesOf(category.topicId, category.id)),
+          onSelect: () => void navigate(categoryArticlesPath(category.topicId, category.id)),
         },
-        {
-          value: 'delete',
-          icon: <IconTrash />,
-          label: t('delete', 'Delete'),
-          onSelect: () => void deleteCategories([category]),
-        },
+        ...(can.categories
+          ? [
+              {
+                value: 'subcategory',
+                icon: <IconPlus />,
+                label: t('kb-new-subcategory', 'New subcategory'),
+                onSelect: () =>
+                  openNew(KB_CATEGORY_TYPE, {
+                    topicId: category.topicId,
+                    parentId: category.id,
+                  }),
+              },
+              {
+                value: 'delete',
+                icon: <IconTrash />,
+                label: t('delete', 'Delete'),
+                onSelect: () => void deleteCategories([category.id]),
+              },
+            ]
+          : []),
       ]}
     />
   );
 };
 
-/** The title under its parent, indented by depth, opening the category's panel for managers. */
-const TitleCell = ({ category, indent }: { category: CategoryRow; indent: boolean }) => {
-  const can = useKbAccess();
-  const { category: panel } = useKbPanels();
+/** The title under its parent, indented by depth, opening the category in core's side panel. */
+const TitleCell = ({ category }: { category: CategoryRow }) => {
+  const { open } = useOpenRecord();
 
   return (
     <RecordTableInlineCell>
-      {indent && <Indent depth={category.depth} />}
-      {category.icon && <IconComponent name={category.icon} className="size-4 shrink-0" />}
-      {can.categories ? (
-        <button
-          type="button"
-          className="truncate hover:underline"
-          onClick={() => panel.open(category.id)}
-        >
-          {category.title}
-        </button>
-      ) : (
+      <Indent depth={category.depth} />
+      <Button
+        variant="ghost"
+        className="min-w-0 flex-1 justify-start"
+        onClick={() => open({ contentType: KB_CATEGORY_TYPE, contentId: category.id })}
+      >
+        {category.icon && <IconComponent name={category.icon} className="size-4 shrink-0" />}
         <span className="truncate">{category.title}</span>
-      )}
+      </Button>
     </RecordTableInlineCell>
   );
 };
 
-const useColumns = (indent: boolean): RecordTableColumnDef<CategoryRow>[] => {
+const useColumns = (): RecordTableColumnDef<CategoryRow>[] => {
   const { t } = useTranslation('frontline');
   const can = useKbAccess();
 
-  const manage: RecordTableColumnDef<CategoryRow>[] = [
-    { id: 'more', cell: ({ row }) => <MoreCell category={row.original} />, size: 33 },
-    RecordTable.checkboxColumnOf<CategoryRow>(),
-  ];
-
   return [
-    ...(can.categories ? manage : []),
+    {
+      id: 'more',
+      header: () => <RecordTable.ColumnSelector />,
+      cell: ({ row }) => <MoreCell category={row.original} />,
+      size: 33,
+    },
+    ...(can.categories ? [RecordTable.checkboxColumnOf<CategoryRow>()] : []),
     {
       id: 'title',
-      header: () => <RecordTable.InlineHead label={t('title', 'Title')} icon={IconLabelFilled} />,
-      cell: ({ row }) => <TitleCell category={row.original} indent={indent} />,
+      header: () => <RecordTable.InlineHead label={t('title', 'Title')} icon={IconLetterCase} />,
+      cell: ({ row }) => <TitleCell category={row.original} />,
       size: 300,
     },
     {
@@ -125,7 +137,10 @@ const useColumns = (indent: boolean): RecordTableColumnDef<CategoryRow>[] => {
       header: () => <RecordTable.InlineHead label={t('articles', 'Articles')} icon={IconArticle} />,
       cell: ({ row }) => (
         <RecordTableInlineCell>
-          <Link to={articlesOf(row.original.topicId, row.original.id)} className="hover:underline">
+          <Link
+            to={categoryArticlesPath(row.original.topicId, row.original.id)}
+            className="hover:underline"
+          >
             {row.original.articleCount}
           </Link>
         </RecordTableInlineCell>
@@ -137,6 +152,18 @@ const useColumns = (indent: boolean): RecordTableColumnDef<CategoryRow>[] => {
       header: () => <RecordTable.InlineHead label={t('kb-code', 'Code')} icon={IconCode} />,
       cell: ({ row }) => <TextCell value={row.original.code} />,
       size: 140,
+    },
+    {
+      id: 'createdBy',
+      header: () => (
+        <RecordTable.InlineHead label={t('created-by', 'Created by')} icon={IconUser} />
+      ),
+      cell: ({ row }) => (
+        <RecordTableInlineCell>
+          <MemberInline memberId={row.original.createdBy} members={memberQueries} />
+        </RecordTableInlineCell>
+      ),
+      size: 180,
     },
     {
       id: 'createdAt',
@@ -156,39 +183,73 @@ const CategoriesCommandBar = () => {
   return (
     <SelectionBar>
       {(selected, clear) => (
-        <DeleteButton
-          disabled={isPending}
-          onClick={() =>
-            void deleteCategories(
-              selected.map((id) => ({ id })),
-              clear,
-            )
-          }
-        />
+        <DeleteButton disabled={isPending} onClick={() => void deleteCategories(selected, clear)} />
       )}
     </SelectionBar>
   );
 };
 
-/** A topic's categories as a tree, each counting the articles in it and under it. Search lists matches flat. */
+/** What the categories list's filter bar offers; the API applies it (`categories.ts`). */
+const useFields = (topicId: string): TListFilterField[] => {
+  const { t } = useTranslation('frontline');
+  const all = useCategories(topicId).data ?? [];
+
+  return [
+    { path: 'subject.title', label: t('title', 'Title'), type: 'text', icon: IconLetterCase },
+    {
+      path: 'subject.description',
+      label: t('description', 'Description'),
+      type: 'text',
+      icon: IconFileDescription,
+    },
+    { path: 'subject.code', label: t('kb-code', 'Code'), type: 'text', icon: IconCode },
+    {
+      path: 'subject.parentId',
+      label: t('kb-parent-category', 'Parent category'),
+      type: 'select',
+      icon: IconFolderUp,
+      options: all.map((row) => ({ value: row.id, label: row.title })),
+    },
+    { path: 'subject.createdBy', label: t('created-by', 'Created by'), type: 'member' },
+    {
+      path: 'subject.createdAt',
+      label: t('created-at', 'Created at'),
+      type: 'date',
+      icon: IconCalendarPlus,
+    },
+  ];
+};
+
+/**
+ * A topic's categories as a tree under core's list bar, each counting the articles in it and
+ * under it. A filtered list keeps the tree of what matches.
+ */
 export const CategoriesPage = () => {
   const { t } = useTranslation('frontline');
-  const { topicId } = useKbRoute();
+  const topicId = useParams().topicId ?? '';
   const can = useKbAccess();
-  const { category: panel } = useKbPanels();
-  const search = useSearch()?.toLowerCase();
-  const { data = [], isPending, error } = useCategories(topicId);
-  const rows = search ? data.filter((row) => row.title.toLowerCase().includes(search)) : data;
-  const columns = useColumns(!search);
-
-  useOldLink('editId', panel.open);
+  const { openNew } = useOpenRecord();
+  const { data: rows = [], isPending, error } = useCategories(topicId, useListFilterParams());
+  const columns = useColumns();
 
   return (
-    <>
-      <SearchSubHeader
-        id="frontline-kb-categories-filter"
-        count={search ? rows.length : undefined}
-      />
+    <PageContainer>
+      <OldLink param="editId" contentType={KB_CATEGORY_TYPE} />
+      <KbHeader topicId={topicId} label={t('kb-categories', 'Categories')}>
+        <CreateButton
+          allowed={can.categories}
+          label={t('kb-new-category', 'New category')}
+          onClick={() => openNew(KB_CATEGORY_TYPE, { topicId })}
+        />
+      </KbHeader>
+      <ViewBar allLabel={t('kb-all-categories', 'All categories')}>
+        <ListFilter
+          id="frontline-kb-categories"
+          fields={useFields(topicId)}
+          members={memberQueries}
+          totalCount={isPending ? undefined : rows.length}
+        />
+      </ViewBar>
       {error ? (
         <p className="m-3 text-sm text-destructive-text">{error.message}</p>
       ) : !isPending && rows.length === 0 ? (
@@ -199,13 +260,6 @@ export const CategoriesPage = () => {
             'kb-no-categories-description',
             "Group this topic's articles into categories.",
           )}
-          action={
-            <CreateButton
-              allowed={can.categories}
-              label={t('kb-new-category', 'New Category')}
-              onClick={() => panel.open('new')}
-            />
-          }
         />
       ) : (
         <RecordTable.Provider
@@ -215,18 +269,10 @@ export const CategoriesPage = () => {
           stickyColumns={['more', 'checkbox', 'title']}
           className="m-3"
         >
-          <RecordTable.Scroll>
-            <RecordTable>
-              <RecordTable.Header />
-              <RecordTable.Body>
-                {isPending && <RecordTable.RowSkeleton rows={10} />}
-                <RecordTable.RowList />
-              </RecordTable.Body>
-            </RecordTable>
-          </RecordTable.Scroll>
+          <Rows isPending={isPending} />
           {can.categories && <CategoriesCommandBar />}
         </RecordTable.Provider>
       )}
-    </>
+    </PageContainer>
   );
 };

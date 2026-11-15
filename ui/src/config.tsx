@@ -1,14 +1,25 @@
 import {
+  IconArticle,
+  IconBook,
   IconBox,
   IconCircleDot,
   IconCircles,
   IconClockHour4,
+  IconFolder,
   IconGitBranch,
   IconMessageReply,
 } from '@tabler/icons-react';
 import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
 import { type ComponentType, lazy } from 'react';
-import { CHANNEL_TYPE, PIPELINE_TYPE, PLUGIN, RESPONSE_TEMPLATE_TYPE } from '~/plugin.ts';
+import {
+  CHANNEL_TYPE,
+  KB_ARTICLE_TYPE,
+  KB_CATEGORY_TYPE,
+  KB_TOPIC_TYPE,
+  PIPELINE_TYPE,
+  PLUGIN,
+  RESPONSE_TEMPLATE_TYPE,
+} from '~/plugin.ts';
 
 // web loads this module on every page, so it imports only icons and names. Each record type's
 // slots come from one `slots.ts` that loads when the first of them shows: every import here
@@ -25,6 +36,8 @@ const slots = (load: () => Promise<Slots>) => ({
 });
 
 const pipeline = () => import('@/pipelines/slots.ts');
+const kb = () => import('@/knowledgebase/slots.ts');
+const KB = `/${PLUGIN}/knowledgebase`;
 
 /**
  * What web reads from `./config`: the app tab, the page module under `/frontline/*`, and the
@@ -69,6 +82,35 @@ export const CONFIG: IUIConfig = {
           label: 'SLA',
           icon: IconClockHour4,
           component: lazy(async () => ({ default: (await pipeline()).PipelineSla })),
+        },
+      ],
+    },
+    {
+      contentType: KB_TOPIC_TYPE,
+      title: 'Topic',
+      icon: IconBook,
+      detailPath: (id) => `${KB}/${encodeURIComponent(id)}`,
+      ...slots(async () => (await kb()).Topic),
+    },
+    {
+      contentType: KB_CATEGORY_TYPE,
+      title: 'Category',
+      icon: IconFolder,
+      detailPath: (id) => `${KB}/category/${encodeURIComponent(id)}`,
+      ...slots(async () => (await kb()).Category),
+    },
+    {
+      contentType: KB_ARTICLE_TYPE,
+      title: 'Article',
+      icon: IconArticle,
+      detailPath: (id) => `${KB}/article/${encodeURIComponent(id)}`,
+      ...slots(async () => (await kb()).Article),
+      tabs: [
+        {
+          value: 'content',
+          label: 'Content',
+          icon: IconArticle,
+          component: lazy(async () => ({ default: (await kb()).ArticleContent })),
         },
       ],
     },
