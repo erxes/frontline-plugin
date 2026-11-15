@@ -189,7 +189,11 @@ describe('ticket fields', () => {
     expect(rows).toEqual([
       { action: 'frontline.ticket.created', actor_id: 'ann', target_label: null },
       { action: 'frontline.ticket.fields_changed', actor_id: 'ann', target_label: null },
-      { action: 'frontline.ticket.removed', actor_id: 'user-org-tf-h', target_label: 'Refund twice' },
+      {
+        action: 'frontline.ticket.removed',
+        actor_id: 'user-org-tf-h',
+        target_label: 'Refund twice',
+      },
     ]);
   });
 });
