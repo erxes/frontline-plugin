@@ -1455,7 +1455,9 @@ export const IMPORT_MAP: {
   {
     collection: 'departments',
     table: 'frontline_teams',
-    values: { kind: 'department' },
+    values: {
+      kind: 'department',
+    },
     columns: {
       _id: 'id',
       title: 'name',
@@ -1468,7 +1470,9 @@ export const IMPORT_MAP: {
   {
     collection: 'branches',
     table: 'frontline_teams',
-    values: { kind: 'branch' },
+    values: {
+      kind: 'branch',
+    },
     columns: {
       _id: 'id',
       title: 'name',
@@ -1482,12 +1486,18 @@ export const IMPORT_MAP: {
     collection: 'users',
     table: 'frontline_team_members',
     unwind: 'departmentIds',
-    columns: { departmentIds: 'team_id', _id: 'user_id' },
+    columns: {
+      departmentIds: 'team_id',
+      _id: 'user_id',
+    },
   },
   {
     collection: 'users',
     table: 'frontline_team_members',
     unwind: 'branchIds',
-    columns: { branchIds: 'team_id', _id: 'user_id' },
+    columns: {
+      branchIds: 'team_id',
+      _id: 'user_id',
+    },
   },
 ];

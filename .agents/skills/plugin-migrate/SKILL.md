@@ -52,7 +52,13 @@ data only. The inventory reads code, never a database.
    `MemberInline`; a picker of other records is erxes-ui's `EntityPicker` over
    the plugin's own query. For erxes-ui components whose props changed, see
    its old-to-new table, `packages/ui/MIGRATION.md` in the erxes repo (branch
-   `postgre`).
+   `postgre`). An open page's brief lists the old files only it uses, the
+   operations it calls, its `ui-modules` symbols and what it `keeps`: hotkeys,
+   URL state, confirms and their copy, paging, drafts and toasts. Read those
+   files and keep every behavior; drop one only with a decision on the page's
+   line. Tick a Shared UI row with what replaces that symbol, so the next page
+   reuses it. An item left open on purpose gets a `  - note: <why>` line
+   under it, which reruns keep.
 6. Check parity in the browser, following the `verify` skill: open the old
    page and the new one side by side, and walk the same actions on both.
 7. Tick an item once it works on the new core and its old bugs and

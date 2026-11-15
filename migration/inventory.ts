@@ -348,6 +348,90 @@ const resolveImport = (file: string, specifier: string, paths: Set<string>) => {
     .find((candidate) => paths.has(candidate));
 };
 
+const OPERATION_START = /\b(?:query|mutation|subscription)\b[^{}]*\{/g;
+
+/** The root fields a GraphQL document selects, which are the old API operations it calls. */
+const rootFieldsOf = (document: string) =>
+  [...document.matchAll(OPERATION_START)].flatMap((match) => {
+    let depth = 1;
+    let top = '';
+
+    for (const char of document.slice(match.index + match[0].length)) {
+      if (char === '{') depth += 1;
+      else if (char === '}') depth -= 1;
+      else if (depth === 1) top += char;
+
+      if (depth === 0) break;
+    }
+
+    return (
+      top
+        .replaceAll(/\([^)]*\)/g, ' ')
+        .replaceAll(/\.\.\.\s*(?:on\s+)?\w+|@\w+|\w+\s*:/g, ' ')
+        .match(/[A-Za-z_]\w*/g) ?? []
+    );
+  });
+
+const uiFieldsOf = (root: SgNode, file: string) =>
+  root
+    .findAll({ rule: { kind: 'template_string' } })
+    .flatMap((node) =>
+      rootFieldsOf(node.text()).map((name) => ({ name, file, line: lineOf(node) })),
+    );
+
+/** Calls whose behavior a port has to keep: shortcuts, URL state, confirms, paging, live updates, drafts, toasts. */
+const BEHAVIORS = new Set([
+  'useScopedHotkeys',
+  'useHotkeys',
+  'useQueryState',
+  'useMultiQueryState',
+  'useConfirm',
+  'confirm',
+  'fetchMore',
+  'subscribeToMore',
+  'useSubscription',
+  'atomWithStorage',
+  'usePanelFormDraft',
+  'useSidePanel',
+  'toast',
+]);
+
+/** Copy as a member reads it: a string, or the fallback of `t('key', 'Fallback')`. */
+const copyOf = (node: SgNode | undefined): string | undefined => {
+  if (!node) return undefined;
+
+  if (node.kind() !== 'call_expression' || calleeName(node) !== 't') return literal(node);
+
+  const [key, fallback] = argumentsOf(node);
+
+  return (fallback && literal(fallback)) ?? (key && literal(key));
+};
+
+/** The copy a call shows: its string argument, or an object argument's message. */
+const copyIn = (arg: SgNode) =>
+  arg.kind() === 'object'
+    ? ['message', 'description', 'title']
+        .map((key) => copyOf(pairOf(arg, key) ?? undefined))
+        .find((text) => text !== undefined && !/^(success|error)!?$/i.test(text))
+    : copyOf(arg);
+
+const behaviorsOf = (root: SgNode, file: string) =>
+  root.findAll({ rule: { kind: 'call_expression' } }).flatMap((call) => {
+    const name = calleeName(call);
+    const [first] = argumentsOf(call);
+
+    if (!BEHAVIORS.has(name)) return [];
+
+    const copy = first && copyIn(first);
+
+    // A toast without its own copy (a bare "Error" with the server's message) says nothing to port.
+    if (name === 'toast' && copy === undefined) return [];
+
+    const arg = copy ?? (first && sourceText(first).slice(0, 60));
+
+    return [{ call: name, ...(arg !== undefined && { arg }), file, line: lineOf(call) }];
+  });
+
 const scanFile = (file: string, source: string, paths: Set<string>) => {
   const root = parse(file.endsWith('x') ? Lang.Tsx : Lang.TypeScript, source).root();
   const module = moduleOf(file);
@@ -389,6 +473,33 @@ const scanFile = (file: string, source: string, paths: Set<string>) => {
         if (name === 'sendTRPCMessage' && alias) trpcNames.add(alias);
       }
     }
+  }
+
+  // `const Page = lazy(() => import('~/pages/X').then((m) => ({ default: m.Page })))`
+  for (const call of root.findAll('import($SPECIFIER)')) {
+    const specifier = call.getMatch('SPECIFIER');
+    const target = specifier && resolveImport(file, literal(specifier) ?? '', paths);
+    const declarator = call.ancestors().find((node) => node.kind() === 'variable_declarator');
+    const local = declarator?.field('name')?.text();
+
+    if (!target) continue;
+
+    imports.set(local ?? target, {
+      file: target,
+      name: /default:\s*\w+\.(\w+)/.exec(declarator?.text() ?? '')?.[1] ?? 'default',
+    });
+  }
+
+  // Files this one reaches: imports, lazy imports and `export … from`.
+  const reaches = new Set([...imports.values()].map((entry) => entry.file));
+
+  for (const statement of root.findAll({
+    rule: { kind: 'export_statement', has: { kind: 'string' } },
+  })) {
+    const reexported = statement.field('source');
+    const target = reexported && resolveImport(file, literal(reexported) ?? '', paths);
+
+    if (target) reaches.add(target);
   }
 
   for (const declarator of root.findAll({ rule: { kind: 'variable_declarator' } })) {
@@ -685,6 +796,10 @@ const scanFile = (file: string, source: string, paths: Set<string>) => {
     constants,
     uiImports: uiImports.length ? { file, names: uiImports } : undefined,
     workerEvidence: [...workerEvidence].toSorted(alphabetical),
+    reaches: [...reaches].toSorted(alphabetical),
+    imports,
+    uiFields: file.startsWith(uiRoot) ? uiFieldsOf(root, file) : [],
+    behaviors: file.startsWith(uiRoot) ? behaviorsOf(root, file) : [],
   };
 };
 
@@ -814,16 +929,43 @@ const trpcCalls = all('trpcCalls');
 const graphqlOperations = scans.flatMap((scan) => scan.graphql.operations);
 const graphqlTypes = scans.flatMap((scan) => scan.graphql.types);
 
+const scanOf = new Map(sources.map((file, index) => [file, scans[index]]));
+
+/** Every plugin UI file `start` reaches through imports, lazy imports and re-exports. */
+const screenFiles = (start: string) => {
+  const seen = new Set([start]);
+
+  for (const file of seen)
+    for (const next of scanOf.get(file)?.reaches ?? []) if (next.startsWith(uiRoot)) seen.add(next);
+
+  return [...seen].toSorted(alphabetical);
+};
+
+const unique = (values: string[]) => [...new Set(values)].toSorted(alphabetical);
+
+// A route's screen: the files its element reaches, the GraphQL root fields they
+// select, the ui-modules symbols they import and the behavior a port must keep.
+// An element from a package (a layout) has no screen.
 const uiRoutes = all('uiRoutes')
   .filter((route) => route.file.startsWith(uiRoot))
-  .map((route) => ({
-    ...route,
-    // `path={Paths.Detail}` reads as the constant's value.
-    path: route.path.replaceAll(
-      /\{([^}]+)\}/g,
-      (_match, expression: string) => constants.get(expression.trim()) ?? `:${expression.trim()}`,
-    ),
-  }));
+  .map((route) => {
+    const start = scanOf.get(route.file)?.imports.get(route.element)?.file;
+    const files = start ? screenFiles(start) : [];
+    const scanned = files.flatMap((file) => scanOf.get(file) ?? []);
+
+    return {
+      ...route,
+      // `path={Paths.Detail}` reads as the constant's value.
+      path: route.path.replaceAll(
+        /\{([^}]+)\}/g,
+        (_match, expression: string) => constants.get(expression.trim()) ?? `:${expression.trim()}`,
+      ),
+      files,
+      fields: unique(scanned.flatMap((scan) => scan.uiFields.map((entry) => entry.name))),
+      uiModules: unique(scanned.flatMap((scan) => scan.uiImports?.names ?? [])),
+      behaviors: scanned.flatMap((scan) => scan.behaviors),
+    };
+  });
 
 const modules = [...new Set(sources.map(moduleOf))].toSorted(alphabetical);
 

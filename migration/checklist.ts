@@ -2,8 +2,9 @@
 // section per module), migration/schema-draft.ts (draft Drizzle tables from the
 // Mongoose schemas) and migration/import-map.ts (collection → table, for
 // scripts/import-mongo.ts). Rerun after `pnpm migrate:inventory`; ticks in an
-// existing MIGRATION.md are kept.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+// existing MIGRATION.md are kept, and a table with a migration keeps its import
+// entry and leaves the draft.
+import { existsSync, globSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type * as pg from 'drizzle-orm/pg-core';
 import { z } from 'zod';
@@ -21,6 +22,7 @@ import {
   REGISTRATIONS,
   UNMAPPED,
 } from './core-map.ts';
+import { IMPORT_MAP } from './import-map.ts';
 
 const here = import.meta.dirname;
 const root = resolve(here, '..');
@@ -61,7 +63,16 @@ const Inventory = z.object({
     Located.extend({ collection: z.string(), module: z.string(), schema: z.string().nullable() }),
   ),
   routes: z.array(InModule.extend({ method: z.string(), path: z.string(), webhook: z.boolean() })),
-  uiRoutes: z.array(Located.extend({ path: z.string(), element: z.string() })),
+  uiRoutes: z.array(
+    Located.extend({
+      path: z.string(),
+      element: z.string(),
+      files: z.array(z.string()),
+      fields: z.array(z.string()),
+      uiModules: z.array(z.string()),
+      behaviors: z.array(Located.extend({ call: z.string(), arg: z.string().optional() })),
+    }),
+  ),
   trpcCalls: z.array(
     InModule.extend({
       pluginName: Value.optional(),
@@ -104,14 +115,21 @@ const RUNTIME_ENV =
 
 // Checklist items -------------------------------------------------------------
 
-type Item = { section: string; text: string; kind?: Equivalent['kind'] };
+/** `details` are the brief under an open item; a ticked one drops them. */
+type Item = { section: string; text: string; kind?: Equivalent['kind']; details?: string[] };
 
 const items = new Map<string, Item[]>();
 
-const add = (module: string, section: string, text: string, kind?: Equivalent['kind']) => {
+const add = (
+  module: string,
+  section: string,
+  text: string,
+  kind?: Equivalent['kind'],
+  details?: string[],
+) => {
   const list = items.get(module) ?? [];
 
-  list.push({ section, text, kind });
+  list.push({ section, text, kind, details });
   items.set(module, list);
 };
 
@@ -149,6 +167,53 @@ for (const collection of inventory.collections) {
   );
 }
 
+const VERBS: Record<string, string> = {
+  add: 'create',
+  create: 'create',
+  edit: 'update',
+  update: 'update',
+  remove: 'remove',
+  delete: 'remove',
+};
+
+const plural = (word: string) =>
+  word.endsWith('us')
+    ? `${word}es`
+    : /[^aeiou]y$/.test(word)
+      ? `${word.slice(0, -1)}ies`
+      : word.endsWith('s')
+        ? word
+        : `${word}s`;
+
+const lowerFirst = (word: string) => `${word.charAt(0).toLowerCase()}${word.slice(1)}`;
+
+/**
+ * The procedure an operation suggests, by its record and verb: `getTicketPipelines` →
+ * `ticketPipelines.list`, `addTicketStatus` → `ticketStatuses.create`,
+ * `knowledgeBaseTopicsTotalCount` → `knowledgeBaseTopics.list`. Names it can't read
+ * stay under the old module.
+ */
+const procedureOf = (op: { name: string; kind: string; module: string }) => {
+  const bare = op.name.replace(/^get(?=[A-Z])/, '');
+  const leading = /^(add|create|edit|update|remove|delete)(?=[A-Z])/.exec(bare);
+  const trailing = /(Add|Create|Edit|Update|Remove|Delete)$/.exec(bare);
+  const read = /(TotalCount|Detail)$/.exec(bare);
+
+  const [record, verb] = leading?.[1]
+    ? [bare.slice(leading[1].length), VERBS[leading[1]]]
+    : trailing?.[1]
+      ? [bare.slice(0, -trailing[1].length), VERBS[trailing[1].toLowerCase()]]
+      : read?.[1]
+        ? [bare.slice(0, -read[1].length), read[1] === 'Detail' ? 'get' : 'list']
+        : op.kind === 'query'
+          ? [bare, plural(bare) === bare && !bare.endsWith('us') ? 'list' : 'get']
+          : [undefined, undefined];
+
+  return record && verb
+    ? `${plural(lowerFirst(record))}.${verb}`
+    : `${op.module}.${lowerFirst(bare)}`;
+};
+
 for (const op of inventory.graphql.operations) {
   const portal = isClientPortal(op);
 
@@ -157,7 +222,7 @@ for (const op of inventory.graphql.operations) {
     'Procedures',
     portal
       ? `${op.kind} \`${op.name}\` → ${describe(CLIENT_PORTAL)} ${at(op)}`
-      : `${op.kind} \`${op.name}\` → procedure \`${op.module}.${op.name}\` (returns \`${op.returns}\`) ${at(op)}`,
+      : `${op.kind} \`${op.name}\` → procedure \`${procedureOf(op)}\` (returns \`${op.returns}\`) ${at(op)}`,
     portal ? 'drop' : undefined,
   );
 }
@@ -180,11 +245,50 @@ const moduleOfPage = (route: { path: string; element: string }) => {
   return byName ?? bySegment ?? '(plugin)';
 };
 
+const moduleOfOperation = new Map(inventory.graphql.operations.map((op) => [op.name, op.module]));
+
+/** Which screens reach each old UI file, by element, so a brief lists the files only its screen has. */
+const screensOf = new Map<string, Set<string>>();
+
+// A `/*` route holds other pages' routes and reaches all their files, so it doesn't count.
+for (const route of inventory.uiRoutes.filter((entry) => !entry.path.endsWith('*')))
+  for (const file of route.files)
+    screensOf.set(file, (screensOf.get(file) ?? new Set()).add(route.element));
+
+const uiSrc = `frontend/plugins/${plugin}_ui/src/`;
+
+/** What a page's port has to cover: its files, the operations it calls, old shared UI and behavior. */
+const briefOf = (route: (typeof inventory.uiRoutes)[number]) => {
+  const own = route.files.filter((file) => screensOf.get(file)?.size === 1);
+  const byModule = Map.groupBy(route.fields, (field) => moduleOfOperation.get(field) ?? 'core');
+
+  const calls = [...byModule]
+    .toSorted(([a], [b]) => alphabetical(a, b))
+    .map(([module, fields]) => `${module}: ${fields.map((field) => `\`${field}\``).join(', ')}`);
+
+  const behaviors = [
+    ...new Set(
+      route.behaviors.map((entry) => `${entry.call}${entry.arg ? ` "${entry.arg}"` : ''}`),
+    ),
+  ];
+
+  return [
+    route.files.length > 0 &&
+      `files: ${route.files.length}, ${own.length} only here${own.length ? `: ${own.map((file) => `\`${file.replace(uiSrc, '')}\``).join(', ')}` : ''}`,
+    calls.length > 0 && `calls: ${calls.join('; ')}`,
+    route.uiModules.length > 0 &&
+      `ui-modules: ${route.uiModules.map((name) => `\`${name}\``).join(', ')}`,
+    behaviors.length > 0 && `keeps: ${behaviors.join(' · ')}`,
+  ].filter((line) => typeof line === 'string');
+};
+
 for (const route of inventory.uiRoutes) {
   add(
     moduleOfPage(route),
     'Pages',
     `\`/${PLUGIN}/${route.path.replace(/^\//, '')}\` (${route.element}) ${at(route)}`,
+    undefined,
+    briefOf(route),
   );
 }
 
@@ -280,19 +384,43 @@ for (const entry of env) {
   add('(plugin)', 'Environment', `\`${entry.name}\` → api/src/config.ts ${at(entry)}`);
 }
 
+// Most used first: ticking one records what replaces it, for every page after.
+for (const [name, files] of Object.entries(inventory.uiModules.symbols).toSorted(
+  (a, b) => b[1] - a[1] || alphabetical(a[0], b[0]),
+))
+  add('(plugin)', 'Shared UI', `\`${name}\` (${files} files)`);
+
 // MIGRATION.md -------------------------------------------------------------------
 
 const markdown = resolve(root, 'MIGRATION.md');
 
-// Ticks survive a rerun: an item's text without its checkbox is its key, and a
-// filed gap keeps its ` (filed <url>)` suffix.
-const ticked = new Map(
-  existsSync(markdown)
-    ? [...readFileSync(markdown, 'utf8').matchAll(/^- \[x\] (.+?)( \(filed \S+\))?$/gm)].map(
-        (match) => [match[1], match[2] ?? ''] as const,
-      )
-    : [],
-);
+/** An item's old `file:line`. */
+const LOCATION = /`[^`]+:\d+`/;
+
+/**
+ * What an item is about: its text before the arrow or the first parenthesis, and
+ * its old location. A written line keeps its key while its rest is rewritten to say
+ * what the item became.
+ */
+const keyOf = (text: string) =>
+  `${text.split(' → ')[0]?.split(' (')[0] ?? text} ${LOCATION.exec(text)?.[0] ?? ''}`;
+
+// Ticks survive a rerun with the text they were ticked with, decisions and
+// `(filed <url>)` included. An open item keeps the `  - note: …` lines under it.
+const ticked = new Map<string, string>();
+const notes = new Map<string, string[]>();
+let open: string | undefined;
+
+for (const line of existsSync(markdown) ? readFileSync(markdown, 'utf8').split('\n') : []) {
+  const item = /^- \[([ x])\] (.+)$/.exec(line);
+  const note = /^ {2}- note: .+$/.exec(line);
+
+  if (item?.[1] === 'x') ticked.set(keyOf(item[2] ?? ''), item[2] ?? '');
+
+  if (item) open = item[1] === ' ' ? keyOf(item[2] ?? '') : undefined;
+  else if (note && open) notes.set(open, [...(notes.get(open) ?? []), note[0]]);
+  else if (!line.startsWith('  ')) open = undefined;
+}
 
 const all = [...items.values()].flat();
 const gaps = all.filter((item) => item.kind === 'gap').length;
@@ -313,6 +441,7 @@ const sections = [
   'Workers and crons',
   'Registrations',
   'Environment',
+  'Shared UI',
 ];
 
 const symbols = Object.keys(inventory.uiModules.symbols).length;
@@ -325,7 +454,7 @@ const lines = [
   'tick an item once it works on the new core and its old bugs and workarounds are gone, tick a gap once filed, ending its line with `(filed <issue url>)`,',
   'and tick a drop once its code is left out (segments, the client portal and brands are not migrated).',
   '',
-  `The old UI imports ${symbols} symbols from \`ui-modules\` in ${inventory.uiModules.files} files; the host has no \`ui-modules\`, so each page rebuilds them from \`erxes-ui\` (members through its \`SelectMember\` and \`MemberInline\`, other records through \`EntityPicker\`). erxes-ui's own old-to-new component table is \`packages/ui/MIGRATION.md\` in erxes (branch \`postgre\`).`,
+  `The old UI imports ${symbols} symbols from \`ui-modules\` in ${inventory.uiModules.files} files; the host has no \`ui-modules\`, so each page rebuilds them from \`erxes-ui\` or \`ui/src/shared\`, and Plugin-wide's Shared UI section records which (members through its \`SelectMember\` and \`MemberInline\`, other records through \`EntityPicker\`). erxes-ui's own old-to-new component table is \`packages/ui/MIGRATION.md\` in erxes (branch \`postgre\`).`,
   `GraphQL types (${inventory.graphql.types.length}) are listed in \`migration/inventory.json\` for reference; procedures replace them.`,
   '',
 ];
@@ -345,8 +474,16 @@ for (const module of order) {
     lines.push(`### ${section}`, '');
 
     for (const item of sectionItems) {
-      const filed = ticked.get(item.text);
-      lines.push(filed === undefined ? `- [ ] ${item.text}` : `- [x] ${item.text}${filed}`);
+      const key = keyOf(item.text);
+      const done = ticked.get(key);
+
+      if (done !== undefined) lines.push(`- [x] ${done}`);
+      else
+        lines.push(
+          `- [ ] ${item.text}`,
+          ...(notes.get(key) ?? []),
+          ...(item.details ?? []).map((detail) => `  - ${detail}`),
+        );
     }
 
     lines.push('');
@@ -380,7 +517,16 @@ const identifier = (name: string) =>
 const snake = (name: string) => name.replaceAll(/([a-z0-9])([A-Z])/g, '$1_$2').toLowerCase();
 const drafted = new Set<string>();
 const tables: string[] = [];
-const imports: string[] = [];
+const imports: (typeof IMPORT_MAP)[number][] = [];
+
+/** Tables a migration creates: ported, so their schema and import entry are hand-written now. */
+const ported = new Set(
+  globSync('api/drizzle/*.sql', { cwd: root }).flatMap((file) =>
+    [...readFileSync(resolve(root, file), 'utf8').matchAll(/CREATE TABLE "(\w+)"/g)].map(
+      (match) => match[1],
+    ),
+  ),
+);
 
 for (const collection of inventory.collections) {
   const schema = collection.schema ? schemaByRef.get(collection.schema) : undefined;
@@ -389,6 +535,15 @@ for (const collection of inventory.collections) {
   if (!schema || drafted.has(table)) continue;
 
   drafted.add(table);
+
+  const kept = IMPORT_MAP.find(
+    (entry) => entry.collection === collection.collection && entry.table === table,
+  );
+
+  if (ported.has(table) && kept) {
+    imports.push(kept);
+    continue;
+  }
 
   // `timestamps: true` adds createdAt and updatedAt below; a schema that also declares them gets them once.
   const stamped = new Set(schema.timestamps ? ['createdAt', 'updatedAt'] : []);
@@ -432,25 +587,22 @@ for (const collection of inventory.collections) {
     ].join('\n'),
   );
 
-  const columnMap = [
-    "      _id: 'id',",
-    ...fields.map((entry) => `      ${identifier(entry.name)}: '${snake(entry.name)}',`),
+  const columnMap: [string, string][] = [
+    ['_id', 'id'],
+    ...fields.map((entry): [string, string] => [entry.name, snake(entry.name)]),
     ...(schema.timestamps
-      ? ["      createdAt: 'created_at',", "      updatedAt: 'updated_at',"]
+      ? ([
+          ['createdAt', 'created_at'],
+          ['updatedAt', 'updated_at'],
+        ] satisfies [string, string][])
       : []),
   ];
 
-  imports.push(
-    [
-      `  {`,
-      `    collection: '${collection.collection}',`,
-      `    table: '${table}',`,
-      '    columns: {',
-      ...columnMap,
-      '    },',
-      '  },',
-    ].join('\n'),
-  );
+  imports.push({
+    collection: collection.collection,
+    table,
+    columns: Object.fromEntries(columnMap),
+  });
 }
 
 // The plugin's own departments and branches, in place of old core's structure.
@@ -491,25 +643,26 @@ if (usesTeams) {
     ].join('\n'),
   );
 
-  const structure = (collection: string, kind: string) =>
-    [
-      '  {',
-      `    collection: '${collection}',`,
-      `    table: '${TEAMS}',`,
-      `    values: { kind: '${kind}' },`,
-      "    columns: { _id: 'id', title: 'name', code: 'code', parentId: 'parent_id', supervisorId: 'supervisor_id', createdAt: 'created_at' },",
-      '  },',
-    ].join('\n');
+  const structure = (collection: string, kind: string) => ({
+    collection,
+    table: TEAMS,
+    values: { kind },
+    columns: {
+      _id: 'id',
+      title: 'name',
+      code: 'code',
+      parentId: 'parent_id',
+      supervisorId: 'supervisor_id',
+      createdAt: 'created_at',
+    },
+  });
 
-  const members = (field: string) =>
-    [
-      '  {',
-      "    collection: 'users',",
-      `    table: '${TEAM_MEMBERS}',`,
-      `    unwind: '${field}',`,
-      `    columns: { ${field}: 'team_id', _id: 'user_id' },`,
-      '  },',
-    ].join('\n');
+  const members = (field: string) => ({
+    collection: 'users',
+    table: TEAM_MEMBERS,
+    unwind: field,
+    columns: { [field]: 'team_id', _id: 'user_id' },
+  });
 
   imports.push(
     structure('departments', 'department'),
@@ -546,9 +699,7 @@ writeFileSync(
     '  columns: Record<string, string>;',
     '  values?: Record<string, string>;',
     '  unwind?: string;',
-    '}[] = [',
-    ...imports,
-    '];',
+    `}[] = ${JSON.stringify(imports, null, 2)};`,
     '',
   ].join('\n'),
 );
