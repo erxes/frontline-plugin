@@ -75,7 +75,6 @@ const PropertyInput = ({
           scope={`${scope}.${property.id}`}
           value={textOf(value)}
           placeholder={empty}
-          aria-label={property.label}
           onSave={(next) => onChange(next.trim() || null)}
         />
       );
@@ -85,7 +84,6 @@ const PropertyInput = ({
           scope={`${scope}.${property.id}`}
           value={typeof value === 'number' ? value : 0}
           placeholder={empty}
-          aria-label={property.label}
           onSave={onChange}
         />
       );

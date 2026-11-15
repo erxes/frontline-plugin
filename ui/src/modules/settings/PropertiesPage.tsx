@@ -70,7 +70,7 @@ const OptionsCell = ({ property }: { property: Property }) => {
           update.mutate({ id: property.id, options });
       }}
     >
-      <RecordTableInlineCell.Trigger aria-label={t('choices', 'Choices')}>
+      <RecordTableInlineCell.Trigger>
         <Badges labels={property.options} />
       </RecordTableInlineCell.Trigger>
       <RecordTableInlineCell.Content>
@@ -84,7 +84,7 @@ const OptionsCell = ({ property }: { property: Property }) => {
   );
 };
 
-const RequiredCell = ({ property }: { property: Property }) => {
+const RequiredCell = ({ property, disabled }: { property: Property; disabled: boolean }) => {
   const { t } = useTranslation('frontline');
   const update = useUpdateProperty();
 
@@ -93,6 +93,7 @@ const RequiredCell = ({ property }: { property: Property }) => {
       <Switch
         aria-label={t('required-of', '{{label}} is required', { label: property.label })}
         checked={property.isRequired}
+        disabled={disabled}
         onCheckedChange={(isRequired) => update.mutate({ id: property.id, isRequired })}
       />
     </RecordTableInlineCell>
@@ -159,7 +160,7 @@ const useColumns = (canManage: boolean) => {
       <OptionsCell property={row} />
     )),
     column<Property>('isRequired', t('required', 'Required'), IconAsterisk, 100, (row) => (
-      <RequiredCell property={row} />
+      <RequiredCell property={row} disabled={!canManage} />
     )),
     column<Property>('pipelines', t('pipelines', 'Pipelines'), IconGitBranch, 220, (row) => (
       <PipelinesCell property={row} />

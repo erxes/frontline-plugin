@@ -12,6 +12,10 @@ import {
 
 const TICKETS = '/frontline/tickets';
 
+// One after the other: every test files tickets in the owner's organisation, and a list without
+// a pipeline filter groups by each pipeline's statuses once two pipelines hold tickets.
+test.describe.configure({ mode: 'default' });
+
 /** Opens `select` and picks `option` in it. */
 const pick = async (page: Page, select: Locator, option: string) => {
   await select.click();

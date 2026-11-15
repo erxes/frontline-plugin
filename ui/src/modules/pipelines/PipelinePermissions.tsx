@@ -55,6 +55,7 @@ const VisibilityFields = ({ pipeline }: { pipeline: Pipeline }) => {
           <Switch
             aria-label={check.label}
             checked={pipeline[check.field]}
+            disabled={!pipeline.canManage}
             onCheckedChange={(on) => edit({ [check.field]: on })}
             className="mx-2"
           />
@@ -76,7 +77,7 @@ const VisibilityFields = ({ pipeline }: { pipeline: Pipeline }) => {
 };
 
 /** One status's privacy, and who may edit and move its tickets; an empty list leaves it open. */
-const StatusRights = ({ status }: { status: Status }) => {
+const StatusRights = ({ status, disabled }: { status: Status; disabled: boolean }) => {
   const { t } = useTranslation('frontline');
   const update = useMutation(orpc.pipelines.statuses.update.mutationOptions(usePipelineChange()));
 
@@ -91,6 +92,7 @@ const StatusRights = ({ status }: { status: Status }) => {
         <Switch
           aria-label={t('status-private-of', '{{name}} is private', { name: status.name })}
           checked={isPrivate}
+          disabled={disabled}
           onCheckedChange={(on) => save({ visibilityType: on ? 'private' : 'public' })}
           className="mx-2"
         />
@@ -130,12 +132,14 @@ const StatusRights = ({ status }: { status: Status }) => {
   );
 };
 
-const StatusesRights = ({ pipelineId }: { pipelineId: string }) => {
+const StatusesRights = ({ pipelineId, disabled }: { pipelineId: string; disabled: boolean }) => {
   const statuses = useStatuses(pipelineId);
 
   if (statuses.isPending) return <Spinner area="lg" />;
 
-  return (statuses.data ?? []).map((status) => <StatusRights key={status.id} status={status} />);
+  return (statuses.data ?? []).map((status) => (
+    <StatusRights key={status.id} status={status} disabled={disabled} />
+  ));
 };
 
 /**
@@ -148,7 +152,7 @@ export const PipelinePermissions = ({ contentId }: TRecordSlotProps) => (
     {(pipeline) => (
       <ReadOnly when={!pipeline.canManage}>
         <VisibilityFields pipeline={pipeline} />
-        <StatusesRights pipelineId={pipeline.id} />
+        <StatusesRights pipelineId={pipeline.id} disabled={!pipeline.canManage} />
       </ReadOnly>
     )}
   </WithPipeline>

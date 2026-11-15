@@ -71,6 +71,7 @@ const SlaFields = ({ pipeline }: { pipeline: Pipeline }) => {
           <Switch
             aria-label={t('pipeline-sla-enabled', 'Keep an SLA')}
             checked={policy.enabled}
+            disabled={!pipeline.canManage}
             onCheckedChange={(enabled) => save({ enabled })}
             className="mx-2"
           />
