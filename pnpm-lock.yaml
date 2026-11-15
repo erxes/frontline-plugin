@@ -184,8 +184,8 @@ importers:
         specifier: ^4.14.0
         version: 4.14.0(playwright-core@1.65.0)
       '@erxes/core-contract':
-        specifier: 0.1.0-v2.6
-        version: 0.1.0-v2.6(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+        specifier: 0.1.0-v2.7
+        version: 0.1.0-v2.7(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@erxes/lint':
         specifier: 0.1.3
         version: 0.1.3(eslint@10.15.0(jiti@2.7.0))(vite-plus@1.6.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/ui@5.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.65.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1))
@@ -238,11 +238,11 @@ importers:
   api:
     dependencies:
       '@erxes/core-contract':
-        specifier: 0.1.0-v2.6
-        version: 0.1.0-v2.6(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+        specifier: 0.1.0-v2.7
+        version: 0.1.0-v2.7(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@erxes/plugin-sdk':
-        specifier: 0.1.0-v2.5
-        version: 0.1.0-v2.5(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+        specifier: 0.1.0-v2.6
+        version: 0.1.0-v2.6(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)
       '@opentelemetry/instrumentation-express':
         specifier: ^0.73.0
         version: 0.73.0(@opentelemetry/api@1.10.0)
@@ -317,8 +317,8 @@ importers:
         specifier: 3.2.2
         version: 3.2.2(react@19.3.1)
       '@erxes/core-contract':
-        specifier: 0.1.0-v2.6
-        version: 0.1.0-v2.6(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+        specifier: 0.1.0-v2.7
+        version: 0.1.0-v2.7(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@orpc/client':
         specifier: 1.16.2
         version: 1.16.2(@opentelemetry/api@1.10.0)
@@ -746,8 +746,8 @@ packages:
   '@emnapi/wasi-threads@2.2.0':
     resolution: {integrity: sha512-JP7OYH38Q7+pyTAe14raZHLQIK7BDKbdwji+Xi3pcd/6QkJYQH3SX4wu6EplGrGJWRepoNzedfm0G3B9Z4e9Rw==}
 
-  '@erxes/core-contract@0.1.0-v2.6':
-    resolution: {integrity: sha512-chUHqgP92ToBPYXQAYRl12JEvJtpLAeRCB8nzpR48zGKpgsn5WApoErpr4WTNAVOEMId2vBkR3oWobcL0PGNBA==}
+  '@erxes/core-contract@0.1.0-v2.7':
+    resolution: {integrity: sha512-bbevwCcnuZ99udRJODPUpuPAfgbW8zLfGFihTiPi5Zb5EHMgMZUcr/V4phwWGZRNUzNO6k0PCD22eNw8GnjQYA==}
 
   '@erxes/lint@0.1.3':
     resolution: {integrity: sha512-4diDLNZcOkH5MduST12R5TN/uJd7FWX1AcRYyXHQ0I1L5I5m9x3NVJuydq/TzEigMudGZsGuM2KaPg9I54vDXA==}
@@ -755,8 +755,10 @@ packages:
     peerDependencies:
       vite-plus: ^1.6.0
 
-  '@erxes/plugin-sdk@0.1.0-v2.5':
-    resolution: {integrity: sha512-1/H6CJ/e35//Skn3e8JjTDkS0L+JWJGJsh7dZhp6RyYYfjbQFwqaeHyMlwMEkz1/Be/c/hkuSYB8Ves4uo9HIw==}
+  '@erxes/plugin-sdk@0.1.0-v2.6':
+    resolution: {integrity: sha512-lgcSPaap++dFOiaWeHjuoBTqDIBjz2RKt9TxftM4iidMfw5174PP1gZJhUgsNKKMGikWR+JCpV5dp53kQXiCyQ==}
+    peerDependencies:
+      drizzle-orm: 0.45.4
 
   '@erxes/ui@4.0.0-v2.10':
     resolution: {integrity: sha512-f1Nd4T/fBw5iJamOwYV1x3bvhhaEA4FLgs/6Zk/7TTsXAjyE4pBxyK0QNjokgW8jl0pJq+bIxGnuwHRMea2+Hw==}
@@ -6297,7 +6299,7 @@ snapshots:
       tslib: 2.9.1
     optional: true
 
-  '@erxes/core-contract@0.1.0-v2.6(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)':
+  '@erxes/core-contract@0.1.0-v2.7(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)':
     dependencies:
       '@orpc/client': 1.16.2(@opentelemetry/api@1.10.0)
       '@orpc/contract': 1.16.2(@opentelemetry/api@1.10.0)
@@ -6349,12 +6351,13 @@ snapshots:
       - '@typescript-eslint/parser'
       - eslint
 
-  '@erxes/plugin-sdk@0.1.0-v2.5(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)':
+  '@erxes/plugin-sdk@0.1.0-v2.6(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)':
     dependencies:
-      '@erxes/core-contract': 0.1.0-v2.6(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+      '@erxes/core-contract': 0.1.0-v2.7(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@orpc/client': 1.16.2(@opentelemetry/api@1.10.0)
       '@orpc/contract': 1.16.2(@opentelemetry/api@1.10.0)
       '@orpc/openapi-client': 1.16.2(@opentelemetry/api@1.10.0)
+      drizzle-orm: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1)
       jose: 6.2.17
       zod: 4.6.7
     transitivePeerDependencies:

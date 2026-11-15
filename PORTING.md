@@ -69,14 +69,14 @@ plugin owns that job.
 A workaround that would need a data migration once core ships the feature is
 never fine.
 
-Two asks are open with core:
+One ask is open with core: org import. Old users and customers keep their
+Mongo ids in core, because the plugin import maps to them (the "Mongo `_id`
+strings" row in `DECISIONS.md`).
 
-1. Org import. Old users and customers keep their Mongo ids in core, because
-   the plugin import maps to them (the "Mongo `_id` strings" row in
-   `DECISIONS.md`).
-2. Plugin jobs. Core's pg-boss queue is internal. Mail sync, token refresh,
-   SLA breach checks and send retries need retried and cron jobs. Core is
-   building them now.
+Mail sync, token refresh, SLA breach checks and send retries are plugin jobs
+(`@erxes/plugin-sdk` 0.1.0-v2.6): the manifest's `jobs` declares each with its
+retry and `cron`, `enqueueJob` queues one in the change's transaction, and
+`verifyCoreJob` checks each attempt core POSTs to `/api/jobs/<name>`.
 
 Frontline builds these in its own tables, with no core change:
 
