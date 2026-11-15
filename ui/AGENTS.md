@@ -13,6 +13,9 @@ and renders `./frontline` (the `Frontline` export) under `/frontline/*`.
 - Build pages from `erxes-ui` components and its root export. The host provides
   React, the router, the query client and erxes-ui, and web's stylesheet styles
   erxes-ui's components.
+- Read `node_modules/erxes-ui/CATALOG.md` before writing a component, hook or
+  helper. It lists every erxes-ui export with what it is for, and the core screen
+  each kind of page copies.
 - Any Tailwind class works, on erxes-ui's tokens (`bg-muted`, `text-sm`,
   `md:grid-cols-2`). `src/styles.css` builds the plugin's own utilities, and
   `src/Frontline.tsx` passes them to `addPluginStyles`, which adds only the

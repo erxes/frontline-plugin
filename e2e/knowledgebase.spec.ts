@@ -95,11 +95,12 @@ test('a manager files articles under categories that a reader can only read', as
   await expect(page.getByRole('region', { name: 'Draft' })).toBeHidden();
   await expectAccessible(page);
 
-  // A category's articles are the ones in it and under it.
+  // A category's articles are the ones in it and under it: Cards has none, Billing has Refunds.
   await page.goto(categories);
   await page.getByRole('button', { name: 'Actions for Cards' }).click();
   await page.getByRole('option', { name: 'View articles' }).click();
-  await expect(page.getByText('No articles yet')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'is Cards' })).toBeVisible();
+  await expect(page.getByText('No results found')).toBeVisible();
   await page.goto(categories);
   await page.getByRole('button', { name: 'Actions for Billing' }).click();
   await page.getByRole('option', { name: 'View articles' }).click();

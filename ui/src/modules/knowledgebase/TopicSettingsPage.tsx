@@ -1,7 +1,15 @@
 import { IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Button, ColorPicker, Form, PageContainer, ScrollArea, Skeleton, toast } from 'erxes-ui';
-import type { ReactNode } from 'react';
+import {
+  Button,
+  Card,
+  ColorPicker,
+  Form,
+  PageContainer,
+  ScrollArea,
+  Skeleton,
+  toast,
+} from 'erxes-ui';
 import { useForm, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
@@ -20,25 +28,6 @@ const valuesOf = (topic: Topic): HelpCenter => ({
   color: topic.color ?? '',
   backgroundImage: topic.backgroundImage ?? '',
 });
-
-/** One card of the page: a title, a line saying what it's for, then its fields. */
-const Card = ({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: ReactNode;
-}) => (
-  <section className="space-y-4 rounded-lg border bg-background p-5">
-    <div>
-      <h2 className="text-base font-semibold">{title}</h2>
-      <p className="text-sm text-muted-foreground">{description}</p>
-    </div>
-    {children}
-  </section>
-);
 
 /** How the topic's help center reads: its language, colour and background image. */
 const HelpCenterForm = ({ topic, editable }: { topic: Topic; editable: boolean }) => {
@@ -99,57 +88,65 @@ const HelpCenterCard = () => {
   const { control } = useFormContext<HelpCenter>();
 
   return (
-    <Card
-      title={t('kb-help-center', 'Help center')}
-      description={t(
-        'kb-help-center-description',
-        'How the published help center of this topic reads and looks.',
-      )}
-    >
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Form.Field
-          control={control}
-          name="languageCode"
-          render={({ field }) => (
-            <Form.Item>
-              <Form.Label>{t('language', 'Language')}</Form.Label>
-              <Form.Control>
-                <LanguageSelect value={field.value} onChange={field.onChange} />
-              </Form.Control>
-              <Form.Message />
-            </Form.Item>
+    <Card>
+      <Card.Header>
+        <Card.Title>{t('kb-help-center', 'Help center')}</Card.Title>
+        <Card.Description>
+          {t(
+            'kb-help-center-description',
+            'How the published help center of this topic reads and looks.',
           )}
-        />
-        <Form.Field
-          control={control}
-          name="color"
-          render={({ field }) => (
-            <Form.Item>
-              <Form.Label>{t('kb-color', 'Color')}</Form.Label>
-              <Form.Control>
-                <ColorPicker
-                  aria-label={t('kb-color', 'Color')}
-                  value={field.value || undefined}
-                  onValueChange={field.onChange}
-                  className="w-min"
+        </Card.Description>
+      </Card.Header>
+      <Card.Content>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Form.Field
+            control={control}
+            name="languageCode"
+            render={({ field }) => (
+              <Form.Item>
+                <Form.Label>{t('language', 'Language')}</Form.Label>
+                <Form.Control>
+                  <LanguageSelect value={field.value} onChange={field.onChange} />
+                </Form.Control>
+                <Form.Message />
+              </Form.Item>
+            )}
+          />
+          <Form.Field
+            control={control}
+            name="color"
+            render={({ field }) => (
+              <Form.Item>
+                <Form.Label>{t('kb-color', 'Color')}</Form.Label>
+                <Form.Control>
+                  <ColorPicker
+                    aria-label={t('kb-color', 'Color')}
+                    value={field.value || undefined}
+                    onValueChange={field.onChange}
+                    className="w-min"
+                  />
+                </Form.Control>
+                <Form.Message />
+              </Form.Item>
+            )}
+          />
+          <Form.Field
+            control={control}
+            name="backgroundImage"
+            render={({ field }) => (
+              <Form.Item className="sm:col-span-2">
+                <Form.Label>{t('kb-background-image', 'Background image')}</Form.Label>
+                <ImageField
+                  value={field.value}
+                  onChange={(file) => field.onChange(file?.url ?? '')}
                 />
-              </Form.Control>
-              <Form.Message />
-            </Form.Item>
-          )}
-        />
-      </div>
-      <Form.Field
-        control={control}
-        name="backgroundImage"
-        render={({ field }) => (
-          <Form.Item>
-            <Form.Label>{t('kb-background-image', 'Background image')}</Form.Label>
-            <ImageField value={field.value} onChange={(file) => field.onChange(file?.url ?? '')} />
-            <Form.Message />
-          </Form.Item>
-        )}
-      />
+                <Form.Message />
+              </Form.Item>
+            )}
+          />
+        </div>
+      </Card.Content>
     </Card>
   );
 };
@@ -161,22 +158,26 @@ const DeleteTopic = ({ topic }: { topic: Topic }) => {
   const { deleteTopics, isPending } = useDeleteTopics();
 
   return (
-    <Card
-      title={t('kb-delete-topic', 'Delete topic')}
-      description={t(
-        'kb-delete-topic-description',
-        'Deleting this topic removes all of its categories and articles.',
-      )}
-    >
-      <Button
-        variant="secondary"
-        tone="destructive"
-        disabled={isPending}
-        onClick={() => void deleteTopics([topic.id], () => void navigate(KB_PATH))}
-      >
-        <IconTrash />
-        {t('kb-delete-topic', 'Delete topic')}
-      </Button>
+    <Card>
+      <Card.Header>
+        <Card.Title>{t('kb-delete-topic', 'Delete topic')}</Card.Title>
+        <Card.Description>
+          {t(
+            'kb-delete-topic-description',
+            'Deleting this topic removes all of its categories and articles.',
+          )}
+        </Card.Description>
+      </Card.Header>
+      <Card.Content>
+        <Button
+          variant="destructive"
+          disabled={isPending}
+          onClick={() => void deleteTopics([topic.id], () => void navigate(KB_PATH))}
+        >
+          <IconTrash />
+          {t('kb-delete-topic', 'Delete topic')}
+        </Button>
+      </Card.Content>
     </Card>
   );
 };

@@ -187,8 +187,8 @@ importers:
         specifier: 0.1.0-v2.6
         version: 0.1.0-v2.6(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@erxes/lint':
-        specifier: 0.1.2
-        version: 0.1.2(eslint@10.15.0(jiti@2.7.0))(vite-plus@1.6.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/ui@5.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.65.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1))
+        specifier: 0.1.3
+        version: 0.1.3(eslint@10.15.0(jiti@2.7.0))(vite-plus@1.6.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/ui@5.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.65.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1))
       '@orpc/client':
         specifier: 1.16.2
         version: 1.16.2(@opentelemetry/api@1.10.0)
@@ -332,8 +332,8 @@ importers:
         specifier: ^5.107.1
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
       erxes-ui:
-        specifier: npm:@erxes/ui@4.0.0-v2.9
-        version: '@erxes/ui@4.0.0-v2.9(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)'
+        specifier: npm:@erxes/ui@4.0.0-v2.10
+        version: '@erxes/ui@4.0.0-v2.10(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)'
       jotai:
         specifier: ^3.0.2
         version: 3.0.2(@types/react@19.3.0)(react@19.3.1)
@@ -749,8 +749,8 @@ packages:
   '@erxes/core-contract@0.1.0-v2.6':
     resolution: {integrity: sha512-chUHqgP92ToBPYXQAYRl12JEvJtpLAeRCB8nzpR48zGKpgsn5WApoErpr4WTNAVOEMId2vBkR3oWobcL0PGNBA==}
 
-  '@erxes/lint@0.1.2':
-    resolution: {integrity: sha512-TyxiqYN47325GeYbrYrPtCUQfze/ktLDG1awR1bknpohWG7R3twODI8mKLpDFbv22RSlxfw45lsmhgd+8ZjYdg==}
+  '@erxes/lint@0.1.3':
+    resolution: {integrity: sha512-4diDLNZcOkH5MduST12R5TN/uJd7FWX1AcRYyXHQ0I1L5I5m9x3NVJuydq/TzEigMudGZsGuM2KaPg9I54vDXA==}
     hasBin: true
     peerDependencies:
       vite-plus: ^1.6.0
@@ -758,8 +758,8 @@ packages:
   '@erxes/plugin-sdk@0.1.0-v2.5':
     resolution: {integrity: sha512-1/H6CJ/e35//Skn3e8JjTDkS0L+JWJGJsh7dZhp6RyYYfjbQFwqaeHyMlwMEkz1/Be/c/hkuSYB8Ves4uo9HIw==}
 
-  '@erxes/ui@4.0.0-v2.9':
-    resolution: {integrity: sha512-tjUxnjyJtinDZWF91DouxlGO2Z0xPaCCQr2I8M9qhxNY76O/9TdjX/HBdtnSl1tsY33a9rHglSHwqUCo0+2kCA==}
+  '@erxes/ui@4.0.0-v2.10':
+    resolution: {integrity: sha512-f1Nd4T/fBw5iJamOwYV1x3bvhhaEA4FLgs/6Zk/7TTsXAjyE4pBxyK0QNjokgW8jl0pJq+bIxGnuwHRMea2+Hw==}
     peerDependencies:
       '@tanstack/react-query': ^5.107.1
       jotai: ^3.0.2
@@ -6340,7 +6340,7 @@ snapshots:
       - sql.js
       - sqlite3
 
-  '@erxes/lint@0.1.2(eslint@10.15.0(jiti@2.7.0))(vite-plus@1.6.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/ui@5.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.65.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1))':
+  '@erxes/lint@0.1.3(eslint@10.15.0(jiti@2.7.0))(vite-plus@1.6.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/ui@5.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.65.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1))':
     dependencies:
       '@shadcn/lint': 0.2.5(eslint@10.15.0(jiti@2.7.0))
       vite-plus: 1.6.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/ui@5.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.65.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1)
@@ -6390,7 +6390,7 @@ snapshots:
       - sql.js
       - sqlite3
 
-  '@erxes/ui@4.0.0-v2.9(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)':
+  '@erxes/ui@4.0.0-v2.10(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)':
     dependencies:
       '@base-ui/react': 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@blocknote/core': 0.57.0(@types/hast@3.0.5)
