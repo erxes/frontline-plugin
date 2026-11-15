@@ -211,7 +211,8 @@ const AddMembers = ({ channel }: { channel: Channel }) => {
     }),
   );
 
-  if (!channel.canManage) return null;
+  // A personal inbox has only its owner.
+  if (!channel.canManage || channel.ownerId) return null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
