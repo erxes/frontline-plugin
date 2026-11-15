@@ -22,6 +22,12 @@ import { metaBotProcedures } from '#/modules/integrations/providers/metaBots.ts'
 import { metaProcedures } from '#/modules/integrations/providers/metaLogin.ts';
 import { metaPostProcedures } from '#/modules/integrations/providers/metaPosts.ts';
 import { telegramProcedures } from '#/modules/integrations/providers/telegram.ts';
+import { callListProcedures } from '#/modules/calls/calls.ts';
+import { agentProcedures, queueProcedures } from '#/modules/calls/queues.ts';
+import {
+  callProcedures,
+  callProProcedures,
+} from '#/modules/integrations/providers/call/connect.ts';
 import { messageProcedures } from '#/modules/inbox/messages.ts';
 import { operatorProcedures } from '#/modules/inbox/operator.ts';
 import { presenceProcedures } from '#/modules/inbox/presence.ts';
@@ -61,7 +67,10 @@ export const router = {
     telegram: telegramProcedures,
     discord: discordProcedures,
     mail: mailProcedures,
+    call: callProcedures,
+    callpro: callProProcedures,
   },
+  calls: { ...callListProcedures, queues: queueProcedures, agents: agentProcedures },
   conversations: {
     ...conversationProcedures,
     ...operatorProcedures,

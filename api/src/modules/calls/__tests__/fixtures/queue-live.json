@@ -1,0 +1,31 @@
+{
+  "queue": "6500",
+  "state": {
+    "agents": [
+      {
+        "member_extension": "1001",
+        "first_name": "Bold",
+        "last_name": "Bat",
+        "status": "Idle",
+        "answer": "12",
+        "abandon": "1",
+        "talktime": "1800",
+        "pausetime": ""
+      },
+      {
+        "member_extension": "1002",
+        "first_name": "Saraa",
+        "last_name": "Dorj",
+        "status": "InUse",
+        "answer": "9",
+        "abandon": "0",
+        "talktime": "2400",
+        "pausetime": ""
+      }
+    ],
+    "waiting": [{ "callerid": "88001122", "callerchannel": "PJSIP/trunk-0001" }],
+    "talking": [
+      { "callerid": "99112233", "calleeid": "1002", "bridge_time": "2026-11-15T02:00:25Z" }
+    ]
+  }
+}

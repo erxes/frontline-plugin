@@ -20,9 +20,30 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
 
           return { id: `customer-${asked.customers}` };
         },
-        // Core's customer with the email: the same one for the same address.
-        findOrCreate: async ({ primaryEmail }: { primaryEmail?: string }) => ({
-          customer: { id: `customer-${primaryEmail ?? 'without-email'}` },
+        // Core's customer with the email or phone: the same one for the same address or number.
+        findOrCreate: async (input: { primaryEmail?: string; primaryPhone?: string }) => ({
+          customer: {
+            id: `customer-${input.primaryEmail ?? input.primaryPhone ?? 'without-contact'}`,
+          },
+        }),
+      },
+      // Core's storage, as `files.createUpload`, a PUT to its address, then `files.complete`.
+      files: {
+        createUpload: async (input: { name: string }) => ({
+          file: { id: `file-${input.name}` },
+          upload: {
+            method: 'PUT',
+            url: `https://files.core.test/${input.name}`,
+            headers: {},
+            expiresAt: '2026-11-15T12:00:00Z',
+          },
+        }),
+        complete: async ({ id }: { id: string }) => ({
+          id,
+          name: id.replace('file-', ''),
+          contentType: 'audio/wav',
+          size: 4,
+          url: `https://files.core.test/${id}`,
         }),
       },
       notifications: {

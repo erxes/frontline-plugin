@@ -2,10 +2,11 @@ import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
-import type { Tx } from '#/db/client.ts';
-import { publicKeys } from '#/db/public.ts';
+import { type Tx, withOrg } from '#/db/client.ts';
 import { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
-import type { ProviderName } from './provider.ts';
+import { publicKeys } from '#/db/public.ts';
+import { openedBy } from '../public.ts';
+import type { ProviderName, Routed } from './provider.ts';
 import { sealSecret } from './secrets.ts';
 
 /** The row without `org_id`, which the caller knows, and the sealed secret, which nobody reads. */
@@ -101,6 +102,19 @@ export const removeWebhookKeys = (tx: Tx, accountIds: string[]) =>
   tx
     .delete(publicKeys)
     .where(and(inArray(publicKeys.kind, PROVIDERS), inArray(publicKeys.targetId, accountIds)));
+
+/** The account a delivery's key opens, with its secret. */
+export const accountOf = async ({ provider, key }: Pick<Routed, 'provider' | 'key'>) => {
+  const route = await openedBy(key, [provider]);
+
+  if (!route) return null;
+
+  const [row] = await withOrg(route.orgOf, (tx) =>
+    tx.select().from(integrationAccounts).where(eq(integrationAccounts.id, route.targetId)),
+  );
+
+  return row ?? null;
+};
 
 /** The key Meta's deliveries name an account by: its page or Instagram account id. */
 export const metaKey = (provider: ProviderName, externalId: string) => `${provider}:${externalId}`;

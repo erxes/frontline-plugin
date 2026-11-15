@@ -39,6 +39,8 @@ export const PERMISSIONS = {
   integrationView: 'frontline.integration.view',
   /** Connect, check and remove pages, bots and mailboxes. */
   integrationManage: 'frontline.integration.manage',
+  /** See the calls of your channels, and the queues of the PBXs you answer. */
+  callView: 'frontline.call.view',
 } as const;
 
 /** The record type whose Activity tab in core shows a conversation's events. */
@@ -184,6 +186,8 @@ export const JOBS = {
   },
   /** Rechecks every connected account. */
   check: { name: 'integrations.check', cron: '17 3 * * *' },
+  /** Copies a call's recording from the PBX to core's storage. */
+  recording: { name: 'calls.recording', retry: { attempts: 5, delay: 60, maxDelay: 1800 } },
 } as const;
 
 /** The record type whose Activity tab shows a form's events, and its submissions. */
@@ -218,8 +222,9 @@ export const manifest = {
   ui: { remote: 'frontline_ui', entry: config.uiEntryUrl },
   api: { url: `${config.publicUrl}/api` },
   // Form senders, messenger visitors and provider senders become core customers; members hear
-  // of assignments; a messenger shows its team's names and pictures.
-  scopes: ['customers:read', 'customers:write', 'notifications:write', 'users:read'],
+  // of assignments; a messenger shows its team's names and pictures; call recordings are stored
+  // as core files.
+  scopes: ['customers:read', 'customers:write', 'notifications:write', 'users:read', 'files:write'],
   permissions: [
     {
       action: PERMISSIONS.channelView,
@@ -277,6 +282,7 @@ export const manifest = {
       label: 'Connect and remove pages, bots and mailboxes',
       group: 'Integrations',
     },
+    { action: PERMISSIONS.callView, label: 'See calls and call queues', group: 'Calls' },
   ],
   notificationKinds: [
     ...TICKET_NOTICES.map(({ event, label }) => ({ kind: event.type, label })),
