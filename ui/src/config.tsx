@@ -38,6 +38,7 @@ const slots = (load: () => Promise<Slots>) => ({
 });
 
 const pipeline = () => import('@/pipelines/slots.ts');
+const ticket = () => import('@/tickets/slots.ts');
 const kb = () => import('@/knowledgebase/slots.ts');
 const KB = `/${PLUGIN}/knowledgebase`;
 
@@ -121,9 +122,22 @@ export const CONFIG: IUIConfig = {
       title: 'Ticket',
       icon: IconTicket,
       detailPath: (id) => `/${PLUGIN}/tickets/${encodeURIComponent(id)}`,
-      ...slots(() => import('@/tickets/slots.ts')),
+      ...slots(ticket),
+      contacts: (id) => ({
+        queryKey: [PLUGIN, 'ticket-contacts', id],
+        queryFn: async () => (await ticket()).ticketContacts(id),
+      }),
       // The manifest's timeline (`api/src/core.ts`): core's Activity tab shows its events.
       activity: `${PLUGIN}.ticket`,
+    },
+  ],
+  relationTabs: [
+    {
+      name: 'tickets',
+      title: 'Tickets',
+      icon: IconTicket,
+      hosts: ['core:customer', 'core:company'],
+      component: lazy(async () => ({ default: (await ticket()).TicketRelations })),
     },
   ],
 };
