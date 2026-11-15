@@ -47,9 +47,9 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await expectAccessible(teammate.page);
 
   await theirPanel.getByRole('link', { name: /Manage channel members/ }).click();
-  await expect(
-    teammate.page.getByRole('row', { name: new RegExp(teammate.fullName) }),
-  ).toBeVisible();
+  // Without core's team.view the teammate can't read names, but sees both members and their roles.
+  await expect(teammate.page.getByRole('row')).toHaveCount(3);
+  await expect(teammate.page.getByRole('cell', { name: 'Member', exact: true })).toBeVisible();
   await expect(teammate.page.getByRole('button', { name: 'Add members' })).toBeHidden();
   await expectAccessible(teammate.page);
 });

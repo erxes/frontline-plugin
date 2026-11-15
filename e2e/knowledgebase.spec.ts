@@ -13,7 +13,7 @@ const newTopic = async (page: Page, title: string) => {
   await panel.getByRole('button', { name: 'Create topic' }).click();
 
   // The topic takes the draft's place in the panel, and joins the list.
-  await expect(panel.getByRole('button', { name: title, exact: true })).toBeVisible();
+  await expect(panel.getByRole('button', { name: `Title ${title}`, exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: new RegExp(title) })).toBeVisible();
   await panel.getByRole('link', { name: /Manage articles/ }).click();
   await expect(page).toHaveURL(/\/knowledgebase\/[^/]+\/articles$/);
@@ -35,7 +35,7 @@ const newCategory = async (page: Page, title: string, parent?: string) => {
 
   await panel.getByLabel('Title', { exact: true }).fill(title);
   await panel.getByRole('button', { name: 'Create category' }).click();
-  await expect(panel.getByRole('button', { name: title, exact: true })).toBeVisible();
+  await expect(panel.getByRole('button', { name: `Title ${title}`, exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: new RegExp(title) })).toBeVisible();
 };
 
@@ -79,12 +79,14 @@ test('a manager files articles under categories that a reader can only read', as
   await expectAccessible(page);
 
   // The article opened in the panel when it was created; its fields are edited in place.
-  await panel.getByRole('button', { name: 'Refunds', exact: true }).click();
+  await panel.getByRole('button', { name: 'Title Refunds', exact: true }).click();
   await page.getByPlaceholder('Title', { exact: true }).fill('Card refunds');
   await page.keyboard.press('Enter');
-  await expect(panel.getByRole('button', { name: 'Card refunds', exact: true })).toBeVisible();
+  await expect(
+    panel.getByRole('button', { name: 'Title Card refunds', exact: true }),
+  ).toBeVisible();
 
-  await panel.getByRole('combobox', { name: 'Status', exact: true }).click();
+  await panel.getByRole('combobox', { name: /^Status / }).click();
   await page.getByRole('option', { name: 'Published' }).click();
 
   const published = page.getByRole('region', { name: 'Published' });
@@ -112,7 +114,7 @@ test('a manager files articles under categories that a reader can only read', as
   await expect(reader.page.getByRole('button', { name: 'Actions for Card refunds' })).toBeHidden();
   await reader.page.getByRole('button', { name: 'Card refunds', exact: true }).click();
   await expect(
-    recordPanel(reader.page).getByRole('button', { name: 'Card refunds', exact: true }),
+    recordPanel(reader.page).getByRole('button', { name: 'Title Card refunds', exact: true }),
   ).toBeDisabled();
   await expectAccessible(reader.page);
 });

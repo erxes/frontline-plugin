@@ -170,6 +170,7 @@ export const StatusRow = ({ status, canManage }: { status: Status; canManage: bo
         aria-label={t('status-color', 'Colour of {{name}}', { name: status.name })}
         value={status.color}
         onValueChange={(color) => update.mutate({ id: status.id, color })}
+        className="w-12 flex-none"
       />
       <span className="min-w-0 flex-1">
         <TextField

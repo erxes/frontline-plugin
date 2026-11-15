@@ -82,7 +82,6 @@ const ChannelField = ({
   template: ResponseTemplate;
   onMove: (channelId: string) => void;
 }) => {
-  const { t } = useTranslation('frontline');
   const channel = useChannel(template.channelId);
   const managed = useManagedChannels();
 
@@ -93,7 +92,7 @@ const ChannelField = ({
 
   return (
     <Select value={template.channelId} onValueChange={onMove}>
-      <Select.Trigger variant="flush" aria-label={t('channel', 'Channel')}>
+      <Select.Trigger variant="flush">
         <Select.Value>{(id: string) => nameOf(id)}</Select.Value>
       </Select.Trigger>
       <Select.Content>

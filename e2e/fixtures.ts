@@ -43,11 +43,23 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
     new OpenAPILink(coreContract, {
       url: `${baseURL ?? ''}${CORE_API_PREFIX}`,
       fetch: async (call) => {
-        const response = await request.fetch(call.url, {
-          method: call.method,
-          headers: { ...Object.fromEntries(call.headers), 'sec-fetch-site': 'same-origin' },
-          data: call.body ? Buffer.from(await call.arrayBuffer()) : undefined,
-        });
+        const send = async () =>
+          request.fetch(call.url, {
+            method: call.method,
+            headers: { ...Object.fromEntries(call.headers), 'sec-fetch-site': 'same-origin' },
+            data: call.body ? Buffer.from(await call.clone().arrayBuffer()) : undefined,
+          });
+
+        // Core allows 20 sign-ins a minute per address, and parallel tests sign in more:
+        // wait as long as its Retry-After says, then send again.
+        let response = await send();
+
+        while (response.status() === 429) {
+          const seconds = Number(response.headers()['retry-after'] ?? '1');
+
+          await new Promise((done) => setTimeout(done, seconds * 1000));
+          response = await send();
+        }
 
         // A 204 must have no body at all, not an empty one.
         const body = await response.text();

@@ -84,7 +84,7 @@ export const Publishing = ({ article, edit }: Props) => {
     <PanelSection title={t('kb-publishing', 'Publishing')}>
       <PanelField icon={IconProgressCheck} label={t('status', 'Status')}>
         <Select value={article.status} onValueChange={(status) => edit({ status })}>
-          <Select.Trigger variant="flush" aria-label={t('status', 'Status')}>
+          <Select.Trigger variant="flush">
             <StatusBadge status={article.status} />
           </Select.Trigger>
           <Select.Content>

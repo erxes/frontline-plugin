@@ -34,7 +34,7 @@ test("a channel admin writes, edits and deletes the channel's response templates
   await expectAccessible(page);
 
   // The name is edited in place.
-  await panel.getByRole('button', { name: 'Greeting', exact: true }).click();
+  await panel.getByRole('button', { name: 'Name Greeting', exact: true }).click();
   await page.getByRole('textbox', { name: 'Name' }).fill('Welcome');
   await page.keyboard.press('Enter');
   await expect(page.getByRole('row', { name: /Welcome/ })).toBeVisible();
@@ -60,7 +60,7 @@ test("a channel admin writes, edits and deletes the channel's response templates
   await expect(teammate.page.getByRole('button', { name: 'Actions for Welcome' })).toBeHidden();
   await teammate.page.getByRole('button', { name: 'Welcome', exact: true }).click();
   await expect(
-    recordPanel(teammate.page).getByRole('button', { name: 'Welcome', exact: true }),
+    recordPanel(teammate.page).getByRole('button', { name: 'Name Welcome', exact: true }),
   ).toBeDisabled();
   await expect(
     recordPanel(teammate.page).getByRole('button', { name: 'Response template actions' }),

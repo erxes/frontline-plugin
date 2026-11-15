@@ -49,14 +49,12 @@ const useTokens = () => {
 const FormatField = ({
   scope,
   label,
-  placeholder,
   value,
   tokens,
   onSave,
 }: {
   scope: string;
   label: string;
-  placeholder: string;
   value: string | null;
   tokens: Token[];
   onSave: (value: string) => void;
@@ -66,7 +64,8 @@ const FormatField = ({
   return (
     <span className="flex items-center gap-1">
       <span className="min-w-0 flex-1">
-        <TextField scope={scope} value={value ?? ''} placeholder={placeholder} onSave={onSave} />
+        {/* An empty field shows its label: axe wants a field's visible text in its name. */}
+        <TextField scope={scope} value={value ?? ''} placeholder={label} onSave={onSave} />
       </span>
       <ActionsMenu
         trigger={
@@ -107,7 +106,6 @@ export const TicketFields = ({ pipeline }: { pipeline: Pipeline }) => {
           <FormatField
             scope={`${scope}.numberConfig`}
             label={t('ticket-number', 'Ticket number')}
-            placeholder="{year}-"
             value={pipeline.numberConfig}
             tokens={tokens.number}
             onSave={(numberConfig) => edit({ numberConfig })}
@@ -125,7 +123,6 @@ export const TicketFields = ({ pipeline }: { pipeline: Pipeline }) => {
           <FormatField
             scope={`${scope}.nameConfig`}
             label={t('ticket-name', 'Ticket name')}
-            placeholder="{customer.firstName}"
             value={pipeline.nameConfig}
             tokens={tokens.name}
             onSave={(nameConfig) => edit({ nameConfig })}
