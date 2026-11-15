@@ -46,7 +46,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
   - ui-modules: `FIELD_TYPES`, `ILayoutAsideApi`, `ILayoutItem`, `LayoutEditor`, `PropertyAddSheet`, `useFields`
   - keeps: toast "Pipeline updated successfully"
 - [ ] `/frontline/:id/pipelines/:pipelineId/mail` (PipelineMailPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:210`
-  - note: mail to tickets isn't built: each pipeline's address lived on the Cloudflare routing this port dropped, and no IMAP mailbox opens tickets in a pipeline yet
+  - note: mail to tickets isn't built: each pipeline's address lived on Cloudflare email routing, so it waits on the mail decision
   - files: 49, 3 only here: `modules/integrations/mail/components/PipelineForwardVerification.tsx`, `modules/integrations/mail/components/PipelineMailSettings.tsx`, `pages/PipelineMailPage.tsx`
   - calls: inbox: `integrationDetail`, `integrationsCreateExternalIntegration`; integrations: `mailPipelineConnect`, `mailPipelineDisconnect`, `mailPipelineForwardVerified`, `mailPipelineIntegration`, `mailPipelineUpdate`, `mailSendingReadiness`; ticket: `addTicketStatus`, `getAccessibleTicketStatuses`, `getTicketPipeline`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`, `updateTicket`
   - ui-modules: `currentUserState`, `SelectBrand`, `usePermissionCheck`, `useSidePanel`
@@ -120,8 +120,10 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_api/src/modules/integrations/facebook/meta/automation/workers.ts` → `frontline.facebook.reply` at `/api/automations/actions/<type>`
 - [x] `frontline_api/src/modules/integrations/instagram/meta/automation/workers.ts` → `frontline.instagram.reply` at `/api/automations/actions/<type>`
 - [x] `frontline_api/src/modules/integrations/mail/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The send action runs when core calls `/api/automations/actions`
-- [x] `frontline_api/src/modules/integrations/mail/utils/cloudflare/worker.ts` (path) → plugin-owned: a job in the API process. dropped: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] `frontline_api/src/modules/integrations/mail/worker/bundle.generated.ts` (path) → plugin-owned: a job in the API process. dropped: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`), the Cloudflare mail row in DECISIONS.md
+- [ ] `frontline_api/src/modules/integrations/mail/utils/cloudflare/worker.ts` (path) → plugin-owned: a job in the API process
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`)
+- [ ] `frontline_api/src/modules/integrations/mail/worker/bundle.generated.ts` (path) → plugin-owned: a job in the API process
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`)
 - [x] `frontline_api/src/modules/integrations/telegram/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The send action runs when core calls `/api/automations/actions`
 - [x] `frontline_api/src/modules/knowledgebase/utils/scheduledPublish.ts` (createMQWorkerWithListeners) → no job: every article read first publishes the scheduled articles whose time has passed, so a lost queue job can't leave one unpublished
 - [x] `frontline_api/src/modules/ticket/utils/slaWorker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process. The `tickets.sla` job (`JOBS.sla`)
@@ -137,7 +139,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] notification `ticketUpdated` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:52`. `frontline.ticket.moved` and `frontline.ticket.fields_changed`
 - [x] notification `ticketMention` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:57`. Notes and their mentions live in core's Activity tab
 - [ ] notification `ticketCustomerReply` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:62`
-  - note: mail to tickets isn't built: each pipeline's address lived on the Cloudflare routing this port dropped, and no IMAP mailbox opens tickets in a pipeline yet
+  - note: mail to tickets isn't built: each pipeline's address lived on Cloudflare email routing, so it waits on the mail decision
 - [x] notification `integrationHealthBroken` (integrations) → `frontline.integration.broken` in `manifest.notificationKinds`, sent once when an account breaks `frontline_api/src/meta/notifications.ts:75`
 - [x] notification `channelMembersChange` (channels) → `frontline.channel.members_added` in `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:89`
 - [x] permission `showConversations` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:18`
@@ -261,15 +263,24 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `JWT_TOKEN_SECRET` → dropped: it signed PBX credentials for the browser; credentials are sealed and never leave the API `frontline_api/src/modules/integrations/call/utils.ts:19`
 - [x] `LEGACY_FACEBOOK_DB` → dropped: old accounts are not imported (the "Old accounts" row in DECISIONS.md) `frontline_api/src/migrations/migrateLegacyIntegrations.ts:9`
 - [x] `LEGACY_INTEGRATIONS_DB` → api/src/config.ts `frontline_api/src/migrations/migrateLegacyIntegrations.ts:10`. dropped: old accounts are not imported (the "Old accounts" row in DECISIONS.md)
-- [x] `MAIL_DOMAIN` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/platformConfig.ts:6`. dropped: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] `MAIL_INBOUND_RATE_LIMIT` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/rateLimit.ts:20`. dropped: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] `MAIL_RECEIVE_URL` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/cloudflare/provision.ts:117`. dropped: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] `MAIL_SENDING_ACCOUNT_ID` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/platformConfig.ts:15`. dropped: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] `MAIL_SENDING_API_TOKEN` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/platformConfig.ts:21`. dropped: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] `MAIL_SENDING_DAILY_LIMIT` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/rateLimit.ts:32`. dropped: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] `MAIL_TENANT` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/address.ts:90`. dropped: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] `MAIL_WEBHOOK_SECRET` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/signature.ts:13`. dropped: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] `MAIL_WORKER_URL` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/connection.ts:48`. dropped: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`), the Cloudflare mail row in DECISIONS.md
+- [ ] `MAIL_DOMAIN` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/platformConfig.ts:6`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`)
+- [ ] `MAIL_INBOUND_RATE_LIMIT` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/rateLimit.ts:20`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`)
+- [ ] `MAIL_RECEIVE_URL` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/cloudflare/provision.ts:117`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`)
+- [ ] `MAIL_SENDING_ACCOUNT_ID` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/platformConfig.ts:15`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`)
+- [ ] `MAIL_SENDING_API_TOKEN` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/platformConfig.ts:21`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`)
+- [ ] `MAIL_SENDING_DAILY_LIMIT` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/rateLimit.ts:32`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`)
+- [ ] `MAIL_TENANT` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/address.ts:90`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`)
+- [ ] `MAIL_WEBHOOK_SECRET` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/signature.ts:13`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`)
+- [ ] `MAIL_WORKER_URL` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/connection.ts:48`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: a mailbox connects with its own IMAP and SMTP settings (`api/src/modules/integrations/providers/mailConnect.ts`)
 - [x] `NODE_TLS_REJECT_UNAUTHORIZED` → dropped: TLS is always checked (erxes/erxes#7528) `frontline_api/src/modules/integrations/call/utils.ts:209`
 - [x] `REACT_APP_WIDGETS_URL` → api/src/config.ts `frontline_ui/src/modules/utils.ts:27`. dropped: the plugin serves no widgets bundle (the widgets bundle row in DECISIONS.md); the messenger's panel shows the key its embed carries (`ui/src/modules/inbox/IntegrationPanel.tsx`)
 - [x] `SINCE` → dropped: an old Mongo data migration `frontline_api/src/migrations/migrateCallConversationContents.ts:19`
@@ -900,7 +911,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_mail_messages` from collection `mail_messages` (33 fields, draft `frontlineMailMessages` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/messages.ts:31`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
 - [ ] `frontline_mail_drafts` from collection `mail_drafts` (15 fields, draft `frontlineMailDrafts` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/drafts.ts:5`
   - note: drafts need a draft state on inbox messages and a review step in the inbox's composer
-- [x] `frontline_mail_cloudflare` from collection `mail_cloudflare` (22 fields, draft `frontlineMailCloudflare` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/cloudflare.ts:15`. dropped: a mailbox is an integration account (`frontline_integration_accounts`), the Cloudflare mail row in DECISIONS.md
+- [ ] `frontline_mail_cloudflare` from collection `mail_cloudflare` (22 fields, draft `frontlineMailCloudflare` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/cloudflare.ts:15`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: a mailbox is an integration account (`frontline_integration_accounts`)
 
 ### Procedures
 
@@ -1019,26 +1031,29 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
   - note: drafts need a draft state on inbox messages and a review step in the inbox's composer
 - [x] query `mailInboxes` → `integrations.accounts.list({ provider: 'mail' })` `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [ ] query `mailPipelineIntegration` → procedure `mailPipelineIntegrations.get` (returns `MailPipelineIntegration`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
-  - note: mail to tickets isn't built: each pipeline's address lived on the Cloudflare routing this port dropped, and no IMAP mailbox opens tickets in a pipeline yet
+  - note: mail to tickets isn't built: each pipeline's address lived on Cloudflare email routing, so it waits on the mail decision
 - [x] query `mailSenders` → procedure `mailSenders.list` (returns `[MailSender!]!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. Folded into `integrations.accounts.list({ provider: 'mail' })`
 - [ ] query `mailTicketReplyTarget` → procedure `mailTicketReplyTargets.get` (returns `MailTicketReplyTarget`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
-  - note: mail to tickets isn't built: each pipeline's address lived on the Cloudflare routing this port dropped, and no IMAP mailbox opens tickets in a pipeline yet
-- [x] query `mailCloudflareConnection` → procedure `mailCloudflareConnections.get` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. dropped: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] query `mailCloudflareSendingQuota` → procedure `mailCloudflareSendingQuotas.get` (returns `MailCloudflareSendingQuota`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. dropped: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] query `mailCloudflareZones` → procedure `mailCloudflareZones.list` (returns `[MailCloudflareZone]`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. dropped: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`), the Cloudflare mail row in DECISIONS.md
+  - note: mail to tickets isn't built: each pipeline's address lived on Cloudflare email routing, so it waits on the mail decision
+- [ ] query `mailCloudflareConnection` → procedure `mailCloudflareConnections.get` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`)
+- [ ] query `mailCloudflareSendingQuota` → procedure `mailCloudflareSendingQuotas.get` (returns `MailCloudflareSendingQuota`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`)
+- [ ] query `mailCloudflareZones` → procedure `mailCloudflareZones.list` (returns `[MailCloudflareZone]`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`)
 - [x] mutation `mailSendMail` → procedure `integrations.mailSendMail` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. `integrations.mail.compose` writes a new mail; replies are `conversations.messages.create`
 - [ ] mutation `mailSendReaction` → procedure `integrations.mailSendReaction` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
   - note: reactions go out through each provider's adapter, and no adapter sends one yet (the HTML messages, reactions and custom fields row in DECISIONS.md)
 - [ ] mutation `mailPipelineConnect` → procedure `integrations.mailPipelineConnect` (returns `MailPipelineIntegration`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
-  - note: mail to tickets isn't built: each pipeline's address lived on the Cloudflare routing this port dropped, and no IMAP mailbox opens tickets in a pipeline yet
+  - note: mail to tickets isn't built: each pipeline's address lived on Cloudflare email routing, so it waits on the mail decision
 - [ ] mutation `mailPipelineUpdate` → procedure `mailPipelines.update` (returns `MailPipelineIntegration`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
-  - note: mail to tickets isn't built: each pipeline's address lived on the Cloudflare routing this port dropped, and no IMAP mailbox opens tickets in a pipeline yet
+  - note: mail to tickets isn't built: each pipeline's address lived on Cloudflare email routing, so it waits on the mail decision
 - [ ] mutation `mailPipelineForwardVerified` → procedure `integrations.mailPipelineForwardVerified` (returns `MailPipelineIntegration`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
-  - note: mail to tickets isn't built: each pipeline's address lived on the Cloudflare routing this port dropped, and no IMAP mailbox opens tickets in a pipeline yet
+  - note: mail to tickets isn't built: each pipeline's address lived on Cloudflare email routing, so it waits on the mail decision
 - [ ] mutation `mailPipelineDisconnect` → procedure `integrations.mailPipelineDisconnect` (returns `Boolean`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
-  - note: mail to tickets isn't built: each pipeline's address lived on the Cloudflare routing this port dropped, and no IMAP mailbox opens tickets in a pipeline yet
+  - note: mail to tickets isn't built: each pipeline's address lived on Cloudflare email routing, so it waits on the mail decision
 - [ ] mutation `mailTicketNoteRetry` → procedure `integrations.mailTicketNoteRetry` (returns `TicketNote`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
-  - note: mail to tickets isn't built: each pipeline's address lived on the Cloudflare routing this port dropped, and no IMAP mailbox opens tickets in a pipeline yet
+  - note: mail to tickets isn't built: each pipeline's address lived on Cloudflare email routing, so it waits on the mail decision
 - [x] mutation `mailMessageRetry` → procedure `integrations.mailMessageRetry` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. `conversations.messages.retry` sends any failed reply again
 - [ ] mutation `mailDraftSave` → procedure `integrations.mailDraftSave` (returns `MailDraft`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
   - note: drafts need a draft state on inbox messages and a review step in the inbox's composer
@@ -1047,9 +1062,12 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] mutation `mailDraftRemove` → procedure `mailDrafts.remove` (returns `MailDraft`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
   - note: drafts need a draft state on inbox messages and a review step in the inbox's composer
 - [x] mutation `mailCheckConnection` → `integrations.accounts.check` `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
-- [x] mutation `mailCloudflareConnect` → procedure `integrations.mailCloudflareConnect` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. dropped: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] mutation `mailCloudflareProvision` → procedure `integrations.mailCloudflareProvision` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. dropped: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`), the Cloudflare mail row in DECISIONS.md
-- [x] mutation `mailCloudflareDisconnect` → procedure `integrations.mailCloudflareDisconnect` (returns `Boolean`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. dropped: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`), the Cloudflare mail row in DECISIONS.md
+- [ ] mutation `mailCloudflareConnect` → procedure `integrations.mailCloudflareConnect` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`)
+- [ ] mutation `mailCloudflareProvision` → procedure `integrations.mailCloudflareProvision` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`)
+- [ ] mutation `mailCloudflareDisconnect` → procedure `integrations.mailCloudflareDisconnect` (returns `Boolean`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`)
 - [ ] query `telegramMessageLinkPreviews` → procedure `telegramMessageLinkPreviews.list` (returns `[TelegramLinkPreview!]!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
   - note: link previews of Telegram messages aren't kept; inbox messages are plain text with attachments
 - [x] query `telegramConversationChats` → procedure `telegramConversationChats.list` (returns `[TelegramConversationChat!]!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`. The chat is the conversation's customer, named after it (`customerFor` in `api/src/modules/inbox/receive.ts`), the Telegram chats row in DECISIONS.md
@@ -1093,7 +1111,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] core `customers.findActiveCustomers` → sdk `customers.list` (scope customers:read) `frontline_api/src/modules/integrations/mail/utils/recipients.ts:55`
   - note: `integrations.mail.compose` takes one address and has no screen yet, so nothing suggests recipients
 - [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/utils/tickets.ts:187`
-  - note: mail to tickets isn't built: each pipeline's address lived on the Cloudflare routing this port dropped, and no IMAP mailbox opens tickets in a pipeline yet
+  - note: mail to tickets isn't built: each pipeline's address lived on Cloudflare email routing, so it waits on the mail decision
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/telegram/controller/store.ts:44`. The reply goes to the customer's linked chat
 
 ### Events
@@ -1134,7 +1152,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] GET `/instagram/get-status` → the account's `status` in `integrations.accounts.list` `frontline_api/src/modules/integrations/instagram/routes.ts:14`
 - [x] GET `/instagram/receive` (webhook) → folded into GET `/api/public/webhooks/meta` `frontline_api/src/modules/integrations/instagram/routes.ts:15`
 - [x] POST `/instagram/receive` (webhook) → folded into POST `/api/public/webhooks/meta` `frontline_api/src/modules/integrations/instagram/routes.ts:16`
-- [x] POST `/mail/receive` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/mail/routes.ts:7`. dropped: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`), the Cloudflare mail row in DECISIONS.md
+- [ ] POST `/mail/receive` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/mail/routes.ts:7`
+  - note: waits on the mail decision, Cloudflare email routing as the old plugin had it or the IMAP and SMTP mailboxes already built. With IMAP it drops: mail reads each mailbox over IMAP in the `integrations.mail-sync` job (`JOBS.mailSync` in `api/src/core.ts`)
 - [x] POST `/telegram/receive/:_id` (webhook) → POST `/api/public/webhooks/telegram/:key`, with the key frontline issued and the bot's secret token `frontline_api/src/modules/integrations/telegram/routes.ts:8`
 
 ## knowledgebase
