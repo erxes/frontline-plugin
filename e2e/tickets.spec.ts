@@ -113,7 +113,8 @@ test('a member files, filters, changes and deletes tickets in the list, board an
   await expect(page.getByRole('alertdialog')).toContainText('Delete 2 tickets?');
   await confirmDelete(page);
   await expect(page.getByText('2 tickets deleted')).toBeVisible();
-  await expect(page.getByText('No tickets yet')).toBeVisible();
+  // The pipeline filter still applies, so the list says nothing matches.
+  await expect(page.getByText('No results found')).toBeVisible();
   await display(page, 'List');
 });
 
