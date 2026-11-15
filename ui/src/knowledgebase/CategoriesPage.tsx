@@ -16,6 +16,7 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
+import { KB_PATH } from '../paths.ts';
 import { useSearch } from '../shared/hooks.ts';
 import { CreateButton, ListEmpty, SearchSubHeader } from '../shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '../shared/Records.tsx';
@@ -24,7 +25,6 @@ import { Indent } from './CategoryTree.tsx';
 import { useDeleteCategories } from './useKbDeletes.ts';
 import {
   type CategoryRow,
-  KB_PATH,
   useCategories,
   useOldLink,
   useKbAccess,

@@ -1,38 +1,10 @@
-import type { Page } from '@playwright/test';
-import { expect, expectAccessible, test, unique } from './fixtures.ts';
-
-/** Creates a channel, with `memberName` in it when given, and opens its pipelines. */
-const openChannelPipelines = async (page: Page, memberName?: string) => {
-  const channel = `Support ${unique()}`;
-  const sheet = page.getByRole('dialog');
-
-  await page.goto('/frontline/settings/channels?channel=new');
-  await sheet.getByLabel('Name').fill(channel);
-
-  if (memberName) {
-    await sheet.getByPlaceholder('Search members').fill(memberName);
-    await sheet.getByRole('option', { name: memberName }).click();
-  }
-
-  await sheet.getByRole('button', { name: 'Create' }).click();
-  await expect(page.getByRole('heading', { name: channel })).toBeVisible();
-  await page.getByRole('link', { name: /Manage channel pipelines/ }).click();
-  await expect(page.getByText('No pipelines yet')).toBeVisible();
-
-  return channel;
-};
-
-/** Creates a pipeline from the list's panel and lands on its general tab. */
-const createPipeline = async (page: Page) => {
-  const pipeline = `Returns ${unique()}`;
-
-  await page.getByRole('button', { name: 'Create pipeline' }).first().click();
-  await page.getByRole('dialog').getByLabel('Pipeline name').fill(pipeline);
-  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
-  await expect(page.getByRole('heading', { name: pipeline })).toBeVisible();
-
-  return pipeline;
-};
+import {
+  createPipeline,
+  expect,
+  expectAccessible,
+  openChannelPipelines,
+  test,
+} from './fixtures.ts';
 
 test('a channel admin creates a pipeline and sets its ticket numbers; a member reads them', async ({
   page,

@@ -7,7 +7,7 @@ import { KB_ARTICLE_STATUSES, kbArticles, kbCategories } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { likeText } from '../channels/access.ts';
 import { subtreeIds } from './categories.ts';
-import { Blank, Stamps, Title } from '../fields.ts';
+import { Attachment, Blank, Stamps, Title } from '../fields.ts';
 import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
 import { categoryFor, topicFor } from './shared.ts';
 
@@ -24,13 +24,6 @@ const detailColumns = {
 };
 
 const Status = z.enum(KB_ARTICLE_STATUSES);
-
-const Attachment = z.object({
-  url: z.string().max(2000),
-  name: z.string().max(500),
-  type: z.string().max(200).optional(),
-  size: z.number().int().nonnegative().optional(),
-});
 
 const Fields = z
   .object({

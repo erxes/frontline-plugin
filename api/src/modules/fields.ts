@@ -15,4 +15,12 @@ export const Blank = (max: number) =>
 /** A hex colour such as `#4F46E5`, as erxes-ui's ColorPicker writes it. */
 export const Color = z.string().regex(/^#[0-9a-f]{6}$/i);
 
+/** A file on core's storage, as erxes-ui's Upload reports it. */
+export const Attachment = z.object({
+  url: z.string().max(2000),
+  name: z.string().max(500),
+  type: z.string().max(200).optional(),
+  size: z.number().int().nonnegative().optional(),
+});
+
 export const Stamps = { createdBy: z.string(), createdAt: z.date(), updatedAt: z.date() };

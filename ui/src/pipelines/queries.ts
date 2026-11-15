@@ -33,11 +33,12 @@ export const pipelinePath = (channelId: string, pipelineId: string, tab = '') =>
 /** Whether the member changes the channel's pipelines: its admins and channel managers do. */
 export const useCanManage = (channelId: string) => useChannel(channelId).data?.canManage ?? false;
 
-/** A channel's pipelines, newest first, a page at a time. */
+/** A channel's pipelines, newest first, a page at a time; none without a channel. */
 export const usePipelines = (channelId: string) => {
   const query = useInfiniteQuery(
     orpc.pipelines.list.infiniteOptions({
       input: (cursor: string | undefined) => ({ channelId, cursor }),
+      enabled: Boolean(channelId),
       initialPageParam: undefined,
       getNextPageParam: (page) => page.nextCursor ?? undefined,
     }),
@@ -53,9 +54,14 @@ export const usePipelines = (channelId: string) => {
 export const usePipeline = (id: string) =>
   useQuery(orpc.pipelines.get.queryOptions({ input: { id } }));
 
-/** The pipeline's statuses, by stage and their order in it. */
+/** The pipeline's statuses, by stage and their order in it; none without a pipeline. */
 export const useStatuses = (pipelineId: string) =>
-  useQuery(orpc.pipelines.statuses.list.queryOptions({ input: { pipelineId } }));
+  useQuery(
+    orpc.pipelines.statuses.list.queryOptions({
+      input: { pipelineId },
+      enabled: Boolean(pipelineId),
+    }),
+  );
 
 /** Refetches the pipeline and status queries after a change, and shows a refusal. */
 export const usePipelineChange = () => useChange(orpc.pipelines.key());
@@ -82,6 +88,27 @@ export const usePipelinePanel = () => useParamPanel('pipeline');
 
 /** `?status=new~<type>` adds a status to a stage, `?status=<id>` edits one. */
 export const useStatusPanel = () => useParamPanel('status');
+
+/** A ticket's priorities, from none to critical; the SLA promises a time for each. */
+export const PRIORITIES = [0, 1, 2, 3, 4] as const;
+
+export type Priority = (typeof PRIORITIES)[number];
+
+/** A priority as members read it. */
+export const usePriorityName = () => {
+  const { t } = useTranslation('frontline');
+  const none = t('no-priority', 'No priority');
+
+  const names = [
+    none,
+    t('minor', 'Minor'),
+    t('medium', 'Medium'),
+    t('high', 'High'),
+    t('critical', 'Critical'),
+  ];
+
+  return (priority: number) => names[priority] ?? none;
+};
 
 /** The stages in the order a ticket moves through them, by their `type`. */
 export const useStages = () => {

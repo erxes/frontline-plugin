@@ -5,14 +5,16 @@ import { draftsOf, FormActions } from '../shared/Drafts.tsx';
 import { Field } from '../shared/SidePanel.tsx';
 import {
   type Pipeline,
+  PRIORITIES,
   useCanManage,
   usePipeline,
   usePipelineRoute,
   usePipelineUpdate,
+  usePriorityName,
 } from './queries.ts';
 
 /** Critical first: the order a support lead reads the promises in. */
-const PRIORITIES = [4, 3, 2, 1, 0] as const;
+const BY_URGENCY = PRIORITIES.toReversed();
 
 type Hours = { firstResponse: string; resolution: string };
 
@@ -33,7 +35,7 @@ const draftOf = ({ slaPolicy }: Pipeline): Draft => ({
   enabled: slaPolicy?.enabled ?? false,
   warnBefore: toHours(slaPolicy?.warnBeforeMinutes),
   rules: Object.fromEntries(
-    PRIORITIES.map((priority) => {
+    BY_URGENCY.map((priority) => {
       const rule = slaPolicy?.rules.find((item) => item.priority === priority);
 
       return [
@@ -56,14 +58,7 @@ const RulesTable = ({
   onChange: (rules: Record<number, Hours>) => void;
 }) => {
   const { t } = useTranslation('frontline');
-
-  const priorities: Record<number, string> = {
-    4: t('critical', 'Critical'),
-    3: t('high', 'High'),
-    2: t('medium', 'Medium'),
-    1: t('minor', 'Minor'),
-    0: t('no-priority', 'No priority'),
-  };
+  const nameOf = usePriorityName();
 
   const setHours = (priority: number, patch: Partial<Hours>) =>
     onChange({
@@ -81,16 +76,16 @@ const RulesTable = ({
         </Table.Row>
       </Table.Header>
       <Table.Body>
-        {PRIORITIES.map((priority) => (
+        {BY_URGENCY.map((priority) => (
           <Table.Row key={priority}>
-            <Table.Cell>{priorities[priority]}</Table.Cell>
+            <Table.Cell>{nameOf(priority)}</Table.Cell>
             <Table.Cell>
               <Input
                 type="number"
                 min={0}
                 step={0.25}
                 aria-label={t('sla-first-response-for', 'First response for {{priority}}', {
-                  priority: priorities[priority],
+                  priority: nameOf(priority),
                 })}
                 value={rules[priority]?.firstResponse ?? ''}
                 onChange={(event) => setHours(priority, { firstResponse: event.target.value })}
@@ -102,7 +97,7 @@ const RulesTable = ({
                 min={0}
                 step={0.25}
                 aria-label={t('sla-resolution-for', 'Resolution for {{priority}}', {
-                  priority: priorities[priority],
+                  priority: nameOf(priority),
                 })}
                 value={rules[priority]?.resolution ?? ''}
                 onChange={(event) => setHours(priority, { resolution: event.target.value })}
@@ -185,7 +180,7 @@ const SlaForm = ({ pipeline, canManage }: { pipeline: Pipeline; canManage: boole
       slaPolicy: {
         enabled,
         warnBeforeMinutes: toMinutes(warnBefore),
-        rules: PRIORITIES.map((priority) => ({
+        rules: BY_URGENCY.map((priority) => ({
           priority,
           firstResponseMinutes: toMinutes(rules[priority]?.firstResponse ?? ''),
           resolutionMinutes: toMinutes(rules[priority]?.resolution ?? ''),

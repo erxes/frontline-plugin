@@ -1,6 +1,7 @@
 // Which Mongo field goes to which column, per collection, for scripts/import-mongo.ts.
 // Written by migration/checklist.ts; edit it as the tables in api/src/db/schema.ts change.
 // `values` are columns every row gets; `unwind` makes one row per item of that array field.
+// A dotted field (`sla.resolvedAt`) reads inside an embedded document.
 export const IMPORT_MAP: {
   collection: string;
   table: string;
@@ -76,38 +77,34 @@ export const IMPORT_MAP: {
       _id: 'id',
       name: 'name',
       channelId: 'channel_id',
-      stageId: 'stage_id',
       pipelineId: 'pipeline_id',
       statusId: 'status_id',
       state: 'state',
       description: 'description',
-      type: 'type',
       priority: 'priority',
-      branchId: 'branch_id',
-      departmentId: 'department_id',
       assigneeId: 'assignee_id',
-      assignedMembers: 'assigned_members',
       createdBy: 'created_by',
-      updatedBy: 'updated_by',
       statusChangedBy: 'status_changed_by',
       attachments: 'attachments',
-      labelIds: 'label_ids',
-      tagIds: 'tag_ids',
-      userId: 'user_id',
-      statusChangedDate: 'status_changed_date',
+      statusChangedDate: 'status_changed_at',
       startDate: 'start_date',
       targetDate: 'target_date',
       number: 'number',
-      statusType: 'status_type',
-      subscribedUserIds: 'subscribed_user_ids',
+      'sla.firstResponseDueAt': 'first_response_due_at',
+      'sla.resolutionDueAt': 'resolution_due_at',
+      'sla.firstRespondedAt': 'first_responded_at',
+      'sla.resolvedAt': 'resolved_at',
+      createdAt: 'created_at',
+      updatedAt: 'updated_at',
+      // For the ports still to come: teams, tags, custom fields, contacts, surveys.
+      branchId: 'branch_id',
+      departmentId: 'department_id',
+      assignedMembers: 'assigned_member_ids',
+      tagIds: 'tag_ids',
       propertiesData: 'properties_data',
       customerId: 'customer_id',
       companyId: 'company_id',
-      customerFieldData: 'customer_field_data',
       sourceSurvey: 'source_survey',
-      sla: 'sla',
-      createdAt: 'created_at',
-      updatedAt: 'updated_at',
     },
   },
   {

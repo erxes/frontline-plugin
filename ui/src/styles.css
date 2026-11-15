@@ -8,3 +8,4 @@
 @source '.';
 @source not './knowledgebase';
 @source not './pipelines';
+@source not './tickets';

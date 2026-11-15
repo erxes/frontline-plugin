@@ -1,10 +1,10 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { count, eq, getTableColumns, and } from 'drizzle-orm';
+import { count, eq, getTableColumns, and, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { pipelines, pipelineStatuses, STATUS_TYPES } from '#/db/schema.ts';
+import { pipelines, pipelineStatuses, STATUS_TYPES, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { channelFor } from '../channels/access.ts';
 import { Blank, Stamps, Title } from '../fields.ts';
@@ -60,6 +60,14 @@ const Pipeline = z.object({
   slaPolicy: Sla.nullable(),
   ...Stamps,
 });
+
+/** CONFLICT when a ticket matches `used`: deleting what it points to would orphan it. */
+export const refuseUsed = async (tx: Tx, used: SQL | undefined, message: string) => {
+  const [ticket] = await tx.select({ id: tickets.id }).from(tickets).where(used).limit(1);
+
+  if (ticket)
+    throw new ORPCError('CONFLICT', { message: `${message}. Move or delete them first.` });
+};
 
 /** What a new pipeline starts with: one status per stage. */
 const DEFAULT_STATUSES = [
@@ -173,12 +181,13 @@ const update = writes(PERMISSIONS.channelView)
     return updated;
   });
 
-/** Deletes a pipeline and its statuses. */
+/** Deletes a pipeline and its statuses. CONFLICT while it has tickets. */
 const remove = writes(PERMISSIONS.channelView)
   .input(z.object({ id: z.string() }))
   .output(z.object({ id: z.string() }))
   .handler(async ({ input, context: { tx, member } }) => {
     await pipelineFor(tx, member, input.id, { change: true });
+    await refuseUsed(tx, eq(tickets.pipelineId, input.id), 'This pipeline has tickets');
     await tx.delete(pipelines).where(eq(pipelines.id, input.id));
 
     return { id: input.id };

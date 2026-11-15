@@ -1,6 +1,6 @@
 import { AxeBuilder } from '@axe-core/playwright';
 import { CORE_API_PREFIX, coreContract } from '@erxes/core-contract';
-import { createORPCClient } from '@orpc/client';
+import { createORPCClient, ORPCError } from '@orpc/client';
 import type { ContractRouterClient } from '@orpc/contract';
 import { OpenAPILink } from '@orpc/openapi-client/fetch';
 import {
@@ -83,6 +83,59 @@ export const expectAccessible = async (page: Page) => {
   expect(blocking, `axe on ${page.url()}`).toEqual([]);
 };
 
+/** Creates a channel, with `memberName` in it when given, and opens its pipelines. */
+export const openChannelPipelines = async (page: Page, memberName?: string) => {
+  const channel = `Support ${unique()}`;
+  const sheet = page.getByRole('dialog');
+
+  await page.goto('/frontline/settings/channels?channel=new');
+  await sheet.getByLabel('Name').fill(channel);
+
+  if (memberName) {
+    await sheet.getByPlaceholder('Search members').fill(memberName);
+    await sheet.getByRole('option', { name: memberName }).click();
+  }
+
+  await sheet.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('heading', { name: channel })).toBeVisible();
+  await page.getByRole('link', { name: /Manage channel pipelines/ }).click();
+  await expect(page.getByText('No pipelines yet')).toBeVisible();
+
+  return channel;
+};
+
+/** Creates a pipeline from the list's panel and lands on its general tab. */
+export const createPipeline = async (page: Page) => {
+  const pipeline = `Returns ${unique()}`;
+
+  await page.getByRole('button', { name: 'Create pipeline' }).first().click();
+  await page.getByRole('dialog').getByLabel('Pipeline name').fill(pipeline);
+  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('heading', { name: pipeline })).toBeVisible();
+
+  return pipeline;
+};
+
+type Credentials = { email: string; password: string };
+
+/**
+ * Signs in. Core takes 20 sign-ins a minute from one address and the parallel
+ * suite takes more, so a refusal waits the seconds core names, on the test's clock.
+ */
+const signIn = async (client: ReturnType<typeof coreClient>, credentials: Credentials) => {
+  try {
+    await client.auth.signIn(credentials);
+  } catch (error) {
+    if (!(error instanceof ORPCError) || error.code !== 'TOO_MANY_REQUESTS') throw error;
+
+    const seconds = Number(/(\d+) seconds/.exec(error.message)?.[1] ?? 5);
+
+    test.info().setTimeout(test.info().timeout + seconds * 1000);
+    await new Promise((done) => setTimeout(done, seconds * 1000));
+    await signIn(client, credentials);
+  }
+};
+
 /** A member of the owner's organisation, signed in on their own page, whose role holds `permissions`. */
 type NewMember = (permissions: string[]) => Promise<{ page: Page; fullName: string }>;
 
@@ -108,7 +161,7 @@ export const test = base.extend<{ api: ReturnType<typeof coreClient>; newMember:
       const page = await context.newPage();
       const asMember = coreClient(page.request, baseURL);
 
-      await asMember.auth.signIn(credentials);
+      await signIn(asMember, credentials);
       await asMember.auth.onboarded({ language: 'en' });
 
       return { page, fullName };

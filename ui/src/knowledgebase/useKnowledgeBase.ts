@@ -5,6 +5,7 @@ import { parseAsStringLiteral, useQueryState } from 'nuqs';
 import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useMatch } from 'react-router-dom';
+import { KB_PATH } from '../paths.ts';
 import { orpc } from '../orpc.ts';
 import { useChange, useParamPanel, useSearch } from '../shared/hooks.ts';
 
@@ -21,9 +22,6 @@ export type ArticleDetail = Outputs['articles']['get'];
 export type ArticleStatus = Article['status'];
 
 export type Attachment = ArticleDetail['attachments'][number];
-
-/** Where the knowledge base lives, as the old plugin had it. */
-export const KB_PATH = '/frontline/knowledgebase';
 
 /** A topic's pages, by the path segment after its id. */
 const KB_SECTIONS = ['articles', 'categories', 'kbsettings'] as const;

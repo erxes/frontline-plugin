@@ -15,20 +15,14 @@ import { useTranslation } from 'react-i18next';
 import { Link, Outlet } from 'react-router-dom';
 import { z } from 'zod';
 import { PLUGIN } from '../config.tsx';
+import { KB_PATH } from '../paths.ts';
 import { CreateButton } from '../shared/List.tsx';
 import { ArticlePanel } from './ArticlePanel.tsx';
 import { CategoryPanel } from './CategoryPanel.tsx';
 import { KbSidebar } from './KbSidebar.tsx';
 import css from './styles.css?inline';
 import { TopicPanel } from './TopicPanel.tsx';
-import {
-  KB_PATH,
-  useKbAccess,
-  useKbPanels,
-  useKbRoute,
-  useOldLink,
-  useTopic,
-} from './useKnowledgeBase.ts';
+import { useKbAccess, useKbPanels, useKbRoute, useOldLink, useTopic } from './useKnowledgeBase.ts';
 
 addPluginStyles(`${PLUGIN}:knowledgebase`, css);
 

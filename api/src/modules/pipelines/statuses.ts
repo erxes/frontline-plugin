@@ -4,10 +4,10 @@ import { and, asc, count, eq, getTableColumns, inArray, sql } from 'drizzle-orm'
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { pipelineStatuses } from '#/db/schema.ts';
+import { pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Color, Title } from '../fields.ts';
-import { pipelineFor } from './pipelines.ts';
+import { pipelineFor, refuseUsed } from './pipelines.ts';
 
 const { orgId, ...statusColumns } = getTableColumns(pipelineStatuses);
 
@@ -166,12 +166,13 @@ const reorder = writes(PERMISSIONS.channelView)
     return moved.toSorted((a, b) => a.order - b.order);
   });
 
-/** Deletes a status. */
+/** Deletes a status. CONFLICT while tickets are in it. */
 const remove = writes(PERMISSIONS.channelView)
   .input(z.object({ id: z.string() }))
   .output(z.object({ id: z.string() }))
   .handler(async ({ input, context: { tx, member } }) => {
     await statusFor(tx, member, input.id, { change: true });
+    await refuseUsed(tx, eq(tickets.statusId, input.id), 'This status has tickets');
     await tx.delete(pipelineStatuses).where(eq(pipelineStatuses.id, input.id));
 
     return { id: input.id };

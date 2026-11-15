@@ -7,7 +7,8 @@ import { orpc } from '../orpc.ts';
 import { draftsOf, FormActions } from '../shared/Drafts.tsx';
 import { SidePanel } from '../shared/SidePanel.tsx';
 import { type TopicDraft, TopicFields, topicDraftOf, topicInput } from './TopicFields.tsx';
-import { KB_PATH, type Topic, useKbChange, useKbPanels, useTopic } from './useKnowledgeBase.ts';
+import { KB_PATH } from '../paths.ts';
+import { type Topic, useKbChange, useKbPanels, useTopic } from './useKnowledgeBase.ts';
 
 /** Unsaved topic forms, kept while the page is open; the settings page shares them. */
 export const useTopicDraft = draftsOf<TopicDraft>();

@@ -3,7 +3,8 @@ import { Empty, Skeleton } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Navigate } from 'react-router-dom';
 import { CreateButton } from '../shared/List.tsx';
-import { KB_PATH, useKbPanels, useTopics } from './useKnowledgeBase.ts';
+import { KB_PATH } from '../paths.ts';
+import { useKbPanels, useTopics } from './useKnowledgeBase.ts';
 
 /** The knowledge base's root: the first topic's articles, or how to start one. */
 export const TopicsPage = () => {

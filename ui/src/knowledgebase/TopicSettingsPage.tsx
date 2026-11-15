@@ -9,14 +9,8 @@ import { useConfirmDelete } from '../shared/Records.tsx';
 import { FormActions } from '../shared/Drafts.tsx';
 import { TopicFields, topicDraftOf, topicInput } from './TopicFields.tsx';
 import { useTopicDraft } from './TopicPanel.tsx';
-import {
-  KB_PATH,
-  type Topic,
-  useKbAccess,
-  useKbChange,
-  useKbRoute,
-  useTopic,
-} from './useKnowledgeBase.ts';
+import { KB_PATH } from '../paths.ts';
+import { type Topic, useKbAccess, useKbChange, useKbRoute, useTopic } from './useKnowledgeBase.ts';
 
 /** Asks for "delete" to be typed, then deletes the topic with its categories and articles. */
 const DangerZone = ({ topic }: { topic: Topic }) => {

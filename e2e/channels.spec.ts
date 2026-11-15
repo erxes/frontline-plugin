@@ -7,7 +7,10 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   const name = `Support ${unique()}`;
   const teammate = await newMember(['frontline.channel.view']);
 
+  // The app opens on its tickets, as the old plugin did; the sidebar's foot leads to the settings.
   await page.goto('/frontline');
+  await expect(page).toHaveURL(/\/frontline\/tickets$/);
+  await page.getByRole('link', { name: 'Settings' }).click();
   await expect(page).toHaveURL(/\/frontline\/settings\/channels$/);
   await page.getByRole('button', { name: 'Create channel' }).click();
   const sheet = page.getByRole('dialog');
@@ -33,7 +36,7 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await expect(sheet.getByText(`Another channel is already called ${name}.`)).toBeVisible();
   await expect(sheet.getByLabel('Name')).toHaveValue(name);
 
-  await teammate.page.goto('/frontline');
+  await teammate.page.goto('/frontline/settings/channels');
   await expect(teammate.page.getByRole('link', { name })).toBeVisible();
   await expect(teammate.page.getByRole('button', { name: 'Create channel' })).toBeHidden();
   await expectAccessible(teammate.page);
@@ -86,7 +89,7 @@ test('the owner adds a member, removes them, and cannot remove the last admin', 
 test('a member without frontline permissions is refused', async ({ newMember }) => {
   const { page } = await newMember(['team.view']);
 
-  await page.goto('/frontline');
+  await page.goto('/frontline/settings/channels');
   await expect(page.getByText('You need the frontline.channel.view permission')).toBeVisible();
   await expectAccessible(page);
 });

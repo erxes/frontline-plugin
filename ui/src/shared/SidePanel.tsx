@@ -46,7 +46,9 @@ export const Field = ({
 }) => (
   <div className={cn('flex flex-col gap-2', className)}>
     {id ? (
-      <Label htmlFor={id}>{label}</Label>
+      <Label htmlFor={id} variant="plain">
+        {label}
+      </Label>
     ) : (
       <span className="text-sm font-medium">{label}</span>
     )}

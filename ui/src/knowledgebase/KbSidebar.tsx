@@ -12,12 +12,12 @@ import { Button, cn, IconComponent, ScrollArea, Skeleton } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
+import { KB_PATH } from '../paths.ts';
 import { ActionsMenu, type RowAction } from '../shared/Records.tsx';
 import { Indent } from './CategoryTree.tsx';
 import { useDeleteCategories } from './useKbDeletes.ts';
 import {
   type CategoryRow,
-  KB_PATH,
   type Topic,
   useArticleFilters,
   useCategories,
