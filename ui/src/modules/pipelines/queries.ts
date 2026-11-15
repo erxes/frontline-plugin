@@ -1,16 +1,15 @@
-import type { InferClientOutputs } from '@orpc/client';
+import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
-import { addPluginStyles, toast } from 'erxes-ui';
+import { addPluginStyles, toast, useListFilterParams } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
-import { CHANNELS_PATH, useChannel } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
-import { useChange, useParamPanel } from '~/shared/hooks.ts';
+import { useChange } from '~/shared/hooks.ts';
+import { useConfirmDelete } from '~/shared/Records.tsx';
 import css from './styles.css?inline';
 
-// Every pipeline screen imports this module, so their styles arrive with the first one.
+// Every pipeline screen and panel slot imports this module, so their styles arrive with the first one.
 addPluginStyles(`${PLUGIN}:pipelines`, css);
 
 type Outputs = InferClientOutputs<Client>['pipelines'];
@@ -19,25 +18,16 @@ export type Pipeline = Outputs['get'];
 
 export type Status = Outputs['statuses']['list'][number];
 
-/** The channel and pipeline the route names. */
-export const usePipelineRoute = () => {
-  const { id = '', pipelineId = '' } = useParams();
+/** The fields `pipelines.update` changes, any of them at once. */
+export type PipelineFields = Omit<InferClientInputs<Client>['pipelines']['update'], 'id'>;
 
-  return { channelId: id, pipelineId };
-};
-
-/** A pipeline's page: its general settings, or the `tab` after them. */
-export const pipelinePath = (channelId: string, pipelineId: string, tab = '') =>
-  `${CHANNELS_PATH}/${channelId}/pipelines/${pipelineId}${tab ? `/${tab}` : ''}`;
-
-/** Whether the member changes the channel's pipelines: its admins and channel managers do. */
-export const useCanManage = (channelId: string) => useChannel(channelId).data?.canManage ?? false;
-
-/** A channel's pipelines, newest first, a page at a time. */
+/** A channel's pipelines, newest first, a page at a time, narrowed by the filter bar. */
 export const usePipelines = (channelId: string) => {
+  const params = useListFilterParams();
+
   const query = useInfiniteQuery(
     orpc.pipelines.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ channelId, cursor }),
+      input: (cursor: string | undefined) => ({ channelId, cursor, ...params }),
       initialPageParam: undefined,
       getNextPageParam: (page) => page.nextCursor ?? undefined,
     }),
@@ -50,6 +40,7 @@ export const usePipelines = (channelId: string) => {
   };
 };
 
+/** One pipeline: every slot of its panel reads this query. */
 export const usePipeline = (id: string) =>
   useQuery(orpc.pipelines.get.queryOptions({ input: { id } }));
 
@@ -60,28 +51,48 @@ export const useStatuses = (pipelineId: string) =>
 /** Refetches the pipeline and status queries after a change, and shows a refusal. */
 export const usePipelineChange = () => useChange(orpc.pipelines.key());
 
-/** Saves a pipeline's settings page: `onSaved` clears its draft, then a toast says so. */
-export const usePipelineUpdate = (onSaved: () => void) => {
+/** Saves the given fields of the pipeline, one in-place edit at a time. */
+export const useEditPipeline = (id: string) => {
+  const update = useMutation(orpc.pipelines.update.mutationOptions(usePipelineChange()));
+
+  return (fields: PipelineFields) => update.mutate({ id, ...fields });
+};
+
+/** Asks for "delete" to be typed, then deletes the pipelines and their statuses, all or none. */
+export const useDeletePipelines = () => {
   const { t } = useTranslation('frontline');
+  const confirm = useConfirmDelete();
   const change = usePipelineChange();
 
-  return useMutation(
-    orpc.pipelines.update.mutationOptions({
+  const remove = useMutation(
+    orpc.pipelines.remove.mutationOptions({
       ...change,
-      onSuccess: async () => {
-        onSaved();
-        toast({ title: t('pipeline-updated-successfully', 'Pipeline updated successfully') });
+      onSuccess: async ({ ids }) => {
+        toast({
+          title: t('pipelines-deleted', {
+            defaultValue_one: 'Pipeline deleted',
+            defaultValue_other: '{{count}} pipelines deleted',
+            count: ids.length,
+          }),
+        });
         await change.onSuccess();
       },
     }),
   );
+
+  const deletePipelines = async (ids: string[], done?: () => void) => {
+    await confirm(
+      t('delete-pipelines-confirm', {
+        defaultValue_one: 'Delete this pipeline and its statuses?',
+        defaultValue_other: 'Delete {{count}} pipelines and their statuses?',
+        count: ids.length,
+      }),
+    );
+    remove.mutate({ ids }, { onSuccess: done });
+  };
+
+  return { deletePipelines, isPending: remove.isPending };
 };
-
-/** `?pipeline=new` opens the create panel. */
-export const usePipelinePanel = () => useParamPanel('pipeline');
-
-/** `?status=new~<type>` adds a status to a stage, `?status=<id>` edits one. */
-export const useStatusPanel = () => useParamPanel('status');
 
 /** The stages in the order a ticket moves through them, by their `type`. */
 export const useStages = () => {

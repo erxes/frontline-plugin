@@ -1,12 +1,30 @@
-import { IconBox, IconCircles, IconMessageReply } from '@tabler/icons-react';
-import type { IUIConfig } from 'erxes-ui';
-import { lazy } from 'react';
-import { CHANNEL_TYPE, PLUGIN, RESPONSE_TEMPLATE_TYPE } from '~/plugin.ts';
+import {
+  IconBox,
+  IconCircleDot,
+  IconCircles,
+  IconClockHour4,
+  IconGitBranch,
+  IconMessageReply,
+} from '@tabler/icons-react';
+import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
+import { type ComponentType, lazy } from 'react';
+import { CHANNEL_TYPE, PIPELINE_TYPE, PLUGIN, RESPONSE_TEMPLATE_TYPE } from '~/plugin.ts';
 
-// web loads this module on every page, so it imports only icons and names; each record's
-// slots load when one first opens.
-const channel = () => import('@/channels/ChannelPanel.tsx');
-const template = () => import('@/responseTemplates/ResponseTemplatePanel.tsx');
+// web loads this module on every page, so it imports only icons and names. Each record type's
+// slots come from one `slots.ts` that loads when the first of them shows: every import here
+// costs `./config` bytes.
+type Slot = ComponentType<TRecordSlotProps>;
+
+type Slots = { Title: Slot; Actions: Slot; Detail: Slot; New: ComponentType<TRecordDraftProps> };
+
+const slots = (load: () => Promise<Slots>) => ({
+  Title: lazy(async () => ({ default: (await load()).Title })),
+  Actions: lazy(async () => ({ default: (await load()).Actions })),
+  Detail: lazy(async () => ({ default: (await load()).Detail })),
+  New: lazy(async () => ({ default: (await load()).New })),
+});
+
+const pipeline = () => import('@/pipelines/slots.ts');
 
 /**
  * What web reads from `./config`: the app tab, the page module under `/frontline/*`, and the
@@ -24,24 +42,35 @@ export const CONFIG: IUIConfig = {
       title: 'Channel',
       icon: IconCircles,
       detailPath: (id) => `/${PLUGIN}/settings/channels/${encodeURIComponent(id)}`,
-      Title: lazy(async () => ({ default: (await channel()).ChannelTitle })),
-      Actions: lazy(async () => ({ default: (await channel()).ChannelActions })),
-      Detail: lazy(async () => ({ default: (await channel()).ChannelDetail })),
-      New: lazy(async () => ({
-        default: (await import('@/channels/ChannelNew.tsx')).ChannelNew,
-      })),
+      ...slots(() => import('@/channels/slots.ts')),
     },
     {
       contentType: RESPONSE_TEMPLATE_TYPE,
       title: 'Response template',
       icon: IconMessageReply,
       detailPath: (id) => `/${PLUGIN}/settings/response-templates/${encodeURIComponent(id)}`,
-      Title: lazy(async () => ({ default: (await template()).ResponseTemplateTitle })),
-      Actions: lazy(async () => ({ default: (await template()).ResponseTemplateActions })),
-      Detail: lazy(async () => ({ default: (await template()).ResponseTemplateDetail })),
-      New: lazy(async () => ({
-        default: (await import('@/responseTemplates/ResponseTemplateNew.tsx')).ResponseTemplateNew,
-      })),
+      ...slots(() => import('@/responseTemplates/slots.ts')),
+    },
+    {
+      contentType: PIPELINE_TYPE,
+      title: 'Pipeline',
+      icon: IconGitBranch,
+      detailPath: (id) => `/${PLUGIN}/settings/pipelines/${encodeURIComponent(id)}`,
+      ...slots(pipeline),
+      tabs: [
+        {
+          value: 'statuses',
+          label: 'Ticket statuses',
+          icon: IconCircleDot,
+          component: lazy(async () => ({ default: (await pipeline()).PipelineStatuses })),
+        },
+        {
+          value: 'sla',
+          label: 'SLA',
+          icon: IconClockHour4,
+          component: lazy(async () => ({ default: (await pipeline()).PipelineSla })),
+        },
+      ],
     },
   ],
 };

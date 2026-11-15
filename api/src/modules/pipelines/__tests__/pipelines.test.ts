@@ -16,6 +16,7 @@ describe('pipelines', () => {
       numberSize: null,
       slaPolicy: null,
       createdBy: 'user-org-pl-a',
+      canManage: true,
     });
     expect(pipeline).not.toHaveProperty('orgId');
 
@@ -51,8 +52,8 @@ describe('pipelines', () => {
       totalCount: 0,
     });
 
-    await expect(owner.pipelines.remove({ id: pipeline.id })).resolves.toEqual({
-      id: pipeline.id,
+    await expect(owner.pipelines.remove({ ids: [pipeline.id] })).resolves.toEqual({
+      ids: [pipeline.id],
     });
     await expect(owner.pipelines.get({ id: pipeline.id })).rejects.toMatchObject({
       code: 'NOT_FOUND',
@@ -123,6 +124,46 @@ describe('pipelines', () => {
     expect(rest.nextCursor).toBeNull();
   });
 
+  it('narrows the list by search and the filter bar, counting only what matches', async () => {
+    const owner = clientAs('org-pl-h');
+    const channel = await owner.channels.create({ name: 'Support' });
+
+    await owner.pipelines.create({ channelId: channel.id, name: 'Refunds', description: 'Money' });
+    await owner.pipelines.create({ channelId: channel.id, name: 'Bugs' });
+
+    const names = async (input: { search?: string; filter?: string }) => {
+      const page = await owner.pipelines.list({ channelId: channel.id, ...input });
+
+      return { names: page.pipelines.map((pipeline) => pipeline.name), total: page.totalCount };
+    };
+
+    await expect(names({ search: 'money' })).resolves.toEqual({ names: ['Refunds'], total: 1 });
+    await expect(
+      names({
+        filter: JSON.stringify({
+          match: 'all',
+          rules: [{ path: 'subject.name', op: 'starts_with', value: 'bu' }],
+        }),
+      }),
+    ).resolves.toEqual({ names: ['Bugs'], total: 1 });
+    await expect(
+      names({
+        filter: JSON.stringify({
+          match: 'all',
+          rules: [{ path: 'subject.createdBy', op: 'eq', value: 'me' }],
+        }),
+      }),
+    ).resolves.toEqual({ names: ['Bugs', 'Refunds'], total: 2 });
+    await expect(
+      names({
+        filter: JSON.stringify({
+          match: 'all',
+          rules: [{ path: 'subject.numberSize', op: 'eq', value: 4 }],
+        }),
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   it('adds statuses last in their stage, even at once, and reorders a stage in one call', async () => {
     const owner = clientAs('org-pl-d');
     const channel = await owner.channels.create({ name: 'Support' });
@@ -160,10 +201,12 @@ describe('pipelines', () => {
     await expect(
       owner.pipelines.statuses.update({ id: first?.id ?? '', name: 'Paused', description: '' }),
     ).resolves.toMatchObject({ name: 'Paused', description: null, color: '#123abc' });
-    await expect(owner.pipelines.statuses.remove({ id: first?.id ?? '' })).resolves.toEqual({
-      id: first?.id,
-    });
-    await expect(stage()).resolves.toHaveLength(3);
+
+    const gone = added.slice(0, 2).map((status) => status.id);
+    const { ids: removed } = await owner.pipelines.statuses.remove({ ids: gone });
+
+    expect(removed.toSorted()).toEqual(gone.toSorted());
+    await expect(stage()).resolves.toHaveLength(2);
   });
 
   it('lets channel members read pipelines and only admins change them', async () => {
@@ -177,7 +220,7 @@ describe('pipelines', () => {
     await owner.channels.addMembers({ id: joined.id, userIds: ['agent-pl-e'] });
 
     await expect(agent.pipelines.list({ channelId: joined.id })).resolves.toMatchObject({
-      pipelines: [{ id: pipeline.id }],
+      pipelines: [{ id: pipeline.id, canManage: false }],
     });
     await expect(agent.pipelines.statuses.list({ pipelineId: pipeline.id })).resolves.toHaveLength(
       6,
@@ -194,6 +237,16 @@ describe('pipelines', () => {
     await expect(
       agent.pipelines.statuses.create({ pipelineId: pipeline.id, type: 1, name: 'Mine' }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    // One pipeline the caller may not delete keeps them all.
+    await owner.channels.addMembers({ id: other.id, userIds: ['agent-pl-e'] });
+    await owner.channels.setRole({ id: other.id, userId: 'agent-pl-e', role: 'admin' });
+    await expect(agent.pipelines.remove({ ids: [hidden.id, pipeline.id] })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
+    await expect(agent.pipelines.get({ id: hidden.id })).resolves.toMatchObject({
+      canManage: true,
+    });
   });
 
   it("doesn't show another organisation's pipelines", async () => {

@@ -1,12 +1,20 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, eq } from 'drizzle-orm';
+import { and, type Column, eq, sql } from 'drizzle-orm';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { type CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
 
 /** Whether `member` sees every channel, not only the ones they belong to. */
 export const managesAll = (member: PluginMember) => member.can(PERMISSIONS.channelManage);
+
+/** Joins `member`'s own row of `channelMembers` for the channel `channelId` names. */
+export const membership = (member: PluginMember, channelId: Column) =>
+  and(eq(channelMembers.channelId, channelId), eq(channelMembers.userId, member.userId));
+
+/** Whether `member` may change the channel whose `membership` row the query joined. */
+export const canChangeSql = (member: PluginMember) =>
+  sql<boolean>`(${channelMembers.role} = 'admin') is true or ${managesAll(member)}`;
 
 /**
  * The channel `member` may act on, locked for the rest of the transaction so
@@ -22,10 +30,7 @@ export const channelFor = async (
   const [row] = await tx
     .select({ role: channelMembers.role })
     .from(channels)
-    .leftJoin(
-      channelMembers,
-      and(eq(channelMembers.channelId, channels.id), eq(channelMembers.userId, member.userId)),
-    )
+    .leftJoin(channelMembers, membership(member, channels.id))
     .where(eq(channels.id, id))
     .for('update', { of: channels });
 

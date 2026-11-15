@@ -3,7 +3,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom';
 import { ChannelMembersPage } from '@/channels/ChannelMembersPage.tsx';
 import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
-import { CHANNEL_TYPE, PLUGIN, RESPONSE_TEMPLATE_TYPE } from '~/plugin.ts';
+import { CHANNEL_TYPE, PIPELINE_TYPE, PLUGIN, RESPONSE_TEMPLATE_TYPE } from '~/plugin.ts';
 import css from './styles.css?inline';
 
 addPluginStyles(PLUGIN, css);
@@ -49,10 +49,6 @@ const PipelinesPage = lazy(async () => ({
   default: (await import('@/pipelines/PipelinesPage.tsx')).PipelinesPage,
 }));
 
-const PipelineLayout = lazy(async () => ({
-  default: (await import('@/pipelines/PipelineLayout.tsx')).PipelineLayout,
-}));
-
 /** The old `/:id/response/:responseId` link opens that template on its own page. */
 const ResponseTemplateRedirect = () => (
   <Navigate
@@ -73,9 +69,9 @@ export const Frontline = () => (
         <Route path=":id/response" element={<ResponseTemplatesPage />} />
         <Route path=":id/response/:responseId" element={<ResponseTemplateRedirect />} />
         <Route path=":id/pipelines" element={<PipelinesPage />} />
-        <Route path=":id/pipelines/:pipelineId/*" element={<PipelineLayout />} />
       </Route>
     </Route>
+    <Route path="settings/pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
     <Route
       path="settings/response-templates/:id"
       element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}

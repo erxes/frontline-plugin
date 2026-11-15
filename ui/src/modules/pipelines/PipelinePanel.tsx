@@ -1,79 +1,201 @@
+import { memberQueries } from '@erxes/core-contract/client';
+import {
+  IconAlignLeft,
+  IconArrowBarToRight,
+  IconCalendarPlus,
+  IconCalendarUp,
+  IconCircles,
+  IconDots,
+  IconLetterCase,
+  IconTrash,
+  IconUser,
+} from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Input, Textarea, toast } from 'erxes-ui';
-import type { SubmitEvent } from 'react';
+import {
+  Button,
+  MemberInline,
+  PanelField,
+  PanelSection,
+  Skeleton,
+  Spinner,
+  TextField,
+  type TRecordSlotProps,
+  useFormat,
+} from 'erxes-ui';
+import { type ComponentProps, type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { useChannel } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
-import { draftsOf, FormActions } from '~/shared/Drafts.tsx';
-import { Field, SidePanel } from '~/shared/SidePanel.tsx';
-import { pipelinePath, usePipelineChange, usePipelinePanel } from './queries.ts';
+import { ActionsMenu } from '~/shared/Records.tsx';
+import { MoveToChannelDialog } from '~/shared/MoveToChannel.tsx';
+import { TicketFields } from './PipelineTickets.tsx';
+import {
+  type Pipeline,
+  useDeletePipelines,
+  useEditPipeline,
+  usePipeline,
+  usePipelineChange,
+} from './queries.ts';
 
-const usePipelineDraft = draftsOf<{ name: string; description: string }>();
-
-/** A new pipeline's name and description; closing the panel keeps the draft. */
-const CreateForm = ({ channelId }: { channelId: string }) => {
+/**
+ * The pipeline's menu, behind `trigger`: move it to another channel the member is an admin of,
+ * or delete it. Members who can't change it get no menu.
+ */
+export const PipelineMenu = ({
+  pipeline,
+  trigger,
+}: {
+  pipeline: Pipeline;
+  trigger: ComponentProps<typeof ActionsMenu>['trigger'];
+}) => {
   const { t } = useTranslation('frontline');
-  const navigate = useNavigate();
-  const change = usePipelineChange();
-  const draft = usePipelineDraft(`new~${channelId}`, { name: '', description: '' });
+  const { deletePipelines } = useDeletePipelines();
+  const move = useMutation(orpc.pipelines.update.mutationOptions(usePipelineChange()));
+  const [moving, setMoving] = useState(false);
 
-  const create = useMutation(
-    orpc.pipelines.create.mutationOptions({
-      ...change,
-      onSuccess: async (pipeline) => {
-        draft.clear();
-        toast({ title: t('pipeline-created', 'Pipeline created') });
-        void navigate(pipelinePath(channelId, pipeline.id));
-        await change.onSuccess();
-      },
-    }),
-  );
-
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    create.mutate({ channelId, ...draft.value });
-  };
+  if (!pipeline.canManage) return null;
 
   return (
-    <form onSubmit={submit} className="flex flex-col gap-4">
-      <Field id="pipeline-name" label={t('pipeline-name', 'Pipeline name')}>
-        <Input
-          id="pipeline-name"
-          required
-          value={draft.value.name}
-          onChange={(event) => draft.change({ name: event.target.value })}
-        />
-      </Field>
-      <Field id="pipeline-description" label={t('description', 'Description')}>
-        <Textarea
-          id="pipeline-description"
-          value={draft.value.description}
-          onChange={(event) => draft.change({ description: event.target.value })}
-        />
-      </Field>
-      <FormActions
-        dirty={draft.dirty}
-        onDiscard={draft.clear}
-        disabled={create.isPending}
-        submit={t('create', 'Create')}
+    <>
+      <ActionsMenu
+        trigger={trigger}
+        actions={[
+          {
+            value: 'move',
+            icon: <IconArrowBarToRight />,
+            label: t('move-to-channel', 'Move to channel'),
+            onSelect: () => setMoving(true),
+          },
+          {
+            value: 'delete',
+            icon: <IconTrash />,
+            label: t('delete', 'Delete'),
+            onSelect: () => void deletePipelines([pipeline.id]),
+          },
+        ]}
       />
-    </form>
+      {moving && (
+        <MoveToChannelDialog
+          name={pipeline.name}
+          channelId={pipeline.channelId}
+          onMove={(channelId) => move.mutateAsync({ id: pipeline.id, channelId })}
+          onClose={() => setMoving(false)}
+        />
+      )}
+    </>
   );
 };
 
-/** Creates a pipeline in the channel the page shows, then opens it. */
-export const PipelinePanel = ({ channelId }: { channelId: string }) => {
+/** A slot's pipeline: a spinner while it loads, the refusal when the API gives one. */
+export const WithPipeline = ({
+  id,
+  children,
+}: {
+  id: string;
+  children: (pipeline: Pipeline) => ReactNode;
+}) => {
+  const pipeline = usePipeline(id);
+
+  if (pipeline.isPending) return <Spinner area="lg" />;
+
+  if (pipeline.isError) {
+    return (
+      <p role="alert" className="p-3 text-xs text-destructive-text">
+        {pipeline.error.message}
+      </p>
+    );
+  }
+
+  return children(pipeline.data);
+};
+
+/** The panel header's title: the pipeline's name. */
+export const PipelineTitle = ({ contentId }: TRecordSlotProps) => {
+  const pipeline = usePipeline(contentId);
+
+  if (pipeline.isPending) return <Skeleton className="h-4 w-32" />;
+
+  return <span className="truncate">{pipeline.data?.name ?? pipeline.error?.message}</span>;
+};
+
+/** The header's menu, for its channel's admins. */
+export const PipelineActions = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
-  const { value, close } = usePipelinePanel();
+  const { data } = usePipeline(contentId);
+
+  if (!data) return null;
 
   return (
-    <SidePanel
-      open={value === 'new'}
-      onClose={close}
-      title={t('create-pipeline', 'Create pipeline')}
-      description={t('pipeline-hint', 'The statuses and rules a channel works its tickets by.')}
-    >
-      <CreateForm channelId={channelId} />
-    </SidePanel>
+    <PipelineMenu
+      pipeline={data}
+      trigger={
+        <Button variant="ghost" size="icon" aria-label={t('pipeline-menu', 'Pipeline actions')}>
+          <IconDots />
+        </Button>
+      }
+    />
   );
 };
+
+/** The pipeline's name and description, edited in place, and where and when it was made. */
+const PipelineFields = ({ pipeline }: { pipeline: Pipeline }) => {
+  const { t } = useTranslation('frontline');
+  const format = useFormat();
+  const edit = useEditPipeline(pipeline.id);
+  const channel = useChannel(pipeline.channelId);
+  const scope = `frontline-pipeline.${pipeline.id}`;
+
+  return (
+    <PanelSection title={t('pipeline', 'Pipeline')}>
+      <fieldset
+        disabled={!pipeline.canManage}
+        className="contents [&_button:disabled]:cursor-default [&_button:disabled]:opacity-100"
+      >
+        <PanelField icon={IconLetterCase} label={t('name', 'Name')}>
+          <TextField
+            scope={`${scope}.name`}
+            value={pipeline.name}
+            placeholder={t('name', 'Name')}
+            onSave={(name) => {
+              const next = name.trim();
+
+              if (next && next !== pipeline.name) edit({ name: next });
+            }}
+          />
+        </PanelField>
+        <PanelField icon={IconAlignLeft} label={t('description', 'Description')}>
+          <TextField
+            scope={`${scope}.description`}
+            value={pipeline.description ?? ''}
+            placeholder={t('description', 'Description')}
+            onSave={(description) => edit({ description })}
+          />
+        </PanelField>
+      </fieldset>
+      <PanelField icon={IconCircles} label={t('channel', 'Channel')} cell={false}>
+        <span className="truncate px-2 text-xs">{channel.data?.name}</span>
+      </PanelField>
+      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
+        <MemberInline memberId={pipeline.createdBy} members={memberQueries} />
+      </PanelField>
+      <PanelField icon={IconCalendarPlus} label={t('created-at', 'Created at')} cell={false}>
+        <span className="px-2 text-xs">{format.dateTime(pipeline.createdAt)}</span>
+      </PanelField>
+      <PanelField icon={IconCalendarUp} label={t('updated-at', 'Updated at')} cell={false}>
+        <span className="px-2 text-xs">{format.dateTime(pipeline.updatedAt)}</span>
+      </PanelField>
+    </PanelSection>
+  );
+};
+
+/** The Detail tab: the pipeline's fields, then how its tickets are numbered and named. */
+export const PipelineDetail = ({ contentId }: TRecordSlotProps) => (
+  <WithPipeline id={contentId}>
+    {(pipeline) => (
+      <>
+        <PipelineFields pipeline={pipeline} />
+        <TicketFields pipeline={pipeline} />
+      </>
+    )}
+  </WithPipeline>
+);

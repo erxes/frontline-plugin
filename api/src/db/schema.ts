@@ -13,6 +13,7 @@ import {
   unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { z } from 'zod';
 import { table } from './table.ts';
 
 /** A text id: a random UUID, or the Mongo `_id` an imported row keeps. */
@@ -178,16 +179,35 @@ export const kbCategories = table(
   ],
 );
 
-/** One ticket priority's promise, in working minutes; a clock left out is not kept. */
-export type SlaRule = {
-  /** 0 no priority, 1 minor, 2 medium, 3 high, 4 critical. */
-  priority: number;
-  firstResponseMinutes?: number;
-  resolutionMinutes?: number;
-};
+/** A span in working minutes, up to a year; left out, the clock isn't kept. */
+const Minutes = z.number().int().positive().max(525_600).optional();
 
-/** What a pipeline promises its tickets: a response and a resolution time per priority. */
-export type SlaPolicy = { enabled: boolean; rules: SlaRule[]; warnBeforeMinutes?: number };
+/**
+ * What a pipeline promises its tickets: a first response and a resolution time per priority
+ * (0 no priority, 1 minor, 2 medium, 3 high, 4 critical), at most one rule each. A rule that
+ * keeps no clock is dropped. The column's type, and the schema its input and output parse with.
+ */
+export const SlaPolicy = z.object({
+  enabled: z.boolean(),
+  rules: z
+    .array(
+      z.object({
+        priority: z.number().int().min(0).max(4),
+        firstResponseMinutes: Minutes,
+        resolutionMinutes: Minutes,
+      }),
+    )
+    .refine(
+      (rules) => new Set(rules.map((rule) => rule.priority)).size === rules.length,
+      'Each priority can have one SLA rule',
+    )
+    .transform((rules) =>
+      rules.filter(
+        (rule) => rule.firstResponseMinutes !== undefined || rule.resolutionMinutes !== undefined,
+      ),
+    ),
+  warnBeforeMinutes: Minutes,
+});
 
 /**
  * A channel's ticket workflow: its statuses, how its tickets are numbered and
@@ -207,7 +227,7 @@ export const pipelines = table(
     numberSize: integer(),
     /** A ticket's name, from `{customer.firstName}` and the like. */
     nameConfig: text(),
-    slaPolicy: jsonb().$type<SlaPolicy>(),
+    slaPolicy: jsonb().$type<z.output<typeof SlaPolicy>>(),
     ...stamps(),
   },
   (t) => [

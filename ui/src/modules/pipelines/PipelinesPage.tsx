@@ -1,152 +1,100 @@
 import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlignLeft,
-  IconArrowBarToRight,
   IconCalendarPlus,
   IconCalendarUp,
-  IconEdit,
+  IconFileDescription,
   IconGitBranch,
-  IconTrash,
   IconUser,
 } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
 import {
+  Button,
+  ListFilter,
   MemberInline,
+  PageContainer,
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
-  toast,
+  type TListFilterField,
+  useOpenRecord,
+  ViewBar,
 } from 'erxes-ui';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
-import { orpc } from '~/orpc.ts';
+import { useParams } from 'react-router-dom';
+import { ChannelsHeader } from '@/channels/ChannelsHeader.tsx';
+import { useChannel } from '@/channels/useChannels.ts';
+import { PIPELINE_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
-import { MoveToChannelDialog } from '~/shared/MoveToChannel.tsx';
-import { RowActions, TextCell, useConfirmDelete } from '~/shared/Records.tsx';
+import { DeleteButton, SelectionBar, TextCell } from '~/shared/Records.tsx';
 import { DateCell, PagedRows } from '~/shared/Table.tsx';
-import { PipelinePanel } from './PipelinePanel.tsx';
-import {
-  type Pipeline,
-  pipelinePath,
-  useCanManage,
-  usePipelineChange,
-  usePipelinePanel,
-  usePipelineRoute,
-  usePipelines,
-} from './queries.ts';
+import { PipelineMenu } from './PipelinePanel.tsx';
+import { type Pipeline, useDeletePipelines, usePipelines } from './queries.ts';
 
-/** "Create pipeline", with C as its shortcut, for the channel's admins. */
-export const CreatePipeline = ({ channelId }: { channelId: string }) => {
-  const { t } = useTranslation('frontline');
-  const { open } = usePipelinePanel();
+/** The name opens the pipeline in core's side panel, as a customer's name does. */
+const NameCell = ({ pipeline }: { pipeline: Pipeline }) => {
+  const { open } = useOpenRecord();
 
   return (
-    <CreateButton
-      allowed={useCanManage(channelId)}
-      label={t('create-pipeline', 'Create pipeline')}
-      onClick={() => open('new')}
-    />
+    <RecordTableInlineCell>
+      <Button
+        variant="ghost"
+        className="w-full justify-start"
+        onClick={() => open({ contentType: PIPELINE_TYPE, contentId: pipeline.id })}
+      >
+        {pipeline.name}
+      </Button>
+    </RecordTableInlineCell>
   );
-};
-
-/** Asks for "delete" to be typed, then deletes the pipeline and its statuses. */
-const useDeletePipeline = () => {
-  const { t } = useTranslation('frontline');
-  const confirm = useConfirmDelete();
-  const change = usePipelineChange();
-
-  const remove = useMutation(
-    orpc.pipelines.remove.mutationOptions({
-      ...change,
-      onSuccess: async () => {
-        toast({ title: t('pipeline-removed-successfully', 'Pipeline removed successfully') });
-        await change.onSuccess();
-      },
-    }),
-  );
-
-  return async (pipeline: Pipeline) => {
-    await confirm(t('confirm-remove-pipeline', 'Are you sure you want to delete this pipeline?'));
-    remove.mutate({ id: pipeline.id });
-  };
 };
 
 const MoreCell = ({ pipeline }: { pipeline: Pipeline }) => {
   const { t } = useTranslation('frontline');
-  const navigate = useNavigate();
-  const deletePipeline = useDeletePipeline();
-  const move = useMutation(orpc.pipelines.update.mutationOptions(usePipelineChange()));
-  const [moving, setMoving] = useState(false);
 
   return (
-    <>
-      <RowActions
-        label={t('pipeline-actions', 'Actions for {{name}}', { name: pipeline.name })}
-        actions={[
-          {
-            value: 'edit',
-            icon: <IconEdit />,
-            label: t('edit', 'Edit'),
-            onSelect: () => void navigate(pipelinePath(pipeline.channelId, pipeline.id)),
-          },
-          {
-            value: 'move',
-            icon: <IconArrowBarToRight />,
-            label: t('move-to-channel', 'Move to channel'),
-            onSelect: () => setMoving(true),
-          },
-          {
-            value: 'delete',
-            icon: <IconTrash />,
-            label: t('delete', 'Delete'),
-            onSelect: () => void deletePipeline(pipeline),
-          },
-        ]}
-      />
-      {moving && (
-        <MoveToChannelDialog
-          name={pipeline.name}
-          channelId={pipeline.channelId}
-          onMove={(channelId) => move.mutateAsync({ id: pipeline.id, channelId })}
-          onClose={() => setMoving(false)}
+    <PipelineMenu
+      pipeline={pipeline}
+      trigger={
+        <RecordTable.MoreButton
+          className="size-full"
+          aria-label={t('pipeline-actions', 'Actions for {{name}}', { name: pipeline.name })}
         />
-      )}
-    </>
+      }
+    />
   );
 };
 
-const manage: RecordTableColumnDef<Pipeline>[] = [
-  { id: 'more', cell: ({ row }) => <MoreCell pipeline={row.original} />, size: 33 },
-];
-
+/** Members who can't change the channel's pipelines get no row actions or selection. */
 const useColumns = (canManage: boolean): RecordTableColumnDef<Pipeline>[] => {
   const { t } = useTranslation('frontline');
+
+  const manage: RecordTableColumnDef<Pipeline>[] = [
+    {
+      id: 'more',
+      header: () => <RecordTable.ColumnSelector />,
+      cell: ({ row }) => <MoreCell pipeline={row.original} />,
+      size: 33,
+    },
+    RecordTable.checkboxColumnOf<Pipeline>(),
+  ];
 
   return [
     ...(canManage ? manage : []),
     {
       id: 'name',
-      header: () => <RecordTable.InlineHead label={t('name', 'Name')} icon={IconGitBranch} />,
-      cell: ({ row }) => (
-        <RecordTableInlineCell>
-          <Link
-            to={pipelinePath(row.original.channelId, row.original.id)}
-            className="truncate font-medium hover:underline"
-          >
-            {row.original.name}
-          </Link>
-        </RecordTableInlineCell>
-      ),
-      size: 280,
+      header: () => <RecordTable.InlineHead label={t('name', 'Name')} icon={IconAlignLeft} />,
+      cell: ({ row }) => <NameCell pipeline={row.original} />,
+      size: 240,
     },
     {
       id: 'description',
       header: () => (
-        <RecordTable.InlineHead label={t('description', 'Description')} icon={IconAlignLeft} />
+        <RecordTable.InlineHead
+          label={t('description', 'Description')}
+          icon={IconFileDescription}
+        />
       ),
       cell: ({ row }) => <TextCell value={row.original.description} />,
-      size: 280,
+      size: 260,
     },
     {
       id: 'createdBy',
@@ -166,7 +114,7 @@ const useColumns = (canManage: boolean): RecordTableColumnDef<Pipeline>[] => {
         <RecordTable.InlineHead label={t('created-at', 'Created at')} icon={IconCalendarPlus} />
       ),
       cell: ({ row }) => <DateCell date={row.original.createdAt} />,
-      size: 140,
+      size: 130,
     },
     {
       id: 'updatedAt',
@@ -174,21 +122,85 @@ const useColumns = (canManage: boolean): RecordTableColumnDef<Pipeline>[] => {
         <RecordTable.InlineHead label={t('updated-at', 'Updated at')} icon={IconCalendarUp} />
       ),
       cell: ({ row }) => <DateCell date={row.original.updatedAt} />,
-      size: 140,
+      size: 130,
     },
   ];
 };
 
-/** A channel's pipelines, newest first; its admins create, move and delete them. */
+/** Deletes the selected pipelines from the bar under the table. */
+const PipelinesCommandBar = () => {
+  const { deletePipelines, isPending } = useDeletePipelines();
+
+  return (
+    <SelectionBar>
+      {(selected, clear) => (
+        <DeleteButton disabled={isPending} onClick={() => void deletePipelines(selected, clear)} />
+      )}
+    </SelectionBar>
+  );
+};
+
+const usePipelineFields = (): TListFilterField[] => {
+  const { t } = useTranslation('frontline');
+
+  return [
+    { path: 'subject.name', label: t('name', 'Name'), type: 'text', icon: IconAlignLeft },
+    {
+      path: 'subject.description',
+      label: t('description', 'Description'),
+      type: 'text',
+      icon: IconFileDescription,
+    },
+    { path: 'subject.createdBy', label: t('created-by', 'Created by'), type: 'member' },
+    {
+      path: 'subject.createdAt',
+      label: t('created-at', 'Created at'),
+      type: 'date',
+      icon: IconCalendarPlus,
+    },
+    {
+      path: 'subject.updatedAt',
+      label: t('updated-at', 'Updated at'),
+      type: 'date',
+      icon: IconCalendarUp,
+    },
+  ];
+};
+
+/**
+ * A channel's pipelines, newest first, under core's list bar: the filter (`F`) on the fields
+ * above, whose rules the API applies (`api/src/modules/pipelines/pipelines.ts`). A pipeline opens
+ * in core's side panel, with its statuses and SLA in the panel's tabs; Create pipeline drafts one
+ * there. The channel's admins move and delete them.
+ */
 export const PipelinesPage = () => {
   const { t } = useTranslation('frontline');
-  const { channelId } = usePipelineRoute();
-  const canManage = useCanManage(channelId);
-  const { pipelines, isPending, error, hasNextPage, fetchNextPage } = usePipelines(channelId);
+  const { id: channelId = '' } = useParams();
+  const { openNew } = useOpenRecord();
+  const canManage = useChannel(channelId).data?.canManage ?? false;
+
+  const { pipelines, totalCount, isPending, error, hasNextPage, fetchNextPage } =
+    usePipelines(channelId);
+
   const columns = useColumns(canManage);
 
   return (
-    <>
+    <PageContainer>
+      <ChannelsHeader channelId={channelId} label={t('pipelines', 'Pipelines')}>
+        <CreateButton
+          allowed={canManage}
+          label={t('create-pipeline', 'Create pipeline')}
+          onClick={() => openNew(PIPELINE_TYPE, { channelId })}
+        />
+      </ChannelsHeader>
+      <ViewBar allLabel={t('all-pipelines', 'All pipelines')}>
+        <ListFilter
+          id="frontline-pipelines"
+          fields={usePipelineFields()}
+          members={memberQueries}
+          totalCount={totalCount}
+        />
+      </ViewBar>
       {error ? (
         <p className="m-3 text-sm text-destructive-text">{error.message}</p>
       ) : !isPending && pipelines.length === 0 ? (
@@ -197,16 +209,15 @@ export const PipelinesPage = () => {
           title={t('no-pipelines-yet', 'No pipelines yet')}
           description={t(
             'no-pipelines-description',
-            'Get started by creating your first pipeline to organize and manage your workflow processes.',
+            'A pipeline holds the statuses and SLA a channel works its tickets by.',
           )}
-          action={<CreatePipeline channelId={channelId} />}
         />
       ) : (
         <RecordTable.Provider
           tableId="frontline_pipelines"
           columns={columns}
           data={pipelines}
-          stickyColumns={['more', 'name']}
+          stickyColumns={['more', 'checkbox', 'name']}
           className="m-3"
         >
           <PagedRows
@@ -215,9 +226,9 @@ export const PipelinesPage = () => {
             count={pipelines.length}
             fetchNextPage={() => void fetchNextPage()}
           />
+          <PipelinesCommandBar />
         </RecordTable.Provider>
       )}
-      <PipelinePanel channelId={channelId} />
-    </>
+    </PageContainer>
   );
 };

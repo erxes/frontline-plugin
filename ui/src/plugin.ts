@@ -7,3 +7,4 @@ export const PLUGIN = 'frontline';
 export const CHANNEL_TYPE = `${PLUGIN}:channel`;
 
 export const RESPONSE_TEMPLATE_TYPE = `${PLUGIN}:response-template`;
+export const PIPELINE_TYPE = `${PLUGIN}:pipeline`;

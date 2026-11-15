@@ -1,6 +1,7 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, asc, count, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
@@ -14,17 +15,15 @@ const { orgId, ...statusColumns } = getTableColumns(pipelineStatuses);
 /** The stage, 1 new to 6 cancelled (`STATUS_TYPES`). */
 const Type = z.number().int().min(1).max(6);
 
-const Status = z.object({
-  id: z.string(),
-  pipelineId: z.string(),
-  name: z.string(),
-  description: z.string().nullable(),
-  color: z.string(),
-  type: z.number(),
-  order: z.number(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
-});
+/** What a status's fields accept. */
+const refine = {
+  type: () => Type,
+  name: () => Title,
+  description: () => Blank(255),
+  color: () => Color,
+};
+
+const Status = createSelectSchema(pipelineStatuses).omit({ orgId: true });
 
 /** The status `member` may act on, under the rules of its pipeline. */
 const statusFor = async (
@@ -69,13 +68,9 @@ const list = reads(PERMISSIONS.channelView)
  */
 const create = writes(PERMISSIONS.channelView)
   .input(
-    z.object({
-      pipelineId: z.string(),
-      type: Type,
-      name: Title,
-      description: Blank(255).optional(),
-      color: Color.optional(),
-    }),
+    createInsertSchema(pipelineStatuses, refine)
+      .pick({ pipelineId: true, type: true, name: true, description: true, color: true })
+      .partial({ description: true, color: true }),
   )
   .output(Status)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -101,12 +96,9 @@ const create = writes(PERMISSIONS.channelView)
 /** Renames a status, or changes its description or colour. */
 const update = writes(PERMISSIONS.channelView)
   .input(
-    z.object({
-      id: z.string(),
-      name: Title.optional(),
-      description: Blank(255).optional(),
-      color: Color.optional(),
-    }),
+    createUpdateSchema(pipelineStatuses, refine)
+      .pick({ name: true, description: true, color: true })
+      .extend({ id: z.string() }),
   )
   .output(Status)
   .handler(async ({ input: { id, ...fields }, context: { tx, member } }) => {
@@ -166,15 +158,19 @@ const reorder = writes(PERMISSIONS.channelView)
     return moved.toSorted((a, b) => a.order - b.order);
   });
 
-/** Deletes a status. */
+/** Deletes statuses: all of them, or none when the caller may not delete one. */
 const remove = writes(PERMISSIONS.channelView)
-  .input(z.object({ id: z.string() }))
-  .output(z.object({ id: z.string() }))
+  .input(z.object({ ids: z.array(z.string()).min(1).max(100) }))
+  .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
-    await statusFor(tx, member, input.id, { change: true });
-    await tx.delete(pipelineStatuses).where(eq(pipelineStatuses.id, input.id));
+    await Promise.all(input.ids.map((id) => statusFor(tx, member, id, { change: true })));
 
-    return { id: input.id };
+    const removed = await tx
+      .delete(pipelineStatuses)
+      .where(inArray(pipelineStatuses.id, input.ids))
+      .returning({ id: pipelineStatuses.id });
+
+    return { ids: removed.map((row) => row.id) };
   });
 
 export const statusProcedures = { list, create, update, reorder, remove };

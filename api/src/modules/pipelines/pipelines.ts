@@ -1,65 +1,42 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { count, eq, getTableColumns, and } from 'drizzle-orm';
+import { and, eq, getTableColumns, ilike, inArray, or } from 'drizzle-orm';
+import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { pipelines, pipelineStatuses, STATUS_TYPES } from '#/db/schema.ts';
+import {
+  channelMembers,
+  pipelines,
+  pipelineStatuses,
+  SlaPolicy,
+  STATUS_TYPES,
+} from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { channelFor } from '../channels/access.ts';
-import { Blank, Stamps, Title } from '../fields.ts';
+import { canChangeSql, channelFor, membership } from '../channels/access.ts';
+import { Blank, Title } from '../fields.ts';
+import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
 import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
 
 const { orgId, ...pipelineColumns } = getTableColumns(pipelines);
 
-const Minutes = z.number().int().positive().max(525_600).optional();
+/** What a pipeline's fields accept, the SLA checked as its column stores it. */
+const refine = {
+  name: () => Title,
+  description: () => Blank(1000),
+  numberConfig: () => Blank(100),
+  numberSize: (schema: z.ZodNumber) => schema.min(1).max(8),
+  nameConfig: () => Blank(200),
+  slaPolicy: () => SlaPolicy,
+};
 
-/** The SLA as stored: at most one rule per priority. */
-const Sla = z.object({
-  enabled: z.boolean(),
-  rules: z.array(
-    z.object({
-      priority: z.number().int().min(0).max(4),
-      firstResponseMinutes: Minutes,
-      resolutionMinutes: Minutes,
-    }),
-  ),
-  warnBeforeMinutes: Minutes,
-});
-
-/** An SLA to save: a rule that keeps no clock is dropped. */
-const SlaInput = Sla.refine(
-  ({ rules }) => new Set(rules.map((rule) => rule.priority)).size === rules.length,
-  'Each priority can have one SLA rule',
-).transform((policy) => ({
-  ...policy,
-  rules: policy.rules.filter(
-    (rule) => rule.firstResponseMinutes !== undefined || rule.resolutionMinutes !== undefined,
-  ),
-}));
-
-const Fields = z
-  .object({
-    name: Title,
-    description: Blank(1000),
-    numberConfig: Blank(100),
-    numberSize: z.number().int().min(1).max(8).nullable(),
-    nameConfig: Blank(200),
-    slaPolicy: SlaInput.nullable(),
-  })
-  .partial();
-
-const Pipeline = z.object({
-  id: z.string(),
-  channelId: z.string(),
-  name: z.string(),
-  description: z.string().nullable(),
-  numberConfig: z.string().nullable(),
-  numberSize: z.number().nullable(),
-  nameConfig: z.string().nullable(),
-  slaPolicy: Sla.nullable(),
-  ...Stamps,
-});
+/** The row, and whether the caller may change it, which the query selects. */
+const Pipeline = createSelectSchema(pipelines, { slaPolicy: () => SlaPolicy })
+  .omit({ orgId: true })
+  .extend({
+    /** Whether the caller may edit, move and delete it: its channel's admins may. */
+    canManage: z.boolean(),
+  });
 
 /** What a new pipeline starts with: one status per stage. */
 const DEFAULT_STATUSES = [
@@ -90,9 +67,37 @@ export const pipelineFor = async (
   return pipeline;
 };
 
-/** A channel's pipelines, newest first, `limit` at a time, and how many it has. */
+/** Pipelines with whether the caller may change each. Callers check the channel first. */
+const pipelineRows = (tx: Tx, member: PluginMember) =>
+  tx
+    .select({ ...pipelineColumns, canManage: canChangeSql(member) })
+    .from(pipelines)
+    .leftJoin(channelMembers, membership(member, pipelines.channelId))
+    .$dynamic();
+
+const pipelineById = async (tx: Tx, member: PluginMember, id: string) => {
+  const [row] = await pipelineRows(tx, member).where(eq(pipelines.id, id));
+
+  if (!row) throw new ORPCError('NOT_FOUND', { message: 'No such pipeline' });
+
+  return row;
+};
+
+/** What the list's filter bar narrows pipelines by (`ui/src/modules/pipelines/PipelinesPage.tsx`). */
+const PIPELINE_FILTER: FilterFields = {
+  'subject.name': { kind: 'text', expr: pipelines.name },
+  'subject.description': { kind: 'text', expr: pipelines.description },
+  'subject.createdBy': { kind: 'member', expr: pipelines.createdBy },
+  'subject.createdAt': { kind: 'date', expr: pipelines.createdAt },
+  'subject.updatedAt': { kind: 'date', expr: pipelines.updatedAt },
+};
+
+/**
+ * A channel's pipelines, newest first, `limit` at a time, narrowed by the filter bar, and how
+ * many match: `search` matches the name or description, ignoring case.
+ */
 const list = reads(PERMISSIONS.channelView)
-  .input(z.object({ channelId: z.string(), ...PageInput }))
+  .input(z.object({ channelId: z.string(), ...PageInput, ...FilterInput }))
   .output(
     z.object({
       pipelines: z.array(Pipeline),
@@ -103,32 +108,44 @@ const list = reads(PERMISSIONS.channelView)
   .handler(async ({ input, context: { tx, member } }) => {
     await channelFor(tx, member, input.channelId, { change: false });
 
-    const matches = eq(pipelines.channelId, input.channelId);
+    const matches = and(
+      eq(pipelines.channelId, input.channelId),
+      input.search
+        ? or(
+            ilike(pipelines.name, likeText(input.search)),
+            ilike(pipelines.description, likeText(input.search)),
+          )
+        : undefined,
+      input.filter ? filterSql(PIPELINE_FILTER, input.filter, member.userId) : undefined,
+    );
 
-    const rows = await tx
-      .select(pipelineColumns)
-      .from(pipelines)
+    const rows = await pipelineRows(tx, member)
       .where(and(matches, after(pipelines, input.cursor)))
       .orderBy(...newestFirst(pipelines))
       .limit(input.limit + 1);
 
-    const [total] = await tx.select({ value: count() }).from(pipelines).where(matches);
     const { items, nextCursor } = pageOf(rows, input.limit);
 
-    return { pipelines: items, nextCursor, totalCount: total?.value ?? 0 };
+    return { pipelines: items, nextCursor, totalCount: await tx.$count(pipelines, matches) };
   });
 
 /** One pipeline. */
 const get = reads(PERMISSIONS.channelView)
   .input(z.object({ id: z.string() }))
   .output(Pipeline)
-  .handler(({ input, context: { tx, member } }) =>
-    pipelineFor(tx, member, input.id, { change: false }),
-  );
+  .handler(async ({ input, context: { tx, member } }) => {
+    await pipelineFor(tx, member, input.id, { change: false });
+
+    return pipelineById(tx, member, input.id);
+  });
 
 /** A new pipeline in a channel the caller is an admin of, with one status per stage. */
 const create = writes(PERMISSIONS.channelView)
-  .input(z.object({ channelId: z.string(), name: Title, description: Blank(1000).optional() }))
+  .input(
+    createInsertSchema(pipelines, refine)
+      .pick({ channelId: true, name: true, description: true })
+      .partial({ description: true }),
+  )
   .output(Pipeline)
   .handler(async ({ input, context: { tx, member } }) => {
     await channelFor(tx, member, input.channelId, { change: true });
@@ -136,7 +153,7 @@ const create = writes(PERMISSIONS.channelView)
     const [created] = await tx
       .insert(pipelines)
       .values({ ...input, orgId: member.orgId, createdBy: member.userId })
-      .returning(pipelineColumns);
+      .returning({ id: pipelines.id });
 
     if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
@@ -149,12 +166,24 @@ const create = writes(PERMISSIONS.channelView)
       })),
     );
 
-    return created;
+    return pipelineById(tx, member, created.id);
   });
 
 /** Changes what is given, or moves the pipeline to another channel the caller is an admin of. */
 const update = writes(PERMISSIONS.channelView)
-  .input(Fields.extend({ id: z.string(), channelId: z.string().optional() }))
+  .input(
+    createUpdateSchema(pipelines, refine)
+      .pick({
+        channelId: true,
+        name: true,
+        description: true,
+        numberConfig: true,
+        numberSize: true,
+        nameConfig: true,
+        slaPolicy: true,
+      })
+      .extend({ id: z.string() }),
+  )
   .output(Pipeline)
   .handler(async ({ input: { id, ...fields }, context: { tx, member } }) => {
     const pipeline = await pipelineFor(tx, member, id, { change: true });
@@ -162,26 +191,24 @@ const update = writes(PERMISSIONS.channelView)
     if (fields.channelId && fields.channelId !== pipeline.channelId)
       await channelFor(tx, member, fields.channelId, { change: true });
 
-    const [updated] = await tx
-      .update(pipelines)
-      .set(fields)
-      .where(eq(pipelines.id, id))
-      .returning(pipelineColumns);
+    await tx.update(pipelines).set(fields).where(eq(pipelines.id, id));
 
-    if (!updated) throw new ORPCError('NOT_FOUND', { message: 'No such pipeline' });
-
-    return updated;
+    return pipelineById(tx, member, id);
   });
 
-/** Deletes a pipeline and its statuses. */
+/** Deletes pipelines and their statuses: all of them, or none when the caller may not delete one. */
 const remove = writes(PERMISSIONS.channelView)
-  .input(z.object({ id: z.string() }))
-  .output(z.object({ id: z.string() }))
+  .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
+  .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
-    await pipelineFor(tx, member, input.id, { change: true });
-    await tx.delete(pipelines).where(eq(pipelines.id, input.id));
+    await Promise.all(input.ids.map((id) => pipelineFor(tx, member, id, { change: true })));
 
-    return { id: input.id };
+    const removed = await tx
+      .delete(pipelines)
+      .where(inArray(pipelines.id, input.ids))
+      .returning({ id: pipelines.id });
+
+    return { ids: removed.map((row) => row.id) };
   });
 
 export const pipelineProcedures = { list, get, create, update, remove };

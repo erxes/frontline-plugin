@@ -8,7 +8,7 @@ import { type Tx, uniqueViolation } from '#/db/client.ts';
 import { CHANNEL_NAME_INDEX, CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
-import { channelFor, insertMembers, managesAll } from './access.ts';
+import { canChangeSql, channelFor, insertMembers, managesAll, membership } from './access.ts';
 
 const Name = z.string().trim().min(1).max(100);
 const Description = z.string().trim().max(1000);
@@ -60,13 +60,10 @@ const channelRows = (tx: Tx, member: PluginMember) =>
       ...channelColumns,
       memberIds,
       role: channelMembers.role,
-      canManage: sql<boolean>`(${channelMembers.role} = 'admin') is true or ${managesAll(member)}`,
+      canManage: canChangeSql(member),
     })
     .from(channels)
-    .leftJoin(
-      channelMembers,
-      and(eq(channelMembers.channelId, channels.id), eq(channelMembers.userId, member.userId)),
-    )
+    .leftJoin(channelMembers, membership(member, channels.id))
     .$dynamic();
 
 /** One channel as the caller sees it. */
