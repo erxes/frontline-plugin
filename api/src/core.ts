@@ -73,6 +73,27 @@ export const JOBS = {
   domains: { name: 'helpcenter.domains', cron: '*/10 * * * *' },
 } as const;
 
+/** The record type whose Activity tab shows a form's events, and its submissions. */
+export const FORM_TIMELINE = 'frontline.form';
+
+export const FORM_EVENTS = {
+  created: { type: 'frontline.form.created', label: 'Form created' },
+  fieldsChanged: { type: 'frontline.form.fields_changed', label: 'Form changed' },
+  /** About the customer who sent it, so it also starts automations. */
+  submitted: { type: 'frontline.form.submitted', label: 'Form submitted' },
+} as const;
+
+/** The record type whose Activity tab shows a survey's events. */
+export const SURVEY_TIMELINE = 'frontline.survey';
+
+export const SURVEY_EVENTS = {
+  created: { type: 'frontline.survey.created', label: 'Survey created' },
+  fieldsChanged: { type: 'frontline.survey.fields_changed', label: 'Survey changed' },
+} as const;
+
+const activityTypes = (events: Record<string, { type: string; label: string }>, icon: string) =>
+  Object.values(events).map(({ type, label }) => ({ type, label, icon }));
+
 /**
  * What the plugin adds to core, sent on every start. Everything it names
  * starts with `frontline.`. A new scope waits for the owner's approval.
@@ -83,7 +104,8 @@ export const manifest = {
   version: config.version,
   ui: { remote: 'frontline_ui', entry: config.uiEntryUrl },
   api: { url: `${config.publicUrl}/api` },
-  scopes: [],
+  // A form submission finds or makes its customer.
+  scopes: ['customers:write'],
   permissions: [
     {
       action: PERMISSIONS.channelView,
@@ -137,11 +159,21 @@ export const manifest = {
     { type: TICKET_EVENTS.created.type, label: TICKET_EVENTS.created.label },
     { type: TICKET_EVENTS.moved.type, label: 'Ticket status changed' },
     { type: TICKET_EVENTS.slaBreached.type, label: TICKET_EVENTS.slaBreached.label },
+    {
+      type: FORM_EVENTS.submitted.type,
+      label: FORM_EVENTS.submitted.label,
+      description: 'A visitor sent a form; the customer is who sent it',
+      subject: 'customer',
+    },
   ],
-  timelines: [{ type: TICKET_TIMELINE, label: 'Ticket', permission: PERMISSIONS.channelView }],
-  activityTypes: Object.values(TICKET_EVENTS).map(({ type, label }) => ({
-    type,
-    label,
-    icon: 'IconTicket',
-  })),
+  timelines: [
+    { type: TICKET_TIMELINE, label: 'Ticket', permission: PERMISSIONS.channelView },
+    { type: FORM_TIMELINE, label: 'Form', permission: PERMISSIONS.channelView },
+    { type: SURVEY_TIMELINE, label: 'Survey', permission: PERMISSIONS.channelView },
+  ],
+  activityTypes: [
+    ...activityTypes(TICKET_EVENTS, 'IconTicket'),
+    ...activityTypes(FORM_EVENTS, 'IconFileText'),
+    ...activityTypes(SURVEY_EVENTS, 'IconChecklist'),
+  ],
 } satisfies PluginManifest;

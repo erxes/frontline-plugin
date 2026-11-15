@@ -9,10 +9,12 @@ import {
   DomainRecord,
   HelpCenterFooter,
   HelpCenterHeader,
+  HELP_CENTER_DOMAIN,
+  HELP_CENTER_KEY,
   HelpCenterStyles,
   helpCenters,
-  publicAddresses,
 } from '#/db/helpcenter.ts';
+import { publicKeys } from '#/db/public.ts';
 import { kbTopics } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Color, Title } from '../fields.ts';
@@ -147,8 +149,8 @@ const create = writes(PERMISSIONS.helpCenterManage)
     if (!row) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
     await tx
-      .insert(publicAddresses)
-      .values({ address: publicKey, organizationId: member.orgId, helpCenterId: row.id });
+      .insert(publicKeys)
+      .values({ key: publicKey, orgOf: member.orgId, kind: HELP_CENTER_KEY, targetId: row.id });
 
     return withTarget(row);
   });
@@ -179,7 +181,14 @@ const remove = writes(PERMISSIONS.helpCenterManage)
     const ids = rows.map((row) => row.id);
 
     if (ids.length > 0) {
-      await tx.delete(publicAddresses).where(inArray(publicAddresses.helpCenterId, ids));
+      await tx
+        .delete(publicKeys)
+        .where(
+          and(
+            inArray(publicKeys.kind, [HELP_CENTER_KEY, HELP_CENTER_DOMAIN]),
+            inArray(publicKeys.targetId, ids),
+          ),
+        );
       await tx.delete(helpCenters).where(inArray(helpCenters.id, ids));
     }
 

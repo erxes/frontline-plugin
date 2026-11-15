@@ -6,6 +6,8 @@ import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
 import { PersonalChannel } from '@/channels/PersonalChannel.tsx';
 import {
   CHANNEL_TYPE,
+  FORM_SUBMISSION_TYPE,
+  FORM_TYPE,
   HELP_CENTER_TYPE,
   KB_ARTICLE_TYPE,
   KB_CATEGORY_TYPE,
@@ -13,6 +15,7 @@ import {
   PIPELINE_TYPE,
   PLUGIN,
   RESPONSE_TEMPLATE_TYPE,
+  SURVEY_TYPE,
   TICKET_TYPE,
 } from '~/plugin.ts';
 import css from './styles.css?inline';
@@ -76,6 +79,30 @@ const TicketsPage = lazy(async () => ({
   default: (await import('@/tickets/TicketsPage.tsx')).TicketsPage,
 }));
 
+const FormsPage = lazy(async () => ({
+  default: (await import('@/forms/FormsPage.tsx')).FormsPage,
+}));
+
+const FormBuilderPage = lazy(async () => ({
+  default: (await import('@/forms/FormBuilderPage.tsx')).FormBuilderPage,
+}));
+
+const SubmissionsPage = lazy(async () => ({
+  default: (await import('@/forms/SubmissionsPage.tsx')).SubmissionsPage,
+}));
+
+const SurveysPage = lazy(async () => ({
+  default: (await import('@/surveys/SurveysPage.tsx')).SurveysPage,
+}));
+
+/** The old `/forms/submissions/:formId` link opens that form's submissions. */
+const SubmissionsRedirect = () => (
+  <Navigate
+    to={`/${PLUGIN}/forms/${encodeURIComponent(useParams().formId ?? '')}/submissions`}
+    replace
+  />
+);
+
 /** The old `/:id/response/:responseId` link opens that template on its own page. */
 const ResponseTemplateRedirect = () => (
   <Navigate
@@ -91,6 +118,18 @@ export const Frontline = () => (
     <Route path="tickets" element={<Lazy />}>
       <Route index element={<TicketsPage />} />
       <Route path=":id" element={<RecordRoute contentType={TICKET_TYPE} />} />
+    </Route>
+    <Route path="forms" element={<Lazy />}>
+      <Route index element={<FormsPage />} />
+      <Route path="submissions/:formId" element={<SubmissionsRedirect />} />
+      <Route path="submission/:id" element={<RecordRoute contentType={FORM_SUBMISSION_TYPE} />} />
+      <Route path=":id" element={<RecordRoute contentType={FORM_TYPE} />} />
+      <Route path=":id/builder" element={<FormBuilderPage />} />
+      <Route path=":id/submissions" element={<SubmissionsPage />} />
+    </Route>
+    <Route path="surveys" element={<Lazy />}>
+      <Route index element={<SurveysPage />} />
+      <Route path=":id" element={<RecordRoute contentType={SURVEY_TYPE} />} />
     </Route>
     <Route path="settings/channels">
       <Route index element={<ChannelsPage />} />

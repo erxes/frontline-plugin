@@ -117,13 +117,6 @@ export const refine = {
 
 const UserIds = z.array(z.string()).max(100);
 
-/** Up to 100 distinct ticket ids, as a selection sends them. */
-export const Ids = z
-  .array(z.string())
-  .min(1)
-  .max(100)
-  .transform((ids) => [...new Set(ids)]);
-
 /**
  * The tickets of `ids`, all of them or NOT_FOUND, oldest first. Their channels' members change
  * them; with `remove`, only the channels' admins. Each channel is held once, in id order, so two

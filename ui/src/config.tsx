@@ -2,10 +2,14 @@ import {
   IconArticle,
   IconBook,
   IconBox,
+  IconChartBar,
+  IconChecklist,
   IconCircleDot,
   IconCircles,
   IconClockHour4,
   IconFolder,
+  IconForms,
+  IconSend,
   IconGitBranch,
   IconHelpCircle,
   IconLock,
@@ -17,6 +21,8 @@ import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
 import { type ComponentType, lazy } from 'react';
 import {
   CHANNEL_TYPE,
+  FORM_SUBMISSION_TYPE,
+  FORM_TYPE,
   HELP_CENTER_TYPE,
   KB_ARTICLE_TYPE,
   KB_CATEGORY_TYPE,
@@ -24,6 +30,7 @@ import {
   PIPELINE_TYPE,
   PLUGIN,
   RESPONSE_TEMPLATE_TYPE,
+  SURVEY_TYPE,
   TICKET_TYPE,
 } from '~/plugin.ts';
 
@@ -32,12 +39,19 @@ import {
 // costs `./config` bytes.
 type Slot = ComponentType<TRecordSlotProps>;
 
-type Slots = { Title: Slot; Actions: Slot; Detail: Slot; New: ComponentType<TRecordDraftProps> };
+type ReadSlots = { Title: Slot; Actions: Slot; Detail: Slot };
 
-const slots = (load: () => Promise<Slots>) => ({
+type Slots = ReadSlots & { New: ComponentType<TRecordDraftProps> };
+
+/** The slots of a record members read and change but never draft. */
+const readSlots = (load: () => Promise<ReadSlots>) => ({
   Title: lazy(async () => ({ default: (await load()).Title })),
   Actions: lazy(async () => ({ default: (await load()).Actions })),
   Detail: lazy(async () => ({ default: (await load()).Detail })),
+});
+
+const slots = (load: () => Promise<Slots>) => ({
+  ...readSlots(load),
   New: lazy(async () => ({ default: (await load()).New })),
 });
 
@@ -46,6 +60,8 @@ const ticket = () => import('@/tickets/slots.ts');
 const helpCenter = () => import('@/helpcenter/slots.ts');
 const kb = () => import('@/knowledgebase/slots.ts');
 const KB = `/${PLUGIN}/knowledgebase`;
+const forms = () => import('@/forms/slots.ts');
+const surveys = () => import('@/surveys/slots.ts');
 
 /**
  * What web reads from `./config`: the app tab, the page module under `/frontline/*`, and the
@@ -155,6 +171,43 @@ export const CONFIG: IUIConfig = {
           component: lazy(async () => ({ default: (await helpCenter()).HelpCenterDomain })),
         },
       ],
+    },
+    {
+      contentType: FORM_TYPE,
+      title: 'Form',
+      icon: IconForms,
+      detailPath: (id) => `/${PLUGIN}/forms/${encodeURIComponent(id)}`,
+      ...slots(async () => (await forms()).FormSlots),
+      activity: `${PLUGIN}.form`,
+    },
+    {
+      contentType: FORM_SUBMISSION_TYPE,
+      title: 'Submission',
+      icon: IconSend,
+      detailPath: (id) => `/${PLUGIN}/forms/submission/${encodeURIComponent(id)}`,
+      ...readSlots(async () => (await forms()).SubmissionSlots),
+    },
+    {
+      contentType: SURVEY_TYPE,
+      title: 'Survey',
+      icon: IconChecklist,
+      detailPath: (id) => `/${PLUGIN}/surveys/${encodeURIComponent(id)}`,
+      ...slots(async () => (await surveys()).SurveySlots),
+      tabs: [
+        {
+          value: 'questions',
+          label: 'Questions',
+          icon: IconChecklist,
+          component: lazy(async () => ({ default: (await surveys()).SurveyQuestions })),
+        },
+        {
+          value: 'results',
+          label: 'Results',
+          icon: IconChartBar,
+          component: lazy(async () => ({ default: (await surveys()).SurveyResults })),
+        },
+      ],
+      activity: `${PLUGIN}.survey`,
     },
   ],
   relationTabs: [
