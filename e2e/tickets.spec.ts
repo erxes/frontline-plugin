@@ -75,6 +75,7 @@ test('a member files, filters, changes and deletes tickets in the list, board an
   // The filter lives in the address, so a reload keeps it.
   await page.goto(ofPipeline);
   await filterBy(page, 'Priority', 'High');
+  await expect(page).toHaveURL(/subject\.priority/);
   await page.reload();
   await expect(ticket(page, refund)).toBeVisible();
   await expect(ticket(page, login)).toBeHidden();
@@ -91,7 +92,7 @@ test('a member files, filters, changes and deletes tickets in the list, board an
 
   // A status's checkbox picks its tickets, and the bar changes them in one go.
   await page.getByRole('checkbox', { name: 'Select all in New' }).click();
-  await pick(page, page.getByRole('combobox', { name: 'Priority', exact: true }), 'Medium');
+  await pick(page, page.getByRole('button', { name: 'Priority', exact: true }), 'Medium');
   await expect(page.getByRole('combobox', { name: `Priority of ${login}` })).toHaveText('Medium');
   await expect(page.getByRole('combobox', { name: `Priority of ${refund}` })).toHaveText('Medium');
 
