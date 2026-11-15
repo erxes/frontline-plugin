@@ -1,24 +1,37 @@
 ---
 name: verify
-description: Show a change works in erxes, not only in tests. Use before calling any change a member can see or do finished.
+description: Prove a change works before filing it: the gates, then its e2e spec. Use before calling a change done.
 ---
 
-Use synthetic data only.
+Use synthetic data only. Green gates are the proof. A walk by hand is only
+for what no spec can drive.
 
-1. Run the gates: `vp run check`, `vp run test`, `pnpm build`.
-2. Start core from an erxes checkout on branch `postgre`, following its
-   `verify-feature` skill. Give core
-   `CORE_PLUGIN_KEYS=frontline:<32+ character secret>`, and web
-   `PUBLIC_PLUGINS=frontline_ui@http://localhost:3099/remoteEntry.js`.
-3. Give the plugin role a database by running `core$ pnpm db:plugin-role frontline` in core, then
-   put its URL in this repo's `.env` as `DATA_URL`, with the same secret as
-   `PLUGIN_SECRET`.
-4. Run `pnpm dev:api` and `pnpm dev:ui`. The API log ends with its address; a
-   failed `registerManifest` means the secret or `CORE_URL` is wrong.
-5. In web, open the plugin's tab, walk the change, reload, and check it
-   persisted. Repeat as a member whose role lacks the permission and check
-   they are refused.
-6. Keep screenshots and logs in `.scratch/` (git ignores it).
+1. While you work: `vp run check` after each edit, `vp run test` when the API
+   changed, and the spec you touched, in light only. Run `pnpm e2e:stack up`
+   once, then `pnpm e2e --project=light <spec>`, and leave the stack up
+   between runs.
+2. Once, before filing: `pnpm check:rls`, `pnpm image` then `pnpm budgets`, and
+   the whole `pnpm e2e`. CI runs it again in light and dark, so don't rerun it
+   locally after it passes. Run `pnpm e2e:stack down` when you're done.
+3. A screen a member can reach has a spec that walks every old action, field
+   and filter, plus the refusal for a member without the permission. That spec
+   is the parity check. Don't run old erxes beside it.
+4. When a failure traces to erxes-ui or core, such as an axe contrast hit on
+   core's button or a label core draws, file it on erxes/erxes, add a
+   `DECISIONS.md` row with the link, and assert only what the plugin draws.
+   Don't restyle core's parts in the plugin.
+5. Walk by hand only what no spec can drive, such as a provider webhook or the
+   messenger widget on another site. Start core from an erxes checkout on
+   branch `postgre` with its `verify-feature` skill, give core
+   `CORE_PLUGIN_KEYS=frontline:<32+ character secret>` and web
+   `PUBLIC_PLUGINS=frontline_ui@http://localhost:3099/remoteEntry.js`, run
+   `core$ pnpm db:plugin-role frontline`, put its URL in `.env` as `DATA_URL`
+   with the same secret as `PLUGIN_SECRET`, then `pnpm dev:api` and
+   `pnpm dev:ui`.
+6. If the same failure happens twice, stop and report it with the output.
+7. A UI PR shows one after-screenshot per new or changed screen, grabbed once
+   from the running stack. A port has no before shot. Don't retake shots or fix
+   pixels; cosmetic notes go in the PR body as a list.
 
-Done when the handoff lists what you saw at each step, the refusal included,
-and where the screenshots are.
+Done when step 2 passes. The handoff names the gates that ran and any issue
+filed.

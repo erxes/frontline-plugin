@@ -103,9 +103,13 @@ Frontline builds these in its own tables, with no core change:
 - Integrations get API tests that feed recorded webhook payloads into the
   routes. They get no e2e, because that would need real Meta, Telegram and
   Discord accounts.
-- Screens get at most two browser parity runs per module. The agent that owns
-  the module decides which findings matter. Wording, spacing, order and
-  colour go in the PR body as a list for the user, never into another fix round.
+- A screen's parity check is its e2e spec, run as the `verify` skill says:
+  your spec in light while you work, the whole suite once before filing. No
+  side-by-side runs against old erxes and no walks by hand that a spec covers.
+  Wording, spacing, order and colour go in the PR body as a list for the user,
+  never into another fix round.
+- A failure in erxes-ui or core gets an issue and a decision row, not a fix
+  in the plugin.
 - If the same failure happens twice, stop and report it with the output.
   Don't try a third time, and don't hand the retry to a subagent.
 - No review subagents for nits. Lint and the gates catch what a tool can.

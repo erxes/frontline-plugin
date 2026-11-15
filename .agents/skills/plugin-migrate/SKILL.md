@@ -110,11 +110,11 @@ The row goes in the module's commit.
    with a decision on the page's line. Tick a Shared UI row with what replaces
    that symbol, so the next page reuses it. An item left open on purpose gets
    a `  - note: <why>` line under it, which reruns keep.
-6. Check feature parity, not layout parity, in the browser with the `verify`
-   skill. Every old action, field and filter must be reachable on the
-   new page. Run at most 2 parity runs per module. Wording, spacing, order and
-   colour go in the PR body as a list, never into another fix round. When the
-   same failure happens twice, stop and report it with the output.
+6. Check feature parity, not layout parity, with the `verify` skill: the
+   module's e2e spec walks every old action, field and filter on the new
+   page. Don't run old erxes beside it. Wording, spacing, order and colour go
+   in the PR body as a list, never into another fix round. When the same
+   failure happens twice, stop and report it with the output.
 7. Tick an item once it works on the new core and its old bugs and
    workarounds are gone. When an item needs something core doesn't offer
    (marked **gap**, or one you find), follow "When core lacks something",
