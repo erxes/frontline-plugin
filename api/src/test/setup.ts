@@ -32,6 +32,84 @@ BEGIN
   PERFORM pg_notify('core_live', json_build_object('o', p_org_id, 'k', 'plugin', 'p', p_plugin, 't', p_topic, 'u', p_user_ids)::text);
 END $$;`;
 
+// Core's event stream and core_publish_event(), with core's signature and body
+// (erxes packages/db/drizzle/0007 and 0012_tenant_isolation.sql), less the
+// installation check of core_enter_org(), which needs core's plugin tables.
+// Core should ship both in core-functions.sql (erxes/erxes#10575).
+const CORE_EVENTS = `
+CREATE TABLE core_events (
+  id text PRIMARY KEY NOT NULL,
+  seq bigserial NOT NULL,
+  tx_id xid8 DEFAULT pg_current_xact_id() NOT NULL,
+  org_id text NOT NULL,
+  source text NOT NULL,
+  type text NOT NULL,
+  version integer DEFAULT 1 NOT NULL,
+  subject_type text,
+  subject_id text,
+  entity_type text,
+  entity_id text,
+  actor_type text NOT NULL,
+  actor_id text,
+  payload jsonb DEFAULT '{}'::jsonb NOT NULL,
+  summary text,
+  link text,
+  notify jsonb,
+  dedupe_key text,
+  occurred_at timestamp with time zone DEFAULT now() NOT NULL,
+  created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE UNIQUE INDEX core_events_dedupe_key ON core_events (org_id, source, dedupe_key)
+  WHERE dedupe_key IS NOT NULL;
+GRANT SELECT, INSERT ON core_events TO ${ROLE};
+GRANT USAGE ON SEQUENCE core_events_seq_seq TO ${ROLE};
+CREATE OR REPLACE FUNCTION core_publish_event(
+  p_org_id text,
+  p_source text,
+  p_type text,
+  p_payload jsonb DEFAULT '{}'::jsonb,
+  p_subject_type text DEFAULT NULL,
+  p_subject_id text DEFAULT NULL,
+  p_summary text DEFAULT NULL,
+  p_link text DEFAULT NULL,
+  p_notify jsonb DEFAULT NULL,
+  p_dedupe_key text DEFAULT NULL,
+  p_actor_user_id text DEFAULT NULL,
+  p_entity_type text DEFAULT NULL,
+  p_entity_id text DEFAULT NULL,
+  p_occurred_at timestamptz DEFAULT NULL
+) RETURNS text
+LANGUAGE plpgsql AS $$
+DECLARE
+  v_id text;
+  v_current text := nullif(current_setting('app.org_id', true), '');
+BEGIN
+  IF p_type NOT LIKE p_source || '.%' THEN
+    RAISE EXCEPTION 'core_publish_event: the type must start with "%."', p_source;
+  END IF;
+  IF p_subject_type IS NOT NULL AND p_subject_type NOT IN ('customer', 'company') THEN
+    RAISE EXCEPTION 'core_publish_event: subject type must be customer or company';
+  END IF;
+  IF v_current IS NULL THEN
+    PERFORM set_config('app.org_id', p_org_id, true);
+  ELSIF v_current <> p_org_id THEN
+    RAISE EXCEPTION 'this transaction works for organisation %, not %', v_current, p_org_id;
+  END IF;
+  INSERT INTO core_events (
+    id, org_id, source, type, payload, subject_type, subject_id, summary, link, notify, dedupe_key,
+    actor_type, actor_id, entity_type, entity_id, occurred_at
+  ) VALUES (
+    replace(gen_random_uuid()::text, '-', ''), p_org_id, p_source, p_type, coalesce(p_payload, '{}'::jsonb),
+    p_subject_type, p_subject_id, p_summary, p_link, p_notify, p_dedupe_key,
+    CASE WHEN p_actor_user_id IS NULL THEN 'plugin' ELSE 'user' END, coalesce(p_actor_user_id, p_source),
+    p_entity_type, p_entity_id, coalesce(p_occurred_at, now())
+  )
+  ON CONFLICT (org_id, source, dedupe_key) WHERE dedupe_key IS NOT NULL DO NOTHING
+  RETURNING id INTO v_id;
+  RETURN v_id;
+END $$;
+`;
+
 const urlOf = (name: string, role?: string) => {
   const url = new URL(adminUrl);
 
@@ -66,6 +144,8 @@ await run(
 await run(adminUrl, `CREATE DATABASE ${database} OWNER ${ROLE}`);
 
 await run(urlOf(database), `${CORE_FUNCTIONS}${CORE_LIVE}`);
+
+await run(urlOf(database), CORE_EVENTS);
 
 process.env.DATA_URL = urlOf(database, ROLE);
 

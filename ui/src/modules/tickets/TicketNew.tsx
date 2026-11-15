@@ -26,10 +26,8 @@ import { useChannels } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
 import { PrioritySelect, StatusSelect } from './TicketCells.tsx';
+import { dayOf } from './TicketFields.tsx';
 import { useChoices, useTicketChange } from './queries.ts';
-
-/** A picked day, or null when the picker clears. */
-const dayOf = (value: unknown) => (value instanceof Date ? value : null);
 
 /** The pipelines of the member's channels, each after its channel's name. */
 const PipelineSelect = ({

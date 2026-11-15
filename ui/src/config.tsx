@@ -122,6 +122,8 @@ export const CONFIG: IUIConfig = {
       icon: IconTicket,
       detailPath: (id) => `/${PLUGIN}/tickets/${encodeURIComponent(id)}`,
       ...slots(() => import('@/tickets/slots.ts')),
+      // The manifest's timeline (`api/src/core.ts`): core's Activity tab shows its events.
+      activity: `${PLUGIN}.ticket`,
     },
   ],
 };

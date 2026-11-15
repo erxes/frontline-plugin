@@ -1,8 +1,12 @@
+import type { InferClientOutputs } from '@orpc/client';
+import type { Client } from '@frontline/api';
 import { IconFile, IconUpload, IconX } from '@tabler/icons-react';
 import { Button, Upload, useUpload } from 'erxes-ui';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { Attachment } from './useKnowledgeBase.ts';
+
+/** A file on core's storage, as every record with files stores it (`api/src/db/table.ts`). */
+type Attachment = InferClientOutputs<Client>['tickets']['get']['attachments'][number];
 
 /** One image: its preview uploads or changes it, the remove button clears it to `null`. */
 export const ImageField = ({

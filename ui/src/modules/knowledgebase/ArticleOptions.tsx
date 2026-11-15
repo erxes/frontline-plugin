@@ -19,7 +19,7 @@ import {
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge } from './ArticleCells.tsx';
-import { FileList, FilePicker, ImageField } from './Files.tsx';
+import { FileList, FilePicker, ImageField } from '~/shared/Files.tsx';
 import {
   ARTICLE_STATUSES,
   type ArticleDetail,

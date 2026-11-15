@@ -14,7 +14,7 @@ import { useForm, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
-import { ImageField } from './Files.tsx';
+import { ImageField } from '~/shared/Files.tsx';
 import { KbHeader } from './KbHeader.tsx';
 import { LanguageSelect } from './LanguageSelect.tsx';
 import { useDeleteTopics } from './useKbDeletes.ts';

@@ -29,6 +29,17 @@ export const PERMISSIONS = {
   kbArticleManage: 'frontline.knowledgebase_article.manage',
 } as const;
 
+/** The record type whose Activity tab in core shows a ticket's events. */
+export const TICKET_TIMELINE = 'frontline.ticket';
+
+/** What a ticket's timeline records, each published in the change's transaction. */
+export const TICKET_EVENTS = {
+  created: { type: 'frontline.ticket.created', label: 'Ticket created' },
+  fieldsChanged: { type: 'frontline.ticket.fields_changed', label: 'Ticket changed' },
+  moved: { type: 'frontline.ticket.moved', label: 'Ticket moved' },
+  assigned: { type: 'frontline.ticket.assigned', label: 'Ticket assigned' },
+} as const;
+
 /**
  * What the plugin adds to core, sent on every start. Everything it names
  * starts with `frontline.`. A new scope waits for the owner's approval.
@@ -72,4 +83,10 @@ export const manifest = {
       group: 'Knowledge base',
     },
   ],
+  timelines: [{ type: TICKET_TIMELINE, label: 'Ticket', permission: PERMISSIONS.channelView }],
+  activityTypes: Object.values(TICKET_EVENTS).map(({ type, label }) => ({
+    type,
+    label,
+    icon: 'IconTicket',
+  })),
 } satisfies PluginManifest;

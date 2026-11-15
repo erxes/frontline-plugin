@@ -1,5 +1,7 @@
+import { sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
+import { withOrg } from '#/db/client.ts';
 import { clientAs } from '#/test/member.ts';
 
 const agent = [PERMISSIONS.channelView];
@@ -240,6 +242,43 @@ describe('tickets', () => {
     await expect(owner.tickets.get({ id: ticket.id })).rejects.toMatchObject({
       code: 'NOT_FOUND',
     });
+  });
+
+  it("publishes each change to the ticket's timeline, only when it commits", async () => {
+    const { owner, teammate, pipeline, stage } = await setUp('org-tk-g');
+    const ticket = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Login' });
+
+    await teammate.tickets.update({ id: ticket.id, name: 'Login loop', priority: 3 });
+    await teammate.tickets.update({ id: ticket.id, statusId: stage(2) });
+    await teammate.tickets.bulkUpdate({ ids: [ticket.id], assigneeId: 'teammate' });
+    await teammate.tickets.update({ id: ticket.id, priority: 3 });
+    await expect(
+      teammate.tickets.bulkUpdate({ ids: [ticket.id, 'missing'], state: 'archived' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+    const timeline = await withOrg('org-tk-g', async (tx) =>
+      tx.execute<{ type: string; summary: string; actor_id: string; payload: unknown }>(
+        sql`select type, summary, actor_id, payload from core_events
+            where entity_type = 'frontline.ticket' and entity_id = ${ticket.id} order by seq`,
+      ),
+    );
+
+    expect(timeline.rows).toMatchObject([
+      {
+        type: 'frontline.ticket.created',
+        summary: 'Created Login in New',
+        actor_id: 'user-org-tk-g',
+      },
+      {
+        type: 'frontline.ticket.fields_changed',
+        summary: 'Changed name, priority',
+        actor_id: 'teammate',
+        payload: { fields: ['name', 'priority'], before: { name: 'Login', priority: 0 } },
+      },
+      { type: 'frontline.ticket.moved', summary: 'Moved from New to Open' },
+      { type: 'frontline.ticket.assigned', payload: { toAssigneeId: 'teammate' } },
+    ]);
+    expect(timeline.rows).toHaveLength(4);
   });
 
   it('lists the pipelines and statuses a ticket can be filed under', async () => {

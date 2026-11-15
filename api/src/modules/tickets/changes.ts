@@ -9,6 +9,7 @@ import type { Tx } from '#/db/client.ts';
 import { pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { writes } from '#/orpc.ts';
 import { pipelineFor } from '../pipelines/pipelines.ts';
+import { changeEvents, publish, snapshot } from './events.ts';
 import {
   firstStatusOf,
   Ids,
@@ -117,7 +118,7 @@ const onMove = (
 
 /**
  * Applies one change to tickets the caller may change, in their transaction: the fields, a
- * status move, a pipeline move, then the SLA they imply.
+ * status move, a pipeline move, the SLA they imply, then each ticket's timeline events.
  */
 const changeTickets = async (
   tx: Tx,
@@ -126,6 +127,7 @@ const changeTickets = async (
   { statusId, pipelineId, ...fields }: Change,
 ) => {
   const ids = rows.map((row) => row.id);
+  const before = await snapshot(tx, ids);
 
   if (pipelineId) await moveToPipeline(tx, member, rows, pipelineId);
 
@@ -147,6 +149,7 @@ const changeTickets = async (
 
   if (statusId || pipelineId || fields.priority !== undefined) await refreshSla(tx, ids);
 
+  await publish(tx, member, changeEvents(before, await snapshot(tx, ids)));
   await signalTickets(tx, member);
 };
 

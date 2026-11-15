@@ -2,6 +2,7 @@ import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlertSquareRounded,
   IconCalendarPlus,
+  IconCalendarUp,
   IconCircles,
   IconDots,
   IconGitBranch,
@@ -28,6 +29,7 @@ import { useTranslation } from 'react-i18next';
 import { useChannel } from '@/channels/useChannels.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { PrioritySelect, StatusSelect, useTicketActions } from './TicketCells.tsx';
+import { TicketContent, TicketPlan, TicketSla } from './TicketFields.tsx';
 import { type Ticket, useChoices, useEditTicket, useTicket } from './queries.ts';
 
 /** A slot's ticket: a spinner while it loads, the refusal when the API gives one. */
@@ -161,11 +163,26 @@ const TicketFields = ({ ticket }: { ticket: Ticket }) => {
       <PanelField icon={IconCalendarPlus} label={t('created-at', 'Created at')} cell={false}>
         <span className="px-2 text-xs">{format.dateTime(ticket.createdAt)}</span>
       </PanelField>
+      <PanelField icon={IconCalendarUp} label={t('updated-at', 'Updated at')} cell={false}>
+        <span className="px-2 text-xs">{format.dateTime(ticket.updatedAt)}</span>
+      </PanelField>
     </PanelSection>
   );
 };
 
-/** The Detail tab: the ticket's fields. */
+/**
+ * The Detail tab: the ticket's fields, its plan, its SLA and its description and files, each
+ * saved as it changes. Core's Activity tab beside it shows what changed (`activity` in config).
+ */
 export const TicketDetail = ({ contentId }: TRecordSlotProps) => (
-  <WithTicket id={contentId}>{(ticket) => <TicketFields ticket={ticket} />}</WithTicket>
+  <WithTicket id={contentId}>
+    {(ticket) => (
+      <>
+        <TicketFields ticket={ticket} />
+        <TicketPlan ticket={ticket} />
+        <TicketSla ticket={ticket} />
+        <TicketContent ticket={ticket} />
+      </>
+    )}
+  </WithTicket>
 );

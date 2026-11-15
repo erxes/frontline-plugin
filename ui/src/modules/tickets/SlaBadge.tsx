@@ -10,7 +10,7 @@ const badges = {
 } as const satisfies Record<SlaState, string>;
 
 /** An SLA clock's state as a badge. */
-const SlaStateBadge = ({ state }: { state: SlaState }) => (
+export const SlaStateBadge = ({ state }: { state: SlaState }) => (
   <Badge variant={badges[state]}>{useSlaNames()[state]}</Badge>
 );
 

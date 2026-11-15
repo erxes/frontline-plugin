@@ -62,6 +62,12 @@ test('a member files, filters, changes and deletes tickets in the list, board an
   await expect(page.getByRole('combobox', { name: `Priority of ${refund}` })).toHaveText('High');
   await expectAccessible(page);
 
+  // Core's Activity tab lists each change, from the events the change published.
+  await panel.getByRole('tab', { name: 'Activity' }).click();
+  await expect(panel.getByText('Changed priority')).toBeVisible();
+  await expect(panel.getByText(`Created ${refund} in New`)).toBeVisible();
+  await expectAccessible(page);
+
   // A status's "+" drafts a ticket in it.
   await page.goto(TICKETS);
   await filterBy(page, 'Pipeline', pipeline);

@@ -25,8 +25,6 @@ export type ArticleDetail = Outputs['articles']['get'];
 
 export type ArticleStatus = Article['status'];
 
-export type Attachment = ArticleDetail['attachments'][number];
-
 /** Where the knowledge base lives, as the old plugin had it. */
 export const KB_PATH = '/frontline/knowledgebase';
 

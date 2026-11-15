@@ -10,6 +10,7 @@ import { membership } from '../channels/access.ts';
 import { FilterInput, type FilterFields, filtersBy, filterSql, likeText } from '../filter.ts';
 import { orderOf, PageInput, pageOf } from '../paging.ts';
 import { pipelineFor } from '../pipelines/pipelines.ts';
+import { createdEvent, publish, snapshot } from './events.ts';
 import {
   firstResponseSla,
   nextNumbers,
@@ -163,6 +164,11 @@ const create = writes(PERMISSIONS.channelView)
     if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
     await refreshSla(tx, [created.id]);
+    await publish(
+      tx,
+      member,
+      (await snapshot(tx, [created.id])).map((row) => createdEvent(row)),
+    );
     await signalTickets(tx, member);
 
     return ticketById(tx, member, created.id);
