@@ -8,7 +8,7 @@ import type { Tx } from '#/db/client.ts';
 import { pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Color, Title } from '../fields.ts';
-import { pipelineFor, refuseUsed } from './pipelines.ts';
+import { pipelineFor, refuseUsed, UserIds } from './pipelines.ts';
 
 const { orgId, ...statusColumns } = getTableColumns(pipelineStatuses);
 
@@ -21,6 +21,9 @@ const refine = {
   name: () => Title,
   description: () => Blank(255),
   color: () => Color,
+  memberIds: () => UserIds,
+  canEditMemberIds: () => UserIds,
+  canMoveMemberIds: () => UserIds,
 };
 
 const Status = createSelectSchema(pipelineStatuses).omit({ orgId: true });
@@ -97,7 +100,15 @@ const create = writes(PERMISSIONS.channelView)
 const update = writes(PERMISSIONS.channelView)
   .input(
     createUpdateSchema(pipelineStatuses, refine)
-      .pick({ name: true, description: true, color: true })
+      .pick({
+        name: true,
+        description: true,
+        color: true,
+        visibilityType: true,
+        memberIds: true,
+        canEditMemberIds: true,
+        canMoveMemberIds: true,
+      })
       .extend({ id: z.string() }),
   )
   .output(Status)

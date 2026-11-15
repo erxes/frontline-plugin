@@ -1,10 +1,10 @@
 import { defineConfig } from 'drizzle-kit';
 
-// `pnpm db:generate` writes a SQL migration from changes in src/db/schema.ts and tickets.ts.
+// `pnpm db:generate` writes a SQL migration from changes in the table files of src/db.
 // The API applies pending migrations on startup (src/db/migrate.ts).
 export default defineConfig({
   dialect: 'postgresql',
-  schema: ['./src/db/schema.ts', './src/db/tickets.ts'],
+  schema: ['./src/db/schema.ts', './src/db/tickets.ts', './src/db/teams.ts', './src/db/tags.ts'],
   out: './drizzle',
   casing: 'snake_case',
   // Same table as the API's migrator.

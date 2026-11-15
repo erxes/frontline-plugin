@@ -8,6 +8,7 @@ import {
   getTableColumns,
   inArray,
   isNotNull,
+  type SQL,
   type SQLWrapper,
   sql,
 } from 'drizzle-orm';
@@ -19,6 +20,7 @@ import { Attachment } from '#/db/table.ts';
 import { pipelineStatuses, pipelines, STATUS_TYPES, tickets } from '#/db/tickets.ts';
 import { canChangeSql, channelFor, managesAll, membership } from '../channels/access.ts';
 import { Title } from '../fields.ts';
+import { statusRights, ticketVisible } from '../pipelines/rights.ts';
 
 /** The row without `org_id`, which the caller already knows. */
 const { orgId, ...ticketColumns } = getTableColumns(tickets);
@@ -44,31 +46,46 @@ export const resolutionSla = slaState(tickets.resolutionDueAt, tickets.resolvedA
 const SlaState = z.enum(SLA_STATES).nullable();
 
 /** The row, what the caller may do with it and its SLA, which the query selects. */
-export const Ticket = createSelectSchema(tickets, { attachments: () => z.array(Attachment) })
+export const Ticket = createSelectSchema(tickets, {
+  attachments: () => z.array(Attachment),
+  propertiesData: () => z.record(z.string(), z.unknown()),
+})
   .omit({ orgId: true })
   .extend({
     /** Whether the caller may delete it: its channel's admins may. */
     canManage: z.boolean(),
+    /** Whether the caller may change its fields, and move it, by its status's lists. */
+    canEdit: z.boolean(),
+    canMove: z.boolean(),
     firstResponseSla: SlaState,
     resolutionSla: SlaState,
   });
 
-/** The tickets `member` sees: their channels', or every channel's for one who manages them all. */
+/**
+ * The tickets `member` sees: their channels', or every channel's for one who manages them all,
+ * under their statuses' and pipelines' rules (`ticketVisible`).
+ */
 export const seenBy = (member: PluginMember) =>
-  managesAll(member) ? undefined : isNotNull(channelMembers.userId);
+  and(managesAll(member) ? undefined : isNotNull(channelMembers.userId), ticketVisible(member));
 
 /** Tickets with what the caller may do and their SLA states. Callers narrow them with `seenBy`. */
-export const ticketRows = (tx: Tx, member: PluginMember) =>
-  tx
+export const ticketRows = (tx: Tx, member: PluginMember) => {
+  const rights = statusRights(member);
+
+  return tx
     .select({
       ...ticketColumns,
       canManage: canChangeSql(member),
+      canEdit: rights.canEdit,
+      canMove: rights.canMove,
       firstResponseSla,
       resolutionSla,
     })
     .from(tickets)
+    .innerJoin(pipelineStatuses, eq(pipelineStatuses.id, tickets.statusId))
     .leftJoin(channelMembers, membership(member, tickets.channelId))
     .$dynamic();
+};
 
 /** The tickets of `ids` as the caller sees them, oldest first. */
 export const ticketsById = (tx: Tx, member: PluginMember, ids: string[]) =>
@@ -93,7 +110,12 @@ export const refine = {
   /** 0 no priority, 1 minor, 2 medium, 3 high, 4 critical. */
   priority: (schema: z.ZodNumber) => schema.min(0).max(4),
   attachments: () => z.array(Attachment).max(50),
+  assignedMemberIds: () => UserIds,
+  subscribedUserIds: () => UserIds,
+  tagIds: () => z.array(z.string()).max(100),
 };
+
+const UserIds = z.array(z.string()).max(100);
 
 /** Up to 100 distinct ticket ids, as a selection sends them. */
 export const Ids = z
@@ -200,17 +222,45 @@ const stage = sql<number>`(
 
 const closing = sql.raw(`${STATUS_TYPES.resolved}, ${STATUS_TYPES.closed}`);
 
+/** A notice's stamp, cleared when its clock's due time moves. */
+const unlessMoved = (due: SQL, was: Column, stamp: Column) =>
+  sql`case when ${due} is distinct from ${was} then null else ${stamp} end`;
+
 /**
  * Brings the tickets' SLA in line with their pipeline, priority and status, in one statement:
  * due times from creation, the first response stamped once a ticket leaves a new status, and the
- * resolution stamped while it is resolved or closed and cleared when it reopens.
+ * resolution stamped while it is resolved or closed and cleared when it reopens. A clock whose
+ * due time moves may warn and breach again.
  */
-export const refreshSla = (tx: Tx, ids: string[]) =>
-  tx
+export const refreshSla = (tx: Tx, ids: string[]) => {
+  const firstResponseDue = dueOf('firstResponseMinutes');
+  const resolutionDue = dueOf('resolutionMinutes');
+
+  return tx
     .update(tickets)
     .set({
-      firstResponseDueAt: dueOf('firstResponseMinutes'),
-      resolutionDueAt: dueOf('resolutionMinutes'),
+      firstResponseDueAt: firstResponseDue,
+      resolutionDueAt: resolutionDue,
+      firstResponseWarnedAt: unlessMoved(
+        firstResponseDue,
+        tickets.firstResponseDueAt,
+        tickets.firstResponseWarnedAt,
+      ),
+      firstResponseBreachedAt: unlessMoved(
+        firstResponseDue,
+        tickets.firstResponseDueAt,
+        tickets.firstResponseBreachedAt,
+      ),
+      resolutionWarnedAt: unlessMoved(
+        resolutionDue,
+        tickets.resolutionDueAt,
+        tickets.resolutionWarnedAt,
+      ),
+      resolutionBreachedAt: unlessMoved(
+        resolutionDue,
+        tickets.resolutionDueAt,
+        tickets.resolutionBreachedAt,
+      ),
       firstRespondedAt: sql`case when ${stage} > ${STATUS_TYPES.new}
         then coalesce(${tickets.firstRespondedAt}, now()) else ${tickets.firstRespondedAt} end`,
       resolvedAt: sql`case when ${stage} in (${closing})
@@ -218,6 +268,7 @@ export const refreshSla = (tx: Tx, ids: string[]) =>
     })
     .from(pipelines)
     .where(and(eq(pipelines.id, tickets.pipelineId), inArray(tickets.id, ids)));
+};
 
 /** Tells the organisation's open ticket screens to refetch, once the change commits. */
 export const signalTickets = (tx: Tx, member: PluginMember) =>

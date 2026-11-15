@@ -10,7 +10,9 @@ import { membership } from '../channels/access.ts';
 import { FilterInput, type FilterFields, filtersBy, filterSql, likeText } from '../filter.ts';
 import { orderOf, PageInput, pageOf } from '../paging.ts';
 import { pipelineFor } from '../pipelines/pipelines.ts';
+import { assertLinks } from './changes.ts';
 import { createdEvent, publish, snapshot } from './events.ts';
+import { parseProperties, PropertiesPatch } from './properties.ts';
 import {
   firstResponseSla,
   nextNumbers,
@@ -33,6 +35,13 @@ const TICKET_FILTER: FilterFields = {
   'subject.statusId': { kind: 'select', expr: tickets.statusId },
   'subject.priority': { kind: 'select', expr: sql`${tickets.priority}::text` },
   'subject.assigneeId': { kind: 'member', expr: tickets.assigneeId },
+  'subject.assignedMemberIds': { kind: 'members', expr: tickets.assignedMemberIds },
+  'subject.subscribedUserIds': { kind: 'members', expr: tickets.subscribedUserIds },
+  'subject.tagIds': { kind: 'tags', expr: tickets.tagIds },
+  'subject.branchId': { kind: 'select', expr: tickets.branchId },
+  'subject.departmentId': { kind: 'select', expr: tickets.departmentId },
+  'subject.customerId': { kind: 'select', expr: tickets.customerId },
+  'subject.companyId': { kind: 'select', expr: tickets.companyId },
   'subject.state': { kind: 'select', expr: tickets.state },
   'subject.firstResponseSla': { kind: 'select', expr: firstResponseSla },
   'subject.resolutionSla': { kind: 'select', expr: resolutionSla },
@@ -122,15 +131,34 @@ const create = writes(PERMISSIONS.channelView)
         description: true,
         priority: true,
         assigneeId: true,
+        assignedMemberIds: true,
+        subscribedUserIds: true,
+        tagIds: true,
+        branchId: true,
+        departmentId: true,
+        customerId: true,
+        companyId: true,
         startDate: true,
         targetDate: true,
         attachments: true,
       })
-      .partial({ statusId: true, description: true, priority: true, attachments: true }),
+      .partial({
+        statusId: true,
+        description: true,
+        priority: true,
+        assignedMemberIds: true,
+        subscribedUserIds: true,
+        tagIds: true,
+        attachments: true,
+      })
+      .extend({ propertiesData: PropertiesPatch.default({}) }),
   )
   .output(Ticket)
-  .handler(async ({ input, context: { tx, member } }) => {
+  .handler(async ({ input: { propertiesData, ...input }, context: { tx, member } }) => {
     const pipeline = await pipelineFor(tx, member, input.pipelineId, { change: false });
+    const properties = await parseProperties(tx, pipeline.id, propertiesData, { create: true });
+
+    await assertLinks(tx, input);
 
     const [status] = await tx
       .select({ id: pipelineStatuses.id })
@@ -152,6 +180,7 @@ const create = writes(PERMISSIONS.channelView)
       .insert(tickets)
       .values({
         ...input,
+        propertiesData: properties,
         orgId: member.orgId,
         channelId: pipeline.channelId,
         statusId: status.id,

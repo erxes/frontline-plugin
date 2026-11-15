@@ -1,12 +1,19 @@
-import { bearerOf, verifyPluginSession } from '@erxes/plugin-sdk';
+import { bearerOf, verifyCoreJob, verifyPluginSession } from '@erxes/plugin-sdk';
 import { onError, ORPCError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/node';
 import cors from 'cors';
 import express from 'express';
 import { pinoHttp } from 'pino-http';
 import { config, PLUGIN } from '#/config.ts';
+import { JOBS } from '#/core.ts';
 import { logger } from '#/logger.ts';
+import { checkSla } from '#/modules/tickets/sla.ts';
 import { router } from '#/router.ts';
+
+/** What each job in the manifest's `jobs` does for one organisation. */
+const JOB_RUNS: Record<string, (orgId: string) => Promise<unknown>> = {
+  [JOBS.sla.name]: checkSla,
+};
 
 const rpc = new RPCHandler(router, {
   interceptors: [
@@ -50,6 +57,36 @@ export const createApp = () => {
     const { matched } = await rpc.handle(req, res, { prefix: '/api/rpc', context: { member } });
 
     if (!matched) next();
+  });
+
+  // Core POSTs each job attempt here, signed over the raw body; anything but 2xx retries.
+  app.post('/api/jobs/:name', express.text({ type: '*/*' }), async (req, res) => {
+    const body: unknown = req.body;
+
+    const job = await verifyCoreJob(
+      req.headers.authorization,
+      typeof body === 'string' ? body : '',
+      { coreUrl: config.coreUrl, plugin: PLUGIN },
+    ).catch(() => null);
+
+    if (!job || job.name !== req.params.name) {
+      res.status(401).json({ message: 'Only core runs jobs' });
+
+      return;
+    }
+
+    const run = JOB_RUNS[job.name];
+
+    if (!run) {
+      res.status(404).json({ message: `No job ${job.name}` });
+
+      return;
+    }
+
+    const result = await run(job.orgId);
+
+    logger.info({ job: job.name, jobId: job.jobId, orgId: job.orgId, result }, 'job done');
+    res.sendStatus(204);
   });
 
   if (config.uiDir) app.use('/ui', express.static(config.uiDir));

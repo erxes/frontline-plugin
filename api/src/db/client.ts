@@ -3,13 +3,15 @@ import { drizzle } from 'drizzle-orm/node-postgres';
 import { DatabaseError, Pool } from 'pg';
 import { config, PLUGIN } from '#/config.ts';
 import * as schema from './schema.ts';
+import * as tagSchema from './tags.ts';
+import * as teamSchema from './teams.ts';
 import * as ticketSchema from './tickets.ts';
 
 export const pool = new Pool({ connectionString: config.dataUrl, application_name: PLUGIN });
 
 export const db = drizzle({
   client: pool,
-  schema: { ...schema, ...ticketSchema },
+  schema: { ...schema, ...ticketSchema, ...teamSchema, ...tagSchema },
   casing: 'snake_case',
 });
 

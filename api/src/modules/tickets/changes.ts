@@ -6,9 +6,15 @@ import { createUpdateSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { pipelineStatuses, tickets } from '#/db/tickets.ts';
+import { channelMembers } from '#/db/schema.ts';
+import { pipelines, pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { writes } from '#/orpc.ts';
+import { membership } from '../channels/access.ts';
 import { pipelineFor } from '../pipelines/pipelines.ts';
+import { statusRights } from '../pipelines/rights.ts';
+import { assertTags } from '../tags/tags.ts';
+import { assertTeam } from '../teams/teams.ts';
+import { mergeProperties, parseProperties, PropertiesPatch } from './properties.ts';
 import { changeEvents, publish, snapshot } from './events.ts';
 import {
   firstStatusOf,
@@ -31,6 +37,13 @@ const Changes = createUpdateSchema(tickets, refine).pick({
   description: true,
   priority: true,
   assigneeId: true,
+  assignedMemberIds: true,
+  subscribedUserIds: true,
+  tagIds: true,
+  branchId: true,
+  departmentId: true,
+  customerId: true,
+  companyId: true,
   startDate: true,
   targetDate: true,
   attachments: true,
@@ -39,7 +52,66 @@ const Changes = createUpdateSchema(tickets, refine).pick({
   pipelineId: true,
 });
 
-type Change = z.infer<typeof Changes>;
+type Change = z.infer<typeof Changes> & {
+  /** Parsed values of the ticket's properties, null to clear one. */
+  properties?: Record<string, unknown>;
+};
+
+/** Refuses tags, branches and departments that don't exist, so a ticket names only real ones. */
+export const assertLinks = async (
+  tx: Tx,
+  { tagIds, branchId, departmentId }: Pick<Change, 'tagIds' | 'branchId' | 'departmentId'>,
+) => {
+  await assertTags(tx, 'ticket', tagIds ?? []);
+  await assertTeam(tx, 'branch', branchId);
+  await assertTeam(tx, 'department', departmentId);
+};
+
+/**
+ * Refuses a change the tickets' statuses keep from `member`: their fields while
+ * `canEditMemberIds` leaves them out, a move while `canMoveMemberIds` does, and a move into a
+ * private status they aren't in. The channel's admins pass.
+ */
+const assertRights = async (
+  tx: Tx,
+  member: PluginMember,
+  ids: string[],
+  { edits, moves, statusId }: { edits: boolean; moves: boolean; statusId?: string },
+) => {
+  const rights = statusRights(member);
+
+  const held = await tx
+    .select({ name: pipelineStatuses.name, canEdit: rights.canEdit, canMove: rights.canMove })
+    .from(tickets)
+    .innerJoin(pipelineStatuses, eq(pipelineStatuses.id, tickets.statusId))
+    .leftJoin(channelMembers, membership(member, tickets.channelId))
+    .where(inArray(tickets.id, ids));
+
+  const uneditable = edits && held.find((row) => !row.canEdit);
+  const unmovable = moves && held.find((row) => !row.canMove);
+
+  if (uneditable)
+    throw new ORPCError('FORBIDDEN', {
+      message: `Only the members ${uneditable.name} lists may edit its tickets`,
+    });
+
+  if (unmovable)
+    throw new ORPCError('FORBIDDEN', {
+      message: `Only the members ${unmovable.name} lists may move its tickets`,
+    });
+
+  if (!statusId) return;
+
+  const [target] = await tx
+    .select({ canSee: rights.canSee })
+    .from(pipelineStatuses)
+    .innerJoin(pipelines, eq(pipelines.id, pipelineStatuses.pipelineId))
+    .leftJoin(channelMembers, membership(member, pipelines.channelId))
+    .where(eq(pipelineStatuses.id, statusId));
+
+  if (target && !target.canSee)
+    throw new ORPCError('FORBIDDEN', { message: 'That status is private to its members' });
+};
 
 const current = alias(pipelineStatuses, 'current_status');
 
@@ -124,10 +196,20 @@ const changeTickets = async (
   tx: Tx,
   member: PluginMember,
   rows: TicketRow[],
-  { statusId, pipelineId, ...fields }: Change,
+  { statusId, pipelineId, properties, ...fields }: Change,
 ) => {
   const ids = rows.map((row) => row.id);
   const before = await snapshot(tx, ids);
+  const edits = Object.keys(fields).length > 0 || properties !== undefined;
+
+  const moves = rows.some(
+    (row) =>
+      (statusId !== undefined && row.statusId !== statusId) ||
+      (pipelineId !== undefined && row.pipelineId !== pipelineId),
+  );
+
+  await assertRights(tx, member, ids, { edits, moves, statusId });
+  await assertLinks(tx, fields);
 
   if (pipelineId) await moveToPipeline(tx, member, rows, pipelineId);
 
@@ -141,10 +223,14 @@ const changeTickets = async (
       }
     : {};
 
-  if (Object.keys(fields).length > 0 || statusId)
+  if (edits || statusId)
     await tx
       .update(tickets)
-      .set({ ...fields, ...moved })
+      .set({
+        ...fields,
+        ...moved,
+        ...(properties ? { propertiesData: mergeProperties(properties) } : {}),
+      })
       .where(inArray(tickets.id, ids));
 
   if (statusId || pipelineId || fields.priority !== undefined) await refreshSla(tx, ids);
@@ -153,12 +239,28 @@ const changeTickets = async (
   await signalTickets(tx, member);
 };
 
-/** Changes what is given on one ticket, or moves it to another status of its pipeline. */
+/**
+ * Changes what is given on one ticket, or moves it to another status of its pipeline.
+ * `propertiesData` sets the values it names, null clearing one, and keeps the rest.
+ */
 const update = writes(PERMISSIONS.channelView)
-  .input(Changes.omit({ pipelineId: true }).extend({ id: z.string() }))
+  .input(
+    Changes.omit({ pipelineId: true }).extend({
+      id: z.string(),
+      propertiesData: PropertiesPatch.optional(),
+    }),
+  )
   .output(Ticket)
-  .handler(async ({ input: { id, ...change }, context: { tx, member } }) => {
-    await changeTickets(tx, member, await ticketsFor(tx, member, [id]), change);
+  .handler(async ({ input: { id, propertiesData, ...change }, context: { tx, member } }) => {
+    const rows = await ticketsFor(tx, member, [id]);
+    const [row] = rows;
+
+    const properties =
+      row && propertiesData
+        ? await parseProperties(tx, row.pipelineId, propertiesData, { create: false })
+        : undefined;
+
+    await changeTickets(tx, member, rows, { ...change, properties });
 
     return ticketById(tx, member, id);
   });
@@ -172,6 +274,9 @@ const bulkUpdate = writes(PERMISSIONS.channelView)
       statusId: true,
       pipelineId: true,
       state: true,
+      tagIds: true,
+      branchId: true,
+      departmentId: true,
     })
       .extend({ ids: Ids })
       .refine(({ ids, ...change }) => Object.keys(change).length > 0, 'Pick a change')

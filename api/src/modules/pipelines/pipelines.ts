@@ -22,6 +22,10 @@ import { canChangeSql, channelFor, managesAll, membership } from '../channels/ac
 import { Blank, Title } from '../fields.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
 import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
+import { statusRights } from './rights.ts';
+
+/** Core user ids a setting lists. */
+export const UserIds = z.array(z.string()).max(1000);
 
 const { orgId, ...pipelineColumns } = getTableColumns(pipelines);
 
@@ -33,6 +37,7 @@ const refine = {
   numberSize: (schema: z.ZodNumber) => schema.min(1).max(8),
   nameConfig: () => Blank(200),
   slaPolicy: () => SlaPolicy,
+  excludeCheckUserIds: () => UserIds,
 };
 
 /** The row, and whether the caller may change it, which the query selects. */
@@ -194,6 +199,10 @@ const update = writes(PERMISSIONS.channelView)
         numberSize: true,
         nameConfig: true,
         slaPolicy: true,
+        isCheckUser: true,
+        isCheckDepartment: true,
+        isCheckBranch: true,
+        excludeCheckUserIds: true,
       })
       .extend({ id: z.string() }),
   )
@@ -234,22 +243,24 @@ const remove = writes(PERMISSIONS.channelView)
 
 const Choice = createSelectSchema(pipelines).pick({ id: true, channelId: true, name: true });
 
-const StatusChoice = createSelectSchema(pipelineStatuses).pick({
-  id: true,
-  pipelineId: true,
-  name: true,
-  color: true,
-  type: true,
-});
+const StatusChoice = createSelectSchema(pipelineStatuses)
+  .pick({ id: true, pipelineId: true, name: true, color: true, type: true })
+  .extend({
+    /** Whether the caller may edit, and move, tickets in it (`rights.ts`). */
+    canEdit: z.boolean(),
+    canMove: z.boolean(),
+  });
 
 /**
- * Every pipeline of the channels the caller sees, by name, and their statuses by stage and
- * order: what a ticket is filed under, for the ticket screens' pickers and filters.
+ * Every pipeline of the channels the caller sees, by name, and the statuses they see by stage and
+ * order, with what they may do in each: what a ticket is filed under, for the ticket screens'
+ * pickers and filters.
  */
 const choices = reads(PERMISSIONS.channelView)
   .output(z.object({ pipelines: z.array(Choice), statuses: z.array(StatusChoice) }))
   .handler(async ({ context: { tx, member } }) => {
     const seen = managesAll(member) ? undefined : isNotNull(channelMembers.userId);
+    const rights = statusRights(member);
 
     const pipelineList = await tx
       .select({ id: pipelines.id, channelId: pipelines.channelId, name: pipelines.name })
@@ -265,11 +276,13 @@ const choices = reads(PERMISSIONS.channelView)
         name: pipelineStatuses.name,
         color: pipelineStatuses.color,
         type: pipelineStatuses.type,
+        canEdit: rights.canEdit,
+        canMove: rights.canMove,
       })
       .from(pipelineStatuses)
       .innerJoin(pipelines, eq(pipelines.id, pipelineStatuses.pipelineId))
       .leftJoin(channelMembers, membership(member, pipelines.channelId))
-      .where(seen)
+      .where(and(seen, rights.canSee))
       .orderBy(
         asc(pipelineStatuses.type),
         asc(pipelineStatuses.order),

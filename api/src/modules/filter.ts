@@ -34,9 +34,10 @@ export const FilterInput = {
 
 /**
  * How a list compares one of its fields, as the UI's `ListFilter` field `type` says: `members` is
- * a `member` field over an array of user ids, such as a channel's members.
+ * a `member` field over an array of user ids, such as a channel's members, and `tags` an array
+ * of tag ids.
  */
-type FieldKind = 'text' | 'member' | 'members' | 'select' | 'date' | 'boolean' | 'number';
+type FieldKind = 'text' | 'member' | 'members' | 'tags' | 'select' | 'date' | 'boolean' | 'number';
 
 /** The fields a list can be filtered by: `subject.<name>` paths and the SQL each compares. */
 export type FilterFields = Record<string, { kind: FieldKind; expr: Column | SQL }>;
@@ -142,6 +143,7 @@ const compile = ({ kind, expr }: FilterFields[string], rule: ConditionRule, user
     case 'select':
       return presence(expr, rule.op) ?? pickSql(expr, rule, userId);
     case 'members':
+    case 'tags':
       return arraySql(expr, rule, userId);
     case 'date':
       return presence(expr, rule.op) ?? dateSql(expr, rule);
