@@ -16,10 +16,15 @@ import { useIntegrationChange } from './queries.ts';
 
 /**
  * A new website messenger in core's side panel: the channel its conversations land in, its name
- * and the welcome its visitors see. Only the channels the member is an admin of are offered.
+ * and the welcome its visitors see. Opened with a connected account's `kind` and `accountId`, it
+ * adds that page, bot or mailbox to the channel instead. Only the channels the member is an
+ * admin of are offered.
  */
-export const IntegrationNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
+export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
+  // A connected page or account's list opens the draft with its kind and id.
+  const kind = textOf(defaults.kind) || 'messenger';
+  const accountId = textOf(defaults.accountId);
 
   const channels = (
     useQuery(orpc.channels.list.queryOptions({ input: {} })).data?.channels ?? []
@@ -43,9 +48,9 @@ export const IntegrationNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
 
     create.mutate({
       channelId,
-      kind: 'messenger',
+      kind,
       name: textOf(form.get('name')),
-      config: { welcome: textOf(form.get('welcome')) },
+      config: accountId ? { accountId } : { welcome: textOf(form.get('welcome')) },
     });
   };
 
@@ -54,7 +59,9 @@ export const IntegrationNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
       <PanelFormLayout
         onCancel={onCancel}
         saving={create.isPending}
-        saveLabel={t('add-messenger', 'Add messenger')}
+        saveLabel={
+          accountId ? t('add-to-channel', 'Add to a channel') : t('add-messenger', 'Add messenger')
+        }
       >
         <PanelFormRow label={t('channel', 'Channel')} icon={IconCircles} required>
           <Select value={channelId} onValueChange={(next) => next && setChannelId(next)}>
@@ -75,14 +82,17 @@ export const IntegrationNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
             name="name"
             required
             aria-label={t('name', 'Name')}
+            defaultValue={textOf(defaults.name)}
             placeholder={t('messenger-name-placeholder', 'Website')}
             variant="bordered"
             text="sm"
           />
         </PanelFormRow>
-        <PanelFormRow label={t('welcome-message', 'Welcome message')} icon={IconMessage}>
-          <Textarea name="welcome" aria-label={t('welcome-message', 'Welcome message')} />
-        </PanelFormRow>
+        {!accountId && (
+          <PanelFormRow label={t('welcome-message', 'Welcome message')} icon={IconMessage}>
+            <Textarea name="welcome" aria-label={t('welcome-message', 'Welcome message')} />
+          </PanelFormRow>
+        )}
         {create.error && (
           <p role="alert" className="text-xs text-destructive-text">
             {create.error.message}

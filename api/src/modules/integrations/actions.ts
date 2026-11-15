@@ -19,6 +19,7 @@ const Call = z.object({
         subjectId: z.string().nullish(),
         entityType: z.string().nullish(),
         entityId: z.string().nullish(),
+        payload: z.object({ conversationId: z.string() }).partial().nullish(),
       })
       .nullish(),
     subject: z.object({ id: z.string() }).nullish(),
@@ -30,12 +31,15 @@ const KINDS = new Map<string, string>(
 );
 
 /**
- * The conversation of `kind` the step answers: the one its trigger event is about, else the run's
- * customer's latest.
+ * The conversation of `kind` the step answers: the one its trigger event is about or names, else
+ * the run's customer's latest.
  */
 const conversationOf = async (tx: Tx, kind: string, context: z.infer<typeof Call>['context']) => {
   const event = context.event;
-  const conversationId = event?.entityType === CONVERSATION_TIMELINE ? event.entityId : null;
+
+  const conversationId =
+    (event?.entityType === CONVERSATION_TIMELINE ? event.entityId : null) ??
+    event?.payload?.conversationId;
 
   const customerId =
     context.subject?.id ?? (event?.subjectType === 'customer' ? event.subjectId : null);

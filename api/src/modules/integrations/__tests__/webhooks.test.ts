@@ -1,13 +1,13 @@
-import { createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { clientAs } from '#/test/member.ts';
 import {
   channelFor,
   fakeProviders,
   fixture,
-  type ProviderCall,
+  graphApi,
   runQueued,
   serve,
+  signedByMeta,
   telegramApi,
   webhookOf,
 } from './fakes.ts';
@@ -92,35 +92,6 @@ describe('telegram', () => {
       message: 'Telegram refused the token: Unauthorized',
     });
   });
-});
-
-const graphApi = (call: ProviderCall) => {
-  const path = call.url.pathname.replace('/v23.0/', '');
-
-  if (path === 'oauth/access_token')
-    return {
-      access_token: call.url.searchParams.get('code') ? 'short-user-token' : 'long-user-token',
-    };
-
-  if (path === 'me/accounts')
-    return {
-      data: [
-        {
-          id: 'page-1',
-          name: 'Shop',
-          access_token: 'page-token-1',
-          instagram_business_account: { id: 'ig-1', username: 'shop.mn' },
-        },
-      ],
-    };
-
-  if (path === 'me/messages') return { recipient_id: 'psid-1', message_id: 'm_sent' };
-
-  return { success: true };
-};
-
-const signedByMeta = (raw: string) => ({
-  'x-hub-signature-256': `sha256=${createHmac('sha256', 'test-meta-app-secret').update(raw).digest('hex')}`,
 });
 
 const subscriptionCheck = async (token: string) => {

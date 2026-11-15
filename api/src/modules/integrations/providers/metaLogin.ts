@@ -10,26 +10,33 @@ import { GRAPH_VERSION, graph } from './meta.ts';
 
 const STATE = 'meta-login';
 
-/** What the pages need: Messenger and Instagram messages, and the page list to pick from. */
+/**
+ * What the pages need: Messenger and Instagram messages, comments and replies to them, posts,
+ * and the page list to pick from.
+ */
 const SCOPES = [
   'pages_show_list',
   'pages_messaging',
   'pages_manage_metadata',
   'pages_read_engagement',
+  'pages_read_user_content',
+  'pages_manage_engagement',
+  'pages_manage_posts',
   'business_management',
   'instagram_basic',
   'instagram_manage_messages',
+  'instagram_manage_comments',
 ];
 
 /** The events Meta posts to frontline for a connected page. */
-const PAGE_FIELDS = ['messages', 'messaging_postbacks'];
+const PAGE_FIELDS = ['messages', 'messaging_postbacks', 'feed'];
 
 const State = z.object({ orgId: z.string(), userId: z.string() });
 
 const callbackUrl = () => `${config.publicUrl}/api/public/webhooks/meta/callback`;
 
-/** Where Meta's login returns the member: the integrations settings in web. */
-export const SETTINGS_URL = `${config.coreUiOrigin}/frontline/settings/integrations`;
+/** Where Meta's login returns the member: the Facebook and Instagram settings in web. */
+export const SETTINGS_URL = `${config.coreUiOrigin}/frontline/settings/meta`;
 
 /**
  * The address of Meta's login dialog, where the member picks the pages and Instagram accounts to

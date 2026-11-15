@@ -87,6 +87,14 @@ export const MESSAGE_RECEIVED = {
     label: 'Email Received',
     description: 'An email arrived in a connected mailbox',
   },
+  facebook: { type: 'frontline.facebook.message_received', label: 'Facebook message received' },
+  instagram: { type: 'frontline.instagram.message_received', label: 'Instagram message received' },
+} as const;
+
+/** What a person's comment under a connected page's or account's post publishes. */
+export const COMMENT_RECEIVED = {
+  facebook: { type: 'frontline.facebook.comment_received', label: 'Facebook comment received' },
+  instagram: { type: 'frontline.instagram.comment_received', label: 'Instagram comment received' },
 } as const;
 
 /**
@@ -108,6 +116,16 @@ export const SEND_ACTIONS = {
     type: 'frontline.mail.send',
     label: 'Send Email',
     description: "Reply to the customer's email right away, from the mailbox it came to",
+  },
+  facebook: {
+    type: 'frontline.facebook.reply',
+    label: 'Reply on Facebook',
+    description: 'Answers in the chat, or in the comment thread under a post, as the page',
+  },
+  instagram: {
+    type: 'frontline.instagram.reply',
+    label: 'Reply on Instagram',
+    description: 'Answers in the chat, or in the comment thread under a post, as the account',
   },
 } as const;
 
@@ -268,8 +286,8 @@ export const manifest = {
     { kind: INTEGRATION_BROKEN, label: 'A page, bot or mailbox you connected stopped working' },
   ],
   jobs: Object.values(JOBS),
-  // What automations can start on: ticket and form events, a conversation's events and each
-  // customer message.
+  // What automations can start on: ticket and form events, a conversation's events, each
+  // customer message and each comment under a connected post.
   events: [
     { type: TICKET_EVENTS.created.type, label: TICKET_EVENTS.created.label },
     { type: TICKET_EVENTS.moved.type, label: 'Ticket status changed' },
@@ -286,7 +304,10 @@ export const manifest = {
       subject: 'customer' as const,
     })),
     MESSAGE_RECEIVED_EVENT,
-    ...Object.values(MESSAGE_RECEIVED).map((event) => ({ ...event, subject: 'customer' as const })),
+    ...[...Object.values(MESSAGE_RECEIVED), ...Object.values(COMMENT_RECEIVED)].map((event) => ({
+      ...event,
+      subject: 'customer' as const,
+    })),
   ],
   timelines: [
     { type: TICKET_TIMELINE, label: 'Ticket', permission: PERMISSIONS.channelView },

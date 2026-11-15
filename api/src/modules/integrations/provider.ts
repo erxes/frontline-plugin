@@ -26,6 +26,8 @@ export interface InboundMessage {
   /** What only the provider's own code reads back, such as a mail's subject. */
   providerData?: Record<string, unknown>;
   attachments: Attachment[];
+  /** The manifest event automations start from, published with the message when it is new. */
+  event?: string;
 }
 
 /** A reply the inbox sends through an account. */
@@ -39,7 +41,11 @@ export interface OutboundMessage {
   /** What the provider's own code stored on this message, such as a new mail's subject. */
   providerData: Record<string, unknown> | null;
   /** The last message the reply answers: the customer's, or a new mail the thread began with. */
-  replyTo: { externalId: string; providerData: Record<string, unknown> | null } | null;
+  replyTo: {
+    externalId: string;
+    providerData: Record<string, unknown> | null;
+    createdAt: Date;
+  } | null;
 }
 
 /** What a provider does for the inbox, given one of its accounts. */

@@ -17,6 +17,7 @@ export default defineConfig({
     './src/db/messenger.ts',
     './src/db/integrations.ts',
     './src/db/mail.ts',
+    './src/db/meta.ts',
   ],
   out: './drizzle',
   casing: 'snake_case',

@@ -15,6 +15,7 @@ import {
   IconLock,
   IconMessageCircle,
   IconMessageReply,
+  IconRobot,
   IconTicket,
   IconWorldWww,
 } from '@tabler/icons-react';
@@ -29,6 +30,7 @@ import {
   KB_ARTICLE_TYPE,
   KB_CATEGORY_TYPE,
   KB_TOPIC_TYPE,
+  META_BOT_TYPE,
   PIPELINE_TYPE,
   PLUGIN,
   RESPONSE_TEMPLATE_TYPE,
@@ -217,6 +219,13 @@ export const CONFIG: IUIConfig = {
       icon: IconMessageCircle,
       detailPath: (id) => `/${PLUGIN}/inbox/integrations/${encodeURIComponent(id)}`,
       ...slots(() => import('@/inbox/slots.ts')),
+    },
+    {
+      contentType: META_BOT_TYPE,
+      title: 'Bot',
+      icon: IconRobot,
+      detailPath: (id) => `/${PLUGIN}/settings/meta/bots/${encodeURIComponent(id)}`,
+      ...slots(() => import('@/meta/slots.ts')),
     },
   ],
   relationTabs: [
