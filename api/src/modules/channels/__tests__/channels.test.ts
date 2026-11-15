@@ -189,6 +189,37 @@ describe('channels', () => {
     await expect(ours.channels.get({ id: own.id })).resolves.toMatchObject({ id: own.id });
   });
 
+  it('gives each member one personal inbox that only they see and belong to', async () => {
+    const owner = clientAs('org-ch-personal');
+    const asAgent = clientAs('org-ch-personal', agent, 'agent-p');
+
+    const mine = await owner.channels.personal();
+
+    expect(mine).toMatchObject({
+      name: 'Personal inbox',
+      ownerId: 'user-org-ch-personal',
+      memberIds: ['user-org-ch-personal'],
+      role: 'admin',
+    });
+    await expect(owner.channels.personal()).resolves.toMatchObject({ id: mine.id });
+
+    const theirs = await asAgent.channels.personal();
+
+    expect(theirs.id).not.toBe(mine.id);
+    await expect(owner.channels.create({ name: 'Personal inbox' })).resolves.toMatchObject({
+      ownerId: null,
+    });
+    await expect(owner.channels.list({})).resolves.toMatchObject({
+      channels: [{ name: 'Personal inbox', ownerId: null }],
+    });
+    await expect(owner.channels.get({ id: theirs.id })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+    await expect(
+      owner.channels.addMembers({ id: mine.id, userIds: ['agent-p'] }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
   it('tells members they were added, once, and never the one who added them', async () => {
     const owner = clientAs('org-ch-notice', undefined, 'boss');
     const channel = await owner.channels.create({ name: 'Billing', memberIds: ['ann', 'boss'] });

@@ -1,6 +1,17 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { type ORPCErrorConstructorMap, ORPCError } from '@orpc/server';
-import { and, asc, eq, getTableColumns, ilike, inArray, isNotNull, or, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  eq,
+  getTableColumns,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  or,
+  sql,
+} from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
@@ -95,6 +106,7 @@ const list = reads(PERMISSIONS.channelView)
     const channelList = await channelRows(tx, member)
       .where(
         and(
+          isNull(channels.ownerId),
           managesAll(member) ? undefined : isNotNull(channelMembers.userId),
           input.search
             ? or(
@@ -184,4 +196,31 @@ const remove = writes(PERMISSIONS.channelView)
     return { ids: removed.map((row) => row.id) };
   });
 
-export const channelProcedures = { list, get, create, update, remove };
+/**
+ * The caller's personal inbox, made on first ask: a channel only they belong to and see,
+ * which the team list leaves out.
+ */
+const personal = writes(PERMISSIONS.channelView)
+  .output(Channel)
+  .handler(async ({ context: { tx, member } }) => {
+    const [made] = await tx
+      .insert(channels)
+      .values({
+        orgId: member.orgId,
+        name: 'Personal inbox',
+        ownerId: member.userId,
+        createdBy: member.userId,
+      })
+      .onConflictDoNothing()
+      .returning({ id: channels.id });
+
+    if (made) await insertMembers(tx, member, made.id, [member.userId], 'admin');
+
+    const [row] = await channelRows(tx, member).where(eq(channels.ownerId, member.userId));
+
+    if (!row) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+    return row;
+  });
+
+export const channelProcedures = { list, get, create, update, remove, personal };

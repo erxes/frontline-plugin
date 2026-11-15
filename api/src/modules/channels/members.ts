@@ -73,7 +73,11 @@ const addMembers = writes(PERMISSIONS.channelView)
   .input(Members)
   .output(z.array(Member))
   .handler(async ({ input, context: { tx, member } }) => {
-    await channelFor(tx, member, input.id, { change: true });
+    const channel = await channelFor(tx, member, input.id, { change: true });
+
+    if (channel.ownerId)
+      throw new ORPCError('FORBIDDEN', { message: 'A personal inbox has only its owner' });
+
     await insertMembers(tx, member, input.id, input.userIds, 'member');
 
     return tx

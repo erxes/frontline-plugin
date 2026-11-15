@@ -1,5 +1,5 @@
 {
-  "id": "0722bf61-a339-435f-b486-38942313bdc8",
+  "id": "78066ffa-d60c-4db9-b6dc-7d893e64270e",
   "prevId": "2d151216-b396-4fc4-b59b-1159c505bf28",
   "version": "7",
   "dialect": "postgresql",
@@ -142,6 +142,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "owner_id": {
+          "name": "owner_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_by": {
           "name": "created_by",
           "type": "text",
@@ -177,6 +183,28 @@
               "expression": "lower(\"name\")",
               "asc": true,
               "isExpression": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "where": "\"frontline_channels\".\"owner_id\" is null",
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "frontline_channels_owner_key": {
+          "name": "frontline_channels_owner_key",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "owner_id",
+              "isExpression": false,
+              "asc": true,
               "nulls": "last"
             }
           ],

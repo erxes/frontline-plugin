@@ -85,6 +85,8 @@ CREATE TABLE "frontline_public_addresses" (
 	"help_center_id" text NOT NULL
 );
 --> statement-breakpoint
+DROP INDEX "frontline_channels_org_name_key";--> statement-breakpoint
+ALTER TABLE "frontline_channels" ADD COLUMN "owner_id" text;--> statement-breakpoint
 ALTER TABLE "frontline_pipeline_statuses" ADD COLUMN "visibility_type" text DEFAULT 'public' NOT NULL;--> statement-breakpoint
 ALTER TABLE "frontline_pipeline_statuses" ADD COLUMN "member_ids" text[] DEFAULT '{}' NOT NULL;--> statement-breakpoint
 ALTER TABLE "frontline_pipeline_statuses" ADD COLUMN "can_edit_member_ids" text[] DEFAULT '{}' NOT NULL;--> statement-breakpoint
@@ -113,9 +115,11 @@ CREATE INDEX "frontline_teams_org_kind_name_idx" ON "frontline_teams" USING btre
 CREATE INDEX "frontline_teams_parent_idx" ON "frontline_teams" USING btree ("parent_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "frontline_tags_org_type_name_key" ON "frontline_tags" USING btree ("org_id","type",lower("name"));--> statement-breakpoint
 CREATE INDEX "frontline_help_centers_org_title_idx" ON "frontline_help_centers" USING btree ("org_id","title");--> statement-breakpoint
+CREATE UNIQUE INDEX "frontline_channels_owner_key" ON "frontline_channels" USING btree ("org_id","owner_id");--> statement-breakpoint
 CREATE INDEX "frontline_tickets_org_customer_idx" ON "frontline_tickets" USING btree ("org_id","customer_id");--> statement-breakpoint
 CREATE INDEX "frontline_tickets_org_company_idx" ON "frontline_tickets" USING btree ("org_id","company_id");--> statement-breakpoint
 CREATE INDEX "frontline_tickets_tag_ids_idx" ON "frontline_tickets" USING gin ("tag_ids");--> statement-breakpoint
+CREATE UNIQUE INDEX "frontline_channels_org_name_key" ON "frontline_channels" USING btree ("org_id",lower("name")) WHERE "frontline_channels"."owner_id" is null;--> statement-breakpoint
 ALTER TABLE "frontline_pipeline_statuses" ADD CONSTRAINT "frontline_pipeline_statuses_visibility_check" CHECK ("frontline_pipeline_statuses"."visibility_type" in ('public', 'private'));--> statement-breakpoint
 SELECT core_enable_tenant_rls('frontline_ticket_properties');
 --> statement-breakpoint

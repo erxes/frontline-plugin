@@ -34,10 +34,15 @@ export const channels = table(
     description: text().notNull().default(''),
     /** A Tabler icon name from erxes-ui's IconPicker. */
     icon: text(),
+    /** The core user whose personal inbox this is; null for a team channel. */
+    ownerId: text(),
     ...stamps(),
   },
   (t) => [
-    uniqueIndex(CHANNEL_NAME_INDEX).on(t.orgId, sql`lower(${t.name})`),
+    uniqueIndex(CHANNEL_NAME_INDEX)
+      .on(t.orgId, sql`lower(${t.name})`)
+      .where(sql`${t.ownerId} is null`),
+    uniqueIndex('frontline_channels_owner_key').on(t.orgId, t.ownerId),
     uniqueIndex('frontline_channels_org_id_key').on(t.orgId, t.id),
   ],
 );

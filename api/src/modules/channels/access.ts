@@ -9,6 +9,10 @@ import { type CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
 /** Whether `member` sees every channel, not only the ones they belong to. */
 export const managesAll = (member: PluginMember) => member.can(PERMISSIONS.channelManage);
 
+/** Whether `member` may see a channel with this owner: a personal inbox shows only to its owner. */
+const ownsOrShared = (ownerId: string | null, member: PluginMember) =>
+  ownerId === null || ownerId === member.userId;
+
 /** Joins `member`'s own row of `channelMembers` for the channel `channelId` names. */
 export const membership = (member: PluginMember, channelId: Column) =>
   and(eq(channelMembers.channelId, channelId), eq(channelMembers.userId, member.userId));
@@ -29,13 +33,13 @@ export const channelFor = async (
   { change }: { change: boolean },
 ) => {
   const [row] = await tx
-    .select({ role: channelMembers.role })
+    .select({ role: channelMembers.role, ownerId: channels.ownerId })
     .from(channels)
     .leftJoin(channelMembers, membership(member, channels.id))
     .where(eq(channels.id, id))
     .for('update', { of: channels });
 
-  if (!row || (!row.role && !managesAll(member)))
+  if (!row || (!row.role && !managesAll(member)) || !ownsOrShared(row.ownerId, member))
     throw new ORPCError('NOT_FOUND', { message: 'No such channel' });
 
   if (change && row.role !== 'admin' && !managesAll(member))

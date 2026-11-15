@@ -75,7 +75,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
   - ui-modules: `createFavoriteBreadcrumb`, `PageHeader`
   - keeps: toast "something-went-wrong-getting-user-integrations" · atomWithStorage "callHistoryId" · useSubscription "QUEUE_REALTIME_UPDATE"
 - [ ] `/frontline/*` (FrontlineAppRoutes) `frontline_ui/src/modules/FrontlineMain.tsx:206`
-- [ ] `/frontline/personal-channel` (PageContainer) `frontline_ui/src/modules/FrontlineSettings.tsx:53`
+- [x] `/frontline/personal-channel` (PageContainer) → `ui/src/modules/channels/PersonalChannel.tsx`, opening the personal inbox in the channel panel `frontline_ui/src/modules/FrontlineSettings.tsx:53`
 - [ ] `/frontline/` (div) `frontline_ui/src/modules/integrations-config/Settings.tsx:22`
 - [ ] `/frontline/` (IntegrationConfigPage) `frontline_ui/src/modules/integrations-config/Settings.tsx:40`
   - files: 32, 24 only here: `modules/integrations/call/components/CallConfigUpdate.tsx`, `modules/integrations/call/constants/callConfigSchema.ts`, `modules/integrations/call/graphql/mutations/callConfigMutations.ts`, `modules/integrations/call/hooks/useCallGetConfigs.ts`, `modules/integrations/call/hooks/useCallUpdateConfigs.ts`, `modules/integrations/components/SecretInput.tsx`, `modules/integrations/facebook/components/FacebookConfigUpdate.tsx`, `modules/integrations/facebook/constants/FbConfigSchema.ts`, `modules/integrations/facebook/graphql/queries/fbConfigQueries.ts`, `modules/integrations/facebook/hooks/useFacebookGetConfigs.tsx`, `modules/integrations/facebook/hooks/useFacebookUpdateConfigs.tsx`, `modules/integrations/instagram/components/InstagramConfigUpdate.tsx`, `modules/integrations/instagram/constants/IgConfigSchema.ts`, `modules/integrations/instagram/graphql/queries/igConfigQueries.ts`, `modules/integrations/instagram/hooks/useInstagramGetConfigs.tsx`, `modules/integrations/instagram/hooks/useInstagramUpdateConfigs.tsx`, `modules/integrations/mail/components/MailConfigUpdate.tsx`, `modules/integrations/mail/graphql/mutations/mailCloudflareMutations.ts`, `modules/integrations/mail/graphql/queries/mailCloudflareQueries.ts`, `modules/integrations/mail/hooks/useMailCloudflareConnection.tsx`, `modules/integrations/mail/hooks/useMailCloudflareSendingQuota.tsx`, `modules/integrations/mail/hooks/useMailCloudflareSetup.tsx`, `modules/integrations/telegram/TelegramConfig.tsx`, `pages/IntegrationConfigPage.tsx`
@@ -134,7 +134,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] notification `ticketMention` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:57`
 - [ ] notification `ticketCustomerReply` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:62`
 - [ ] notification `integrationHealthBroken` (integrations) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:75`
-- [ ] notification `channelMembersChange` (channels) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:89`
+- [x] notification `channelMembersChange` (channels) → `frontline.channel.members_added` in `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:89`
 - [ ] permission `showConversations` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:18`
 - [ ] permission `conversationMessageAdd` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:24`
 - [ ] permission `conversationMessageEdit` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:29`
@@ -420,7 +420,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_channels` from collection `channels` (11 fields, draft `frontlineChannels` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:6`. `memberIds` repeated the members table and the counts go stale, so both are gone; `icon` holds a Tabler icon name from erxes-ui's IconPicker; `scope` waits for the personal mailbox.
+- [x] `frontline_channels` from collection `channels` (11 fields, draft `frontlineChannels` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:6`. `memberIds` repeated the members table and the counts go stale, so both are gone; `icon` holds a Tabler icon name from erxes-ui's IconPicker; `scope` became `owner_id`, set on a personal inbox.
 - [x] `frontline_channel_members` from collection `channel_members` (5 fields, draft `frontlineChannelMembers` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:53`. Roles are admin and member; the old `lead` (add members only) folds into admin, and a role check keeps one admin per channel.
 
 ### Procedures
@@ -428,7 +428,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] query `getChannel` → `channels.get`, with its members `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
 - [x] query `getChannels` → `channels.list` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
 - [x] query `getMyChannels` → `channels.list` (a member sees their own; `frontline.channel.manage` sees all) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
-- [ ] query `getPersonalChannel` → procedure `personalChannels.get` (returns `Channel`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
+- [x] query `getPersonalChannel` → `channels.personal`, made on first ask `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
 - [x] query `getChannelMembers` → `channels.get` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:51`
 - [x] mutation `channelAdd` → `channels.create` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 - [x] mutation `channelUpdate` → `channels.update` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
@@ -437,7 +437,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `channelRemoveMember` → `channels.removeMembers` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 - [x] mutation `channelRemoveMembers` → `channels.removeMembers`, refused when it would leave no admin `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 - [x] mutation `channelUpdateMember` → `channels.setRole` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
-- [ ] mutation `channelMoveResources` → procedure `channel.channelMoveResources` (returns `ChannelMoveResourcesResult`) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] mutation `channelMoveResources` → each pipeline and template moves on its own panel (decision) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 
 ### Pages
 
@@ -451,7 +451,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Events
 
-- [ ] `sendNotification` → sdk `notifications.create` (scope notifications:write; kind in manifest.notificationKinds) `frontline_api/src/modules/channel/graphql/resolvers/mutations/channel.ts:77`
+- [x] `sendNotification` → `frontline.channel.members_added` with `notify` on core_publish_event() `frontline_api/src/modules/channel/graphql/resolvers/mutations/channel.ts:77`
 
 ## channels
 

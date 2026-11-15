@@ -3,6 +3,7 @@ import { lazy, Suspense } from 'react';
 import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom';
 import { ChannelMembersPage } from '@/channels/ChannelMembersPage.tsx';
 import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
+import { PersonalChannel } from '@/channels/PersonalChannel.tsx';
 import {
   CHANNEL_TYPE,
   HELP_CENTER_TYPE,
@@ -101,6 +102,7 @@ export const Frontline = () => (
         <Route path=":id/pipelines" element={<PipelinesPage />} />
       </Route>
     </Route>
+    <Route path="personal-channel" element={<PersonalChannel />} />
     <Route path="settings/pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
     <Route path="settings" element={<Lazy />}>
       <Route path="tags" element={<TagsPage />} />
