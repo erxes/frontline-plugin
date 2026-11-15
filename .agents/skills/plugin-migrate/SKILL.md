@@ -66,10 +66,14 @@ data only. The inventory reads code, never a database.
    (marked **gap**, or one you find), file an issue in the plugin's repo that
    says what the old plugin did and what core would need, tick the item and
    end its line with `(filed <issue url>)`. The feature waits for core.
-8. Commit the module: schema, migration, procedures, page and the ticks
-   together.
-9. Copy data once all modules are in: `pnpm migrate:import` with `MONGO_URL`,
-   `DATA_URL` and `ORG_ID` set. Its `Skipped` list must be empty or explained.
+8. Log each difference from the old plugin in `DECISIONS.md`, under the
+   module's heading: an old bug fixed, a field or procedure dropped, behavior
+   or UI changed, or a feature left waiting. One row says what the old plugin
+   did (read its code, don't guess), what the port does, and why.
+9. Commit the module: schema, migration, procedures, page, the ticks and its
+   `DECISIONS.md` rows together.
+10. Copy data once all modules are in: `pnpm migrate:import` with `MONGO_URL`,
+    `DATA_URL` and `ORG_ID` set. Its `Skipped` list must be empty or explained.
 
 Rerun `pnpm migrate:inventory` and `pnpm migrate:checklist` only to pick up
 new old-side code; ticks survive the rerun.
