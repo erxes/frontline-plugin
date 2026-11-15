@@ -119,9 +119,16 @@ const FIELDS = {
 /** A new help center, with the public key signed-out visitors reach it by. */
 const create = writes(PERMISSIONS.helpCenterManage)
   .input(
-    createInsertSchema(helpCenters, refine)
-      .pick(FIELDS)
-      .partial({ styles: true, header: true, footer: true }),
+    createInsertSchema(helpCenters, refine).pick(FIELDS).partial({
+      description: true,
+      languageCode: true,
+      kbLabel: true,
+      color: true,
+      backgroundImage: true,
+      styles: true,
+      header: true,
+      footer: true,
+    }),
   )
   .output(HelpCenter)
   .handler(async ({ input, context: { tx, member } }) => {
