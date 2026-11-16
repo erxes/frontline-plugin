@@ -33,8 +33,12 @@ const ROOT = `/${PLUGIN}`;
 const CALLS = `${ROOT}/calls`;
 const SETTINGS = `${ROOT}/settings`;
 
-// The inbox's queues and channels load with the inbox's API client, after the page module.
+// The inbox's count, queues and channels load with the inbox's API client, after the page module.
 const InboxNav = lazy(async () => ({ default: (await import('@/inbox/InboxNav.tsx')).InboxNav }));
+
+const InboxGroups = lazy(async () => ({
+  default: (await import('@/inbox/InboxNav.tsx')).InboxGroups,
+}));
 
 /** The open page, with a placeholder while a lazy one loads. */
 const Page = () => (
@@ -106,32 +110,37 @@ export const FrontlineLayout = () => {
         <AppLayoutFooterLink to={SETTINGS} name={t('settings', 'Settings')} icon={IconSettings} />
       }
       sidebar={
-        <Sidebar.Group variant="flush">
-          <Sidebar.GroupContent>
-            <Sidebar.Menu>
-              <Suspense
-                fallback={
+        <>
+          <Sidebar.Group variant="flush">
+            <Sidebar.GroupContent>
+              <Sidebar.Menu>
+                <Suspense
+                  fallback={
+                    <NavigationMenuLinkItem
+                      to={`${ROOT}/inbox`}
+                      name={t('inbox', 'Inbox')}
+                      icon={IconInbox}
+                    />
+                  }
+                >
+                  <InboxNav />
+                </Suspense>
+                {items.map((item) => (
                   <NavigationMenuLinkItem
-                    to={`${ROOT}/inbox`}
-                    name={t('inbox', 'Inbox')}
-                    icon={IconInbox}
+                    key={item.to}
+                    to={item.to}
+                    name={item.name}
+                    icon={item.icon}
                   />
-                }
-              >
-                <InboxNav />
-              </Suspense>
-              {items.map((item) => (
-                <NavigationMenuLinkItem
-                  key={item.to}
-                  to={item.to}
-                  name={item.name}
-                  icon={item.icon}
-                />
-              ))}
-              <CallsGroup />
-            </Sidebar.Menu>
-          </Sidebar.GroupContent>
-        </Sidebar.Group>
+                ))}
+                <CallsGroup />
+              </Sidebar.Menu>
+            </Sidebar.GroupContent>
+          </Sidebar.Group>
+          <Suspense fallback={null}>
+            <InboxGroups />
+          </Suspense>
+        </>
       }
     >
       <Page />

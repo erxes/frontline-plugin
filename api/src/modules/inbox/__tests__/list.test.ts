@@ -75,8 +75,16 @@ describe('inbox list', () => {
       mentioned: 0,
       unassigned: 2,
       awaitingResponse: 2,
-      channels: [{ id: channel.id, name: 'Support', icon: null, unread: 2 }],
+      channels: [{ id: channel.id, name: 'Support', icon: null, personal: false, unread: 2 }],
     });
+
+    // Their personal inbox comes first, flagged, so the sidebar shows it as My inbox.
+    const mine = await teammate.channels.personal();
+
+    expect((await teammate.conversations.counts({})).channels).toEqual([
+      { id: mine.id, name: 'Personal inbox', icon: null, personal: true, unread: 0 },
+      { id: channel.id, name: 'Support', icon: null, personal: false, unread: 2 },
+    ]);
 
     // Assigned to them, and mentioned in another's note: each queue counts its own.
     await owner.conversations.assign({ ids: [first], assigneeId: 'teammate' });
@@ -108,7 +116,10 @@ describe('inbox list', () => {
       unread: 1,
       assignedToMe: 0,
       awaitingResponse: 1,
-      channels: [expect.objectContaining({ unread: 1 })],
+      channels: [
+        expect.objectContaining({ personal: true }),
+        expect.objectContaining({ unread: 1 }),
+      ],
     });
     expect(await clientAs('org-ib-counts-other').conversations.counts({})).toMatchObject({
       unread: 0,

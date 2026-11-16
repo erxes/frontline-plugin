@@ -4,17 +4,21 @@ import {
   expect,
   expectAccessible,
   INBOX,
-  OWNER,
   test,
   unique,
   visitorOf,
 } from './fixtures.ts';
 
+// A daily agent: the inbox, their channels, and core's team list to assign from.
+const MEMBER = ['frontline.inbox.view', 'frontline.channel.view', 'team.view'];
+
 test('the sidebar’s queues and channels filter the inbox and count what waits unread, live', async ({
   page,
   request,
+  newMember,
 }) => {
-  const channel = await createChannel(page);
+  const teammate = await newMember(MEMBER);
+  const channel = await createChannel(page, teammate.fullName);
   const refund = `Refund for ${unique()}`;
 
   await page.goto(INBOX);
@@ -22,18 +26,21 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   const visitor = await visitorOf(request, await addMessenger(page, channel));
 
   await visitor.write(refund);
-  await page.goto(INBOX);
 
-  const queues = page.getByRole('list', { name: 'Work queue' });
-  const conversations = page.getByRole('list', { name: 'Conversations' });
+  const member = teammate.page;
+
+  await member.goto(INBOX);
+
+  const queues = member.getByRole('list', { name: 'Work queue' });
+  const conversations = member.getByRole('list', { name: 'Conversations' });
   const row = conversations.getByRole('button', { name: new RegExp(refund) });
 
-  const channelLink = page
-    .getByRole('list', { name: 'Channels' })
+  const channelLink = member
+    .getByRole('list', { name: 'Team inbox' })
     .getByRole('link', { name: new RegExp(`^${channel}`) });
 
   await expect(channelLink.getByLabel('1 unread')).toBeVisible();
-  await expectAccessible(page);
+  await expectAccessible(member);
 
   // Another conversation in the channel raises its count without a reload.
   await visitor.write(`Where is my parcel ${unique()}`);
@@ -41,7 +48,7 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
 
   // The channel's link narrows the inbox to it, as the filter bar's channel rule does.
   await channelLink.click();
-  await expect(page).toHaveURL(/advanced=.*channelId/);
+  await expect(member).toHaveURL(/advanced=.*channelId/);
   await expect(conversations.getByRole('listitem')).toHaveCount(2);
   await expect(channelLink).toHaveAttribute('data-active', 'true');
 
@@ -50,22 +57,96 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   await expect(row).toBeVisible();
   await queues.getByRole('link', { name: /^Awaiting response/ }).click();
   await expect(row).toBeVisible();
-  await expectAccessible(page);
+  await expectAccessible(member);
 
   // Opening it reads it. Mentions filters by the member's mentions; a second click clears it.
   await row.click();
   await expect(channelLink.getByLabel('1 unread')).toBeVisible();
   await queues.getByRole('link', { name: /^Mentions/ }).click();
-  await expect(page).toHaveURL(/mentionedUserIds/);
+  await expect(member).toHaveURL(/mentionedUserIds/);
   await queues.getByRole('link', { name: /^Mentions/ }).click();
-  await expect(page).toHaveURL(new RegExp(`${INBOX}$`));
+  await expect(member).toHaveURL(new RegExp(`${INBOX}$`));
 
   // Once assigned to the member, it shows under Assigned to me.
   await channelLink.click();
   await row.click();
-  await page.getByRole('button', { name: 'Assign', exact: true }).click();
-  await page.getByRole('option', { name: `${OWNER.firstName} ${OWNER.lastName}` }).click();
+  await member.getByRole('button', { name: 'Assign', exact: true }).click();
+  await member.getByRole('option', { name: teammate.fullName }).click();
   await queues.getByRole('link', { name: /^Assigned to me/ }).click();
-  await expect(page).toHaveURL(/assigneeId/);
+  await expect(member).toHaveURL(/assigneeId/);
   await expect(row).toBeVisible();
+});
+
+test('My inbox and Team inbox split the member’s channels; quiet ones fold, a filter finds any, and a folded group stays folded', async ({
+  page,
+  request,
+  newMember,
+}) => {
+  const teammate = await newMember(MEMBER);
+  const busy = await createChannel(page, teammate.fullName);
+  const quiet: string[] = [];
+
+  // Nine team channels: more than the sidebar lists before it folds, so the filter shows.
+  for (let made = 0; made < 8; made++) quiet.push(await createChannel(page, teammate.fullName));
+
+  await page.goto(INBOX);
+  await (await visitorOf(request, await addMessenger(page, busy))).write(`Hello ${unique()}`);
+
+  const member = teammate.page;
+  const first = quiet.at(0) ?? '';
+  const last = quiet.at(-1) ?? '';
+
+  // The personal inbox is made on the member's first visit to it, which then opens it.
+  await member.goto('/frontline/personal-channel');
+  await expect(member).toHaveURL(/settings\/channels\/.+/);
+  await member.goto(INBOX);
+
+  const mine = member.getByRole('list', { name: 'My inbox' });
+  const team = member.getByRole('list', { name: 'Team inbox' });
+  const link = (name: string) => team.getByRole('link', { name: new RegExp(`^${name}`) });
+
+  await expect(mine.getByRole('link', { name: /^Personal inbox/ })).toBeVisible();
+  await expect(team.getByRole('link', { name: /^Personal inbox/ })).toBeHidden();
+  await expect(link(busy).getByLabel('1 unread')).toBeVisible();
+  await expect(link(first)).toBeHidden();
+  await expectAccessible(member);
+
+  // The quiet channels fold behind one row, and come back.
+  await team.getByRole('button', { name: '8 quiet channels' }).click();
+  await expect(link(first)).toBeVisible();
+  await expect(link(last)).toBeVisible();
+  await team.getByRole('button', { name: 'Show fewer channels' }).click();
+  await expect(link(last)).toBeHidden();
+
+  // The filter searches every channel, folded or not.
+  const filter = team.getByRole('searchbox', { name: 'Filter channels' });
+
+  await filter.fill(last);
+  await expect(link(last)).toBeVisible();
+  await expect(link(busy)).toBeHidden();
+  await filter.fill(`nothing ${unique()}`);
+  await expect(team.getByText('No channel matches')).toBeVisible();
+  await filter.fill('');
+
+  // A folded group stays folded after a reload.
+  await member.getByRole('button', { name: 'Team inbox' }).click();
+  await expect(team).toBeHidden();
+  await member.reload();
+  await expect(member.getByRole('list', { name: 'Work queue' })).toBeVisible();
+  await expect(team).toBeHidden();
+  await member.getByRole('button', { name: 'Team inbox' }).click();
+  await expect(link(busy)).toBeVisible();
+});
+
+test('a member without the inbox permission gets the Inbox link and none of its groups', async ({
+  newMember,
+}) => {
+  const { page } = await newMember(['frontline.channel.view']);
+
+  await page.goto('/frontline/tickets');
+  await expect(page.getByRole('link', { name: 'Inbox', exact: true })).toBeVisible();
+  await expect(page.getByRole('list', { name: 'Work queue' })).toBeHidden();
+  await expect(page.getByRole('list', { name: 'My inbox' })).toBeHidden();
+  await expect(page.getByRole('list', { name: 'Team inbox' })).toBeHidden();
+  await expectAccessible(page);
 });
