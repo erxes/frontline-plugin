@@ -5,7 +5,6 @@ import {
   IconCalendarUp,
   IconLetterCase,
   IconMessageReply,
-  IconPlus,
   IconTrash,
   IconUser,
 } from '@tabler/icons-react';
@@ -29,12 +28,14 @@ import { type Channel, useChannel } from '@/channels/useChannels.ts';
 import { RESPONSE_TEMPLATE_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
-import { DateCell, PagedRows } from '~/shared/Table.tsx';
+import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import {
   type ResponseTemplate,
   useDeleteTemplates,
   useResponseTemplates,
 } from './useResponseTemplates.ts';
+
+const column = columnOf<ResponseTemplate>;
 
 /** The name opens the template in core's side panel, as a customer's name does. */
 const NameCell = ({ template }: { template: ResponseTemplate }) => {
@@ -88,46 +89,23 @@ const useColumns = (canManage: boolean): RecordTableColumnDef<ResponseTemplate>[
 
   return [
     ...(canManage ? manage : []),
-    {
-      id: 'name',
-      header: () => <RecordTable.InlineHead label={t('name', 'Name')} icon={IconLetterCase} />,
-      cell: ({ row }) => <NameCell template={row.original} />,
-      size: 240,
-    },
-    {
-      id: 'content',
-      header: () => <RecordTable.InlineHead label={t('content', 'Content')} icon={IconAlignLeft} />,
-      cell: ({ row }) => <TextCell value={editorText(row.original.content)} />,
-      size: 320,
-    },
-    {
-      id: 'createdBy',
-      header: () => (
-        <RecordTable.InlineHead label={t('created-by', 'Created by')} icon={IconUser} />
-      ),
-      cell: ({ row }) => (
-        <RecordTableInlineCell>
-          <MemberInline memberId={row.original.createdBy} members={memberQueries} />
-        </RecordTableInlineCell>
-      ),
-      size: 180,
-    },
-    {
-      id: 'createdAt',
-      header: () => (
-        <RecordTable.InlineHead label={t('created-at', 'Created at')} icon={IconCalendarPlus} />
-      ),
-      cell: ({ row }) => <DateCell date={row.original.createdAt} />,
-      size: 130,
-    },
-    {
-      id: 'updatedAt',
-      header: () => (
-        <RecordTable.InlineHead label={t('updated-at', 'Updated at')} icon={IconCalendarUp} />
-      ),
-      cell: ({ row }) => <DateCell date={row.original.updatedAt} />,
-      size: 130,
-    },
+    column('name', t('name', 'Name'), IconLetterCase, 240, (template) => (
+      <NameCell template={template} />
+    )),
+    column('content', t('content', 'Content'), IconAlignLeft, 320, (template) => (
+      <TextCell value={editorText(template.content)} />
+    )),
+    column('createdBy', t('created-by', 'Created by'), IconUser, 180, (template) => (
+      <RecordTableInlineCell>
+        <MemberInline memberId={template.createdBy} members={memberQueries} />
+      </RecordTableInlineCell>
+    )),
+    column('createdAt', t('created-at', 'Created at'), IconCalendarPlus, 130, (template) => (
+      <DateCell date={template.createdAt} />
+    )),
+    column('updatedAt', t('updated-at', 'Updated at'), IconCalendarUp, 130, (template) => (
+      <DateCell date={template.updatedAt} />
+    )),
   ];
 };
 
@@ -197,14 +175,13 @@ const TemplatesTable = ({ channel, onCreate }: { channel: Channel; onCreate: () 
           icon={<IconMessageReply />}
           title={t('no-responses-yet', 'No responses yet')}
           description={t(
-            'get-started-creating-first-response',
-            'Get started by creating your first response',
+            'response-templates-description',
+            'Saved replies that members of this channel insert into a conversation.',
           )}
           action={
             channel.canManage && (
               // The header's button holds the C shortcut; this one only clicks.
-              <Button variant="secondary" onClick={onCreate}>
-                <IconPlus />
+              <Button onClick={onCreate}>
                 {t('create-response-template', 'Create response template')}
               </Button>
             )
