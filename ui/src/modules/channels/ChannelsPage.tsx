@@ -201,11 +201,6 @@ export const ChannelsPage = () => {
             'no-channels-description',
             'A channel groups the inboxes, pipelines and members a team works with.',
           )}
-          action={
-            data?.canCreate && (
-              <Button onClick={create}>{t('create-channel', 'Create channel')}</Button>
-            )
-          }
         />
       ) : (
         <RecordTable.Provider

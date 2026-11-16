@@ -186,9 +186,6 @@ export const PipelinesPage = () => {
             'no-pipelines-description',
             'A pipeline holds the statuses and SLA a channel works its tickets by.',
           )}
-          action={
-            canManage && <Button onClick={create}>{t('create-pipeline', 'Create pipeline')}</Button>
-          }
         />
       ) : (
         <RecordTable.Provider
