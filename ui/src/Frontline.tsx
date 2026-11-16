@@ -1,6 +1,6 @@
-import { addPluginStyles, RecordPage, Skeleton } from 'erxes-ui';
-import { lazy, Suspense } from 'react';
-import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom';
+import { addPluginStyles, RecordPage } from 'erxes-ui';
+import { lazy } from 'react';
+import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { ChannelMembersPage } from '@/channels/ChannelMembersPage.tsx';
 import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
 import { PersonalChannel } from '@/channels/PersonalChannel.tsx';
@@ -21,6 +21,7 @@ import {
   SURVEY_TYPE,
   TICKET_TYPE,
 } from '~/plugin.ts';
+import { FrontlineLayout, SettingsLayout } from './Layout.tsx';
 import css from './styles.css?inline';
 
 addPluginStyles(PLUGIN, css);
@@ -28,13 +29,6 @@ addPluginStyles(PLUGIN, css);
 /** A record on its own page, where its panel's expand button leads: core draws it full size. */
 const RecordRoute = ({ contentType }: { contentType: string }) => (
   <RecordPage contentType={contentType} contentId={useParams().id ?? ''} />
-);
-
-/** The lazy pages under it, with a placeholder while one loads. */
-const Lazy = () => (
-  <Suspense fallback={<Skeleton className="m-3 h-40" />}>
-    <Outlet />
-  </Suspense>
 );
 
 // A module's screens load on first visit, so what web loads on every page stays small.
@@ -146,41 +140,67 @@ const ResponseTemplateRedirect = () => (
 /** The page module web renders under `/frontline/*` (loaded as `frontline_ui/frontline`). */
 export const Frontline = () => (
   <Routes>
-    <Route index element={<Navigate to="inbox" replace />} />
-    <Route path="inbox" element={<Lazy />}>
-      <Route index element={<InboxPage />} />
-      <Route path="integrations/:id" element={<RecordRoute contentType={INTEGRATION_TYPE} />} />
-      <Route path="messengers/:id" element={<MessengerSettingsPage />} />
+    <Route element={<FrontlineLayout />}>
+      <Route index element={<Navigate to="inbox" replace />} />
+      <Route path="inbox">
+        <Route index element={<InboxPage />} />
+        <Route path="integrations/:id" element={<RecordRoute contentType={INTEGRATION_TYPE} />} />
+        <Route path="messengers/:id" element={<MessengerSettingsPage />} />
+      </Route>
+      <Route path="tickets">
+        <Route index element={<TicketsPage />} />
+        <Route path=":id" element={<RecordRoute contentType={TICKET_TYPE} />} />
+      </Route>
+      <Route path="forms">
+        <Route index element={<FormsPage />} />
+        <Route path="submissions/:formId" element={<SubmissionsRedirect />} />
+        <Route path="submission/:id" element={<RecordRoute contentType={FORM_SUBMISSION_TYPE} />} />
+        <Route path=":id" element={<RecordRoute contentType={FORM_TYPE} />} />
+        <Route path=":id/builder" element={<FormBuilderPage />} />
+        <Route path=":id/submissions" element={<SubmissionsPage />} />
+      </Route>
+      <Route path="surveys">
+        <Route index element={<SurveysPage />} />
+        <Route path=":id" element={<RecordRoute contentType={SURVEY_TYPE} />} />
+      </Route>
+      <Route path="personal-channel" element={<PersonalChannel />} />
+      <Route path="calls">
+        <Route index element={<Navigate to="history" replace />} />
+        <Route path="history" element={<CallHistoryPage />} />
+        <Route path="history/:id" element={<RecordRoute contentType={CALL_TYPE} />} />
+        <Route path="queues" element={<QueuesPage />} />
+        <Route path="queues/:id" element={<QueuePage />} />
+        <Route path="dashboard" element={<Navigate to="../queues" replace />} />
+        <Route path="statistics" element={<Navigate to="../queues" replace />} />
+        <Route path="dashboard/:id" element={<QueueRedirect />} />
+        <Route path="statistics/:id" element={<QueueRedirect />} />
+        <Route path=":id" element={<QueueRedirect />} />
+      </Route>
+      <Route path="knowledgebase">
+        <Route index element={<TopicsPage />} />
+        <Route path="category/:id" element={<RecordRoute contentType={KB_CATEGORY_TYPE} />} />
+        <Route path="article/:id" element={<RecordRoute contentType={KB_ARTICLE_TYPE} />} />
+        <Route path=":id" element={<RecordRoute contentType={KB_TOPIC_TYPE} />} />
+        <Route path=":topicId/articles" element={<ArticlesPage />} />
+        <Route path=":topicId/categories" element={<CategoriesPage />} />
+        <Route path=":topicId/kbsettings" element={<TopicSettingsPage />} />
+      </Route>
     </Route>
-    <Route path="tickets" element={<Lazy />}>
-      <Route index element={<TicketsPage />} />
-      <Route path=":id" element={<RecordRoute contentType={TICKET_TYPE} />} />
-    </Route>
-    <Route path="forms" element={<Lazy />}>
-      <Route index element={<FormsPage />} />
-      <Route path="submissions/:formId" element={<SubmissionsRedirect />} />
-      <Route path="submission/:id" element={<RecordRoute contentType={FORM_SUBMISSION_TYPE} />} />
-      <Route path=":id" element={<RecordRoute contentType={FORM_TYPE} />} />
-      <Route path=":id/builder" element={<FormBuilderPage />} />
-      <Route path=":id/submissions" element={<SubmissionsPage />} />
-    </Route>
-    <Route path="surveys" element={<Lazy />}>
-      <Route index element={<SurveysPage />} />
-      <Route path=":id" element={<RecordRoute contentType={SURVEY_TYPE} />} />
-    </Route>
-    <Route path="settings/channels">
-      <Route index element={<ChannelsPage />} />
-      <Route path=":id" element={<RecordRoute contentType={CHANNEL_TYPE} />} />
-      <Route path=":id/members" element={<ChannelMembersPage />} />
-      <Route element={<Lazy />}>
+    <Route path="settings" element={<SettingsLayout />}>
+      <Route index element={<Navigate to="channels" replace />} />
+      <Route path="channels">
+        <Route index element={<ChannelsPage />} />
+        <Route path=":id" element={<RecordRoute contentType={CHANNEL_TYPE} />} />
+        <Route path=":id/members" element={<ChannelMembersPage />} />
         <Route path=":id/response" element={<ResponseTemplatesPage />} />
         <Route path=":id/response/:responseId" element={<ResponseTemplateRedirect />} />
         <Route path=":id/pipelines" element={<PipelinesPage />} />
       </Route>
-    </Route>
-    <Route path="personal-channel" element={<PersonalChannel />} />
-    <Route path="settings/pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
-    <Route path="settings" element={<Lazy />}>
+      <Route path="pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
+      <Route
+        path="response-templates/:id"
+        element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}
+      />
       <Route path="tags" element={<TagsPage />} />
       <Route path="departments" element={<TeamsPage key="department" kind="department" />} />
       <Route path="branches" element={<TeamsPage key="branch" kind="branch" />} />
@@ -190,31 +210,6 @@ export const Frontline = () => (
       <Route path="meta" element={<MetaPage />} />
       <Route path="meta/bots/:id" element={<RecordRoute contentType={META_BOT_TYPE} />} />
     </Route>
-    <Route
-      path="settings/response-templates/:id"
-      element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}
-    />
     <Route path="helpcenter" element={<Navigate to="../settings/help-centers" replace />} />
-    <Route path="calls" element={<Lazy />}>
-      <Route index element={<Navigate to="history" replace />} />
-      <Route path="history" element={<CallHistoryPage />} />
-      <Route path="history/:id" element={<RecordRoute contentType={CALL_TYPE} />} />
-      <Route path="queues" element={<QueuesPage />} />
-      <Route path="queues/:id" element={<QueuePage />} />
-      <Route path="dashboard" element={<Navigate to="../queues" replace />} />
-      <Route path="statistics" element={<Navigate to="../queues" replace />} />
-      <Route path="dashboard/:id" element={<QueueRedirect />} />
-      <Route path="statistics/:id" element={<QueueRedirect />} />
-      <Route path=":id" element={<QueueRedirect />} />
-    </Route>
-    <Route path="knowledgebase" element={<Lazy />}>
-      <Route index element={<TopicsPage />} />
-      <Route path="category/:id" element={<RecordRoute contentType={KB_CATEGORY_TYPE} />} />
-      <Route path="article/:id" element={<RecordRoute contentType={KB_ARTICLE_TYPE} />} />
-      <Route path=":id" element={<RecordRoute contentType={KB_TOPIC_TYPE} />} />
-      <Route path=":topicId/articles" element={<ArticlesPage />} />
-      <Route path=":topicId/categories" element={<CategoriesPage />} />
-      <Route path=":topicId/kbsettings" element={<TopicSettingsPage />} />
-    </Route>
   </Routes>
 );

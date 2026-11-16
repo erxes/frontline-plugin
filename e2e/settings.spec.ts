@@ -62,6 +62,50 @@ test('the owner adds, finds and deletes tags, departments, branches and ticket p
   await expectAccessible(page);
 });
 
+test('the sidebar opens every Frontline page, and Settings opens its own sidebar', async ({
+  page,
+}) => {
+  const pages = {
+    Inbox: '/frontline/inbox',
+    Tickets: '/frontline/tickets',
+    Forms: '/frontline/forms',
+    Surveys: '/frontline/surveys',
+    'Knowledge Base': '/frontline/knowledgebase',
+    History: '/frontline/calls/history',
+    Queues: '/frontline/calls/queues',
+  };
+
+  const settings = {
+    Tags: `${SETTINGS}/tags`,
+    Departments: `${SETTINGS}/departments`,
+    Branches: `${SETTINGS}/branches`,
+    'Ticket properties': `${SETTINGS}/ticket-properties`,
+    'Help centers': `${SETTINGS}/help-centers`,
+    Meta: `${SETTINGS}/meta`,
+    Channels: `${SETTINGS}/channels`,
+  };
+
+  await page.goto('/frontline/tickets');
+
+  for (const [name, path] of Object.entries(pages)) {
+    await page.getByRole('link', { name, exact: true }).click();
+    await expect(page).toHaveURL(new RegExp(`${path}(/|\\?|$)`));
+  }
+
+  await expectAccessible(page);
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await expect(page).toHaveURL(`${SETTINGS}/channels`);
+
+  for (const [name, path] of Object.entries(settings)) {
+    await page.getByRole('link', { name, exact: true }).click();
+    await expect(page).toHaveURL(path);
+  }
+
+  await expectAccessible(page);
+  await page.getByRole('link', { name: 'Exit settings' }).click();
+  await expect(page).toHaveURL(/\/frontline\/inbox/);
+});
+
 test('a channel member reads the settings, and a member without frontline permissions is refused', async ({
   page,
   newMember,
