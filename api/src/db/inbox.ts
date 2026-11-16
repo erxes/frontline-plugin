@@ -155,6 +155,8 @@ export const messages = table(
       .notNull()
       .default(sql`'{}'`),
     replyToId: text(),
+    /** The survey a member sent, which the customer votes on in this message. */
+    surveyId: text(),
     externalId: text(),
     deliveryStatus: text({ enum: DELIVERY_STATUSES }),
     providerData: jsonb().$type<Record<string, unknown>>(),

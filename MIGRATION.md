@@ -173,8 +173,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] permission `surveyEdit` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:246`
 - [x] permission `surveyRemove` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:251`
 - [x] permission `surveyToggleStatus` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:256`
-- [ ] permission `surveySendToConversation` (survey) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:261`
-  - note: a survey sent into a conversation needs a message the visitor votes in, and inbox messages are plain text (the `surveySendToConversation` row in DECISIONS.md)
+- [x] permission `surveySendToConversation` (survey) → `frontline.survey.send`, with membership of the conversation's channel `frontline_api/src/meta/permissions.ts:261`
 - [x] permission `showCallReports` (callReport) → `frontline.call.view`; reach stays in the plugin: channel members see their channels' calls, `frontline.channel.manage` sees all, and a member sees the queues of the PBXs they answer `frontline_api/src/meta/permissions.ts:275`
 - [x] permission `showAllCallReports` (callReport) → `frontline.call.view`; reach stays in the plugin: channel members see their channels' calls, `frontline.channel.manage` sees all `frontline_api/src/meta/permissions.ts:281`
 - [x] permission `showResponseTemplates` (responseTemplate) → `frontline.channel.view`, for the template's channel members. Decision: a template belongs to a channel, so the channel's rights decide, with no grant of its own. `frontline_api/src/meta/permissions.ts:296`
@@ -1300,8 +1299,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `surveyEdit` → `surveys.update`, which keeps each step's and option's id so votes stay with them `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 - [x] mutation `surveyRemove` → `surveys.remove` `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 - [x] mutation `surveyToggleStatus` → `surveys.setStatus`. Decision: only pending to active or rejected, rejected to active, and active to archived and back `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
-- [ ] mutation `surveySendToConversation` → procedure `survey.surveySendToConversation` (returns `ConversationMessage`) `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
-  - note: a survey sent into a conversation needs a message the visitor votes in, and inbox messages are plain text (the `surveySendToConversation` row in DECISIONS.md)
+- [x] mutation `surveySendToConversation` → `surveys.send`, a message with `surveyId` the messenger's visitor votes on at `/api/public/messenger/surveys/:messageId`; `surveys.sendable` lists what the composer offers `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 - [x] mutation `cpSurveySubmit` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 - [x] mutation `cpSurveyAdd` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 - [x] mutation `cpSurveyEdit` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`

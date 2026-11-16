@@ -7,6 +7,7 @@ import { BrowserInfo } from '#/db/messenger.ts';
 import { logger } from '#/logger.ts';
 import { fail } from '../fail.ts';
 import { customerFor } from '../inbox/receive.ts';
+import { voteRoutes } from '../surveys/votes.ts';
 import { isOnlineAt, messenger } from './adapter.ts';
 import { messengerOf, tokenOf, visitorOf } from './session.ts';
 import { streaming, subscribe } from './stream.ts';
@@ -142,6 +143,8 @@ export const messengerRoutes = () => {
   router.post('/conversations/:id/read', threadRoutes.markRead);
   router.post('/conversations/:id/typing', threadRoutes.typing);
   router.post('/conversations/:id/person', threadRoutes.askForPerson);
+  router.get('/surveys/:messageId', voteRoutes.read);
+  router.post('/surveys/:messageId/votes', voteRoutes.vote);
   router.get('/stream', stream);
 
   return router;

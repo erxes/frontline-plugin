@@ -121,4 +121,5 @@ export const messenger = {
   kind: 'messenger',
   label: 'Messenger',
   config: MessengerConfig,
+  surveys: true,
 } satisfies Adapter;

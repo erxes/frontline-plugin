@@ -34,6 +34,8 @@ export const PERMISSIONS = {
   helpCenterManage: 'frontline.help_center.manage',
   /** Read and answer the conversations of the channels you belong to. */
   inboxView: 'frontline.inbox.view',
+  /** Send a channel's active surveys into its conversations. */
+  surveySend: 'frontline.survey.send',
   /** See the connected pages, bots and mailboxes. */
   integrationView: 'frontline.integration.view',
   /** Connect, check and remove pages, bots and mailboxes. */

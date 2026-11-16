@@ -6,6 +6,7 @@ import {
   index,
   integer,
   jsonb,
+  primaryKey,
   text,
   timestamp,
   unique,
@@ -128,5 +129,31 @@ export const surveyVotes = table(
     }).onDelete('cascade'),
     uniqueIndex('frontline_survey_votes_org_message_voter_key').on(t.orgId, t.messageId, t.voterId),
     index('frontline_survey_votes_org_survey_idx').on(t.orgId, t.surveyId),
+  ],
+);
+
+/**
+ * The ticket an option's votes opened when they reached its threshold: once per option, so a
+ * changed vote that crosses it again opens none. Deleting the survey deletes the rows.
+ */
+export const surveyTickets = table(
+  'survey_tickets',
+  {
+    orgId: text().notNull(),
+    surveyId: text().notNull(),
+    optionId: text().notNull(),
+    ticketId: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({
+      name: 'frontline_survey_tickets_pkey',
+      columns: [t.orgId, t.surveyId, t.optionId],
+    }),
+    foreignKey({
+      name: 'frontline_survey_tickets_survey_fkey',
+      columns: [t.orgId, t.surveyId],
+      foreignColumns: [surveys.orgId, surveys.id],
+    }).onDelete('cascade'),
   ],
 );

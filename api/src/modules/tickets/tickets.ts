@@ -3,6 +3,7 @@ import { and, asc, count, eq, ilike, or, sql } from 'drizzle-orm';
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
+import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
@@ -174,33 +175,44 @@ const create = writes(PERMISSIONS.channelView)
 
     if (!status) throw new ORPCError('BAD_REQUEST', { message: 'Pick a status of this pipeline' });
 
-    const [number = null] = await nextNumbers(tx, pipeline.id, 1);
+    const id = await insertTicket(tx, member, {
+      ...input,
+      propertiesData: properties,
+      channelId: pipeline.channelId,
+      statusId: status.id,
+      createdBy: member.userId,
+    });
 
-    const [created] = await tx
-      .insert(tickets)
-      .values({
-        ...input,
-        propertiesData: properties,
-        orgId: member.orgId,
-        channelId: pipeline.channelId,
-        statusId: status.id,
-        number,
-        statusChangedBy: member.userId,
-        createdBy: member.userId,
-      })
-      .returning({ id: tickets.id });
-
-    if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
-
-    await refreshSla(tx, [created.id]);
-    await publish(
-      tx,
-      member,
-      (await snapshot(tx, [created.id])).map((row) => createdEvent(row)),
-    );
-    await signalTickets(tx, member);
-
-    return ticketById(tx, member, created.id);
+    return ticketById(tx, member, id);
   });
+
+/**
+ * Adds a ticket numbered by its pipeline and due by its SLA, and publishes its creation, by a
+ * member or by the plugin itself (`userId` null), as a survey's vote count does.
+ */
+export const insertTicket = async (
+  tx: Tx,
+  actor: { orgId: string; userId: string | null },
+  values: Omit<typeof tickets.$inferInsert, 'orgId' | 'number' | 'statusChangedBy'>,
+) => {
+  const [number = null] = await nextNumbers(tx, values.pipelineId, 1);
+
+  const [created] = await tx
+    .insert(tickets)
+    .values({ ...values, orgId: actor.orgId, number, statusChangedBy: actor.userId })
+    .returning({ id: tickets.id });
+
+  if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+  await refreshSla(tx, [created.id]);
+  await publish(
+    tx,
+    actor,
+    (await snapshot(tx, [created.id])).map((row) => createdEvent(row)),
+  );
+  await signalTickets(tx, actor);
+
+  return created.id;
+};
 
 export const ticketProcedures = { list, get, create };

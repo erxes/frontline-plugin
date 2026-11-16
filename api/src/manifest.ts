@@ -110,6 +110,11 @@ export const manifest = {
       group: 'Inbox',
     },
     {
+      action: PERMISSIONS.surveySend,
+      label: 'Send surveys into conversations',
+      group: 'Inbox',
+    },
+    {
       action: PERMISSIONS.integrationView,
       label: 'See connected pages, bots and mailboxes',
       group: 'Integrations',
@@ -136,6 +141,7 @@ export const manifest = {
       permissions: [
         PERMISSIONS.channelView,
         PERMISSIONS.inboxView,
+        PERMISSIONS.surveySend,
         PERMISSIONS.kbView,
         PERMISSIONS.helpCenterView,
       ],

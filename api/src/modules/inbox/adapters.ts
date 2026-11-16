@@ -37,6 +37,8 @@ export type Adapter = {
    * visitors read theirs from the inbox.
    */
   send?: (outgoing: Outgoing) => Promise<{ externalId: string | null }>;
+  /** Whether its customers see a survey message and vote on it, as the messenger's visitors do. */
+  surveys?: boolean;
 };
 
 /** Every adapter, by kind. */

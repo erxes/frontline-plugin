@@ -34,6 +34,7 @@ import { operatorProcedures } from '#/modules/inbox/operator.ts';
 import { presenceProcedures } from '#/modules/inbox/presence.ts';
 import { messengerProcedures } from '#/modules/messenger/settings.ts';
 import { settingsProcedures } from '#/modules/settings/settings.ts';
+import { surveySendProcedures } from '#/modules/surveys/send.ts';
 import { surveyStatusProcedures } from '#/modules/surveys/status.ts';
 import { surveyProcedures } from '#/modules/surveys/surveys.ts';
 import { tagProcedures } from '#/modules/tags/tags.ts';
@@ -59,7 +60,7 @@ export const router = {
     fields: fieldProcedures,
     submissions: submissionProcedures,
   },
-  surveys: { ...surveyProcedures, ...surveyStatusProcedures },
+  surveys: { ...surveyProcedures, ...surveyStatusProcedures, ...surveySendProcedures },
   integrations: {
     ...integrationProcedures,
     messenger: messengerProcedures,

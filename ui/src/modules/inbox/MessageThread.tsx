@@ -30,6 +30,7 @@ import {
   usePinMessage,
   usePinnedMessages,
 } from './queries.ts';
+import { SentSurvey } from '~/modules/surveys/SurveyMessage.tsx';
 import { MemberLine } from '~/shared/MemberLine.tsx';
 import { useSendShortcut } from './useSendShortcut.ts';
 
@@ -221,6 +222,7 @@ const Bubble = ({ message, customerName }: { message: Message; customerName: str
           <MessageBody message={message} />
         )}
         <Attachments files={message.attachments} />
+        {message.surveyId && <SentSurvey surveyId={message.surveyId} />}
       </div>
     </li>
   );

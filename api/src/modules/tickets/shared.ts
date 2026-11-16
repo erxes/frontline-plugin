@@ -264,5 +264,5 @@ export const refreshSla = (tx: Tx, ids: string[]) => {
 };
 
 /** Tells the organisation's open ticket screens to refetch, once the change commits. */
-export const signalTickets = (tx: Tx, member: PluginMember) =>
-  tx.execute(sql`select core_live_signal(${member.orgId}, 'frontline', 'tickets')`);
+export const signalTickets = (tx: Tx, actor: { orgId: string }) =>
+  tx.execute(sql`select core_live_signal(${actor.orgId}, 'frontline', 'tickets')`);

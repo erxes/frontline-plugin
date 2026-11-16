@@ -9,6 +9,7 @@ import { Button, cn, Editor, editorText, IconTip, Kbd, Resizable, Tabs } from 'e
 import { type ReactNode, type SubmitEvent, useRef, useState } from 'react';
 import type { PanelImperativeHandle } from 'react-resizable-panels';
 import { useTranslation } from 'react-i18next';
+import { SendSurvey } from '~/modules/surveys/SurveyMessage.tsx';
 import { type Attachment, FileList, FilePicker } from '~/shared/Files.tsx';
 import { type Conversation, useSendMessage, useSendTyping } from './queries.ts';
 import { useSlashItems } from './slashItems.tsx';
@@ -83,10 +84,12 @@ const FoldButton = ({ folded, onClick }: { folded: boolean; onClick: () => void 
  * shortcut and Send, or Add note in a note.
  */
 const Actions = ({
+  conversationId,
   note,
   disabled,
   onUploaded,
 }: {
+  conversationId: string;
   note: boolean;
   disabled: boolean;
   onUploaded: (file: Attachment) => void;
@@ -96,6 +99,7 @@ const Actions = ({
   return (
     <div className="flex items-center gap-2">
       <FilePicker label={t('attach-file', 'Attach file')} onUploaded={onUploaded} />
+      {!note && <SendSurvey conversationId={conversationId} />}
       <span className="flex-1 text-xs text-muted-foreground">
         {note
           ? t('note-hint', 'Only your team sees notes. Type / to mention a teammate.')
@@ -200,6 +204,7 @@ const ReplyBox = ({
             />
           )}
           <Actions
+            conversationId={conversation.id}
             note={note}
             disabled={send.isPending || empty}
             onUploaded={(file) => setAttachments((files) => [...files, file])}
