@@ -54,7 +54,8 @@ products, with their tags and custom fields. It also owns files,
 notifications, email sending, the timeline, audit, events, automations, live
 updates and payments.
 Frontline owns everything else it does, including tags and custom fields for
-its own records and `frontline_teams`. The API reaches core only through
+its own records. Branches and departments are core's units; `frontline_teams`
+is a read-only copy for SQL. The API reaches core only through
 `@erxes/plugin-sdk`, and the UI only through `@erxes/core-contract/client`.
 Never read a `core_*` table. The client portal became core's client accounts,
 segments became saved views, and brands are gone.
@@ -93,7 +94,7 @@ Frontline builds these in its own tables, with no core change:
   with a key from the environment.
 - Visitor live updates. Core's stream serves members, so frontline pushes new
   messages to messenger visitors itself. Members get `core.signal`.
-- Teams. `frontline_teams`, as above.
+- Teams. Core's units, copied to `frontline_teams` by `modules/teams/sync.ts`.
 
 ## Verification without theatre
 

@@ -16,7 +16,7 @@ import {
   HELPERS,
   isClientPortal,
   isStructureField,
-  OWN_TEAMS,
+  CORE_UNITS,
   pluginCall,
   PUBLIC_ROUTE,
   REGISTRATIONS,
@@ -311,7 +311,7 @@ for (const call of inventory.trpcCalls) {
     equivalent.kind,
   );
 
-  if (equivalent === OWN_TEAMS) usesTeams = true;
+  if (equivalent === CORE_UNITS) usesTeams = true;
 }
 
 // Old core's structure: the plugin keeps its own departments and branches, imported with
@@ -322,8 +322,8 @@ for (const schema of inventory.schemas) {
     add(
       schema.module,
       'Tables',
-      `\`${schema.name}.${field.name}\` → plugin-owned: ids in \`${TEAMS}\`, unchanged by the import ${at(schema)}`,
-      OWN_TEAMS.kind,
+      `\`${schema.name}.${field.name}\` → core units: ids kept by \`units.import\`, copied to \`${TEAMS}\` ${at(schema)}`,
+      CORE_UNITS.kind,
     );
   }
 }
@@ -332,8 +332,8 @@ if (usesTeams) {
   add(
     '(plugin)',
     'Tables',
-    `\`${TEAMS}\` and \`${TEAM_MEMBERS}\` from old core's \`departments\`, \`branches\` and the members' \`departmentIds\` and \`branchIds\` (drafts in migration/schema-draft.ts, imported by scripts/import-mongo.ts): core has no departments or branches`,
-    OWN_TEAMS.kind,
+    `\`${TEAMS}\` and \`${TEAM_MEMBERS}\` from old core's \`departments\`, \`branches\` and the members' \`departmentIds\` and \`branchIds\` (drafts in migration/schema-draft.ts, imported by scripts/import-mongo.ts): a read-only copy of core's units, which the plugin brings to core once with \`units.import\` and refreshes from \`core.unit.*\` events`,
+    CORE_UNITS.kind,
   );
 }
 
@@ -609,7 +609,7 @@ for (const collection of inventory.collections) {
 if (usesTeams) {
   tables.push(
     [
-      "/** Old core's departments and branches, now the plugin's. Ids are the Mongo `_id`s. */",
+      "/** A read-only copy of core's branches and departments. Imported ones keep the Mongo `_id`s. */",
       `export const ${camel(TEAMS)} = table(`,
       "  'teams',",
       '  {',

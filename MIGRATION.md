@@ -12,7 +12,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_teams` and `frontline_team_members` from old core's `departments`, `branches` and the members' `departmentIds` and `branchIds` (drafts in migration/schema-draft.ts, imported by scripts/import-mongo.ts): core has no departments or branches. `frontline_teams` and `frontline_team_members` in `api/src/db/teams.ts`, kind department or branch, at `/frontline/settings/departments` and `/frontline/settings/branches`
+- [x] `frontline_teams` and `frontline_team_members` from old core's `departments`, `branches` and the members' `departmentIds` and `branchIds` (drafts in migration/schema-draft.ts, imported by scripts/import-mongo.ts): a read-only copy of core's units, which the plugin brings to core once with `units.import` and refreshes from `core.unit.*` events. `api/src/db/teams.ts` and `api/src/modules/teams/sync.ts`; members edit them at core's `/settings/structure`
 
 ### Pages
 
@@ -503,7 +503,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_form_fields` from collection `frontline_form_fields` (37 fields, draft `frontlineFormFields` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/fields.ts:137`. Only forms use it now, so the property fields (`groupId`, `isVisible`, `showInCard`, `productCategoryId` and the rest) are gone; `validation` and `regexValidation` fold into `validator`, a preset or an RE2 pattern; customer fields are types such as `core:customer:email`
 - [x] `frontline_forms` from collection `frontline_forms` (20 fields, draft `frontlineForms` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:318`. `leadData` flattens into columns; its email, redirect, CSS, template and `rules` settings are gone (DECISIONS.md, Forms)
 - [x] `frontline_form_submissions` from collection `frontline_form_submissions` (13 fields, draft `frontlineFormSubmissions` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:114`. One row per submission, with one `frontline_form_answers` row per answered field; `aboutRecord` is `referenceType` and `referenceId`
-- [ ] `formSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/form/db/definitions/forms.ts:318`
+- [ ] `formSchema.departmentIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/form/db/definitions/forms.ts:318`
   - note: tags and departments on a form wait for their ports (the forms row in DECISIONS.md); a form follows its channel
 
 ### Procedures
@@ -1178,7 +1178,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 ### Tables
 
 - [x] `frontline_report_charts` from collection `frontline_report_charts` (7 fields, draft `frontlineReportCharts` in migration/schema-draft.ts) `frontline_api/src/modules/reports/db/definitions/chart.ts:45`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] `reportChartFiltersSchema.branchIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/reports/db/definitions/chart.ts:13`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] `reportChartFiltersSchema.branchIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/reports/db/definitions/chart.ts:13`. (filed https://github.com/erxes/erxes/issues/10581)
 
 ### Procedures
 
@@ -1363,20 +1363,20 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_tickets_notes` from collection `frontline_tickets_notes` (8 fields, draft `frontlineTicketsNotes` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/note.ts:9`. Core's Activity tab holds the notes (decision)
   - note: no table; notes are core's timeline notes on the ticket's Activity tab. The old notes wait for core to import timeline notes
 - [x] `frontline_ticket_configs` from collection `frontline_ticket_configs` (7 fields, draft `frontlineTicketConfigs` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/ticketConfig.ts:36`. Folded into `frontline_ticket_properties` (decision)
-- [x] `ticketPipelineSchema.isCheckDepartment` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. `frontline_pipelines.is_check_department`
-- [x] `ticketPipelineSchema.isCheckBranch` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. `frontline_pipelines.is_check_branch`
-- [x] `ticketPipelineSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. Dropped (decision)
-- [x] `ticketPipelineSchema.branchIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. Dropped (decision)
-- [x] `statusSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/status.ts:4`. Dropped (decision)
-- [x] `ticketSchema.branchId` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`. `frontline_tickets.branch_id`, a branch in `frontline_teams`
+- [x] `ticketPipelineSchema.isCheckDepartment` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. `frontline_pipelines.is_check_department`
+- [x] `ticketPipelineSchema.isCheckBranch` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. `frontline_pipelines.is_check_branch`
+- [x] `ticketPipelineSchema.departmentIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. Dropped (decision)
+- [x] `ticketPipelineSchema.branchIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. Dropped (decision)
+- [x] `statusSchema.departmentIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/definitions/status.ts:4`. Dropped (decision)
+- [x] `ticketSchema.branchId` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`. `frontline_tickets.branch_id`, a branch in `frontline_teams`
   - note: waits for teams; the import map keeps the column for it
-- [x] `ticketSchema.departmentId` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`. `frontline_tickets.department_id`, a department in `frontline_teams`
+- [x] `ticketSchema.departmentId` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`. `frontline_tickets.department_id`, a department in `frontline_teams`
   - note: waits for teams; the import map keeps the column for it
-- [x] `ticketPipelineSchema.isCheckDepartment` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`. `frontline_pipelines.is_check_department`
-- [x] `ticketPipelineSchema.isCheckBranch` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`. `frontline_pipelines.is_check_branch`
-- [x] `ticketPipelineSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`. Dropped (decision)
-- [x] `ticketPipelineSchema.branchIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/pipeline.ts:14`. Dropped (decision)
-- [x] `statusSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/ticket/db/status.ts:9`. Dropped (decision)
+- [x] `ticketPipelineSchema.isCheckDepartment` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/pipeline.ts:14`. `frontline_pipelines.is_check_department`
+- [x] `ticketPipelineSchema.isCheckBranch` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/pipeline.ts:14`. `frontline_pipelines.is_check_branch`
+- [x] `ticketPipelineSchema.departmentIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/pipeline.ts:14`. Dropped (decision)
+- [x] `ticketPipelineSchema.branchIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/pipeline.ts:14`. Dropped (decision)
+- [x] `statusSchema.departmentIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/status.ts:9`. Dropped (decision)
 
 ### Procedures
 
@@ -1475,7 +1475,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
   - note: waits for customers and companies on tickets; the import map keeps `company_id`
 - [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/ticket/utils/pipelineProperties.ts:15`. `frontline_ticket_properties`
   - note: waits for custom properties
-- [ ] core `branches.findOne` → plugin-owned `frontline_teams` (the plugin's departments and branches; members in frontline_team_members, names from users.list (users:read)) `frontline_api/src/modules/ticket/utils/slaCalendar.ts:26`
+- [ ] core `branches.findOne` → sdk `units.list` (scopes units:read and units:write, subscription core.unit.*; a read-only copy in frontline_teams and frontline_team_members, old ones brought to core once with units.import) `frontline_api/src/modules/ticket/utils/slaCalendar.ts:26`
   - note: SLA due times count calendar hours: `frontline_teams` (`api/src/db/teams.ts`) has no working hours or holidays yet
 - [x] core `<module>.findWithChild` → **gap**: not in migration/core-map.ts yet `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:29`. `teamsOf` walks `frontline_teams.parent_id`
   - note: waits for teams
@@ -1483,7 +1483,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
   - note: waits for teams
 - [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/ticket/utils/ticketConfig.ts:30`. `frontline_ticket_properties`
   - note: waits for the configs tab
-- [x] core `departments.findWithChild` → plugin-owned `frontline_teams` (the plugin's departments and branches; members in frontline_team_members, names from users.list (users:read)) `frontline_api/src/modules/ticket/utils/ticketVisibility.ts:107`. `teamsOf` walks `frontline_teams.parent_id`
+- [x] core `departments.findWithChild` → sdk `units.list` (scopes units:read and units:write, subscription core.unit.*; a read-only copy in frontline_teams and frontline_team_members, old ones brought to core once with units.import) `frontline_api/src/modules/ticket/utils/ticketVisibility.ts:107`. `teamsOf` walks `frontline_teams.parent_id`
   - note: waits for teams and the permissions tab; until then a channel's members see all its tickets
 
 ### Events

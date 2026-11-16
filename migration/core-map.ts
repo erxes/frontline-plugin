@@ -23,12 +23,14 @@ const gap = (note: string): Equivalent => ({ kind: 'gap', to: '', note });
 const drop = (note: string): Equivalent => ({ kind: 'drop', to: '', note });
 
 /**
- * Old core's structure (departments, branches, units, positions): core has none. A plugin that
- * used it keeps its own teams; migration/checklist.ts drafts the tables and the import.
+ * Old core's structure (departments, branches, units, positions): branches and departments are
+ * core's units. A plugin that joins them in SQL keeps a read-only copy, refreshed from
+ * `core.unit.*` events, and brings the old ones to core once with `units.import`, which keeps
+ * their ids; migration/checklist.ts drafts the copy's tables and the import.
  */
-export const OWN_TEAMS = owned(
-  '<plugin>_teams',
-  "the plugin's departments and branches; members in <plugin>_team_members, names from users.list (users:read)",
+export const CORE_UNITS = sdk(
+  'units.list',
+  'scopes units:read and units:write, subscription core.unit.*; a read-only copy in <plugin>_teams and <plugin>_team_members, old ones brought to core once with units.import',
 );
 
 /** A field holding old structure ids or switches: `departmentIds`, `branchId`, `isCheckBranch`. */
@@ -44,10 +46,10 @@ export const CLIENT_PORTAL = drop('the new core has no client portal');
 export const WHOLE_MODULES: Record<string, Equivalent> = {
   segment: NO_SEGMENTS,
   segments: NO_SEGMENTS,
-  branches: OWN_TEAMS,
-  departments: OWN_TEAMS,
-  units: OWN_TEAMS,
-  positions: OWN_TEAMS,
+  branches: CORE_UNITS,
+  departments: CORE_UNITS,
+  units: CORE_UNITS,
+  positions: CORE_UNITS,
   brands: drop('the new core has no brands; leave brand ids and names out'),
   clientPortal: CLIENT_PORTAL,
   clientPortals: CLIENT_PORTAL,
@@ -174,8 +176,8 @@ export const CORE_CALLS: Record<string, Equivalent> = {
     'bounces and opt-outs the plugin hears from its mailbox',
   ),
   'automation.find': OWN_AUTOMATION,
-  'branches.findOne': OWN_TEAMS,
-  'departments.findWithChild': OWN_TEAMS,
+  'branches.findOne': CORE_UNITS,
+  'departments.findWithChild': CORE_UNITS,
   'organization.identity': owned('nothing', 'the organisation id is in every token (orgId)'),
 };
 
