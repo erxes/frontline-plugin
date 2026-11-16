@@ -2,18 +2,34 @@ import { contactQueries } from '@erxes/core-contract/client';
 import { ORPCError } from '@orpc/client';
 import { IconMail, IconMessages, IconPhone, IconTicket, IconUser } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { Badge, ContactLink, PanelSection, RelativeDateDisplay } from 'erxes-ui';
+import {
+  Badge,
+  Button,
+  ContactLink,
+  IconTip,
+  PanelSection,
+  RelativeDateDisplay,
+  stored,
+} from 'erxes-ui';
+import { useAtom } from 'jotai';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
+import { PLUGIN } from '~/plugin.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
 import { TicketRelations, useContactTickets } from '@/tickets/TicketRelations.tsx';
 import { useSelectConversation } from './ConversationList.tsx';
+import { VisitorPresence } from './ConversationPresence.tsx';
 import { useStatusNames } from './InboxFilter.tsx';
 import type { Conversation } from './queries.ts';
 
-/** Who the customer is: their chip, which opens them in core's side panel, and how to reach them. */
-const Customer = ({ customerId }: { customerId: string }) => {
+/**
+ * Who the customer is: their chip, which opens them in core's side panel, how to reach them and,
+ * for a messenger visitor, whether they are online.
+ */
+const Customer = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
+  const { customerId } = conversation;
   const customer = useQuery(contactQueries.customer(customerId)).data;
 
   return (
@@ -24,6 +40,7 @@ const Customer = ({ customerId }: { customerId: string }) => {
         contacts={contactQueries}
         placeholder={t('visitor', 'Visitor')}
       />
+      <VisitorPresence conversation={conversation} />
       {customer?.primaryEmail && (
         <InfoRow icon={IconMail} label={t('email', 'Email')}>
           <span className="truncate">{customer.primaryEmail}</span>
@@ -34,21 +51,6 @@ const Customer = ({ customerId }: { customerId: string }) => {
           {customer.primaryPhone}
         </InfoRow>
       )}
-    </PanelSection>
-  );
-};
-
-/** The customer's tickets, for a member who may read tickets. */
-const Tickets = ({ customerId }: { customerId: string }) => {
-  const { t } = useTranslation('frontline');
-  const contacts = { customerIds: [customerId], companyIds: [] };
-  const { error } = useContactTickets(contacts);
-
-  if (error instanceof ORPCError && error.code === 'FORBIDDEN') return null;
-
-  return (
-    <PanelSection title={t('tickets', 'Tickets')} icon={IconTicket}>
-      <TicketRelations {...contacts} />
     </PanelSection>
   );
 };
@@ -106,21 +108,75 @@ const OtherConversations = ({ conversation }: { conversation: Conversation }) =>
   );
 };
 
+const PANELS = ['customer', 'tickets', 'conversations'] as const;
+
+/** The panel open beside the conversation, or none, as the old inbox started. */
+const openPanel = stored({
+  key: `${PLUGIN}:inbox-panel`,
+  schema: z.enum(PANELS).nullable(),
+  initial: null,
+});
+
 /**
- * Beside the open conversation, as the old inbox's side widget: the customer, their tickets and
- * their other conversations.
+ * Beside the open conversation, as the old inbox's side widget: a thin rail of icons, each
+ * opening one panel, the customer, their tickets or their other conversations. Tickets shows
+ * only to a member who may read them.
  */
 export const CustomerSidebar = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
+  const [panel, setPanel] = useAtom(openPanel);
+  const contacts = { customerIds: [conversation.customerId], companyIds: [] };
+  const { error } = useContactTickets(contacts);
+  const ticketsAllowed = !(error instanceof ORPCError && error.code === 'FORBIDDEN');
+
+  const rail = (
+    [
+      { id: 'customer', icon: IconUser, label: t('customer', 'Customer') },
+      { id: 'tickets', icon: IconTicket, label: t('tickets', 'Tickets') },
+      {
+        id: 'conversations',
+        icon: IconMessages,
+        label: t('other-conversations', 'Other conversations'),
+      },
+    ] as const
+  ).filter((item) => item.id !== 'tickets' || ticketsAllowed);
 
   return (
-    <aside
-      aria-label={t('customer-details', 'Customer details')}
-      className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l lg:flex"
-    >
-      <Customer customerId={conversation.customerId} />
-      <Tickets customerId={conversation.customerId} />
-      <OtherConversations conversation={conversation} />
-    </aside>
+    <>
+      {panel && (panel !== 'tickets' || ticketsAllowed) && (
+        <aside
+          aria-label={t('customer-details', 'Customer details')}
+          className="flex w-72 shrink-0 flex-col overflow-y-auto border-l"
+        >
+          {panel === 'customer' && <Customer conversation={conversation} />}
+          {panel === 'tickets' && (
+            <PanelSection title={t('tickets', 'Tickets')} icon={IconTicket}>
+              <TicketRelations {...contacts} />
+            </PanelSection>
+          )}
+          {panel === 'conversations' && <OtherConversations conversation={conversation} />}
+        </aside>
+      )}
+      <div
+        role="toolbar"
+        aria-orientation="vertical"
+        aria-label={t('customer-panels', 'Customer panels')}
+        className="flex shrink-0 flex-col items-center gap-1 border-l p-1"
+      >
+        {rail.map(({ id, icon: Icon, label }) => (
+          <IconTip key={id} label={label}>
+            <Button
+              variant={panel === id ? 'secondary' : 'ghost'}
+              size="icon"
+              aria-label={label}
+              aria-pressed={panel === id}
+              onClick={() => setPanel(panel === id ? null : id)}
+            >
+              <Icon />
+            </Button>
+          </IconTip>
+        ))}
+      </div>
+    </>
   );
 };

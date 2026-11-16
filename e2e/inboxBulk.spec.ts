@@ -82,17 +82,22 @@ test('a member finds a customer by email, then tags, resolves and assigns their 
   await expect(conversations.getByRole('listitem')).toHaveCount(0);
   await search(page, email, 'resolved');
   await expect(conversations.getByRole('listitem')).toHaveCount(2);
-  await expect(conversations.getByText('Resolved')).toHaveCount(2);
   await expectAccessible(page);
 
   // A member outside the channel finds none of them.
   await search(outsider.page, email);
   await expect(outsider.page.getByText('No results found')).toBeVisible();
 
-  // Assign both to the teammate in one go.
-  await picks.nth(0).click();
-  await picks.nth(1).click();
+  // Select all picks both, and they go to the teammate in one go.
+  const header = page.getByRole('region', { name: 'Conversation' }).locator('header');
+
+  await page.getByRole('checkbox', { name: 'Select all conversations' }).click();
+  await expect(page.getByText('2 selected')).toBeVisible();
   await page.getByRole('button', { name: 'Assign', exact: true }).click();
   await page.getByRole('option', { name: teammate.fullName }).click();
-  await expect(conversations.getByText(teammate.fullName)).toHaveCount(2);
+
+  for (const content of [`Wrong size ${suffix}`, `Late refund ${suffix}`]) {
+    await conversations.getByRole('button', { name: new RegExp(content) }).click();
+    await expect(header.getByRole('button', { name: teammate.fullName })).toBeVisible();
+  }
 });

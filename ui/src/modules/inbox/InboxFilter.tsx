@@ -30,7 +30,7 @@ export const useStatusNames = (): Record<Conversation['status'], string> => {
 };
 
 /** What each integration kind reads as; a kind the UI doesn't know shows its name. */
-export const useKindNames = (): Record<string, string> => {
+const useKindNames = (): Record<string, string> => {
   const { t } = useTranslation('frontline');
 
   return { messenger: t('kind-messenger', 'Messenger') };

@@ -1,47 +1,69 @@
-import { IconRobot, IconUser } from '@tabler/icons-react';
-import { Badge, Button, useFormat } from 'erxes-ui';
+import { IconDots, IconRobot, IconUser } from '@tabler/icons-react';
+import { Badge, Button, DropdownMenu, useFormat } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { type Conversation, useSetOperator, useVisitor, useVisitorTyping } from './queries.ts';
 
 /**
- * Who answers a messenger conversation: the bot, through automations, until a member takes it
- * over; Let the bot answer gives it back.
+ * The header's overflow menu for a messenger conversation: who answers it, the bot through
+ * automations until a member takes it over, and Let the bot answer gives it back.
  */
-export const OperatorButton = ({ conversation }: { conversation: Conversation }) => {
+export const ConversationMenu = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const setOperator = useSetOperator();
   const bot = conversation.operator === 'bot';
 
   return (
-    <Button
-      variant="outline"
-      disabled={setOperator.isPending}
-      onClick={() =>
-        setOperator.mutate({ ids: [conversation.id], operator: bot ? 'person' : 'bot' })
-      }
-    >
-      {bot ? <IconUser /> : <IconRobot />}
-      {bot ? t('take-over', 'Take over') : t('let-bot-answer', 'Let the bot answer')}
-    </Button>
+    <DropdownMenu>
+      <DropdownMenu.Trigger
+        render={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('conversation-actions', 'Conversation actions')}
+          >
+            <IconDots />
+          </Button>
+        }
+      />
+      <DropdownMenu.Content align="end">
+        <DropdownMenu.Item
+          disabled={setOperator.isPending}
+          onClick={() =>
+            setOperator.mutate({ ids: [conversation.id], operator: bot ? 'person' : 'bot' })
+          }
+        >
+          {bot ? <IconUser /> : <IconRobot />}
+          {bot ? t('take-over', 'Take over') : t('let-bot-answer', 'Let the bot answer')}
+        </DropdownMenu.Item>
+      </DropdownMenu.Content>
+    </DropdownMenu>
   );
 };
 
+/** "Typing…" beside the customer's name while the visitor writes. */
+export const VisitorTyping = ({ conversation }: { conversation: Conversation }) => {
+  const { t } = useTranslation('frontline');
+
+  return useVisitorTyping(conversation.id) ? (
+    <span className="text-xs text-muted-foreground">{t('visitor-typing', 'Typing…')}</span>
+  ) : null;
+};
+
 /**
- * What the messenger knows of the visitor: online or last seen, how many visits, the page of the
- * latest one, and whether they are typing now.
+ * What the messenger knows of the visitor, as a line in the customer panel: online or last seen,
+ * how many visits, and the page of the latest one.
  */
 export const VisitorPresence = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const visitor = useVisitor(conversation.id);
-  const typing = useVisitorTyping(conversation.id);
 
   if (!visitor) return null;
 
   return (
     <p
       aria-label={t('visitor-presence', 'Visitor presence')}
-      className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground"
+      className="flex flex-wrap items-center gap-2 px-2 text-xs text-muted-foreground"
     >
       {visitor.isOnline ? (
         <Badge variant="success">{t('online', 'Online')}</Badge>
@@ -60,7 +82,6 @@ export const VisitorPresence = ({ conversation }: { conversation: Conversation }
         })}
       </span>
       {visitor.browser.url && <span className="truncate">{visitor.browser.url}</span>}
-      {typing && <span className="text-foreground">{t('visitor-typing', 'Typing…')}</span>}
     </p>
   );
 };

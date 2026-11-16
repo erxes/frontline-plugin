@@ -76,7 +76,7 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   const fullName = `${OWNER.firstName} ${OWNER.lastName}`;
   const header = page.getByRole('region', { name: 'Conversation' }).locator('header');
 
-  await page.getByRole('button', { name: 'Assign', exact: true }).click();
+  await header.getByRole('button', { name: 'No assignee', exact: true }).click();
   await page.getByRole('option', { name: fullName }).click();
   await expect(header.getByRole('button', { name: fullName })).toBeVisible();
   await page.getByRole('button', { name: 'Add tags' }).click();
@@ -191,20 +191,45 @@ test('a member takes over from the bot, sees the visitor typing and edits a repl
     .click();
 
   const thread = page.getByRole('list', { name: 'Messages' });
+  const header = page.getByRole('region', { name: 'Conversation' }).locator('header');
   const presence = page.getByLabel('Visitor presence');
 
+  // The visitor's presence is a line in the customer panel, which the rail opens; typing shows
+  // beside their name.
+  await page
+    .getByRole('toolbar', { name: 'Customer panels' })
+    .getByRole('button', { name: 'Customer', exact: true })
+    .click();
   await expect(presence).toContainText('1 visit');
   await visitor.tell(conversationId, 'typing');
-  await expect(presence).toContainText('Typing…');
+  await expect(header).toContainText('Typing…');
 
-  // The visitor asks for a person: the bot says one will answer, and the member can hand it back.
+  // The visitor asks for a person: the bot says one will answer, and the member can hand it back
+  // from the header's overflow menu.
+  const actions = header.getByRole('button', { name: 'Conversation actions' });
+
   await visitor.tell(conversationId, 'person');
   await expect(thread).toContainText('A person from the team will answer you here.');
   await expect(thread.getByRole('listitem', { name: 'Message' }).last()).toContainText('Bot');
-  await page.getByRole('button', { name: 'Let the bot answer' }).click();
-  await page.getByRole('button', { name: 'Take over' }).click();
-  await expect(page.getByRole('button', { name: 'Let the bot answer' })).toBeVisible();
+  await actions.click();
+  await page.getByRole('menuitem', { name: 'Let the bot answer' }).click();
+  await actions.click();
+  await page.getByRole('menuitem', { name: 'Take over' }).click();
+  await actions.click();
+  await expect(page.getByRole('menuitem', { name: 'Let the bot answer' })).toBeVisible();
+  await page.keyboard.press('Escape');
   await expectAccessible(page);
+
+  // The header's toggle gives the thread the list's width, and the reply box folds to its tabs.
+  const conversations = page.getByRole('list', { name: 'Conversations' });
+
+  await header.getByRole('button', { name: 'Hide conversations' }).click();
+  await expect(conversations).toBeHidden();
+  await header.getByRole('button', { name: 'Show conversations' }).click();
+  await expect(conversations).toBeVisible();
+  await page.getByRole('button', { name: 'Fold the reply box' }).click();
+  await expect(page.getByRole('textbox', { name: 'Reply' })).toBeHidden();
+  await page.getByRole('button', { name: 'Expand the reply box' }).click();
 
   // The member fixes a typo in their reply, and the visitor reads the fixed one.
   await page.getByRole('textbox', { name: 'Reply' }).fill('It ships tomorow.');

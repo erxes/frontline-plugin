@@ -97,6 +97,7 @@ describe('inbox', () => {
     expect(conversations[0]).toMatchObject({
       integrationId: integration.id,
       kind: 'messenger',
+      integrationName: 'Website',
       status: 'new',
       content: 'My order is late',
       messageCount: 1,
