@@ -179,4 +179,20 @@ describe('inbox list', () => {
     expect(await found('ada@e2e.test')).toEqual(ids);
     expect(await found('nobody')).toEqual([]);
   });
+
+  it('previews no link that points into the private network', async () => {
+    const { teammate, ids } = await setUp('org-ib-links', [
+      'Open http://localhost/admin or http://10.0.0.1/ or ftp://files.e2e.test/a',
+    ]);
+
+    const conversationId = ids[0] ?? '';
+    const [message] = (await teammate.conversations.messages.list({ conversationId })).messages;
+
+    await expect(
+      teammate.conversations.messages.linkPreviews({ id: message?.id ?? '' }),
+    ).resolves.toEqual({ previews: [] });
+    await expect(
+      clientAs('org-ib-other').conversations.messages.linkPreviews({ id: message?.id ?? '' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
 });

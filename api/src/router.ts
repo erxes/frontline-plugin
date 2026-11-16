@@ -29,6 +29,7 @@ import {
   callProcedures,
   callProProcedures,
 } from '#/modules/integrations/providers/call/connect.ts';
+import { linkPreviewProcedures } from '#/modules/inbox/linkPreviews.ts';
 import { messageProcedures } from '#/modules/inbox/messages.ts';
 import { operatorProcedures } from '#/modules/inbox/operator.ts';
 import { presenceProcedures } from '#/modules/inbox/presence.ts';
@@ -79,7 +80,7 @@ export const router = {
     ...countProcedures,
     ...operatorProcedures,
     ...presenceProcedures,
-    messages: { ...messageProcedures, ...reactionProcedures },
+    messages: { ...messageProcedures, ...reactionProcedures, ...linkPreviewProcedures },
   },
   knowledgebase: {
     topics: topicProcedures,

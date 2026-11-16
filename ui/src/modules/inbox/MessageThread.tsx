@@ -30,7 +30,7 @@ import {
 } from './queries.ts';
 import { SentSurvey } from '~/modules/surveys/SurveyMessage.tsx';
 import { MemberLine } from '~/shared/MemberLine.tsx';
-import { Attachments, MessageBody } from './MessageContent.tsx';
+import { Attachments, LinkPreviews, MessageBody } from './MessageContent.tsx';
 import { Reactions } from './Reactions.tsx';
 import { useSendShortcut } from './useSendShortcut.ts';
 
@@ -176,6 +176,7 @@ const Bubble = ({
           <MessageBody message={message} />
         )}
         <Attachments files={message.attachments} />
+        <LinkPreviews message={message} />
         {message.surveyId && <SentSurvey surveyId={message.surveyId} />}
         <Reactions message={message} kind={kind} />
       </div>

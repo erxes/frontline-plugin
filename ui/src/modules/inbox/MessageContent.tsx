@@ -1,7 +1,7 @@
 import { IconFile } from '@tabler/icons-react';
 import { cn } from 'erxes-ui';
 import parse from 'html-react-parser';
-import type { Message } from './queries.ts';
+import { type Message, useLinkPreviews } from './queries.ts';
 
 /**
  * What the message says: a member's rich text as the API sanitized it (`api/src/modules/inbox/html.ts`),
@@ -58,6 +58,45 @@ export const Attachments = ({ files }: { files: Message['attachments'] }) => {
                 <span className="truncate">{file.name}</span>
               </>
             )}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
+/** A card for each web link in the message, with the page's site, title, description and image. */
+export const LinkPreviews = ({ message }: { message: Message }) => {
+  const previews = useLinkPreviews(message).data?.previews ?? [];
+
+  if (previews.length === 0) return null;
+
+  return (
+    <ul className="flex flex-col gap-2">
+      {previews.map((preview) => (
+        <li key={preview.url}>
+          <a
+            href={preview.url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex max-w-sm gap-3 rounded-md border bg-background p-2 text-xs hover:bg-accent"
+          >
+            {preview.image && (
+              <img
+                src={preview.image}
+                alt=""
+                loading="lazy"
+                referrerPolicy="no-referrer"
+                className="size-16 shrink-0 rounded-sm object-cover"
+              />
+            )}
+            <span className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-muted-foreground">{preview.siteName}</span>
+              <span className="line-clamp-2 font-medium">{preview.title}</span>
+              {preview.description && (
+                <span className="line-clamp-2 text-muted-foreground">{preview.description}</span>
+              )}
+            </span>
           </a>
         </li>
       ))}

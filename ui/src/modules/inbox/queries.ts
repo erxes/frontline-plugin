@@ -74,6 +74,13 @@ export const usePinnedMessages = (conversationId: string) =>
     orpc.conversations.messages.list.queryOptions({ input: { conversationId, pinned: true } }),
   );
 
+/** Cards for the web links in a message's text; only one with a link asks. */
+export const useLinkPreviews = (message: Message) =>
+  useQuery({
+    ...orpc.conversations.messages.linkPreviews.queryOptions({ input: { id: message.id } }),
+    enabled: /https?:\/\//.test(message.content),
+  });
+
 /** Refetches the inbox after a change, and shows a refusal. */
 const useInboxChange = () => useChange(orpc.conversations.key());
 
