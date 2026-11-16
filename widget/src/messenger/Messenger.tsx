@@ -3,34 +3,39 @@ import type { MessengerApi } from './api.ts';
 import { Home } from './Home.tsx';
 import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
 import { Thread } from './Thread.tsx';
+import type { ArticlesTab } from './articles/ArticlesTab.tsx';
 import type { Tickets } from './tickets/Tickets.tsx';
 import { type MessengerState, useMessenger } from './useMessenger.ts';
 
 /** A website opens a messenger it hides the launcher of with this event on `window`. */
 const OPEN_EVENT = 'frontline:open-messenger';
 
-type View = { name: 'home' } | { name: 'thread'; id: string | null } | { name: 'tickets' };
+type View =
+  | { name: 'home' }
+  | { name: 'thread'; id: string | null }
+  | { name: 'tickets' }
+  | { name: 'articles' };
 
-/** The tickets tab, its own chunk, fetched once the visitor opens it. */
-const useTicketsTab = (wanted: boolean) => {
-  const [tab, setTab] = useState<typeof Tickets | null>(null);
+type Tab = typeof Tickets | typeof ArticlesTab;
+
+const loadTickets = async () => (await import('./tickets/Tickets.tsx')).Tickets;
+
+const loadArticles = async () => (await import('./articles/ArticlesTab.tsx')).ArticlesTab;
+
+/** A tab in its own chunk, fetched once the visitor opens it. */
+const useLazyTab = <T extends Tab>(wanted: boolean, load: () => Promise<T>) => {
+  const [tab, setTab] = useState<T | null>(null);
 
   useEffect(() => {
     if (!wanted || tab) return;
 
-    const load = async () => {
-      const chunk = await import('./tickets/Tickets.tsx');
-
-      setTab(() => chunk.Tickets);
-    };
-
-    void load();
-  }, [wanted, tab]);
+    void load().then((component) => setTab(() => component));
+  }, [wanted, tab, load]);
 
   return tab;
 };
 
-/** The panel's page: the greeting, a conversation, or the tickets tab. */
+/** The panel's page: the greeting, a conversation, or the tickets or help articles tab. */
 const Page = ({
   api,
   messenger,
@@ -42,7 +47,8 @@ const Page = ({
   view: View;
   onView: (view: View) => void;
 }) => {
-  const TicketsTab = useTicketsTab(view.name === 'tickets');
+  const TicketsTab = useLazyTab(view.name === 'tickets', loadTickets);
+  const HelpTab = useLazyTab(view.name === 'articles', loadArticles);
   const home = () => onView({ name: 'home' });
 
   if (!messenger.settings) return null;
@@ -53,12 +59,15 @@ const Page = ({
         settings={messenger.settings}
         conversations={messenger.conversations}
         onOpen={(id) => onView({ name: 'thread', id })}
-        onTickets={() => onView({ name: 'tickets' })}
+        onTab={(name) => onView({ name })}
       />
     );
 
   if (view.name === 'tickets')
     return TicketsTab && <TicketsTab api={api} messenger={messenger} onBack={home} />;
+
+  if (view.name === 'articles')
+    return HelpTab && <HelpTab api={api} messenger={messenger} onBack={home} />;
 
   return (
     <Thread

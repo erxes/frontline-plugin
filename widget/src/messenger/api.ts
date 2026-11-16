@@ -6,6 +6,7 @@ import type {
   VisitorTicket,
 } from '@frontline/api/messenger';
 import type { Jsonify } from 'type-fest';
+import type { Article, Topic } from '../articles/api.ts';
 import { bearer, publicApi, uploadFile } from '../shared/http.ts';
 
 /** What `/connect` answers, as JSON carries it. */
@@ -88,6 +89,11 @@ export const messengerApi = (base: URL, key: string) => {
     ticketForms: (token: string) => as(token).get('tickets/forms').json<TicketForms>(),
     tickets: (token: string) => as(token).get('tickets').json<Ticket[]>(),
     fileTicket: (token: string, body: NewTicket) => as(token).post(body, 'tickets').json<Ticket>(),
+    knowledgeBase: (token: string) => as(token).get('knowledge-base').json<Topic>(),
+    article: (token: string, id: string) =>
+      as(token)
+        .get(`knowledge-base/articles/${encodeURIComponent(id)}`)
+        .json<Article>(),
   };
 };
 

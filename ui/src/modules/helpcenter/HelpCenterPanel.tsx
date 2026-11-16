@@ -24,6 +24,7 @@ import {
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { InstallCode, scriptTag } from '~/shared/InstallCode.tsx';
 import { InfoRow, PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
 import { PickerField } from '~/shared/Pickers.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
@@ -185,6 +186,12 @@ const Content = ({ center }: { center: HelpCenter }) => {
       <InfoRow icon={IconKey} label={t('public-key', 'Public key')}>
         <CopyText value={center.publicKey}>{center.publicKey}</CopyText>
       </InfoRow>
+      <div className="px-2 py-1">
+        <InstallCode
+          code={scriptTag(center.scriptUrl)}
+          label={t('kb-install-code', 'Knowledge base install code')}
+        />
+      </div>
     </PanelSection>
   );
 };

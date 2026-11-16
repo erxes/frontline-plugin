@@ -23,6 +23,12 @@ export const ChatIcon = () => (
   </Icon>
 );
 
+export const BookIcon = () => (
+  <Icon>
+    <path d="M3 19a9 9 0 0 1 9 0 9 9 0 0 1 9 0M3 6a9 9 0 0 1 9 0 9 9 0 0 1 9 0M3 6v13M12 6v13M21 6v13" />
+  </Icon>
+);
+
 export const CloseIcon = () => (
   <Icon>
     <path d="M18 6 6 18M6 6l12 12" />

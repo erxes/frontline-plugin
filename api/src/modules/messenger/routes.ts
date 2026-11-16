@@ -8,6 +8,7 @@ import { logger } from '#/logger.ts';
 import { fail } from '../fail.ts';
 import { customerFor } from '../inbox/receive.ts';
 import { isOnlineAt, messenger } from './adapter.ts';
+import { articleRoutes } from './articles.ts';
 import { fileRoutes } from './files.ts';
 import { messengerOf, tokenOf, visitorOf } from './session.ts';
 import { streaming, subscribe } from './stream.ts';
@@ -199,6 +200,8 @@ export const messengerRoutes = () => {
   router.get('/tickets', ticketRoutes.listTickets);
   router.post('/tickets', ticketRoutes.fileTicket);
   router.get('/tickets/forms', ticketRoutes.ticketForms);
+  router.get('/knowledge-base', articleRoutes.knowledgeBase);
+  router.get('/knowledge-base/articles/:id', articleRoutes.article);
 
   return router;
 };

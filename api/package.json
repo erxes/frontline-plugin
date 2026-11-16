@@ -15,6 +15,7 @@
     ".": "./src/router.ts",
     "./files": "./src/modules/files.ts",
     "./forms": "./src/modules/forms/embed.ts",
+    "./helpcenter": "./src/modules/helpcenter/public.ts",
     "./logic": "./src/modules/forms/logic.ts",
     "./messenger": "./src/modules/messenger/routes.ts"
   },

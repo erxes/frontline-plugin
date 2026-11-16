@@ -9,6 +9,7 @@ const root = import.meta.dirname;
 const entries = {
   messenger: resolve(root, 'src/messenger.tsx'),
   form: resolve(root, 'src/form.tsx'),
+  knowledgebase: resolve(root, 'src/knowledgebase.tsx'),
 };
 
 type Modules = { getModuleInfo: (id: string) => { importers: readonly string[] } | null };

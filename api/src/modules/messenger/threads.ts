@@ -30,7 +30,8 @@ const Send = z.object({
   files: z.array(z.string().max(4000)).max(20).default([]),
 });
 
-const Params = z.object({ id: z.string() });
+/** A route whose path names one record by `:id`. */
+export const Params = z.object({ id: z.string() });
 
 /** The integration the visitor writes to, with its settings, if it is still an active messenger. */
 export const messengerIntegration = (orgId: string, integrationId: string) =>

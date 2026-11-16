@@ -35,20 +35,55 @@ const Hero = ({ settings }: { settings: Settings }) => (
   </header>
 );
 
+/** A button to write, and the visitor's conversations with their unread replies. */
+const Chats = ({
+  settings,
+  conversations,
+  onOpen,
+}: {
+  settings: Settings;
+  conversations: Conversation[];
+  onOpen: (id: string | null) => void;
+}) => (
+  <div class="fl-card">
+    <button type="button" class="fl-primary" onClick={() => onOpen(null)}>
+      <ChatIcon />
+      Send us a message
+    </button>
+    {conversations.length > 0 && (
+      <ul class="fl-list" aria-label="Your conversations">
+        {conversations.map((conversation) => (
+          <li key={conversation.id}>
+            <button type="button" onClick={() => onOpen(conversation.id)}>
+              <span class="fl-preview">{conversation.content || 'Attachment'}</span>
+              <span class="fl-meta">
+                {timeOf(conversation.lastMessageAt, settings.language)}
+                {conversation.unreadCount > 0 && (
+                  <span class="fl-count">{conversation.unreadCount}</span>
+                )}
+              </span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+);
+
 /**
  * The messenger's first page: the greeting, a button to write, the visitor's conversations,
- * their tickets, the online hours, the website's own pages and links.
+ * their tickets, the help articles, the online hours, the website's own pages and links.
  */
 export const Home = ({
   settings,
   conversations,
   onOpen,
-  onTickets,
+  onTab,
 }: {
   settings: Settings;
   conversations: Conversation[];
   onOpen: (id: string | null) => void;
-  onTickets: () => void;
+  onTab: (name: 'tickets' | 'articles') => void;
 }) => {
   const hours = hoursOf(settings);
 
@@ -57,34 +92,18 @@ export const Home = ({
       <Hero settings={settings} />
       <div class="fl-body">
         {settings.showChat && (
-          <div class="fl-card">
-            <button type="button" class="fl-primary" onClick={() => onOpen(null)}>
-              <ChatIcon />
-              Send us a message
-            </button>
-            {conversations.length > 0 && (
-              <ul class="fl-list" aria-label="Your conversations">
-                {conversations.map((conversation) => (
-                  <li key={conversation.id}>
-                    <button type="button" onClick={() => onOpen(conversation.id)}>
-                      <span class="fl-preview">{conversation.content || 'Attachment'}</span>
-                      <span class="fl-meta">
-                        {timeOf(conversation.lastMessageAt, settings.language)}
-                        {conversation.unreadCount > 0 && (
-                          <span class="fl-count">{conversation.unreadCount}</span>
-                        )}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          <Chats settings={settings} conversations={conversations} onOpen={onOpen} />
         )}
         {settings.tickets && (
-          <button type="button" class="fl-card fl-app" onClick={onTickets}>
+          <button type="button" class="fl-card fl-app" onClick={() => onTab('tickets')}>
             <strong>Tickets</strong>
             <span>File a ticket and follow how it goes.</span>
+          </button>
+        )}
+        {settings.knowledgeBaseTopicId && (
+          <button type="button" class="fl-card fl-app" onClick={() => onTab('articles')}>
+            <strong>Help articles</strong>
+            <span>Search our answers to common questions.</span>
           </button>
         )}
         {hours.length > 0 && (

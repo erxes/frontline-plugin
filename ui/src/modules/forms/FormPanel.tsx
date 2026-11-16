@@ -20,6 +20,7 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { InstallCode, scriptTag } from '~/shared/InstallCode.tsx';
 import { InfoRow, PanelSkeleton, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { StatusBadge, useFormActions } from './FormCells.tsx';
@@ -63,7 +64,7 @@ export const FormActions = ({ contentId }: TRecordSlotProps) => {
  * script. The other load types open by themselves or with their own launcher.
  */
 const installCode = (loadType: LoadType, code: string, scriptUrl: string) => {
-  const script = `<script type="module" src="${scriptUrl}"></script>`;
+  const script = scriptTag(scriptUrl);
 
   if (loadType === 'embedded') return `<div data-frontline-form="${code}"></div>\n${script}`;
 
@@ -97,14 +98,7 @@ const Embed = ({ form }: { form: Form }) => {
   return (
     <>
       <div className="px-2 py-1">
-        <CopyText value={snippet}>
-          <code
-            aria-label={t('form-install-code', 'Install code')}
-            className="block rounded-md bg-muted p-3 font-mono text-xs break-all whitespace-pre-wrap"
-          >
-            {snippet}
-          </code>
-        </CopyText>
+        <InstallCode code={snippet} label={t('form-install-code', 'Install code')} />
       </div>
       <PanelField icon={IconCode} label={t('form-embed-url', 'Embed address')} cell={false}>
         <span className="min-w-0 truncate px-2 text-xs">

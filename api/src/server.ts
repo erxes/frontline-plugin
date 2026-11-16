@@ -41,6 +41,8 @@ const embeds = (app: express.Express) => {
   // Providers post webhooks signed out, from their own servers.
   app.use('/api/public/webhooks', webhookRoutes());
   app.use('/api/public/messenger', messengerRoutes());
+  // A help center's visitors and its knowledge base embed, found by the key or domain frontline issued.
+  app.use('/api/public', cors({ maxAge: 600 }), publicRouter());
   app.use('/api/public/:key', cors({ maxAge: 600 }), formsPublicRouter);
 
   if (config.widgetDir)
@@ -86,9 +88,6 @@ export const createApp = () => {
 
     if (!matched) next();
   });
-
-  // Signed out: a help center's visitors, found by the key or domain frontline issued.
-  app.use('/api/public', publicRouter());
 
   // Core POSTs each job attempt here, signed over the raw body; anything but 2xx retries.
   app.post('/api/jobs/:name', express.text({ type: '*/*' }), async (req, res) => {
