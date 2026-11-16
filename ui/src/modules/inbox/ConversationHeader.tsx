@@ -105,13 +105,13 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         </Badge>
         <span className="flex-1" />
         {conversation.kind === 'messenger' && <OperatorButton conversation={conversation} />}
-        <SelectMember.Field
+        <SelectMember.Linked
           value={conversation.assigneeId}
           onValueChange={(assigneeId) => assign.mutate({ ids: [conversation.id], assigneeId })}
           members={memberQueries}
           noneLabel={t('unassigned', 'Unassigned')}
-          placeholder={t('assign', 'Assign')}
-          className="w-48"
+          addLabel={t('assign', 'Assign')}
+          changeLabel={t('change-assignee', 'Change assignee')}
         />
         <Button
           variant={resolved ? 'outline' : 'default'}

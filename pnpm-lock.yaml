@@ -387,8 +387,8 @@ importers:
         specifier: ^5.107.1
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
       erxes-ui:
-        specifier: npm:@erxes/ui@4.0.0-v2.14
-        version: '@erxes/ui@4.0.0-v2.14(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)'
+        specifier: npm:@erxes/ui@4.0.0-v2.18
+        version: '@erxes/ui@4.0.0-v2.18(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)'
       jotai:
         specifier: ^3.0.2
         version: 3.0.2(@types/react@19.3.0)(react@19.3.1)
@@ -815,8 +815,8 @@ packages:
     peerDependencies:
       drizzle-orm: 0.45.4
 
-  '@erxes/ui@4.0.0-v2.14':
-    resolution: {integrity: sha512-lnuMr1CTbuy/2x9N/tjsNIaeOoHYGoK/faooiiu9Ihduo9GpHilmHug5KDfzFgIP1KR8yJiCwqxgvozUVsw6EA==}
+  '@erxes/ui@4.0.0-v2.18':
+    resolution: {integrity: sha512-OzdyJ4+O6/+VxHVfYZS4PJ9AKVL13PIMwi+xTKfpuy5iDQXIgwCPohHodaj+lTcdKPuPbhR73hg/UP9adM2ZjQ==}
     peerDependencies:
       '@tanstack/react-query': ^5.107.1
       jotai: ^3.0.2
@@ -6585,7 +6585,7 @@ snapshots:
       - sql.js
       - sqlite3
 
-  '@erxes/ui@4.0.0-v2.14(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)':
+  '@erxes/ui@4.0.0-v2.18(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)':
     dependencies:
       '@base-ui/react': 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@blocknote/core': 0.57.0(@types/hast@3.0.5)

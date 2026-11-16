@@ -32,7 +32,7 @@ import {
   useTemplateChange,
 } from './useResponseTemplates.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the template's name. */
 export const ResponseTemplateTitle = ({ contentId }: TRecordSlotProps) => {
@@ -143,7 +143,7 @@ const TemplateFields = ({ template }: { template: ResponseTemplate }) => {
         </PanelField>
       </fieldset>
       <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
-        <MemberLine id={template.createdBy} />
+        <MemberChip id={template.createdBy} />
       </InfoRow>
       <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
         {format.dateTime(template.createdAt)}

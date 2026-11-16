@@ -1,8 +1,17 @@
 import { memberQueries } from '@erxes/core-contract/client';
-import { Badge, EntityPicker, Popover, RecordTableInlineCell, useMemberOptions } from 'erxes-ui';
+import { IconPlus } from '@tabler/icons-react';
+import {
+  Badge,
+  Button,
+  cn,
+  EntityPicker,
+  MemberLink,
+  Popover,
+  RecordTableInlineCell,
+  useMemberOptions,
+} from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MemberLine } from './MemberLine.tsx';
 
 type Option = { value: string; label: string };
 
@@ -71,7 +80,11 @@ export const Badges = ({ labels }: { labels: string[] }) => (
   </span>
 );
 
-/** Several team members picked in place, shown as their avatars and names. */
+/**
+ * Several team members in a panel row, drawn as core's owner field is: each a chip that opens
+ * them in core's side panel, then a muted button that shows on hover to change them; with none,
+ * "+ Add".
+ */
 export const MembersField = ({
   label,
   value,
@@ -83,24 +96,48 @@ export const MembersField = ({
 }) => {
   const { t } = useTranslation('frontline');
   const members = useMemberOptions(memberQueries, true, value);
+  const add = t('add', 'Add');
 
   return (
-    <PickerField
-      label={label}
-      placeholder={t('nobody', 'Nobody')}
-      display={
-        <span className="flex min-w-0 flex-wrap gap-2">
-          {value.map((id) => (
-            <MemberLine key={id} id={id} />
-          ))}
-        </span>
-      }
-      options={members.options}
-      loading={members.loading}
-      error={members.error}
-      value={value}
-      onValueChange={onValueChange}
-      multiple
-    />
+    <div className="group/relations flex min-h-7 min-w-0 flex-wrap items-center gap-1 px-1">
+      {value.map((id) => (
+        <div key={id} className="flex min-w-0 overflow-hidden">
+          <MemberLink memberId={id} members={memberQueries} />
+        </div>
+      ))}
+      <Popover>
+        <Popover.Trigger
+          render={
+            <Button
+              variant="ghost"
+              size="xs"
+              tone="muted"
+              data-panel-inline=""
+              aria-label={value.length ? t('change-label', 'Change {{label}}', { label }) : add}
+              className={cn(
+                'shrink-0 [&>svg]:size-3.5',
+                value.length > 0 &&
+                  'opacity-0 group-hover/relations:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100',
+              )}
+            />
+          }
+        >
+          <IconPlus aria-hidden="true" />
+          {!value.length && <span className="font-normal">{add}</span>}
+        </Popover.Trigger>
+        <RecordTableInlineCell.Content>
+          <EntityPicker
+            items={members.options}
+            itemKey={(option) => ({ id: option.value, label: option.label })}
+            value={value}
+            onValueChange={onValueChange}
+            multiple
+            loading={members.loading}
+            error={members.error}
+            searchPlaceholder={label}
+          />
+        </RecordTableInlineCell.Content>
+      </Popover>
+    </div>
   );
 };

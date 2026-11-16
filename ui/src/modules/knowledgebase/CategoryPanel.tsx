@@ -37,7 +37,7 @@ import {
   useKbAccess,
   useKbChange,
 } from './useKnowledgeBase.ts';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the category's title. */
 export const CategoryTitle = ({ contentId }: TRecordSlotProps) => {
@@ -186,7 +186,7 @@ export const CategoryDetail = ({ contentId }: TRecordSlotProps) => {
         />
       </PanelField>
       <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
-        <MemberLine id={data.createdBy} />
+        <MemberChip id={data.createdBy} />
       </InfoRow>
       <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
         {format.dateTime(data.createdAt)}

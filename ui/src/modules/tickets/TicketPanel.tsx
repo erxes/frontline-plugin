@@ -33,7 +33,7 @@ import { TicketContacts, TicketLabels, TicketPeople } from './TicketLinks.tsx';
 import { TicketPropertiesSection } from './TicketProperties.tsx';
 import { type Ticket, useChoices, useEditTicket, useTicket } from './queries.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /** A slot's ticket: a spinner while it loads, the refusal when the API gives one. */
 const WithTicket = ({ id, children }: { id: string; children: (ticket: Ticket) => ReactNode }) => {
@@ -149,20 +149,20 @@ const TicketFields = ({ ticket }: { ticket: Ticket }) => {
           variant="flush"
         />
       </PanelField>
-      <PanelField icon={IconUser} label={t('assignee', 'Assignee')}>
-        <SelectMember.InlineCell
+      <PanelField icon={IconUser} label={t('assignee', 'Assignee')} cell={false}>
+        <SelectMember.Linked
           scope={`${scope}.assignee`}
-          variant="field"
           value={ticket.assigneeId}
           onValueChange={(assigneeId) => edit({ assigneeId })}
           members={memberQueries}
           noneLabel={t('no-assignee', 'No assignee')}
-          placeholder={t('no-assignee', 'No assignee')}
+          addLabel={t('add-assignee', 'Add assignee')}
+          changeLabel={t('change-assignee', 'Change assignee')}
         />
       </PanelField>
       <Filing ticket={ticket} />
       <InfoRow icon={IconUserCircle} label={t('created-by', 'Created by')}>
-        <MemberLine id={ticket.createdBy} />
+        <MemberChip id={ticket.createdBy} />
       </InfoRow>
       <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
         {format.dateTime(ticket.createdAt)}

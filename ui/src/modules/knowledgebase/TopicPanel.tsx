@@ -27,7 +27,7 @@ import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { useDeleteTopics } from './useKbDeletes.ts';
 import { type Topic, topicPath, useKbAccess, useKbChange, useTopic } from './useKnowledgeBase.ts';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the topic's title. */
 export const TopicTitle = ({ contentId }: TRecordSlotProps) => {
@@ -110,7 +110,7 @@ const TopicFields = ({ topic }: { topic: Topic }) => {
         </PanelField>
       </ReadOnly>
       <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
-        <MemberLine id={topic.createdBy} />
+        <MemberChip id={topic.createdBy} />
       </InfoRow>
       <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
         {format.dateTime(topic.createdAt)}

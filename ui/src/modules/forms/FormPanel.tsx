@@ -26,7 +26,7 @@ import { ActionsMenu } from '~/shared/Records.tsx';
 import { StatusBadge, useFormActions } from './FormCells.tsx';
 import { Appearance, Callout, General, ThankYou } from './FormSettings.tsx';
 import { type Form, formPath, useForm, useFormFields } from './useForms.ts';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the form's name. */
 export const FormTitle = ({ contentId }: TRecordSlotProps) => {
@@ -121,7 +121,7 @@ const Overview = ({ form }: { form: Form }) => {
         {form.contactsGathered}
       </InfoRow>
       <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
-        <MemberLine id={form.createdBy} />
+        <MemberChip id={form.createdBy} />
       </InfoRow>
       {at(t('created-at', 'Created at'), IconCalendarPlus, form.createdAt)}
       {at(t('updated-at', 'Updated at'), IconCalendarUp, form.updatedAt)}

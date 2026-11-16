@@ -29,7 +29,7 @@ import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { StatusBadge, useSurveyActions } from './SurveyCells.tsx';
 import { type Survey, useEditSurvey, useSurvey } from './useSurveys.ts';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the survey's title. */
 export const SurveyTitleSlot = ({ contentId }: TRecordSlotProps) => {
@@ -123,7 +123,7 @@ const Overview = ({ survey }: { survey: Survey }) => {
         {survey.sentCount}
       </InfoRow>
       <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
-        <MemberLine id={survey.createdBy} />
+        <MemberChip id={survey.createdBy} />
       </InfoRow>
       <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
         {format.dateTime(survey.createdAt)}
