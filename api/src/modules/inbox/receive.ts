@@ -226,6 +226,8 @@ export const receive = (orgId: string, incoming: Incoming) =>
           type: incoming.event,
           summary: null,
           payload: {
+            ...incoming.providerData,
+            conversationId: conversation.id,
             messageId: message.id,
             integrationId: incoming.integrationId,
             content: message.content,

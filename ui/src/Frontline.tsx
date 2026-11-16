@@ -13,6 +13,7 @@ import {
   KB_ARTICLE_TYPE,
   KB_CATEGORY_TYPE,
   KB_TOPIC_TYPE,
+  META_BOT_TYPE,
   PIPELINE_TYPE,
   PLUGIN,
   RESPONSE_TEMPLATE_TYPE,
@@ -82,6 +83,10 @@ const InboxPage = lazy(async () => ({
 
 const MessengerSettingsPage = lazy(async () => ({
   default: (await import('@/messenger/MessengerSettingsPage.tsx')).MessengerSettingsPage,
+}));
+
+const MetaPage = lazy(async () => ({
+  default: (await import('@/meta/MetaPage.tsx')).MetaPage,
 }));
 
 const TicketsPage = lazy(async () => ({
@@ -164,6 +169,8 @@ export const Frontline = () => (
       <Route path="ticket-properties" element={<PropertiesPage />} />
       <Route path="help-centers" element={<HelpCentersPage />} />
       <Route path="help-centers/:id" element={<RecordRoute contentType={HELP_CENTER_TYPE} />} />
+      <Route path="meta" element={<MetaPage />} />
+      <Route path="meta/bots/:id" element={<RecordRoute contentType={META_BOT_TYPE} />} />
     </Route>
     <Route
       path="settings/response-templates/:id"

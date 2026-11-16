@@ -1,16 +1,16 @@
-import { createHmac } from 'node:crypto';
+import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
-import { config } from '#/config.ts';
+import type { Tx } from '#/db/client.ts';
+import { openSecret } from '../secrets.ts';
+import { accountRow } from '../store.ts';
 import {
   defineProvider,
   inOrder,
-  type InboundMessage,
   type OpenAccount,
   type OutboundMessage,
-  type WebhookSource,
+  type ProviderName,
 } from '../provider.ts';
-import { sameText } from '../secrets.ts';
-import { metaKey } from '../store.ts';
+import { postOfThread } from './metaWebhook.ts';
 
 /** The Graph API version frontline's calls and Meta's login dialog use. */
 export const GRAPH_VERSION = 'v23.0';
@@ -62,13 +62,40 @@ export const graph = async (
 
 const Secret = z.object({ pageToken: z.string() });
 
+/** A connected Facebook page or Instagram account by id, with its page token, or NOT_FOUND. */
+export const metaAccount = async (tx: Tx, id: string) => {
+  const row = await accountRow(tx, id);
+
+  if (row.provider !== 'facebook' && row.provider !== 'instagram')
+    throw new ORPCError('NOT_FOUND', { message: 'No such Facebook page or Instagram account' });
+
+  return {
+    row,
+    provider: row.provider,
+    token: openSecret(row.orgId, row.secret, Secret).pageToken,
+  };
+};
+
+/** `call`, with Meta's refusal as a BAD_REQUEST the member reads. */
+export const askMeta = <T>(call: Promise<T>) =>
+  call.catch((error: unknown) => {
+    if (error instanceof MetaError)
+      throw new ORPCError('BAD_REQUEST', { message: `Meta refused: ${error.message}` });
+
+    throw error;
+  });
+
+type MetaAccount = OpenAccount<unknown, z.infer<typeof Secret>>;
+
 const Sent = z.object({ message_id: z.string() });
 
+const Created = z.object({ id: z.string() });
+
+/** Messenger takes a reply within 24 hours of the customer's message, later only as a person's. */
+const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
+
 /** Sends the text, then each attachment as a message of its own, as Messenger takes them. */
-const sendThrough = async (
-  { secret }: OpenAccount<unknown, z.infer<typeof Secret>>,
-  message: OutboundMessage,
-) => {
+const sendMessage = async ({ secret }: MetaAccount, message: OutboundMessage) => {
   const bodies = [
     ...(message.text ? [{ text: message.text }] : []),
     ...message.attachments.map((file) => ({
@@ -79,6 +106,9 @@ const sendThrough = async (
     })),
   ];
 
+  const late =
+    message.replyTo !== null && Date.now() - message.replyTo.createdAt.getTime() > REPLY_WINDOW_MS;
+
   // Messenger shows the messages in the order they reach it.
   const [first] = await inOrder(
     bodies,
@@ -86,7 +116,13 @@ const sendThrough = async (
       Sent.parse(
         await graph('me/messages', secret.pageToken, {
           method: 'POST',
-          body: { recipient: { id: message.threadId }, messaging_type: 'RESPONSE', message: body },
+          body: {
+            recipient: { id: message.threadId },
+            ...(late
+              ? { messaging_type: 'MESSAGE_TAG', tag: 'HUMAN_AGENT' }
+              : { messaging_type: 'RESPONSE' }),
+            message: body,
+          },
         }),
       ).message_id,
   );
@@ -96,19 +132,58 @@ const sendThrough = async (
   return first;
 };
 
-const checkToken = async ({ secret }: OpenAccount<unknown, z.infer<typeof Secret>>) =>
+/**
+ * Answers the customer's latest comment in the thread, under it on the post. Facebook mentions
+ * them and takes one attachment; Instagram takes text only.
+ */
+const replyToComment = async (
+  provider: ProviderName,
+  { secret }: MetaAccount,
+  message: OutboundMessage,
+) => {
+  const commentId = message.replyTo?.externalId;
+
+  if (!commentId) throw new MetaError('No comment to answer');
+
+  if (provider === 'instagram') {
+    if (message.attachments.length) throw new MetaError('Instagram comment replies take text only');
+
+    return Created.parse(
+      await graph(`${commentId}/replies`, secret.pageToken, {
+        method: 'POST',
+        body: { message: message.text },
+      }),
+    ).id;
+  }
+
+  const [file] = message.attachments;
+
+  return Created.parse(
+    await graph(`${commentId}/comments`, secret.pageToken, {
+      method: 'POST',
+      body: { message: `@[${message.to}] ${message.text}`, attachment_url: file?.url },
+    }),
+  ).id;
+};
+
+const sendThrough = (provider: ProviderName) => (account: MetaAccount, message: OutboundMessage) =>
+  postOfThread(message.threadId)
+    ? replyToComment(provider, account, message)
+    : sendMessage(account, message);
+
+const checkToken = async ({ secret }: MetaAccount) =>
   graph('me', secret.pageToken, { query: { fields: 'id' } }).then(
     () => null,
     (error: unknown) => (error instanceof Error ? error.message : 'Meta failed'),
   );
 
-/** A Facebook page: Messenger conversations with the people who write to it. */
+/** A Facebook page: Messenger conversations, and the comments on its posts. */
 export const facebook = defineProvider({
   name: 'facebook',
   Config: z.object({}),
   Secret,
   check: checkToken,
-  send: sendThrough,
+  send: sendThrough('facebook'),
 });
 
 /** An Instagram professional account, reached through its Facebook page's token. */
@@ -117,84 +192,5 @@ export const instagram = defineProvider({
   Config: z.object({ pageId: z.string(), username: z.string().optional() }),
   Secret,
   check: checkToken,
-  send: sendThrough,
+  send: sendThrough('instagram'),
 });
-
-/** One Messenger or Instagram messaging event, the parts the inbox reads. */
-const Messaging = z.object({
-  sender: z.object({ id: z.string() }),
-  recipient: z.object({ id: z.string() }),
-  timestamp: z.number(),
-  message: z
-    .object({
-      mid: z.string(),
-      text: z.string().optional(),
-      is_echo: z.boolean().optional(),
-      attachments: z
-        .array(z.object({ type: z.string(), payload: z.object({ url: z.string() }).partial() }))
-        .optional(),
-    })
-    .optional(),
-});
-
-const Delivery = z.object({
-  object: z.enum(['page', 'instagram']),
-  entry: z.array(z.object({ id: z.string(), messaging: z.array(z.unknown()).optional() })),
-});
-
-/** Meta signs the body it sent with the app secret (`X-Hub-Signature-256`). */
-const signedByMeta = (raw: string, signature: unknown) => {
-  if (!config.meta.appSecret) return false;
-
-  return sameText(
-    `sha256=${createHmac('sha256', config.meta.appSecret).update(raw).digest('hex')}`,
-    signature,
-  );
-};
-
-const inboundOf = (event: z.infer<typeof Messaging>): InboundMessage[] => {
-  const { message } = event;
-
-  // An echo is the page's own message, a reply frontline or Meta's app sent.
-  if (!message || message.is_echo) return [];
-
-  return [
-    {
-      threadId: event.sender.id,
-      messageId: message.mid,
-      author: { externalId: event.sender.id },
-      text: message.text ?? '',
-      attachments: (message.attachments ?? []).flatMap(({ type, payload }) =>
-        payload.url ? [{ url: payload.url, name: type, type }] : [],
-      ),
-    },
-  ];
-};
-
-/**
- * Meta posts every page's and Instagram account's events to one address, signed with the app
- * secret, and names each account in its entries.
- */
-export const metaWebhook: WebhookSource = {
-  confirm: (query) =>
-    query['hub.mode'] === 'subscribe' &&
-    config.meta.verifyToken &&
-    query['hub.verify_token'] === config.meta.verifyToken &&
-    typeof query['hub.challenge'] === 'string'
-      ? query['hub.challenge']
-      : null,
-  route: ({ raw, body, headers }) => {
-    if (!signedByMeta(raw, headers['x-hub-signature-256'])) return null;
-
-    const delivery = Delivery.parse(body);
-
-    const provider = delivery.object === 'page' ? 'facebook' : 'instagram';
-
-    return delivery.entry.map((entry) => ({
-      provider,
-      key: metaKey(provider, entry.id),
-      events: entry.messaging ?? [],
-    }));
-  },
-  receive: (_row, events) => events.flatMap((event) => inboundOf(Messaging.parse(event))),
-};

@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, vi } from 'vite-plus/test';
 import { z } from 'zod';
@@ -185,6 +186,62 @@ export const telegramApi = (call: ProviderCall) => {
 
   return { ok: true, result: true };
 };
+
+const POST = {
+  id: 'page-1_post-9',
+  message: 'New blue jackets are in',
+  permalink_url: 'https://www.facebook.com/page-1/posts/9',
+  full_picture: 'https://cdn.example.com/jacket.jpg',
+  created_time: '2025-11-15T04:00:00+0000',
+};
+
+/**
+ * The Graph API's answers for the page `page-1` and its Instagram account `ig-1`. A call whose
+ * body says `refused` fails as Meta fails one.
+ */
+export const graphApi = (call: ProviderCall) => {
+  const path = call.url.pathname.replace('/v23.0/', '');
+
+  if (JSON.stringify(call.body ?? null).includes('refused'))
+    return Response.json({ error: { message: 'Invalid parameter' } }, { status: 400 });
+
+  if (path === POST.id) return POST;
+
+  if (path === 'page-1/published_posts')
+    return { data: [POST], paging: { cursors: { after: 'cursor-2' }, next: 'https://next' } };
+
+  if (path === 'oauth/access_token')
+    return {
+      access_token: call.url.searchParams.get('code') ? 'short-user-token' : 'long-user-token',
+    };
+
+  if (path === 'me/accounts')
+    return {
+      data: [
+        {
+          id: 'page-1',
+          name: 'Shop',
+          access_token: 'page-token-1',
+          instagram_business_account: { id: 'ig-1', username: 'shop.mn' },
+        },
+      ],
+    };
+
+  if (path === 'me/messages') return { recipient_id: 'psid-1', message_id: 'm_sent' };
+
+  if (path.endsWith('/comments') || path.endsWith('/replies'))
+    return call.method === 'POST' ? { id: `reply-to-${path.split('/')[0]}` } : { data: [] };
+
+  if (path === 'page-1/feed' || path === 'page-1/photos')
+    return { id: 'page-1_post-new', post_id: 'page-1_post-new' };
+
+  return { success: true };
+};
+
+/** The signature Meta puts on a delivery, with the test's app secret. */
+export const signedByMeta = (raw: string) => ({
+  'x-hub-signature-256': `sha256=${createHmac('sha256', 'test-meta-app-secret').update(raw).digest('hex')}`,
+});
 
 const Hook = z.object({ url: z.string(), secret_token: z.string() });
 

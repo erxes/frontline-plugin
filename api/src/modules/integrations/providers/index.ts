@@ -1,7 +1,8 @@
 import type { Provider, ProviderName, WebhookSource } from '../provider.ts';
 import { discord } from './discord.ts';
 import { mail } from './mail.ts';
-import { facebook, instagram, metaWebhook } from './meta.ts';
+import { facebook, instagram } from './meta.ts';
+import { metaWebhook } from './metaWebhook.ts';
 import { telegram, telegramWebhook } from './telegram.ts';
 
 const PROVIDERS: Record<ProviderName, Provider> = { facebook, instagram, telegram, discord, mail };

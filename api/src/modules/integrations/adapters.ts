@@ -33,7 +33,11 @@ const replyContext = async (
     .where(and(eq(customerLinks.source, provider), eq(customerLinks.customerId, customerId)));
 
   const [last] = await tx
-    .select({ externalId: messages.externalId, providerData: messages.providerData })
+    .select({
+      externalId: messages.externalId,
+      providerData: messages.providerData,
+      createdAt: messages.createdAt,
+    })
     .from(messages)
     .where(
       and(
@@ -51,7 +55,7 @@ const replyContext = async (
   return {
     to: link.externalId,
     replyTo: last?.externalId
-      ? { externalId: last.externalId, providerData: last.providerData }
+      ? { externalId: last.externalId, providerData: last.providerData, createdAt: last.createdAt }
       : null,
   };
 };
@@ -157,7 +161,7 @@ export const deliverInbound = async (row: AccountRow, inbound: InboundMessage[])
             content: message.text,
             attachments: message.attachments,
             providerData: message.providerData,
-            event: RECEIVED[row.provider]?.type,
+            event: message.event ?? RECEIVED[row.provider]?.type,
           }),
         ),
     ),

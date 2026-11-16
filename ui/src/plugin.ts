@@ -25,3 +25,5 @@ export const FORM_SUBMISSION_TYPE = `${PLUGIN}:form-submission`;
 export const SURVEY_TYPE = `${PLUGIN}:survey`;
 
 export const INTEGRATION_TYPE = `${PLUGIN}:integration`;
+
+export const META_BOT_TYPE = `${PLUGIN}:meta-bot`;
