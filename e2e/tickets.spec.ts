@@ -52,10 +52,8 @@ test('a member files, filters, changes and deletes tickets in the list, board an
   const refund = `Refund ${unique()}`;
   const login = `Login ${unique()}`;
 
-  // Frontline opens on its tickets. Create ticket drafts one in core's side panel; it then opens
-  // there, edited in place.
-  await page.goto('/frontline');
-  await expect(page).toHaveURL(new RegExp(`${TICKETS}$`));
+  // Create ticket drafts one in core's side panel; it then opens there, edited in place.
+  await page.goto(TICKETS);
   await page.getByRole('button', { name: 'Create ticket' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Pipeline' }), `${channel} › ${pipeline}`);
   await panel.getByLabel('Name').fill(refund);

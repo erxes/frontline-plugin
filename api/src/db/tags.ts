@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { check, text, uniqueIndex } from 'drizzle-orm/pg-core';
+import { check, text, unique, uniqueIndex } from 'drizzle-orm/pg-core';
 import { id, stamps, table } from './table.ts';
 
 /** What a tag labels: core's tags are for customers and companies, so the plugin keeps its own. */
@@ -21,6 +21,8 @@ export const tags = table(
     ...stamps(),
   },
   (t) => [
+    // What a conversation's tag foreign key names (`frontline_conversation_tags`).
+    unique('frontline_tags_org_id_key').on(t.orgId, t.id),
     uniqueIndex(TAG_NAME_INDEX).on(t.orgId, t.type, sql`lower(${t.name})`),
     check('frontline_tags_type_check', sql`${t.type} in ('ticket', 'conversation')`),
   ],

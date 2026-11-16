@@ -1,0 +1,158 @@
+import { memberQueries } from '@erxes/core-contract/client';
+import {
+  IconCircles,
+  IconDots,
+  IconKey,
+  IconLetterCase,
+  IconMessage,
+  IconPlayerPause,
+  IconTrash,
+  IconUser,
+} from '@tabler/icons-react';
+import { useMutation, useQuery } from '@tanstack/react-query';
+import {
+  Button,
+  CopyText,
+  MemberInline,
+  PanelField,
+  PanelSection,
+  Skeleton,
+  Spinner,
+  Switch,
+  TextField,
+  type TRecordSlotProps,
+  useConfirm,
+} from 'erxes-ui';
+import { useTranslation } from 'react-i18next';
+import { orpc } from '~/orpc.ts';
+import { ReadOnly } from '~/shared/Panel.tsx';
+import { ActionsMenu } from '~/shared/Records.tsx';
+import { type Integration, useIntegration, useIntegrationChange } from './queries.ts';
+
+/** The panel header's title: the integration's name. */
+export const IntegrationTitle = ({ contentId }: TRecordSlotProps) => {
+  const integration = useIntegration(contentId);
+
+  if (integration.isPending) return <Skeleton className="h-4 w-32" />;
+
+  return <span className="truncate">{integration.data?.name ?? integration.error?.message}</span>;
+};
+
+/** The header's menu, for its channel's admins: delete it with its conversations. */
+export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
+  const { t } = useTranslation('frontline');
+  const integration = useIntegration(contentId);
+  const { confirm } = useConfirm();
+  const remove = useMutation(orpc.integrations.remove.mutationOptions(useIntegrationChange()));
+
+  if (!integration.data?.canManage) return null;
+
+  return (
+    <ActionsMenu
+      trigger={
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t('integration-menu', 'Integration actions')}
+        >
+          <IconDots />
+        </Button>
+      }
+      actions={[
+        {
+          value: 'delete',
+          icon: <IconTrash />,
+          label: t('delete', 'Delete'),
+          onSelect: () =>
+            void confirm({
+              message: t(
+                'delete-integration-confirm',
+                'Delete this integration and its conversations?',
+              ),
+            }).then(() => remove.mutate({ id: contentId })),
+        },
+      ]}
+    />
+  );
+};
+
+const Fields = ({ integration }: { integration: Integration }) => {
+  const { t } = useTranslation('frontline');
+  const update = useMutation(orpc.integrations.update.mutationOptions(useIntegrationChange()));
+  const channels = useQuery(orpc.channels.list.queryOptions({ input: {} })).data?.channels ?? [];
+  const welcome = typeof integration.config.welcome === 'string' ? integration.config.welcome : '';
+  const scope = `frontline-integration.${integration.id}`;
+
+  return (
+    <PanelSection title={t('messenger', 'Messenger')}>
+      <ReadOnly when={!integration.canManage}>
+        <PanelField icon={IconLetterCase} label={t('name', 'Name')}>
+          <TextField
+            scope={`${scope}.name`}
+            value={integration.name}
+            placeholder={t('name', 'Name')}
+            onSave={(name) => {
+              const next = name.trim();
+
+              if (next && next !== integration.name)
+                update.mutate({ id: integration.id, name: next });
+            }}
+          />
+        </PanelField>
+        <PanelField icon={IconMessage} label={t('welcome-message', 'Welcome message')}>
+          <TextField
+            scope={`${scope}.welcome`}
+            value={welcome}
+            placeholder={t('welcome-message', 'Welcome message')}
+            onSave={(next) =>
+              update.mutate({
+                id: integration.id,
+                config: { ...integration.config, welcome: next },
+              })
+            }
+          />
+        </PanelField>
+        <PanelField icon={IconPlayerPause} label={t('active', 'Active')} cell={false}>
+          <Switch
+            aria-label={t('active', 'Active')}
+            checked={integration.isActive}
+            onCheckedChange={(isActive) => update.mutate({ id: integration.id, isActive })}
+          />
+        </PanelField>
+      </ReadOnly>
+      <PanelField icon={IconCircles} label={t('channel', 'Channel')} cell={false}>
+        <span className="px-2 text-xs">
+          {channels.find((channel) => channel.id === integration.channelId)?.name}
+        </span>
+      </PanelField>
+      <PanelField icon={IconKey} label={t('messenger-key', 'Messenger key')} cell={false}>
+        {integration.publicKey && (
+          <div className="min-w-0 px-2">
+            <CopyText value={integration.publicKey}>
+              <span className="truncate font-mono text-xs">{integration.publicKey}</span>
+            </CopyText>
+          </div>
+        )}
+      </PanelField>
+      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
+        <MemberInline memberId={integration.createdBy} members={memberQueries} />
+      </PanelField>
+    </PanelSection>
+  );
+};
+
+/** The Detail tab: the messenger's fields, and the key its website embed carries. */
+export const IntegrationDetail = ({ contentId }: TRecordSlotProps) => {
+  const integration = useIntegration(contentId);
+
+  if (integration.isPending) return <Spinner area="lg" />;
+
+  if (integration.isError)
+    return (
+      <p role="alert" className="p-3 text-xs text-destructive-text">
+        {integration.error.message}
+      </p>
+    );
+
+  return <Fields integration={integration.data} />;
+};

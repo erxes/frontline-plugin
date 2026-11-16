@@ -1,0 +1,176 @@
+import { randomBytes } from 'node:crypto';
+import type { PluginMember } from '@erxes/plugin-sdk';
+import { ORPCError } from '@orpc/server';
+import { and, asc, eq, getTableColumns } from 'drizzle-orm';
+import { createSelectSchema } from 'drizzle-zod';
+import { z } from 'zod';
+import { PERMISSIONS } from '#/core.ts';
+import type { Tx } from '#/db/client.ts';
+import { integrations } from '#/db/inbox.ts';
+import { publicKeys } from '#/db/public.ts';
+import { channelMembers } from '#/db/schema.ts';
+import { reads, writes } from '#/orpc.ts';
+import { canChangeSql, channelFor, membership } from '../channels/access.ts';
+import { Title } from '../fields.ts';
+import { ADAPTERS } from './adapters.ts';
+import { seenBy } from './shared.ts';
+
+/** What a public key opens when it names an integration. */
+export const INTEGRATION_KEY = 'integration';
+
+/** The row without `org_id`, which the caller already knows. */
+const { orgId, ...integrationColumns } = getTableColumns(integrations);
+
+/** The row, the key its embed or webhook carries, and whether the caller may change it. */
+const Integration = createSelectSchema(integrations, {
+  config: () => z.record(z.string(), z.unknown()),
+})
+  .omit({ orgId: true })
+  .extend({ publicKey: z.string().nullable(), canManage: z.boolean() });
+
+const integrationRows = (tx: Tx, member: PluginMember) =>
+  tx
+    .select({ ...integrationColumns, publicKey: publicKeys.key, canManage: canChangeSql(member) })
+    .from(integrations)
+    .leftJoin(
+      publicKeys,
+      and(eq(publicKeys.kind, INTEGRATION_KEY), eq(publicKeys.targetId, integrations.id)),
+    )
+    .leftJoin(channelMembers, membership(member, integrations.channelId))
+    .$dynamic();
+
+const integrationById = async (tx: Tx, member: PluginMember, id: string) => {
+  const [row] = await integrationRows(tx, member).where(
+    and(eq(integrations.id, id), seenBy(member)),
+  );
+
+  if (!row) throw new ORPCError('NOT_FOUND', { message: 'No such integration' });
+
+  return row;
+};
+
+/** The adapter's reading of `config`, or BAD_REQUEST naming what it refused. */
+const configOf = (kind: string, config: Record<string, unknown>) => {
+  const adapter = ADAPTERS.get(kind);
+
+  if (!adapter) throw new ORPCError('BAD_REQUEST', { message: `No ${kind} integrations` });
+
+  const parsed = adapter.config.safeParse(config);
+
+  if (!parsed.success)
+    throw new ORPCError('BAD_REQUEST', { message: z.prettifyError(parsed.error) });
+
+  return parsed.data;
+};
+
+/** The integrations of the caller's channels, or of one channel, oldest first. */
+const list = reads(PERMISSIONS.channelView)
+  .input(z.object({ channelId: z.string().optional() }))
+  .output(z.array(Integration))
+  .handler(({ input, context: { tx, member } }) =>
+    integrationRows(tx, member)
+      .where(
+        and(
+          seenBy(member),
+          input.channelId ? eq(integrations.channelId, input.channelId) : undefined,
+        ),
+      )
+      .orderBy(asc(integrations.createdAt), asc(integrations.id)),
+  );
+
+const get = reads(PERMISSIONS.channelView)
+  .input(z.object({ id: z.string() }))
+  .output(Integration)
+  .handler(({ input, context: { tx, member } }) => integrationById(tx, member, input.id));
+
+/**
+ * A new integration of a channel the caller is an admin of, with the key its embed or webhook
+ * carries. `config` is checked by the kind's adapter.
+ */
+const create = writes(PERMISSIONS.channelView)
+  .input(
+    z.object({
+      channelId: z.string(),
+      kind: z.string(),
+      name: Title,
+      config: z.record(z.string(), z.unknown()).default({}),
+    }),
+  )
+  .output(Integration)
+  .handler(async ({ input, context: { tx, member } }) => {
+    await channelFor(tx, member, input.channelId, { change: true });
+
+    const [created] = await tx
+      .insert(integrations)
+      .values({
+        ...input,
+        config: configOf(input.kind, input.config),
+        orgId: member.orgId,
+        createdBy: member.userId,
+      })
+      .returning({ id: integrations.id });
+
+    if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+    await tx.insert(publicKeys).values({
+      key: randomBytes(32).toString('base64url'),
+      orgOf: member.orgId,
+      kind: INTEGRATION_KEY,
+      targetId: created.id,
+    });
+
+    return integrationById(tx, member, created.id);
+  });
+
+/** The integration `id` a channel admin may change, locked. */
+const integrationFor = async (tx: Tx, member: PluginMember, id: string) => {
+  const [row] = await tx
+    .select({ channelId: integrations.channelId, kind: integrations.kind })
+    .from(integrations)
+    .where(eq(integrations.id, id))
+    .for('update');
+
+  if (!row) throw new ORPCError('NOT_FOUND', { message: 'No such integration' });
+
+  await channelFor(tx, member, row.channelId, { change: true });
+
+  return row;
+};
+
+/** Renames, pauses or reconfigures an integration. A paused one takes no new messages. */
+const update = writes(PERMISSIONS.channelView)
+  .input(
+    z.object({
+      id: z.string(),
+      name: Title.optional(),
+      isActive: z.boolean().optional(),
+      config: z.record(z.string(), z.unknown()).optional(),
+    }),
+  )
+  .output(Integration)
+  .handler(async ({ input: { id, config, ...change }, context: { tx, member } }) => {
+    const row = await integrationFor(tx, member, id);
+
+    await tx
+      .update(integrations)
+      .set({ ...change, ...(config ? { config: configOf(row.kind, config) } : {}) })
+      .where(eq(integrations.id, id));
+
+    return integrationById(tx, member, id);
+  });
+
+/** Deletes an integration, its conversations and its key. */
+const remove = writes(PERMISSIONS.channelView)
+  .input(z.object({ id: z.string() }))
+  .output(z.object({ id: z.string() }))
+  .handler(async ({ input, context: { tx, member } }) => {
+    await integrationFor(tx, member, input.id);
+    await tx.delete(integrations).where(eq(integrations.id, input.id));
+    await tx
+      .delete(publicKeys)
+      .where(and(eq(publicKeys.kind, INTEGRATION_KEY), eq(publicKeys.targetId, input.id)));
+
+    return { id: input.id };
+  });
+
+export const integrationProcedures = { list, get, create, update, remove };

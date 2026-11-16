@@ -13,6 +13,9 @@ import { topicProcedures } from '#/modules/knowledgebase/topics.ts';
 import { pipelineProcedures } from '#/modules/pipelines/pipelines.ts';
 import { statusProcedures } from '#/modules/pipelines/statuses.ts';
 import { responseTemplateProcedures } from '#/modules/responseTemplates/responseTemplates.ts';
+import { conversationProcedures } from '#/modules/inbox/conversations.ts';
+import { integrationProcedures } from '#/modules/inbox/integrations.ts';
+import { messageProcedures } from '#/modules/inbox/messages.ts';
 import { settingsProcedures } from '#/modules/settings/settings.ts';
 import { surveyStatusProcedures } from '#/modules/surveys/status.ts';
 import { surveyProcedures } from '#/modules/surveys/surveys.ts';
@@ -40,6 +43,8 @@ export const router = {
     submissions: submissionProcedures,
   },
   surveys: { ...surveyProcedures, ...surveyStatusProcedures },
+  integrations: integrationProcedures,
+  conversations: { ...conversationProcedures, messages: messageProcedures },
   knowledgebase: {
     topics: topicProcedures,
     categories: categoryProcedures,

@@ -23,3 +23,5 @@ export const FORM_TYPE = `${PLUGIN}:form`;
 export const FORM_SUBMISSION_TYPE = `${PLUGIN}:form-submission`;
 
 export const SURVEY_TYPE = `${PLUGIN}:survey`;
+
+export const INTEGRATION_TYPE = `${PLUGIN}:integration`;

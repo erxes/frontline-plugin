@@ -71,6 +71,13 @@
       "when": 1794773955955,
       "tag": "0009_forms",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794774609332,
+      "tag": "0010_inbox",
+      "breakpoints": true
     }
   ]
 }

@@ -5,19 +5,12 @@ import cors from 'cors';
 import express from 'express';
 import { pinoHttp } from 'pino-http';
 import { config, PLUGIN } from '#/config.ts';
-import { JOBS } from '#/core.ts';
+import { JOB_RUNS } from '#/jobs.ts';
 import { logger } from '#/logger.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
-import { checkDomains } from '#/modules/helpcenter/domains.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
-import { checkSla } from '#/modules/tickets/sla.ts';
+import { messengerRoutes } from '#/modules/messenger/routes.ts';
 import { router } from '#/router.ts';
-
-/** What each job in the manifest's `jobs` does for one organisation. */
-const JOB_RUNS: Record<string, (orgId: string) => Promise<unknown>> = {
-  [JOBS.sla.name]: checkSla,
-  [JOBS.domains.name]: checkDomains,
-};
 
 const rpc = new RPCHandler(router, {
   interceptors: [
@@ -41,8 +34,9 @@ export const createApp = () => {
 
   app.disable('x-powered-by');
   app.use(pinoHttp({ logger }));
-  // Signed-out form embeds, found by the key frontline gave an organisation: they call from any
-  // site, so they answer every origin, before the members' CORS below.
+  // Websites embed the messenger and forms: their routes answer any origin, so they come before
+  // web's CORS. Forms find the organisation by the key frontline gave it.
+  app.use('/api/public/messenger', messengerRoutes());
   app.use(
     '/api/public/:key',
     cors({ maxAge: 600 }),
@@ -98,7 +92,7 @@ export const createApp = () => {
       return;
     }
 
-    const result = await run(job.orgId);
+    const result = await run(job);
 
     logger.info({ job: job.name, jobId: job.jobId, orgId: job.orgId, result }, 'job done');
     res.sendStatus(204);
