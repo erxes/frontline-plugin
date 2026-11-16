@@ -184,7 +184,8 @@ export const StatusRow = ({ status, canManage }: { status: Status; canManage: bo
           }}
         />
       </span>
-      <span className="min-w-0 flex-1 text-muted-foreground">
+      {/* The empty placeholder darkens on hover: muted text on the hover tint falls under 4.5:1. */}
+      <span className="min-w-0 flex-1 text-muted-foreground [&_button:hover]:text-foreground">
         <TextField
           scope={`${scope}.description`}
           value={status.description ?? ''}
