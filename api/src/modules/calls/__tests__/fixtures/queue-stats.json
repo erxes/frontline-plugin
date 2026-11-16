@@ -1,0 +1,17 @@
+{
+  "root_statistics": {
+    "queue": [
+      {
+        "queue": "6500",
+        "total_calls": "40",
+        "answered_calls": "34",
+        "abandoned_calls": "6",
+        "transfer_out_calls": "2",
+        "avg_wait": "14.5",
+        "avg_talk": "151",
+        "sla_rate": "82.5"
+      },
+      { "queue": "6599", "total_calls": "3", "answered_calls": "3" }
+    ]
+  }
+}

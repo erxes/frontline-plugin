@@ -5,6 +5,7 @@ import { ChannelMembersPage } from '@/channels/ChannelMembersPage.tsx';
 import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
 import { PersonalChannel } from '@/channels/PersonalChannel.tsx';
 import {
+  CALL_TYPE,
   CHANNEL_TYPE,
   FORM_SUBMISSION_TYPE,
   FORM_TYPE,
@@ -117,6 +118,23 @@ const SubmissionsRedirect = () => (
   />
 );
 
+const CallHistoryPage = lazy(async () => ({
+  default: (await import('@/calls/CallHistoryPage.tsx')).CallHistoryPage,
+}));
+
+const QueuesPage = lazy(async () => ({
+  default: (await import('@/calls/QueuesPage.tsx')).QueuesPage,
+}));
+
+const QueuePage = lazy(async () => ({
+  default: (await import('@/calls/QueuePage.tsx')).QueuePage,
+}));
+
+/** The old calls dashboard's queue links open that queue's board. */
+const QueueRedirect = () => (
+  <Navigate to={`/${PLUGIN}/calls/queues/${encodeURIComponent(useParams().id ?? '')}`} replace />
+);
+
 /** The old `/:id/response/:responseId` link opens that template on its own page. */
 const ResponseTemplateRedirect = () => (
   <Navigate
@@ -177,6 +195,18 @@ export const Frontline = () => (
       element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}
     />
     <Route path="helpcenter" element={<Navigate to="../settings/help-centers" replace />} />
+    <Route path="calls" element={<Lazy />}>
+      <Route index element={<Navigate to="history" replace />} />
+      <Route path="history" element={<CallHistoryPage />} />
+      <Route path="history/:id" element={<RecordRoute contentType={CALL_TYPE} />} />
+      <Route path="queues" element={<QueuesPage />} />
+      <Route path="queues/:id" element={<QueuePage />} />
+      <Route path="dashboard" element={<Navigate to="../queues" replace />} />
+      <Route path="statistics" element={<Navigate to="../queues" replace />} />
+      <Route path="dashboard/:id" element={<QueueRedirect />} />
+      <Route path="statistics/:id" element={<QueueRedirect />} />
+      <Route path=":id" element={<QueueRedirect />} />
+    </Route>
     <Route path="knowledgebase" element={<Lazy />}>
       <Route index element={<TopicsPage />} />
       <Route path="category/:id" element={<RecordRoute contentType={KB_CATEGORY_TYPE} />} />

@@ -1,11 +1,20 @@
 import type { Provider, ProviderName, WebhookSource } from '../provider.ts';
+import { call, callpro } from './call/call.ts';
 import { discord } from './discord.ts';
 import { mail } from './mail.ts';
 import { facebook, instagram } from './meta.ts';
 import { metaWebhook } from './metaWebhook.ts';
 import { telegram, telegramWebhook } from './telegram.ts';
 
-const PROVIDERS: Record<ProviderName, Provider> = { facebook, instagram, telegram, discord, mail };
+const PROVIDERS: Record<ProviderName, Provider> = {
+  facebook,
+  instagram,
+  telegram,
+  discord,
+  mail,
+  call,
+  callpro,
+};
 
 /** The provider of an account row. */
 export const providerOf = (name: ProviderName) => PROVIDERS[name];

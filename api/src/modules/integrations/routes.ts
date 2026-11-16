@@ -1,27 +1,12 @@
-import { eq } from 'drizzle-orm';
 import express from 'express';
 import { z } from 'zod';
-import { withOrg } from '#/db/client.ts';
-import { integrationAccounts } from '#/db/integrations.ts';
 import { logger } from '#/logger.ts';
-import { openedBy } from '../public.ts';
 import { deliverInbound } from './adapters.ts';
 import type { Routed, WebhookRequest, WebhookSource } from './provider.ts';
 import { WEBHOOKS } from './providers/index.ts';
+import { callWebhooks } from './providers/call/routes.ts';
 import { connectMetaPages, SETTINGS_URL } from './providers/metaLogin.ts';
-
-/** The account a delivery's key opens, with its secret. */
-const accountOf = async ({ provider, key }: Routed) => {
-  const route = await openedBy(key, [provider]);
-
-  if (!route) return null;
-
-  const [row] = await withOrg(route.orgOf, (tx) =>
-    tx.select().from(integrationAccounts).where(eq(integrationAccounts.id, route.targetId)),
-  );
-
-  return row ?? null;
-};
+import { accountOf } from './store.ts';
 
 /**
  * What a delivery's routes hold, delivered: false, delivering nothing, when one route's events
@@ -58,6 +43,7 @@ const Callback = z.object({ code: z.string(), state: z.string() });
 export const webhookRoutes = () => {
   const router = express.Router();
 
+  router.use(callWebhooks());
   router.get('/meta/callback', async (req, res) => {
     const params = Callback.safeParse(req.query);
     const back = new URL(SETTINGS_URL);

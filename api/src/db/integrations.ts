@@ -6,7 +6,15 @@ import { id, stamps, table } from './table.ts';
  * Where conversations come from besides the messenger. Each provider's code lives in
  * `api/src/modules/integrations/providers`, and shared code never names one.
  */
-export const PROVIDERS = ['facebook', 'instagram', 'telegram', 'discord', 'mail'] as const;
+export const PROVIDERS = [
+  'facebook',
+  'instagram',
+  'telegram',
+  'discord',
+  'mail',
+  'call',
+  'callpro',
+] as const;
 
 export const ACCOUNT_STATUSES = ['healthy', 'broken'] as const;
 
@@ -44,7 +52,7 @@ export const integrationAccounts = table(
     unique('frontline_integration_accounts_org_id_key').on(t.orgId, t.id),
     check(
       'frontline_integration_accounts_provider_check',
-      sql`${t.provider} in ('facebook', 'instagram', 'telegram', 'discord', 'mail')`,
+      sql`${t.provider} in ('facebook', 'instagram', 'telegram', 'discord', 'mail', 'call', 'callpro')`,
     ),
     check('frontline_integration_accounts_status_check', sql`${t.status} in ('healthy', 'broken')`),
   ],

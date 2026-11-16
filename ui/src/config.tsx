@@ -16,12 +16,14 @@ import {
   IconMessageCircle,
   IconMessageReply,
   IconRobot,
+  IconPhone,
   IconTicket,
   IconWorldWww,
 } from '@tabler/icons-react';
 import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
 import { type ComponentType, lazy } from 'react';
 import {
+  CALL_TYPE,
   CHANNEL_TYPE,
   FORM_SUBMISSION_TYPE,
   FORM_TYPE,
@@ -226,6 +228,14 @@ export const CONFIG: IUIConfig = {
       icon: IconRobot,
       detailPath: (id) => `/${PLUGIN}/settings/meta/bots/${encodeURIComponent(id)}`,
       ...slots(() => import('@/meta/slots.ts')),
+    },
+    {
+      contentType: CALL_TYPE,
+      title: 'Call',
+      icon: IconPhone,
+      detailPath: (id) => `/${PLUGIN}/calls/history/${encodeURIComponent(id)}`,
+      // A call comes from the PBX or CallPro, so it has no draft.
+      ...readSlots(() => import('@/calls/slots.ts')),
     },
   ],
   relationTabs: [

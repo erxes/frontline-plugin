@@ -1,6 +1,7 @@
 import type { z } from 'zod';
 import type { Attachment } from '#/db/table.ts';
 import { PROVIDER_ADAPTERS } from '../integrations/adapters.ts';
+import { CALL_ADAPTERS } from '../integrations/providers/call/record.ts';
 import { messenger } from '../messenger/adapter.ts';
 
 /** A member's reply on its way to the customer, as its adapter gets it. */
@@ -38,5 +39,5 @@ export type Adapter = {
 
 /** Every adapter, by kind. */
 export const ADAPTERS: ReadonlyMap<string, Adapter> = new Map(
-  [messenger, ...PROVIDER_ADAPTERS].map((adapter) => [adapter.kind, adapter]),
+  [messenger, ...PROVIDER_ADAPTERS, ...CALL_ADAPTERS].map((adapter) => [adapter.kind, adapter]),
 );

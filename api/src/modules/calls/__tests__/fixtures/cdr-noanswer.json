@@ -1,0 +1,22 @@
+{
+  "AcctId": "1001",
+  "uniqueid": "1763170000.10",
+  "linkedid": "1763170000.10",
+  "src": "99112233",
+  "dst": "6500",
+  "start": "2026-11-15 10:00:00",
+  "answer": "",
+  "end": "2026-11-15 10:00:20",
+  "billsec": "0",
+  "duration": "20",
+  "disposition": "NO ANSWER",
+  "lastapp": "Queue",
+  "action_type": "QUEUE[6500]",
+  "userfield": "Inbound",
+  "dstanswer": "",
+  "dstchannel_ext": "1001",
+  "channel_ext": "",
+  "new_src": "",
+  "recordfiles": "",
+  "src_trunk_name": "mobicom"
+}

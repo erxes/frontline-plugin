@@ -50,27 +50,27 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
   - calls: inbox: `integrationDetail`, `integrationsCreateExternalIntegration`; integrations: `mailPipelineConnect`, `mailPipelineDisconnect`, `mailPipelineForwardVerified`, `mailPipelineIntegration`, `mailPipelineUpdate`, `mailSendingReadiness`; ticket: `addTicketStatus`, `getAccessibleTicketStatuses`, `getTicketPipeline`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`, `updateTicket`
   - ui-modules: `currentUserState`, `SelectBrand`, `usePermissionCheck`, `useSidePanel`
   - keeps: useSidePanel · toast "integration-added" · toast "failed-to-add-integration" · usePanelFormDraft "{ form, recordKey, values: values ?? initial.current, drafts" · toast "copied" · usePanelFormDraft "{ form, recordKey, values, draftsState: pipelineMailPanelDra" · useConfirm · confirm "Mail sent to this address will stop opening tickets and the address is released. Mail already on tickets stays." · confirm "{ message: discardMessage }" · useQueryState "statusId"
-- [ ] `/frontline/calls/dashboard` (CallDashboardIndexPage) `frontline_ui/src/modules/FrontlineMain.tsx:131`
+- [x] `/frontline/calls/dashboard` (CallDashboardIndexPage) → `ui/src/modules/calls/QueuesPage.tsx` at `/frontline/calls/queues`, where the old address redirects: each queue's counters for the day, and Pause or Resume calls for the member's extension `frontline_ui/src/modules/FrontlineMain.tsx:131`
   - files: 8, 1 only here: `pages/CallIndexPage.tsx`
   - calls: integrations: `callQueueList`
   - ui-modules: `createFavoriteBreadcrumb`, `PageHeader`
   - keeps: atomWithStorage "config:call_integrations" · atomWithStorage "config:call_enabled_integrations" · atomWithStorage "callInfo"
-- [ ] `/frontline/calls/dashboard/:id` (CallDashboardDetailPage) `frontline_ui/src/modules/FrontlineMain.tsx:132`
+- [x] `/frontline/calls/dashboard/:id` (CallDashboardDetailPage) → `ui/src/modules/calls/QueuePage.tsx` at `/frontline/calls/queues/:id`, where the old address redirects: the day's counters as tiles, then agents, waiting and talking, live `frontline_ui/src/modules/FrontlineMain.tsx:132`
   - files: 10, 4 only here: `modules/integrations/call/hooks/useCallDuration.ts`, `modules/integrations/call/hooks/useCallQueueInitialList.ts`, `modules/integrations/call/states/callStates.ts`, `pages/CallDetailPage.tsx`
   - calls: core: `callSessionUpdated`, `conversationMessageInserted`; integrations: `callGetAgentStatus`, `callQueueInitialList`, `callsCustomerDetail`, `callsGetConfigs`, `callsIntegrationDetail`, `callUserIntegrations`, `queueRealtimeUpdate`
   - ui-modules: `createFavoriteBreadcrumb`, `PageHeader`
   - keeps: toast "something-went-wrong-getting-user-integrations" · atomWithStorage "callHistoryId" · useSubscription "QUEUE_REALTIME_UPDATE"
-- [ ] `/frontline/calls/statistics` (CallStatisticsIndexPage) `frontline_ui/src/modules/FrontlineMain.tsx:136`
+- [x] `/frontline/calls/statistics` (CallStatisticsIndexPage) → `ui/src/modules/calls/QueuesPage.tsx` at `/frontline/calls/queues`, where the old address redirects `frontline_ui/src/modules/FrontlineMain.tsx:136`
   - files: 8, 1 only here: `pages/CallStatisticsIndexPage.tsx`
   - calls: integrations: `callQueueList`
   - ui-modules: `createFavoriteBreadcrumb`, `PageHeader`
   - keeps: atomWithStorage "config:call_integrations" · atomWithStorage "config:call_enabled_integrations" · atomWithStorage "callInfo"
-- [ ] `/frontline/calls/statistics/:id` (CallDashboardDetailPage) `frontline_ui/src/modules/FrontlineMain.tsx:137`
+- [x] `/frontline/calls/statistics/:id` (CallDashboardDetailPage) → `ui/src/modules/calls/QueuePage.tsx` at `/frontline/calls/queues/:id`, where the old address redirects `frontline_ui/src/modules/FrontlineMain.tsx:137`
   - files: 10, 4 only here: `modules/integrations/call/hooks/useCallDuration.ts`, `modules/integrations/call/hooks/useCallQueueInitialList.ts`, `modules/integrations/call/states/callStates.ts`, `pages/CallDetailPage.tsx`
   - calls: core: `callSessionUpdated`, `conversationMessageInserted`; integrations: `callGetAgentStatus`, `callQueueInitialList`, `callsCustomerDetail`, `callsGetConfigs`, `callsIntegrationDetail`, `callUserIntegrations`, `queueRealtimeUpdate`
   - ui-modules: `createFavoriteBreadcrumb`, `PageHeader`
   - keeps: toast "something-went-wrong-getting-user-integrations" · atomWithStorage "callHistoryId" · useSubscription "QUEUE_REALTIME_UPDATE"
-- [ ] `/frontline/calls/:id` (CallDashboardDetailPage) `frontline_ui/src/modules/FrontlineMain.tsx:143`
+- [x] `/frontline/calls/:id` (CallDashboardDetailPage) → `ui/src/modules/calls/QueuePage.tsx` at `/frontline/calls/queues/:id`, where the old address redirects. Call history is `ui/src/modules/calls/CallHistoryPage.tsx` at `/frontline/calls/history`, a call opens in core's side panel `frontline_ui/src/modules/FrontlineMain.tsx:143`
   - files: 10, 4 only here: `modules/integrations/call/hooks/useCallDuration.ts`, `modules/integrations/call/hooks/useCallQueueInitialList.ts`, `modules/integrations/call/states/callStates.ts`, `pages/CallDetailPage.tsx`
   - calls: core: `callSessionUpdated`, `conversationMessageInserted`; integrations: `callGetAgentStatus`, `callQueueInitialList`, `callsCustomerDetail`, `callsGetConfigs`, `callsIntegrationDetail`, `callUserIntegrations`, `queueRealtimeUpdate`
   - ui-modules: `createFavoriteBreadcrumb`, `PageHeader`
@@ -177,8 +177,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] permission `surveyRemove` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:251`
 - [x] permission `surveyToggleStatus` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:256`
 - [ ] permission `surveySendToConversation` (survey) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:261`
-- [ ] permission `showCallReports` (callReport) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:275`
-- [ ] permission `showAllCallReports` (callReport) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:281`
+- [x] permission `showCallReports` (callReport) → `frontline.call.view`; reach stays in the plugin: channel members see their channels' calls, `frontline.channel.manage` sees all, and a member sees the queues of the PBXs they answer `frontline_api/src/meta/permissions.ts:275`
+- [x] permission `showAllCallReports` (callReport) → `frontline.call.view`; reach stays in the plugin: channel members see their channels' calls, `frontline.channel.manage` sees all `frontline_api/src/meta/permissions.ts:281`
 - [x] permission `showResponseTemplates` (responseTemplate) → `frontline.channel.view`, for the template's channel members. Decision: a template belongs to a channel, so the channel's rights decide, with no grant of its own. `frontline_api/src/meta/permissions.ts:296`
 - [x] permission `responseTemplatesAdd` (responseTemplate) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:302`
 - [x] permission `responseTemplatesEdit` (responseTemplate) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:307`
@@ -232,16 +232,16 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 - [ ] `BATCH_SIZE` → api/src/config.ts `frontline_api/src/migrations/migrateLegacyIntegrations.ts:13`
 - [ ] `BOT_OWNER_USER_ID` → api/src/config.ts `frontline_api/src/migrations/migrateLegacyIntegrations.ts:11`
-- [ ] `CALL_API_EXPIRY` → api/src/config.ts `frontline_api/src/modules/integrations/call/utils.ts:205`
-- [ ] `CALL_API_PASSWORD` → api/src/config.ts `frontline_api/src/modules/integrations/call/utils.ts:204`
-- [ ] `CALL_API_USER` → api/src/config.ts `frontline_api/src/modules/integrations/call/utils.ts:203`
-- [ ] `CALL_ENDPOINT_URL` → api/src/config.ts `frontline_api/src/modules/integrations/call/helpers.ts:228`
-- [ ] `CALL_SUBSCRIPTION_REQUIRE_AUTH` → api/src/config.ts `frontline_api/src/modules/integrations/call/graphql/resolvers/queries.ts:215`
-- [ ] `CALL_WEBHOOK_REQUIRE_SIGNATURE` → api/src/config.ts `frontline_api/src/modules/integrations/call/webhookAuth.ts:10`
-- [ ] `CALLPRO_ENABLED` → api/src/config.ts `frontline_api/src/modules/integrations/callpro/config.ts:4`
+- [x] `CALL_API_EXPIRY` → dropped: each PBX account's session lasts until the PBX says it expired, then logs in again `frontline_api/src/modules/integrations/call/utils.ts:205`
+- [x] `CALL_API_PASSWORD` → the PBX account's sealed secret, set when it connects (`integrations.call.connect`) `frontline_api/src/modules/integrations/call/utils.ts:204`
+- [x] `CALL_API_USER` → the PBX account's sealed secret, set when it connects (`integrations.call.connect`) `frontline_api/src/modules/integrations/call/utils.ts:203`
+- [x] `CALL_ENDPOINT_URL` → dropped: the PBX's webhook address carries the account's key, so no domain registers anywhere `frontline_api/src/modules/integrations/call/helpers.ts:228`
+- [x] `CALL_SUBSCRIPTION_REQUIRE_AUTH` → dropped: every call read needs `frontline.call.view` `frontline_api/src/modules/integrations/call/graphql/resolvers/queries.ts:215`
+- [x] `CALL_WEBHOOK_REQUIRE_SIGNATURE` → dropped: PBX posts are always signed with the account's secret `frontline_api/src/modules/integrations/call/webhookAuth.ts:10`
+- [x] `CALLPRO_ENABLED` → dropped: an organisation turns CallPro on by connecting a line `frontline_api/src/modules/integrations/callpro/config.ts:4`
 - [x] `CLOUDFLARE_CUSTOMHOST_API_TOKEN` → api/src/config.ts `frontline_api/src/modules/customdomain/constants.ts:15`. `config.cloudflare`
 - [x] `CLOUDFLARE_ZONE_ID` → api/src/config.ts `frontline_api/src/modules/customdomain/constants.ts:14`. `config.cloudflare`
-- [ ] `CUTOFF` → api/src/config.ts `frontline_api/src/migrations/migrateCdrDates.ts:11`
+- [x] `CUTOFF` → dropped: an old Mongo data migration `frontline_api/src/migrations/migrateCdrDates.ts:11`
 - [ ] `DRY_RUN` → api/src/config.ts `frontline_api/src/migrations/migrateTickets.ts:17`
 - [x] `ENDPOINT_URL` → dropped: webhook and login addresses come from `PUBLIC_URL` `frontline_api/src/modules/integrations/instagram/helpers.ts:21`
 - [x] `FACEBOOK_GRAPH_URL` → dropped: the Graph API version is `GRAPH_VERSION` in `modules/integrations/providers/meta.ts` `frontline_api/src/modules/integrations/facebook/graphRequest.ts:8`
@@ -251,7 +251,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `HELPCENTER_DOMAIN_SUFFIX` → api/src/config.ts `frontline_api/src/modules/customdomain/constants.ts:5`. `config.helpCenterDomainSuffix`
 - [x] `INSTAGRAM_REPLY_DEBOUNCE_MEDIA_MS` → dropped: it paced the old plugin's own bot replies `frontline_api/src/modules/integrations/instagram/meta/automation/utils/turnTaking.ts:27`
 - [x] `INSTAGRAM_REPLY_DEBOUNCE_TEXT_MS` → dropped: it paced the old plugin's own bot replies `frontline_api/src/modules/integrations/instagram/meta/automation/utils/turnTaking.ts:21`
-- [ ] `JWT_TOKEN_SECRET` → api/src/config.ts `frontline_api/src/modules/integrations/call/utils.ts:19`
+- [x] `JWT_TOKEN_SECRET` → dropped: it signed PBX credentials for the browser; credentials are sealed and never leave the API `frontline_api/src/modules/integrations/call/utils.ts:19`
 - [x] `LEGACY_FACEBOOK_DB` → dropped: old accounts are not imported (the "Old accounts" row in DECISIONS.md) `frontline_api/src/migrations/migrateLegacyIntegrations.ts:9`
 - [ ] `LEGACY_INTEGRATIONS_DB` → api/src/config.ts `frontline_api/src/migrations/migrateLegacyIntegrations.ts:10`
 - [ ] `MAIL_DOMAIN` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/platformConfig.ts:6`
@@ -263,11 +263,11 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `MAIL_TENANT` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/address.ts:90`
 - [ ] `MAIL_WEBHOOK_SECRET` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/signature.ts:13`
 - [ ] `MAIL_WORKER_URL` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/connection.ts:48`
-- [ ] `NODE_TLS_REJECT_UNAUTHORIZED` → api/src/config.ts `frontline_api/src/modules/integrations/call/utils.ts:209`
+- [x] `NODE_TLS_REJECT_UNAUTHORIZED` → dropped: TLS is always checked (erxes/erxes#7528) `frontline_api/src/modules/integrations/call/utils.ts:209`
 - [ ] `REACT_APP_WIDGETS_URL` → api/src/config.ts `frontline_ui/src/modules/utils.ts:27`
-- [ ] `SINCE` → api/src/config.ts `frontline_api/src/migrations/migrateCallConversationContents.ts:19`
+- [x] `SINCE` → dropped: an old Mongo data migration `frontline_api/src/migrations/migrateCallConversationContents.ts:19`
 - [ ] `STATIC_CHANNEL_ID` → api/src/config.ts `frontline_api/src/migrations/migrateTickets.ts:24`
-- [ ] `TIMEZONE` → api/src/config.ts `frontline_api/src/modules/integrations/call/utils.ts:586`
+- [x] `TIMEZONE` → each PBX account's `timeZone`; CDR times are read in it `frontline_api/src/modules/integrations/call/utils.ts:586`
 - [x] `TZ` → api/src/config.ts `frontline_api/src/modules/reports/utils.ts:384`. (filed https://github.com/erxes/erxes/issues/10581)
 - [ ] `WIDGETS_DOMAIN` → api/src/config.ts `frontline_api/src/modules/form/meta/automation/createFormLinkAction.ts:87`
 
@@ -834,14 +834,14 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_instagram_logs` → dropped: no screen read it `frontline_api/src/modules/integrations/instagram/db/definitions/logs.ts:6`
 - [x] `frontline_instagram_bots` → `frontline_meta_bots`, one bot per page or account `frontline_api/src/modules/integrations/instagram/db/definitions/bots.ts:12`
 - [x] `frontline_instagram_configs` from collection `instagram_configs` → dropped: the Meta app is `META_APP_ID`, `META_APP_SECRET` and `META_VERIFY_TOKEN` in api/src/config.ts `frontline_api/src/modules/integrations/instagram/db/definitions/config.ts:4`
-- [ ] `frontline_calls_integrations` from collection `calls_integrations` (10 fields, draft `frontlineCallsIntegrations` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/integrations.ts:4`
-- [ ] `frontline_calls_customers` from collection `calls_customers` (5 fields, draft `frontlineCallsCustomers` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/customers.ts:7`
-- [ ] `frontline_calls_history` from collection `calls_history` (20 fields, draft `frontlineCallsHistory` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/histories.ts:4`
-- [ ] `frontline_calls_configs` from collection `calls_configs` (3 fields, draft `frontlineCallsConfigs` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/models/Configs.ts:11`
-- [ ] `frontline_calls_operators` from collection `calls_operators` (3 fields, draft `frontlineCallsOperators` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/operators.ts:4`
-- [ ] `frontline_calls_cdr` from collection `calls_cdr` (53 fields, draft `frontlineCallsCdr` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/cdrs.ts:3`
-- [ ] `frontline_calls_queue_statistics` from collection `calls_queue_statistics` (15 fields, draft `frontlineCallsQueueStatistics` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/queueStatistics.ts:15`
-- [ ] `frontline_calls_sessions` from collection `calls_sessions` (23 fields, draft `frontlineCallsSessions` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/callSessions.ts:19`
+- [x] `frontline_calls_integrations` from collection `calls_integrations` → `frontline_integration_accounts` (`call`), with `frontline_call_operators` and `frontline_call_queues` in `api/src/db/calls.ts` `frontline_api/src/modules/integrations/call/db/definitions/integrations.ts:4`
+- [x] `frontline_calls_customers` from collection `calls_customers` → core's customer, found or created by phone, linked in `frontline_customer_links` `frontline_api/src/modules/integrations/call/db/definitions/customers.ts:7`
+- [x] `frontline_calls_history` from collection `calls_history` → `frontline_calls` in `api/src/db/calls.ts` `frontline_api/src/modules/integrations/call/db/definitions/histories.ts:4`
+- [x] `frontline_calls_configs` from collection `calls_configs` → dropped: what a PBX needs is on its account `frontline_api/src/modules/integrations/call/db/models/Configs.ts:11`
+- [x] `frontline_calls_operators` from collection `calls_operators` → `frontline_call_operators` `frontline_api/src/modules/integrations/call/db/definitions/operators.ts:4`
+- [x] `frontline_calls_cdr` from collection `calls_cdr` → `frontline_call_legs`, each CDR leg kept whole and folded into its `frontline_calls` row `frontline_api/src/modules/integrations/call/db/definitions/cdrs.ts:3`
+- [x] `frontline_calls_queue_statistics` from collection `calls_queue_statistics` → `frontline_call_queues`, the day's counters and the live board `frontline_api/src/modules/integrations/call/db/definitions/queueStatistics.ts:15`
+- [x] `frontline_calls_sessions` from collection `calls_sessions` → `frontline_calls` `frontline_api/src/modules/integrations/call/db/definitions/callSessions.ts:19`
 - [x] `frontline_facebook_messengers_bots` → `frontline_meta_bots`, one bot per page or account `frontline_api/src/modules/integrations/facebook/db/definitions/bots.ts:99`
 - [x] `frontline_discord_bots` from collection `discord_bots` (12 fields, draft `frontlineDiscordBots` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/bots.ts:22`. Folded into `frontline_integration_accounts`
 - [x] `frontline_customers_discord` from collection `customers_discord` (7 fields, draft `frontlineCustomersDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
@@ -853,10 +853,10 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_customers_telegram` from collection `customers_telegram` (7 fields, draft `frontlineCustomersTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
 - [x] `frontline_conversations_telegram` from collection `conversations_telegram` (11 fields, draft `frontlineConversationsTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/conversations.ts:4`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
 - [x] `frontline_conversation_messages_telegram` from collection `conversation_messages_telegram` (24 fields, draft `frontlineConversationMessagesTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/conversationMessages.ts:5`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
-- [ ] `frontline_integrations_callpro` from collection `integrations_callpro` (4 fields, draft `frontlineIntegrationsCallpro` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/callpro/db/definitions/integrations.ts:4`
-- [ ] `frontline_customers_callpro` from collection `customers_callpro` (4 fields, draft `frontlineCustomersCallpro` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/callpro/db/definitions/customers.ts:4`
-- [ ] `frontline_conversations_callpro` from collection `conversations_callpro` (7 fields, draft `frontlineConversationsCallpro` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/callpro/db/definitions/conversations.ts:4`
-- [ ] `frontline_logs_callpro` from collection `logs_callpro` (5 fields, draft `frontlineLogsCallpro` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/callpro/db/definitions/logs.ts:4`
+- [x] `frontline_integrations_callpro` from collection `integrations_callpro` → `frontline_integration_accounts` (`callpro`) `frontline_api/src/modules/integrations/callpro/db/definitions/integrations.ts:4`
+- [x] `frontline_customers_callpro` from collection `customers_callpro` → core's customer, found or created by phone, linked in `frontline_customer_links` `frontline_api/src/modules/integrations/callpro/db/definitions/customers.ts:4`
+- [x] `frontline_conversations_callpro` from collection `conversations_callpro` → `frontline_calls` and the call's inbox conversation `frontline_api/src/modules/integrations/callpro/db/definitions/conversations.ts:4`
+- [x] `frontline_logs_callpro` from collection `logs_callpro` → dropped: the structured logger `frontline_api/src/modules/integrations/callpro/db/definitions/logs.ts:4`
 - [x] `frontline_mail_integrations` from collection `mail_integrations` (13 fields, draft `frontlineMailIntegrations` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/integrations.ts:17`. Folded into `frontline_integration_accounts`; pipeline addresses wait with Cloudflare routing
 - [x] `frontline_mail_customers` from collection `mail_customers` (6 fields, draft `frontlineMailCustomers` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
 - [x] `frontline_mail_messages` from collection `mail_messages` (33 fields, draft `frontlineMailMessages` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/messages.ts:31`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
@@ -866,32 +866,32 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Procedures
 
-- [ ] query `callQueueInitialList` → procedure `callQueueInitialLists.get` (returns `user`) `frontline_api/src/modules/integrations/call/graphql/resolvers/queries.ts:213`
-- [ ] subscription `sessionTerminateRequested` → procedure `integrations.sessionTerminateRequested` (returns `JSON`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
-- [ ] subscription `queueRealtimeUpdate` → procedure `queueRealtimes.update` (returns `String`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
-- [ ] subscription `callStatistic` → procedure `integrations.callStatistic` (returns `CallStatistic`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
-- [ ] query `callsIntegrationDetail` → procedure `callsIntegrations.get` (returns `CallsIntegrationDetailResponse`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] query `callUserIntegrations` → procedure `callUserIntegrations.list` (returns `[CallsIntegrationDetailResponse]`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] query `callsCustomerDetail` → procedure `callsCustomers.get` (returns `Customer`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] query `callHistories` → procedure `callHistories.list` (returns `[CallHistory]`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] query `callHistoriesTotalCount` → procedure `callHistories.list` (returns `Int`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] query `callsGetConfigs` → procedure `callsGetConfigs.list` (returns `[CallConfig]`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] query `callGetAgentStatus` → procedure `callGetAgentStatuses.get` (returns `String`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] query `callExtensionList` → procedure `callExtensionLists.get` (returns `[CallExtension]`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] query `callQueueList` → procedure `callQueueLists.get` (returns `[CallQueueStatistic]`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] query `callQueueInitialList` → procedure `callQueueInitialLists.get` (returns `String`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] query `callConversationNotes` → procedure `callConversationNotes.list` (returns `[CallConversationNotes]`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] query `callHistoryDetail` → procedure `callHistories.get` (returns `CallHistory`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [ ] mutation `callsIntegrationUpdate` → procedure `callsIntegrations.update` (returns `JSON`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
-- [ ] mutation `callAddCustomer` → procedure `integrations.callAddCustomer` (returns `CallConversationDetail`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
-- [ ] mutation `callsUpdateConfigs` → procedure `integrations.callsUpdateConfigs` (returns `JSON`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
-- [ ] mutation `callsPauseAgent` → procedure `integrations.callsPauseAgent` (returns `String`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
-- [ ] mutation `callTransfer` → procedure `integrations.callTransfer` (returns `String`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
-- [ ] mutation `callSyncRecordFile` → procedure `integrations.callSyncRecordFile` (returns `String`) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
-- [ ] query `callProConfig` → procedure `callProConfigs.get` (returns `CallProConfig`) `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
-- [ ] query `callProIntegrationDetail` → procedure `callProIntegrations.get` (returns `CallProIntegrationDetail`) `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
-- [ ] query `callProCustomersByPhone` → procedure `callProCustomersByPhones.get` (returns `[Customer]`) `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
-- [ ] mutation `callProCustomerSelect` → procedure `integrations.callProCustomerSelect` (returns `Conversation`) `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:19`
+- [x] query `callQueueInitialList` → `calls.queues.get`, the live board the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/resolvers/queries.ts:213`
+- [x] subscription `sessionTerminateRequested` → waits on a plugin widget on every page (filed https://github.com/erxes/erxes/issues/10586) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
+- [x] subscription `queueRealtimeUpdate` → `core_live_signal()` on `calls` tells members' pages to refetch, and `calls.queues.get` reads what the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
+- [x] subscription `callStatistic` → `core_live_signal()` on `calls` tells members' pages to refetch, and `calls.queues.get` reads what the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
+- [x] query `callsIntegrationDetail` → `integrations.call.settings` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callUserIntegrations` → `calls.agents.mine` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callsCustomerDetail` → dropped: erxes-ui's `ContactLink` reads core's customer `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callHistories` → `calls.list` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callHistoriesTotalCount` → `calls.list`'s `totalCount` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callsGetConfigs` → dropped: `calls_configs` is gone `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callGetAgentStatus` → `calls.agents.mine` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callExtensionList` → waits on a plugin widget on every page for the softphone's transfer (filed https://github.com/erxes/erxes/issues/10586) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callQueueList` → `calls.queues.list` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callQueueInitialList` → `calls.queues.get`, the live board the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callConversationNotes` → dropped: the call's inbox conversation carries internal notes `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callHistoryDetail` → `calls.get` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] mutation `callsIntegrationUpdate` → `integrations.call.saveSettings` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
+- [x] mutation `callAddCustomer` → dropped: every call finds or creates its customer by phone, edited in core's panel `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
+- [x] mutation `callsUpdateConfigs` → dropped: `calls_configs` is gone `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
+- [x] mutation `callsPauseAgent` → `calls.agents.setStatus` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
+- [x] mutation `callTransfer` → waits on a plugin widget on every page for the softphone (filed https://github.com/erxes/erxes/issues/10586) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
+- [x] mutation `callSyncRecordFile` → `calls.fetchRecording`, which queues the `calls.recording` job `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
+- [x] query `callProConfig` → dropped: `CALLPRO_ENABLED` is gone; `integrations.call.settings` shows a CallPro line's address `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
+- [x] query `callProIntegrationDetail` → `integrations.call.settings` `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
+- [x] query `callProCustomersByPhone` → dropped: core finds or creates the customer by phone `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
+- [x] mutation `callProCustomerSelect` → dropped: core finds or creates the customer by phone `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:19`
 - [x] query `discordStickerAnimation` → procedure `discordStickerAnimations.get` (returns `JSON`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
 - [x] query `discordBots` → `integrations.accounts.list({ provider: 'discord' })` `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
 - [x] query `discordBot` → folded into `integrations.accounts.list` `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
@@ -1030,16 +1030,16 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Core calls
 
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/call/graphql/resolvers/customResolvers/customer.ts:11`
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/call/graphql/resolvers/queries.ts:69`
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/call/logUtils.ts:7`
-- [ ] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/integrations/call/logUtils.ts:37`
-- [ ] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/integrations/call/services/cdrServices.ts:184`
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/call/store.ts:81`
-- [ ] core `customers.updateCustomer` → sdk `customers.update` (scope customers:write) `frontline_api/src/modules/integrations/call/store.ts:92`
-- [ ] core `customers.createCustomer` → sdk `customers.findOrCreate` (scope customers:write; by email or phone, else customers.create (state: 'lead')) `frontline_api/src/modules/integrations/call/store.ts:108`
-- [ ] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/integrations/callpro/controller.ts:159`
-- [ ] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/integrations/callpro/graphql/resolvers/queries.ts:33`
+- [x] core `customers.findOne` → erxes-ui's `ContactLink` reads core's customer in the UI `frontline_api/src/modules/integrations/call/graphql/resolvers/customResolvers/customer.ts:11`
+- [x] core `customers.findOne` → erxes-ui's `ContactLink` reads core's customer in the UI `frontline_api/src/modules/integrations/call/graphql/resolvers/queries.ts:69`
+- [x] core `customers.findOne` → dropped: logs go through the structured logger `frontline_api/src/modules/integrations/call/logUtils.ts:7`
+- [x] core `users.findOne` → dropped: logs go through the structured logger `frontline_api/src/modules/integrations/call/logUtils.ts:37`
+- [x] core `users.findOne` → dropped: the line is the account's phone; members show with `MemberInline` `frontline_api/src/modules/integrations/call/services/cdrServices.ts:184`
+- [x] core `customers.findOne` → `customers.findOrCreate` by phone in `api/src/modules/integrations/providers/call/record.ts` `frontline_api/src/modules/integrations/call/store.ts:81`
+- [x] core `customers.updateCustomer` → `customers.findOrCreate` by phone in `api/src/modules/integrations/providers/call/record.ts` `frontline_api/src/modules/integrations/call/store.ts:92`
+- [x] core `customers.createCustomer` → `customers.findOrCreate` by phone in `api/src/modules/integrations/providers/call/record.ts` `frontline_api/src/modules/integrations/call/store.ts:108`
+- [x] core `customers.find` → `customers.findOrCreate` by phone in `api/src/modules/integrations/providers/call/record.ts` `frontline_api/src/modules/integrations/callpro/controller.ts:159`
+- [x] core `customers.find` → dropped: `callProCustomersByPhone` is gone `frontline_api/src/modules/integrations/callpro/graphql/resolvers/queries.ts:33`
 - [x] core `fields.fieldsCombinedByContentType` → dropped: it listed message fields for the old automation editor; core's automations read the event payload `frontline_api/src/modules/integrations/facebook/fieldUtils.ts:60`
 - [x] core `users.findOne` → dropped: it named the replying member for a notification the inbox owns `frontline_api/src/modules/integrations/facebook/handleFacebookMessage.ts:191`
 - [x] core `customers.findOne` → the inbox's `customerFor` through `frontline_customer_links` `frontline_api/src/modules/integrations/instagram/controller/store.ts:76`
@@ -1077,13 +1077,13 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Routes
 
-- [ ] GET `/resetCallCookie` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/call/initApp.ts:87`
-- [ ] POST `/call/queueRealtimeUpdate` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/call/initApp.ts:92`
-- [ ] POST `/call/queueStatistics` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/call/initApp.ts:121`
-- [ ] POST `/call/cdrReceive` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/call/initApp.ts:154`
-- [ ] POST `/call/event` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/call/initApp.ts:173`
-- [ ] POST `/call/receiveCall` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/call/initApp.ts:192`
-- [ ] POST `/callpro/receive` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/callpro/routes.ts:11`
+- [x] GET `/resetCallCookie` → dropped: each PBX's cookie is renewed when it expires `frontline_api/src/modules/integrations/call/initApp.ts:87`
+- [x] POST `/call/queueRealtimeUpdate` → `/api/public/webhooks/call/<key>/queue-live`, signed `frontline_api/src/modules/integrations/call/initApp.ts:92`
+- [x] POST `/call/queueStatistics` → `/api/public/webhooks/call/<key>/queue-stats`, signed `frontline_api/src/modules/integrations/call/initApp.ts:121`
+- [x] POST `/call/cdrReceive` (webhook) → `/api/public/webhooks/call/<key>/cdr`, signed `frontline_api/src/modules/integrations/call/initApp.ts:154`
+- [x] POST `/call/event` → `/api/public/webhooks/call/<key>/event`, signed `frontline_api/src/modules/integrations/call/initApp.ts:173`
+- [x] POST `/call/receiveCall` (webhook) → `/api/public/webhooks/call/<key>/receive-call`, signed `frontline_api/src/modules/integrations/call/initApp.ts:192`
+- [x] POST `/callpro/receive` (webhook) → `/api/public/webhooks/callpro/<key>`; the key is the secret `frontline_api/src/modules/integrations/callpro/routes.ts:11`
 - [x] GET `/facebook/fblogin` → `integrations.meta.loginUrl`, back to GET `/api/public/webhooks/meta/callback` `frontline_api/src/modules/integrations/facebook/routes.ts:12`
 - [x] GET `/facebook/kind/:kind/fblogin` → folded into `integrations.meta.loginUrl`: one login connects Messenger and Instagram `frontline_api/src/modules/integrations/facebook/routes.ts:13`
 - [x] GET `/facebook/get-post` → `integrations.meta.posts.get` `frontline_api/src/modules/integrations/facebook/routes.ts:15`

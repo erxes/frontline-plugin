@@ -27,3 +27,5 @@ export const SURVEY_TYPE = `${PLUGIN}:survey`;
 export const INTEGRATION_TYPE = `${PLUGIN}:integration`;
 
 export const META_BOT_TYPE = `${PLUGIN}:meta-bot`;
+
+export const CALL_TYPE = `${PLUGIN}:call`;
