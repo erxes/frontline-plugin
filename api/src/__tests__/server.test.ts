@@ -35,17 +35,34 @@ describe('server', () => {
     ).toBe(401);
   });
 
-  it('lets web call it from the browser', async () => {
-    const response = await fetch(`${base}/api/rpc/channels/list`, {
-      method: 'OPTIONS',
-      headers: {
-        origin: config.coreUiOrigin,
-        'access-control-request-method': 'POST',
-        'access-control-request-headers': 'authorization,content-type',
-      },
+  it.each(['/api/rpc', '/api/v1', '/api/openapi.json', '/ui'])(
+    'allows a workspace origin to preflight %s',
+    async (path) => {
+      const origin = 'https://acme.os.erxes.io';
+
+      const response = await fetch(`${base}${path}`, {
+        method: 'OPTIONS',
+        headers: {
+          origin,
+          'access-control-request-method': 'POST',
+          'access-control-request-headers': 'authorization,content-type',
+        },
+      });
+
+      expect(response.status).toBe(204);
+      expect(response.headers.get('access-control-allow-origin')).toBe(origin);
+      expect(response.headers.get('access-control-allow-headers')).toContain('authorization');
+      expect(response.headers.get('access-control-allow-credentials')).toBeNull();
+      expect(response.headers.get('access-control-max-age')).toBe('600');
+    },
+  );
+
+  it('keeps the help center response CORS origin', async () => {
+    const response = await fetch(`${base}/api/public/custom-domains/resolve`, {
+      headers: { origin: config.coreUiOrigin },
     });
 
+    expect(response.status).toBe(404);
     expect(response.headers.get('access-control-allow-origin')).toBe(config.coreUiOrigin);
-    expect(response.headers.get('access-control-allow-headers')).toContain('authorization');
   });
 });
