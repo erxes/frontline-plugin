@@ -1,0 +1,6 @@
+/* The softphone's own Tailwind utilities, added when it first loads: it shows on every page, so
+   the plugin's stylesheet may not be there. Built like ../../../styles.css. */
+@import 'tailwindcss/theme.css' theme(reference inline);
+@import 'erxes-ui/theme.css' theme(inline);
+@import 'tailwindcss/utilities.css' layer(utilities) source(none);
+@source '.';

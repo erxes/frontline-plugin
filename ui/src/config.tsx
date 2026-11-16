@@ -269,6 +269,10 @@ export const CONFIG: IUIConfig = {
       },
     },
   ],
+  // The softphone on every page, for a member with a SIP line.
+  floatingWidget: lazy(async () => ({
+    default: (await import('@/calls/softphone/Softphone.tsx')).Softphone,
+  })),
   relationTabs: [
     {
       name: 'tickets',

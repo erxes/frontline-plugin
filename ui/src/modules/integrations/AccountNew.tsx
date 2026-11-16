@@ -63,6 +63,9 @@ const CONNECT = {
       timeZone: textOf(form.get('timeZone')),
       srcTrunk: textOf(form.get('srcTrunk')),
       dstTrunk: textOf(form.get('dstTrunk')),
+      turnUrl: textOf(form.get('turnUrl')),
+      turnUsername: textOf(form.get('turnUsername')),
+      turnPassword: textOf(form.get('turnPassword')),
     }),
   callpro: (form: FormData) =>
     orpc.integrations.callpro.connect.call({ phone: textOf(form.get('phone')) }),
@@ -152,6 +155,19 @@ const PbxFields = () => {
       />
       <TextRow label={t('outbound-trunk', 'Outbound trunk')} icon={IconPlug} name="srcTrunk" />
       <TextRow label={t('inbound-trunk', 'Inbound trunk')} icon={IconPlug} name="dstTrunk" />
+      <TextRow
+        label={t('turn-server', 'TURN server')}
+        icon={IconServer}
+        name="turnUrl"
+        placeholder="turn:turn.example.com:3478"
+      />
+      <TextRow label={t('turn-user', 'TURN user')} icon={IconUser} name="turnUsername" />
+      <TextRow
+        label={t('turn-password', 'TURN password')}
+        icon={IconLock}
+        name="turnPassword"
+        type="password"
+      />
     </>
   );
 };

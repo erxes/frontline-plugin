@@ -1,5 +1,5 @@
 {
-  "ui.config.gzip": 3800,
+  "ui.config.gzip": 3850,
   "ui.frontline.gzip": 61500,
   "ui.remoteEntry.gzip": 34100,
   "agents.context.bytes": 12750

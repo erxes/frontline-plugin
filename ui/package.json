@@ -20,6 +20,7 @@
     "erxes-ui": "npm:@erxes/ui@4.0.0-v2.20",
     "html-react-parser": "^6.1.9",
     "jotai": "^3.0.2",
+    "jssip": "^3.13.9",
     "nuqs": "^2.10.3",
     "react": "19.3.1",
     "react-dom": "19.3.1",

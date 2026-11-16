@@ -866,7 +866,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 ### Procedures
 
 - [x] query `callQueueInitialList` → `calls.queues.get`, the live board the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/resolvers/queries.ts:213`
-- [x] subscription `sessionTerminateRequested` → waits on a plugin widget on every page (filed https://github.com/erxes/erxes/issues/10586) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
+- [x] subscription `sessionTerminateRequested` → dropped: nothing published it; the softphone hangs up through JsSIP `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
 - [x] subscription `queueRealtimeUpdate` → `core_live_signal()` on `calls` tells members' pages to refetch, and `calls.queues.get` reads what the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
 - [x] subscription `callStatistic` → `core_live_signal()` on `calls` tells members' pages to refetch, and `calls.queues.get` reads what the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
 - [x] query `callsIntegrationDetail` → `integrations.call.settings` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
@@ -876,7 +876,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] query `callHistoriesTotalCount` → `calls.list`'s `totalCount` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callsGetConfigs` → dropped: `calls_configs` is gone `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callGetAgentStatus` → `calls.agents.mine` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [x] query `callExtensionList` → waits on a plugin widget on every page for the softphone's transfer (filed https://github.com/erxes/erxes/issues/10586) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callExtensionList` → `calls.phone.extensions` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callQueueList` → `calls.queues.list` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callQueueInitialList` → `calls.queues.get`, the live board the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callConversationNotes` → dropped: the call's inbox conversation carries internal notes `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
@@ -885,7 +885,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `callAddCustomer` → dropped: every call finds or creates its customer by phone, edited in core's panel `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
 - [x] mutation `callsUpdateConfigs` → dropped: `calls_configs` is gone `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
 - [x] mutation `callsPauseAgent` → `calls.agents.setStatus` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
-- [x] mutation `callTransfer` → waits on a plugin widget on every page for the softphone (filed https://github.com/erxes/erxes/issues/10586) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
+- [x] mutation `callTransfer` → `calls.phone.transfer` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
 - [x] mutation `callSyncRecordFile` → `calls.fetchRecording`, which queues the `calls.recording` job `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
 - [x] query `callProConfig` → dropped: `CALLPRO_ENABLED` is gone; `integrations.call.settings` shows a CallPro line's address `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
 - [x] query `callProIntegrationDetail` → `integrations.call.settings` `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`

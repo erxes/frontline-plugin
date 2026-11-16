@@ -13,7 +13,7 @@ import {
   IconTrash,
   IconUsers,
 } from '@tabler/icons-react';
-import type { InferClientOutputs } from '@orpc/client';
+import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
 import {
@@ -134,9 +134,15 @@ const PbxConfig = z.object({
   srcTrunk: z.string().default(''),
   dstTrunk: z.string().default(''),
   timeZone: z.string(),
+  turnUrl: z.string().default(''),
+  turnUsername: z.string().default(''),
+  turnPassword: z.string().default(''),
 });
 
 type Settings = InferClientOutputs<Client>['integrations']['call']['settings'];
+
+type OperatorInput =
+  InferClientInputs<Client>['integrations']['call']['saveSettings']['operators'][number];
 
 /**
  * A phone account's queues and operators as `saveSettings` takes them, and `change`, which saves
@@ -150,14 +156,22 @@ const usePbxLists = (account: Account, settings: Settings) => {
   const config = PbxConfig.safeParse(account.config);
   const queues = settings.queues.map(({ queue, name }) => ({ queue, name }));
 
-  const operators = settings.operators.map(({ userId, extension }) => ({ userId, extension }));
+  // A kept operator keeps its SIP password: the API only takes a new one.
+  const operators: OperatorInput[] = settings.operators.map(({ userId, extension }) => ({
+    userId,
+    extension,
+  }));
+
+  const softphones = new Set(
+    settings.operators.flatMap((operator) => (operator.hasSipPassword ? [operator.extension] : [])),
+  );
 
   const change = (lists: Partial<{ queues: typeof queues; operators: typeof operators }>) => {
     if (config.success)
       save.mutate({ accountId: account.id, ...config.data, queues, operators, ...lists });
   };
 
-  return { queues, operators, change };
+  return { queues, operators, softphones, change };
 };
 
 type Lists = ReturnType<typeof usePbxLists>;
@@ -189,8 +203,11 @@ const QueuesSection = ({ lists: { queues, change } }: { lists: Lists }) => {
   );
 };
 
-/** The members who answer the PBX, each by an extension; a member is picked before the extension. */
-const OperatorsSection = ({ lists: { operators, change } }: { lists: Lists }) => {
+/**
+ * The members who answer the PBX, each by an extension; a member is picked before the extension.
+ * An extension's SIP password gives its member the softphone on every page.
+ */
+const OperatorsSection = ({ lists: { operators, softphones, change } }: { lists: Lists }) => {
   const { t } = useTranslation('frontline');
   const [userId, setUserId] = useState<string | null>(null);
 
@@ -209,7 +226,12 @@ const OperatorsSection = ({ lists: { operators, change } }: { lists: Lists }) =>
             <ItemRow
               key={operator.extension}
               label={operator.extension}
-              hint={member ? memberName(member) : undefined}
+              hint={[
+                member && memberName(member),
+                softphones.has(operator.extension) && t('with-softphone', 'softphone'),
+              ]
+                .filter(Boolean)
+                .join(', ')}
               onRemove={() =>
                 change({
                   operators: operators.filter((each) => each.extension !== operator.extension),
@@ -230,9 +252,17 @@ const OperatorsSection = ({ lists: { operators, change } }: { lists: Lists }) =>
       </div>
       {userId && (
         <AddRow
-          fields={[{ name: 'extension', label: t('extension', 'Extension'), required: true }]}
-          onAdd={({ extension = '' }) => {
-            change({ operators: [...operators, { userId, extension }] });
+          fields={[
+            { name: 'extension', label: t('extension', 'Extension'), required: true },
+            { name: 'sipPassword', label: t('sip-password', 'SIP password'), type: 'password' },
+          ]}
+          onAdd={({ extension = '', sipPassword }) => {
+            change({
+              operators: [
+                ...operators,
+                { userId, extension, sipPassword: sipPassword || undefined },
+              ],
+            });
             setUserId(null);
           }}
         />
