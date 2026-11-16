@@ -2,5 +2,6 @@
   "ui.config.gzip": 3450,
   "ui.frontline.gzip": 58000,
   "ui.remoteEntry.gzip": 34000,
-  "agents.context.bytes": 12750
+  "agents.context.bytes": 12750,
+  "widget.messenger.gzip": 14500
 }

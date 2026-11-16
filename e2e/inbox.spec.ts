@@ -141,6 +141,7 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await expect(page.getByRole('textbox', { name: 'Welcome message' })).toHaveValue(
     'Hi, how can we help?',
   );
+  await expect(page.getByText(`/widget/messenger.js?key=${key}"></script>`)).toBeVisible();
   await expectAccessible(page);
 
   // Each change shows in the preview before it saves.
@@ -176,6 +177,50 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await outsider.page.goto(new URL(page.url()).pathname);
   await expect(outsider.page.getByRole('alert')).toContainText('No such integration');
   await expectAccessible(outsider.page);
+});
+
+test('a visitor writes from the widget on a website and reads the reply without a reload', async ({
+  page,
+}) => {
+  const channel = await createChannel(page);
+  const question = `Do you ship ${unique()} abroad?`;
+
+  await page.goto(INBOX);
+
+  const key = await addMessenger(page, channel);
+  const script = new URL(`/widget/messenger.js?key=${key}`, MESSENGER);
+
+  // A shop on another origin than the plugin, with the line the install card gives.
+  const shop = await page.context().newPage();
+
+  await shop.route('http://127.0.0.1:3399/shop', (route) =>
+    route.fulfill({
+      contentType: 'text/html',
+      body: `<!doctype html><html lang="en"><title>Shop</title><main><h1>Shop</h1></main><script type="module" src="${script.href}"></script></html>`,
+    }),
+  );
+  await shop.goto('http://127.0.0.1:3399/shop');
+  await shop.getByRole('button', { name: 'Open the messenger' }).click();
+
+  const panel = shop.getByRole('dialog');
+
+  await expect(panel).toContainText('Hi, how can we help?');
+  await panel.getByRole('button', { name: 'Send us a message' }).click();
+  await panel.getByRole('textbox', { name: 'Message' }).fill(question);
+  await panel.getByRole('button', { name: 'Send' }).click();
+  await expect(panel).toContainText(question);
+  await expectAccessible(shop);
+
+  await page.goto(INBOX);
+  await page
+    .getByRole('list', { name: 'Conversations' })
+    .getByRole('button', { name: new RegExp(question.replace('?', '\\?')) })
+    .click();
+  await page.getByRole('textbox', { name: 'Reply' }).fill('Yes, to 40 countries.');
+  await page.getByRole('button', { name: 'Send' }).click();
+
+  // The stream tells the widget; it refetches the open conversation.
+  await expect(panel).toContainText('Yes, to 40 countries.');
 });
 
 test('a member takes over from the bot, sees the visitor typing and edits a reply', async ({

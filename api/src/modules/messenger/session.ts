@@ -2,6 +2,7 @@ import { hkdfSync } from 'node:crypto';
 import { jwtVerify, SignJWT } from 'jose';
 import { z } from 'zod';
 import { config } from '#/config.ts';
+import { Attachment } from '#/db/table.ts';
 import { INTEGRATION_KEY } from '../inbox/integrations.ts';
 import { openedBy } from '../public.ts';
 
@@ -37,6 +38,39 @@ export const visitorOf = async (token: string | undefined) => {
   const visitor = Visitor.safeParse(verified?.payload);
 
   return visitor.success ? visitor.data : null;
+};
+
+/** Who a file receipt is for; a visitor token, which has no audience, is no receipt. */
+const RECEIPT = 'frontline messenger file';
+
+const Receipt = z.object({ file: Attachment, integrationId: z.string(), customerId: z.string() });
+
+/**
+ * A signed receipt for a file the visitor uploaded. Their message attaches files by receipt, so
+ * it carries only files they uploaded, and `/files/:id` serves them only those and the team's.
+ */
+export const receiptOf = (visitor: Visitor, file: Attachment) =>
+  new SignJWT({ file, integrationId: visitor.integrationId, customerId: visitor.customerId })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setAudience(RECEIPT)
+    .setIssuedAt()
+    .setExpirationTime('1d')
+    .sign(secret);
+
+/** The file a receipt names, or null when it is forged, expired or another visitor's. */
+export const fileOf = async (visitor: Visitor, receipt: string) => {
+  const verified = await jwtVerify(receipt, secret, {
+    algorithms: ['HS256'],
+    audience: RECEIPT,
+  }).catch(() => null);
+
+  const parsed = Receipt.safeParse(verified?.payload);
+
+  return parsed.success &&
+    parsed.data.integrationId === visitor.integrationId &&
+    parsed.data.customerId === visitor.customerId
+    ? parsed.data.file
+    : null;
 };
 
 /** The organisation and integration a messenger's key opens, or null for an unknown key. */

@@ -22,6 +22,7 @@ import { AvailabilityCard } from './AvailabilityCard.tsx';
 import { BehaviourCard } from './BehaviourCard.tsx';
 import { BotCard } from './BotCard.tsx';
 import { GreetingCard } from './GreetingCard.tsx';
+import { InstallCard } from './InstallCard.tsx';
 import { MessengerPreview } from './MessengerPreview.tsx';
 import { type MessengerSettings, useMessengerSettings } from './queries.ts';
 
@@ -51,6 +52,7 @@ const SettingsForm = ({ messenger }: { messenger: MessengerSettings }) => {
         className="grid grid-cols-1 gap-4 lg:grid-cols-3"
       >
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
+          {messenger.scriptUrl && <InstallCard scriptUrl={messenger.scriptUrl} />}
           <fieldset disabled={!messenger.canManage} className="contents">
             <GreetingCard />
             <AppearanceCard />

@@ -13,7 +13,8 @@
   },
   "exports": {
     ".": "./src/router.ts",
-    "./logic": "./src/modules/forms/logic.ts"
+    "./logic": "./src/modules/forms/logic.ts",
+    "./messenger": "./src/modules/messenger/routes.ts"
   },
   "scripts": {
     "dev": "node --env-file-if-exists=../.env --import ./src/telemetry.ts --watch-path=src src/main.ts",

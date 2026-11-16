@@ -32,15 +32,14 @@ const memberOf = async (authorization: string | undefined) => {
   return verifyPluginSession(token, { coreUrl: config.coreUrl, plugin: PLUGIN }).catch(() => null);
 };
 
-export const createApp = () => {
-  const app = express();
-
-  app.disable('x-powered-by');
-  app.use(pinoHttp({ logger }));
+/**
+ * What websites load and call signed out: their routes answer any origin, so they come before
+ * web's CORS. Forms find the organisation by the key frontline gave it. The embeds' entries
+ * keep their names, so browsers recheck them every few minutes; the chunks carry their hash.
+ */
+const embeds = (app: express.Express) => {
   // Providers post webhooks signed out, from their own servers.
   app.use('/api/public/webhooks', webhookRoutes());
-  // Websites embed the messenger and forms: their routes answer any origin, so they come before
-  // web's CORS. Forms find the organisation by the key frontline gave it.
   app.use('/api/public/messenger', messengerRoutes());
   app.use(
     '/api/public/:key',
@@ -48,6 +47,29 @@ export const createApp = () => {
     express.json({ limit: '1mb' }),
     formsPublicRouter,
   );
+
+  if (config.widgetDir)
+    app.use(
+      '/widget',
+      cors({ maxAge: 600 }),
+      express.static(config.widgetDir, {
+        setHeaders: (res, path) =>
+          res.set(
+            'cache-control',
+            path.includes('/chunks/')
+              ? 'public, max-age=31536000, immutable'
+              : 'public, max-age=300',
+          ),
+      }),
+    );
+};
+
+export const createApp = () => {
+  const app = express();
+
+  app.disable('x-powered-by');
+  app.use(pinoHttp({ logger }));
+  embeds(app);
   // The plugin UI runs inside web and calls this API from web's origin.
   app.use(cors({ origin: config.coreUiOrigin, maxAge: 600 }));
 

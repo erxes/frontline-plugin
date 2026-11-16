@@ -43,6 +43,6 @@ export const serve = (prefix: string) => {
     url: (path: string) => `${base}${path}`,
     post: (path: string, body: unknown, token?: string) =>
       call(path, { method: 'POST', body: JSON.stringify(body) }, token),
-    get: (path: string, token: string) => call(path, {}, token),
+    get: (path: string, token?: string) => call(path, {}, token),
   };
 };

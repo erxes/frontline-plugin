@@ -263,7 +263,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `MAIL_WEBHOOK_SECRET` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/signature.ts:13`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 - [x] `MAIL_WORKER_URL` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/connection.ts:48`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 - [x] `NODE_TLS_REJECT_UNAUTHORIZED` → dropped: TLS is always checked (erxes/erxes#7528) `frontline_api/src/modules/integrations/call/utils.ts:209`
-- [x] `REACT_APP_WIDGETS_URL` → api/src/config.ts `frontline_ui/src/modules/utils.ts:27`. dropped: the plugin serves no widgets bundle (the widgets bundle row in DECISIONS.md); the messenger's panel shows the key its embed carries (`ui/src/modules/inbox/IntegrationPanel.tsx`)
+- [x] `REACT_APP_WIDGETS_URL` → api/src/config.ts `frontline_ui/src/modules/utils.ts:27`. dropped: the API serves the embeds at `${PUBLIC_URL}/widget` from `WIDGET_DIR`, and the messenger's Install card shows its script line (`ui/src/modules/messenger/InstallCard.tsx`)
 - [x] `SINCE` → dropped: an old Mongo data migration `frontline_api/src/migrations/migrateCallConversationContents.ts:19`
 - [x] `STATIC_CHANNEL_ID` → api/src/config.ts `frontline_api/src/migrations/migrateTickets.ts:24`. dropped: an old Mongo data migration; `scripts/import-mongo.ts` copies the old data
 - [x] `TIMEZONE` → each PBX account's `timeZone`; CDR times are read in it `frontline_api/src/modules/integrations/call/utils.ts:586`

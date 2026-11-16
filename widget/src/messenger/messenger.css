@@ -1,0 +1,550 @@
+/* The messenger, inside its shadow root: nothing here reaches the website, nor its styles here.
+   --fl-color and --fl-text are the messenger's colours; --fl-page its background, if set. */
+:host {
+  all: initial;
+}
+
+.fl {
+  --fl-page: #ffffff;
+  --fl-ink: #18181b;
+  --fl-muted: #71717a;
+  --fl-line: #e4e4e7;
+  --fl-soft: #f4f4f5;
+  font:
+    14px/1.45 system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  color: var(--fl-ink);
+}
+
+@media (prefers-color-scheme: dark) {
+  .fl {
+    --fl-page: #18181b;
+    --fl-ink: #f4f4f5;
+    --fl-muted: #a1a1aa;
+    --fl-line: #3f3f46;
+    --fl-soft: #27272a;
+  }
+}
+
+.fl * {
+  box-sizing: border-box;
+}
+
+.fl button,
+.fl input,
+.fl textarea {
+  font: inherit;
+  color: inherit;
+}
+
+.fl button {
+  cursor: pointer;
+}
+
+.fl :focus-visible {
+  outline: 2px solid var(--fl-color);
+  outline-offset: 2px;
+}
+
+.fl-launcher {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483000;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--fl-color);
+  color: var(--fl-text);
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
+}
+
+.fl-launcher svg {
+  width: 26px;
+  height: 26px;
+}
+
+.fl-launcher img {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.fl-badge,
+.fl-count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: #dc2626;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fl-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+}
+
+.fl-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 88px;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  width: 380px;
+  height: min(640px, calc(100vh - 108px));
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--fl-page);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
+}
+
+@media (max-width: 480px) {
+  .fl-panel {
+    inset: 0;
+    width: auto;
+    height: auto;
+    border-radius: 0;
+  }
+}
+
+.fl-icon-button {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  flex: none;
+}
+
+.fl-icon-button:hover {
+  background: var(--fl-soft);
+}
+
+.fl-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  color: var(--fl-text);
+}
+
+.fl-close:hover {
+  background: rgb(255 255 255 / 0.15);
+}
+
+.fl-scroll {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.fl-hero {
+  padding: 28px 24px 56px;
+  background: var(--fl-color);
+  color: var(--fl-text);
+}
+
+.fl-hero-glossy .fl-hero {
+  background: linear-gradient(160deg, rgb(255 255 255 / 0.25), transparent 60%), var(--fl-color);
+}
+
+.fl-hero-aurora .fl-hero {
+  background:
+    radial-gradient(circle at 20% 0%, rgb(255 255 255 / 0.35), transparent 50%),
+    radial-gradient(circle at 90% 30%, rgb(0 0 0 / 0.2), transparent 50%), var(--fl-color);
+}
+
+.fl-hero-mesh .fl-hero {
+  background:
+    radial-gradient(circle at 0% 100%, rgb(255 255 255 / 0.2), transparent 40%),
+    radial-gradient(circle at 100% 0%, rgb(255 255 255 / 0.2), transparent 40%), var(--fl-color);
+}
+
+.fl-hero h2 {
+  margin: 0 40px 6px 0;
+  font-size: 22px;
+  line-height: 1.25;
+}
+
+.fl-hero p {
+  margin: 0;
+  opacity: 0.9;
+  white-space: pre-line;
+}
+
+.fl-logo {
+  display: block;
+  max-height: 36px;
+  margin-bottom: 16px;
+}
+
+.fl-team {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.fl-avatars {
+  display: flex;
+}
+
+.fl-avatar {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  margin-right: -8px;
+  overflow: hidden;
+  border: 2px solid var(--fl-color);
+  border-radius: 50%;
+  background: var(--fl-soft);
+  color: var(--fl-ink);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.fl-avatar img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.fl-avatars + .fl-status {
+  margin-left: 8px;
+}
+
+.fl-status {
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.fl-status::before {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: #a1a1aa;
+}
+
+.fl-status.fl-online::before {
+  background: #22c55e;
+}
+
+.fl-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: -36px;
+  padding: 0 16px 16px;
+}
+
+.fl-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--fl-line);
+  border-radius: 12px;
+  background: var(--fl-page);
+  color: inherit;
+  text-decoration: none;
+}
+
+.fl-card h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.fl-app span {
+  color: var(--fl-muted);
+}
+
+.fl-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 16px;
+  border: 0;
+  border-radius: 10px;
+  background: var(--fl-color);
+  color: var(--fl-text);
+  font-weight: 600;
+}
+
+.fl-primary:disabled {
+  opacity: 0.6;
+}
+
+.fl-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fl-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding: 10px 4px;
+  border: 0;
+  border-top: 1px solid var(--fl-line);
+  background: none;
+  text-align: left;
+}
+
+.fl-preview {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fl-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  color: var(--fl-muted);
+  font-size: 12px;
+}
+
+.fl-hours {
+  margin: 0;
+}
+
+.fl-hours div {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+}
+
+.fl-hours dd {
+  margin: 0;
+  color: var(--fl-muted);
+}
+
+.fl-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.fl-links a {
+  padding: 4px 10px;
+  border: 1px solid var(--fl-line);
+  border-radius: 999px;
+  color: inherit;
+  font-size: 12px;
+  text-decoration: none;
+}
+
+.fl-thread {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.fl-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 56px 10px 10px;
+  background: var(--fl-color);
+  color: var(--fl-text);
+}
+
+.fl-bar div {
+  display: flex;
+  flex-direction: column;
+}
+
+.fl-bar .fl-icon-button:hover {
+  background: rgb(255 255 255 / 0.15);
+}
+
+.fl-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 16px;
+}
+
+.fl-message {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  max-width: 85%;
+}
+
+.fl-message time {
+  margin: 2px 4px 0;
+  color: var(--fl-muted);
+  font-size: 11px;
+}
+
+.fl-mine {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.fl-bubble {
+  padding: 8px 12px;
+  border-radius: 14px;
+  background: var(--fl-soft);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.fl-mine .fl-bubble {
+  background: var(--fl-color);
+  color: var(--fl-text);
+}
+
+.fl-files {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.fl-files img {
+  display: block;
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 8px;
+}
+
+.fl-file {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: inherit;
+}
+
+.fl-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.fl-menu a,
+.fl-menu button {
+  padding: 6px 12px;
+  border: 1px solid var(--fl-color);
+  border-radius: 999px;
+  background: none;
+  color: var(--fl-color);
+  text-decoration: none;
+}
+
+.fl-link {
+  align-self: flex-start;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--fl-color);
+  text-decoration: underline;
+}
+
+.fl-typing {
+  margin: 0;
+  color: var(--fl-muted);
+  font-size: 12px;
+}
+
+.fl-composer,
+.fl-identify {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-top: 1px solid var(--fl-line);
+}
+
+.fl-identify p {
+  margin: 0;
+}
+
+.fl-identify input,
+.fl-compose-row textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--fl-line);
+  border-radius: 10px;
+  background: var(--fl-page);
+}
+
+.fl-compose-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.fl-compose-row textarea {
+  max-height: 120px;
+  resize: none;
+}
+
+.fl-send {
+  color: var(--fl-color);
+}
+
+.fl-send:disabled {
+  opacity: 0.5;
+}
+
+.fl-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fl-chips li {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 4px 2px 10px;
+  border-radius: 999px;
+  background: var(--fl-soft);
+  font-size: 12px;
+}
+
+.fl-chips button {
+  border: 0;
+  background: none;
+}
+
+.fl-error {
+  margin: 0;
+  color: #dc2626;
+  font-size: 13px;
+}

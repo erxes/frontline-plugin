@@ -46,6 +46,22 @@ vi.mock('#/core.ts', async (importOriginal) => {
   };
 });
 
+// Core's storage, by file id: what a visitor uploads, and what reading it back gives.
+const stored = vi.hoisted(() => new Map<string, string>());
+
+vi.mock('#/modules/files.ts', () => ({
+  storeFile: async (_orgId: string, file: { name: string; bytes: Uint8Array }) => {
+    stored.set(`file-${stored.size + 1}`, Buffer.from(file.bytes).toString());
+
+    return { url: `/core/v1/files/file-${stored.size}/download`, name: file.name };
+  },
+  readFile: async (_orgId: string, id: string) => {
+    const body = new Blob([stored.get(id) ?? '']);
+
+    return { name: 'note.txt', contentType: 'text/plain', size: body.size, body: body.stream() };
+  },
+}));
+
 vi.mock('@erxes/plugin-sdk', async (importOriginal) => {
   const actual = await importOriginal<typeof Sdk>();
 
@@ -135,12 +151,22 @@ describe('messenger', () => {
     });
     expect(connected.messenger).not.toHaveProperty('supporterIds');
 
-    await expect(
-      owner.integrations.messenger.settings({ id: integration.id }),
-    ).resolves.toMatchObject({
+    // A page reads them before the visitor opens the messenger, which makes no customer.
+    const customers = core.customers;
+
+    expect((await messenger.get(`/settings?key=${key}`)).body).toMatchObject({
+      messenger: { greetingTitle: 'Hello', supporters: [{ id: 'u2' }, { id: 'u1' }] },
+    });
+    expect(core.customers).toBe(customers);
+    expect((await messenger.get('/settings?key=nope')).status).toBe(404);
+
+    const settings = await owner.integrations.messenger.settings({ id: integration.id });
+
+    expect(settings).toMatchObject({
       canManage: true,
       config: { greetingTitle: 'Hello', color: '#4F46E5' },
     });
+    expect(settings.scriptUrl?.endsWith(`/widget/messenger.js?key=${key}`)).toBe(true);
 
     const outsider = clientAs('org-ms-a', [PERMISSIONS.channelView], 'outsider');
 
@@ -149,12 +175,12 @@ describe('messenger', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
 
     // 10:00 on a Monday in Ulaanbaatar is 02:00 UTC; Saturday is off.
-    const config = MessengerConfig.parse(integration.config);
+    const hours = MessengerConfig.parse(integration.config);
 
-    expect(isOnlineAt(config, new Date('2026-11-16T02:00:00Z'))).toBe(true);
-    expect(isOnlineAt(config, new Date('2026-11-16T11:00:00Z'))).toBe(false);
-    expect(isOnlineAt(config, new Date('2026-11-21T02:00:00Z'))).toBe(false);
-    expect(isOnlineAt({ ...config, availability: 'manual', isOnline: false }, new Date())).toBe(
+    expect(isOnlineAt(hours, new Date('2026-11-16T02:00:00Z'))).toBe(true);
+    expect(isOnlineAt(hours, new Date('2026-11-16T11:00:00Z'))).toBe(false);
+    expect(isOnlineAt(hours, new Date('2026-11-21T02:00:00Z'))).toBe(false);
+    expect(isOnlineAt({ ...hours, availability: 'manual', isOnline: false }, new Date())).toBe(
       false,
     );
   });
@@ -187,6 +213,45 @@ describe('messenger', () => {
     expect(
       (await messenger.post('/connect', { key, identity: { firstName: 'No contact' } })).status,
     ).toBe(400);
+  });
+
+  it('serves a visitor the files of their conversations, attached only by receipt', async () => {
+    const { key, token } = await setUp('org-ms-g');
+
+    const Uploaded = z.object({ url: z.string(), name: z.string(), receipt: z.string() });
+    const fileUrl = (id: string, as: string) => messenger.url(`/files/${id}?token=${as}`);
+
+    const sent = await fetch(messenger.url('/files'), {
+      method: 'POST',
+      headers: {
+        authorization: `Bearer ${token}`,
+        'content-type': 'text/plain',
+        'x-file-name': encodeURIComponent('Счёт.txt'),
+      },
+      body: 'invoice',
+    });
+
+    const file = Uploaded.parse(await sent.json());
+    const id = /file-\d+/.exec(file.url)?.[0] ?? '';
+
+    expect(file.name).toBe('Счёт.txt');
+    // Until a message carries it, nobody reads it.
+    expect((await fetch(fileUrl(id, token))).status).toBe(404);
+
+    expect((await messenger.post('/messages', { files: [file.receipt] }, token)).status).toBe(201);
+
+    const read = await fetch(fileUrl(id, token));
+
+    expect([read.status, await read.text()]).toEqual([200, 'invoice']);
+    expect(read.headers.get('content-disposition')).toContain('attachment');
+
+    // Another visitor can't attach it, by its receipt or its address, so never reads it.
+    const other = Connected.parse((await messenger.post('/connect', { key })).body).token;
+
+    expect((await messenger.post('/messages', { files: [file.receipt] }, other)).status).toBe(400);
+    expect((await messenger.post('/messages', { files: [other] }, other)).status).toBe(400);
+    await messenger.post('/messages', { content: 'Mine', attachments: [file] }, other);
+    expect((await fetch(fileUrl(id, other))).status).toBe(404);
   });
 
   it('keeps visitor sessions and counts the replies a visitor hasn’t read', async () => {

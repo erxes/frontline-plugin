@@ -18,6 +18,8 @@ const Env = z.object({
   UI_ENTRY_URL: z.url().optional(),
   /** The built UI to serve at `/ui` (the image sets it). */
   UI_DIR: z.string().optional(),
+  /** The built embeds websites load, served at `/widget` (the image sets it). */
+  WIDGET_DIR: z.string().optional(),
   /** web's origin, which calls this API from the browser. Defaults to CORE_URL's origin. */
   CORE_UI_URL: z.url().optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
@@ -53,6 +55,7 @@ export const config = {
   publicUrl: env.PUBLIC_URL.replace(/\/+$/, ''),
   uiEntryUrl: env.UI_ENTRY_URL ?? `${env.PUBLIC_URL.replace(/\/+$/, '')}/ui/remoteEntry.js`,
   uiDir: env.UI_DIR,
+  widgetDir: env.WIDGET_DIR,
   coreUiOrigin: new URL(env.CORE_UI_URL ?? env.CORE_URL).origin,
   logLevel: env.LOG_LEVEL,
   version: env.VERSION,

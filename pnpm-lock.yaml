@@ -463,6 +463,22 @@ importers:
         specifier: ^4.3.5
         version: 4.3.5
 
+  widget:
+    dependencies:
+      preact:
+        specifier: ^11.2.0
+        version: 11.2.0
+      wretch:
+        specifier: ^3.0.9
+        version: 3.0.9
+    devDependencies:
+      '@frontline/api':
+        specifier: workspace:*
+        version: link:../api
+      type-fest:
+        specifier: ^5.10.0
+        version: 5.10.0
+
 packages:
 
   '@alloc/quick-lru@5.3.0':
@@ -5273,6 +5289,14 @@ packages:
     resolution: {integrity: sha512-9ZhXKM/rw350N1ovuWHbGxnGh/SNJ4cnxHiM0rxE4VN41wsg8P8zWn9hv/buK00RP4WvlOyr/RBDiptyxVbkZQ==}
     engines: {node: '>=0.10.0'}
 
+  preact@11.2.0:
+    resolution: {integrity: sha512-/HfHI/7N84e6GrWBJ3J280z3mLaRJiDcSvj/A+y/4AbLnND/1UlGHe1sR6oYuTGwId0nP7dqDU9OnLxMPZ7xBg==}
+    peerDependencies:
+      preact-render-to-string: '>=6.7.0'
+    peerDependenciesMeta:
+      preact-render-to-string:
+        optional: true
+
   prelude-ls@1.2.1:
     resolution: {integrity: sha512-vkcDPrRZo1QZLbn5RLGPpg/WmIQ65qoWWhcGKf/b5eplkkarX0m9z8ppCat4mlOqUsWpyNuYgO3VRyrYHSzX5g==}
     engines: {node: '>= 0.8.0'}
@@ -6040,6 +6064,10 @@ packages:
 
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
+
+  wretch@3.0.9:
+    resolution: {integrity: sha512-RXJQp5aOBfHQaDCLRyFXQooWDBOHrQxVgCH/6OFaFPBKjeUiXMQ3NV1b8qqI7CR+v4meVBWYs242P8n+rWRjzA==}
+    engines: {node: '>=22'}
 
   ws@8.21.3:
     resolution: {integrity: sha512-201TZ/kPWxoPr/OKWjquZR1SWKXcvxdH+e1xrx89b3YbmzLMFCLfnaG1HFIgWzJOEWZ7MvpK++odZufgYR50Rw==}
@@ -10452,6 +10480,8 @@ snapshots:
     dependencies:
       xtend: 4.0.2
 
+  preact@11.2.0: {}
+
   prelude-ls@1.2.1: {}
 
   pretty-format@27.5.1:
@@ -11259,6 +11289,8 @@ snapshots:
       strip-ansi: 6.0.1
 
   wrappy@1.0.2: {}
+
+  wretch@3.0.9: {}
 
   ws@8.21.3: {}
 

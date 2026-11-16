@@ -1,4 +1,5 @@
-// Sizes that grow only on purpose. Run after `pnpm build`: it fails when a number
+// Sizes that grow only on purpose: what web loads, each embed a website loads, and the
+// instructions agents read. Run after `pnpm build`: it fails when a number
 // passes its ceiling in budgets.json. With `--base <file>` (CI, the base branch's
 // budgets.json) it also fails when this change raises a ceiling, unless
 // `--allow-increase` (the PR's budget-increase label).
@@ -22,11 +23,38 @@ const Stats = z.object({
 
 const Budgets = z.record(z.string(), z.int().positive());
 
+// What vite's manifest says each embed in widget/dist loads.
+const WidgetManifest = z.record(
+  z.string(),
+  z.object({
+    file: z.string(),
+    name: z.string().optional(),
+    isEntry: z.boolean().optional(),
+    imports: z.array(z.string()).optional(),
+  }),
+);
+
 const readJson = (file: string): unknown => JSON.parse(readFileSync(file, 'utf8'));
 const stats = Stats.parse(readJson(join(dist, 'mf-stats.json')));
 
-const gzip = (files: string[]) =>
-  files.reduce((sum, file) => sum + gzipSync(readFileSync(join(dist, file))).length, 0);
+const gzip = (files: string[], from = dist) =>
+  files.reduce((sum, file) => sum + gzipSync(readFileSync(join(from, file))).length, 0);
+
+const widgetDist = join(root, 'widget/dist');
+const widgetManifest = WidgetManifest.parse(readJson(join(widgetDist, '.vite/manifest.json')));
+
+/** An embed's file and every chunk it imports before it runs. */
+const filesOf = (key: string, seen = new Set<string>()): Set<string> => {
+  const chunk = widgetManifest[key];
+
+  if (!chunk || seen.has(chunk.file)) return seen;
+
+  seen.add(chunk.file);
+
+  for (const imported of chunk.imports ?? []) filesOf(imported, seen);
+
+  return seen;
+};
 
 const exposed = (path: string) => {
   const expose = stats.exposes.find((entry) => entry.path === path);
@@ -59,6 +87,10 @@ const measured: Record<string, number> = {
   'ui.remoteEntry.gzip': gzip(['remoteEntry.js']),
   'agents.context.bytes': instructions.reduce((sum, text) => sum + Buffer.byteLength(text), 0),
 };
+
+for (const [key, chunk] of Object.entries(widgetManifest))
+  if (chunk.isEntry)
+    measured[`widget.${chunk.name ?? key}.gzip`] = gzip([...filesOf(key)], widgetDist);
 
 const budgets = Budgets.parse(readJson(join(root, 'budgets.json')));
 const failures: string[] = [];

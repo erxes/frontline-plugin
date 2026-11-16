@@ -5,9 +5,9 @@ Node 26 runs the TypeScript directly; imports carry `.ts` and `#/` is `src/`.
 - `src/main.ts` starts in this order: migrations, `core.registerManifest(manifest)`,
   then the server. Core installs the plugin itself in development
   (`PLUGINS_AUTO_INSTALL`).
-- `src/core.ts` holds the core client and the manifest. Every permission, event
-  and kind in the manifest starts with `frontline.`. A new scope waits for the
-  owner's approval, so ask for one only when a procedure needs it.
+- `src/core.ts` holds the core client and names; `src/manifest.ts` the manifest.
+  Every permission, event and kind starts with `frontline.`. A new scope waits for
+  the owner's approval, so ask for one only when a procedure needs it.
 - `src/server.ts` verifies the session token on `/api/rpc/*` and hands
   procedures `context.member` (`PluginMember`: `orgId`, `userId`, `can()`,
   `canChange()`).
