@@ -27,6 +27,53 @@ export const OWNER = {
 /** A suffix that keeps records from parallel tests and reruns apart. */
 export const unique = () => randomBytes(3).toString('hex');
 
+/** Core's side panel, where records open and new ones are drafted. */
+export const recordPanel = (page: Page) => page.locator('aside[data-record-side-panel]');
+
+/** A list page with a new record of `contentType` drafted in core's side panel. */
+export const newRecordPath = (list: string, contentType: string) =>
+  `${list}?${new URLSearchParams({ panel: `/detail/${contentType}/new` }).toString()}`;
+
+/** Types `delete` into the confirm dialog and confirms. */
+export const confirmDelete = async (page: Page) => {
+  const confirm = page.getByRole('alertdialog');
+
+  await confirm.getByRole('textbox').fill('delete');
+  await confirm.getByRole('button', { name: 'Delete' }).click();
+};
+
+/** Creates a channel, with `memberName` in it when given, and opens its pipelines list. */
+export const openChannelPipelines = async (page: Page, memberName?: string) => {
+  const channel = `Support ${unique()}`;
+  const panel = recordPanel(page);
+
+  await page.goto(newRecordPath('/frontline/settings/channels', 'frontline:channel'));
+  await panel.getByLabel('Name').fill(channel);
+
+  if (memberName) {
+    await panel.getByPlaceholder('Search members').fill(memberName);
+    await panel.getByRole('option', { name: memberName }).click();
+  }
+
+  await panel.getByRole('button', { name: 'Create channel' }).click();
+  await panel.getByRole('link', { name: /Manage channel pipelines/ }).click();
+  await expect(page.getByText('No pipelines yet')).toBeVisible();
+
+  return channel;
+};
+
+/** Drafts a pipeline in core's side panel from the list's header and saves it into the record. */
+export const createPipeline = async (page: Page, name = `Returns ${unique()}`) => {
+  const panel = recordPanel(page);
+
+  await page.getByRole('button', { name: 'Create pipeline' }).click();
+  await panel.getByLabel('Name').fill(name);
+  await panel.getByRole('button', { name: 'Create pipeline' }).click();
+  await expect(panel.getByRole('button', { name: `Name ${name}` })).toBeVisible();
+
+  return name;
+};
+
 /**
  * Core's typed client over Playwright's request context, so it shares the page's
  * session cookie. Writes carry the header browsers send, which core's CSRF check reads.
@@ -36,11 +83,23 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
     new OpenAPILink(coreContract, {
       url: `${baseURL ?? ''}${CORE_API_PREFIX}`,
       fetch: async (call) => {
-        const response = await request.fetch(call.url, {
-          method: call.method,
-          headers: { ...Object.fromEntries(call.headers), 'sec-fetch-site': 'same-origin' },
-          data: call.body ? Buffer.from(await call.arrayBuffer()) : undefined,
-        });
+        const send = async () =>
+          request.fetch(call.url, {
+            method: call.method,
+            headers: { ...Object.fromEntries(call.headers), 'sec-fetch-site': 'same-origin' },
+            data: call.body ? Buffer.from(await call.clone().arrayBuffer()) : undefined,
+          });
+
+        // Core allows 20 sign-ins a minute per address, and parallel tests sign in more:
+        // wait as long as its Retry-After says, then send again.
+        let response = await send();
+
+        while (response.status() === 429) {
+          const seconds = Number(response.headers()['retry-after'] ?? '1');
+
+          await new Promise((done) => setTimeout(done, seconds * 1000));
+          response = await send();
+        }
 
         // A 204 must have no body at all, not an empty one.
         const body = await response.text();
@@ -58,7 +117,9 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
 
 /** Fails on serious or critical axe violations, listing each rule with the elements that break it. */
 export const expectAccessible = async (page: Page) => {
-  // Colours are checked at rest; spinners loop forever, so only finite animations are waited for.
+  // Colours are checked at rest: once the page's data is in, so nothing fades in under axe, and
+  // its animations end. Spinners loop forever, so only finite animations are waited for.
+  await page.waitForLoadState('networkidle');
   await page.waitForFunction(() =>
     document
       .getAnimations()

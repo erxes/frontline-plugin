@@ -1,14 +1,169 @@
-import { IconBox } from '@tabler/icons-react';
-import type { IUIConfig } from 'erxes-ui';
+import {
+  IconArticle,
+  IconBook,
+  IconBox,
+  IconCircleDot,
+  IconCircles,
+  IconClockHour4,
+  IconFolder,
+  IconGitBranch,
+  IconHelpCircle,
+  IconLock,
+  IconMessageReply,
+  IconTicket,
+  IconWorldWww,
+} from '@tabler/icons-react';
+import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
+import { type ComponentType, lazy } from 'react';
+import {
+  CHANNEL_TYPE,
+  HELP_CENTER_TYPE,
+  KB_ARTICLE_TYPE,
+  KB_CATEGORY_TYPE,
+  KB_TOPIC_TYPE,
+  PIPELINE_TYPE,
+  PLUGIN,
+  RESPONSE_TEMPLATE_TYPE,
+  TICKET_TYPE,
+} from '~/plugin.ts';
 
-/** The plugin's name in core. */
-export const PLUGIN = 'frontline';
+// web loads this module on every page, so it imports only icons and names. Each record type's
+// slots come from one `slots.ts` that loads when the first of them shows: every import here
+// costs `./config` bytes.
+type Slot = ComponentType<TRecordSlotProps>;
 
-// web loads this module on every page, so it imports nothing beyond the tab's icon.
-/** What web reads from `./config`: the app tab and the page module under `/frontline/*`. */
+type Slots = { Title: Slot; Actions: Slot; Detail: Slot; New: ComponentType<TRecordDraftProps> };
+
+const slots = (load: () => Promise<Slots>) => ({
+  Title: lazy(async () => ({ default: (await load()).Title })),
+  Actions: lazy(async () => ({ default: (await load()).Actions })),
+  Detail: lazy(async () => ({ default: (await load()).Detail })),
+  New: lazy(async () => ({ default: (await load()).New })),
+});
+
+const pipeline = () => import('@/pipelines/slots.ts');
+const ticket = () => import('@/tickets/slots.ts');
+const helpCenter = () => import('@/helpcenter/slots.ts');
+const kb = () => import('@/knowledgebase/slots.ts');
+const KB = `/${PLUGIN}/knowledgebase`;
+
+/**
+ * What web reads from `./config`: the app tab, the page module under `/frontline/*`, and the
+ * records core's side panel opens. Core draws a record's panel; these slots fill it. A record
+ * expands to its `detailPath` (`Frontline.tsx`).
+ */
 export const CONFIG: IUIConfig = {
   name: PLUGIN,
   path: PLUGIN,
   icon: IconBox,
   modules: [{ name: PLUGIN, path: PLUGIN, icon: IconBox }],
+  recordTypes: [
+    {
+      contentType: CHANNEL_TYPE,
+      title: 'Channel',
+      icon: IconCircles,
+      detailPath: (id) => `/${PLUGIN}/settings/channels/${encodeURIComponent(id)}`,
+      ...slots(() => import('@/channels/slots.ts')),
+    },
+    {
+      contentType: RESPONSE_TEMPLATE_TYPE,
+      title: 'Response template',
+      icon: IconMessageReply,
+      detailPath: (id) => `/${PLUGIN}/settings/response-templates/${encodeURIComponent(id)}`,
+      ...slots(() => import('@/responseTemplates/slots.ts')),
+    },
+    {
+      contentType: PIPELINE_TYPE,
+      title: 'Pipeline',
+      icon: IconGitBranch,
+      detailPath: (id) => `/${PLUGIN}/settings/pipelines/${encodeURIComponent(id)}`,
+      ...slots(pipeline),
+      tabs: [
+        {
+          value: 'statuses',
+          label: 'Ticket statuses',
+          icon: IconCircleDot,
+          component: lazy(async () => ({ default: (await pipeline()).PipelineStatuses })),
+        },
+        {
+          value: 'sla',
+          label: 'SLA',
+          icon: IconClockHour4,
+          component: lazy(async () => ({ default: (await pipeline()).PipelineSla })),
+        },
+        {
+          value: 'permissions',
+          label: 'Permissions',
+          icon: IconLock,
+          component: lazy(async () => ({ default: (await pipeline()).PipelinePermissions })),
+        },
+      ],
+    },
+    {
+      contentType: KB_TOPIC_TYPE,
+      title: 'Topic',
+      icon: IconBook,
+      detailPath: (id) => `${KB}/${encodeURIComponent(id)}`,
+      ...slots(async () => (await kb()).Topic),
+    },
+    {
+      contentType: KB_CATEGORY_TYPE,
+      title: 'Category',
+      icon: IconFolder,
+      detailPath: (id) => `${KB}/category/${encodeURIComponent(id)}`,
+      ...slots(async () => (await kb()).Category),
+    },
+    {
+      contentType: KB_ARTICLE_TYPE,
+      title: 'Article',
+      icon: IconArticle,
+      detailPath: (id) => `${KB}/article/${encodeURIComponent(id)}`,
+      ...slots(async () => (await kb()).Article),
+      tabs: [
+        {
+          value: 'content',
+          label: 'Content',
+          icon: IconArticle,
+          component: lazy(async () => ({ default: (await kb()).ArticleContent })),
+        },
+      ],
+    },
+    {
+      contentType: TICKET_TYPE,
+      title: 'Ticket',
+      icon: IconTicket,
+      detailPath: (id) => `/${PLUGIN}/tickets/${encodeURIComponent(id)}`,
+      ...slots(ticket),
+      contacts: (id) => ({
+        queryKey: [PLUGIN, 'ticket-contacts', id],
+        queryFn: async () => (await ticket()).ticketContacts(id),
+      }),
+      // The manifest's timeline (`api/src/core.ts`): core's Activity tab shows its events.
+      activity: `${PLUGIN}.ticket`,
+    },
+    {
+      contentType: HELP_CENTER_TYPE,
+      title: 'Help center',
+      icon: IconHelpCircle,
+      detailPath: (id) => `/${PLUGIN}/settings/help-centers/${encodeURIComponent(id)}`,
+      ...slots(helpCenter),
+      tabs: [
+        {
+          value: 'domain',
+          label: 'Domain',
+          icon: IconWorldWww,
+          component: lazy(async () => ({ default: (await helpCenter()).HelpCenterDomain })),
+        },
+      ],
+    },
+  ],
+  relationTabs: [
+    {
+      name: 'tickets',
+      title: 'Tickets',
+      icon: IconTicket,
+      hosts: ['core:customer', 'core:company'],
+      component: lazy(async () => ({ default: (await ticket()).TicketRelations })),
+    },
+  ],
 };

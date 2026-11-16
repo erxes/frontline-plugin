@@ -1,13 +1,14 @@
 import { ORPCError } from '@orpc/server';
 import { and, count, eq, getTableColumns, ilike, inArray, lte, or, sql } from 'drizzle-orm';
+import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { KB_ARTICLE_STATUSES, kbArticles, kbCategories } from '#/db/schema.ts';
+import { Attachment } from '#/db/table.ts';
 import { reads, writes } from '#/orpc.ts';
-import { likeText } from '../channels/access.ts';
-import { subtreeIds } from './categories.ts';
-import { Blank, Stamps, Title } from '../fields.ts';
+import { Blank, Title } from '../fields.ts';
+import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
 import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
 import { categoryFor, topicFor } from './shared.ts';
 
@@ -24,13 +25,6 @@ const detailColumns = {
 };
 
 const Status = z.enum(KB_ARTICLE_STATUSES);
-
-const Attachment = z.object({
-  url: z.string().max(2000),
-  name: z.string().max(500),
-  type: z.string().max(200).optional(),
-  size: z.number().int().nonnegative().optional(),
-});
 
 const Fields = z
   .object({
@@ -50,27 +44,56 @@ const Fields = z
   })
   .partial();
 
-/** An article as lists show it, without its content and files. */
-const Article = z.object({
-  id: z.string(),
-  categoryId: z.string(),
-  title: z.string(),
-  summary: z.string().nullable(),
-  status: Status,
-  scheduledAt: z.date().nullable(),
-  publishedAt: z.date().nullable(),
-  isPrivate: z.boolean(),
-  viewCount: z.number(),
-  ...Stamps,
-});
-
-const Detail = Article.extend({
-  content: z.string(),
-  reactionChoices: z.array(z.string()),
+/** The row with its files typed, and the topic its category is in, which the query joins. */
+const Detail = createSelectSchema(kbArticles, {
   image: Attachment.nullable(),
   attachments: z.array(Attachment),
   pdfAttachment: z.object({ pdf: Attachment }).nullable(),
+})
+  .omit({ orgId: true })
+  .extend({ topicId: z.string() });
+
+/** An article as lists show it, without its content and files. */
+const Article = createSelectSchema(kbArticles).omit({
+  orgId: true,
+  content: true,
+  reactionChoices: true,
+  image: true,
+  attachments: true,
+  pdfAttachment: true,
 });
+
+/**
+ * The article's category and every category above it, for a filter that takes in subcategories.
+ * A one-table select leaves columns bare, so the outer column is named.
+ */
+const categoryPath = sql<string[]>`array(
+  with recursive up(id, parent_id) as (
+    select filed.id, filed.parent_id from ${kbCategories} filed
+    where filed.id = ${kbArticles}.category_id
+    union
+    select above.id, above.parent_id from ${kbCategories} above join up on above.id = up.parent_id
+  )
+  select id from up
+)`;
+
+/**
+ * What the articles list's filter bar narrows them by (`ArticlesPage.tsx` in the UI). A
+ * category keeps its subcategories' articles too.
+ */
+const ARTICLE_FILTER: FilterFields = {
+  'subject.title': { kind: 'text', expr: kbArticles.title },
+  'subject.summary': { kind: 'text', expr: kbArticles.summary },
+  'subject.status': { kind: 'select', expr: kbArticles.status },
+  'subject.categoryId': { kind: 'members', expr: categoryPath },
+  'subject.isPrivate': { kind: 'boolean', expr: kbArticles.isPrivate },
+  'subject.viewCount': { kind: 'number', expr: kbArticles.viewCount },
+  'subject.createdBy': { kind: 'member', expr: kbArticles.createdBy },
+  'subject.createdAt': { kind: 'date', expr: kbArticles.createdAt },
+  'subject.updatedAt': { kind: 'date', expr: kbArticles.updatedAt },
+  'subject.publishedAt': { kind: 'date', expr: kbArticles.publishedAt },
+  'subject.scheduledAt': { kind: 'date', expr: kbArticles.scheduledAt },
+};
 
 /**
  * Publishes the scheduled articles whose time has come, as of that time.
@@ -85,7 +108,11 @@ const publishDue = (tx: Tx) =>
 const articleFor = async (tx: Tx, id: string) => {
   await publishDue(tx);
 
-  const [article] = await tx.select(detailColumns).from(kbArticles).where(eq(kbArticles.id, id));
+  const [article] = await tx
+    .select({ ...detailColumns, topicId: kbCategories.topicId })
+    .from(kbArticles)
+    .innerJoin(kbCategories, eq(kbCategories.id, kbArticles.categoryId))
+    .where(eq(kbArticles.id, id));
 
   if (!article) throw new ORPCError('NOT_FOUND', { message: 'No such article' });
 
@@ -119,19 +146,11 @@ const statusColumns = (
 
 /**
  * A topic's articles, newest first, `limit` at a time: pass `nextCursor` as
- * `cursor` for the next page. `categoryId` keeps a category's articles with
- * its subcategories'; `search` matches title, summary or content, ignoring case.
+ * `cursor` for the next page. The filter bar narrows them; `search` matches
+ * title, summary or content, ignoring case.
  */
 const list = reads(PERMISSIONS.kbView)
-  .input(
-    z.object({
-      topicId: z.string(),
-      categoryId: z.string().optional(),
-      status: Status.optional(),
-      search: z.string().trim().max(200).optional(),
-      ...PageInput,
-    }),
-  )
+  .input(z.object({ topicId: z.string(), ...FilterInput, ...PageInput }))
   .output(
     z.object({
       articles: z.array(Article),
@@ -139,7 +158,7 @@ const list = reads(PERMISSIONS.kbView)
       totalCount: z.number(),
     }),
   )
-  .handler(async ({ input, context: { tx } }) => {
+  .handler(async ({ input, context: { tx, member } }) => {
     await publishDue(tx);
     await topicFor(tx, input.topicId);
 
@@ -150,10 +169,7 @@ const list = reads(PERMISSIONS.kbView)
 
     const matches = and(
       inArray(kbArticles.categoryId, inTopic),
-      input.categoryId
-        ? inArray(kbArticles.categoryId, await subtreeIds(tx, input.categoryId))
-        : undefined,
-      input.status ? eq(kbArticles.status, input.status) : undefined,
+      input.filter ? filterSql(ARTICLE_FILTER, input.filter, member.userId) : undefined,
       input.search
         ? or(
             ilike(kbArticles.title, likeText(input.search)),
@@ -201,11 +217,11 @@ const create = writes(PERMISSIONS.kbArticleManage)
           orgId: member.orgId,
           createdBy: member.userId,
         })
-        .returning(detailColumns);
+        .returning({ id: kbArticles.id });
 
       if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
-      return created;
+      return articleFor(tx, created.id);
     },
   );
 
@@ -223,15 +239,12 @@ const update = writes(PERMISSIONS.kbArticleManage)
         ? statusColumns(status ?? current.status, scheduledAt ?? current.scheduledAt, current)
         : {};
 
-    const [updated] = await tx
+    await tx
       .update(kbArticles)
       .set({ ...fields, ...publishing })
-      .where(eq(kbArticles.id, id))
-      .returning(detailColumns);
+      .where(eq(kbArticles.id, id));
 
-    if (!updated) throw new ORPCError('NOT_FOUND', { message: 'No such article' });
-
-    return updated;
+    return articleFor(tx, id);
   });
 
 /** Sets one status or category on many articles at once. Scheduling takes a time, so it's one at a time. */
@@ -266,17 +279,26 @@ const duplicate = writes(PERMISSIONS.kbArticleManage)
   .input(z.object({ id: z.string(), title: Title }))
   .output(Detail)
   .handler(async ({ input, context: { tx, member } }) => {
-    const { id, status, scheduledAt, publishedAt, viewCount, createdAt, updatedAt, ...source } =
-      await articleFor(tx, input.id);
+    const {
+      id,
+      topicId,
+      status,
+      scheduledAt,
+      publishedAt,
+      viewCount,
+      createdAt,
+      updatedAt,
+      ...source
+    } = await articleFor(tx, input.id);
 
     const [copy] = await tx
       .insert(kbArticles)
       .values({ ...source, title: input.title, orgId: member.orgId, createdBy: member.userId })
-      .returning(detailColumns);
+      .returning({ id: kbArticles.id });
 
     if (!copy) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
-    return copy;
+    return articleFor(tx, copy.id);
   });
 
 /** Deletes the articles. */

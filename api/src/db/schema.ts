@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -13,23 +12,9 @@ import {
   unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { table } from './table.ts';
+import { type Attachment, id, stamps, table } from './table.ts';
 
-/** A text id: a random UUID, or the Mongo `_id` an imported row keeps. */
-const id = () =>
-  text()
-    .primaryKey()
-    .$defaultFn(() => randomUUID());
-
-/** Who made the row and when, and when it last changed. */
-const stamps = () => ({
-  createdBy: text().notNull(),
-  createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp({ withTimezone: true })
-    .notNull()
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-});
+// Pipelines, their statuses and tickets are in tickets.ts.
 
 /** Names are unique per organisation, ignoring case. A write that breaks it fails with 23505. */
 export const CHANNEL_NAME_INDEX = 'frontline_channels_org_name_key';
@@ -49,10 +34,15 @@ export const channels = table(
     description: text().notNull().default(''),
     /** A Tabler icon name from erxes-ui's IconPicker. */
     icon: text(),
+    /** The core user whose personal inbox this is; null for a team channel. */
+    ownerId: text(),
     ...stamps(),
   },
   (t) => [
-    uniqueIndex(CHANNEL_NAME_INDEX).on(t.orgId, sql`lower(${t.name})`),
+    uniqueIndex(CHANNEL_NAME_INDEX)
+      .on(t.orgId, sql`lower(${t.name})`)
+      .where(sql`${t.ownerId} is null`),
+    uniqueIndex('frontline_channels_owner_key').on(t.orgId, t.ownerId),
     uniqueIndex('frontline_channels_org_id_key').on(t.orgId, t.id),
   ],
 );
@@ -178,106 +168,7 @@ export const kbCategories = table(
   ],
 );
 
-/** One ticket priority's promise, in working minutes; a clock left out is not kept. */
-export type SlaRule = {
-  /** 0 no priority, 1 minor, 2 medium, 3 high, 4 critical. */
-  priority: number;
-  firstResponseMinutes?: number;
-  resolutionMinutes?: number;
-};
-
-/** What a pipeline promises its tickets: a response and a resolution time per priority. */
-export type SlaPolicy = { enabled: boolean; rules: SlaRule[]; warnBeforeMinutes?: number };
-
-/**
- * A channel's ticket workflow: its statuses, how its tickets are numbered and
- * named, and its SLA. Deleting the channel deletes its pipelines.
- */
-export const pipelines = table(
-  'pipelines',
-  {
-    id: id(),
-    orgId: text().notNull(),
-    channelId: text().notNull(),
-    name: text().notNull(),
-    description: text(),
-    /** The ticket number's prefix, with `{year}`, `{month}` and `{day}` filled in. */
-    numberConfig: text(),
-    /** How many digits the ticket number's sequence has; tickets aren't numbered without it. */
-    numberSize: integer(),
-    /** A ticket's name, from `{customer.firstName}` and the like. */
-    nameConfig: text(),
-    slaPolicy: jsonb().$type<SlaPolicy>(),
-    ...stamps(),
-  },
-  (t) => [
-    foreignKey({
-      name: 'frontline_pipelines_channel_fkey',
-      columns: [t.orgId, t.channelId],
-      foreignColumns: [channels.orgId, channels.id],
-    }).onDelete('cascade'),
-    unique('frontline_pipelines_org_id_key').on(t.orgId, t.id),
-    index('frontline_pipelines_org_channel_created_idx').on(
-      t.orgId,
-      t.channelId,
-      t.createdAt.desc(),
-      t.id.desc(),
-    ),
-  ],
-);
-
-/** The stages a ticket moves through, in the order a pipeline shows them. */
-export const STATUS_TYPES = {
-  new: 1,
-  open: 2,
-  inProgress: 3,
-  resolved: 4,
-  closed: 5,
-  cancelled: 6,
-} as const;
-
-/**
- * A status of a pipeline: one step of a stage (`type`), placed by `order`
- * among that stage's statuses. Deleting the pipeline deletes its statuses.
- */
-export const pipelineStatuses = table(
-  'pipeline_statuses',
-  {
-    id: id(),
-    orgId: text().notNull(),
-    pipelineId: text().notNull(),
-    name: text().notNull(),
-    description: text(),
-    /** A hex colour, from erxes-ui's ColorPicker. */
-    color: text().notNull().default('#4F46E5'),
-    type: integer().notNull(),
-    order: integer().notNull(),
-    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp({ withTimezone: true })
-      .notNull()
-      .defaultNow()
-      .$onUpdate(() => new Date()),
-  },
-  (t) => [
-    foreignKey({
-      name: 'frontline_pipeline_statuses_pipeline_fkey',
-      columns: [t.orgId, t.pipelineId],
-      foreignColumns: [pipelines.orgId, pipelines.id],
-    }).onDelete('cascade'),
-    index('frontline_pipeline_statuses_org_pipeline_type_order_idx').on(
-      t.orgId,
-      t.pipelineId,
-      t.type,
-      t.order,
-    ),
-    check('frontline_pipeline_statuses_type_check', sql`${t.type} between 1 and 6`),
-  ],
-);
-
 export const KB_ARTICLE_STATUSES = ['draft', 'publish', 'scheduled', 'archived'] as const;
-
-/** A file on core's storage, as erxes-ui's Upload reports it. */
-export type KbAttachment = { url: string; name: string; type?: string; size?: number };
 
 /** An article of a category. Deleting the category deletes its articles. */
 export const kbArticles = table(
@@ -301,9 +192,9 @@ export const kbArticles = table(
       .notNull()
       .default(sql`'{}'`),
     viewCount: integer().notNull().default(0),
-    image: jsonb().$type<KbAttachment>(),
-    attachments: jsonb().$type<KbAttachment[]>().notNull().default([]),
-    pdfAttachment: jsonb().$type<{ pdf: KbAttachment }>(),
+    image: jsonb().$type<Attachment>(),
+    attachments: jsonb().$type<Attachment[]>().notNull().default([]),
+    pdfAttachment: jsonb().$type<{ pdf: Attachment }>(),
     ...stamps(),
   },
   (t) => [

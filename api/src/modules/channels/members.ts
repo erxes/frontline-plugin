@@ -1,14 +1,51 @@
 import { ORPCError } from '@orpc/server';
-import { and, eq, inArray, notInArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, notInArray } from 'drizzle-orm';
+import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { CHANNEL_ROLES, channelMembers } from '#/db/schema.ts';
-import { writes } from '#/orpc.ts';
+import { reads, writes } from '#/orpc.ts';
+import { FilterInput, type FilterFields, filterSql } from '../filter.ts';
 import { channelFor, insertMembers } from './access.ts';
 
 const Members = z.object({ id: z.string(), userIds: z.array(z.string()).min(1).max(500) });
-const Member = z.object({ userId: z.string(), role: z.enum(CHANNEL_ROLES) });
+const Member = createSelectSchema(channelMembers).pick({ userId: true, role: true });
+
+/** What the members page's filter bar narrows them by. */
+const MEMBER_FILTER: FilterFields = {
+  'subject.userId': { kind: 'member', expr: channelMembers.userId },
+  'subject.role': { kind: 'select', expr: channelMembers.role },
+  'subject.createdAt': { kind: 'date', expr: channelMembers.createdAt },
+};
+
+/**
+ * A channel's members, admins first, then the newest, narrowed by the filter bar. Names live in
+ * core, so the page matches its search against the names it shows.
+ */
+const members = reads(PERMISSIONS.channelView)
+  .input(z.object({ id: z.string(), filter: FilterInput.filter }))
+  .output(
+    z.array(createSelectSchema(channelMembers).pick({ userId: true, role: true, createdAt: true })),
+  )
+  .handler(async ({ input, context: { tx, member } }) => {
+    await channelFor(tx, member, input.id, { change: false });
+
+    return tx
+      .select({
+        userId: channelMembers.userId,
+        role: channelMembers.role,
+        createdAt: channelMembers.createdAt,
+      })
+      .from(channelMembers)
+      .where(
+        and(
+          eq(channelMembers.channelId, input.id),
+          input.filter ? filterSql(MEMBER_FILTER, input.filter, member.userId) : undefined,
+        ),
+      )
+      .orderBy(asc(channelMembers.role), desc(channelMembers.createdAt));
+  });
 
 const memberErrors = {
   LAST_ADMIN: { status: 409, message: 'A channel keeps at least one admin' },
@@ -36,7 +73,11 @@ const addMembers = writes(PERMISSIONS.channelView)
   .input(Members)
   .output(z.array(Member))
   .handler(async ({ input, context: { tx, member } }) => {
-    await channelFor(tx, member, input.id, { change: true });
+    const channel = await channelFor(tx, member, input.id, { change: true });
+
+    if (channel.ownerId)
+      throw new ORPCError('FORBIDDEN', { message: 'A personal inbox has only its owner' });
+
     await insertMembers(tx, member, input.id, input.userIds, 'member');
 
     return tx
@@ -49,7 +90,7 @@ const addMembers = writes(PERMISSIONS.channelView)
 const removeMembers = writes(PERMISSIONS.channelView)
   .errors(memberErrors)
   .input(Members)
-  .output(z.array(z.object({ userId: z.string() })))
+  .output(z.array(Member.pick({ userId: true })))
   .handler(async ({ input, context: { tx, member }, errors }) => {
     await channelFor(tx, member, input.id, { change: true });
 
@@ -82,4 +123,4 @@ const setRole = writes(PERMISSIONS.channelView)
     return row;
   });
 
-export const memberProcedures = { addMembers, removeMembers, setRole };
+export const memberProcedures = { members, addMembers, removeMembers, setRole };

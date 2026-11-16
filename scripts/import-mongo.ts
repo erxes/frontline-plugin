@@ -10,7 +10,7 @@
 // no column, and documents a constraint refuses (a status whose pipeline is
 // gone) are skipped and listed at the end.
 import { parseArgs } from 'node:util';
-import { MongoClient, ObjectId } from 'mongodb';
+import { type Document, MongoClient, ObjectId } from 'mongodb';
 import { DatabaseError, Pool } from 'pg';
 import { IMPORT_MAP } from '../migration/import-map.ts';
 
@@ -38,6 +38,16 @@ const plain = (value: unknown): unknown => {
 
   return Object.fromEntries(Object.entries(value).map(([key, inner]) => [key, plain(inner)]));
 };
+
+/** A field's value, following dots into embedded documents (`sla.resolvedAt`). */
+const fieldOf = (document: Document, path: string) =>
+  path
+    .split('.')
+    .reduce<unknown>(
+      (value, key) =>
+        value instanceof Object ? new Map(Object.entries(value)).get(key) : undefined,
+      document,
+    );
 
 const cell = (value: unknown, column: Column) => {
   const flat = plain(value);
@@ -181,7 +191,7 @@ try {
             ...fields.map(([field, name]) => {
               const column = known.get(name) ?? { array: false, json: false, text: false };
 
-              return cell(copy[field], column);
+              return cell(fieldOf(copy, field), column);
             }),
           ],
         });

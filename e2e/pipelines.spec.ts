@@ -1,37 +1,19 @@
 import type { Page } from '@playwright/test';
-import { expect, expectAccessible, test, unique } from './fixtures.ts';
+import {
+  confirmDelete,
+  createPipeline,
+  expect,
+  expectAccessible,
+  openChannelPipelines,
+  recordPanel,
+  test,
+} from './fixtures.ts';
 
-/** Creates a channel, with `memberName` in it when given, and opens its pipelines. */
-const openChannelPipelines = async (page: Page, memberName?: string) => {
-  const channel = `Support ${unique()}`;
-  const sheet = page.getByRole('dialog');
-
-  await page.goto('/frontline/settings/channels?channel=new');
-  await sheet.getByLabel('Name').fill(channel);
-
-  if (memberName) {
-    await sheet.getByPlaceholder('Search members').fill(memberName);
-    await sheet.getByRole('option', { name: memberName }).click();
-  }
-
-  await sheet.getByRole('button', { name: 'Create' }).click();
-  await expect(page.getByRole('heading', { name: channel })).toBeVisible();
-  await page.getByRole('link', { name: /Manage channel pipelines/ }).click();
-  await expect(page.getByText('No pipelines yet')).toBeVisible();
-
-  return channel;
-};
-
-/** Creates a pipeline from the list's panel and lands on its general tab. */
-const createPipeline = async (page: Page) => {
-  const pipeline = `Returns ${unique()}`;
-
-  await page.getByRole('button', { name: 'Create pipeline' }).first().click();
-  await page.getByRole('dialog').getByLabel('Pipeline name').fill(pipeline);
-  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
-  await expect(page.getByRole('heading', { name: pipeline })).toBeVisible();
-
-  return pipeline;
+/** Opens a panel field's in-place editor, types `value` and saves it with Enter. */
+const editField = async (page: Page, field: RegExp, value: string) => {
+  await recordPanel(page).getByRole('button', { name: field }).click();
+  await page.keyboard.type(value);
+  await page.keyboard.press('Enter');
 };
 
 test('a channel admin creates a pipeline and sets its ticket numbers; a member reads them', async ({
@@ -39,44 +21,37 @@ test('a channel admin creates a pipeline and sets its ticket numbers; a member r
   newMember,
 }) => {
   const teammate = await newMember(['frontline.channel.view']);
+  const panel = recordPanel(page);
 
   await openChannelPipelines(page, teammate.fullName);
   await expectAccessible(page);
-  await page.getByRole('button', { name: 'Create pipeline' }).first().click();
-  const sheet = page.getByRole('dialog');
-
-  await sheet.getByLabel('Pipeline name').fill('Returns');
-
-  // Closing the panel keeps the draft.
-  await page.keyboard.press('Escape');
-  await expect(sheet).toBeHidden();
-  await page.getByRole('button', { name: 'Create pipeline' }).first().click();
-  await expect(sheet.getByLabel('Pipeline name')).toHaveValue('Returns');
-  await sheet.getByLabel('Description').fill('Refunds and exchanges');
+  await page.getByRole('button', { name: 'Create pipeline' }).click();
+  await panel.getByLabel('Name').fill('Returns');
+  await panel.getByLabel('Description').fill('Refunds and exchanges');
   await expectAccessible(page);
-  await sheet.getByRole('button', { name: 'Create' }).click();
-  await expect(page.getByRole('heading', { name: 'Returns' })).toBeVisible();
+  await panel.getByRole('button', { name: 'Create pipeline' }).click();
+  await expect(panel.getByRole('button', { name: 'Name Returns' })).toBeVisible();
+  await expect(page.getByRole('row', { name: /Returns/ })).toBeVisible();
 
-  // The preview shows the number a ticket made today gets.
-  await page.getByLabel('Ticket number').fill('RT-{year}-');
-  await page.getByLabel('Digits').fill('4');
-  await expect(page.locator('p[aria-live]')).toContainText(`RT-${new Date().getFullYear()}-0000`);
+  // The ticket number is edited in place, and the preview shows what a ticket made today gets.
+  await editField(page, /^Ticket number/, 'RT-{year}-');
+  await editField(page, /^Digits/, '4');
+  await expect(panel.locator('output')).toContainText(`RT-${new Date().getFullYear()}-0000`);
   await expectAccessible(page);
-  await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Pipeline updated successfully')).toBeVisible();
   await page.reload();
-  await expect(page.getByLabel('Ticket number')).toHaveValue('RT-{year}-');
-  await expect(page.getByLabel('Digits')).toHaveValue('4');
+  await expect(panel.getByRole('button', { name: /^Ticket number RT-\{year\}-/ })).toBeVisible();
+  await expect(panel.getByRole('button', { name: /^Digits 4/ })).toBeVisible();
 
   // A member of the channel reads its pipelines and can't change them.
-  await teammate.page.goto(page.url().replace(/\/[^/]+$/, ''));
-  await expect(teammate.page.getByRole('link', { name: 'Returns' })).toBeVisible();
+  await teammate.page.goto(page.url().split('?')[0] ?? '');
+  await expect(teammate.page.getByRole('button', { name: 'Returns' })).toBeVisible();
   await expect(teammate.page.getByRole('button', { name: 'Create pipeline' })).toBeHidden();
   await expect(teammate.page.getByRole('button', { name: 'Actions for Returns' })).toBeHidden();
   await expectAccessible(teammate.page);
-  await teammate.page.getByRole('link', { name: 'Returns' }).click();
-  await expect(teammate.page.getByLabel('Ticket number')).toBeDisabled();
-  await expect(teammate.page.getByRole('button', { name: 'Save' })).toBeHidden();
+  await teammate.page.getByRole('button', { name: 'Returns' }).click();
+  await expect(
+    recordPanel(teammate.page).getByRole('button', { name: /^Ticket number/ }),
+  ).toBeDisabled();
   await expectAccessible(teammate.page);
 });
 
@@ -85,25 +60,23 @@ test("a channel admin adds, reorders, edits and deletes a pipeline's statuses", 
   newMember,
 }) => {
   const teammate = await newMember(['frontline.channel.view']);
+  const panel = recordPanel(page);
 
   await openChannelPipelines(page, teammate.fullName);
   await createPipeline(page);
-  await page.getByRole('link', { name: 'Ticket statuses' }).click();
-  const open = page.getByRole('region', { name: 'Open' });
-  const sheet = page.getByRole('dialog', { name: /Add a status to Open|Edit status/ });
+  await panel.getByRole('tab', { name: 'Ticket statuses' }).click();
+  const open = panel.getByRole('region', { name: 'Open' });
 
   // A new pipeline starts with a status in each stage.
   for (const stage of ['New', 'Open', 'In progress', 'Resolved', 'Closed', 'Cancelled']) {
     await expect(
-      page.getByRole('region', { name: stage }).getByRole('button', { name: stage, exact: true }),
+      panel.getByRole('region', { name: stage }).getByRole('button', { name: stage, exact: true }),
     ).toBeVisible();
   }
 
-  await page.getByRole('button', { name: 'Add a status to Open' }).click();
-  await sheet.getByLabel('Name').fill('Waiting on customer');
-  await expectAccessible(page);
-  await sheet.getByRole('button', { name: 'Create' }).click();
-  await expect(sheet).toBeHidden();
+  await panel.getByRole('button', { name: 'Add a status to Open' }).click();
+  await page.getByLabel('Status name').fill('Waiting on customer');
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(open.getByRole('listitem').last()).toContainText('Waiting on customer');
   await expectAccessible(page);
 
@@ -121,42 +94,96 @@ test("a channel admin adds, reorders, edits and deletes a pipeline's statuses", 
   await page.keyboard.press('Space');
   await expect(open.getByRole('listitem').first()).toContainText('Waiting on customer');
   await page.reload();
+  await panel.getByRole('tab', { name: 'Ticket statuses' }).click();
   await expect(open.getByRole('listitem').first()).toContainText('Waiting on customer');
 
+  // The name is edited in place.
   await open.getByRole('button', { name: 'Waiting on customer', exact: true }).click();
-  await sheet.getByLabel('Name').fill('Waiting');
-  await sheet.getByRole('button', { name: 'Update' }).click();
+  await page.getByPlaceholder('Name').fill('Waiting');
+  await page.keyboard.press('Enter');
   await expect(open.getByRole('button', { name: 'Waiting', exact: true })).toBeVisible();
 
   await teammate.page.goto(page.url());
-  await expect(teammate.page.getByRole('button', { name: 'Waiting', exact: true })).toBeDisabled();
-  await expect(teammate.page.getByRole('button', { name: 'Add a status to Open' })).toBeHidden();
-  await expect(teammate.page.getByRole('button', { name: 'Reorder Waiting' })).toBeHidden();
+  const theirPanel = recordPanel(teammate.page);
+
+  await theirPanel.getByRole('tab', { name: 'Ticket statuses' }).click();
+  await expect(theirPanel.getByRole('button', { name: 'Waiting', exact: true })).toBeDisabled();
+  await expect(theirPanel.getByRole('button', { name: 'Add a status to Open' })).toBeHidden();
+  await expect(theirPanel.getByRole('button', { name: 'Reorder Waiting' })).toBeHidden();
   await expectAccessible(teammate.page);
 
   await open.getByRole('button', { name: 'Actions for Waiting' }).click();
   await page.getByRole('option', { name: 'Delete' }).click();
-  await page.getByRole('alertdialog').getByRole('textbox').fill('delete');
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
+  await confirmDelete(page);
   await expect(open.getByRole('listitem')).toHaveCount(1);
+
+  // A stage's checkbox picks its statuses, and the bar under the list deletes them at once.
+  const cancelled = panel.getByRole('region', { name: 'Cancelled' });
+
+  await panel.getByRole('checkbox', { name: 'Select all in Cancelled' }).click();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await confirmDelete(page);
+  await expect(cancelled.getByRole('listitem')).toHaveCount(0);
 });
 
 test("a channel admin sets a pipeline's SLA", async ({ page }) => {
+  const panel = recordPanel(page);
+
   await openChannelPipelines(page);
   await createPipeline(page);
-  await page.getByRole('link', { name: 'SLA' }).click();
-  await page.getByRole('switch', { name: 'Keep an SLA' }).click();
-  await page.getByLabel('First response for Critical').fill('1');
-  await page.getByLabel('Resolution for Critical').fill('4');
-  await page.getByLabel('Warn before (hours)').fill('0.5');
+  await panel.getByRole('tab', { name: 'SLA' }).click();
+  await panel.getByRole('switch', { name: 'Keep an SLA' }).click();
+  await editField(page, /^First response for Critical/, '1');
+  await editField(page, /^Resolution for Critical/, '4');
+  await editField(page, /^Warn before/, '0.5');
   await expectAccessible(page);
-  await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Pipeline updated successfully')).toBeVisible();
   await page.reload();
-  await expect(page.getByRole('switch', { name: 'Keep an SLA' })).toBeChecked();
-  await expect(page.getByLabel('First response for Critical')).toHaveValue('1');
-  await expect(page.getByLabel('Resolution for Critical')).toHaveValue('4');
-  await expect(page.getByLabel('Warn before (hours)')).toHaveValue('0.5');
+  await panel.getByRole('tab', { name: 'SLA' }).click();
+  await expect(panel.getByRole('switch', { name: 'Keep an SLA' })).toBeChecked();
+  await expect(
+    panel.getByRole('button', { name: /^First response for Critical 1 h/ }),
+  ).toBeVisible();
+  await expect(panel.getByRole('button', { name: /^Resolution for Critical 4 h/ })).toBeVisible();
+  await expect(panel.getByRole('button', { name: /^Warn before 0\.5 h/ })).toBeVisible();
+});
+
+test("a channel admin sets who sees a pipeline's tickets and who moves them, which a member only reads", async ({
+  page,
+  newMember,
+}) => {
+  const teammate = await newMember(['frontline.channel.view']);
+  const panel = recordPanel(page);
+
+  await openChannelPipelines(page, teammate.fullName);
+  await createPipeline(page);
+  const pipelinePanel = page.url();
+
+  await panel.getByRole('tab', { name: 'Permissions' }).click();
+
+  const checkUser = panel.getByRole('switch', {
+    name: 'Members see only tickets they created, hold or follow',
+  });
+
+  await checkUser.click();
+  await expect(checkUser).toBeChecked();
+  await panel.getByRole('switch', { name: 'New is private' }).click();
+  await expect(panel.getByText('Who sees it')).toBeVisible();
+  await expectAccessible(page);
+  await page.reload();
+  await panel.getByRole('tab', { name: 'Permissions' }).click();
+  await expect(checkUser).toBeChecked();
+  await expect(panel.getByRole('switch', { name: 'New is private' })).toBeChecked();
+
+  const theirPanel = recordPanel(teammate.page);
+
+  await teammate.page.goto(pipelinePanel);
+  await theirPanel.getByRole('tab', { name: 'Permissions' }).click();
+  await expect(
+    theirPanel.getByRole('switch', {
+      name: 'Members see only tickets they created, hold or follow',
+    }),
+  ).toBeDisabled();
+  await expectAccessible(teammate.page);
 });
 
 test('a channel admin moves a pipeline to another channel and deletes it there', async ({
@@ -177,11 +204,13 @@ test('a channel admin moves a pipeline to another channel and deletes it there',
   await expect(page.getByText('No pipelines yet')).toBeVisible();
 
   await page.goto(pipelinesOfOther);
-  await page.getByRole('button', { name: `Actions for ${pipeline}` }).click();
-  await page.getByRole('option', { name: 'Delete' }).click();
-  await page.getByRole('alertdialog').getByRole('textbox').fill('delete');
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Delete' }).click();
-  await expect(page.getByText('Pipeline removed successfully')).toBeVisible();
+  await page
+    .getByRole('row', { name: new RegExp(pipeline) })
+    .getByRole('checkbox')
+    .click();
+  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await confirmDelete(page);
+  await expect(page.getByText('Pipeline deleted')).toBeVisible();
   await expect(page.getByText('No pipelines yet')).toBeVisible();
 });
 

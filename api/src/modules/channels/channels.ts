@@ -1,35 +1,44 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { type ORPCErrorConstructorMap, ORPCError } from '@orpc/server';
-import { and, asc, desc, eq, ilike, inArray, isNotNull, sql } from 'drizzle-orm';
+import {
+  and,
+  asc,
+  eq,
+  getTableColumns,
+  ilike,
+  inArray,
+  isNotNull,
+  isNull,
+  or,
+  sql,
+} from 'drizzle-orm';
+import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { type Tx, uniqueViolation } from '#/db/client.ts';
 import { CHANNEL_NAME_INDEX, CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { channelColumns, channelFor, insertMembers, likeText, managesAll } from './access.ts';
+import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { canChangeSql, channelFor, insertMembers, managesAll, membership } from './access.ts';
 
 const Name = z.string().trim().min(1).max(100);
 const Description = z.string().trim().max(1000);
 const Icon = z.string().max(100).nullable();
-const Role = z.enum(CHANNEL_ROLES);
 
-const Channel = z.object({
-  id: z.string(),
-  name: Name,
-  description: Description,
-  icon: Icon,
-  createdBy: z.string(),
-  createdAt: z.date(),
-  updatedAt: z.date(),
-  /** Its members' core user ids, admins first. */
-  memberIds: z.array(z.string()),
-  /** The caller's role, or null when they see it without belonging to it. */
-  role: Role.nullable(),
-  /** Whether the caller may rename it, delete it and change its members. */
-  canManage: z.boolean(),
-});
+/** The row without `org_id`, which the caller already knows. */
+const { orgId, ...channelColumns } = getTableColumns(channels);
 
-const Member = z.object({ userId: z.string(), role: Role, createdAt: z.date() });
+/** The row, with its members and what the caller may do, which the query selects. */
+const Channel = createSelectSchema(channels)
+  .omit({ orgId: true })
+  .extend({
+    /** Its members' core user ids, admins first. */
+    memberIds: z.array(z.string()),
+    /** The caller's role, or null when they see it without belonging to it. */
+    role: z.enum(CHANNEL_ROLES).nullable(),
+    /** Whether the caller may rename it, delete it and change its members. */
+    canManage: z.boolean(),
+  });
 
 /** The failures a client can branch on: `isDefinedError(error) && error.code === ...`. */
 const channelErrors = {
@@ -55,27 +64,18 @@ const memberIds = sql<string[]>`coalesce((
   from ${channelMembers} listed where listed.channel_id = ${channels.id}
 ), '{}')`;
 
-/** Channels with their member ids and the caller's role, visible to `member`. */
+/** Channels with their member ids, the caller's role and whether they manage it, visible to `member`. */
 const channelRows = (tx: Tx, member: PluginMember) =>
   tx
     .select({
       ...channelColumns,
       memberIds,
       role: channelMembers.role,
+      canManage: canChangeSql(member),
     })
     .from(channels)
-    .leftJoin(
-      channelMembers,
-      and(eq(channelMembers.channelId, channels.id), eq(channelMembers.userId, member.userId)),
-    )
+    .leftJoin(channelMembers, membership(member, channels.id))
     .$dynamic();
-
-const withAccess =
-  (member: PluginMember) =>
-  <T extends { role: 'admin' | 'member' | null }>(row: T) => ({
-    ...row,
-    canManage: row.role === 'admin' || managesAll(member),
-  });
 
 /** One channel as the caller sees it. */
 const channelById = async (tx: Tx, member: PluginMember, id: string) => {
@@ -83,47 +83,53 @@ const channelById = async (tx: Tx, member: PluginMember, id: string) => {
 
   if (!row) throw new ORPCError('NOT_FOUND', { message: 'No such channel' });
 
-  return withAccess(member)(row);
+  return row;
+};
+
+/** What the list's filter bar narrows channels by (`ui/src/modules/channels/ChannelsPage.tsx`). */
+const CHANNEL_FILTER: FilterFields = {
+  'subject.name': { kind: 'text', expr: channels.name },
+  'subject.description': { kind: 'text', expr: channels.description },
+  'subject.memberIds': { kind: 'members', expr: memberIds },
+  'subject.createdBy': { kind: 'member', expr: channels.createdBy },
+  'subject.createdAt': { kind: 'date', expr: channels.createdAt },
 };
 
 /**
- * The caller's channels, or every channel for a member who manages them all,
- * by name; `name` keeps those whose name contains it, ignoring case.
+ * The caller's channels, or every channel for a member who manages them all, by name, narrowed
+ * by the filter bar: `search` matches the name or description, ignoring case.
  */
 const list = reads(PERMISSIONS.channelView)
-  .input(z.object({ name: z.string().trim().max(100).optional() }))
+  .input(z.object(FilterInput))
   .output(z.object({ channels: z.array(Channel), canCreate: z.boolean() }))
   .handler(async ({ input, context: { tx, member } }) => {
-    const rows = await channelRows(tx, member)
+    const channelList = await channelRows(tx, member)
       .where(
         and(
+          isNull(channels.ownerId),
           managesAll(member) ? undefined : isNotNull(channelMembers.userId),
-          input.name ? ilike(channels.name, likeText(input.name)) : undefined,
+          input.search
+            ? or(
+                ilike(channels.name, likeText(input.search)),
+                ilike(channels.description, likeText(input.search)),
+              )
+            : undefined,
+          input.filter ? filterSql(CHANNEL_FILTER, input.filter, member.userId) : undefined,
         ),
       )
       .orderBy(asc(sql`lower(${channels.name})`));
 
-    return { channels: rows.map(withAccess(member)), canCreate: managesAll(member) };
+    return { channels: channelList, canCreate: managesAll(member) };
   });
 
-/** A channel with its members, admins first. */
+/** One channel; `channels.members` lists its members. */
 const get = reads(PERMISSIONS.channelView)
   .input(z.object({ id: z.string() }))
-  .output(Channel.extend({ members: z.array(Member) }))
+  .output(Channel)
   .handler(async ({ input, context: { tx, member } }) => {
     await channelFor(tx, member, input.id, { change: false });
 
-    const members = await tx
-      .select({
-        userId: channelMembers.userId,
-        role: channelMembers.role,
-        createdAt: channelMembers.createdAt,
-      })
-      .from(channelMembers)
-      .where(eq(channelMembers.channelId, input.id))
-      .orderBy(asc(channelMembers.role), desc(channelMembers.createdAt));
-
-    return { ...(await channelById(tx, member, input.id)), members };
+    return channelById(tx, member, input.id);
   });
 
 /** A new channel, with its creator as its admin and `memberIds` as members. */
@@ -190,4 +196,31 @@ const remove = writes(PERMISSIONS.channelView)
     return { ids: removed.map((row) => row.id) };
   });
 
-export const channelProcedures = { list, get, create, update, remove };
+/**
+ * The caller's personal inbox, made on first ask: a channel only they belong to and see,
+ * which the team list leaves out.
+ */
+const personal = writes(PERMISSIONS.channelView)
+  .output(Channel)
+  .handler(async ({ context: { tx, member } }) => {
+    const [made] = await tx
+      .insert(channels)
+      .values({
+        orgId: member.orgId,
+        name: 'Personal inbox',
+        ownerId: member.userId,
+        createdBy: member.userId,
+      })
+      .onConflictDoNothing()
+      .returning({ id: channels.id });
+
+    if (made) await insertMembers(tx, member, made.id, [member.userId], 'admin');
+
+    const [row] = await channelRows(tx, member).where(eq(channels.ownerId, member.userId));
+
+    if (!row) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+    return row;
+  });
+
+export const channelProcedures = { list, get, create, update, remove, personal };

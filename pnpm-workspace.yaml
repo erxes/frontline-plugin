@@ -12,6 +12,9 @@ minimumReleaseAgeExclude:
   - '@erxes/*'
 overrides:
   'vite@*': 'catalog:'
+  # One copy, so drizzle-orm resolves once: react-doctor's Sentry asks for 1.9 and the
+  # API's OpenTelemetry for 1.10, and two drizzle-orm copies don't share types.
+  '@opentelemetry/api': 1.10.0
 # Install scripts nothing here needs: esbuild ships its binary as an optional
 # dependency, and the other two only print or check.
 allowBuilds:

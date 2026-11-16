@@ -1,4 +1,14 @@
-import { expect, expectAccessible, test, unique } from './fixtures.ts';
+import {
+  confirmDelete,
+  expect,
+  expectAccessible,
+  newRecordPath,
+  recordPanel,
+  test,
+  unique,
+} from './fixtures.ts';
+
+const CHANNELS = '/frontline/settings/channels';
 
 test("a channel admin writes, edits and deletes the channel's response templates", async ({
   page,
@@ -6,56 +16,78 @@ test("a channel admin writes, edits and deletes the channel's response templates
 }) => {
   const channel = `Support ${unique()}`;
   const teammate = await newMember(['frontline.channel.view']);
+  const panel = recordPanel(page);
 
-  await page.goto('/frontline/settings/channels?channel=new');
-  await page.getByRole('dialog').getByLabel('Name').fill(channel);
-  await page.getByRole('dialog').getByPlaceholder('Search members').fill(teammate.fullName);
-  await page.getByRole('dialog').getByRole('option', { name: teammate.fullName }).click();
-  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
-  await page.getByRole('link', { name: /response templates/i }).click();
+  await page.goto(newRecordPath(CHANNELS, 'frontline:channel'));
+  await panel.getByLabel('Name').fill(channel);
+  await panel.getByPlaceholder('Search members').fill(teammate.fullName);
+  await panel.getByRole('option', { name: teammate.fullName }).click();
+  await panel.getByRole('button', { name: 'Create channel' }).click();
+  await panel.getByRole('link', { name: /Manage channel response templates/ }).click();
 
   await expect(page.getByText('No responses yet')).toBeVisible();
   await page.getByRole('button', { name: 'Create response template' }).first().click();
-  const sheet = page.getByRole('dialog');
 
-  await sheet.getByLabel('Name').fill('Greeting');
-
-  // Closing the panel keeps the draft.
-  await page.keyboard.press('Escape');
-  await expect(sheet).toBeHidden();
-  await page.getByRole('button', { name: 'Create response template' }).first().click();
-  await expect(sheet.getByLabel('Name')).toHaveValue('Greeting');
-
-  await sheet.getByRole('textbox', { name: 'Content' }).fill('Hello, thanks for writing to us.');
+  // The draft starts in the page's channel.
+  await expect(panel.getByRole('combobox', { name: 'Channel' })).toHaveText(channel);
+  await panel.getByLabel('Name').fill('Greeting');
+  await panel.getByRole('textbox', { name: 'Content' }).fill('Hello, thanks for writing to us.');
   await expectAccessible(page);
-  await sheet.getByRole('button', { name: 'Create' }).click();
+  await panel.getByRole('button', { name: 'Create response template' }).click();
 
-  const row = page.getByRole('row', { name: /Greeting/ });
-
-  await expect(row).toBeVisible();
-  await expect(page.getByText('1 record found')).toBeVisible();
+  // The saved template takes the draft's place in the panel.
+  await expect(panel.getByText('Hello, thanks for writing to us.')).toBeVisible();
+  await expect(page.getByRole('row', { name: /Greeting/ })).toBeVisible();
+  await expect(page.getByText('1 record')).toBeVisible();
   await expectAccessible(page);
 
-  await row.getByRole('button', { name: 'Greeting', exact: true }).click();
-  await expect(sheet.getByText('Hello, thanks for writing to us.')).toBeVisible();
-  await sheet.getByLabel('Name').fill('Welcome');
-  await sheet.getByRole('button', { name: 'Update' }).click();
+  // The name is edited in place.
+  await panel.getByRole('button', { name: 'Name Greeting', exact: true }).click();
+  await page.getByRole('textbox', { name: 'Name' }).fill('Welcome');
+  await page.keyboard.press('Enter');
   await expect(page.getByRole('row', { name: /Welcome/ })).toBeVisible();
 
+  // The filter bar's search lives in the address and matches the content's words.
+  const list = new URL(page.url());
+
+  list.search = new URLSearchParams({ searchValue: 'thanks for writing' }).toString();
+  await page.goto(list.toString());
+  await expect(page.getByRole('row', { name: /Welcome/ })).toBeVisible();
+  list.search = new URLSearchParams({ searchValue: 'paragraph' }).toString();
+  await page.goto(list.toString());
+  await expect(page.getByText('No results found')).toBeVisible();
+  list.search = '';
+  await page.goto(list.toString());
+
   // A member of the channel reads its templates and can't change them.
-  await teammate.page.goto(page.url());
+  await teammate.page.goto(list.toString());
   await expect(teammate.page.getByRole('button', { name: 'Welcome', exact: true })).toBeVisible();
   await expect(
     teammate.page.getByRole('button', { name: 'Create response template' }),
   ).toBeHidden();
   await expect(teammate.page.getByRole('button', { name: 'Actions for Welcome' })).toBeHidden();
+  await teammate.page.getByRole('button', { name: 'Welcome', exact: true }).click();
+  await expect(
+    recordPanel(teammate.page).getByRole('button', { name: 'Name Welcome', exact: true }),
+  ).toBeDisabled();
+  await expect(
+    recordPanel(teammate.page).getByRole('button', { name: 'Response template actions' }),
+  ).toBeHidden();
   await expectAccessible(teammate.page);
 
-  await page.getByRole('button', { name: 'Actions for Welcome' }).click();
-  await page.getByRole('option', { name: 'Delete' }).click();
-  const confirm = page.getByRole('alertdialog');
-
-  await confirm.getByRole('textbox').fill('delete');
-  await confirm.getByRole('button', { name: 'Delete' }).click();
+  await page
+    .getByRole('row', { name: /Welcome/ })
+    .getByRole('checkbox')
+    .check();
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await confirmDelete(page);
   await expect(page.getByText('No responses yet')).toBeVisible();
+});
+
+test('a member without frontline permissions is refused the templates', async ({ newMember }) => {
+  const { page } = await newMember(['team.view']);
+
+  await page.goto(`${CHANNELS}/any/response`);
+  await expect(page.getByText('You need the frontline.channel.view permission')).toBeVisible();
+  await expectAccessible(page);
 });

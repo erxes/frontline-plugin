@@ -42,6 +42,74 @@ describe('response templates', () => {
     });
   });
 
+  it("narrows templates by the filter bar's rules and searches the content's words", async () => {
+    const owner = clientAs('org-rt-f');
+    const channel = await owner.channels.create({ name: 'Support' });
+
+    const blocks = JSON.stringify([
+      {
+        id: 'b1',
+        type: 'paragraph',
+        props: { textColor: 'default' },
+        content: [{ type: 'text', text: 'Your refund is on its way', styles: {} }],
+        children: [],
+      },
+    ]);
+
+    await owner.responseTemplates.create({
+      channelId: channel.id,
+      name: 'Refund',
+      content: blocks,
+    });
+    await owner.responseTemplates.create({
+      channelId: channel.id,
+      name: 'Greeting',
+      content: 'Hi',
+    });
+
+    const names = async (input: { search?: string; rules?: unknown[] }) =>
+      (
+        await owner.responseTemplates.list({
+          channelId: channel.id,
+          search: input.search,
+          filter: input.rules && JSON.stringify({ match: 'all', rules: input.rules }),
+        })
+      ).templates.map((template) => template.name);
+
+    // The blocks' words match; their JSON keys and block types don't.
+    await expect(names({ search: 'REFUND IS' })).resolves.toEqual(['Refund']);
+    await expect(names({ search: 'paragraph' })).resolves.toEqual([]);
+    await expect(
+      names({ rules: [{ path: 'subject.content', op: 'contains', value: 'on its way' }] }),
+    ).resolves.toEqual(['Refund']);
+    await expect(
+      names({ rules: [{ path: 'subject.content', op: 'eq', value: 'hi' }] }),
+    ).resolves.toEqual(['Greeting']);
+    await expect(
+      names({ rules: [{ path: 'subject.name', op: 'starts_with', value: 'gre' }] }),
+    ).resolves.toEqual(['Greeting']);
+    await expect(
+      names({ rules: [{ path: 'subject.createdBy', op: 'eq', value: 'me' }] }),
+    ).resolves.toHaveLength(2);
+    await expect(
+      names({
+        rules: [
+          { path: 'subject.updatedAt', op: 'within_last', value: { amount: 1, unit: 'days' } },
+        ],
+      }),
+    ).resolves.toHaveLength(2);
+    await expect(
+      names({
+        rules: [
+          { path: 'subject.createdAt', op: 'more_than_ago', value: { amount: 1, unit: 'days' } },
+        ],
+      }),
+    ).resolves.toEqual([]);
+    await expect(
+      names({ rules: [{ path: 'subject.channelId', op: 'eq', value: channel.id }] }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   it('pages newest first by cursor and counts every match', async () => {
     const owner = clientAs('org-rt-b');
     const channel = await owner.channels.create({ name: 'Sales' });
@@ -51,9 +119,9 @@ describe('response templates', () => {
 
     const first = await owner.responseTemplates.list({ channelId: channel.id });
 
-    expect(first).toMatchObject({ totalCount: 52, canManage: true });
+    expect(first).toMatchObject({ totalCount: 52 });
     expect(first.templates).toHaveLength(50);
-    expect(first.templates[0]?.name).toBe('Reply 51');
+    expect(first.templates[0]).toMatchObject({ name: 'Reply 51', canManage: true });
 
     const rest = await owner.responseTemplates.list({
       channelId: channel.id,
@@ -80,8 +148,10 @@ describe('response templates', () => {
     await owner.channels.addMembers({ id: joined.id, userIds: ['agent-rt-c'] });
 
     await expect(agent.responseTemplates.list({ channelId: joined.id })).resolves.toMatchObject({
+      templates: [{ id: template.id, canManage: false }],
+    });
+    await expect(agent.responseTemplates.get({ id: template.id })).resolves.toMatchObject({
       canManage: false,
-      templates: [{ id: template.id }],
     });
     await expect(agent.responseTemplates.get({ id: hidden.id })).rejects.toMatchObject({
       code: 'NOT_FOUND',
