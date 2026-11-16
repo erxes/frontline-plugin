@@ -1,0 +1,1 @@
+ALTER TABLE "frontline_tickets" ALTER COLUMN "created_by" DROP NOT NULL;

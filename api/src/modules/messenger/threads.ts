@@ -36,7 +36,11 @@ const Params = z.object({ id: z.string() });
 export const messengerIntegration = (orgId: string, integrationId: string) =>
   withOrg(orgId, async (tx) => {
     const [row] = await tx
-      .select({ name: integrations.name, config: integrations.config })
+      .select({
+        name: integrations.name,
+        channelId: integrations.channelId,
+        config: integrations.config,
+      })
       .from(integrations)
       .where(
         and(
@@ -46,7 +50,9 @@ export const messengerIntegration = (orgId: string, integrationId: string) =>
         ),
       );
 
-    return row ? { name: row.name, ...MessengerConfig.parse(row.config) } : null;
+    return row
+      ? { name: row.name, channelId: row.channelId, ...MessengerConfig.parse(row.config) }
+      : null;
   });
 
 /**

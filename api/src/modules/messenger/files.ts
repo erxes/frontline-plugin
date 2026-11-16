@@ -1,10 +1,12 @@
 import { Readable } from 'node:stream';
 import { and, eq, sql } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import express, { type Request, type Response } from 'express';
 import { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
 import { conversations, messages } from '#/db/inbox.ts';
 import type { Attachment } from '#/db/table.ts';
+import { tickets } from '#/db/tickets.ts';
 import { fail } from '../fail.ts';
 import { readFile, storeFile } from '../files.ts';
 import { receiptOf, type Visitor, visitorOf } from './session.ts';
@@ -46,10 +48,20 @@ const upload = asVisitor(async (visitor, req, res) => {
 /** A file the visitor uploaded, and the receipt their message attaches it by. */
 export type Uploaded = Attachment & { receipt: string };
 
-/** Whether a message the visitor can read carries the core file `id`. */
+/** Whether the attachments in `column` name the core file `id`, at the address core gives it. */
+const carries = (column: AnyPgColumn, id: string) => {
+  const ending = `/files/${id}/download`;
+
+  return sql`exists (
+    select 1 from jsonb_array_elements(${column}) file
+    where right(file->>'url', ${ending.length}) = ${ending}
+  )`;
+};
+
+/** Whether a message the visitor can read, or a ticket they filed, carries the core file `id`. */
 const seesFile = (visitor: Visitor, id: string) =>
   withOrg(visitor.orgId, async (tx) => {
-    const [found] = await tx
+    const [message] = await tx
       .select({ id: messages.id })
       .from(messages)
       .innerJoin(conversations, eq(conversations.id, messages.conversationId))
@@ -58,13 +70,18 @@ const seesFile = (visitor: Visitor, id: string) =>
           eq(conversations.integrationId, visitor.integrationId),
           eq(conversations.customerId, visitor.customerId),
           eq(messages.internal, false),
-          sql`exists (
-            select 1 from jsonb_array_elements(${messages.attachments}) file
-            where file->>'url' like ${`%/files/${id}/download`}
-          )`,
+          carries(messages.attachments, id),
         ),
       )
       .limit(1);
+
+    const [found] = message
+      ? [message]
+      : await tx
+          .select({ id: tickets.id })
+          .from(tickets)
+          .where(and(eq(tickets.customerId, visitor.customerId), carries(tickets.attachments, id)))
+          .limit(1);
 
     return Boolean(found);
   });

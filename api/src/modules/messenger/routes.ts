@@ -11,6 +11,7 @@ import { isOnlineAt, messenger } from './adapter.ts';
 import { fileRoutes } from './files.ts';
 import { messengerOf, tokenOf, visitorOf } from './session.ts';
 import { streaming, subscribe } from './stream.ts';
+import { ticketRoutes } from './tickets.ts';
 import { asVisitor, messengerIntegration, threadRoutes, visitorConversations } from './threads.ts';
 import { identify, Identity, recordVisit, setOnline, supportersOf } from './visitors.ts';
 
@@ -26,6 +27,8 @@ export type { VisitorConversation, VisitorMessage } from './threads.ts';
 
 export type { Uploaded } from './files.ts';
 
+export type { TicketForms, VisitorTicket } from './tickets.ts';
+
 /** The active messenger a key opens, with its settings, or NOT_FOUND. */
 const opened = async (key: string) => {
   const found = await messengerOf(key);
@@ -38,15 +41,16 @@ const opened = async (key: string) => {
 
 /**
  * What a visitor sees of the messenger: its settings with its team in place of the team's ids,
- * and whether that team is online now.
+ * whether that team is online now, and whether it takes tickets.
  */
 const messengerView = async ({ orgId, settings }: Awaited<ReturnType<typeof opened>>) => {
-  const { supporterIds, ...shown } = settings;
+  const { supporterIds, channelId, ticketPipelineIds, ...shown } = settings;
 
   return {
     ...shown,
     isOnline: isOnlineAt(settings, new Date()),
     supporters: await supportersOf(orgId, supporterIds),
+    tickets: ticketPipelineIds.length > 0,
   };
 };
 
@@ -194,6 +198,9 @@ export const messengerRoutes = () => {
   router.post('/conversations/:id/typing', threadRoutes.typing);
   router.post('/conversations/:id/person', threadRoutes.askForPerson);
   router.get('/stream', stream);
+  router.get('/tickets', ticketRoutes.listTickets);
+  router.post('/tickets', ticketRoutes.fileTicket);
+  router.get('/tickets/forms', ticketRoutes.ticketForms);
 
   return router;
 };

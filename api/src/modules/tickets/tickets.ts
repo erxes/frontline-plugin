@@ -3,6 +3,7 @@ import { and, asc, count, eq, ilike, or, sql } from 'drizzle-orm';
 import { createInsertSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
+import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
@@ -117,6 +118,77 @@ const get = reads(PERMISSIONS.channelView)
     return ticket;
   });
 
+type NewTicket = Omit<
+  typeof tickets.$inferInsert,
+  | 'orgId'
+  | 'channelId'
+  | 'pipelineId'
+  | 'statusId'
+  | 'number'
+  | 'createdBy'
+  | 'statusChangedBy'
+  | 'propertiesData'
+> & { statusId?: string; propertiesData: Record<string, unknown> };
+
+/**
+ * Adds a ticket to `pipeline` by `actor`, a member or, with no user, the customer it names: in
+ * `statusId` or the pipeline's first status, numbered by the pipeline, due by its SLA, and on
+ * its timeline. The caller checks that `actor` may file in the pipeline.
+ */
+export const insertTicket = async (
+  tx: Tx,
+  actor: { orgId: string; userId: string | null },
+  pipeline: { id: string; channelId: string },
+  { propertiesData, ...input }: NewTicket,
+) => {
+  const properties = await parseProperties(tx, pipeline.id, propertiesData, { create: true });
+
+  await assertLinks(tx, input);
+
+  const [status] = await tx
+    .select({ id: pipelineStatuses.id })
+    .from(pipelineStatuses)
+    .where(
+      and(
+        eq(pipelineStatuses.pipelineId, pipeline.id),
+        input.statusId ? eq(pipelineStatuses.id, input.statusId) : undefined,
+      ),
+    )
+    .orderBy(asc(pipelineStatuses.type), asc(pipelineStatuses.order))
+    .limit(1);
+
+  if (!status) throw new ORPCError('BAD_REQUEST', { message: 'Pick a status of this pipeline' });
+
+  const [number = null] = await nextNumbers(tx, pipeline.id, 1);
+
+  const [created] = await tx
+    .insert(tickets)
+    .values({
+      ...input,
+      pipelineId: pipeline.id,
+      propertiesData: properties,
+      orgId: actor.orgId,
+      channelId: pipeline.channelId,
+      statusId: status.id,
+      number,
+      statusChangedBy: actor.userId,
+      createdBy: actor.userId,
+    })
+    .returning({ id: tickets.id });
+
+  if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+  await refreshSla(tx, [created.id]);
+  await publish(
+    tx,
+    actor,
+    (await snapshot(tx, [created.id])).map((row) => createdEvent(row)),
+  );
+  await signalTickets(tx, actor);
+
+  return created.id;
+};
+
 /**
  * A new ticket in a pipeline of a channel the caller belongs to, in `statusId` or the pipeline's
  * first status, numbered by the pipeline and due by its SLA.
@@ -154,53 +226,10 @@ const create = writes(PERMISSIONS.channelView)
       .extend({ propertiesData: PropertiesPatch.default({}) }),
   )
   .output(Ticket)
-  .handler(async ({ input: { propertiesData, ...input }, context: { tx, member } }) => {
+  .handler(async ({ input, context: { tx, member } }) => {
     const pipeline = await pipelineFor(tx, member, input.pipelineId, { change: false });
-    const properties = await parseProperties(tx, pipeline.id, propertiesData, { create: true });
 
-    await assertLinks(tx, input);
-
-    const [status] = await tx
-      .select({ id: pipelineStatuses.id })
-      .from(pipelineStatuses)
-      .where(
-        and(
-          eq(pipelineStatuses.pipelineId, pipeline.id),
-          input.statusId ? eq(pipelineStatuses.id, input.statusId) : undefined,
-        ),
-      )
-      .orderBy(asc(pipelineStatuses.type), asc(pipelineStatuses.order))
-      .limit(1);
-
-    if (!status) throw new ORPCError('BAD_REQUEST', { message: 'Pick a status of this pipeline' });
-
-    const [number = null] = await nextNumbers(tx, pipeline.id, 1);
-
-    const [created] = await tx
-      .insert(tickets)
-      .values({
-        ...input,
-        propertiesData: properties,
-        orgId: member.orgId,
-        channelId: pipeline.channelId,
-        statusId: status.id,
-        number,
-        statusChangedBy: member.userId,
-        createdBy: member.userId,
-      })
-      .returning({ id: tickets.id });
-
-    if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
-
-    await refreshSla(tx, [created.id]);
-    await publish(
-      tx,
-      member,
-      (await snapshot(tx, [created.id])).map((row) => createdEvent(row)),
-    );
-    await signalTickets(tx, member);
-
-    return ticketById(tx, member, created.id);
+    return ticketById(tx, member, await insertTicket(tx, member, pipeline, input));
   });
 
 export const ticketProcedures = { list, get, create };
