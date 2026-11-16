@@ -204,9 +204,16 @@ const Sent = z.object({ conversationId: z.string() });
 
 const VisitorMessages = z.array(z.object({ content: z.string(), fromVisitor: z.boolean() }));
 
-/** A website visitor: connects with the messenger's key, then writes and reads as the widget does. */
-export const visitorOf = async (request: APIRequestContext, key: string) => {
-  const connected = await request.post(`${MESSENGER}/connect`, { data: { key } });
+/**
+ * A website visitor: connects with the messenger's key, as the customer with `identity`'s email
+ * when given, then writes and reads as the widget does.
+ */
+export const visitorOf = async (
+  request: APIRequestContext,
+  key: string,
+  identity?: { email: string; firstName: string },
+) => {
+  const connected = await request.post(`${MESSENGER}/connect`, { data: { key, identity } });
 
   expect(connected.status()).toBe(200);
 

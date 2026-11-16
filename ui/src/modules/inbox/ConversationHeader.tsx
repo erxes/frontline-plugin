@@ -92,7 +92,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
 
   return (
     <header className="flex flex-col gap-2 border-b px-4 py-3">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <ContactLink
           contentType="core:customer"
           contentId={conversation.customerId}

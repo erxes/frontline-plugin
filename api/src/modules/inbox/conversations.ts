@@ -35,6 +35,7 @@ const filterFields = (member: PluginMember): FilterFields => ({
   'subject.channelId': { kind: 'select', expr: conversations.channelId },
   'subject.integrationId': { kind: 'select', expr: conversations.integrationId },
   'subject.kind': { kind: 'select', expr: integrations.kind },
+  'subject.customerId': { kind: 'select', expr: conversations.customerId },
   'subject.status': { kind: 'select', expr: conversations.status },
   'subject.assigneeId': { kind: 'member', expr: conversations.assigneeId },
   'subject.participantIds': { kind: 'members', expr: conversations.participantIds },

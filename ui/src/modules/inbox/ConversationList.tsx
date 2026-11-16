@@ -22,26 +22,31 @@ export const useCustomerName = (customerId: string) => {
   return (data && customerTitle(data)) || t('visitor', 'Visitor');
 };
 
-const Row = ({ conversation }: { conversation: Conversation }) => {
-  const [openId, setOpenId] = useOpenConversation();
-  const statuses = useStatusNames();
-  const name = useCustomerName(conversation.customerId);
+/** Opens a conversation and reads it, as the old inbox did. */
+export const useSelectConversation = () => {
+  const [, setOpenId] = useOpenConversation();
   const markRead = useMarkRead();
-  const open = openId === conversation.id;
 
-  // Opening a conversation reads it, as the old inbox did.
-  const select = () => {
+  return (conversation: Conversation) => {
     void setOpenId(conversation.id);
 
     if (!conversation.isRead) markRead.mutate({ id: conversation.id });
   };
+};
+
+const Row = ({ conversation }: { conversation: Conversation }) => {
+  const [openId] = useOpenConversation();
+  const statuses = useStatusNames();
+  const name = useCustomerName(conversation.customerId);
+  const select = useSelectConversation();
+  const open = openId === conversation.id;
 
   return (
     <li>
       <button
         type="button"
         aria-current={open ? 'true' : undefined}
-        onClick={select}
+        onClick={() => select(conversation)}
         className={cn(
           'flex w-full flex-col gap-1 border-b px-4 py-3 text-left hover:bg-accent',
           open && 'bg-accent',

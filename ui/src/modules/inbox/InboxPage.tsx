@@ -17,6 +17,7 @@ import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { Composer } from './Composer.tsx';
 import { ConversationHeader } from './ConversationHeader.tsx';
 import { ConversationList } from './ConversationList.tsx';
+import { CustomerSidebar } from './CustomerSidebar.tsx';
 import { useInboxFields } from './InboxFilter.tsx';
 import { MessageThread } from './MessageThread.tsx';
 import {
@@ -52,11 +53,14 @@ const ConversationPane = () => {
     );
 
   return (
-    <>
-      <ConversationHeader conversation={conversation} />
-      <MessageThread conversation={conversation} />
-      <Composer key={conversation.id} conversation={conversation} />
-    </>
+    <div className="flex min-h-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <ConversationHeader conversation={conversation} />
+        <MessageThread conversation={conversation} />
+        <Composer key={conversation.id} conversation={conversation} />
+      </div>
+      <CustomerSidebar conversation={conversation} />
+    </div>
   );
 };
 

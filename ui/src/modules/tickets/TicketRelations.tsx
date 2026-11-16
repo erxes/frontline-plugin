@@ -1,6 +1,6 @@
 import { IconTicket } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { Empty, Spinner, type TRelationTabProps, useOpenRecord } from 'erxes-ui';
+import { Empty, Spinner, type TRecordContacts, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { TICKET_TYPE } from '~/plugin.ts';
@@ -19,15 +19,8 @@ export const ticketContacts = async (id: string) => {
 const anyOf = (path: string, ids: string[]) =>
   ids.length > 0 ? [{ path, op: 'in' as const, value: ids }] : [];
 
-/**
- * The Tickets tab on a customer's or company's panel: the member's tickets about them, active and
- * archived, newest first. One opens on top in the same panel.
- */
-export const TicketRelations = ({ customerIds, companyIds }: TRelationTabProps) => {
-  const { t } = useTranslation('frontline');
-  const { open } = useOpenRecord();
-  const statusName = new Map(useChoices().statuses.map((status) => [status.id, status.name]));
-
+/** The member's tickets about these customers or companies, active and archived, newest first. */
+export const useContactTickets = ({ customerIds, companyIds }: TRecordContacts) => {
   const filter = {
     match: 'all',
     rules: [
@@ -42,12 +35,23 @@ export const TicketRelations = ({ customerIds, companyIds }: TRelationTabProps) 
     ],
   };
 
-  const tickets = useQuery({
+  return useQuery({
     ...orpc.tickets.list.queryOptions({
       input: { filter: JSON.stringify(filter), sort: 'createdAt', limit: 50 },
     }),
     enabled: customerIds.length + companyIds.length > 0,
   });
+};
+
+/**
+ * The Tickets tab on a customer's or company's panel, and the inbox's customer sidebar: the
+ * member's tickets about them. One opens on top in core's side panel.
+ */
+export const TicketRelations = (contacts: TRecordContacts) => {
+  const { t } = useTranslation('frontline');
+  const { open } = useOpenRecord();
+  const statusName = new Map(useChoices().statuses.map((status) => [status.id, status.name]));
+  const tickets = useContactTickets(contacts);
 
   if (tickets.isLoading) return <Spinner area="lg" />;
 
