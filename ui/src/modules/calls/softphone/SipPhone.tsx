@@ -158,6 +158,15 @@ const LinePhone = ({
   const ringing = phone.call?.direction === 'incoming' && !phone.call.talking;
   const note = current && current.id !== closedNote ? current : null;
 
+  const statusText: Record<PhoneStatus, string> = {
+    connecting: t('phone-connecting', 'Connecting'),
+    ready: t('phone-ready', 'Ready'),
+    offline: t('phone-offline', 'Offline'),
+  };
+
+  const lineName = ({ name, extension }: Line) =>
+    t('phone-line-name', '{{name}}, ext. {{extension}}', { name, extension });
+
   return (
     <div className="flex flex-col items-end gap-2">
       {(open || ringing) && (
@@ -165,24 +174,28 @@ const LinePhone = ({
           aria-label={t('softphone', 'Phone')}
           className="flex w-72 flex-col gap-3 rounded-lg border bg-background p-3 shadow-lg"
         >
-          {lines.length > 1 ? (
-            <Select value={line.accountId} onValueChange={(next) => next && onLine(next)}>
-              <Select.Trigger aria-label={t('phone-line', 'Line')}>
-                <Select.Value>{() => `${line.name} ${line.extension}`}</Select.Value>
-              </Select.Trigger>
-              <Select.Content>
-                {lines.map((other) => (
-                  <Select.Item key={other.accountId} value={other.accountId}>
-                    {other.name} {other.extension}
-                  </Select.Item>
-                ))}
-              </Select.Content>
-            </Select>
-          ) : (
-            <p className="text-sm font-medium">
-              {line.name} {line.extension}
-            </p>
-          )}
+          <div className="flex items-center justify-between gap-2">
+            {lines.length > 1 ? (
+              <Select value={line.accountId} onValueChange={(next) => next && onLine(next)}>
+                <Select.Trigger aria-label={t('phone-line', 'Line')}>
+                  <Select.Value>{() => lineName(line)}</Select.Value>
+                </Select.Trigger>
+                <Select.Content>
+                  {lines.map((other) => (
+                    <Select.Item key={other.accountId} value={other.accountId}>
+                      {lineName(other)}
+                    </Select.Item>
+                  ))}
+                </Select.Content>
+              </Select>
+            ) : (
+              <p className="text-sm font-medium">{lineName(line)}</p>
+            )}
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <StatusDot status={phone.status} />
+              {statusText[phone.status]}
+            </span>
+          </div>
           {phone.call ? (
             <OnCall phone={phone} call={phone.call} line={line} />
           ) : (
