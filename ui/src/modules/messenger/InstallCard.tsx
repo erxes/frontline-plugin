@@ -16,7 +16,7 @@ export const InstallCard = ({ scriptUrl }: { scriptUrl: string }) => {
       )}
     >
       <CopyText value={snippet} className="sm:col-span-2">
-        <code className="block overflow-x-auto rounded-md bg-muted p-3 font-mono text-xs whitespace-pre">
+        <code className="block rounded-md bg-muted p-3 font-mono text-xs break-all whitespace-pre-wrap">
           {snippet}
         </code>
       </CopyText>

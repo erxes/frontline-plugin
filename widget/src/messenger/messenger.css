@@ -32,14 +32,13 @@
   box-sizing: border-box;
 }
 
-.fl button,
-.fl input,
-.fl textarea {
+/* Resets without specificity, so each component's class sets its own font and colour. */
+:where(.fl) :where(button, input, textarea) {
   font: inherit;
   color: inherit;
 }
 
-.fl button {
+:where(.fl) button {
   cursor: pointer;
 }
 

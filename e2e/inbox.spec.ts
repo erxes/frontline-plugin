@@ -1,3 +1,4 @@
+import { createServer } from 'node:http';
 import type { Locator, Page } from '@playwright/test';
 import {
   addMessenger,
@@ -190,22 +191,27 @@ test('a visitor writes from the widget on a website and reads the reply without 
   const key = await addMessenger(page, channel);
   const script = new URL(`/widget/messenger.js?key=${key}`, MESSENGER);
 
-  // A shop on another origin than the plugin, with the line the install card gives.
+  // A shop on another origin than the plugin, with the line the install card gives. A real
+  // server, since Chrome lets only a loopback page reach the loopback plugin.
+  await using site = createServer((_req, res) => {
+    res.setHeader('content-type', 'text/html');
+    res.end(
+      `<!doctype html><html lang="en"><title>Shop</title><main><h1>Shop</h1></main><script type="module" src="${script.href}"></script></html>`,
+    );
+  });
+
+  await new Promise<void>((resolve) => site.listen(0, '127.0.0.1', resolve));
+
+  const address = site.address();
   const shop = await page.context().newPage();
 
-  await shop.route('http://127.0.0.1:3399/shop', (route) =>
-    route.fulfill({
-      contentType: 'text/html',
-      body: `<!doctype html><html lang="en"><title>Shop</title><main><h1>Shop</h1></main><script type="module" src="${script.href}"></script></html>`,
-    }),
-  );
-  await shop.goto('http://127.0.0.1:3399/shop');
+  await shop.goto(`http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}/`);
   await shop.getByRole('button', { name: 'Open the messenger' }).click();
 
   const panel = shop.getByRole('dialog');
 
-  await expect(panel).toContainText('Hi, how can we help?');
   await panel.getByRole('button', { name: 'Send us a message' }).click();
+  await expect(panel).toContainText('Hi, how can we help?');
   await panel.getByRole('textbox', { name: 'Message' }).fill(question);
   await panel.getByRole('button', { name: 'Send' }).click();
   await expect(panel).toContainText(question);
