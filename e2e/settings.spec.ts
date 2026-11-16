@@ -15,12 +15,8 @@ const addNamed = async (page: Page, button: string, name: string) => {
   await expect(page.getByRole('row', { name: new RegExp(name) })).toBeVisible();
 };
 
-test('the owner adds, finds and deletes tags, departments, branches and ticket properties', async ({
-  page,
-}) => {
+test('the owner adds, finds and deletes tags and ticket properties', async ({ page }) => {
   const tag = `VIP ${unique()}`;
-  const department = `Care ${unique()}`;
-  const branch = `North ${unique()}`;
   const property = `Plan ${unique()}`;
 
   await page.goto(`${SETTINGS}/tags`);
@@ -32,17 +28,6 @@ test('the owner adds, finds and deletes tags, departments, branches and ticket p
   await page.getByRole('option', { name: 'Delete' }).click();
   await confirmDelete(page);
   await expect(page.getByRole('row', { name: new RegExp(tag) })).toBeHidden();
-
-  await page.goto(`${SETTINGS}/departments`);
-  await addNamed(page, 'Add department', department);
-  await expect(page.getByRole('row', { name: new RegExp(department) })).toContainText('Nobody');
-  await expectAccessible(page);
-
-  await page.goto(`${SETTINGS}/branches`);
-  await addNamed(page, 'Add branch', branch);
-  // Branches and departments are listed apart.
-  await expect(page.getByRole('row', { name: new RegExp(department) })).toBeHidden();
-  await expectAccessible(page);
 
   await page.goto(`${SETTINGS}/ticket-properties`);
   await page.getByRole('button', { name: 'Add property' }).click();
@@ -77,8 +62,6 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
 
   const settings = {
     Tags: `${SETTINGS}/tags`,
-    Departments: `${SETTINGS}/departments`,
-    Branches: `${SETTINGS}/branches`,
     'Ticket properties': `${SETTINGS}/ticket-properties`,
     'Help centers': `${SETTINGS}/help-centers`,
     Meta: `${SETTINGS}/meta`,
@@ -104,6 +87,13 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
   await expectAccessible(page);
   await page.getByRole('link', { name: 'Exit settings' }).click();
   await expect(page).toHaveURL(/\/frontline\/inbox/);
+
+  // Branches and departments are core's, edited in its own settings; old links go there too.
+  await page.getByRole('link', { name: 'Settings', exact: true }).click();
+  await page.getByRole('link', { name: 'Branches and departments', exact: true }).click();
+  await expect(page).toHaveURL('/settings/structure');
+  await page.goto(`${SETTINGS}/departments`);
+  await expect(page).toHaveURL('/settings/structure');
 });
 
 test('a channel member reads the settings, and a member without frontline permissions is refused', async ({

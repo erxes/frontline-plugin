@@ -21,7 +21,7 @@ import { ListEmpty } from '~/shared/List.tsx';
 import { RowActions, useConfirmDelete } from '~/shared/Records.tsx';
 import { Rows } from '~/shared/Table.tsx';
 
-/** Whether the member manages tags, teams and ticket properties; others read them. */
+/** Whether the member manages tags and ticket properties; others read them. */
 export const useCanManageSettings = () =>
   useQuery(orpc.settings.access.queryOptions()).data?.canManage ?? false;
 

@@ -1,4 +1,4 @@
-import { bearerOf, verifyCoreJob, verifyPluginSession } from '@erxes/plugin-sdk';
+import { bearerOf, verifyCoreEvent, verifyCoreJob, verifyPluginSession } from '@erxes/plugin-sdk';
 import { onError, ORPCError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/node';
 import cors from 'cors';
@@ -12,6 +12,7 @@ import { publicRouter } from '#/modules/helpcenter/public.ts';
 import { runAction } from '#/modules/inbox/automations.ts';
 import { webhookRoutes } from '#/modules/integrations/routes.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
+import { syncUnits } from '#/modules/teams/sync.ts';
 import { router } from '#/router.ts';
 
 const rpc = new RPCHandler(router, {
@@ -99,6 +100,35 @@ export const createApp = () => {
     const result = await run(job);
 
     logger.info({ job: job.name, jobId: job.jobId, orgId: job.orgId, result }, 'job done');
+    res.sendStatus(204);
+  });
+
+  // Core delivers the manifest's `subscriptions` here, signed over the raw body; anything but
+  // 2xx retries. A change to a branch or department refreshes the organisation's copy.
+  app.post('/api/events', express.text({ type: '*/*', limit: '1mb' }), async (req, res) => {
+    const body: unknown = req.body;
+
+    const event = await verifyCoreEvent(
+      req.headers.authorization,
+      typeof body === 'string' ? body : '',
+      { coreUrl: config.coreUrl, plugin: PLUGIN },
+    ).catch(() => null);
+
+    if (!event) {
+      res.status(401).json({ message: 'Only core delivers events' });
+
+      return;
+    }
+
+    if (event.type.startsWith('core.unit.')) {
+      const result = await syncUnits(event.organizationId);
+
+      logger.info(
+        { event: event.type, eventId: event.id, orgId: event.organizationId, result },
+        'units synced',
+      );
+    }
+
     res.sendStatus(204);
   });
 

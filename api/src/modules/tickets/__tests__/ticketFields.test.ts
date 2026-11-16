@@ -1,9 +1,15 @@
 import { sql } from 'drizzle-orm';
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { clientAs } from '#/test/member.ts';
+import { addUnit, removeUnit } from '#/test/units.ts';
 import { checkSla } from '../sla.ts';
+
+// Branches and departments are core's; frontline copies them.
+vi.mock('#/core.ts', async (importOriginal) =>
+  (await import('#/test/coreUnits.ts')).unitsStandIn(await importOriginal()),
+);
 
 const agent = [PERMISSIONS.channelView];
 
@@ -43,8 +49,8 @@ describe('ticket fields', () => {
     const { owner, pipeline } = await setUp('org-tf-a');
     const tag = await owner.tags.create({ type: 'ticket', name: 'VIP' });
     const conversationTag = await owner.tags.create({ type: 'conversation', name: 'VIP' });
-    const branch = await owner.teams.create({ kind: 'branch', name: 'North' });
-    const department = await owner.teams.create({ kind: 'department', name: 'Care' });
+    const branch = await addUnit('org-tf-a', { kind: 'branch', name: 'North' });
+    const department = await addUnit('org-tf-a', { kind: 'department', name: 'Care' });
 
     const ticket = await owner.tickets.create({
       pipelineId: pipeline.id,
@@ -80,7 +86,7 @@ describe('ticket fields', () => {
     expect(ids((await owner.tickets.list({ filter })).tickets)).toEqual([ticket.id]);
 
     await owner.tags.remove({ ids: [tag.id] });
-    await owner.teams.remove({ ids: [branch.id] });
+    await removeUnit('org-tf-a', branch.id);
 
     await expect(owner.tickets.get({ id: ticket.id })).resolves.toMatchObject({
       tagIds: [],
@@ -240,7 +246,12 @@ describe('status rights', () => {
 
   it("shows members only their own, followed, unheld and teams' tickets where the pipeline checks", async () => {
     const { owner, ann, bob, pipeline } = await setUp('org-tf-e');
-    const care = await owner.teams.create({ kind: 'department', name: 'Care', memberIds: ['bob'] });
+
+    const care = await addUnit('org-tf-e', {
+      kind: 'department',
+      name: 'Care',
+      memberIds: ['bob'],
+    });
 
     const mine = await ann.tickets.create({
       pipelineId: pipeline.id,
@@ -284,7 +295,7 @@ describe('status rights', () => {
     expect(ids((await ann.tickets.list({})).tickets)).toContain(mine.id);
 
     // A team under Care is Care's too.
-    const vip = await owner.teams.create({ kind: 'department', name: 'VIP', parentId: care.id });
+    const vip = await addUnit('org-tf-e', { kind: 'department', name: 'VIP', parentId: care.id });
 
     const vipTicket = await owner.tickets.create({
       pipelineId: pipeline.id,

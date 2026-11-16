@@ -210,7 +210,7 @@ export const tickets = table(
       .default(sql`'{}'`),
     /** Values of the organisation's ticket properties, by property id. */
     propertiesData: jsonb().$type<Record<string, unknown>>().notNull().default({}),
-    /** `frontline_teams` of each kind; deleting the team clears them. */
+    /** `frontline_teams` of each kind, core's units; a unit deleted in core clears them. */
     branchId: text(),
     departmentId: text(),
     /** The core customer and company the ticket is about. */

@@ -4,6 +4,7 @@ import { checkDomains } from '#/modules/helpcenter/domains.ts';
 import { sendReply } from '#/modules/inbox/send.ts';
 import { checkAccounts, syncMail } from '#/modules/integrations/jobs.ts';
 import { copyRecording } from '#/modules/integrations/providers/call/recording.ts';
+import { syncUnits } from '#/modules/teams/sync.ts';
 import { checkSla } from '#/modules/tickets/sla.ts';
 
 /** What each job in the manifest's `jobs` does when core runs it at `/api/jobs/<name>`. */
@@ -14,4 +15,5 @@ export const JOB_RUNS: Record<string, (job: PluginJobDelivery) => Promise<unknow
   [JOBS.mailSync.name]: syncMail,
   [JOBS.check.name]: checkAccounts,
   [JOBS.recording.name]: copyRecording,
+  [JOBS.units.name]: (job) => syncUnits(job.orgId),
 };

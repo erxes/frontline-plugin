@@ -18,6 +18,7 @@ import {
   PIPELINE_TYPE,
   PLUGIN,
   RESPONSE_TEMPLATE_TYPE,
+  STRUCTURE_PATH,
   SURVEY_TYPE,
   TICKET_TYPE,
 } from '~/plugin.ts';
@@ -58,10 +59,6 @@ const PipelinesPage = lazy(async () => ({
 
 const TagsPage = lazy(async () => ({
   default: (await import('@/settings/TagsPage.tsx')).TagsPage,
-}));
-
-const TeamsPage = lazy(async () => ({
-  default: (await import('@/settings/TeamsPage.tsx')).TeamsPage,
 }));
 
 const PropertiesPage = lazy(async () => ({
@@ -202,8 +199,9 @@ export const Frontline = () => (
         element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}
       />
       <Route path="tags" element={<TagsPage />} />
-      <Route path="departments" element={<TeamsPage key="department" kind="department" />} />
-      <Route path="branches" element={<TeamsPage key="branch" kind="branch" />} />
+      {/* Branches and departments are core's: old links open its structure settings. */}
+      <Route path="departments" element={<Navigate to={STRUCTURE_PATH} replace />} />
+      <Route path="branches" element={<Navigate to={STRUCTURE_PATH} replace />} />
       <Route path="ticket-properties" element={<PropertiesPage />} />
       <Route path="help-centers" element={<HelpCentersPage />} />
       <Route path="help-centers/:id" element={<RecordRoute contentType={HELP_CENTER_TYPE} />} />

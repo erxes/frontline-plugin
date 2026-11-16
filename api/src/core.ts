@@ -27,7 +27,7 @@ export const PERMISSIONS = {
   kbCategoryManage: 'frontline.knowledgebase_category.manage',
   /** Write, change and delete articles. */
   kbArticleManage: 'frontline.knowledgebase_article.manage',
-  /** Change the tags, teams and ticket properties every channel shares. */
+  /** Change the tags and ticket properties every channel shares. */
   settingsManage: 'frontline.settings.manage',
   /** See the help centers. */
   helpCenterView: 'frontline.help_center.view',
@@ -188,6 +188,12 @@ export const JOBS = {
   check: { name: 'integrations.check', cron: '17 3 * * *' },
   /** Copies a call's recording from the PBX to core's storage. */
   recording: { name: 'calls.recording', retry: { attempts: 5, delay: 60, maxDelay: 1800 } },
+  /**
+   * Brings the organisation's own teams to core once, then copies core's branches and
+   * departments (`modules/teams/sync.ts`): on install, when the owner approves the units scopes,
+   * and nightly in case an event was missed.
+   */
+  units: { name: 'teams.units-sync', cron: '41 2 * * *', onInstall: true },
 } as const;
 
 /** The record type whose Activity tab shows a form's events, and its submissions. */
@@ -223,8 +229,19 @@ export const manifest = {
   api: { url: `${config.publicUrl}/api` },
   // Form senders, messenger visitors and provider senders become core customers; members hear
   // of assignments; a messenger shows its team's names and pictures; call recordings are stored
-  // as core files.
-  scopes: ['customers:read', 'customers:write', 'notifications:write', 'users:read', 'files:write'],
+  // as core files. Tickets' branches and departments are core's units: frontline brings its own
+  // teams in once and keeps a copy for ticket visibility.
+  scopes: [
+    'customers:read',
+    'customers:write',
+    'notifications:write',
+    'users:read',
+    'files:write',
+    'units:read',
+    'units:write',
+  ],
+  // Any change to a unit refreshes the copy (`modules/teams/sync.ts`).
+  subscriptions: ['core.unit.*'],
   permissions: [
     {
       action: PERMISSIONS.channelView,
@@ -258,7 +275,7 @@ export const manifest = {
     },
     {
       action: PERMISSIONS.settingsManage,
-      label: 'Manage tags, teams and ticket properties',
+      label: 'Manage tags and ticket properties',
       group: 'Frontline',
     },
     { action: PERMISSIONS.helpCenterView, label: 'See help centers', group: 'Help center' },

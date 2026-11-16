@@ -156,6 +156,7 @@ const addSetting = async (page: Page, path: string, button: string, name: string
 
 test('a member labels a ticket with tags, a department and a property, and filters by them', async ({
   page,
+  api,
 }) => {
   const tag = `Urgent ${unique()}`;
   const department = `Care ${unique()}`;
@@ -164,7 +165,8 @@ test('a member labels a ticket with tags, a department and a property, and filte
   const panel = recordPanel(page);
 
   await addSetting(page, 'tags', 'Add tag', tag);
-  await addSetting(page, 'departments', 'Add department', department);
+  // Departments are core's; frontline copies the new one when core tells it.
+  await api.units.create({ kind: 'department', name: department });
   await page.goto('/frontline/settings/ticket-properties');
   await page.getByRole('button', { name: 'Add property' }).click();
   await page.getByRole('dialog').getByLabel('Label', { exact: true }).fill(property);

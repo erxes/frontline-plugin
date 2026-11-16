@@ -9,6 +9,10 @@
 // tables its foreign keys point at. Tables not in the database yet, fields with
 // no column, and documents a constraint refuses (a status whose pipeline is
 // gone) are skipped and listed at the end.
+//
+// Departments and branches land in frontline_teams, the copy of core's units. Once
+// any are copied the organisation's adopted mark is cleared, so the next units job
+// brings them to core before it syncs the copy (api/src/modules/teams/sync.ts).
 import { parseArgs } from 'node:util';
 import { type Document, MongoClient, ObjectId } from 'mongodb';
 import { DatabaseError, Pool } from 'pg';
@@ -70,6 +74,10 @@ const cell = (value: unknown, column: Column) => {
 const mongo = await MongoClient.connect(MONGO_URL);
 const pool = new Pool({ connectionString: DATA_URL });
 const skipped: string[] = [];
+
+/** The copy of core's units: rows copied here must reach core before the next sync. */
+const TEAM_TABLES = new Set(['frontline_teams', 'frontline_team_members']);
+let teamsCopied = 0;
 
 try {
   const { rows: references } = await pool.query<{ child: string; parent: string }>(
@@ -206,6 +214,27 @@ try {
     if (batch.length > 0) await write(batch);
 
     console.info(`${collection} → ${table}: ${copied} rows copied from ${seen} documents`);
+
+    if (TEAM_TABLES.has(table)) teamsCopied += copied;
+  }
+
+  if (teamsCopied > 0) {
+    const client = await pool.connect();
+
+    try {
+      await client.query('BEGIN');
+      await client.query("SELECT set_config('app.org_id', $1, true)", [ORG_ID]);
+      await client.query('UPDATE frontline_unit_sync SET adopted_at = NULL');
+      await client.query('COMMIT');
+      console.info(
+        `${teamsCopied} team rows copied: the next units job (teams.units-sync) brings them to core`,
+      );
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
   }
 } finally {
   await mongo.close();

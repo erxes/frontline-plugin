@@ -1,7 +1,6 @@
 import {
   IconBook,
   IconBrandFacebook,
-  IconBuildingStore,
   IconChecklist,
   IconChevronDown,
   IconChevronLeft,
@@ -28,7 +27,7 @@ import {
 import { Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { PLUGIN } from '~/plugin.ts';
+import { PLUGIN, STRUCTURE_PATH } from '~/plugin.ts';
 
 const ROOT = `/${PLUGIN}`;
 const CALLS = `${ROOT}/calls`;
@@ -137,8 +136,12 @@ export const SettingsLayout = () => {
   const items = [
     { name: t('channels', 'Channels'), to: `${SETTINGS}/channels`, icon: IconCircles },
     { name: t('tags', 'Tags'), to: `${SETTINGS}/tags`, icon: IconTag },
-    { name: t('departments', 'Departments'), to: `${SETTINGS}/departments`, icon: IconSitemap },
-    { name: t('branches', 'Branches'), to: `${SETTINGS}/branches`, icon: IconBuildingStore },
+    // Core keeps them, at its own Settings › Structure.
+    {
+      name: t('branches-and-departments', 'Branches and departments'),
+      to: STRUCTURE_PATH,
+      icon: IconSitemap,
+    },
     {
       name: t('ticket-properties', 'Ticket properties'),
       to: `${SETTINGS}/ticket-properties`,

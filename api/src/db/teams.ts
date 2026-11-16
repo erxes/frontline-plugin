@@ -5,9 +5,9 @@ import { id, table } from './table.ts';
 export const TEAM_KINDS = ['department', 'branch'] as const;
 
 /**
- * A department or branch: core has neither, so the plugin keeps them. Imported ones keep old
- * core's ids, which old tickets' `departmentId` and `branchId` name. Deleting a team moves its
- * children to the top level.
+ * A department or branch: a read-only copy of core's units, which `modules/teams/sync.ts` keeps
+ * in step, so ticket visibility joins them in SQL. Units keep their ids in core, so old tickets'
+ * `departmentId` and `branchId` still name them.
  */
 export const teams = table(
   'teams',
@@ -39,7 +39,7 @@ export const teams = table(
   ],
 );
 
-/** Who is in which team. Deleting the team removes its members. */
+/** Who is in which team, copied from the unit's `memberIds`. Deleting the team removes its members. */
 export const teamMembers = table(
   'team_members',
   {
@@ -59,3 +59,14 @@ export const teamMembers = table(
     index('frontline_team_members_org_user_idx').on(t.orgId, t.userId),
   ],
 );
+
+/**
+ * Where an organisation's copy of core's units stands. `adoptedAt`: when its own teams went to
+ * core, once, before any sync deletes what core lacks; the Mongo import clears it. `syncedAt`:
+ * when the list last copied was read from core, so an older list never replaces a newer one.
+ */
+export const unitSync = table('unit_sync', {
+  orgId: text().primaryKey(),
+  adoptedAt: timestamp({ withTimezone: true }),
+  syncedAt: timestamp({ withTimezone: true }),
+});
