@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconCalendarPlus,
   IconCalendarUp,
@@ -14,7 +13,6 @@ import {
 } from '@tabler/icons-react';
 import {
   Button,
-  MemberInline,
   NumberField,
   PanelField,
   PanelSection,
@@ -27,10 +25,11 @@ import {
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChannelSelect } from '~/shared/ChannelSelect.tsx';
-import { ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { StatusBadge, useSurveyActions } from './SurveyCells.tsx';
 import { type Survey, useEditSurvey, useSurvey } from './useSurveys.ts';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the survey's title. */
 export const SurveyTitleSlot = ({ contentId }: TRecordSlotProps) => {
@@ -102,21 +101,6 @@ const General = ({ survey }: { survey: Survey }) => {
   );
 };
 
-/** A row that only reads. */
-const InfoRow = ({
-  icon,
-  label,
-  children,
-}: {
-  icon: typeof IconUser;
-  label: string;
-  children: ReactNode;
-}) => (
-  <PanelField icon={icon} label={label} cell={false}>
-    <span className="px-2 text-xs">{children}</span>
-  </PanelField>
-);
-
 /** Where it stands, how it was received, and its history. */
 const Overview = ({ survey }: { survey: Survey }) => {
   const { t } = useTranslation('frontline');
@@ -138,9 +122,9 @@ const Overview = ({ survey }: { survey: Survey }) => {
       <InfoRow icon={IconSend} label={t('survey-sent', 'Sent')}>
         {survey.sentCount}
       </InfoRow>
-      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
-        <MemberInline memberId={survey.createdBy} members={memberQueries} />
-      </PanelField>
+      <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
+        <MemberLine id={survey.createdBy} />
+      </InfoRow>
       <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
         {format.dateTime(survey.createdAt)}
       </InfoRow>

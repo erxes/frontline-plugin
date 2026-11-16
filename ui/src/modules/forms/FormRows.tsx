@@ -27,6 +27,7 @@ import { ActionsMenu, RowActions, TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import { FormName, StatusBadge, useFormActions } from './FormCells.tsx';
 import { FORM_STATUSES, type Form, useStatusNames } from './useForms.ts';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 const RowMenu = ({ form }: { form: Form }) => {
   const { t } = useTranslation('frontline');
@@ -66,7 +67,7 @@ const FormRow = ({ form, channel }: { form: Form; channel: string }) => {
         })}
       </span>
       <span className="hidden w-36 shrink-0 md:block">
-        <MemberInline memberId={form.createdBy} members={memberQueries} />
+        <MemberLine id={form.createdBy} />
       </span>
       <span className="w-24 shrink-0 text-muted-foreground">
         <RelativeDateDisplay value={form.updatedAt.toISOString()}>

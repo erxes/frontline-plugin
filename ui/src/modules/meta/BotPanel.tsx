@@ -27,6 +27,7 @@ import {
 } from 'erxes-ui';
 import { type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { InfoRow } from '~/shared/Panel.tsx';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
@@ -252,9 +253,9 @@ const BotFields = ({ bot }: { bot: Bot }) => {
           }}
         />
       </PanelField>
-      <PanelField icon={IconBrandFacebook} label={t('page', 'Page')} cell={false}>
-        <span className="px-2 text-xs">{bot.accountName}</span>
-      </PanelField>
+      <InfoRow icon={IconBrandFacebook} label={t('page', 'Page')}>
+        {bot.accountName}
+      </InfoRow>
       <PanelField icon={IconHeartbeat} label={t('status', 'Status')} cell={false}>
         <span className="flex items-center gap-2 px-2 text-xs">
           <Badge variant={bot.status === 'healthy' ? 'success' : 'destructive'}>

@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlertTriangle,
   IconLock,
@@ -7,7 +6,7 @@ import {
   IconPinnedOff,
   IconRobot,
 } from '@tabler/icons-react';
-import { Button, cn, MemberInline, ScrollArea, Skeleton, Textarea, useFormat } from 'erxes-ui';
+import { Button, cn, ScrollArea, Skeleton, Textarea, useFormat } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { textOf } from '~/shared/hooks.ts';
@@ -20,6 +19,7 @@ import {
   usePinMessage,
   usePinnedMessages,
 } from './queries.ts';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /** Who wrote the message: the customer, a member, or the bot when it has neither. */
 const Author = ({ message, customerName }: { message: Message; customerName: string }) => {
@@ -35,7 +35,7 @@ const Author = ({ message, customerName }: { message: Message; customerName: str
       </span>
     );
 
-  return <MemberInline memberId={message.userId} members={memberQueries} size="sm" />;
+  return <MemberLine id={message.userId} size="sm" />;
 };
 
 /** The member's own message in a text box, saved with Save or Ctrl or ⌘ with Enter. */

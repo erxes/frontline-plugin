@@ -14,7 +14,6 @@ import {
 } from '@tabler/icons-react';
 import {
   Button,
-  MemberInline,
   PanelField,
   PanelSection,
   SelectMember,
@@ -33,6 +32,8 @@ import { TicketContent, TicketPlan, TicketSla } from './TicketFields.tsx';
 import { TicketContacts, TicketLabels, TicketPeople } from './TicketLinks.tsx';
 import { TicketPropertiesSection } from './TicketProperties.tsx';
 import { type Ticket, useChoices, useEditTicket, useTicket } from './queries.ts';
+import { InfoRow } from '~/shared/Panel.tsx';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /** A slot's ticket: a spinner while it loads, the refusal when the API gives one. */
 const WithTicket = ({ id, children }: { id: string; children: (ticket: Ticket) => ReactNode }) => {
@@ -127,9 +128,9 @@ const TicketFields = ({ ticket }: { ticket: Ticket }) => {
           }}
         />
       </PanelField>
-      <PanelField icon={IconHash} label={t('number', 'Number')} cell={false}>
-        <span className="px-2 text-xs">{ticket.number}</span>
-      </PanelField>
+      <InfoRow icon={IconHash} label={t('number', 'Number')}>
+        {ticket.number}
+      </InfoRow>
       <PanelField icon={IconProgressCheck} label={t('status', 'Status')} cell={false}>
         <StatusSelect
           pipelineId={ticket.pipelineId}
@@ -160,15 +161,15 @@ const TicketFields = ({ ticket }: { ticket: Ticket }) => {
         />
       </PanelField>
       <Filing ticket={ticket} />
-      <PanelField icon={IconUserCircle} label={t('created-by', 'Created by')} cell={false}>
-        <MemberInline memberId={ticket.createdBy} members={memberQueries} />
-      </PanelField>
-      <PanelField icon={IconCalendarPlus} label={t('created-at', 'Created at')} cell={false}>
-        <span className="px-2 text-xs">{format.dateTime(ticket.createdAt)}</span>
-      </PanelField>
-      <PanelField icon={IconCalendarUp} label={t('updated-at', 'Updated at')} cell={false}>
-        <span className="px-2 text-xs">{format.dateTime(ticket.updatedAt)}</span>
-      </PanelField>
+      <InfoRow icon={IconUserCircle} label={t('created-by', 'Created by')}>
+        <MemberLine id={ticket.createdBy} />
+      </InfoRow>
+      <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
+        {format.dateTime(ticket.createdAt)}
+      </InfoRow>
+      <InfoRow icon={IconCalendarUp} label={t('updated-at', 'Updated at')}>
+        {format.dateTime(ticket.updatedAt)}
+      </InfoRow>
     </PanelSection>
   );
 };

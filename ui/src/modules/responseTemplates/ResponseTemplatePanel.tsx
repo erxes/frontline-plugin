@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconCalendarPlus,
   IconCalendarUp,
@@ -11,7 +10,6 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import {
   Button,
-  MemberInline,
   PanelDescriptionField,
   PanelField,
   PanelSection,
@@ -33,6 +31,8 @@ import {
   useResponseTemplate,
   useTemplateChange,
 } from './useResponseTemplates.ts';
+import { InfoRow } from '~/shared/Panel.tsx';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the template's name. */
 export const ResponseTemplateTitle = ({ contentId }: TRecordSlotProps) => {
@@ -142,15 +142,15 @@ const TemplateFields = ({ template }: { template: ResponseTemplate }) => {
           />
         </PanelField>
       </fieldset>
-      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
-        <MemberInline memberId={template.createdBy} members={memberQueries} />
-      </PanelField>
-      <PanelField icon={IconCalendarPlus} label={t('created-at', 'Created at')} cell={false}>
-        <span className="px-2 text-xs">{format.dateTime(template.createdAt)}</span>
-      </PanelField>
-      <PanelField icon={IconCalendarUp} label={t('updated-at', 'Updated at')} cell={false}>
-        <span className="px-2 text-xs">{format.dateTime(template.updatedAt)}</span>
-      </PanelField>
+      <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
+        <MemberLine id={template.createdBy} />
+      </InfoRow>
+      <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
+        {format.dateTime(template.createdAt)}
+      </InfoRow>
+      <InfoRow icon={IconCalendarUp} label={t('updated-at', 'Updated at')}>
+        {format.dateTime(template.updatedAt)}
+      </InfoRow>
       <PanelDescriptionField
         label={t('content', 'Content')}
         scope={`${scope}.content`}

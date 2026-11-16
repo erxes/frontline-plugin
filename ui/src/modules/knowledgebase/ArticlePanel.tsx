@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconCalendarPlus,
   IconCalendarUp,
@@ -13,7 +12,6 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import {
   Button,
-  MemberInline,
   PanelDescriptionEditor,
   PanelField,
   PanelSection,
@@ -25,12 +23,13 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { useArticleActions } from './ArticleCells.tsx';
 import { type ArticleEdit, Media, Publishing } from './ArticleOptions.tsx';
 import { CategorySelect } from './CategoryTree.tsx';
 import { type ArticleDetail, useArticle, useKbAccess, useKbChange } from './useKnowledgeBase.ts';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /** Saves one change to the article at a time, refetching the lists after it. */
 const useEditArticle = (article: ArticleDetail) => {
@@ -121,20 +120,20 @@ const History = ({ article }: { article: ArticleDetail }) => {
 
   const at = (label: string, icon: typeof IconCalendarPlus, date: Date | null) =>
     date && (
-      <PanelField icon={icon} label={label} cell={false}>
-        <span className="px-2 text-xs">{format.dateTime(date)}</span>
-      </PanelField>
+      <InfoRow icon={icon} label={label}>
+        {format.dateTime(date)}
+      </InfoRow>
     );
 
   return (
     <PanelSection title={t('kb-history', 'History')}>
-      <PanelField icon={IconEye} label={t('kb-views', 'Views')} cell={false}>
-        <span className="px-2 text-xs">{article.viewCount}</span>
-      </PanelField>
+      <InfoRow icon={IconEye} label={t('kb-views', 'Views')}>
+        {article.viewCount}
+      </InfoRow>
       {at(t('kb-published-at', 'Published at'), IconWorldUpload, article.publishedAt)}
-      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
-        <MemberInline memberId={article.createdBy} members={memberQueries} />
-      </PanelField>
+      <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
+        <MemberLine id={article.createdBy} />
+      </InfoRow>
       {at(t('created-at', 'Created at'), IconCalendarPlus, article.createdAt)}
       {at(t('updated-at', 'Updated at'), IconCalendarUp, article.updatedAt)}
     </PanelSection>

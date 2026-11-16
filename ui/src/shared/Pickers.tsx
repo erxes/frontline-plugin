@@ -1,14 +1,8 @@
 import { memberQueries } from '@erxes/core-contract/client';
-import {
-  Badge,
-  EntityPicker,
-  MemberInline,
-  Popover,
-  RecordTableInlineCell,
-  useMemberOptions,
-} from 'erxes-ui';
+import { Badge, EntityPicker, Popover, RecordTableInlineCell, useMemberOptions } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MemberLine } from './MemberLine.tsx';
 
 type Option = { value: string; label: string };
 
@@ -97,7 +91,7 @@ export const MembersField = ({
       display={
         <span className="flex min-w-0 flex-wrap gap-2">
           {value.map((id) => (
-            <MemberInline key={id} memberId={id} members={memberQueries} />
+            <MemberLine key={id} id={id} />
           ))}
         </span>
       }

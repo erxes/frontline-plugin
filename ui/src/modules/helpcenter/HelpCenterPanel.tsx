@@ -25,7 +25,7 @@ import {
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
 import { PickerField } from '~/shared/Pickers.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import {
@@ -183,11 +183,9 @@ const Content = ({ center }: { center: HelpCenter }) => {
         value={center.kbLabel}
         onSave={(kbLabel) => edit({ kbLabel })}
       />
-      <PanelField icon={IconKey} label={t('public-key', 'Public key')} cell={false}>
-        <span className="px-2 text-xs">
-          <CopyText value={center.publicKey}>{center.publicKey}</CopyText>
-        </span>
-      </PanelField>
+      <InfoRow icon={IconKey} label={t('public-key', 'Public key')}>
+        <CopyText value={center.publicKey}>{center.publicKey}</CopyText>
+      </InfoRow>
     </PanelSection>
   );
 };

@@ -1,4 +1,5 @@
-import { IconChevronRight } from '@tabler/icons-react';
+import { type Icon, IconChevronRight } from '@tabler/icons-react';
+import { PanelField } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -16,6 +17,21 @@ export const ReadOnly = ({ when, children }: { when: boolean; children: ReactNod
   >
     {children}
   </fieldset>
+);
+
+/** A record panel row that only reads: its value as small text beside its icon and label. */
+export const InfoRow = ({
+  icon,
+  label,
+  children,
+}: {
+  icon: Icon;
+  label: string;
+  children: ReactNode;
+}) => (
+  <PanelField icon={icon} label={label} cell={false}>
+    <span className="flex min-w-0 items-center gap-2 px-2 text-xs">{children}</span>
+  </PanelField>
 );
 
 /** A record panel's link to one of the record's pages, with how many records it holds. */

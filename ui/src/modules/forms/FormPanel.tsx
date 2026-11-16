@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAddressBook,
   IconCalendarPlus,
@@ -13,7 +12,6 @@ import { useMutation } from '@tanstack/react-query';
 import {
   Button,
   CopyText,
-  MemberInline,
   PanelField,
   PanelSection,
   Skeleton,
@@ -23,11 +21,12 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { PageLink, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { StatusBadge, useFormActions } from './FormCells.tsx';
 import { Appearance, Callout, General, ThankYou } from './FormSettings.tsx';
 import { type Form, formPath, useForm, useFormFields } from './useForms.ts';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the form's name. */
 export const FormTitle = ({ contentId }: TRecordSlotProps) => {
@@ -92,9 +91,9 @@ const Overview = ({ form }: { form: Form }) => {
   const fields = useFormFields(form.id).data;
 
   const at = (label: string, icon: typeof IconCalendarPlus, date: Date) => (
-    <PanelField icon={icon} label={label} cell={false}>
-      <span className="px-2 text-xs">{format.dateTime(date)}</span>
-    </PanelField>
+    <InfoRow icon={icon} label={label}>
+      {format.dateTime(date)}
+    </InfoRow>
   );
 
   return (
@@ -115,15 +114,15 @@ const Overview = ({ form }: { form: Form }) => {
         </span>
       </PanelField>
       <Embed form={form} />
-      <PanelField icon={IconEye} label={t('form-views', 'Views')} cell={false}>
-        <span className="px-2 text-xs">{form.viewCount}</span>
-      </PanelField>
-      <PanelField icon={IconAddressBook} label={t('form-contacts', 'Contacts')} cell={false}>
-        <span className="px-2 text-xs">{form.contactsGathered}</span>
-      </PanelField>
-      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
-        <MemberInline memberId={form.createdBy} members={memberQueries} />
-      </PanelField>
+      <InfoRow icon={IconEye} label={t('form-views', 'Views')}>
+        {form.viewCount}
+      </InfoRow>
+      <InfoRow icon={IconAddressBook} label={t('form-contacts', 'Contacts')}>
+        {form.contactsGathered}
+      </InfoRow>
+      <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
+        <MemberLine id={form.createdBy} />
+      </InfoRow>
       {at(t('created-at', 'Created at'), IconCalendarPlus, form.createdAt)}
       {at(t('updated-at', 'Updated at'), IconCalendarUp, form.updatedAt)}
     </PanelSection>
