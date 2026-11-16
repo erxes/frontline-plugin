@@ -8,7 +8,17 @@ import { type Tx, withOrg } from '#/db/client.ts';
 import { formAnswers, formFields, formSubmissions, forms } from '#/db/forms.ts';
 import { writes } from '#/orpc.ts';
 import { fail } from '../fail.ts';
-import { filesOf, rawUpload, receiptOf, storeFile, type Uploaded, uploadOf } from '../files.ts';
+import {
+  fileIdOf,
+  filesOf,
+  rawUpload,
+  readFile,
+  receiptOf,
+  sendFile,
+  storeFile,
+  type Uploaded,
+  uploadOf,
+} from '../files.ts';
 import { keyOfOrganization, organizationOfKey, widgetScript } from '../public.ts';
 import { type Answer, checkAnswers, FILE_FIELDS, VisitorAnswers } from './answers.ts';
 import { customerOfSubmission } from './customers.ts';
@@ -58,12 +68,26 @@ const activeForm = async (tx: Tx, code: string) => {
   return { form, fields };
 };
 
-/** What a visitor sees of a form: none of the member-only columns. */
-const visitorView = ({ form, fields }: NonNullable<Awaited<ReturnType<typeof activeForm>>>) => {
+/** The form's images by the name `/images/:which` serves them under. */
+const IMAGES = { callout: 'calloutImage', thank: 'thankImage' } as const;
+
+/**
+ * What a visitor sees of a form: none of the member-only columns, and its images at `/images`
+ * under `url`, since core serves its files to members only.
+ */
+const visitorView = (
+  { form, fields }: NonNullable<Awaited<ReturnType<typeof activeForm>>>,
+  url: string,
+) => {
   const { orgId, channelId, createdBy, viewCount, contactsGathered, ...shown } = form;
+  const { calloutImage, thankImage } = form;
 
   return {
-    form: shown,
+    form: {
+      ...shown,
+      calloutImage: calloutImage && { ...calloutImage, url: `${url}/images/callout` },
+      thankImage: thankImage && { ...thankImage, url: `${url}/images/thank` },
+    },
     fields: fields.map(({ orgId: _org, formId, createdAt, updatedAt, ...field }) => field),
   };
 };
@@ -113,7 +137,33 @@ const keyed = async (req: Request) => {
   const params = Params.safeParse(req.params);
   const organizationId = params.success ? await organizationOfKey(params.data.key) : undefined;
 
-  return params.success && organizationId ? { organizationId, code: params.data.code } : null;
+  return params.success && organizationId ? { organizationId, ...params.data } : null;
+};
+
+const Image = z.enum(['callout', 'thank']);
+
+/** One of an active form's images, streamed from core. */
+const image = async (req: Request, res: Response) => {
+  try {
+    const route = await keyed(req);
+    const which = Image.safeParse(req.params.which);
+
+    const found =
+      route && (await withOrg(route.organizationId, (tx) => activeForm(tx, route.code)));
+
+    const id = which.success && found ? fileIdOf(found.form[IMAGES[which.data]]?.url ?? '') : null;
+    const file = route && id ? await readFile(route.organizationId, id) : null;
+
+    if (!file) {
+      res.status(404).json({ message: 'No such image' });
+
+      return;
+    }
+
+    sendFile(res, file, 'public, max-age=300');
+  } catch (error) {
+    fail(res, error, 'form image');
+  }
 };
 
 /** A form for an embed: its settings and fields. Each read counts as a view. */
@@ -140,7 +190,7 @@ const show = async (req: Request, res: Response) => {
     return;
   }
 
-  res.json(visitorView(found));
+  res.json(visitorView(found, urlOf(route.key, route.code)));
 };
 
 /**
@@ -264,4 +314,5 @@ const upload = async (req: Request, res: Response) => {
 export const formsPublicRouter = Router({ mergeParams: true })
   .get('/forms/:code', show)
   .post('/forms/:code', express.json({ limit: '1mb' }), submit)
-  .post('/forms/:code/files', rawUpload, upload);
+  .post('/forms/:code/files', rawUpload, upload)
+  .get('/forms/:code/images/:which', image);

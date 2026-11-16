@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { z } from 'zod';
+import { config } from '#/config.ts';
 import type * as FilesModule from '#/modules/files.ts';
 import { createApp } from '#/server.ts';
 import { clientAs } from '#/test/member.ts';
@@ -13,6 +14,11 @@ vi.mock('#/modules/files.ts', async (importOriginal) => ({
     stored.count += 1;
 
     return { url: `/core/v1/files/file-${stored.count}/download`, name: file.name };
+  },
+  readFile: async () => {
+    const body = new Blob(['png']);
+
+    return { name: 'hello.png', contentType: 'image/png', size: body.size, body: body.stream() };
   },
 }));
 
@@ -72,7 +78,14 @@ describe('form submissions', () => {
   it('serves an active form by its key and code, and counts the view', async () => {
     const owner = clientAs('org-fs-a');
     const channel = await owner.channels.create({ name: 'Sales' });
-    const form = await owner.forms.create({ channelId: channel.id, name: 'Contact', title: 'Hi' });
+
+    const form = await owner.forms.create({
+      channelId: channel.id,
+      name: 'Contact',
+      title: 'Hi',
+      calloutImage: { url: '/core/v1/files/img-1/download', name: 'hello.png' },
+    });
+
     const field = await owner.forms.fields.add({ formId: form.id, type: 'text', label: 'Name' });
     const url = await embedOf(owner, form.id);
 
@@ -87,8 +100,19 @@ describe('form submissions', () => {
       })
       .parse(await shown.json());
 
-    expect(body.form).toMatchObject({ title: 'Hi' });
+    // Core serves files to members only, so the form's image comes through the form's address.
+    expect(body.form).toMatchObject({
+      title: 'Hi',
+      calloutImage: { url: `${config.publicUrl}${new URL(url).pathname}/images/callout` },
+      thankImage: null,
+    });
     expect(body.form).not.toHaveProperty('viewCount');
+
+    const callout = await fetch(`${url}/images/callout`);
+
+    expect(callout.headers.get('content-type')).toBe('image/png');
+    expect(await callout.text()).toBe('png');
+    expect((await fetch(`${url}/images/thank`)).status).toBe(404);
     expect(body.fields.map((each) => each.id)).toEqual([field.id]);
 
     await expect(owner.forms.get({ id: form.id })).resolves.toMatchObject({ viewCount: 1 });

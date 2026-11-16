@@ -1,5 +1,6 @@
 import { hkdfSync } from 'node:crypto';
-import express, { type Request } from 'express';
+import { Readable } from 'node:stream';
+import express, { type Request, type Response } from 'express';
 import { jwtVerify, SignJWT } from 'jose';
 import { z } from 'zod';
 import { config } from '#/config.ts';
@@ -42,6 +43,33 @@ export const readFile = async (orgId: string, id: string) => {
     throw new Error(`Core's storage refused the file: ${answer.status}`);
 
   return { name: file.name, contentType: file.contentType, size: file.size, body: answer.body };
+};
+
+/** The id of the core file at `url`, the address core gives its files, or null for another address. */
+export const fileIdOf = (url: string) => /\/files\/([\w-]{1,64})\/download$/.exec(url)?.[1] ?? null;
+
+/**
+ * Streams a file read from core to a signed-out visitor, cached as `cacheControl` says: an image
+ * shows inline, anything else downloads, and nothing in it runs.
+ */
+export const sendFile = (
+  res: Response,
+  file: NonNullable<Awaited<ReturnType<typeof readFile>>>,
+  cacheControl: string,
+) => {
+  res.set({
+    'content-type': file.contentType,
+    'content-length': String(file.size),
+    'cache-control': cacheControl,
+    'x-content-type-options': 'nosniff',
+    'content-security-policy':
+      "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+  });
+
+  if (file.contentType.startsWith('image/')) res.set('content-disposition', 'inline');
+  else res.attachment(file.name);
+
+  Readable.fromWeb(file.body).pipe(res);
 };
 
 /** The most a signed-out visitor uploads at once; core's file settings may allow less. */

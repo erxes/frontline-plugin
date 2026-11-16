@@ -1,4 +1,3 @@
-import { Readable } from 'node:stream';
 import { and, eq, sql } from 'drizzle-orm';
 import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import express, { type Request, type Response } from 'express';
@@ -7,7 +6,15 @@ import { withOrg } from '#/db/client.ts';
 import { conversations, messages } from '#/db/inbox.ts';
 import { tickets } from '#/db/tickets.ts';
 import { fail } from '../fail.ts';
-import { rawUpload, readFile, receiptOf, storeFile, type Uploaded, uploadOf } from '../files.ts';
+import {
+  rawUpload,
+  readFile,
+  receiptOf,
+  sendFile,
+  storeFile,
+  type Uploaded,
+  uploadOf,
+} from '../files.ts';
 import { ownerOf, type Visitor, visitorOf } from './session.ts';
 import { asVisitor } from './threads.ts';
 
@@ -83,20 +90,7 @@ const download = async (req: Request, res: Response) => {
       return;
     }
 
-    res.set({
-      'content-type': file.contentType,
-      'content-length': String(file.size),
-      'cache-control': 'private, max-age=300',
-      'x-content-type-options': 'nosniff',
-      // A file shown inline can't run scripts.
-      'content-security-policy':
-        "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
-    });
-
-    if (file.contentType.startsWith('image/')) res.set('content-disposition', 'inline');
-    else res.attachment(file.name);
-
-    Readable.fromWeb(file.body).pipe(res);
+    sendFile(res, file, 'private, max-age=300');
   } catch (error) {
     fail(res, error, 'messenger file');
   }
