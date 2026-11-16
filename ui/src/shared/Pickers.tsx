@@ -10,10 +10,18 @@ import {
   RecordTableInlineCell,
   useMemberOptions,
 } from 'erxes-ui';
+import type { InferClientInputs } from '@orpc/client';
+import { useQuery } from '@tanstack/react-query';
+import type { Client } from '@frontline/api';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { orpc } from '~/orpc.ts';
 
 type Option = { value: string; label: string };
+
+/** The organisation's tags of one type, as erxes-ui's tag lookups and `TagsField` take them. */
+export const tagsOf = (type: NonNullable<InferClientInputs<Client>['tags']['list']['type']>) =>
+  orpc.tags.list.queryOptions({ input: { type } });
 
 /**
  * A side panel value picked in place from `options`: one, or several with `multiple`. Its
@@ -79,6 +87,51 @@ export const Badges = ({ labels }: { labels: string[] }) => (
     ))}
   </span>
 );
+
+/** A record's tags of the list `tags` gives, as badges; nothing when it has none. */
+export const TagBadges = ({
+  tags,
+  tagIds,
+}: {
+  tags: ReturnType<typeof tagsOf>;
+  tagIds: string[];
+}) => {
+  const list = useQuery({ ...tags, enabled: tagIds.length > 0 });
+  const name = new Map((list.data?.data ?? []).map((tag) => [tag.id, tag.name]));
+  const labels = tagIds.flatMap((id) => name.get(id) ?? []);
+
+  return labels.length > 0 ? <Badges labels={labels} /> : null;
+};
+
+/** A record's tags of the list `tags` gives, picked in place in a panel row or a table cell. */
+export const TagsField = ({
+  tags,
+  value,
+  onChange,
+}: {
+  tags: ReturnType<typeof tagsOf>;
+  value: string[];
+  onChange: (tagIds: string[]) => void;
+}) => {
+  const { t } = useTranslation('frontline');
+  const list = useQuery(tags);
+  const rows = list.data?.data ?? [];
+  const name = new Map(rows.map((tag) => [tag.id, tag.name]));
+
+  return (
+    <PickerField
+      label={t('tags', 'Tags')}
+      placeholder={t('no-tags', 'No tags')}
+      display={<Badges labels={value.map((id) => name.get(id) ?? '')} />}
+      options={rows.map((tag) => ({ value: tag.id, label: tag.name }))}
+      loading={list.isPending}
+      error={list.error}
+      value={value}
+      onValueChange={onChange}
+      multiple
+    />
+  );
+};
 
 /**
  * Several team members in a panel row, drawn as core's owner field is: each a chip that opens

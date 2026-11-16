@@ -8,6 +8,7 @@ import { channelMembers } from '#/db/schema.ts';
 import { Attachment } from '#/db/table.ts';
 import { reads, writes } from '#/orpc.ts';
 import { channelFor, membership } from '../channels/access.ts';
+import { assertTags } from '../tags/tags.ts';
 import { changedEvent } from '../events.ts';
 import { Blank, Color, Title } from '../fields.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
@@ -23,6 +24,7 @@ const FORM_FILTER: FilterFields = {
   'subject.loadType': { kind: 'select', expr: forms.loadType },
   'subject.viewCount': { kind: 'number', expr: forms.viewCount },
   'subject.contactsGathered': { kind: 'number', expr: forms.contactsGathered },
+  'subject.tagIds': { kind: 'tags', expr: forms.tagIds },
   'subject.createdBy': { kind: 'member', expr: forms.createdBy },
   'subject.createdAt': { kind: 'date', expr: forms.createdAt },
   'subject.updatedAt': { kind: 'date', expr: forms.updatedAt },
@@ -87,6 +89,7 @@ const FormFields = createUpdateSchema(forms, {
   thankContent: () => Blank(2000),
   thankImage: () => Attachment.nullable(),
   steps: () => z.array(FormStep).max(20),
+  tagIds: () => z.array(z.string()).max(50),
 }).pick({
   name: true,
   title: true,
@@ -107,6 +110,7 @@ const FormFields = createUpdateSchema(forms, {
   thankContent: true,
   thankImage: true,
   steps: true,
+  tagIds: true,
 });
 
 /** What a change entry names each setting. */
@@ -130,6 +134,7 @@ const NAMES: [keyof z.infer<typeof Form>, string][] = [
   ['thankContent', 'thank-you text'],
   ['thankImage', 'thank-you image'],
   ['steps', 'steps'],
+  ['tagIds', 'tags'],
 ];
 
 /** A new form in a channel the caller is an admin of, with one step and an embed code. */
@@ -138,6 +143,7 @@ const create = writes(PERMISSIONS.channelView)
   .output(Form)
   .handler(async ({ input, context: { tx, member } }) => {
     await channelFor(tx, member, input.channelId, { change: true });
+    await assertTags(tx, 'form', input.tagIds ?? []);
 
     const [created] = await tx
       .insert(forms)
@@ -173,6 +179,8 @@ const update = writes(PERMISSIONS.channelView)
 
     if (fields.channelId && fields.channelId !== form.channelId)
       await channelFor(tx, member, fields.channelId, { change: true });
+
+    await assertTags(tx, 'form', fields.tagIds ?? []);
 
     const before = await formById(tx, member, id);
 

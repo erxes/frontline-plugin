@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { type Tx, uniqueViolation } from '#/db/client.ts';
 import { TAG_NAME_INDEX, TAG_TYPES, tags } from '#/db/tags.ts';
+import { forms } from '#/db/forms.ts';
 import { tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Color, Title } from '../fields.ts';
@@ -57,19 +58,20 @@ export const assertTags = async (tx: Tx, type: (typeof TAG_TYPES)[number], ids: 
 
 const TAG_FILTER: FilterFields = {
   'subject.name': { kind: 'text', expr: tags.name },
+  'subject.type': { kind: 'select', expr: tags.type },
   'subject.createdBy': { kind: 'member', expr: tags.createdBy },
   'subject.createdAt': { kind: 'date', expr: tags.createdAt },
 };
 
 /**
- * The tags of one type, by name, narrowed by the filter bar, as core's `tags.list` gives them so
- * erxes-ui's tag pickers and filters take the query. A member who reads channels or works the
- * inbox reads them, since both tag what they see.
+ * The tags of one type, or every type for the settings page, by name, narrowed by the filter
+ * bar, as core's `tags.list` gives them so erxes-ui's tag pickers and filters take the query. A
+ * member who reads channels or works the inbox reads them, since both tag what they see.
  */
 const TAG_READERS = [PERMISSIONS.channelView, PERMISSIONS.inboxView];
 
 const list = reads(TAG_READERS)
-  .input(z.object({ type: z.enum(TAG_TYPES), ...FilterInput }))
+  .input(z.object({ type: z.enum(TAG_TYPES).optional(), ...FilterInput }))
   .output(z.object({ data: z.array(Tag) }))
   .handler(async ({ input, context: { tx, member } }) => ({
     data: await tx
@@ -77,12 +79,12 @@ const list = reads(TAG_READERS)
       .from(tags)
       .where(
         and(
-          eq(tags.type, input.type),
+          input.type ? eq(tags.type, input.type) : undefined,
           input.search ? ilike(tags.name, likeText(input.search)) : undefined,
           input.filter ? filterSql(TAG_FILTER, input.filter, member.userId) : undefined,
         ),
       )
-      .orderBy(asc(sql`lower(${tags.name})`)),
+      .orderBy(asc(sql`lower(${tags.name})`), tags.type),
   }));
 
 const get = reads(TAG_READERS)
@@ -125,7 +127,7 @@ const update = writes(PERMISSIONS.settingsManage)
     return tagById(tx, id);
   });
 
-/** Deletes the tags and takes them off every ticket, in one transaction. */
+/** Deletes the tags and takes them off every ticket and form, in one transaction. */
 const remove = writes(PERMISSIONS.settingsManage)
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
@@ -138,12 +140,16 @@ const remove = writes(PERMISSIONS.settingsManage)
     const ids = removed.map((row) => row.id);
 
     if (ids.length > 0)
-      await tx
-        .update(tickets)
-        .set({
-          tagIds: sql`array(select unnest(${tickets.tagIds}) except select unnest(${sql.param(ids)}::text[]))`,
-        })
-        .where(sql`${tickets.tagIds} && ${sql.param(ids)}::text[]`);
+      await Promise.all(
+        [tickets, forms].map((tagged) =>
+          tx
+            .update(tagged)
+            .set({
+              tagIds: sql`array(select unnest(${tagged.tagIds}) except select unnest(${sql.param(ids)}::text[]))`,
+            })
+            .where(sql`${tagged.tagIds} && ${sql.param(ids)}::text[]`),
+        ),
+      );
 
     return { ids };
   });

@@ -77,6 +77,11 @@ export const forms = table(
     viewCount: integer().notNull().default(0),
     /** Customers and leads the form created. */
     contactsGathered: integer().notNull().default(0),
+    /** `frontline_tags` of type `form`; deleting a tag takes it off every form. */
+    tagIds: text()
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
     ...stamps(),
   },
   (t) => [
@@ -88,6 +93,7 @@ export const forms = table(
     unique('frontline_forms_org_id_key').on(t.orgId, t.id),
     uniqueIndex(FORM_CODE_INDEX).on(t.orgId, t.code),
     index('frontline_forms_org_created_idx').on(t.orgId, t.createdAt.desc(), t.id.desc()),
+    index('frontline_forms_tag_ids_idx').using('gin', t.tagIds),
     check('frontline_forms_status_check', sql`${t.status} in ('active', 'archived')`),
   ],
 );

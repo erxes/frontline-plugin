@@ -499,8 +499,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_form_fields` from collection `frontline_form_fields` (37 fields, draft `frontlineFormFields` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/fields.ts:137`. Only forms use it now, so the property fields (`groupId`, `isVisible`, `showInCard`, `productCategoryId` and the rest) are gone; `validation` and `regexValidation` fold into `validator`, a preset or an RE2 pattern; customer fields are types such as `core:customer:email`
 - [x] `frontline_forms` from collection `frontline_forms` (20 fields, draft `frontlineForms` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:318`. `leadData` flattens into columns; its email, redirect, CSS, template and `rules` settings are gone (DECISIONS.md, Forms)
 - [x] `frontline_form_submissions` from collection `frontline_form_submissions` (13 fields, draft `frontlineFormSubmissions` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:114`. One row per submission, with one `frontline_form_answers` row per answered field; `aboutRecord` is `referenceType` and `referenceId`
-- [ ] `formSchema.departmentIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/form/db/definitions/forms.ts:318`
-  - note: tags and departments on a form wait for their ports (the forms row in DECISIONS.md); a form follows its channel
+- [x] `formSchema.departmentIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/form/db/definitions/forms.ts:318`. Dropped: no screen set or read it, and a form follows its channel (the forms row in DECISIONS.md)
 
 ### Procedures
 
@@ -565,8 +564,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] core `customers.findOne` → not called. Decision: the browser's cached customer id is ignored; the customer comes from the answers' email or phone `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:438`
 - [x] core `customers.createCustomer` → `customers.findOrCreate` by email or phone, else `customers.create`, in `api/src/modules/forms/customers.ts` `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:449`
 - [x] core `customers.updateCustomer` → `customers.update` with the middle name, description, birth date, sex and avatar `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:506`
-- [ ] core `tags.findOne` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/form/graphql/resolvers/queries/forms.ts:23`
-  - note: tags on a form wait for their port (the forms row in DECISIONS.md)
+- [x] core `tags.findOne` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/form/graphql/resolvers/queries/forms.ts:23`. Form tags in `frontline_forms.tag_ids`, the forms bar's `subject.tagIds` filter (`api/src/modules/forms/forms.ts`); frontline tags have no children to expand
 
 ### Events
 
@@ -1471,8 +1469,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
   - note: waits for customers and companies on tickets; the import map keeps `company_id`
 - [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/ticket/utils/pipelineProperties.ts:15`. `frontline_ticket_properties`
   - note: waits for custom properties
-- [ ] core `branches.findOne` → sdk `units.list` (scopes units:read and units:write, subscription core.unit.*; a read-only copy in frontline_teams and frontline_team_members, old ones brought to core once with units.import) `frontline_api/src/modules/ticket/utils/slaCalendar.ts:26`
-  - note: SLA due times count calendar hours: `frontline_teams` (`api/src/db/teams.ts`) has no working hours or holidays yet
+- [x] core `branches.findOne` → sdk `units.list` (scopes units:read and units:write, subscription core.unit.*; a read-only copy in frontline_teams and frontline_team_members, old ones brought to core once with units.import) `frontline_api/src/modules/ticket/utils/slaCalendar.ts:26`. SLA due times count clock hours until core's units carry working hours and holidays (filed https://github.com/erxes/erxes/issues/10651)
 - [x] core `<module>.findWithChild` → **gap**: not in migration/core-map.ts yet `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:29`. `teamsOf` walks `frontline_teams.parent_id`
   - note: waits for teams
 - [x] core `configs.getConfigs` → plugin-owned `frontline_settings` (country and currency: organizations.current (sdk)) `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:50`. The pipeline's `isCheckDepartment` and `isCheckBranch` (decision)
