@@ -14,6 +14,7 @@ import { pipelineProcedures } from '#/modules/pipelines/pipelines.ts';
 import { statusProcedures } from '#/modules/pipelines/statuses.ts';
 import { responseTemplateProcedures } from '#/modules/responseTemplates/responseTemplates.ts';
 import { conversationProcedures } from '#/modules/inbox/conversations.ts';
+import { countProcedures } from '#/modules/inbox/counts.ts';
 import { integrationProcedures } from '#/modules/inbox/integrations.ts';
 import { accountProcedures } from '#/modules/integrations/accounts.ts';
 import { discordProcedures } from '#/modules/integrations/providers/discord.ts';
@@ -73,6 +74,7 @@ export const router = {
   calls: { ...callListProcedures, queues: queueProcedures, agents: agentProcedures },
   conversations: {
     ...conversationProcedures,
+    ...countProcedures,
     ...operatorProcedures,
     ...presenceProcedures,
     messages: messageProcedures,

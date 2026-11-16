@@ -201,7 +201,7 @@ describe('messenger', () => {
       isOnline: false,
       browser: { url: 'https://shop.test/pay', language: 'mn' },
     });
-    expect(await teammate.conversations.unreadCount({})).toEqual({ count: 1 });
+    expect((await teammate.conversations.counts({})).unread).toBe(1);
 
     await teammate.conversations.messages.create({ conversationId: id, content: 'Hello!' });
     await teammate.conversations.messages.create({
@@ -210,7 +210,7 @@ describe('messenger', () => {
       internal: true,
     });
 
-    expect(await teammate.conversations.unreadCount({})).toEqual({ count: 0 });
+    expect((await teammate.conversations.counts({})).unread).toBe(0);
     expect(VisitorConversations.parse((await messenger.get('/conversations', token)).body)).toEqual(
       [expect.objectContaining({ id, unreadCount: 1 })],
     );

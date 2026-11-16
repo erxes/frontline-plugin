@@ -1,0 +1,75 @@
+import { and, asc, count, eq, ne, sql } from 'drizzle-orm';
+import { z } from 'zod';
+import { PERMISSIONS } from '#/core.ts';
+import { conversations } from '#/db/inbox.ts';
+import { channelMembers, channels } from '#/db/schema.ts';
+import { reads } from '#/orpc.ts';
+import { membership } from '../channels/access.ts';
+import { mentionedIdsOf, readSql, seenBy } from './shared.ts';
+
+/**
+ * How many open conversations wait unread by the caller: all they see, and each queue of the
+ * inbox's sidebar (assigned to them, mentioning them, unassigned, awaiting a reply), and in each
+ * channel they belong to, by name. A queue's link filters the inbox by the same rule.
+ */
+const counts = reads(PERMISSIONS.inboxView)
+  .input(z.object({}))
+  .output(
+    z.object({
+      unread: z.number(),
+      assignedToMe: z.number(),
+      mentioned: z.number(),
+      unassigned: z.number(),
+      awaitingResponse: z.number(),
+      channels: z.array(
+        z.object({
+          id: z.string(),
+          name: z.string(),
+          icon: z.string().nullable(),
+          unread: z.number(),
+        }),
+      ),
+    }),
+  )
+  .handler(async ({ context: { tx, member } }) => {
+    const unread = and(ne(conversations.status, 'resolved'), sql`not ${readSql(member)}`);
+
+    const [queues] = await tx
+      .select({
+        unread: count(),
+        assignedToMe: count(
+          sql`case when ${conversations.assigneeId} = ${member.userId} then 1 end`,
+        ),
+        mentioned: count(sql`case when ${member.userId} = any(${mentionedIdsOf}) then 1 end`),
+        unassigned: count(sql`case when ${conversations.assigneeId} is null then 1 end`),
+        awaitingResponse: count(sql`case when ${conversations.customerRespondedLast} then 1 end`),
+      })
+      .from(conversations)
+      .leftJoin(channelMembers, membership(member, conversations.channelId))
+      .where(and(seenBy(member), unread));
+
+    const rows = await tx
+      .select({
+        id: channels.id,
+        name: channels.name,
+        icon: channels.icon,
+        unread: count(conversations.id),
+      })
+      .from(channels)
+      .innerJoin(channelMembers, membership(member, channels.id))
+      .leftJoin(conversations, and(eq(conversations.channelId, channels.id), unread))
+      .groupBy(channels.id)
+      // The caller's personal inbox first, then the team channels.
+      .orderBy(sql`${channels.ownerId} is null`, asc(channels.name));
+
+    return {
+      unread: queues?.unread ?? 0,
+      assignedToMe: queues?.assignedToMe ?? 0,
+      mentioned: queues?.mentioned ?? 0,
+      unassigned: queues?.unassigned ?? 0,
+      awaitingResponse: queues?.awaitingResponse ?? 0,
+      channels: rows,
+    };
+  });
+
+export const countProcedures = { counts };

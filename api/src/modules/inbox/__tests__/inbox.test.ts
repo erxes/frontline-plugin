@@ -257,6 +257,62 @@ describe('inbox', () => {
     expect(await teammate.conversations.get({ id })).toMatchObject({ tagIds: [] });
   });
 
+  it('counts what waits unread in each sidebar queue and channel', async () => {
+    const { owner, teammate, channel, token } = await setUp('org-ib-counts');
+
+    await post('/messages', { content: 'First' }, token);
+    await post('/messages', { content: 'Second' }, token);
+
+    const { conversations } = await teammate.conversations.list({});
+    const [second, first] = conversations.map((conversation) => conversation.id);
+
+    expect(await teammate.conversations.counts({})).toEqual({
+      unread: 2,
+      assignedToMe: 0,
+      mentioned: 0,
+      unassigned: 2,
+      awaitingResponse: 2,
+      channels: [{ id: channel.id, name: 'Support', icon: null, unread: 2 }],
+    });
+
+    // Assigned to them, and mentioned in another's note: each queue counts its own.
+    await owner.conversations.assign({ ids: [first ?? ''], assigneeId: 'teammate' });
+    await owner.conversations.messages.create({
+      conversationId: second ?? '',
+      content: '@Teammate can you look?',
+      internal: true,
+      mentionedUserIds: ['teammate'],
+    });
+
+    expect(await teammate.conversations.counts({})).toMatchObject({
+      unread: 2,
+      assignedToMe: 1,
+      mentioned: 1,
+      unassigned: 1,
+    });
+
+    // The Mentions queue's link filters the list by the same rule.
+    const mentioning = await teammate.conversations.list({
+      filter: rule('mentionedUserIds', 'in', ['me']),
+    });
+
+    expect(mentioning.conversations.map((conversation) => conversation.id)).toEqual([second]);
+
+    // Answering reads it, so it leaves every count.
+    await teammate.conversations.messages.create({ conversationId: first ?? '', content: 'On it' });
+
+    expect(await teammate.conversations.counts({})).toMatchObject({
+      unread: 1,
+      assignedToMe: 0,
+      awaitingResponse: 1,
+      channels: [expect.objectContaining({ unread: 1 })],
+    });
+    expect(await clientAs('org-ib-counts-other').conversations.counts({})).toMatchObject({
+      unread: 0,
+      channels: [],
+    });
+  });
+
   it('refuses forged visitors, unknown keys and other visitors’ conversations', async () => {
     const { integration, token, teammate } = await setUp('org-ib-e');
 
