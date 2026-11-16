@@ -47,7 +47,11 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   const conversations = page.getByRole('list', { name: 'Conversations' });
   const thread = page.getByRole('list', { name: 'Messages' });
 
-  await conversations.getByRole('button', { name: new RegExp(late) }).click();
+  // A row names the integration the conversation came through, beside the customer and the preview.
+  const lateRow = conversations.getByRole('button', { name: new RegExp(late) });
+
+  await expect(lateRow).toContainText(/Website \S+/);
+  await lateRow.click();
   await expect(thread.getByRole('listitem', { name: 'Message' })).toContainText(late);
   await expectAccessible(page);
 
@@ -77,6 +81,7 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   const header = page.getByRole('region', { name: 'Conversation' }).locator('header');
 
   await header.getByRole('button', { name: 'No assignee', exact: true }).click();
+  await page.getByPlaceholder('Search', { exact: true }).fill(fullName);
   await page.getByRole('option', { name: fullName }).click();
   await expect(header.getByRole('button', { name: fullName })).toBeVisible();
   await page.getByRole('button', { name: 'Add tags' }).click();
@@ -85,10 +90,13 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await page.keyboard.press('Escape');
   await expect(header).toContainText(tag);
 
-  // The tags sit beside Resolve, as the old inbox's header had them.
+  // The header is one row, as the old inbox's was: the assignee, then the tags, then Resolve.
+  // The assignee's button holds more than their name, so it matches by part of its name.
+  const assignee = header.getByRole('button', { name: fullName });
   const tags = header.getByRole('button', { name: 'Edit tags', exact: true });
   const resolve = header.getByRole('button', { name: 'Resolve', exact: true });
 
+  expect(await left(assignee)).toBeLessThan(await left(tags));
   expect(await left(tags)).toBeLessThan(await left(resolve));
 
   const first = thread.getByRole('listitem', { name: 'Message' }).first();
