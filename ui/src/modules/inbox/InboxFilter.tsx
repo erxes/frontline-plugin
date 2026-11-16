@@ -1,11 +1,18 @@
 import {
   IconAt,
+  IconBrandDiscord,
+  IconBrandInstagram,
+  IconBrandMessenger,
+  IconBrandTelegram,
   IconCalendarCheck,
   IconCalendarPlus,
   IconCalendarUp,
   IconCircles,
   IconEye,
+  IconMail,
+  IconMessageCircle,
   IconMessageQuestion,
+  IconPhone,
   IconPlug,
   IconProgressCheck,
   IconTag,
@@ -14,6 +21,7 @@ import {
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import type { TListFilterField } from 'erxes-ui';
+import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { type Conversation, useIntegrations } from './queries.ts';
@@ -30,10 +38,37 @@ export const useStatusNames = (): Record<Conversation['status'], string> => {
 };
 
 /** What each integration kind reads as; a kind the UI doesn't know shows its name. */
-const useKindNames = (): Record<string, string> => {
+export const useKindNames = (): Record<string, string> => {
   const { t } = useTranslation('frontline');
 
-  return { messenger: t('kind-messenger', 'Messenger') };
+  return {
+    messenger: t('kind-messenger', 'Messenger'),
+    facebook: t('kind-facebook', 'Facebook Messenger'),
+    instagram: t('kind-instagram', 'Instagram'),
+    telegram: t('kind-telegram', 'Telegram'),
+    discord: t('kind-discord', 'Discord'),
+    mail: t('kind-mail', 'Email'),
+    call: t('kind-call', 'Phone'),
+    callpro: t('kind-callpro', 'CallPro'),
+  };
+};
+
+const KIND_ICONS: Record<string, ComponentType<{ className?: string }>> = {
+  messenger: IconMessageCircle,
+  facebook: IconBrandMessenger,
+  instagram: IconBrandInstagram,
+  telegram: IconBrandTelegram,
+  discord: IconBrandDiscord,
+  mail: IconMail,
+  call: IconPhone,
+  callpro: IconPhone,
+};
+
+/** The icon of the integration kind a conversation came through, a plug for one the UI doesn't know. */
+export const KindIcon = ({ kind, className }: { kind: string; className?: string }) => {
+  const Icon = KIND_ICONS[kind] ?? IconPlug;
+
+  return <Icon className={className} aria-hidden />;
 };
 
 /** The dates a conversation carries. */
