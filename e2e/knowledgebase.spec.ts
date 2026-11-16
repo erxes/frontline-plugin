@@ -99,7 +99,7 @@ test('a manager files articles under categories that a reader can only read', as
   await page.goto(categories);
   await page.getByRole('button', { name: 'Actions for Cards' }).click();
   await page.getByRole('option', { name: 'View articles' }).click();
-  await expect(page.getByRole('button', { name: 'is Cards' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Category: Cards' })).toBeVisible();
   await expect(page.getByText('No results found')).toBeVisible();
   await page.goto(categories);
   await page.getByRole('button', { name: 'Actions for Billing' }).click();

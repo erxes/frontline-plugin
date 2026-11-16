@@ -9,11 +9,18 @@ import {
   test,
 } from './fixtures.ts';
 
-/** Opens a panel field's in-place editor, types `value` and saves it with Enter. */
+/**
+ * Opens a panel field's in-place editor, types `value` and saves it with Enter. The editor is the
+ * open popover's one box: core's number editor has no name of its own (erxes/erxes#10607).
+ */
 const editField = async (page: Page, field: RegExp, value: string) => {
   await recordPanel(page).getByRole('button', { name: field }).click();
-  await page.keyboard.type(value);
-  await page.keyboard.press('Enter');
+
+  const editor = page.getByRole('dialog').getByRole('textbox');
+
+  await editor.fill(value);
+  await editor.press('Enter');
+  await expect(editor).toBeHidden();
 };
 
 test('a channel admin creates a pipeline and sets its ticket numbers; a member reads them', async ({

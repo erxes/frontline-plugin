@@ -151,13 +151,13 @@ test('an admin builds a form, a visitor sends it, and the admin corrects and del
   await expect(free.getByRole('cell', { name: '9', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Filter', exact: true }).click();
   await page.getByRole('option', { name: 'Plan', exact: true }).click();
-  await page.getByPlaceholder('Contains…').fill('team');
+  await page.getByRole('textbox', { name: 'Value' }).fill('team');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/subject\.answer\./);
   await expect(free).toBeHidden();
-  await page.getByRole('button', { name: 'Remove filter' }).click();
-  await expect(free).toBeVisible();
   await expectAccessible(page);
+  await page.getByRole('button', { name: 'Remove Plan filter' }).click();
+  await expect(free).toBeVisible();
 
   // A submission opens in the panel, where an answer is corrected and the submission deleted.
   await team.getByRole('button', { name: 'Submission actions' }).click();

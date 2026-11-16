@@ -41,12 +41,8 @@ const display = async (page: Page, name: 'List' | 'Board' | 'Table') => {
   await page.keyboard.press('Escape');
 };
 
-test('a member files, filters, changes and deletes tickets in the list, board and table', async ({
-  page,
-  newMember,
-}) => {
-  const teammate = await newMember(['frontline.channel.view']);
-  const channel = await openChannelPipelines(page, teammate.fullName);
+test('a member files, changes and filters tickets in the list', async ({ page }) => {
+  const channel = await openChannelPipelines(page);
   const pipeline = await createPipeline(page);
   const panel = recordPanel(page);
   const refund = `Refund ${unique()}`;
@@ -90,30 +86,52 @@ test('a member files, filters, changes and deletes tickets in the list, board an
   // Back to the pipeline alone: other tests' tickets in other pipelines would regroup the list.
   await page.goto(ofPipeline);
   await expect(ticket(page, login)).toBeVisible();
+});
+
+test('a member changes tickets in one go, sees them on the board and deletes them in the table', async ({
+  page,
+  newMember,
+}) => {
+  const teammate = await newMember(['frontline.channel.view']);
+  const channel = await openChannelPipelines(page, teammate.fullName);
+  const pipeline = await createPipeline(page);
+  const panel = recordPanel(page);
+  const refund = `Refund ${unique()}`;
+  const names = [refund, `Login ${unique()}`];
+
+  await page.goto(TICKETS);
+
+  for (const name of names) {
+    await page.getByRole('button', { name: 'Create ticket' }).first().click();
+    await pick(page, panel.getByRole('combobox', { name: 'Pipeline' }), `${channel} › ${pipeline}`);
+    await panel.getByLabel('Name').fill(name);
+    await panel.getByRole('button', { name: 'Create ticket' }).click();
+    await expect(panel.getByRole('button', { name: `Name ${name}` })).toBeVisible();
+  }
 
   // A member of the channel changes tickets but can't delete them.
   await teammate.page.goto(TICKETS);
-  await teammate.page.getByRole('button', { name: `Actions for ${login}` }).click();
+  await teammate.page.getByRole('button', { name: `Actions for ${refund}` }).click();
   await expect(teammate.page.getByRole('option', { name: 'Archive' })).toBeVisible();
   await expect(teammate.page.getByRole('option', { name: 'Delete' })).toBeHidden();
   await teammate.page.keyboard.press('Escape');
   await expectAccessible(teammate.page);
 
+  await page.goto(TICKETS);
+  await filterBy(page, 'Pipeline', pipeline);
+
   // A status's checkbox picks its tickets, and the bar changes them in one go.
   await page.getByRole('checkbox', { name: 'Select all in New' }).click();
   await pick(page, page.getByRole('button', { name: 'Priority', exact: true }), 'Medium');
-  await expect(page.getByRole('combobox', { name: `Priority of ${login}` })).toHaveText('Medium');
-  await expect(page.getByRole('combobox', { name: `Priority of ${refund}` })).toHaveText('Medium');
+
+  for (const name of names) {
+    await expect(page.getByRole('combobox', { name: `Priority of ${name}` })).toHaveText('Medium');
+  }
 
   // The board lays the pipeline's statuses out as columns.
   await display(page, 'Board');
   await expect(page.getByRole('region', { name: 'New' })).toContainText(refund);
-
-  // axe runs with no rule applied: core's Filter button names itself "Filter" while it shows
-  // the rule count (erxes/erxes#10578).
-  await page.getByRole('button', { name: 'Remove filter' }).click();
   await expectAccessible(page);
-  await page.goto(ofPipeline);
 
   // The table's bar deletes both.
   await display(page, 'Table');
@@ -180,7 +198,7 @@ test('a member labels a ticket with tags, a department and a property, and filte
   await filterBy(page, 'Pipeline', pipeline);
   await filterBy(page, 'Tags', tag);
   await expect(ticket(page, name)).toBeVisible();
-  await page.getByRole('button', { name: 'Remove filter' }).last().click();
+  await page.getByRole('button', { name: 'Remove Tags filter' }).click();
   await filterBy(page, 'Department', department);
   await expect(ticket(page, name)).toBeVisible();
 });

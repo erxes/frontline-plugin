@@ -78,7 +78,7 @@ test('an admin writes a survey, edits its questions and reads its results, which
   // The filter bar narrows by question, and the filter lives in the address.
   await page.getByRole('button', { name: 'Filter', exact: true }).click();
   await page.getByRole('option', { name: 'Question', exact: true }).click();
-  await page.getByPlaceholder('Contains…').fill('call again');
+  await page.getByRole('textbox', { name: 'Value' }).fill('call again');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/subject\.question/);
   await page.reload();
