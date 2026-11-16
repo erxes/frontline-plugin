@@ -1,11 +1,12 @@
 import { isDefinedError, type ORPCError } from '@orpc/client';
 import { IconAlignLeft, IconCode, IconLanguage, IconLetterCase } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Input, PanelFormLayout, PanelFormRow, Textarea, type TRecordDraftProps } from 'erxes-ui';
+import { PanelFormLayout, PanelFormRow, type TRecordDraftProps } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
+import { TextRow } from '~/shared/TextRow.tsx';
 import { LanguageSelect } from './LanguageSelect.tsx';
 import { useKbChange } from './useKnowledgeBase.ts';
 
@@ -61,29 +62,26 @@ export const TopicNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
         saving={create.isPending}
         saveLabel={t('kb-create-topic', 'Create topic')}
       >
-        <PanelFormRow label={t('title', 'Title')} icon={IconLetterCase} required>
-          <Input
-            name="title"
-            required
-            aria-label={t('title', 'Title')}
-            placeholder={t('kb-enter-topic-title', 'Enter topic title')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
-        <PanelFormRow label={t('description', 'Description')} icon={IconAlignLeft}>
-          <Textarea name="description" aria-label={t('description', 'Description')} />
-        </PanelFormRow>
-        <PanelFormRow label={t('kb-code', 'Code')} icon={IconCode} error={takenCode}>
-          <Input
-            name="code"
-            aria-label={t('kb-code', 'Code')}
-            aria-invalid={takenCode !== undefined}
-            placeholder={t('kb-topic-code-help', 'Optional short code used in embeds and links.')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
+        <TextRow
+          label={t('title', 'Title')}
+          icon={IconLetterCase}
+          name="title"
+          required
+          placeholder={t('kb-enter-topic-title', 'Enter topic title')}
+        />
+        <TextRow
+          label={t('description', 'Description')}
+          icon={IconAlignLeft}
+          name="description"
+          multiline
+        />
+        <TextRow
+          label={t('kb-code', 'Code')}
+          icon={IconCode}
+          name="code"
+          error={takenCode}
+          placeholder={t('kb-topic-code-help', 'Optional short code used in embeds and links.')}
+        />
         <PanelFormRow label={t('language', 'Language')} icon={IconLanguage}>
           <LanguageSelect value={languageCode} onChange={setLanguageCode} />
         </PanelFormRow>

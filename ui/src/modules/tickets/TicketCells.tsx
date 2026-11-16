@@ -142,7 +142,11 @@ export const AssigneeCell = ({ ticket }: { ticket: Ticket }) => {
       members={memberQueries}
       noneLabel={t('no-assignee', 'No assignee')}
       placeholder={t('assignee', 'Assignee')}
-      aria-label={t('assignee-of', 'Assignee of {{name}}', { name: ticket.name })}
+      aria-label={
+        ticket.assigneeId
+          ? undefined
+          : t('assignee-of', 'Assignee of {{name}}', { name: ticket.name })
+      }
     />
   );
 };

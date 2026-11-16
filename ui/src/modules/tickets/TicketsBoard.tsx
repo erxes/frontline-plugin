@@ -11,9 +11,8 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { memberQueries } from '@erxes/core-contract/client';
 import { useMutation } from '@tanstack/react-query';
-import { Badge, cn, DragHandle, MemberInline } from 'erxes-ui';
+import { Badge, cn, DragHandle } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { usePriorityNames } from '@/pipelines/queries.ts';
 import { StageIcon } from '@/pipelines/StatusRow.tsx';
@@ -22,6 +21,7 @@ import { SlaBadge } from './SlaBadge.tsx';
 import { TicketMenu, TicketName } from './TicketCells.tsx';
 import { useStatusGroups } from './TicketList.tsx';
 import { type Ticket, useTicketChange } from './queries.ts';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 type Group = ReturnType<typeof useStatusGroups>[number];
 
@@ -57,9 +57,7 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
         <div className="flex flex-wrap items-center gap-2 px-2">
           {ticket.priority > 0 && <Badge variant="secondary">{priorities[ticket.priority]}</Badge>}
           <SlaBadge ticket={ticket} />
-          {ticket.assigneeId && (
-            <MemberInline memberId={ticket.assigneeId} members={memberQueries} size="sm" />
-          )}
+          {ticket.assigneeId && <MemberLine id={ticket.assigneeId} size="sm" />}
         </div>
       </div>
       <TicketMenu ticket={ticket} />

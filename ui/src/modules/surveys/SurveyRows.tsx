@@ -27,6 +27,7 @@ import { ActionsMenu, RowActions, TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import { StatusBadge, SurveyTitle, useSurveyActions } from './SurveyCells.tsx';
 import { SURVEY_STATUSES, type Survey, useStatusNames } from './useSurveys.ts';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 const RowMenu = ({ survey }: { survey: Survey }) => {
   const { t } = useTranslation('frontline');
@@ -66,7 +67,7 @@ const SurveyRow = ({ survey, channel }: { survey: Survey; channel: string }) => 
         {t('survey-vote-count', { defaultValue: '{{count}} votes', count: survey.voteCount })}
       </span>
       <span className="hidden w-36 shrink-0 md:block">
-        <MemberInline memberId={survey.createdBy} members={memberQueries} />
+        <MemberLine id={survey.createdBy} />
       </span>
       <span className="w-24 shrink-0 text-muted-foreground">
         <RelativeDateDisplay value={survey.updatedAt.toISOString()}>

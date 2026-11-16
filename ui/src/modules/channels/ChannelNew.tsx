@@ -5,18 +5,17 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   EntityPicker,
   IconPicker,
-  Input,
   MemberInline,
   memberName,
   PanelFormLayout,
   PanelFormRow,
-  Textarea,
   type TRecordDraftProps,
 } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
+import { TextRow } from '~/shared/TextRow.tsx';
 import { useChannelChange } from './useChannels.ts';
 
 /** Team members to pick, several at once, leaving out `exclude`. */
@@ -101,31 +100,24 @@ export const ChannelNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
             className="w-min"
           />
         </PanelFormRow>
-        <PanelFormRow
+        <TextRow
           label={t('name', 'Name')}
           icon={IconLetterCase}
+          name="name"
           required
           error={
             takenName === null
               ? undefined
-              : t('name-taken', 'Another channel is already called {{name}}.', {
-                  name: takenName,
-                })
+              : t('name-taken', 'Another channel is already called {{name}}.', { name: takenName })
           }
-        >
-          <Input
-            name="name"
-            required
-            aria-label={t('name', 'Name')}
-            aria-invalid={takenName !== null}
-            placeholder={t('name', 'Name')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
-        <PanelFormRow label={t('description', 'Description')} icon={IconAlignLeft}>
-          <Textarea name="description" aria-label={t('description', 'Description')} />
-        </PanelFormRow>
+          placeholder={t('name', 'Name')}
+        />
+        <TextRow
+          label={t('description', 'Description')}
+          icon={IconAlignLeft}
+          name="description"
+          multiline
+        />
         <PanelFormRow label={t('members', 'Members')} icon={IconUsers}>
           <MemberPicker value={memberIds} onValueChange={setMemberIds} />
         </PanelFormRow>

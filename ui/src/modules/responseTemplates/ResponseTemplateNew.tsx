@@ -1,17 +1,11 @@
 import { IconAlignLeft, IconCircles, IconLetterCase } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import {
-  Editor,
-  Input,
-  PanelFormLayout,
-  PanelFormRow,
-  Select,
-  type TRecordDraftProps,
-} from 'erxes-ui';
+import { Editor, PanelFormLayout, PanelFormRow, Select, type TRecordDraftProps } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
+import { TextRow } from '~/shared/TextRow.tsx';
 import { useManagedChannels, useTemplateChange } from './useResponseTemplates.ts';
 
 /** The channel the list page passes the draft, or none for a draft opened without one. */
@@ -72,16 +66,13 @@ export const ResponseTemplateNew = ({ defaults, onCreated, onCancel }: TRecordDr
             </Select.Content>
           </Select>
         </PanelFormRow>
-        <PanelFormRow label={t('name', 'Name')} icon={IconLetterCase} required>
-          <Input
-            name="name"
-            required
-            aria-label={t('name', 'Name')}
-            placeholder={t('name', 'Name')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
+        <TextRow
+          label={t('name', 'Name')}
+          icon={IconLetterCase}
+          name="name"
+          required
+          placeholder={t('name', 'Name')}
+        />
         <PanelFormRow label={t('content', 'Content')} icon={IconAlignLeft}>
           <Editor
             onChange={setContent}

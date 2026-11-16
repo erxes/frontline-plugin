@@ -1,10 +1,11 @@
 import { IconBrandFacebook, IconHandClick, IconLetterCase, IconMessage } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Input, PanelFormLayout, PanelFormRow, Select, type TRecordDraftProps } from 'erxes-ui';
+import { PanelFormLayout, PanelFormRow, Select, type TRecordDraftProps } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
+import { TextRow } from '~/shared/TextRow.tsx';
 import { useBots, useIntegrationChange, useMetaAccounts } from './useMeta.ts';
 
 /** The pages and accounts without a bot: a page has one. */
@@ -79,28 +80,20 @@ export const BotNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => 
         <PanelFormRow label={t('page', 'Page')} icon={IconBrandFacebook} required>
           <AccountSelect value={accountId} onChange={setAccountId} />
         </PanelFormRow>
-        <PanelFormRow label={t('name', 'Name')} icon={IconLetterCase} required>
-          <Input name="name" required aria-label={t('name', 'Name')} variant="bordered" text="sm" />
-        </PanelFormRow>
-        <PanelFormRow label={t('get-started-label', 'Get Started label')} icon={IconHandClick}>
-          <Input
-            name="getStartedText"
-            maxLength={30}
-            aria-label={t('get-started-label', 'Get Started label')}
-            placeholder={t('get-started', 'Get started')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
-        <PanelFormRow label={t('greeting', 'Greeting')} icon={IconMessage}>
-          <Input
-            name="greeting"
-            maxLength={160}
-            aria-label={t('greeting', 'Greeting')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
+        <TextRow label={t('name', 'Name')} icon={IconLetterCase} name="name" required />
+        <TextRow
+          label={t('get-started-label', 'Get Started label')}
+          icon={IconHandClick}
+          name="getStartedText"
+          maxLength={30}
+          placeholder={t('get-started', 'Get started')}
+        />
+        <TextRow
+          label={t('greeting', 'Greeting')}
+          icon={IconMessage}
+          name="greeting"
+          maxLength={160}
+        />
         {create.error && (
           <p role="alert" className="text-xs text-destructive-text">
             {create.error.message}

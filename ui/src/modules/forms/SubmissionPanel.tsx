@@ -21,7 +21,7 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { PageLink, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu, useConfirmDelete } from '~/shared/Records.tsx';
 import { useAnswerText } from './answers.ts';
 import {
@@ -190,9 +190,9 @@ const SubmissionFields = ({ submission }: { submission: Submission }) => {
             />
           )}
         </PanelField>
-        <PanelField icon={IconCalendarPlus} label={t('submitted-at', 'Sent at')} cell={false}>
-          <span className="px-2 text-xs">{format.dateTime(submission.createdAt)}</span>
-        </PanelField>
+        <InfoRow icon={IconCalendarPlus} label={t('submitted-at', 'Sent at')}>
+          {format.dateTime(submission.createdAt)}
+        </InfoRow>
       </PanelSection>
       <ReadOnly when={!form?.canManage}>
         <PanelSection title={t('submission-answers', 'Answers')}>

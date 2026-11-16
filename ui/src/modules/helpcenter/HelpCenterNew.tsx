@@ -1,10 +1,11 @@
 import { IconAlignLeft, IconBook, IconLetterCase } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Input, PanelFormLayout, PanelFormRow, type TRecordDraftProps } from 'erxes-ui';
+import { PanelFormLayout, PanelFormRow, type TRecordDraftProps } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
+import { TextRow } from '~/shared/TextRow.tsx';
 import { PickerField } from '~/shared/Pickers.tsx';
 import { useHelpCenterChange, useTopicOptions } from './queries.ts';
 
@@ -42,23 +43,8 @@ export const HelpCenterNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
         saving={create.isPending}
         saveLabel={t('create-help-center', 'Create help center')}
       >
-        <PanelFormRow label={t('title', 'Title')} icon={IconLetterCase} required>
-          <Input
-            name="title"
-            required
-            aria-label={t('title', 'Title')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
-        <PanelFormRow label={t('description', 'Description')} icon={IconAlignLeft}>
-          <Input
-            name="description"
-            aria-label={t('description', 'Description')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
+        <TextRow label={t('title', 'Title')} icon={IconLetterCase} name="title" required />
+        <TextRow label={t('description', 'Description')} icon={IconAlignLeft} name="description" />
         <PanelFormRow label={t('kb-topic', 'Knowledge base topic')} icon={IconBook}>
           <PickerField
             label={t('kb-topic', 'Knowledge base topic')}

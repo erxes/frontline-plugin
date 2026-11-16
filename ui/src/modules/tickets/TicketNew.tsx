@@ -14,7 +14,6 @@ import { useMutation } from '@tanstack/react-query';
 import {
   DatePicker,
   Editor,
-  Input,
   PanelFormLayout,
   PanelFormRow,
   Select,
@@ -26,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { useChannels } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
+import { TextRow } from '~/shared/TextRow.tsx';
 import { PrioritySelect, StatusSelect } from './TicketCells.tsx';
 import { dayOf } from './TicketFields.tsx';
 import { TagsField } from './TicketLinks.tsx';
@@ -244,16 +244,13 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
           }}
           onStatus={setStatusId}
         />
-        <PanelFormRow label={t('name', 'Name')} icon={IconLetterCase} required>
-          <Input
-            name="name"
-            required
-            aria-label={t('name', 'Name')}
-            placeholder={t('name', 'Name')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
+        <TextRow
+          label={t('name', 'Name')}
+          icon={IconLetterCase}
+          name="name"
+          required
+          placeholder={t('name', 'Name')}
+        />
         <PlanRows plan={plan} onChange={(patch) => setPlan((last) => ({ ...last, ...patch }))} />
         <LabelRows
           pipelineId={pipelineId}

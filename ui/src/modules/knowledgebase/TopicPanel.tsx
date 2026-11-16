@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlignLeft,
   IconArticle,
@@ -14,7 +13,6 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import {
   Button,
-  MemberInline,
   PanelField,
   PanelSection,
   Skeleton,
@@ -25,10 +23,11 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { PageLink, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { useDeleteTopics } from './useKbDeletes.ts';
 import { type Topic, topicPath, useKbAccess, useKbChange, useTopic } from './useKnowledgeBase.ts';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the topic's title. */
 export const TopicTitle = ({ contentId }: TRecordSlotProps) => {
@@ -110,12 +109,12 @@ const TopicFields = ({ topic }: { topic: Topic }) => {
           />
         </PanelField>
       </ReadOnly>
-      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
-        <MemberInline memberId={topic.createdBy} members={memberQueries} />
-      </PanelField>
-      <PanelField icon={IconCalendarPlus} label={t('created-at', 'Created at')} cell={false}>
-        <span className="px-2 text-xs">{format.dateTime(topic.createdAt)}</span>
-      </PanelField>
+      <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
+        <MemberLine id={topic.createdBy} />
+      </InfoRow>
+      <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
+        {format.dateTime(topic.createdAt)}
+      </InfoRow>
     </PanelSection>
   );
 };

@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconCircles,
   IconDots,
@@ -14,7 +13,6 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Button,
   CopyText,
-  MemberInline,
   PanelField,
   PanelSection,
   Skeleton,
@@ -28,9 +26,10 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { messengerPath } from '@/messenger/queries.ts';
 import { orpc } from '~/orpc.ts';
-import { ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { type Integration, useIntegration, useIntegrationChange } from './queries.ts';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the integration's name. */
 export const IntegrationTitle = ({ contentId }: TRecordSlotProps) => {
@@ -145,11 +144,9 @@ const Fields = ({ integration }: { integration: Integration }) => {
           />
         </PanelField>
       </ReadOnly>
-      <PanelField icon={IconCircles} label={t('channel', 'Channel')} cell={false}>
-        <span className="px-2 text-xs">
-          {channels.find((channel) => channel.id === integration.channelId)?.name}
-        </span>
-      </PanelField>
+      <InfoRow icon={IconCircles} label={t('channel', 'Channel')}>
+        {channels.find((channel) => channel.id === integration.channelId)?.name}
+      </InfoRow>
       <PanelField icon={IconKey} label={t('messenger-key', 'Messenger key')} cell={false}>
         {integration.publicKey && (
           <div className="min-w-0 px-2">
@@ -159,9 +156,9 @@ const Fields = ({ integration }: { integration: Integration }) => {
           </div>
         )}
       </PanelField>
-      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
-        <MemberInline memberId={integration.createdBy} members={memberQueries} />
-      </PanelField>
+      <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
+        <MemberLine id={integration.createdBy} />
+      </InfoRow>
     </PanelSection>
   );
 };

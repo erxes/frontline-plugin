@@ -8,18 +8,12 @@ import {
   IconLetterCase,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import {
-  IconPicker,
-  Input,
-  PanelFormLayout,
-  PanelFormRow,
-  Textarea,
-  type TRecordDraftProps,
-} from 'erxes-ui';
+import { IconPicker, PanelFormLayout, PanelFormRow, type TRecordDraftProps } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
+import { TextRow } from '~/shared/TextRow.tsx';
 import { ParentSelect, TopicSelect } from './CategoryTree.tsx';
 import { useTakenCode } from './TopicNew.tsx';
 import { useKbChange } from './useKnowledgeBase.ts';
@@ -112,28 +106,20 @@ export const CategoryNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps
             className="w-min"
           />
         </PanelFormRow>
-        <PanelFormRow label={t('title', 'Title')} icon={IconLetterCase} required>
-          <Input
-            name="title"
-            required
-            aria-label={t('title', 'Title')}
-            placeholder={t('kb-enter-category-title', 'Enter category title')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
-        <PanelFormRow label={t('description', 'Description')} icon={IconAlignLeft}>
-          <Textarea name="description" aria-label={t('description', 'Description')} />
-        </PanelFormRow>
-        <PanelFormRow label={t('kb-code', 'Code')} icon={IconCode} error={takenCode}>
-          <Input
-            name="code"
-            aria-label={t('kb-code', 'Code')}
-            aria-invalid={takenCode !== undefined}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
+        <TextRow
+          label={t('title', 'Title')}
+          icon={IconLetterCase}
+          name="title"
+          required
+          placeholder={t('kb-enter-category-title', 'Enter category title')}
+        />
+        <TextRow
+          label={t('description', 'Description')}
+          icon={IconAlignLeft}
+          name="description"
+          multiline
+        />
+        <TextRow label={t('kb-code', 'Code')} icon={IconCode} name="code" error={takenCode} />
         <PlacementRows value={placement} onChange={setPlacement} />
         {create.error && !isDefinedError(create.error) && (
           <p role="alert" className="text-xs text-destructive-text">

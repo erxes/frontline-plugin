@@ -1,11 +1,10 @@
-import { contactQueries, memberQueries } from '@erxes/core-contract/client';
+import { contactQueries } from '@erxes/core-contract/client';
 import { useQuery } from '@tanstack/react-query';
 import {
   Badge,
   Button,
   cn,
   customerTitle,
-  MemberInline,
   RelativeDateDisplay,
   ScrollArea,
   Skeleton,
@@ -13,6 +12,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useStatusNames } from './InboxFilter.tsx';
 import { type Conversation, useMarkRead, useOpenConversation } from './queries.ts';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /** The customer's name, else their email or phone, else "Visitor". */
 export const useCustomerName = (customerId: string) => {
@@ -63,9 +63,7 @@ const Row = ({ conversation }: { conversation: Conversation }) => {
           <Badge variant={conversation.status === 'new' ? 'info' : 'secondary'}>
             {statuses[conversation.status]}
           </Badge>
-          {conversation.assigneeId && (
-            <MemberInline memberId={conversation.assigneeId} members={memberQueries} size="sm" />
-          )}
+          {conversation.assigneeId && <MemberLine id={conversation.assigneeId} size="sm" />}
         </span>
       </button>
     </li>

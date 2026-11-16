@@ -1,5 +1,5 @@
 import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
-import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
 import { addPluginStyles, toast, useListFilterParams } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
@@ -53,9 +53,20 @@ export const usePipelineChange = () => useChange(orpc.pipelines.key());
 
 /** Saves the given fields of the pipeline, one in-place edit at a time. */
 export const useEditPipeline = (id: string) => {
-  const update = useMutation(orpc.pipelines.update.mutationOptions(usePipelineChange()));
+  const queryClient = useQueryClient();
+  const change = usePipelineChange();
+  const { queryKey } = orpc.pipelines.get.queryOptions({ input: { id } });
 
-  return (fields: PipelineFields) => update.mutate({ id, ...fields });
+  const update = useMutation(
+    orpc.pipelines.update.mutationOptions({ onError: change.onError, onSettled: change.onSuccess }),
+  );
+
+  // The panel shows the edit at once, so the next edit (the SLA saves its whole policy) builds on
+  // it instead of on the last fetch.
+  return (fields: PipelineFields) => {
+    queryClient.setQueryData(queryKey, (pipeline) => pipeline && { ...pipeline, ...fields });
+    update.mutate({ id, ...fields });
+  };
 };
 
 /** Asks for "delete" to be typed, then deletes the pipelines and their statuses, all or none. */

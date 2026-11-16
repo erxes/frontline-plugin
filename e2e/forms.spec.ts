@@ -114,7 +114,7 @@ test('an admin builds a form, a visitor sends it, and the admin corrects and del
   await page.goto(FORMS);
   await page.getByRole('button', { name: 'New form' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await panel.getByLabel('Name', { exact: true }).fill(name);
+  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
   await panel.getByLabel('Form title').fill('Book a demo');
   await expectAccessible(page);
   await panel.getByRole('button', { name: 'Create form' }).click();
@@ -151,13 +151,13 @@ test('an admin builds a form, a visitor sends it, and the admin corrects and del
   await expect(free.getByRole('cell', { name: '9', exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Filter', exact: true }).click();
   await page.getByRole('option', { name: 'Plan', exact: true }).click();
-  await page.getByPlaceholder('Contains…').fill('team');
+  await page.getByRole('textbox', { name: 'Value' }).fill('team');
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/subject\.answer\./);
   await expect(free).toBeHidden();
-  await page.getByRole('button', { name: 'Remove filter' }).click();
-  await expect(free).toBeVisible();
   await expectAccessible(page);
+  await page.getByRole('button', { name: 'Remove Plan filter' }).click();
+  await expect(free).toBeVisible();
 
   // A submission opens in the panel, where an answer is corrected and the submission deleted.
   await team.getByRole('button', { name: 'Submission actions' }).click();
@@ -185,7 +185,7 @@ test('a channel member reads a form and its submissions but changes neither', as
   await page.goto(FORMS);
   await page.getByRole('button', { name: 'New form' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await panel.getByLabel('Name', { exact: true }).fill(name);
+  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
   await panel.getByRole('button', { name: 'Create form' }).click();
   await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
 
@@ -210,7 +210,7 @@ test('an admin duplicates, archives and deletes forms', async ({ page }) => {
   await page.goto(FORMS);
   await page.getByRole('button', { name: 'New form' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await panel.getByLabel('Name', { exact: true }).fill(name);
+  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
   await panel.getByRole('button', { name: 'Create form' }).click();
   await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
 

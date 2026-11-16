@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlignLeft,
   IconArrowBarToRight,
@@ -13,7 +12,6 @@ import {
 import { useMutation } from '@tanstack/react-query';
 import {
   Button,
-  MemberInline,
   PanelField,
   PanelSection,
   Skeleton,
@@ -36,6 +34,8 @@ import {
   usePipeline,
   usePipelineChange,
 } from './queries.ts';
+import { InfoRow } from '~/shared/Panel.tsx';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /**
  * The pipeline's menu, behind `trigger`: move it to another channel the member is an admin of,
@@ -175,15 +175,15 @@ const PipelineFields = ({ pipeline }: { pipeline: Pipeline }) => {
       <PanelField icon={IconCircles} label={t('channel', 'Channel')} cell={false}>
         <span className="truncate px-2 text-xs">{channel.data?.name}</span>
       </PanelField>
-      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
-        <MemberInline memberId={pipeline.createdBy} members={memberQueries} />
-      </PanelField>
-      <PanelField icon={IconCalendarPlus} label={t('created-at', 'Created at')} cell={false}>
-        <span className="px-2 text-xs">{format.dateTime(pipeline.createdAt)}</span>
-      </PanelField>
-      <PanelField icon={IconCalendarUp} label={t('updated-at', 'Updated at')} cell={false}>
-        <span className="px-2 text-xs">{format.dateTime(pipeline.updatedAt)}</span>
-      </PanelField>
+      <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
+        <MemberLine id={pipeline.createdBy} />
+      </InfoRow>
+      <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
+        {format.dateTime(pipeline.createdAt)}
+      </InfoRow>
+      <InfoRow icon={IconCalendarUp} label={t('updated-at', 'Updated at')}>
+        {format.dateTime(pipeline.updatedAt)}
+      </InfoRow>
     </PanelSection>
   );
 };

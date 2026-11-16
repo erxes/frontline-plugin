@@ -1,11 +1,12 @@
 import { IconLayoutBottombar, IconLetterCase } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Input, PanelFormLayout, PanelFormRow, type TRecordDraftProps } from 'erxes-ui';
+import { PanelFormLayout, PanelFormRow, type TRecordDraftProps } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { ChannelRow, useManagedChannels } from '~/shared/ChannelSelect.tsx';
 import { textOf } from '~/shared/hooks.ts';
+import { TextRow } from '~/shared/TextRow.tsx';
 import { LoadTypeSelect } from './FormSettings.tsx';
 import { type LoadType, useFormChange } from './useForms.ts';
 
@@ -56,25 +57,19 @@ export const FormNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) =>
           onChange={setChannelId}
           missing={t('form-channel-first', 'Be an admin of a channel to add a form.')}
         />
-        <PanelFormRow label={t('name', 'Name')} icon={IconLetterCase} required>
-          <Input
-            name="name"
-            required
-            aria-label={t('name', 'Name')}
-            placeholder={t('form-name-placeholder', 'Name the form for your team')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
-        <PanelFormRow label={t('form-title', 'Form title')} icon={IconLetterCase}>
-          <Input
-            name="title"
-            aria-label={t('form-title', 'Form title')}
-            placeholder={t('form-title-placeholder', 'What visitors read above it')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
+        <TextRow
+          label={t('name', 'Name')}
+          icon={IconLetterCase}
+          name="name"
+          required
+          placeholder={t('form-name-placeholder', 'Name the form for your team')}
+        />
+        <TextRow
+          label={t('form-title', 'Form title')}
+          icon={IconLetterCase}
+          name="title"
+          placeholder={t('form-title-placeholder', 'What visitors read above it')}
+        />
         <PanelFormRow label={t('form-load-type', 'Shows as')} icon={IconLayoutBottombar}>
           <LoadTypeSelect value={loadType} onChange={setLoadType} />
         </PanelFormRow>

@@ -1,4 +1,4 @@
-import { contactQueries, memberQueries } from '@erxes/core-contract/client';
+import { contactQueries } from '@erxes/core-contract/client';
 import {
   IconCalendarCheck,
   IconCalendarX,
@@ -11,7 +11,6 @@ import {
 import {
   Button,
   ContactLink,
-  MemberInline,
   PanelField,
   PanelSection,
   Skeleton,
@@ -20,13 +19,14 @@ import {
   type TRecordSlotProps,
   useFormat,
 } from 'erxes-ui';
-import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { PLUGIN } from '~/plugin.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { CALL_ICONS, CallStatus, useDirectionNames } from './CallFields.tsx';
 import { type Call, durationText, useCall, useFetchRecording } from './queries.ts';
+import { InfoRow } from '~/shared/Panel.tsx';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: who called, or who was called. */
 export const CallTitle = ({ contentId }: TRecordSlotProps) => {
@@ -71,21 +71,6 @@ export const CallActions = ({ contentId }: TRecordSlotProps) => {
   );
 };
 
-/** A read-only row: the value as text beside its icon and label. */
-const Row = ({
-  icon,
-  label,
-  children,
-}: {
-  icon: typeof IconMessage;
-  label: string;
-  children: ReactNode;
-}) => (
-  <PanelField icon={icon} label={label} cell={false}>
-    <span className="flex min-w-0 items-center px-2 text-xs">{children}</span>
-  </PanelField>
-);
-
 const Fields = ({ call }: { call: Call }) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
@@ -93,12 +78,12 @@ const Fields = ({ call }: { call: Call }) => {
 
   return (
     <PanelSection title={t('call', 'Call')}>
-      <Row icon={CALL_ICONS.status} label={t('status', 'Status')}>
+      <InfoRow icon={CALL_ICONS.status} label={t('status', 'Status')}>
         <CallStatus status={call.status} />
-      </Row>
-      <Row icon={CALL_ICONS.direction} label={t('direction', 'Direction')}>
+      </InfoRow>
+      <InfoRow icon={CALL_ICONS.direction} label={t('direction', 'Direction')}>
         {directions[call.direction]}
-      </Row>
+      </InfoRow>
       <PanelField icon={IconUserCircle} label={t('customer', 'Customer')} cell={false}>
         <ContactLink
           contentType="core:customer"
@@ -107,33 +92,33 @@ const Fields = ({ call }: { call: Call }) => {
           placeholder={call.customerPhone}
         />
       </PanelField>
-      <Row icon={CALL_ICONS.customerPhone} label={t('customer-phone', 'Customer phone')}>
+      <InfoRow icon={CALL_ICONS.customerPhone} label={t('customer-phone', 'Customer phone')}>
         {call.customerPhone}
-      </Row>
-      <Row icon={CALL_ICONS.number} label={t('line', 'Line')}>
+      </InfoRow>
+      <InfoRow icon={CALL_ICONS.number} label={t('line', 'Line')}>
         {call.number}
-      </Row>
-      <Row icon={CALL_ICONS.queue} label={t('queue', 'Queue')}>
+      </InfoRow>
+      <InfoRow icon={CALL_ICONS.queue} label={t('queue', 'Queue')}>
         {call.queue}
-      </Row>
-      <Row icon={CALL_ICONS.extension} label={t('extension', 'Extension')}>
+      </InfoRow>
+      <InfoRow icon={CALL_ICONS.extension} label={t('extension', 'Extension')}>
         {call.extension}
-      </Row>
-      <PanelField icon={CALL_ICONS.answeredBy} label={t('answered-by', 'Answered by')} cell={false}>
-        {call.answeredBy && <MemberInline memberId={call.answeredBy} members={memberQueries} />}
-      </PanelField>
-      <Row icon={CALL_ICONS.startedAt} label={t('started-at', 'Started at')}>
+      </InfoRow>
+      <InfoRow icon={CALL_ICONS.answeredBy} label={t('answered-by', 'Answered by')}>
+        {call.answeredBy && <MemberLine id={call.answeredBy} />}
+      </InfoRow>
+      <InfoRow icon={CALL_ICONS.startedAt} label={t('started-at', 'Started at')}>
         {format.dateTime(call.startedAt)}
-      </Row>
-      <Row icon={IconCalendarCheck} label={t('answered-at', 'Answered at')}>
+      </InfoRow>
+      <InfoRow icon={IconCalendarCheck} label={t('answered-at', 'Answered at')}>
         {call.answeredAt && format.dateTime(call.answeredAt)}
-      </Row>
-      <Row icon={IconCalendarX} label={t('ended-at', 'Ended at')}>
+      </InfoRow>
+      <InfoRow icon={IconCalendarX} label={t('ended-at', 'Ended at')}>
         {call.endedAt && format.dateTime(call.endedAt)}
-      </Row>
-      <Row icon={CALL_ICONS.durationSec} label={t('duration', 'Duration')}>
+      </InfoRow>
+      <InfoRow icon={CALL_ICONS.durationSec} label={t('duration', 'Duration')}>
         {durationText(call.durationSec)}
-      </Row>
+      </InfoRow>
       <PanelField icon={IconMessage} label={t('conversation', 'Conversation')} cell={false}>
         <Link
           to={`/${PLUGIN}/inbox?conversationId=${encodeURIComponent(call.conversationId)}`}

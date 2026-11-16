@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlignLeft,
   IconCalendarPlus,
@@ -15,7 +14,6 @@ import { useMutation } from '@tanstack/react-query';
 import {
   Button,
   IconPicker,
-  MemberInline,
   PanelField,
   PanelSection,
   Skeleton,
@@ -28,7 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { usePipelineCount } from '@/pipelines/usePipelines.ts';
 import { useTemplateCount } from '@/responseTemplates/useResponseTemplates.ts';
 import { orpc } from '~/orpc.ts';
-import { PageLink, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import {
   type Channel,
@@ -37,6 +35,7 @@ import {
   useChannelChange,
   useDeleteChannels,
 } from './useChannels.ts';
+import { MemberLine } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the channel's name. */
 export const ChannelTitle = ({ contentId }: TRecordSlotProps) => {
@@ -177,12 +176,12 @@ const ChannelFields = ({ channel }: { channel: Channel }) => {
           />
         </PanelField>
       </ReadOnly>
-      <PanelField icon={IconUser} label={t('created-by', 'Created by')} cell={false}>
-        <MemberInline memberId={channel.createdBy} members={memberQueries} />
-      </PanelField>
-      <PanelField icon={IconCalendarPlus} label={t('created-at', 'Created at')} cell={false}>
-        <span className="px-2 text-xs">{format.dateTime(channel.createdAt)}</span>
-      </PanelField>
+      <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
+        <MemberLine id={channel.createdBy} />
+      </InfoRow>
+      <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
+        {format.dateTime(channel.createdAt)}
+      </InfoRow>
     </PanelSection>
   );
 };
