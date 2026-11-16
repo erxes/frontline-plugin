@@ -1,10 +1,8 @@
-import { createHash, createHmac } from 'node:crypto';
-import { readFileSync } from 'node:fs';
 import { describe, expect, it, vi } from 'vite-plus/test';
-import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { clientAs } from '#/test/member.ts';
-import { channelFor, runQueued, serve } from '../../integrations/__tests__/fakes.ts';
+import { channelFor, runQueued } from '../../integrations/__tests__/fakes.ts';
+import { fakePbx, fixture, PBX, pbxServer } from './pbx.ts';
 
 vi.mock('#/core.ts', async (importOriginal) =>
   (await import('../../integrations/__tests__/standIns.ts')).coreStandIn(await importOriginal()),
@@ -14,104 +12,7 @@ vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
   (await import('../../integrations/__tests__/standIns.ts')).sdkStandIn(await importOriginal()),
 );
 
-const { deliver } = serve();
-
-const fixture = (name: string) =>
-  readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
-
-const Request = z.object({
-  request: z.object({ action: z.string() }).catchall(z.unknown()),
-});
-
-const realFetch = globalThis.fetch;
-
-/**
- * A Grandstream UCM at `pbx.test` whose API user is `erxes` / `secret`, and core's storage.
- * Returns the actions frontline asked of the PBX, newest last.
- */
-const fakePbx = () => {
-  const actions: Record<string, unknown>[] = [];
-
-  vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
-    const request = new globalThis.Request(input, init);
-    const url = new URL(request.url);
-
-    if (url.hostname === '127.0.0.1') return realFetch(request);
-
-    if (url.hostname === 'files.core.test') return new Response(null, { status: 200 });
-
-    const { request: asked } = Request.parse(await request.json());
-
-    actions.push(asked);
-
-    switch (asked.action) {
-      case 'challenge':
-        return Response.json({ status: 0, response: { challenge: 'abc123' } });
-      case 'login': {
-        const good = createHash('md5').update('abc123secret').digest('hex');
-
-        return Response.json(
-          asked.token === good ? { status: 0, response: { cookie: 'cookie-1' } } : { status: -37 },
-        );
-      }
-
-      case 'recapi':
-        return new Response(new Uint8Array([82, 73, 70, 70]), {
-          headers: { 'content-type': 'audio/wav' },
-        });
-      default:
-        return Response.json({ status: 0, response: { need_apply: 'no' } });
-    }
-  });
-
-  return actions;
-};
-
-const PBX = {
-  host: 'pbx.test',
-  apiUser: 'erxes',
-  apiPassword: 'secret',
-  phone: '77001100',
-  timeZone: 'Asia/Ulaanbaatar',
-};
-
-/** A connected PBX in `orgId` with queue 6500, its operators and a channel for its calls. */
-const connectPbx = async (orgId: string) => {
-  const owner = clientAs(orgId);
-  const account = await owner.integrations.call.connect(PBX);
-
-  await owner.integrations.call.saveSettings({
-    accountId: account.id,
-    ...PBX,
-    srcTrunk: 'mobicom',
-    dstTrunk: '',
-    queues: [{ queue: '6500', name: 'Sales' }],
-    operators: [
-      { userId: 'user-bold', extension: '1001' },
-      { userId: 'user-saraa', extension: '1002' },
-    ],
-  });
-
-  await channelFor(orgId, 'call', account.id);
-
-  const settings = await owner.integrations.call.settings({ accountId: account.id });
-
-  const path = new URL(settings.webhookUrl ?? '').pathname.replace('/api/public/webhooks', '');
-  const secret = settings.webhookSecret ?? '';
-
-  /** Posts `raw` to the PBX's `kind` address, signed as its bridge signs. */
-  const post = (kind: string, raw: string, signedWith = secret) => {
-    const timestamp = String(Date.now());
-    const signature = createHmac('sha256', signedWith).update(`${timestamp}.${raw}`).digest('hex');
-
-    return deliver(`${path}/${kind}`, raw, {
-      'x-erxes-timestamp': timestamp,
-      'x-erxes-signature': signature,
-    });
-  };
-
-  return { owner, account, post, path };
-};
+const { deliver, connectPbx } = pbxServer();
 
 describe('calls through a PBX', () => {
   it('refuses a PBX that refuses its API user', async () => {
@@ -288,6 +189,87 @@ describe('calls through a PBX', () => {
         status: 'paused',
       }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it("gives an operator's softphone its line, the call it is on, and transfers it", async () => {
+    const actions = fakePbx();
+    const { owner, account, post } = await connectPbx('org-call-e');
+
+    await owner.integrations.call.saveSettings({
+      accountId: account.id,
+      ...PBX,
+      turnUrl: 'turn:turn.pbx.test:3478',
+      turnUsername: 'relay',
+      turnPassword: 'relay-secret',
+      queues: [],
+      operators: [
+        { userId: 'user-bold', extension: '1001' },
+        { userId: 'user-saraa', extension: '1002', sipPassword: 'sip-1002' },
+      ],
+    });
+
+    const settings = await owner.integrations.call.settings({ accountId: account.id });
+
+    expect(settings.operators).toEqual([
+      expect.objectContaining({ extension: '1001', hasSipPassword: false }),
+      expect.objectContaining({ extension: '1002', hasSipPassword: true }),
+    ]);
+    expect(JSON.stringify(settings)).not.toContain('sip-1002');
+
+    const saraa = clientAs('org-call-e', [PERMISSIONS.callView], 'user-saraa');
+
+    expect(await saraa.calls.phone.lines({})).toEqual([
+      {
+        accountId: account.id,
+        name: '77001100',
+        extension: '1002',
+        password: 'sip-1002',
+        webSocketUrl: 'wss://pbx.test/ws',
+        iceServers: [
+          { urls: 'turn:turn.pbx.test:3478', username: 'relay', credential: 'relay-secret' },
+        ],
+      },
+    ]);
+    // Bold has an extension but no SIP password, so no softphone.
+    expect(
+      await clientAs('org-call-e', [PERMISSIONS.callView], 'user-bold').calls.phone.lines({}),
+    ).toEqual([]);
+
+    expect(await saraa.calls.phone.extensions({ accountId: account.id })).toEqual([
+      { extension: '1001', name: 'Bold Bat', status: 'Idle' },
+    ]);
+
+    expect(await saraa.calls.phone.current({ accountId: account.id })).toBeNull();
+
+    const live = { uniqueid: '1763172222.7', callType: 'incoming', callerIdNum: '88001122' };
+
+    expect(await post('event', JSON.stringify({ ...live, type: 'ringing' }))).toBe(200);
+    expect(
+      await post('event', JSON.stringify({ ...live, type: 'answered', extension: '1002' })),
+    ).toBe(200);
+
+    const current = await saraa.calls.phone.current({ accountId: account.id });
+
+    expect(current).toMatchObject({ customerPhone: '88001122' });
+    expect(
+      (await owner.calls.get({ conversationId: current?.conversationId ?? '' })).answeredBy,
+    ).toBe('user-saraa');
+
+    await saraa.calls.phone.transfer({ accountId: account.id, extension: '1001' });
+
+    expect(actions.at(-1)).toEqual({
+      action: 'callTransfer',
+      cookie: 'cookie-1',
+      extension: '1001',
+      channel: 'PJSIP/1002-0003',
+    });
+
+    await expect(
+      clientAs('org-call-e', [PERMISSIONS.callView], 'user-bold').calls.phone.transfer({
+        accountId: account.id,
+        extension: '1002',
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND', message: 'You are on no call to transfer' });
   });
 });
 

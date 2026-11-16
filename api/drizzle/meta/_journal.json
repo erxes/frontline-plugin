@@ -155,6 +155,13 @@
       "when": 1794849881527,
       "tag": "0021_conversation_properties",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794851843542,
+      "tag": "0022_call_operator_sip_secret",
+      "breakpoints": true
     }
   ]
 }

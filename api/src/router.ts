@@ -24,6 +24,7 @@ import { metaProcedures } from '#/modules/integrations/providers/metaLogin.ts';
 import { metaPostProcedures } from '#/modules/integrations/providers/metaPosts.ts';
 import { telegramProcedures } from '#/modules/integrations/providers/telegram.ts';
 import { callListProcedures } from '#/modules/calls/calls.ts';
+import { phoneProcedures } from '#/modules/calls/phone.ts';
 import { agentProcedures, queueProcedures } from '#/modules/calls/queues.ts';
 import {
   callProcedures,
@@ -75,7 +76,12 @@ export const router = {
     call: callProcedures,
     callpro: callProProcedures,
   },
-  calls: { ...callListProcedures, queues: queueProcedures, agents: agentProcedures },
+  calls: {
+    ...callListProcedures,
+    queues: queueProcedures,
+    agents: agentProcedures,
+    phone: phoneProcedures,
+  },
   conversations: {
     ...conversationProcedures,
     ...countProcedures,
