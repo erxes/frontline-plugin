@@ -209,8 +209,8 @@ importers:
         specifier: ^4.14.0
         version: 4.14.0(playwright-core@1.65.0)
       '@erxes/core-contract':
-        specifier: 0.1.0-v2.12
-        version: 0.1.0-v2.12(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+        specifier: 0.1.0-v2.17
+        version: 0.1.0-v2.17(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@erxes/lint':
         specifier: 0.1.3
         version: 0.1.3(eslint@10.15.0(jiti@2.7.0))(vite-plus@1.6.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/ui@5.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.65.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1))
@@ -266,11 +266,11 @@ importers:
         specifier: ^1.5.0
         version: 1.5.0
       '@erxes/core-contract':
-        specifier: 0.1.0-v2.12
-        version: 0.1.0-v2.12(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+        specifier: 0.1.0-v2.17
+        version: 0.1.0-v2.17(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@erxes/plugin-sdk':
-        specifier: 0.1.0-v2.11
-        version: 0.1.0-v2.11(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)
+        specifier: 0.1.0-v2.15
+        version: 0.1.0-v2.15(@opentelemetry/api@1.10.0)(@orpc/server@1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0))(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)(ws@8.23.0)
       '@noble/ciphers':
         specifier: ^2.4.0
         version: 2.4.0
@@ -384,8 +384,8 @@ importers:
         specifier: 3.2.2
         version: 3.2.2(react@19.3.1)
       '@erxes/core-contract':
-        specifier: 0.1.0-v2.12
-        version: 0.1.0-v2.12(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+        specifier: 0.1.0-v2.17
+        version: 0.1.0-v2.17(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@orpc/client':
         specifier: 1.16.2
         version: 1.16.2(@opentelemetry/api@1.10.0)
@@ -399,8 +399,8 @@ importers:
         specifier: ^5.107.1
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
       erxes-ui:
-        specifier: npm:@erxes/ui@4.0.0-v2.18
-        version: '@erxes/ui@4.0.0-v2.18(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)'
+        specifier: npm:@erxes/ui@4.0.0-v2.20
+        version: '@erxes/ui@4.0.0-v2.20(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)'
       html-react-parser:
         specifier: ^6.1.9
         version: 6.1.9(@types/react@19.3.0)(react@19.3.1)
@@ -822,8 +822,8 @@ packages:
   '@emnapi/wasi-threads@2.2.0':
     resolution: {integrity: sha512-JP7OYH38Q7+pyTAe14raZHLQIK7BDKbdwji+Xi3pcd/6QkJYQH3SX4wu6EplGrGJWRepoNzedfm0G3B9Z4e9Rw==}
 
-  '@erxes/core-contract@0.1.0-v2.12':
-    resolution: {integrity: sha512-N39t2wPZDSJb5LvbsoiW7EbcJHSgR2SOtlaDZMufaWqiREzG7doIUBdAKb7Lu0Th4n5B3zGXlyevUy+s6AA+nQ==}
+  '@erxes/core-contract@0.1.0-v2.17':
+    resolution: {integrity: sha512-b0RCWg95nl83domX5Zra2q68Tusy8InyeiuCt1+j7g5EihXinPARUaZOz1ccHdpt/oc8yZS01cbM/Al60SF9ew==}
 
   '@erxes/lint@0.1.3':
     resolution: {integrity: sha512-4diDLNZcOkH5MduST12R5TN/uJd7FWX1AcRYyXHQ0I1L5I5m9x3NVJuydq/TzEigMudGZsGuM2KaPg9I54vDXA==}
@@ -831,13 +831,13 @@ packages:
     peerDependencies:
       vite-plus: ^1.6.0
 
-  '@erxes/plugin-sdk@0.1.0-v2.11':
-    resolution: {integrity: sha512-4T5I0MaDNLw8JgFkHkElb/Rbhl1lvNren+XnyEVQ9J890/CncHDGG/O0/qNpHzZs3sA33peJuJ10j4yCJz7gRA==}
+  '@erxes/plugin-sdk@0.1.0-v2.15':
+    resolution: {integrity: sha512-+lM8jkDBiI24/etKrT278vEwZytj04Sj+NTVf6mRJGcr1OJpYSMiS/EO+GBIlfyuuZJSJdN9KSnxBJZSZMH+QA==}
     peerDependencies:
       drizzle-orm: 0.45.4
 
-  '@erxes/ui@4.0.0-v2.18':
-    resolution: {integrity: sha512-OzdyJ4+O6/+VxHVfYZS4PJ9AKVL13PIMwi+xTKfpuy5iDQXIgwCPohHodaj+lTcdKPuPbhR73hg/UP9adM2ZjQ==}
+  '@erxes/ui@4.0.0-v2.20':
+    resolution: {integrity: sha512-vJXE1YV983LEE3dWYtEs0eQtPsXmR+a4VJWY4jAQuufiqDlofeXaLbqkV64Mtz4rubp4hp/S8lcXXwR3+WORxQ==}
     peerDependencies:
       '@tanstack/react-query': ^5.107.1
       jotai: ^3.0.2
@@ -1835,8 +1835,14 @@ packages:
   '@orpc/interop@1.16.2':
     resolution: {integrity: sha512-0TJ8s9lMk61DDamXUhaFT0b+f7dvHoJBklTVUWG1mVbPLA4ccE22xtHuzk6O4MooD3sVlDNbF4z9x9AkbLBnhw==}
 
+  '@orpc/json-schema@1.16.2':
+    resolution: {integrity: sha512-mYYdS/rHzLYgwMX5njsKZCnQZ2W9zNP5ZCVIrKEwAsuhhmxMDLq19Ff7KLi5fj1L0sEYJzjaveBCj5Nfh3MY+g==}
+
   '@orpc/openapi-client@1.16.2':
     resolution: {integrity: sha512-pWfp4LjHtHYdZ09DXcgukcaScjum/Uc5rtcqWU4DPf0pjgjaUiQTDr+MOeILDmirjFGLDtUtzEzer0sRGopkEg==}
+
+  '@orpc/openapi@1.16.2':
+    resolution: {integrity: sha512-fM8Wm1u0ib3daAjDB7Jb4mV5rzpU9/rufqDLSKz7WlBL7S3Z9kxhtUdfW5yhzrAV4wpLMeMiCeajVVg51OlgWw==}
 
   '@orpc/server@1.16.2':
     resolution: {integrity: sha512-GNZp4Ol/EIOJO7SDM9K8NM0qhtbND3hR9Q3Pj6fJxQYI/lV/A+8UkAFrp9bAAf388JsOxFFN3qFxgFOy5GQLag==}
@@ -1885,6 +1891,13 @@ packages:
     peerDependencies:
       '@orpc/client': 1.16.2
       '@tanstack/query-core': '>=5.80.2'
+
+  '@orpc/zod@1.16.2':
+    resolution: {integrity: sha512-7c0/cDfFDNSJXvcQFJqfcubh1poqKd6OlfrC93Gm8K2ReSXeds7vxn0kXoJzt1cWqqNvmPXm6xv4HnE+9r0P6w==}
+    peerDependencies:
+      '@orpc/contract': 1.16.2
+      '@orpc/server': 1.16.2
+      zod: '>=3.25.0'
 
   '@oxc-parser/binding-android-arm-eabi@0.148.0':
     resolution: {integrity: sha512-pHASv9g5pASxb7akHERZNSkrEqPhFaUix98o7d9hbTpolnnFWl7UiRrcMhCsV1+iVO4/cJwKsbKRJTFNs2tdBQ==}
@@ -4387,6 +4400,10 @@ packages:
     resolution: {integrity: sha512-TtpcNJ3XAzx3Gq8sWRzJaVajRs0uVxA2YAkdb1jm2YkPz4G6egUFAyA3n5vtEIZefPk5Wa4UXbKuS5fKkJWdgA==}
     engines: {node: '>=10'}
 
+  escape-string-regexp@5.0.0:
+    resolution: {integrity: sha512-/veY75JbMK4j1yjvuUxuVsiS/hr/4iHs9FTT6cgTexxdE0Ly/glccBAkloH/DofkjRbZU3bnoj38mOmhkZ0lHw==}
+    engines: {node: '>=12'}
+
   eslint-plugin-react-hooks@7.1.1:
     resolution: {integrity: sha512-f2I7Gw6JbvCexzIInuSbZpfdQ44D7iqdWX01FKLvrPgqxoE7oMj8clOfto8U6vYiz4yd5oKu39rRSVOe1zRu0g==}
     engines: {node: '>=18'}
@@ -5615,6 +5632,9 @@ packages:
   rope-sequence@1.3.4:
     resolution: {integrity: sha512-UT5EDe2cu2E/6O4igUr5PSFs23nvvukicWHx6GnOPlHAiiYbzNuCRQCuiUdHJQcqKalLKlrYJnjY0ySGsXNQXQ==}
 
+  rou3@0.7.12:
+    resolution: {integrity: sha512-iFE4hLDuloSWcD7mjdCDhx2bKcIsYbtOTpfH5MHHLSKMOUyjqQXTeZVa289uuwEGEKFoE/BAPbhaU4B774nceg==}
+
   router@2.2.0:
     resolution: {integrity: sha512-nLTrUKm2UyiL7rlhapu/Zl45FwNgkZGaCpZbIHajDYgwlJCOzLSk+cIPAnsEqV955GjILJnKbdQC1nVPz+gAYQ==}
     engines: {node: '>= 18'}
@@ -6029,6 +6049,9 @@ packages:
     resolution: {integrity: sha512-Tb2FUhB4vUsGQlfSquQLYkApkuPAFQXGFzxWKHHumVz2dK+X1RUm/HnID4+TfIGYJ1kTcwOaCk/buYCEJr6YjQ==}
     engines: {node: '>=20.11'}
     hasBin: true
+
+  wildcard-match@5.1.6:
+    resolution: {integrity: sha512-Dh5N543my42ynFsbT0v6iPpaqJt95MOK1n/lhojVTe/hS3gpP6e938bbzsfaS0goLlJbhEOCIJPe/Tc3hckoaQ==}
 
   word-wrap@1.2.5:
     resolution: {integrity: sha512-BN22B5eaMMI9UMtjrGd5g5eCYPpCPDUy0FJXbYsaT5zYxjFOckS53SQDE3pWkVoWpHXVb3BrYcEN4Twa55B5cA==}
@@ -6583,7 +6606,7 @@ snapshots:
       tslib: 2.9.1
     optional: true
 
-  '@erxes/core-contract@0.1.0-v2.12(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)':
+  '@erxes/core-contract@0.1.0-v2.17(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)':
     dependencies:
       '@orpc/client': 1.16.2(@opentelemetry/api@1.10.0)
       '@orpc/contract': 1.16.2(@opentelemetry/api@1.10.0)
@@ -6635,12 +6658,14 @@ snapshots:
       - '@typescript-eslint/parser'
       - eslint
 
-  '@erxes/plugin-sdk@0.1.0-v2.11(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)':
+  '@erxes/plugin-sdk@0.1.0-v2.15(@opentelemetry/api@1.10.0)(@orpc/server@1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0))(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)(ws@8.23.0)':
     dependencies:
-      '@erxes/core-contract': 0.1.0-v2.12(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+      '@erxes/core-contract': 0.1.0-v2.17(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@orpc/client': 1.16.2(@opentelemetry/api@1.10.0)
       '@orpc/contract': 1.16.2(@opentelemetry/api@1.10.0)
+      '@orpc/openapi': 1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0)
       '@orpc/openapi-client': 1.16.2(@opentelemetry/api@1.10.0)
+      '@orpc/zod': 1.16.2(@opentelemetry/api@1.10.0)(@orpc/contract@1.16.2(@opentelemetry/api@1.10.0))(@orpc/server@1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0))(ws@8.23.0)(zod@4.6.7)
       drizzle-orm: 0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1)
       jose: 6.2.17
       zod: 4.6.7
@@ -6654,6 +6679,7 @@ snapshots:
       - '@netlify/db'
       - '@op-engineering/op-sqlite'
       - '@opentelemetry/api'
+      - '@orpc/server'
       - '@planetscale/database'
       - '@prisma/client'
       - '@tanstack/query-core'
@@ -6666,7 +6692,9 @@ snapshots:
       - '@xata.io/client'
       - better-sqlite3
       - bun-types
+      - crossws
       - expo-sqlite
+      - fastify
       - gel
       - knex
       - kysely
@@ -6676,8 +6704,9 @@ snapshots:
       - prisma
       - sql.js
       - sqlite3
+      - ws
 
-  '@erxes/ui@4.0.0-v2.18(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)':
+  '@erxes/ui@4.0.0-v2.20(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)':
     dependencies:
       '@base-ui/react': 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@blocknote/core': 0.57.0(@types/hast@3.0.5)
@@ -7601,6 +7630,20 @@ snapshots:
 
   '@orpc/interop@1.16.2': {}
 
+  '@orpc/json-schema@1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0)':
+    dependencies:
+      '@orpc/contract': 1.16.2(@opentelemetry/api@1.10.0)
+      '@orpc/interop': 1.16.2
+      '@orpc/openapi': 1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0)
+      '@orpc/server': 1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0)
+      '@orpc/shared': 1.16.2(@opentelemetry/api@1.10.0)
+      json-schema-typed: 8.0.2
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - crossws
+      - fastify
+      - ws
+
   '@orpc/openapi-client@1.16.2(@opentelemetry/api@1.10.0)':
     dependencies:
       '@orpc/client': 1.16.2(@opentelemetry/api@1.10.0)
@@ -7609,6 +7652,23 @@ snapshots:
       '@orpc/standard-server': 1.16.2(@opentelemetry/api@1.10.0)
     transitivePeerDependencies:
       - '@opentelemetry/api'
+
+  '@orpc/openapi@1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0)':
+    dependencies:
+      '@orpc/client': 1.16.2(@opentelemetry/api@1.10.0)
+      '@orpc/contract': 1.16.2(@opentelemetry/api@1.10.0)
+      '@orpc/interop': 1.16.2
+      '@orpc/openapi-client': 1.16.2(@opentelemetry/api@1.10.0)
+      '@orpc/server': 1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0)
+      '@orpc/shared': 1.16.2(@opentelemetry/api@1.10.0)
+      '@orpc/standard-server': 1.16.2(@opentelemetry/api@1.10.0)
+      json-schema-typed: 8.0.2
+      rou3: 0.7.12
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - crossws
+      - fastify
+      - ws
 
   '@orpc/server@1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0)':
     dependencies:
@@ -7688,6 +7748,22 @@ snapshots:
       '@tanstack/query-core': 5.107.1
     transitivePeerDependencies:
       - '@opentelemetry/api'
+
+  '@orpc/zod@1.16.2(@opentelemetry/api@1.10.0)(@orpc/contract@1.16.2(@opentelemetry/api@1.10.0))(@orpc/server@1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0))(ws@8.23.0)(zod@4.6.7)':
+    dependencies:
+      '@orpc/contract': 1.16.2(@opentelemetry/api@1.10.0)
+      '@orpc/json-schema': 1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0)
+      '@orpc/openapi': 1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0)
+      '@orpc/server': 1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0)
+      '@orpc/shared': 1.16.2(@opentelemetry/api@1.10.0)
+      escape-string-regexp: 5.0.0
+      wildcard-match: 5.1.6
+      zod: 4.6.7
+    transitivePeerDependencies:
+      - '@opentelemetry/api'
+      - crossws
+      - fastify
+      - ws
 
   '@oxc-parser/binding-android-arm-eabi@0.148.0':
     optional: true
@@ -9526,6 +9602,8 @@ snapshots:
 
   escape-string-regexp@4.0.0: {}
 
+  escape-string-regexp@5.0.0: {}
+
   eslint-plugin-react-hooks@7.1.1(eslint@10.15.0(jiti@2.7.0)):
     dependencies:
       '@babel/core': 7.29.13
@@ -10796,6 +10874,8 @@ snapshots:
 
   rope-sequence@1.3.4: {}
 
+  rou3@0.7.12: {}
+
   router@2.2.0:
     dependencies:
       debug: 4.4.3
@@ -11249,6 +11329,8 @@ snapshots:
       isexe: 2.0.0
 
   why-is-node-running@3.2.1: {}
+
+  wildcard-match@5.1.6: {}
 
   word-wrap@1.2.5: {}
 
