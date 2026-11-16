@@ -1,6 +1,6 @@
 import { type AnyProcedure, call, isProcedure, resolveContractProcedures } from '@orpc/server';
 import { describe, expect, it } from 'vite-plus/test';
-import { manifest } from '#/core.ts';
+import { manifest } from '#/manifest.ts';
 import { router } from '#/router.ts';
 import { memberOf } from '#/test/member.ts';
 
