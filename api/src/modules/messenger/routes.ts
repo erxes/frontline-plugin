@@ -1,123 +1,31 @@
 import { randomUUID } from 'node:crypto';
-import { bearerOf } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, asc, desc, eq, isNotNull, isNull } from 'drizzle-orm';
 import cors from 'cors';
 import express, { type Request, type Response } from 'express';
 import { z } from 'zod';
-import { withOrg } from '#/db/client.ts';
-import { conversations, integrations, messages } from '#/db/inbox.ts';
-import { Attachment } from '#/db/table.ts';
+import { BrowserInfo } from '#/db/messenger.ts';
 import { logger } from '#/logger.ts';
-import { customerFor, receive } from '../inbox/receive.ts';
-import { signalConversations } from '../inbox/shared.ts';
-import { MessengerConfig, messenger } from './adapter.ts';
-import { messengerOf, tokenOf, type Visitor, visitorOf } from './session.ts';
-import { subscribe } from './stream.ts';
+import { fail } from '../fail.ts';
+import { customerFor } from '../inbox/receive.ts';
+import { isOnlineAt, messenger } from './adapter.ts';
+import { messengerOf, tokenOf, visitorOf } from './session.ts';
+import { streaming, subscribe } from './stream.ts';
+import { asVisitor, messengerIntegration, threadRoutes, visitorConversations } from './threads.ts';
+import { identify, Identity, recordVisit, setOnline, supportersOf } from './visitors.ts';
 
-/** What a visitor sees of a message: never an internal note or who on the team is who. */
-const visitorMessage = {
-  id: messages.id,
-  conversationId: messages.conversationId,
-  content: messages.content,
-  attachments: messages.attachments,
-  fromVisitor: isNotNull(messages.customerId),
-  createdAt: messages.createdAt,
-};
-
-const Connect = z.object({ key: z.string().min(1).max(200), token: z.string().optional() });
-
-const Send = z.object({
-  conversationId: z.string().optional(),
-  content: z.string().trim().max(10_000).default(''),
-  attachments: z.array(Attachment).max(20).default([]),
+const Connect = z.object({
+  key: z.string().min(1).max(200),
+  token: z.string().optional(),
+  /** The visitor's email or phone, when they leave one. */
+  identity: Identity.optional(),
+  browser: BrowserInfo.optional(),
 });
-
-/** The integration the visitor writes to, if it is still an active messenger. */
-const messengerIntegration = (orgId: string, integrationId: string) =>
-  withOrg(orgId, async (tx) => {
-    const [row] = await tx
-      .select({ name: integrations.name, config: integrations.config })
-      .from(integrations)
-      .where(
-        and(
-          eq(integrations.id, integrationId),
-          eq(integrations.kind, messenger.kind),
-          eq(integrations.isActive, true),
-        ),
-      );
-
-    return row ? { name: row.name, ...MessengerConfig.parse(row.config) } : null;
-  });
-
-const visitorConversations = (visitor: Visitor) =>
-  withOrg(visitor.orgId, (tx) =>
-    tx
-      .select({
-        id: conversations.id,
-        status: conversations.status,
-        content: conversations.content,
-        lastMessageAt: conversations.lastMessageAt,
-      })
-      .from(conversations)
-      .where(
-        and(
-          eq(conversations.integrationId, visitor.integrationId),
-          eq(conversations.customerId, visitor.customerId),
-        ),
-      )
-      .orderBy(desc(conversations.lastMessageAt)),
-  );
-
-/** The visitor's conversation `id`, or NOT_FOUND. */
-const ownConversation = async (visitor: Visitor, id: string) => {
-  const own = await visitorConversations(visitor);
-
-  if (!own.some((conversation) => conversation.id === id))
-    throw new ORPCError('NOT_FOUND', { message: 'No such conversation' });
-};
-
-/** Answers a refused request with its status, or 500 for anything unexpected. */
-const fail = (res: Response, error: unknown) => {
-  if (error instanceof ORPCError) {
-    res.status(error.status).json({ message: error.message });
-
-    return;
-  }
-
-  if (error instanceof z.ZodError) {
-    res.status(400).json({ message: z.prettifyError(error) });
-
-    return;
-  }
-
-  logger.error({ err: error }, 'messenger request failed');
-  res.status(500).json({ message: 'Something went wrong' });
-};
-
-/** Runs `handler` for the visitor the bearer token names, answering 401 without one and the status of a refusal. */
-const asVisitor =
-  (handler: (visitor: Visitor, req: Request, res: Response) => Promise<void>) =>
-  async (req: Request, res: Response) => {
-    try {
-      const visitor = await visitorOf(bearerOf(req.headers.authorization) ?? undefined);
-
-      if (!visitor) {
-        res.status(401).json({ message: 'Connect to the messenger first' });
-
-        return;
-      }
-
-      await handler(visitor, req, res);
-    } catch (error) {
-      fail(res, error);
-    }
-  };
 
 /**
  * A visitor opens the messenger with its integration's key, and gets back a signed token that
- * names them. A token for this messenger keeps its visitor; without one, the visitor becomes a
- * new core lead, linked by a visitor id only the server makes.
+ * names them, the messenger's settings, its team and their conversations. A token for this
+ * messenger keeps its visitor; without one, the visitor becomes a new core lead, linked by a
+ * visitor id only the server makes. An email or phone makes them the core customer that has it.
  */
 const connect = async (req: Request, res: Response) => {
   try {
@@ -128,93 +36,56 @@ const connect = async (req: Request, res: Response) => {
     if (!found || !settings) throw new ORPCError('NOT_FOUND', { message: 'No such messenger' });
 
     const known = await visitorOf(input.token);
+    const kept = known?.orgId === found.orgId && known.integrationId === found.integrationId;
 
-    const visitor =
-      known?.orgId === found.orgId && known.integrationId === found.integrationId
-        ? known
-        : {
-            ...found,
-            customerId: await customerFor(found.orgId, {
-              source: messenger.kind,
-              externalId: randomUUID(),
-              firstName: 'Visitor',
-            }),
-          };
+    const anonymous = kept
+      ? known
+      : {
+          ...found,
+          identified: false,
+          customerId: await customerFor(found.orgId, {
+            source: messenger.kind,
+            externalId: randomUUID(),
+            firstName: 'Visitor',
+          }),
+        };
+
+    const visitor = input.identity ? await identify(anonymous, input.identity) : anonymous;
+
+    await recordVisit(visitor, { browser: input.browser, remoteAddress: req.ip }, true);
+
+    const { supporterIds, ...shown } = settings;
 
     res.json({
-      token: known === visitor ? input.token : await tokenOf(visitor),
-      messenger: settings,
+      token: visitor === known ? input.token : await tokenOf(visitor),
+      identified: visitor.identified,
+      messenger: {
+        ...shown,
+        isOnline: isOnlineAt(settings, new Date()),
+        supporters: await supportersOf(found.orgId, supporterIds),
+      },
       conversations: await visitorConversations(visitor),
     });
   } catch (error) {
-    fail(res, error);
+    fail(res, error, 'messenger connect');
   }
 };
 
-const Params = z.object({ id: z.string() });
-
-/** A conversation's messages, oldest first, without internal notes. */
-const conversationMessages = asVisitor(async (visitor, req, res) => {
-  const { id } = Params.parse(req.params);
-
-  await ownConversation(visitor, id);
-
-  res.json(
-    await withOrg(visitor.orgId, (tx) =>
-      tx
-        .select(visitorMessage)
-        .from(messages)
-        .where(and(eq(messages.conversationId, id), eq(messages.internal, false)))
-        .orderBy(asc(messages.createdAt), asc(messages.id)),
-    ),
+/** The page and browser the visitor is on now, as the widget reports each page view. */
+const browserInfo = asVisitor(async (visitor, req, res) => {
+  await recordVisit(
+    visitor,
+    { browser: BrowserInfo.parse(req.body), remoteAddress: req.ip },
+    false,
   );
-});
-
-/** The visitor writes, in a conversation of theirs or a new one. */
-const send = asVisitor(async (visitor, req, res) => {
-  const input = Send.parse(req.body);
-
-  if (!input.content && input.attachments.length === 0)
-    throw new ORPCError('BAD_REQUEST', { message: 'Write a message or attach a file' });
-
-  const message = await receive(visitor.orgId, { ...visitor, ...input });
-
-  res.status(201).json({
-    id: message.id,
-    conversationId: message.conversationId,
-    content: message.content,
-    attachments: message.attachments,
-    fromVisitor: true,
-    createdAt: message.createdAt,
-  });
-});
-
-/** The visitor saw the team's replies so far. */
-const markRead = asVisitor(async (visitor, req, res) => {
-  const { id } = Params.parse(req.params);
-
-  await ownConversation(visitor, id);
-  await withOrg(visitor.orgId, async (tx) => {
-    await tx
-      .update(messages)
-      .set({ customerReadAt: new Date() })
-      .where(
-        and(
-          eq(messages.conversationId, id),
-          isNull(messages.customerReadAt),
-          isNull(messages.customerId),
-          eq(messages.internal, false),
-        ),
-      );
-    await signalConversations(tx, visitor.orgId, []);
-  });
 
   res.status(204).end();
 });
 
 /**
- * Server-sent events: a `changed` event for each conversation of the visitor that changes, so
- * the messenger refetches it. An EventSource can't send headers, so the token is in the address.
+ * Server-sent events: `changed` for each conversation of the visitor that changes, so the
+ * messenger refetches it, and `typing` while a member writes in one. The visitor reads as online
+ * while a stream is open. An EventSource can't send headers, so the token is in the address.
  */
 const stream = async (req: Request, res: Response) => {
   try {
@@ -226,9 +97,11 @@ const stream = async (req: Request, res: Response) => {
       return;
     }
 
-    const stop = await subscribe(visitor.orgId, visitor.customerId, (conversationId) => {
-      res.write(`event: changed\ndata: ${JSON.stringify({ conversationId })}\n\n`);
+    const stop = await subscribe(visitor.orgId, visitor.customerId, ({ conversationId, event }) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify({ conversationId })}\n\n`);
     });
+
+    await setOnline(visitor, true);
 
     res.writeHead(200, {
       'content-type': 'text/event-stream',
@@ -243,9 +116,14 @@ const stream = async (req: Request, res: Response) => {
     req.on('close', () => {
       clearInterval(beat);
       stop();
+
+      if (!streaming(visitor.orgId, visitor.customerId))
+        void setOnline(visitor, false).catch((error: unknown) => {
+          logger.error({ err: error, customerId: visitor.customerId }, 'visitor offline failed');
+        });
     });
   } catch (error) {
-    fail(res, error);
+    fail(res, error, 'messenger stream');
   }
 };
 
@@ -257,15 +135,13 @@ export const messengerRoutes = () => {
   router.use(cors({ origin: '*', maxAge: 600 }));
   router.use(express.json({ limit: '64kb' }));
   router.post('/connect', connect);
-  router.get(
-    '/conversations',
-    asVisitor(async (visitor, _req, res) => {
-      res.json(await visitorConversations(visitor));
-    }),
-  );
-  router.get('/conversations/:id/messages', conversationMessages);
-  router.post('/messages', send);
-  router.post('/conversations/:id/read', markRead);
+  router.post('/browser', browserInfo);
+  router.get('/conversations', threadRoutes.conversations);
+  router.get('/conversations/:id/messages', threadRoutes.conversationMessages);
+  router.post('/messages', threadRoutes.send);
+  router.post('/conversations/:id/read', threadRoutes.markRead);
+  router.post('/conversations/:id/typing', threadRoutes.typing);
+  router.post('/conversations/:id/person', threadRoutes.askForPerson);
   router.get('/stream', stream);
 
   return router;

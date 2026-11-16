@@ -86,6 +86,22 @@ const list = reads(PERMISSIONS.inboxView)
     return { conversations: items, nextCursor, totalCount: total?.value ?? 0 };
   });
 
+/** How many of the caller's open conversations they haven't read since the customer last wrote. */
+const unreadCount = reads(PERMISSIONS.inboxView)
+  .input(z.object({}))
+  .output(z.object({ count: z.number() }))
+  .handler(async ({ context: { tx, member } }) => {
+    const [unread] = await tx
+      .select({ count: count() })
+      .from(conversations)
+      .leftJoin(channelMembers, membership(member, conversations.channelId))
+      .where(
+        and(seenBy(member), ne(conversations.status, 'resolved'), sql`not ${readSql(member)}`),
+      );
+
+    return { count: unread?.count ?? 0 };
+  });
+
 /** One conversation, for the members of its channel. */
 const get = reads(PERMISSIONS.inboxView)
   .input(z.object({ id: z.string() }))
@@ -256,4 +272,12 @@ const setTags = writes(PERMISSIONS.inboxView)
     return conversationById(tx, member, input.id);
   });
 
-export const conversationProcedures = { list, get, assign, setStatus, markRead, setTags };
+export const conversationProcedures = {
+  list,
+  unreadCount,
+  get,
+  assign,
+  setStatus,
+  markRead,
+  setTags,
+};

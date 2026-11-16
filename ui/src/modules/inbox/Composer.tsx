@@ -2,7 +2,7 @@ import { IconLock, IconSend } from '@tabler/icons-react';
 import { Button, cn, Label, Switch, Textarea } from 'erxes-ui';
 import { type SubmitEvent, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSendMessage } from './queries.ts';
+import { useSendMessage, useSendTyping } from './queries.ts';
 
 /**
  * The reply box under the thread: a reply goes to the customer, an internal note stays with the
@@ -13,6 +13,7 @@ export const Composer = ({ conversationId }: { conversationId: string }) => {
   const [content, setContent] = useState('');
   const [internal, setInternal] = useState(false);
   const send = useSendMessage();
+  const sendTyping = useSendTyping(conversationId);
   const noteId = useId();
 
   const submit = (event?: SubmitEvent<HTMLFormElement>) => {
@@ -36,7 +37,12 @@ export const Composer = ({ conversationId }: { conversationId: string }) => {
             : t('reply-placeholder', 'Write a reply')
         }
         value={content}
-        onChange={(event) => setContent(event.target.value)}
+        onChange={(event) => {
+          setContent(event.target.value);
+
+          // A note stays with the team, so the visitor doesn't see it being written.
+          if (!internal) sendTyping();
+        }}
         onKeyDown={(event) => {
           if (event.key === 'Enter' && (event.metaKey || event.ctrlKey)) submit();
         }}

@@ -47,6 +47,21 @@ export const CONVERSATION_EVENTS = {
   statusChanged: { type: 'frontline.conversation.status_changed', label: 'Conversation status' },
 } as const;
 
+/**
+ * A customer's message through any integration, published for automations with no subject or
+ * record, so it makes no timeline entry: every message on the Activity tab would bury the rest.
+ */
+export const MESSAGE_RECEIVED_EVENT = {
+  type: 'frontline.conversation.message_received',
+  label: 'Customer sent a message',
+} as const;
+
+/** What automations can do in a conversation (`modules/inbox/automations.ts`). */
+export const INBOX_ACTIONS = {
+  reply: 'frontline.conversation.reply',
+  handOff: 'frontline.conversation.hand_off',
+} as const;
+
 /** How often core tries a reply before the inbox marks it failed. */
 export const SEND_ATTEMPTS = 5;
 
@@ -134,8 +149,8 @@ export const manifest = {
   ui: { remote: 'frontline_ui', entry: config.uiEntryUrl },
   api: { url: `${config.publicUrl}/api` },
   // Form senders, messenger visitors and provider senders become core customers; members hear
-  // of assignments.
-  scopes: ['customers:read', 'customers:write', 'notifications:write'],
+  // of assignments; a messenger shows its team's names and pictures.
+  scopes: ['customers:read', 'customers:write', 'notifications:write', 'users:read'],
   permissions: [
     {
       action: PERMISSIONS.channelView,
@@ -191,7 +206,8 @@ export const manifest = {
     { kind: INBOX_NOTIFICATIONS.mentioned, label: 'You are mentioned in a conversation' },
   ],
   jobs: Object.values(JOBS),
-  // What automations can start on.
+  // What automations can start on: ticket and form events, a conversation's events and each
+  // customer message.
   events: [
     { type: TICKET_EVENTS.created.type, label: TICKET_EVENTS.created.label },
     { type: TICKET_EVENTS.moved.type, label: 'Ticket status changed' },
@@ -202,6 +218,12 @@ export const manifest = {
       description: 'A visitor sent a form; the customer is who sent it',
       subject: 'customer',
     },
+    ...Object.values(CONVERSATION_EVENTS).map(({ type, label }) => ({
+      type,
+      label,
+      subject: 'customer' as const,
+    })),
+    MESSAGE_RECEIVED_EVENT,
   ],
   timelines: [
     { type: TICKET_TIMELINE, label: 'Ticket', permission: PERMISSIONS.channelView },
@@ -214,5 +236,21 @@ export const manifest = {
     ...activityTypes(FORM_EVENTS, 'IconFileText'),
     ...activityTypes(SURVEY_EVENTS, 'IconChecklist'),
     ...activityTypes(CONVERSATION_EVENTS, 'IconMessage'),
+  ],
+  actions: [
+    {
+      type: INBOX_ACTIONS.reply,
+      label: 'Reply in the conversation',
+      description: 'The bot answers the customer, unless a person has taken the conversation over',
+      subject: 'customer',
+      fields: [{ key: 'content', label: 'Message', type: 'longtext', required: true }],
+    },
+    {
+      type: INBOX_ACTIONS.handOff,
+      label: 'Hand off to a person',
+      description: 'Stops automated replies, tells the customer and can assign a member',
+      subject: 'customer',
+      fields: [{ key: 'assigneeIds', label: 'Assign to', type: 'members', required: false }],
+    },
   ],
 } satisfies PluginManifest;

@@ -16,6 +16,9 @@ import { responseTemplateProcedures } from '#/modules/responseTemplates/response
 import { conversationProcedures } from '#/modules/inbox/conversations.ts';
 import { integrationProcedures } from '#/modules/inbox/integrations.ts';
 import { messageProcedures } from '#/modules/inbox/messages.ts';
+import { operatorProcedures } from '#/modules/inbox/operator.ts';
+import { presenceProcedures } from '#/modules/inbox/presence.ts';
+import { messengerProcedures } from '#/modules/messenger/settings.ts';
 import { settingsProcedures } from '#/modules/settings/settings.ts';
 import { surveyStatusProcedures } from '#/modules/surveys/status.ts';
 import { surveyProcedures } from '#/modules/surveys/surveys.ts';
@@ -43,8 +46,13 @@ export const router = {
     submissions: submissionProcedures,
   },
   surveys: { ...surveyProcedures, ...surveyStatusProcedures },
-  integrations: integrationProcedures,
-  conversations: { ...conversationProcedures, messages: messageProcedures },
+  integrations: { ...integrationProcedures, messenger: messengerProcedures },
+  conversations: {
+    ...conversationProcedures,
+    ...operatorProcedures,
+    ...presenceProcedures,
+    messages: messageProcedures,
+  },
   knowledgebase: {
     topics: topicProcedures,
     categories: categoryProcedures,

@@ -40,6 +40,14 @@ const visitorOf = async (request: APIRequestContext, key: string) => {
 
       return Sent.parse(await sent.json()).conversationId;
     },
+    /** Posts to one of the conversation's routes: `typing`, `person` or `read`. */
+    tell: async (conversationId: string, route: string) => {
+      const told = await request.post(`${MESSENGER}/conversations/${conversationId}/${route}`, {
+        headers,
+      });
+
+      expect(told.ok()).toBe(true);
+    },
     read: async (conversationId: string) => {
       const listed = await request.get(`${MESSENGER}/conversations/${conversationId}/messages`, {
         headers,
@@ -168,6 +176,112 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await expect(row).toBeVisible();
   await page.getByRole('button', { name: 'Reopen', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Resolve', exact: true })).toBeVisible();
+});
+
+test('an admin sets up the messenger on its settings page and visitors get it', async ({
+  page,
+  request,
+  newMember,
+}) => {
+  const channel = await createChannel(page);
+  const title = `Hello from ${unique()}`;
+
+  await page.goto(INBOX);
+
+  const key = await addMessenger(page, channel);
+
+  await recordPanel(page).getByRole('button', { name: 'Integration actions' }).click();
+  await page.getByRole('option', { name: 'Messenger settings' }).click();
+  await expect(page).toHaveURL(/\/frontline\/inbox\/messengers\/[\w-]+$/);
+  await expect(page.getByRole('textbox', { name: 'Welcome message' })).toHaveValue(
+    'Hi, how can we help?',
+  );
+  await expectAccessible(page);
+
+  // Each change shows in the preview before it saves.
+  const preview = page.getByLabel('Preview');
+
+  await page.getByRole('textbox', { name: 'Greeting title' }).fill(title);
+  await expect(preview).toContainText(title);
+  await page.getByRole('button', { name: 'Teal', exact: true }).click();
+  await pick(page, page.getByRole('combobox', { name: 'Set availability' }), 'By online hours');
+  await page.getByRole('button', { name: 'Add hours' }).click();
+  await page.getByRole('switch', { name: 'Ask for an email or phone' }).click();
+  await page.getByRole('textbox', { name: 'Bot greeting' }).fill('I am the bot. Ask me anything.');
+  await expect(preview).toContainText('I am the bot.');
+  await expectAccessible(page);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Messenger saved')).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: 'Greeting title' })).toHaveValue(title);
+  await expect(page.getByRole('combobox', { name: 'Set availability' })).toContainText(
+    'By online hours',
+  );
+
+  const connected = await request.post(`${MESSENGER}/connect`, { data: { key } });
+
+  expect(await connected.json()).toMatchObject({
+    messenger: { greetingTitle: title, color: '#0D9488', requireAuth: true },
+  });
+
+  // A member outside the messenger's channel doesn't find it.
+  const outsider = await newMember(['frontline.channel.view']);
+
+  await outsider.page.goto(new URL(page.url()).pathname);
+  await expect(outsider.page.getByRole('alert')).toContainText('No such integration');
+  await expectAccessible(outsider.page);
+});
+
+test('a member takes over from the bot, sees the visitor typing and edits a reply', async ({
+  page,
+  request,
+}) => {
+  const channel = await createChannel(page);
+  const question = `Where is parcel ${unique()}?`;
+
+  await page.goto(INBOX);
+
+  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const conversationId = await visitor.write(question);
+
+  await page.goto(INBOX);
+  await expect(page.getByLabel(/^\d+ unread$/)).toBeVisible();
+  await page
+    .getByRole('list', { name: 'Conversations' })
+    .getByRole('button', { name: new RegExp(question.replace('?', '\\?')) })
+    .click();
+
+  const thread = page.getByRole('list', { name: 'Messages' });
+  const presence = page.getByLabel('Visitor presence');
+
+  await expect(presence).toContainText('1 visit');
+  await visitor.tell(conversationId, 'typing');
+  await expect(presence).toContainText('Typing…');
+
+  // The visitor asks for a person: the bot says one will answer, and the member can hand it back.
+  await visitor.tell(conversationId, 'person');
+  await expect(thread).toContainText('A person from the team will answer you here.');
+  await expect(thread.getByRole('listitem', { name: 'Message' }).last()).toContainText('Bot');
+  await page.getByRole('button', { name: 'Let the bot answer' }).click();
+  await page.getByRole('button', { name: 'Take over' }).click();
+  await expect(page.getByRole('button', { name: 'Let the bot answer' })).toBeVisible();
+  await expectAccessible(page);
+
+  // The member fixes a typo in their reply, and the visitor reads the fixed one.
+  await page.getByRole('textbox', { name: 'Reply' }).fill('It ships tomorow.');
+  await page.getByRole('button', { name: 'Send' }).click();
+
+  const reply = thread.getByRole('listitem', { name: 'Message' }).filter({ hasText: 'tomorow' });
+
+  await reply.hover();
+  await reply.getByRole('button', { name: 'Edit message' }).click();
+  await reply.getByRole('textbox', { name: 'Edit message' }).fill('It ships tomorrow.');
+  await reply.getByRole('button', { name: 'Save' }).click();
+  await expect(thread).toContainText('It ships tomorrow.');
+  await expect(thread).toContainText('Edited');
+  await expectAccessible(page);
+  expect(await visitor.read(conversationId)).toContain('It ships tomorrow.');
 });
 
 test('a member without the inbox permission is refused the inbox', async ({ newMember }) => {

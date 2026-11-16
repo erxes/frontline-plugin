@@ -1,10 +1,10 @@
 import { sql } from 'drizzle-orm';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { z } from 'zod';
 import type * as CoreModule from '#/core.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
-import { createApp } from '#/server.ts';
+import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 
 // Tests never reach core: the customers a visitor becomes and the notifications members get
@@ -38,24 +38,7 @@ vi.mock('#/core.ts', async (importOriginal) => {
   };
 });
 
-let base = '';
-let server: ReturnType<ReturnType<typeof createApp>['listen']>;
-
-beforeAll(async () => {
-  await new Promise<void>((resolve) => {
-    server = createApp().listen(0, () => resolve());
-  });
-
-  const address = server.address();
-
-  if (!address || typeof address === 'string') throw new Error('not listening on a port');
-
-  base = `http://127.0.0.1:${address.port}/api/public/messenger`;
-});
-
-afterAll(() => {
-  server.close();
-});
+const { post, get, url } = serve('/api/public/messenger');
 
 const agent = [PERMISSIONS.inboxView, PERMISSIONS.channelView];
 
@@ -82,25 +65,6 @@ const setUp = async (orgId: string) => {
     token: Connected.parse(connected.body).token,
     connected,
   };
-};
-
-const post = async (path: string, body: unknown, token?: string) => {
-  const response = await fetch(`${base}${path}`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-    },
-    body: JSON.stringify(body),
-  });
-
-  return { status: response.status, body: response.status === 204 ? {} : await response.json() };
-};
-
-const get = async (path: string, token: string) => {
-  const response = await fetch(`${base}${path}`, { headers: { authorization: `Bearer ${token}` } });
-
-  return { status: response.status, body: await response.json() };
 };
 
 /** What `/connect` answers, as far as these tests read it. */
@@ -321,7 +285,7 @@ describe('inbox', () => {
     const id = conversation?.id ?? '';
     const controller = new AbortController();
 
-    const response = await fetch(`${base}/stream?token=${encodeURIComponent(token)}`, {
+    const response = await fetch(url(`/stream?token=${encodeURIComponent(token)}`), {
       signal: controller.signal,
     });
 

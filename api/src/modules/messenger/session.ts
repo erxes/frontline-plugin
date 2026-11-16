@@ -15,9 +15,11 @@ export const Visitor = z.object({
   orgId: z.string(),
   integrationId: z.string(),
   customerId: z.string(),
+  /** Whether the visitor left an email or phone, which a messenger with `requireAuth` asks for. */
+  identified: z.boolean().default(false),
 });
 
-export type Visitor = z.infer<typeof Visitor>;
+export type Visitor = z.output<typeof Visitor>;
 
 /** A signed token naming the visitor, which the messenger keeps and sends back. */
 export const tokenOf = (visitor: Visitor) =>

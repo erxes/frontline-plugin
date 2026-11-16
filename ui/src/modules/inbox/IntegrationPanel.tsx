@@ -6,6 +6,7 @@ import {
   IconLetterCase,
   IconMessage,
   IconPlayerPause,
+  IconSettings,
   IconTrash,
   IconUser,
 } from '@tabler/icons-react';
@@ -24,6 +25,8 @@ import {
   useConfirm,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import { messengerPath } from '@/messenger/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
@@ -38,27 +41,33 @@ export const IntegrationTitle = ({ contentId }: TRecordSlotProps) => {
   return <span className="truncate">{integration.data?.name ?? integration.error?.message}</span>;
 };
 
-/** The header's menu, for its channel's admins: delete it with its conversations. */
+/**
+ * The header's menu: a messenger's settings page, and for its channel's admins, deleting it with
+ * its conversations.
+ */
 export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
-  const integration = useIntegration(contentId);
+  const navigate = useNavigate();
+  const integration = useIntegration(contentId).data;
   const { confirm } = useConfirm();
   const remove = useMutation(orpc.integrations.remove.mutationOptions(useIntegrationChange()));
 
-  if (!integration.data?.canManage) return null;
+  if (!integration) return null;
 
-  return (
-    <ActionsMenu
-      trigger={
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t('integration-menu', 'Integration actions')}
-        >
-          <IconDots />
-        </Button>
-      }
-      actions={[
+  const settings =
+    integration.kind === 'messenger'
+      ? [
+          {
+            value: 'settings',
+            icon: <IconSettings />,
+            label: t('messenger-settings', 'Messenger settings'),
+            onSelect: () => void navigate(messengerPath(integration.id)),
+          },
+        ]
+      : [];
+
+  const manage = integration.canManage
+    ? [
         {
           value: 'delete',
           icon: <IconTrash />,
@@ -71,7 +80,23 @@ export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
               ),
             }).then(() => remove.mutate({ id: contentId })),
         },
-      ]}
+      ]
+    : [];
+
+  if (settings.length + manage.length === 0) return null;
+
+  return (
+    <ActionsMenu
+      trigger={
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t('integration-menu', 'Integration actions')}
+        >
+          <IconDots />
+        </Button>
+      }
+      actions={[...settings, ...manage]}
     />
   );
 };

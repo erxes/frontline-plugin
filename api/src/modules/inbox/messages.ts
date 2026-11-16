@@ -40,17 +40,26 @@ const messageFor = async (tx: Tx, member: PluginMember, id: string) => {
 
 /**
  * A conversation's messages, newest first, `limit` at a time; the pinned ones only with `pinned`.
+ * `canEdit` marks the caller's own.
  */
 const list = reads(PERMISSIONS.inboxView)
   .input(z.object({ conversationId: z.string(), pinned: z.boolean().default(false), ...PageInput }))
-  .output(z.object({ messages: z.array(Message), nextCursor: z.string().nullable() }))
+  .output(
+    z.object({
+      messages: z.array(Message.extend({ canEdit: z.boolean() })),
+      nextCursor: z.string().nullable(),
+    }),
+  )
   .handler(async ({ input, context: { tx, member } }) => {
     await conversationById(tx, member, input.conversationId);
 
     const order = orderOf(messages);
 
     const rows = await tx
-      .select(messageColumns)
+      .select({
+        ...messageColumns,
+        canEdit: sql<boolean>`coalesce(${messages.userId} = ${member.userId}, false)`,
+      })
       .from(messages)
       .where(
         and(
