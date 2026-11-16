@@ -6,6 +6,17 @@ services:
     environment:
       CORE_PLUGIN_KEYS: frontline:${PLUGIN_SECRET:?set PLUGIN_SECRET}
 
+  # The manifest's api.url is PUBLIC_URL, localhost:3399, where the browser and
+  # the specs reach the plugin. Core posts events and jobs there from its own
+  # container, so this proxy, in core's network namespace, forwards its
+  # localhost:3399 to the plugin.
+  core-to-plugin:
+    image: alpine/socat:1.8.0.3
+    network_mode: service:api
+    command: tcp-listen:3399,fork,reuseaddr tcp-connect:frontline:3399
+    depends_on:
+      api: { condition: service_healthy }
+
   frontline:
     image: ${FRONTLINE_IMAGE:-frontline-plugin:ci}
     environment:
@@ -15,12 +26,10 @@ services:
       PLUGIN_SECRET: ${PLUGIN_SECRET:?set PLUGIN_SECRET}
       # A throwaway stack with synthetic data: a fixed key is enough.
       SECRETS_KEY: ZTJlLXNlY3JldHMta2V5LTMyLWJ5dGVzLWxvbmchISE=
-      # The manifest's api.url and UI entry. Core posts events and jobs to it from
-      # its own container, where localhost is core, so it names this service; the
-      # browser maps the name to 127.0.0.1 (e2e/playwright.config.ts).
-      PUBLIC_URL: http://frontline:3399
+      PUBLIC_URL: http://localhost:3399
       CORE_UI_URL: http://localhost:8080
     ports:
       - '3399:3399'
     depends_on:
       api: { condition: service_healthy }
+      core-to-plugin: { condition: service_started }
