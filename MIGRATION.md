@@ -160,20 +160,20 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] permission `ticketStatusesManage` (ticket) → channel admins, or `frontline.channel.manage`. Decision: the old grant ignored the channel; a pipeline and its statuses now follow their channel's rights `frontline_api/src/meta/permissions.ts:163`
 - [x] permission `ticketsExportManage` (ticket) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:168`. (filed https://github.com/erxes/erxes/issues/10582)
 - [x] permission `ticketsImportManage` (ticket) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:173`. (filed https://github.com/erxes/erxes/issues/10582)
-- [ ] permission `showForms` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:187`
-- [ ] permission `formsAdd` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:193`
-- [ ] permission `formsEdit` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:194`
-- [ ] permission `formsRemove` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:195`
-- [ ] permission `formsDuplicate` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:200`
-- [ ] permission `formsToggleStatus` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:205`
-- [ ] permission `showFormSubmissions` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:210`
-- [ ] permission `formSubmissionsRemove` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:216`
+- [x] permission `showForms` (form) → `frontline.channel.view` and membership of the form's channel. Decision: forms follow their channel, like tickets `frontline_api/src/meta/permissions.ts:187`
+- [x] permission `formsAdd` (form) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:193`
+- [x] permission `formsEdit` (form) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:194`
+- [x] permission `formsRemove` (form) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:195`
+- [x] permission `formsDuplicate` (form) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:200`
+- [x] permission `formsToggleStatus` (form) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:205`
+- [x] permission `showFormSubmissions` (form) → `frontline.channel.view` and membership of the form's channel `frontline_api/src/meta/permissions.ts:210`
+- [x] permission `formSubmissionsRemove` (form) → `frontline.channel.view` and membership of the form's channel. Decision: a channel member corrects and deletes its submissions, as they archive its tickets `frontline_api/src/meta/permissions.ts:216`
 - [ ] permission `formSubmissionsExportManage` (form) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:221`
-- [ ] permission `showSurveys` (survey) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:235`
-- [ ] permission `surveyAdd` (survey) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:241`
-- [ ] permission `surveyEdit` (survey) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:246`
-- [ ] permission `surveyRemove` (survey) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:251`
-- [ ] permission `surveyToggleStatus` (survey) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:256`
+- [x] permission `showSurveys` (survey) → `frontline.channel.view` and membership of the survey's channel `frontline_api/src/meta/permissions.ts:235`
+- [x] permission `surveyAdd` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:241`
+- [x] permission `surveyEdit` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:246`
+- [x] permission `surveyRemove` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:251`
+- [x] permission `surveyToggleStatus` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:256`
 - [ ] permission `surveySendToConversation` (survey) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:261`
 - [ ] permission `showCallReports` (callReport) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:275`
 - [ ] permission `showAllCallReports` (callReport) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:281`
@@ -190,7 +190,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] default role `frontline:admin` → sdk `manifest.permissionSets` (a set of its permissions an owner adds to any role; members keep one role) `frontline_api/src/meta/permissions.ts:373`
 - [ ] default role `frontline:user` → sdk `manifest.permissionSets` (a set of its permissions an owner adds to any role; members keep one role) `frontline_api/src/meta/permissions.ts:483`
 - [ ] default role `frontline:viewer` → sdk `manifest.permissionSets` (a set of its permissions an owner adds to any role; members keep one role) `frontline_api/src/meta/permissions.ts:534`
-- [ ] automation trigger `Form submitted` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/form/meta/automation/constants.ts:56`
+- [x] automation trigger `Form submitted` → `frontline.form.submitted` in `manifest.events`, published in the submission's transaction `frontline_api/src/modules/form/meta/automation/constants.ts:56`
 - [ ] automation action `Create form link` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/form/meta/automation/constants.ts:43`
 - [ ] automation trigger `Conversation event` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:101`
 - [ ] automation trigger `Erxes Messenger Message` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:113`
@@ -475,106 +475,106 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Routes
 
-- [x] GET `/customdomain/resolve` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/customdomain/routes.ts:11`. GET `/api/public/custom-domains/resolve?host=`, through `frontline_public_addresses` (listed in `tools/no-org-id.sql`)
+- [x] GET `/customdomain/resolve` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/customdomain/routes.ts:11`. GET `/api/public/custom-domains/resolve?host=`, through `frontline_public_keys` (listed in `tools/no-org-id.sql`)
 
 ## form
 
 ### Tables
 
-- [ ] `frontline_form_fields` from collection `frontline_form_fields` (37 fields, draft `frontlineFormFields` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/fields.ts:137`
-- [ ] `frontline_forms` from collection `frontline_forms` (20 fields, draft `frontlineForms` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:318`
-- [ ] `frontline_form_submissions` from collection `frontline_form_submissions` (13 fields, draft `frontlineFormSubmissions` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:114`
+- [x] `frontline_form_fields` from collection `frontline_form_fields` (37 fields, draft `frontlineFormFields` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/fields.ts:137`. Only forms use it now, so the property fields (`groupId`, `isVisible`, `showInCard`, `productCategoryId` and the rest) are gone; `validation` and `regexValidation` fold into `validator`, a preset or an RE2 pattern; customer fields are types such as `core:customer:email`
+- [x] `frontline_forms` from collection `frontline_forms` (20 fields, draft `frontlineForms` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:318`. `leadData` flattens into columns; its email, redirect, CSS, template and `rules` settings are gone (DECISIONS.md, Forms)
+- [x] `frontline_form_submissions` from collection `frontline_form_submissions` (13 fields, draft `frontlineFormSubmissions` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:114`. One row per submission, with one `frontline_form_answers` row per answered field; `aboutRecord` is `referenceType` and `referenceId`
 - [ ] `formSchema.departmentIds` → plugin-owned: ids in `frontline_teams`, unchanged by the import `frontline_api/src/modules/form/db/definitions/forms.ts:318`
 
 ### Procedures
 
-- [ ] query `frontlineFields` → procedure `frontlineFields.list` (returns `FrontlineFieldListResponse`) `frontline_api/src/modules/form/graphql/schema/field.ts:167`
-- [ ] query `frontlineFormFieldConversionCheck` → procedure `frontlineFormFieldConversionChecks.get` (returns `FrontlineFormConversionCheck!`) `frontline_api/src/modules/form/graphql/schema/field.ts:167`
-- [ ] mutation `frontlineFieldsBulkAction` → procedure `form.frontlineFieldsBulkAction` (returns `[FrontlineField]`) `frontline_api/src/modules/form/graphql/schema/field.ts:172`
-- [ ] query `formDetail` → procedure `forms.get` (returns `Form`) `frontline_api/src/modules/form/graphql/schema/form.ts:175`
-- [ ] query `forms` → procedure `forms.list` (returns `FormListResponse`) `frontline_api/src/modules/form/graphql/schema/form.ts:175`
-- [ ] query `formsMain` → procedure `formsMains.get` (returns `FormListResponse`) `frontline_api/src/modules/form/graphql/schema/form.ts:175`
-- [ ] query `formsTotalCount` → procedure `forms.list` (returns `FormsTotalCount`) `frontline_api/src/modules/form/graphql/schema/form.ts:175`
-- [ ] query `formSubmissions` → procedure `formSubmissions.list` (returns `SubmissionListResponse`) `frontline_api/src/modules/form/graphql/schema/form.ts:175`
-- [ ] query `formSubmissionDetail` → procedure `formSubmissions.get` (returns `Submission`) `frontline_api/src/modules/form/graphql/schema/form.ts:175`
-- [ ] query `cpForms` → **drop**: the new core has no client portal `frontline_api/src/modules/form/graphql/schema/form.ts:175`
-- [ ] query `cpFormDetail` → **drop**: the new core has no client portal `frontline_api/src/modules/form/graphql/schema/form.ts:175`
-- [ ] mutation `formsAdd` → procedure `forms.create` (returns `Form`) `frontline_api/src/modules/form/graphql/schema/form.ts:188`
-- [ ] mutation `formsEdit` → procedure `forms.update` (returns `Form`) `frontline_api/src/modules/form/graphql/schema/form.ts:188`
-- [ ] mutation `formsRemove` → procedure `forms.remove` (returns `[String]`) `frontline_api/src/modules/form/graphql/schema/form.ts:188`
-- [ ] mutation `formsToggleStatus` → procedure `form.formsToggleStatus` (returns `Boolean`) `frontline_api/src/modules/form/graphql/schema/form.ts:188`
-- [ ] mutation `formsDuplicate` → procedure `form.formsDuplicate` (returns `Form`) `frontline_api/src/modules/form/graphql/schema/form.ts:188`
-- [ ] mutation `formSubmissionsSave` → procedure `form.formSubmissionsSave` (returns `Boolean`) `frontline_api/src/modules/form/graphql/schema/form.ts:188`
-- [ ] mutation `formSubmissionsRemove` → procedure `formSubmissions.remove` (returns `JSON`) `frontline_api/src/modules/form/graphql/schema/form.ts:188`
-- [ ] mutation `formSubmissionsEdit` → procedure `formSubmissions.update` (returns `Submission`) `frontline_api/src/modules/form/graphql/schema/form.ts:188`
-- [ ] mutation `widgetsLeadConnect` → procedure `form.widgetsLeadConnect` (returns `FormConnectResponse`) `frontline_api/src/modules/form/graphql/schema/form.ts:188`
-- [ ] mutation `widgetsSaveLead` → procedure `form.widgetsSaveLead` (returns `SaveFormResponse`) `frontline_api/src/modules/form/graphql/schema/form.ts:188`
-- [ ] mutation `cpWidgetsSaveLead` → **drop**: the new core has no client portal `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] query `frontlineFields` → `forms.fields.list` `frontline_api/src/modules/form/graphql/schema/field.ts:167`
+- [x] query `frontlineFormFieldConversionCheck` → **drop**. Decision: an answer outlives its field, so changing or removing a field needs no check `frontline_api/src/modules/form/graphql/schema/field.ts:167`
+- [x] mutation `frontlineFieldsBulkAction` → `forms.fields.add`, `update`, `remove`, `arrange` and `removeStep`, one change at a time `frontline_api/src/modules/form/graphql/schema/field.ts:172`
+- [x] query `formDetail` → `forms.get` `frontline_api/src/modules/form/graphql/schema/form.ts:175`
+- [x] query `forms` → `forms.list` `frontline_api/src/modules/form/graphql/schema/form.ts:175`
+- [x] query `formsMain` → `forms.list` `frontline_api/src/modules/form/graphql/schema/form.ts:175`
+- [x] query `formsTotalCount` → `forms.list` `frontline_api/src/modules/form/graphql/schema/form.ts:175`
+- [x] query `formSubmissions` → `forms.submissions.list`, filterable by each answer `frontline_api/src/modules/form/graphql/schema/form.ts:175`
+- [x] query `formSubmissionDetail` → `forms.submissions.get` `frontline_api/src/modules/form/graphql/schema/form.ts:175`
+- [x] query `cpForms` → **drop**: the new core has no client portal `frontline_api/src/modules/form/graphql/schema/form.ts:175`
+- [x] query `cpFormDetail` → **drop**: the new core has no client portal `frontline_api/src/modules/form/graphql/schema/form.ts:175`
+- [x] mutation `formsAdd` → `forms.create` `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] mutation `formsEdit` → `forms.update` `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] mutation `formsRemove` → `forms.remove` `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] mutation `formsToggleStatus` → `forms.setStatus`, for several forms at once `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] mutation `formsDuplicate` → `forms.duplicate`, which copies the fields and points their rules at the copies `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] mutation `formSubmissionsSave` → **drop**. Decision: no screen saved answers for a member; submissions come from the public POST `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] mutation `formSubmissionsRemove` → `forms.submissions.remove` `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] mutation `formSubmissionsEdit` → `forms.submissions.update`, which checks the answer like a visitor's `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] mutation `widgetsLeadConnect` → GET `/api/public/:key/forms/:code`, whose address `forms.embed` gives; it counts the view `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] mutation `widgetsSaveLead` → POST `/api/public/:key/forms/:code`: 201, or 422 with what to fix. Decision: a visitor's cached customer id is ignored, since anyone could send another's `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] mutation `cpWidgetsSaveLead` → **drop**: the new core has no client portal `frontline_api/src/modules/form/graphql/schema/form.ts:188`
 
 ### Pages
 
-- [ ] `/frontline/:id/forms/create` (FormCreatePage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:243`
+- [x] `/frontline/:id/forms/create` (FormCreatePage) → `ui/src/modules/forms/FormNew.tsx`, New form in core's side panel on `/frontline/forms` `frontline_ui/src/modules/channels/components/settings/Settings.tsx:243`
   - files: 61, 2 only here: `modules/forms/components/FormCreate.tsx`, `pages/FormCreatePage.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; form: `formDetail`, `forms`, `formsAdd`, `formsEdit`, `formsRemove`, `formsToggleStatus`, `formsTotalCount`, `frontlineFieldsBulkAction`, `frontlineFormFieldConversionCheck`; inbox: `integrations`, `integrationsCreateLeadIntegration`
   - ui-modules: `RecordSidePanel`
   - keeps: useConfirm · confirm "leave-unsaved-title" · fetchMore "{ variables: { page }, updateQuery: (previous, { fetchMoreRe" · atomWithStorage "`frontline-form:${scope}:${name}`" · useQueryState "channelId" · useQueryState "queryKey || 'channelId'"
-- [ ] `/frontline/:id/forms/:formId` (FormDetailPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:247`
+- [x] `/frontline/:id/forms/:formId` (FormDetailPage) → `ui/src/modules/forms/FormBuilderPage.tsx` at `/frontline/forms/:id/builder`, and the form's settings in its side panel (`FormSettings.tsx`). Decision: fields save as they are edited, with no Save bar `frontline_ui/src/modules/channels/components/settings/Settings.tsx:247`
   - files: 61, 0 only here
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; form: `formDetail`, `forms`, `formsAdd`, `formsEdit`, `formsRemove`, `formsToggleStatus`, `formsTotalCount`, `frontlineFieldsBulkAction`, `frontlineFormFieldConversionCheck`; inbox: `integrations`, `integrationsCreateLeadIntegration`
   - ui-modules: `RecordSidePanel`
   - keeps: useConfirm · confirm "leave-unsaved-title" · fetchMore "{ variables: { page }, updateQuery: (previous, { fetchMoreRe" · atomWithStorage "`frontline-form:${scope}:${name}`" · useQueryState "channelId" · useQueryState "queryKey || 'channelId'"
-- [ ] `/frontline/forms/create` (FormCreatePage) `frontline_ui/src/modules/FrontlineMain.tsx:147`
+- [x] `/frontline/forms/create` (FormCreatePage) → `ui/src/modules/forms/FormNew.tsx` in core's side panel `frontline_ui/src/modules/FrontlineMain.tsx:147`
   - files: 61, 2 only here: `modules/forms/components/FormCreate.tsx`, `pages/FormCreatePage.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; form: `formDetail`, `forms`, `formsAdd`, `formsEdit`, `formsRemove`, `formsToggleStatus`, `formsTotalCount`, `frontlineFieldsBulkAction`, `frontlineFormFieldConversionCheck`; inbox: `integrations`, `integrationsCreateLeadIntegration`
   - ui-modules: `RecordSidePanel`
   - keeps: useConfirm · confirm "leave-unsaved-title" · fetchMore "{ variables: { page }, updateQuery: (previous, { fetchMoreRe" · atomWithStorage "`frontline-form:${scope}:${name}`" · useQueryState "channelId" · useQueryState "queryKey || 'channelId'"
-- [ ] `/frontline/forms/:formId` (FormDetailPage) `frontline_ui/src/modules/FrontlineMain.tsx:148`
+- [x] `/frontline/forms/:formId` (FormDetailPage) → `ui/src/modules/forms/FormBuilderPage.tsx` at `/frontline/forms/:id/builder`. Decision: `/frontline/forms/:id` is now the form's record page, like every record `frontline_ui/src/modules/FrontlineMain.tsx:148`
   - files: 61, 0 only here
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; form: `formDetail`, `forms`, `formsAdd`, `formsEdit`, `formsRemove`, `formsToggleStatus`, `formsTotalCount`, `frontlineFieldsBulkAction`, `frontlineFormFieldConversionCheck`; inbox: `integrations`, `integrationsCreateLeadIntegration`
   - ui-modules: `RecordSidePanel`
   - keeps: useConfirm · confirm "leave-unsaved-title" · fetchMore "{ variables: { page }, updateQuery: (previous, { fetchMoreRe" · atomWithStorage "`frontline-form:${scope}:${name}`" · useQueryState "channelId" · useQueryState "queryKey || 'channelId'"
-- [ ] `/frontline/forms/preview` (FormPreviewPage) `frontline_ui/src/modules/FrontlineMain.tsx:154`
+- [x] `/frontline/forms/preview` (FormPreviewPage) → `ui/src/modules/forms/FormPreview.tsx`, beside the fields in the builder. Decision: it applies the show rules as it is filled in, with the API's own `isShown` `frontline_ui/src/modules/FrontlineMain.tsx:154`
   - files: 13, 2 only here: `modules/forms/components/FormPreview.tsx`, `pages/FormPreviewPage.tsx`
   - calls: channel: `getMyChannels`; form: `formDetail`, `forms`, `formsTotalCount`
   - keeps: toast "Form submitted successfully" · atomWithStorage "`frontline-form:${scope}:${name}`" · useQueryState "draft" · useQueryState "formId"
-- [ ] `/frontline/:`/forms${FrontlinePaths.FormPreview`}` (FormPreviewPage) `frontline_ui/src/modules/FrontlineSettings.tsx:62`
+- [x] `/frontline/:`/forms${FrontlinePaths.FormPreview`}` (FormPreviewPage) → `ui/src/modules/forms/FormPreview.tsx` in the builder `frontline_ui/src/modules/FrontlineSettings.tsx:62`
   - files: 13, 2 only here: `modules/forms/components/FormPreview.tsx`, `pages/FormPreviewPage.tsx`
   - calls: channel: `getMyChannels`; form: `formDetail`, `forms`, `formsTotalCount`
   - keeps: toast "Form submitted successfully" · atomWithStorage "`frontline-form:${scope}:${name}`" · useQueryState "draft" · useQueryState "formId"
 
 ### Core calls
 
-- [ ] core `fields.getFieldList` → plugin-owned `frontline_fields` `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:318`
-- [ ] core `fields.getFieldList` → plugin-owned `frontline_fields` `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:329`
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:438`
-- [ ] core `customers.createCustomer` → sdk `customers.findOrCreate` (scope customers:write; by email or phone, else customers.create (state: 'lead')) `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:449`
-- [ ] core `customers.updateCustomer` → sdk `customers.update` (scope customers:write) `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:506`
+- [x] core `fields.getFieldList` → `frontline_form_fields` `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:318`
+- [x] core `fields.getFieldList` → `frontline_form_fields` `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:329`
+- [x] core `customers.findOne` → not called. Decision: the browser's cached customer id is ignored; the customer comes from the answers' email or phone `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:438`
+- [x] core `customers.createCustomer` → `customers.findOrCreate` by email or phone, else `customers.create`, in `api/src/modules/forms/customers.ts` `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:449`
+- [x] core `customers.updateCustomer` → `customers.update` with the middle name, description, birth date, sex and avatar `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:506`
 - [ ] core `tags.findOne` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/form/graphql/resolvers/queries/forms.ts:23`
 
 ### Events
 
-- [ ] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/form/meta/automation/workers.ts:154`
+- [x] `sendAutomationTrigger` → `frontline.form.submitted` with `core_publish_event()` in the submission's transaction `frontline_api/src/modules/form/meta/automation/workers.ts:154`
 
 ## forms
 
 ### Pages
 
-- [ ] `/frontline/:id/forms/submissions/:formId` (FormSubmissionIndexPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:251`
+- [x] `/frontline/:id/forms/submissions/:formId` (FormSubmissionIndexPage) → `ui/src/modules/forms/SubmissionsPage.tsx` at `/frontline/forms/:id/submissions`, a column and a filter per field; a submission opens in core's side panel. Decision: export waits for erxes/erxes#10582 `frontline_ui/src/modules/channels/components/settings/Settings.tsx:251`
   - files: 21, 13 only here: `modules/forms/components/submissions/components/form-submissions.tsx`, `modules/forms/components/submissions/components/submission-details.tsx`, `modules/forms/components/submissions/components/submissions-filter.tsx`, `modules/forms/components/submissions/components/submissions-sub-header.tsx`, `modules/forms/components/submissions/components/submissions-table.tsx`, `modules/forms/components/submissions/components/submissions-total-count.tsx`, `modules/forms/components/submissions/graphql/queries.ts`, `modules/forms/components/submissions/hooks/useGetFormSubmissionDetails.ts`, `modules/forms/components/submissions/hooks/useGetFormSubmissions.ts`, `modules/forms/components/submissions/hooks/useSubmissionDetailsForm.ts`, `modules/forms/components/submissions/schema.ts`, `modules/forms/components/submissions/types.ts`, `pages/FormSubmissionsPage.tsx`
   - calls: channel: `getMyChannels`; form: `formDetail`, `forms`, `formsTotalCount`, `formSubmissionDetail`, `formSubmissions`
   - ui-modules: `ActivityLogs`, `Can`, `Export`, `getSidePanelRecordPath`, `IRecordPanelProps`, `useSidePanel`
   - keeps: toast "Please try again" · useSidePanel · fetchMore "{ variables: { cursor: pageInfo?.endCursor, limit: SUBMISSIO"
-- [ ] `/frontline/forms` (FormsView) `frontline_ui/src/modules/FrontlineMain.tsx:145`
+- [x] `/frontline/forms` (FormsView) → `ui/src/modules/forms/FormsPage.tsx` with core's ViewBar `frontline_ui/src/modules/FrontlineMain.tsx:145`
   - files: 32, 2 only here: `modules/forms/components/form-page/FormPageHeader.tsx`, `modules/forms/components/form-page/FormView.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; form: `formDetail`, `forms`, `formsTotalCount`; inbox: `integrations`
   - ui-modules: `createFavoriteBreadcrumb`, `PageHeader`
   - keeps: useQueryState "channelId" · useQueryState "status" · useMultiQueryState "['tagId', 'status', 'searchValue', 'channelId']" · useMultiQueryState "['channelId', 'tagId', 'status', 'searchValue']" · fetchMore "{ variables: { cursor: pageInfo?.endCursor, limit: FORMS_PER" · useQueryState "queryKey || 'channelId'"
-- [ ] `/frontline/forms` (Forms) `frontline_ui/src/modules/FrontlineMain.tsx:146`
+- [x] `/frontline/forms` (Forms) → `ui/src/modules/forms/FormsPage.tsx`, grouped by status or a table, with core's filter bar. Decision: tags wait for the tags port `frontline_ui/src/modules/FrontlineMain.tsx:146`
   - files: 48, 3 only here: `modules/forms/components/form-page/form-columns.tsx`, `modules/forms/components/form-page/FormPageList.tsx`, `pages/FormsIndexPage.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; form: `formDetail`, `forms`, `formsAdd`, `formsEdit`, `formsRemove`, `formsToggleStatus`, `formsTotalCount`, `frontlineFieldsBulkAction`; inbox: `integrations`, `integrationsCreateLeadIntegration`
   - ui-modules: `MembersInline`, `SelectTags`
   - keeps: toast "resources-moved-to-channel" · toast "Please try again" · useConfirm · toast "Form ID is missing" · confirm "{ message: title ? t( 'confirm-delete-form-title', 'Are you " · toast "Form deleted successfully" · confirm "confirm-delete-forms" · toast "forms-deleted" · confirm "confirm-change-forms-status" · toast "forms-status-changed" · useQueryState "channelId" · useQueryState "status" · toast "Form updated successfully" · useMultiQueryState "['tagId', 'status', 'searchValue', 'channelId']" · useMultiQueryState "['channelId', 'tagId', 'status', 'searchValue']" · fetchMore "{ variables: { cursor: pageInfo?.endCursor, limit: FORMS_PER" · useQueryState "queryKey || 'channelId'"
-- [ ] `/frontline/forms/submissions/:formId` (FormSubmissionIndexPage) `frontline_ui/src/modules/FrontlineMain.tsx:149`
+- [x] `/frontline/forms/submissions/:formId` (FormSubmissionIndexPage) → `ui/src/modules/forms/SubmissionsPage.tsx`; the old address redirects to `/frontline/forms/:id/submissions` `frontline_ui/src/modules/FrontlineMain.tsx:149`
   - files: 21, 13 only here: `modules/forms/components/submissions/components/form-submissions.tsx`, `modules/forms/components/submissions/components/submission-details.tsx`, `modules/forms/components/submissions/components/submissions-filter.tsx`, `modules/forms/components/submissions/components/submissions-sub-header.tsx`, `modules/forms/components/submissions/components/submissions-table.tsx`, `modules/forms/components/submissions/components/submissions-total-count.tsx`, `modules/forms/components/submissions/graphql/queries.ts`, `modules/forms/components/submissions/hooks/useGetFormSubmissionDetails.ts`, `modules/forms/components/submissions/hooks/useGetFormSubmissions.ts`, `modules/forms/components/submissions/hooks/useSubmissionDetailsForm.ts`, `modules/forms/components/submissions/schema.ts`, `modules/forms/components/submissions/types.ts`, `pages/FormSubmissionsPage.tsx`
   - calls: channel: `getMyChannels`; form: `formDetail`, `forms`, `formsTotalCount`, `formSubmissionDetail`, `formSubmissions`
   - ui-modules: `ActivityLogs`, `Can`, `Export`, `getSidePanelRecordPath`, `IRecordPanelProps`, `useSidePanel`
@@ -1237,48 +1237,48 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [ ] `frontline_surveys` from collection `frontline_surveys` (15 fields, draft `frontlineSurveys` in migration/schema-draft.ts) `frontline_api/src/modules/survey/db/definitions/surveys.ts:71`
-- [ ] `frontline_survey_votes` from collection `frontline_survey_votes` (9 fields, draft `frontlineSurveyVotes` in migration/schema-draft.ts) `frontline_api/src/modules/survey/db/definitions/surveys.ts:106`
+- [x] `frontline_surveys` from collection `frontline_surveys` (15 fields, draft `frontlineSurveys` in migration/schema-draft.ts) `frontline_api/src/modules/survey/db/definitions/surveys.ts:71`. Steps only: the old single `question`, `options` and `allowMultiselect` are gone, as are `brandId` and `createdCpUserId`
+- [x] `frontline_survey_votes` from collection `frontline_survey_votes` (9 fields, draft `frontlineSurveyVotes` in migration/schema-draft.ts) `frontline_api/src/modules/survey/db/definitions/surveys.ts:106`. One vote per voter and message; `cpUserId` is gone with the client portal
 
 ### Procedures
 
-- [ ] query `surveyList` → procedure `surveyLists.get` (returns `SurveyListResponse`) `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
-- [ ] query `surveyDetail` → procedure `surveys.get` (returns `Survey`) `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
-- [ ] query `surveyTotalCount` → procedure `surveys.list` (returns `SurveyTotalCount`) `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
-- [ ] query `cpSurveys` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
-- [ ] query `cpSurveyRequests` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
-- [ ] query `cpSurveyDetail` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
-- [ ] query `cpSurveyVotes` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
-- [ ] mutation `surveyAdd` → procedure `surveys.create` (returns `Survey`) `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
-- [ ] mutation `surveyEdit` → procedure `surveys.update` (returns `Survey`) `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
-- [ ] mutation `surveyRemove` → procedure `surveys.remove` (returns `[String]`) `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
-- [ ] mutation `surveyToggleStatus` → procedure `survey.surveyToggleStatus` (returns `Boolean`) `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
+- [x] query `surveyList` → `surveys.list` `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
+- [x] query `surveyDetail` → `surveys.get`, and its votes by option from `surveys.results` `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
+- [x] query `surveyTotalCount` → `surveys.list` `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
+- [x] query `cpSurveys` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
+- [x] query `cpSurveyRequests` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
+- [x] query `cpSurveyDetail` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
+- [x] query `cpSurveyVotes` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:170`
+- [x] mutation `surveyAdd` → `surveys.create` `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
+- [x] mutation `surveyEdit` → `surveys.update`, which keeps each step's and option's id so votes stay with them `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
+- [x] mutation `surveyRemove` → `surveys.remove` `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
+- [x] mutation `surveyToggleStatus` → `surveys.setStatus`. Decision: only pending to active or rejected, rejected to active, and active to archived and back `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 - [ ] mutation `surveySendToConversation` → procedure `survey.surveySendToConversation` (returns `ConversationMessage`) `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
-- [ ] mutation `cpSurveySubmit` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
-- [ ] mutation `cpSurveyAdd` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
-- [ ] mutation `cpSurveyEdit` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
-- [ ] mutation `cpSurveyRemove` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
+- [x] mutation `cpSurveySubmit` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
+- [x] mutation `cpSurveyAdd` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
+- [x] mutation `cpSurveyEdit` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
+- [x] mutation `cpSurveyRemove` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 
 ### Pages
 
-- [ ] `/frontline/:id/surveys/create` (SurveyCreatePage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:235`
+- [x] `/frontline/:id/surveys/create` (SurveyCreatePage) → `ui/src/modules/surveys/SurveyNew.tsx`, New survey in core's side panel on `/frontline/surveys` `frontline_ui/src/modules/channels/components/settings/Settings.tsx:235`
   - files: 62, 2 only here: `modules/survey/components/SurveyCreate.tsx`, `pages/SurveyCreatePage.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; inbox: `conversationsTotalCount`, `integrations`; survey: `surveyAdd`, `surveyDetail`, `surveyEdit`, `surveyList`, `surveyRemove`, `surveySendToConversation`, `surveyToggleStatus`, `surveyTotalCount`; ticket: `createPipeline`, `getAccessibleTicketStatuses`, `getTicketPipelines`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`
   - ui-modules: `ICustomerInline`, `SelectBrands`
   - keeps: useQueryState "channelId" · useQueryState "queryKey || 'channelId'" · atomWithStorage "SURVEY_STORAGE_KEYS.STEP" · atomWithStorage "SURVEY_STORAGE_KEYS.GENERAL" · atomWithStorage "SURVEY_STORAGE_KEYS.CONTENT" · atomWithStorage "SURVEY_STORAGE_KEYS.CONFIRMATION" · atomWithStorage "SURVEY_STORAGE_KEYS.SETTED_DETAIL" · useQueryState "pipeline"
-- [ ] `/frontline/:id/surveys/:surveyId` (SurveyDetailPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:239`
+- [x] `/frontline/:id/surveys/:surveyId` (SurveyDetailPage) → the survey's side panel (`SurveyPanel.tsx`) with Questions and Results tabs, at `/frontline/surveys/:id` expanded. Decision: edits save in place, with no wizard `frontline_ui/src/modules/channels/components/settings/Settings.tsx:239`
   - files: 63, 2 only here: `modules/survey/components/SurveyEdit.tsx`, `pages/SurveyDetailPage.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; inbox: `conversationsTotalCount`, `integrations`; survey: `surveyAdd`, `surveyDetail`, `surveyEdit`, `surveyList`, `surveyRemove`, `surveySendToConversation`, `surveyToggleStatus`, `surveyTotalCount`; ticket: `createPipeline`, `getAccessibleTicketStatuses`, `getTicketPipelines`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`
   - ui-modules: `ICustomerInline`, `SelectBrands`
   - keeps: useQueryState "channelId" · useQueryState "queryKey || 'channelId'" · atomWithStorage "SURVEY_STORAGE_KEYS.STEP" · atomWithStorage "SURVEY_STORAGE_KEYS.GENERAL" · atomWithStorage "SURVEY_STORAGE_KEYS.CONTENT" · atomWithStorage "SURVEY_STORAGE_KEYS.CONFIRMATION" · atomWithStorage "SURVEY_STORAGE_KEYS.SETTED_DETAIL" · useQueryState "pipeline"
-- [ ] `/frontline/surveys` (SurveysView) `frontline_ui/src/modules/FrontlineMain.tsx:155`
+- [x] `/frontline/surveys` (SurveysView) → `ui/src/modules/surveys/SurveysPage.tsx` with core's ViewBar `frontline_ui/src/modules/FrontlineMain.tsx:155`
   - files: 4, 2 only here: `modules/survey/components/survey-page/SurveyPageHeader.tsx`, `modules/survey/components/survey-page/SurveyView.tsx`
   - ui-modules: `createFavoriteBreadcrumb`, `PageHeader`
-- [ ] `/frontline/surveys` (Surveys) `frontline_ui/src/modules/FrontlineMain.tsx:156`
+- [x] `/frontline/surveys` (Surveys) → `ui/src/modules/surveys/SurveysPage.tsx`, grouped by status or a table, with core's filter bar; results are the survey's Results tab `frontline_ui/src/modules/FrontlineMain.tsx:156`
   - files: 42, 2 only here: `modules/survey/components/survey-results/SurveyResultsBoard.tsx`, `pages/SurveysIndexPage.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; inbox: `conversationsTotalCount`, `integrations`; survey: `surveyAdd`, `surveyDetail`, `surveyEdit`, `surveyList`, `surveyRemove`, `surveySendToConversation`, `surveyToggleStatus`, `surveyTotalCount`
   - keeps: toast "resources-moved-to-channel" · useQueryState "status" · useQueryState "channelId" · useQueryState "queryKey || 'channelId'" · useConfirm · confirm "confirm-delete-surveys" · toast "Survey removed" · toast "Survey approved" · confirm "confirm-delete-survey-title" · useMultiQueryState "['status', 'searchValue']" · toast "Survey rejected" · useMultiQueryState "['status', 'searchValue', 'channelId']" · fetchMore "{ variables: { cursor: direction === EnumCursorDirection.BAC" · atomWithStorage "surveyView"
-- [ ] `/frontline/surveys/create` (SurveyCreatePage) `frontline_ui/src/modules/FrontlineMain.tsx:157`
+- [x] `/frontline/surveys/create` (SurveyCreatePage) → `ui/src/modules/surveys/SurveyNew.tsx` in core's side panel `frontline_ui/src/modules/FrontlineMain.tsx:157`
   - files: 62, 2 only here: `modules/survey/components/SurveyCreate.tsx`, `pages/SurveyCreatePage.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; inbox: `conversationsTotalCount`, `integrations`; survey: `surveyAdd`, `surveyDetail`, `surveyEdit`, `surveyList`, `surveyRemove`, `surveySendToConversation`, `surveyToggleStatus`, `surveyTotalCount`; ticket: `createPipeline`, `getAccessibleTicketStatuses`, `getTicketPipelines`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`
   - ui-modules: `ICustomerInline`, `SelectBrands`
@@ -1286,12 +1286,12 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Core calls
 
-- [ ] core `cpUsers.get` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/resolvers/customResolvers/survey.ts:24`
-- [ ] core `customers.findOne` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/resolvers/mutations/clientPortal.ts:55`
-- [ ] core `customers.getWidgetCustomer` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/resolvers/mutations/clientPortal.ts:78`
-- [ ] core `customers.createMessengerCustomer` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/resolvers/mutations/clientPortal.ts:96`
-- [ ] core `cpUsers.get` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/notifications.ts:37`
-- [ ] core `cpNotifications.create` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/notifications.ts:51`
+- [x] core `cpUsers.get` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/resolvers/customResolvers/survey.ts:24`
+- [x] core `customers.findOne` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/resolvers/mutations/clientPortal.ts:55`
+- [x] core `customers.getWidgetCustomer` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/resolvers/mutations/clientPortal.ts:78`
+- [x] core `customers.createMessengerCustomer` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/resolvers/mutations/clientPortal.ts:96`
+- [x] core `cpUsers.get` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/notifications.ts:37`
+- [x] core `cpNotifications.create` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/notifications.ts:51`
 
 ## ticket
 

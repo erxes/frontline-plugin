@@ -7,6 +7,7 @@ import { pinoHttp } from 'pino-http';
 import { config, PLUGIN } from '#/config.ts';
 import { JOBS } from '#/core.ts';
 import { logger } from '#/logger.ts';
+import { formsPublicRouter } from '#/modules/forms/embed.ts';
 import { checkDomains } from '#/modules/helpcenter/domains.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
 import { checkSla } from '#/modules/tickets/sla.ts';
@@ -40,6 +41,14 @@ export const createApp = () => {
 
   app.disable('x-powered-by');
   app.use(pinoHttp({ logger }));
+  // Signed-out form embeds, found by the key frontline gave an organisation: they call from any
+  // site, so they answer every origin, before the members' CORS below.
+  app.use(
+    '/api/public/:key',
+    cors({ maxAge: 600 }),
+    express.json({ limit: '1mb' }),
+    formsPublicRouter,
+  );
   // The plugin UI runs inside web and calls this API from web's origin.
   app.use(cors({ origin: config.coreUiOrigin, maxAge: 600 }));
 

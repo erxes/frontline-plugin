@@ -75,7 +75,7 @@ export const helpCenters = table(
     title: text().notNull(),
     description: text(),
     languageCode: text(),
-    /** The key its public address carries (`frontline_public_addresses`). */
+    /** The key its public address carries (`frontline_public_keys`). */
     publicKey: text().notNull(),
     kbTopicId: text(),
     kbLabel: text(),
@@ -112,12 +112,6 @@ export const helpCenters = table(
   ],
 );
 
-/**
- * How a signed-out request finds its organisation: a help center's key, or its domain. Read
- * before any organisation is known, so it has no org_id (tools/no-org-id.sql).
- */
-export const publicAddresses = table('public_addresses', {
-  address: text().primaryKey(),
-  organizationId: text().notNull(),
-  helpCenterId: text().notNull(),
-});
+/** The kinds of `frontline_public_keys` row that open a help center: its key, and its domain. */
+export const HELP_CENTER_KEY = 'help-center';
+export const HELP_CENTER_DOMAIN = 'help-center-domain';

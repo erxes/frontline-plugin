@@ -1,34 +1,29 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import express, { type Response, type Router } from 'express';
-import { db, withOrg } from '#/db/client.ts';
-import { helpCenters, publicAddresses } from '#/db/helpcenter.ts';
+import { withOrg } from '#/db/client.ts';
+import { HELP_CENTER_DOMAIN, HELP_CENTER_KEY, helpCenters } from '#/db/helpcenter.ts';
 import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
 import { logger } from '#/logger.ts';
+import { openedBy } from '../public.ts';
 
 /**
  * The help center's organisation and id from the address a signed-out visitor came by: its key,
  * or its domain once Cloudflare serves it.
  */
 const centerAt = async (address: string) => {
-  const [found] = await db
-    .select()
-    .from(publicAddresses)
-    .where(eq(publicAddresses.address, address.toLowerCase()));
+  const found = await openedBy(address.toLowerCase(), [HELP_CENTER_KEY, HELP_CENTER_DOMAIN]);
 
   if (!found) return null;
 
-  return withOrg(found.organizationId, async (tx) => {
-    const [center] = await tx
-      .select()
-      .from(helpCenters)
-      .where(eq(helpCenters.id, found.helpCenterId));
+  return withOrg(found.orgOf, async (tx) => {
+    const [center] = await tx.select().from(helpCenters).where(eq(helpCenters.id, found.targetId));
 
     const served =
       center &&
-      (center.publicKey === found.address ||
+      (found.kind === HELP_CENTER_KEY ||
         (center.domainStatus === 'active' && center.sslStatus === 'active'));
 
-    return served ? { orgId: found.organizationId, center } : null;
+    return served ? { orgId: found.orgOf, center } : null;
   });
 };
 

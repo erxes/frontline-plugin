@@ -17,3 +17,9 @@ export const KB_ARTICLE_TYPE = `${PLUGIN}:kb-article`;
 export const TICKET_TYPE = `${PLUGIN}:ticket`;
 
 export const HELP_CENTER_TYPE = `${PLUGIN}:help-center`;
+
+export const FORM_TYPE = `${PLUGIN}:form`;
+
+export const FORM_SUBMISSION_TYPE = `${PLUGIN}:form-submission`;
+
+export const SURVEY_TYPE = `${PLUGIN}:survey`;

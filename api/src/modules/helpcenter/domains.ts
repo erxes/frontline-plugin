@@ -6,7 +6,8 @@ import Cloudflare, { APIError, NotFoundError } from 'cloudflare';
 import { and, eq, gt, isNotNull, ne, or } from 'drizzle-orm';
 import { config } from '#/config.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
-import { type DomainRecord, helpCenters, publicAddresses } from '#/db/helpcenter.ts';
+import { type DomainRecord, HELP_CENTER_DOMAIN, helpCenters } from '#/db/helpcenter.ts';
+import { publicKeys } from '#/db/public.ts';
 
 type Status = 'pending' | 'active';
 
@@ -210,8 +211,8 @@ export const connectDomain = async (
   client();
 
   const [claimed] = await tx
-    .insert(publicAddresses)
-    .values({ address: hostname, organizationId: orgId, helpCenterId: center.id })
+    .insert(publicKeys)
+    .values({ key: hostname, orgOf: orgId, kind: HELP_CENTER_DOMAIN, targetId: center.id })
     .onConflictDoNothing()
     .returning();
 
@@ -233,7 +234,9 @@ export const resetDomain = async (tx: Tx, center: HelpCenterDomain) => {
   }
 
   if (center.hostname)
-    await tx.delete(publicAddresses).where(eq(publicAddresses.address, center.hostname));
+    await tx
+      .delete(publicKeys)
+      .where(and(eq(publicKeys.kind, HELP_CENTER_DOMAIN), eq(publicKeys.key, center.hostname)));
 
   await tx
     .update(helpCenters)

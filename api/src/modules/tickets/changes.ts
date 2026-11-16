@@ -10,6 +10,7 @@ import { channelMembers } from '#/db/schema.ts';
 import { pipelines, pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { writes } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
+import { Ids } from '../fields.ts';
 import { pipelineFor } from '../pipelines/pipelines.ts';
 import { statusRights } from '../pipelines/rights.ts';
 import { assertTags } from '../tags/tags.ts';
@@ -18,7 +19,6 @@ import { mergeProperties, parseProperties, PropertiesPatch } from './properties.
 import { auditRemoved, changeEvents, publish, snapshot } from './events.ts';
 import {
   firstStatusOf,
-  Ids,
   nextNumbers,
   refine,
   refreshSla,

@@ -536,11 +536,12 @@ for (const collection of inventory.collections) {
 
   drafted.add(table);
 
-  // A ported table may take a better name than its collection's; its entry names it.
-  const kept = IMPORT_MAP.find((entry) => entry.collection === collection.collection);
+  // A ported table may take a better name than its collection's; its entries name it. One
+  // collection may fill several tables (form submissions and their answers).
+  const kept = IMPORT_MAP.filter((entry) => entry.collection === collection.collection);
 
-  if (kept && ported.has(kept.table)) {
-    imports.push(kept);
+  if (kept.length > 0 && kept.every((entry) => ported.has(entry.table))) {
+    imports.push(...kept);
     continue;
   }
 
