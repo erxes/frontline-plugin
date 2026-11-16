@@ -1,9 +1,10 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
-import type { Attachment, Message, MessengerApi, Settings, Uploaded } from './api.ts';
+import type { Uploaded } from '../shared/http.ts';
+import type { Attachment, Message, MessengerApi, Settings } from './api.ts';
 import { Composer, Identify } from './Composer.tsx';
 import { statusOf, timeOf } from './hours.ts';
-import { BackIcon, FileIcon } from './icons.tsx';
+import { BackIcon, FileIcon } from '../shared/icons.tsx';
 import type { MessengerState } from './useMessenger.ts';
 
 /** A message from the team, the bot or the messenger itself, on the left. */

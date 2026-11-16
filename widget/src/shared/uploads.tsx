@@ -1,5 +1,5 @@
 import { useRef, useState } from 'preact/hooks';
-import type { Uploaded } from './api.ts';
+import type { Uploaded } from './http.ts';
 import { AttachIcon } from './icons.tsx';
 
 /** What went wrong, in words a visitor reads. */

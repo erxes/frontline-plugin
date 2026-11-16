@@ -3,7 +3,7 @@ import type { MessengerApi, Settings, Ticket, TicketForms } from '../api.ts';
 import { Identify } from '../Composer.tsx';
 import { timeOf } from '../hours.ts';
 import { Bar, Files } from '../Thread.tsx';
-import { messageOf } from '../uploads.tsx';
+import { messageOf } from '../../shared/uploads.tsx';
 import type { MessengerState } from '../useMessenger.ts';
 import { TicketForm } from './TicketForm.tsx';
 import styles from './tickets.css?inline';

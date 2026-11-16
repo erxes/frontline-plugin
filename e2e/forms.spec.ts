@@ -5,6 +5,7 @@ import {
   expect,
   expectAccessible,
   openChannelPipelines,
+  openShop,
   recordPanel,
   test,
   unique,
@@ -73,15 +74,32 @@ const buildFields = async (page: Page) => {
   await expectAccessible(page);
 };
 
-/** Sends the form as a visitor from its public address; a hidden field's answer drops. */
+/**
+ * Sends the form twice: from a shop with the install code the panel gives, where Seats shows
+ * once Team is picked, and from its public address, which drops a hidden field's answer.
+ */
 const sendAsVisitor = async (page: Page, request: APIRequestContext, name: string) => {
   const panel = recordPanel(page);
 
   await page.goto(FORMS);
   await page.getByRole('button', { name, exact: true }).click();
-  await panel.getByRole('button', { name: 'Show address' }).click();
+  await panel.getByRole('button', { name: 'Show install code' }).click();
 
+  const installCode = (await panel.getByLabel('Install code').textContent()) ?? '';
   const url = (await panel.getByText(/\/api\/public\//).textContent()) ?? '';
+
+  {
+    await using site = await openShop(page.context(), installCode);
+    const form = site.shop.getByRole('form', { name: 'Book a demo' });
+
+    await expect(form.getByLabel('Seats')).toBeHidden();
+    await form.getByLabel('Plan').selectOption('Team');
+    await form.getByLabel('Seats').fill('5');
+    await expectAccessible(site.shop);
+    await form.getByRole('button', { name: 'Ask' }).click();
+    await expect(site.shop.getByRole('heading', { name: 'Thank you' })).toBeVisible();
+  }
+
   const shown = await request.get(url);
   const { fields } = Shown.parse(await shown.json());
   const idOf = (label: string) => fields.find((field) => field.label === label)?.id ?? '';
@@ -90,11 +108,6 @@ const sendAsVisitor = async (page: Page, request: APIRequestContext, name: strin
   expect(
     (
       await request.post(url, { data: { answers: { [idOf('Plan')]: 'Free', [idOf('Seats')]: 9 } } })
-    ).status(),
-  ).toBe(201);
-  expect(
-    (
-      await request.post(url, { data: { answers: { [idOf('Plan')]: 'Team', [idOf('Seats')]: 5 } } })
     ).status(),
   ).toBe(201);
   expect(

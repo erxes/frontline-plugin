@@ -6,7 +6,7 @@ import {
   expectAccessible,
   INBOX,
   MESSENGER,
-  openShop,
+  openMessenger,
   OWNER,
   pick,
   recordPanel,
@@ -188,7 +188,7 @@ test('a visitor writes from the widget on a website and reads the reply without 
 
   await page.goto(INBOX);
 
-  await using site = await openShop(page.context(), await addMessenger(page, channel));
+  await using site = await openMessenger(page.context(), await addMessenger(page, channel));
   const { shop, panel } = site;
 
   await panel.getByRole('button', { name: 'Send us a message' }).click();

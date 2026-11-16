@@ -25,8 +25,6 @@ const Connect = z.object({
 
 export type { VisitorConversation, VisitorMessage } from './threads.ts';
 
-export type { Uploaded } from '../files.ts';
-
 export type { TicketForms, VisitorTicket } from './tickets.ts';
 
 /** The active messenger a key opens, with its settings, or NOT_FOUND. */

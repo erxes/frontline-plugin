@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { MessengerApi } from './api.ts';
 import { Home } from './Home.tsx';
-import { ChatIcon, CloseIcon } from './icons.tsx';
+import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
 import { Thread } from './Thread.tsx';
 import type { Tickets } from './tickets/Tickets.tsx';
 import { type MessengerState, useMessenger } from './useMessenger.ts';

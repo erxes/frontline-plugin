@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import type { MessengerApi, NewTicket, Ticket, TicketForms } from '../api.ts';
-import { AttachButton, FileChips, messageOf, useUploads } from '../uploads.tsx';
+import { AttachButton, FileChips, messageOf, useUploads } from '../../shared/uploads.tsx';
 import { PropertyField, toggled } from './PropertyField.tsx';
 
 /** The organisation's ticket tags, each a pill the visitor ticks. */

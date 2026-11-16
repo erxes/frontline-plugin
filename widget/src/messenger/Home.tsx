@@ -1,6 +1,6 @@
 import type { Conversation, Settings } from './api.ts';
 import { hoursOf, statusOf, timeOf } from './hours.ts';
-import { ChatIcon } from './icons.tsx';
+import { ChatIcon } from '../shared/icons.tsx';
 
 /** A supporter's picture, or their initials when it has none or it won't load. */
 const Avatar = ({ name, url }: { name: string; url: string | null }) => (

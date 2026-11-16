@@ -1,13 +1,12 @@
 import type {
   Connected as ConnectReply,
   TicketForms as TicketFormsReply,
-  Uploaded as UploadReply,
   VisitorConversation,
   VisitorMessage,
   VisitorTicket,
 } from '@frontline/api/messenger';
 import type { Jsonify } from 'type-fest';
-import { bearer, publicApi } from '../shared/http.ts';
+import { bearer, publicApi, uploadFile } from '../shared/http.ts';
 
 /** What `/connect` answers, as JSON carries it. */
 export type Connected = Jsonify<ConnectReply>;
@@ -19,9 +18,6 @@ export type Conversation = Jsonify<VisitorConversation>;
 export type Message = Jsonify<VisitorMessage>;
 
 export type Attachment = Message['attachments'][number];
-
-/** A file the visitor uploaded; a message attaches it by its `receipt`. */
-export type Uploaded = Jsonify<UploadReply>;
 
 export type Identity = { email?: string; phone?: string; firstName?: string };
 
@@ -80,15 +76,7 @@ export const messengerApi = (base: URL, key: string) => {
     read: (token: string, id: string) => notify(token, id, 'read'),
     typing: (token: string, id: string) => notify(token, id, 'typing'),
     askForPerson: (token: string, id: string) => notify(token, id, 'person'),
-    upload: (token: string, file: File) =>
-      as(token)
-        .headers({
-          'content-type': file.type || 'application/octet-stream',
-          'x-file-name': encodeURIComponent(file.name),
-        })
-        .body(file)
-        .post(undefined, 'files')
-        .json<Uploaded>(),
+    upload: (token: string, file: File) => uploadFile(as(token), 'files', file),
     /** Where the visitor opens an attachment: core's files through the messenger, others as they are. */
     fileUrl: (token: string, url: string) => {
       const id = FILE.exec(url)?.[1];

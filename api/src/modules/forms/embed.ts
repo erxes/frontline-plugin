@@ -36,7 +36,7 @@ const urlOf = (key: string, code: string) =>
  */
 const embed = writes(PERMISSIONS.channelView)
   .input(z.object({ id: z.string() }))
-  .output(z.object({ code: z.string(), url: z.string(), script: z.string() }))
+  .output(z.object({ code: z.string(), url: z.string(), scriptUrl: z.string() }))
   .handler(async ({ input, context: { tx, member } }) => {
     const form = await formFor(tx, member, input.id, false);
     const key = await keyOfOrganization(tx, member.orgId);
@@ -44,7 +44,7 @@ const embed = writes(PERMISSIONS.channelView)
     return {
       code: form.code,
       url: urlOf(key, form.code),
-      script: widgetScript('form', { key, code: form.code }),
+      scriptUrl: widgetScript('form', { key, code: form.code }),
     };
   });
 
@@ -94,8 +94,6 @@ const visitorView = (
 
 /** A form as `GET /api/public/:key/forms/:code` answers it, for the form embed. */
 export type VisitorForm = ReturnType<typeof visitorView>;
-
-export type { Uploaded } from '../files.ts';
 
 const Params = z.object({ key: z.string().max(100), code: z.string().max(100) });
 

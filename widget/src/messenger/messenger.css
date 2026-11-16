@@ -1,73 +1,6 @@
-/* The messenger, inside its shadow root: nothing here reaches the website, nor its styles here.
-   --fl-color and --fl-text are the messenger's colours; --fl-page its background, if set. */
-:host {
-  all: initial;
-}
-
-.fl {
-  --fl-page: #ffffff;
-  --fl-ink: #18181b;
-  --fl-muted: #71717a;
-  --fl-line: #e4e4e7;
-  --fl-soft: #f4f4f5;
-  font:
-    14px/1.45 system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
-  color: var(--fl-ink);
-}
-
-@media (prefers-color-scheme: dark) {
-  .fl {
-    --fl-page: #18181b;
-    --fl-ink: #f4f4f5;
-    --fl-muted: #a1a1aa;
-    --fl-line: #3f3f46;
-    --fl-soft: #27272a;
-  }
-}
-
-.fl * {
-  box-sizing: border-box;
-}
-
-/* Resets without specificity, so each component's class sets its own font and colour. */
-:where(.fl) :where(button, input, textarea, select) {
-  font: inherit;
-  color: inherit;
-}
-
-:where(.fl) button {
-  cursor: pointer;
-}
-
-.fl :focus-visible {
-  outline: 2px solid var(--fl-color);
-  outline-offset: 2px;
-}
-
-.fl-launcher {
-  position: fixed;
-  right: 20px;
-  bottom: 20px;
-  z-index: 2147483000;
-  display: grid;
-  place-items: center;
-  width: 56px;
-  height: 56px;
-  padding: 0;
-  border: 0;
-  border-radius: 50%;
-  background: var(--fl-color);
-  color: var(--fl-text);
-  box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
-}
-
-.fl-launcher svg {
-  width: 26px;
-  height: 26px;
-}
+/* The messenger, inside its shadow root, on the embeds' base. Its settings set --fl-color,
+   --fl-text and, when chosen, --fl-page. */
+@import '../shared/base.css';
 
 .fl-launcher img {
   width: 100%;
@@ -118,22 +51,6 @@
     height: auto;
     border-radius: 0;
   }
-}
-
-.fl-icon-button {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  flex: none;
-}
-
-.fl-icon-button:hover {
-  background: var(--fl-soft);
 }
 
 .fl-close {
@@ -278,24 +195,6 @@
 
 .fl-app span {
   color: var(--fl-muted);
-}
-
-.fl-primary {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  padding: 10px 16px;
-  border: 0;
-  border-radius: 10px;
-  background: var(--fl-color);
-  color: var(--fl-text);
-  font-weight: 600;
-}
-
-.fl-primary:disabled {
-  opacity: 0.6;
 }
 
 .fl-list {
@@ -516,36 +415,6 @@
 
 .fl-send:disabled {
   opacity: 0.5;
-}
-
-.fl-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.fl-chips li {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 2px 4px 2px 10px;
-  border-radius: 999px;
-  background: var(--fl-soft);
-  font-size: 12px;
-}
-
-.fl-chips button {
-  border: 0;
-  background: none;
-}
-
-.fl-error {
-  margin: 0;
-  color: #dc2626;
-  font-size: 13px;
 }
 
 button.fl-card {

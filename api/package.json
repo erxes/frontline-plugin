@@ -13,6 +13,7 @@
   },
   "exports": {
     ".": "./src/router.ts",
+    "./files": "./src/modules/files.ts",
     "./forms": "./src/modules/forms/embed.ts",
     "./logic": "./src/modules/forms/logic.ts",
     "./messenger": "./src/modules/messenger/routes.ts"

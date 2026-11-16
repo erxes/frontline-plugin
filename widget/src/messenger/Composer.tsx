@@ -1,7 +1,8 @@
 import { useRef, useState } from 'preact/hooks';
-import type { Identity, Uploaded } from './api.ts';
-import { SendIcon } from './icons.tsx';
-import { AttachButton, FileChips, messageOf, useUploads } from './uploads.tsx';
+import type { Uploaded } from '../shared/http.ts';
+import type { Identity } from './api.ts';
+import { SendIcon } from '../shared/icons.tsx';
+import { AttachButton, FileChips, messageOf, useUploads } from '../shared/uploads.tsx';
 
 /** How often the team hears that the visitor is still typing. */
 const TYPING_EVERY_MS = 3000;

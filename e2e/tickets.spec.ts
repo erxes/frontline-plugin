@@ -7,7 +7,7 @@ import {
   expectAccessible,
   INBOX,
   openChannelPipelines,
-  openShop,
+  openMessenger,
   pick,
   recordPanel,
   test,
@@ -221,7 +221,7 @@ test('a visitor files a ticket from the widget in a pipeline the messenger offer
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Messenger saved')).toBeVisible();
 
-  await using site = await openShop(page.context(), key);
+  await using site = await openMessenger(page.context(), key);
   const { shop, panel } = site;
 
   await panel.getByRole('button', { name: /^Tickets/ }).click();
