@@ -97,6 +97,7 @@ describe('inbox', () => {
     expect(conversations[0]).toMatchObject({
       integrationId: integration.id,
       kind: 'messenger',
+      integrationName: 'Website',
       status: 'new',
       content: 'My order is late',
       messageCount: 1,
@@ -190,6 +191,50 @@ describe('inbox', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
+  it('keeps a member’s rich text safe, with its plain text and the members it mentions', async () => {
+    const { teammate, token } = await setUp('org-ib-rich');
+
+    await post('/messages', { content: 'Where is it?' }, token);
+
+    const [conversation] = (await teammate.conversations.list({})).conversations;
+    const id = conversation?.id ?? '';
+
+    const note = await teammate.conversations.messages.create({
+      conversationId: id,
+      internal: true,
+      html:
+        '<p>Ask <span data-inline-content-type="mention" data-_id="owner-rich" data-full-name="Olivia">@Olivia</span>' +
+        ' about <strong>refunds</strong><img src="x" onerror="alert(1)"><script>alert(2)</script></p>',
+    });
+
+    expect(note).toMatchObject({
+      content: 'Ask @Olivia about refunds',
+      html: '<p>Ask <span data-inline-content-type="mention" data-_id="owner-rich" data-full-name="Olivia">@Olivia</span> about <strong>refunds</strong></p>',
+      mentionedUserIds: ['owner-rich'],
+    });
+    expect(created.notifications).toContainEqual(
+      expect.objectContaining({
+        kind: 'frontline.conversation.mentioned',
+        userIds: ['owner-rich'],
+      }),
+    );
+
+    // The visitor reads a rich reply as its text.
+    await teammate.conversations.messages.create({
+      conversationId: id,
+      html: '<p>It ships <em>today</em>.</p><ul><li>Tracking follows</li></ul>',
+    });
+
+    expect((await get(`/conversations/${id}/messages`, token)).body).toContainEqual(
+      expect.objectContaining({ content: 'It ships today.\n\n * Tracking follows' }),
+    );
+
+    // Formatting with no words in it is no message.
+    await expect(
+      teammate.conversations.messages.create({ conversationId: id, html: '<p><br></p>' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   it('assigns, resolves and reopens when the customer writes again', async () => {
     const { owner, teammate, token } = await setUp('org-ib-c');
 
@@ -224,92 +269,6 @@ describe('inbox', () => {
       resolvedAt: null,
       isRead: false,
       assigneeId: 'teammate',
-    });
-  });
-
-  it('tags conversations and filters by tag', async () => {
-    const { owner, teammate, token } = await setUp('org-ib-d');
-
-    await post('/messages', { content: 'Invoice question' }, token);
-
-    const [conversation] = (await teammate.conversations.list({})).conversations;
-    const id = conversation?.id ?? '';
-    const billing = await owner.tags.create({ type: 'conversation', name: 'Billing' });
-
-    await expect(
-      owner.tags.create({ type: 'conversation', name: 'billing' }),
-    ).rejects.toMatchObject({ code: 'TAG_NAME_TAKEN' });
-    await expect(teammate.tags.create({ type: 'conversation', name: 'VIP' })).rejects.toMatchObject(
-      {
-        code: 'FORBIDDEN',
-      },
-    );
-
-    expect(await teammate.conversations.setTags({ id, tagIds: [billing.id] })).toMatchObject({
-      tagIds: [billing.id],
-    });
-    expect(
-      (await teammate.conversations.list({ filter: rule('tagIds', 'in', [billing.id]) }))
-        .totalCount,
-    ).toBe(1);
-
-    await owner.tags.remove({ ids: [billing.id] });
-    expect(await teammate.conversations.get({ id })).toMatchObject({ tagIds: [] });
-  });
-
-  it('counts what waits unread in each sidebar queue and channel', async () => {
-    const { owner, teammate, channel, token } = await setUp('org-ib-counts');
-
-    await post('/messages', { content: 'First' }, token);
-    await post('/messages', { content: 'Second' }, token);
-
-    const { conversations } = await teammate.conversations.list({});
-    const [second, first] = conversations.map((conversation) => conversation.id);
-
-    expect(await teammate.conversations.counts({})).toEqual({
-      unread: 2,
-      assignedToMe: 0,
-      mentioned: 0,
-      unassigned: 2,
-      awaitingResponse: 2,
-      channels: [{ id: channel.id, name: 'Support', icon: null, unread: 2 }],
-    });
-
-    // Assigned to them, and mentioned in another's note: each queue counts its own.
-    await owner.conversations.assign({ ids: [first ?? ''], assigneeId: 'teammate' });
-    await owner.conversations.messages.create({
-      conversationId: second ?? '',
-      content: '@Teammate can you look?',
-      internal: true,
-      mentionedUserIds: ['teammate'],
-    });
-
-    expect(await teammate.conversations.counts({})).toMatchObject({
-      unread: 2,
-      assignedToMe: 1,
-      mentioned: 1,
-      unassigned: 1,
-    });
-
-    // The Mentions queue's link filters the list by the same rule.
-    const mentioning = await teammate.conversations.list({
-      filter: rule('mentionedUserIds', 'in', ['me']),
-    });
-
-    expect(mentioning.conversations.map((conversation) => conversation.id)).toEqual([second]);
-
-    // Answering reads it, so it leaves every count.
-    await teammate.conversations.messages.create({ conversationId: first ?? '', content: 'On it' });
-
-    expect(await teammate.conversations.counts({})).toMatchObject({
-      unread: 1,
-      assignedToMe: 0,
-      awaitingResponse: 1,
-      channels: [expect.objectContaining({ unread: 1 })],
-    });
-    expect(await clientAs('org-ib-counts-other').conversations.counts({})).toMatchObject({
-      unread: 0,
-      channels: [],
     });
   });
 

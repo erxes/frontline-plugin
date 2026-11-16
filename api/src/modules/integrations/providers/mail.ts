@@ -257,6 +257,7 @@ export const mail = defineProvider({
           : `Re: ${subject}`,
       messageId: started?.root,
       text: message.text,
+      html: message.html ?? undefined,
       inReplyTo: answered,
       references: [...new Set([root, answered].filter((id) => id !== undefined))],
       attachments: message.attachments.map((file) => ({ filename: file.name, path: file.url })),

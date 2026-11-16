@@ -31,12 +31,14 @@ export const mentionedIdsOf = sql<string[]>`array(
 export const readSql = (member: PluginMember) =>
   sql<boolean>`${member.userId} = any(${conversations.readBy})`;
 
-/** The row, its integration's kind and tags, and whether the caller read it. */
+/** The row, its integration's kind and name, its tags, and whether the caller read it. */
 export const Conversation = createSelectSchema(conversations)
   .omit({ orgId: true, readBy: true })
   .extend({
     /** Its integration's adapter kind, such as `messenger`. */
     kind: z.string(),
+    /** Its integration's name, which the list shows under the customer. */
+    integrationName: z.string(),
     tagIds: z.array(z.string()),
     isRead: z.boolean(),
   });
@@ -53,6 +55,7 @@ export const conversationRows = (tx: Tx, member: PluginMember) => {
     .select({
       ...columns,
       kind: integrations.kind,
+      integrationName: integrations.name,
       tagIds: tagIdsOf,
       isRead: readSql(member),
     })

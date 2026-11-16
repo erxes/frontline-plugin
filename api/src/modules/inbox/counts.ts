@@ -26,6 +26,8 @@ const counts = reads(PERMISSIONS.inboxView)
           id: z.string(),
           name: z.string(),
           icon: z.string().nullable(),
+          /** The caller's personal inbox, which the sidebar shows as My inbox. */
+          personal: z.boolean(),
           unread: z.number(),
         }),
       ),
@@ -53,6 +55,7 @@ const counts = reads(PERMISSIONS.inboxView)
         id: channels.id,
         name: channels.name,
         icon: channels.icon,
+        personal: sql<boolean>`${channels.ownerId} is not null`,
         unread: count(conversations.id),
       })
       .from(channels)

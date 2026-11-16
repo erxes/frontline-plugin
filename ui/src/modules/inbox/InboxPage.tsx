@@ -3,20 +3,25 @@ import { IconInbox, IconMessages } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
+  cn,
   Empty,
   ListFilter,
   PageContainer,
   PageHeader,
+  RecordList,
   useOpenRecord,
   ViewBar,
 } from 'erxes-ui';
+import { useAtomValue } from 'jotai';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { INTEGRATION_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
+import { BulkBar } from './BulkBar.tsx';
 import { Composer } from './Composer.tsx';
-import { ConversationHeader } from './ConversationHeader.tsx';
+import { ConversationHeader, listShown } from './ConversationHeader.tsx';
 import { ConversationList } from './ConversationList.tsx';
+import { CustomerSidebar } from './CustomerSidebar.tsx';
 import { useInboxFields } from './InboxFilter.tsx';
 import { MessageThread } from './MessageThread.tsx';
 import {
@@ -52,11 +57,15 @@ const ConversationPane = () => {
     );
 
   return (
-    <>
-      <ConversationHeader conversation={conversation} />
-      <MessageThread conversation={conversation} />
-      <Composer key={conversation.id} conversationId={conversation.id} />
-    </>
+    <div className="flex min-h-0 flex-1">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <ConversationHeader conversation={conversation} />
+        <Composer key={conversation.id} conversation={conversation}>
+          <MessageThread conversation={conversation} />
+        </Composer>
+      </div>
+      <CustomerSidebar conversation={conversation} />
+    </div>
   );
 };
 
@@ -93,7 +102,10 @@ export const InboxPage = () => {
 
   const [openId] = useOpenConversation();
 
-  const { conversations, totalCount, isPending, error, hasNextPage, fetchNextPage } =
+  // The header's toggle hides the list beside an open conversation only.
+  const shown = useAtomValue(listShown);
+
+  const { conversations, totalCount, isPending, error, hasNextPage, fetchNextPage, refetch } =
     useConversations();
 
   // A conversation the filters no longer match stays open beside the empty list.
@@ -131,16 +143,20 @@ export const InboxPage = () => {
         <InboxEmpty onConnect={canConnect ? connect : undefined} />
       ) : (
         <div className="flex min-h-0 flex-1">
-          <aside className="w-80 shrink-0 border-r">
+          <aside className={cn('w-80 shrink-0 border-r', !shown && openId && 'hidden')}>
             {empty ? (
               <InboxEmpty onConnect={canConnect ? connect : undefined} />
             ) : (
-              <ConversationList
-                conversations={conversations}
-                isPending={isPending}
-                hasNextPage={hasNextPage}
-                fetchNextPage={() => void fetchNextPage()}
-              />
+              <RecordList.Provider listId={LIST}>
+                <ConversationList
+                  conversations={conversations}
+                  isPending={isPending}
+                  hasNextPage={hasNextPage}
+                  fetchNextPage={() => void fetchNextPage()}
+                  refresh={() => void refetch()}
+                />
+                <BulkBar conversations={conversations} />
+              </RecordList.Provider>
             )}
           </aside>
           <section

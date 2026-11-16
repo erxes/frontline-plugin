@@ -6,10 +6,10 @@ import {
   IconPinnedOff,
   IconRobot,
 } from '@tabler/icons-react';
-import { Button, cn, ScrollArea, Skeleton, Textarea, useFormat } from 'erxes-ui';
+import { Button, cn, Editor, editorText, ScrollArea, Skeleton, useFormat } from 'erxes-ui';
+import parse from 'html-react-parser';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { textOf } from '~/shared/hooks.ts';
 import { useCustomerName } from './ConversationList.tsx';
 import {
   type Conversation,
@@ -20,6 +20,7 @@ import {
   usePinnedMessages,
 } from './queries.ts';
 import { MemberLine } from '~/shared/MemberLine.tsx';
+import { useSendShortcut } from './useSendShortcut.ts';
 
 /** Who wrote the message: the customer, a member, or the bot when it has neither. */
 const Author = ({ message, customerName }: { message: Message; customerName: string }) => {
@@ -38,33 +39,32 @@ const Author = ({ message, customerName }: { message: Message; customerName: str
   return <MemberLine id={message.userId} size="sm" />;
 };
 
-/** The member's own message in a text box, saved with Save or Ctrl or ⌘ with Enter. */
+/** The member's own message in the editor, saved with Save or Ctrl or ⌘ with Enter. */
 const EditBox = ({ message, onDone }: { message: Message; onDone: () => void }) => {
   const { t } = useTranslation('frontline');
   const edit = useEditMessage();
+  // Empty until the member changes something.
+  const [html, setHtml] = useState('');
 
-  const save = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const save = (event?: SubmitEvent<HTMLFormElement>) => {
+    event?.preventDefault();
 
-    const content = textOf(new FormData(event.currentTarget).get('content'));
+    if (!editorText(html)) return onDone();
 
-    if (!content.trim() || content === message.content) return onDone();
-
-    edit.mutate({ id: message.id, content }, { onSuccess: onDone });
+    edit.mutate({ id: message.id, html }, { onSuccess: onDone });
   };
 
-  return (
-    <form onSubmit={save} className="flex flex-col gap-2">
-      <Textarea
-        name="content"
-        aria-label={t('edit-message', 'Edit message')}
-        defaultValue={message.content}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' && (event.metaKey || event.ctrlKey))
-            event.currentTarget.form?.requestSubmit();
+  const shortcut = useSendShortcut({ send: save, cancel: onDone });
 
-          if (event.key === 'Escape') onDone();
-        }}
+  return (
+    <form ref={shortcut} onSubmit={save} className="flex flex-col gap-2">
+      <Editor
+        label={t('edit-message', 'Edit message')}
+        initialContent={message.html ?? message.content}
+        isHTML
+        sideMenu={false}
+        className="min-h-16"
+        onChange={setHtml}
       />
       <div className="flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onDone}>
@@ -75,6 +75,35 @@ const EditBox = ({ message, onDone }: { message: Message; onDone: () => void }) 
         </Button>
       </div>
     </form>
+  );
+};
+
+/**
+ * What the message says: a member's rich text as the API sanitized it (`api/src/modules/inbox/html.ts`),
+ * else its plain text.
+ */
+const MessageBody = ({ message }: { message: Message }) => {
+  const fromCustomer = Boolean(message.customerId);
+
+  const className = cn(
+    'break-words rounded-lg px-3 py-2 text-sm',
+    fromCustomer && 'bg-muted',
+    !fromCustomer && !message.internal && 'bg-primary text-primary-foreground',
+    message.internal && 'border border-dashed border-warning bg-warning/20',
+  );
+
+  if (!message.html)
+    return <p className={cn('whitespace-pre-wrap', className)}>{message.content}</p>;
+
+  return (
+    <div
+      className={cn(
+        className,
+        'flex flex-col gap-1 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_[data-inline-content-type=mention]]:font-semibold',
+      )}
+    >
+      {parse(message.html)}
+    </div>
   );
 };
 
@@ -126,16 +155,7 @@ const Bubble = ({ message, customerName }: { message: Message; customerName: str
       {editing ? (
         <EditBox message={message} onDone={() => setEditing(false)} />
       ) : (
-        <p
-          className={cn(
-            'whitespace-pre-wrap break-words rounded-lg px-3 py-2 text-sm',
-            fromCustomer && 'bg-muted',
-            !fromCustomer && !message.internal && 'bg-primary text-primary-foreground',
-            message.internal && 'border border-dashed bg-warning-surface',
-          )}
-        >
-          {message.content}
-        </p>
+        <MessageBody message={message} />
       )}
       {message.attachments.map((file) => (
         <a

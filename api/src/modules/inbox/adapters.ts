@@ -12,6 +12,8 @@ type Outgoing = {
   message: {
     id: string;
     content: string;
+    /** The member's rich text, or null for plain text. */
+    html: string | null;
     attachments: Attachment[];
     userId: string | null;
     /** What the adapter keeps on its own messages, such as a new mail's subject. */

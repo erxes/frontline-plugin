@@ -90,8 +90,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] frontline `mail.canViewConversation` → plugin-owned `a direct function call` `frontline_api/src/apollo/subscription.ts:527`. The inbox's channel access decides who reads a mail conversation
 - [x] core `segment.fetchSegment` → **drop**: the new core has no segments; the plugin filters its own records `frontline_api/src/conversationQueryBuilder.ts:99`
 - [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/conversationQueryBuilder.ts:363`
-- [ ] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/conversationQueryBuilder.ts:419`
-  - note: the inbox has no customer filter and `search` matches the last message only (`api/src/modules/inbox/conversations.ts`), so a member can't find conversations by a customer's email or phone
+- [x] core `customers.find` → `customers.list({ search })` before the inbox list's transaction, matching the customer's name, email or phone (`readsWithCore` in `api/src/orpc.ts`, `api/src/modules/inbox/conversations.ts`) `frontline_api/src/conversationQueryBuilder.ts:419`
 - [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/meta/import-export/export/getTicketExportData.ts:68`. (filed https://github.com/erxes/erxes/issues/10582)
 - [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/meta/import-export/export/getTicketExportData.ts:83`. (filed https://github.com/erxes/erxes/issues/10582)
 - [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/meta/import-export/utils.ts:48`. (filed https://github.com/erxes/erxes/issues/10582)
@@ -324,8 +323,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `TAutomationAction` (3 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `TDashboardWidgetConfig` (3 files). (filed https://github.com/erxes/erxes/issues/10581)
 - [x] `usePermissionCheck` (3 files). The API refuses a member without the grant (`reads` and `writes` in `api/src/orpc.ts`), and pages offer changes only in the channels the member manages (`useManagedChannels` in `ui/src/shared/ChannelSelect.tsx`)
-- [ ] `AssignMemberInEditor` (2 files)
-  - note: the composer has no @mention picker; `conversations.messages.create` already tells mentioned members (`notifyMentioned` in `api/src/modules/inbox/messages.ts`)
+- [x] `AssignMemberInEditor` (2 files). An internal note's `/` menu lists teammates (`ui/src/modules/inbox/slashItems.tsx`), and `conversations.messages.create` tells each one mentioned (`api/src/modules/inbox/messages.ts`). (filed https://github.com/erxes/erxes/issues/10605)
 - [x] `AUTOMATION_UNARY_OPERATORS` (2 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `AutomationAiKnowledgeSourceSelectorProps` (2 files). **drop**: the new core has no AI agents to give a knowledge source
 - [ ] `automationReturnLinkSearch` (2 files)
@@ -334,8 +332,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `CompaniesInline` (2 files). erxes-ui's `ContactLink` with `contactQueries` (`ui/src/modules/tickets/TicketLinks.tsx`)
 - [x] `ContactWidgetSection` (2 files). A customer's tickets are core's `relationTabs` (`ui/src/modules/tickets/TicketRelations.tsx`), and their conversations' events show on the customer's Activity tab (`CONVERSATION_EVENTS` in `api/src/core.ts`)
 - [x] `DashboardWidgetEmptyState` (2 files). (filed https://github.com/erxes/erxes/issues/10581)
-- [ ] `EditorMentionItem` (2 files)
-  - note: the composer has no @mention picker; `conversations.messages.create` already tells mentioned members (`notifyMentioned` in `api/src/modules/inbox/messages.ts`)
+- [x] `EditorMentionItem` (2 files). An internal note's `/` menu lists teammates (`ui/src/modules/inbox/slashItems.tsx`); the API reads the mentions from the note (`api/src/modules/inbox/html.ts`). (filed https://github.com/erxes/erxes/issues/10605)
 - [ ] `EmailTemplate` (2 files)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `FIELD_TYPES` (2 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
@@ -394,8 +391,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `ISystemFieldRules` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
 - [x] `ITag` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [x] `LayoutEditor` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
-- [ ] `MentionInEditor` (1 files)
-  - note: the composer has no @mention picker; `conversations.messages.create` already tells mentioned members (`notifyMentioned` in `api/src/modules/inbox/messages.ts`)
+- [x] `MentionInEditor` (1 files). Mentions are erxes-ui `Editor`'s mention inline content, picked from a note's `/` menu (`ui/src/modules/inbox/slashItems.tsx`). (filed https://github.com/erxes/erxes/issues/10605)
 - [x] `MultipleFieldsInGroup` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `mutateFunction` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `PageHeaderStart` (1 files). erxes-ui's `PageHeader.Start` (`ui/src/modules/settings/Settings.tsx`)

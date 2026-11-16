@@ -4,6 +4,8 @@ import {
   type coreClient,
   expect,
   expectAccessible,
+  Id,
+  pluginApi,
   recordPanel,
   test,
   unique,
@@ -11,30 +13,7 @@ import {
 
 const HISTORY = '/frontline/calls/history';
 
-/** The plugin's member API, as its UI calls it with the member's session. */
-const RPC = 'http://localhost:3399/api/rpc';
-
-const Answer = z.object({ json: z.unknown() });
-
-const Id = z.object({ id: z.string() });
-
 const Settings = z.object({ webhookUrl: z.string() });
-
-/** Calls the plugin's `path` procedure as the owner, with a plugin session core issued them. */
-const pluginApi = async (api: ReturnType<typeof coreClient>, request: APIRequestContext) => {
-  const { token } = await api.plugins.session({ name: 'frontline' });
-
-  return async <T extends z.ZodType>(path: string, input: unknown, Output: T) => {
-    const response = await request.post(`${RPC}/${path}`, {
-      headers: { authorization: `Bearer ${token}` },
-      data: { json: input },
-    });
-
-    expect(response.status(), path).toBe(200);
-
-    return Output.parse(Answer.parse(await response.json()).json);
-  };
-};
 
 /**
  * A CallPro line in a new channel, connected through the API: no screen connects a phone line

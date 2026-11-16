@@ -18,6 +18,8 @@ export type Written = {
   /** Set by a caller that may write the same message twice, so the repeat adds nothing. */
   id?: string;
   content: string;
+  /** Rich text, sanitized (`html.ts`); null for plain text. */
+  html?: string | null;
   attachments: Attachment[];
   internal: boolean;
   mentionedUserIds: string[];
