@@ -16,14 +16,13 @@ import {
   PanelField,
   PanelSection,
   Skeleton,
-  Spinner,
   TextField,
   type TRecordSlotProps,
   useFormat,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PanelSkeleton, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { useDeleteTopics } from './useKbDeletes.ts';
 import { type Topic, topicPath, useKbAccess, useKbChange, useTopic } from './useKnowledgeBase.ts';
@@ -154,7 +153,7 @@ const TopicPages = ({ topic }: { topic: Topic }) => {
 export const TopicDetail = ({ contentId }: TRecordSlotProps) => {
   const topic = useTopic(contentId);
 
-  if (topic.isPending) return <Spinner area="lg" />;
+  if (topic.isPending) return <PanelSkeleton />;
 
   if (topic.isError)
     return (

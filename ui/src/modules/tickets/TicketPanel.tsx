@@ -4,7 +4,6 @@ import {
   IconCalendarPlus,
   IconCalendarUp,
   IconCircles,
-  IconDots,
   IconGitBranch,
   IconHash,
   IconLetterCase,
@@ -13,7 +12,6 @@ import {
   IconUserCircle,
 } from '@tabler/icons-react';
 import {
-  Button,
   PanelField,
   PanelSection,
   SelectMember,
@@ -26,8 +24,7 @@ import {
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChannel } from '@/channels/useChannels.ts';
-import { ActionsMenu } from '~/shared/Records.tsx';
-import { PrioritySelect, StatusSelect, useTicketActions } from './TicketCells.tsx';
+import { PrioritySelect, StatusSelect, TicketMenu } from './TicketCells.tsx';
 import { TicketContent, TicketPlan, TicketSla } from './TicketFields.tsx';
 import { TicketContacts, TicketLabels, TicketPeople } from './TicketLinks.tsx';
 import { TicketPropertiesSection } from './TicketProperties.tsx';
@@ -74,43 +71,37 @@ export const TicketActions = ({ contentId }: TRecordSlotProps) => {
   return data ? <TicketMenu ticket={data} /> : null;
 };
 
-const TicketMenu = ({ ticket }: { ticket: Ticket }) => {
+/** Where the ticket is filed and who made it when, read only, at the foot of the tab. */
+const TicketRecord = ({ ticket }: { ticket: Ticket }) => {
   const { t } = useTranslation('frontline');
-
-  return (
-    <ActionsMenu
-      trigger={
-        <Button variant="ghost" size="icon" aria-label={t('ticket-menu', 'Ticket actions')}>
-          <IconDots />
-        </Button>
-      }
-      actions={useTicketActions(ticket)}
-    />
-  );
-};
-
-/** Where the ticket is filed: its channel and pipeline, read only. */
-const Filing = ({ ticket }: { ticket: Ticket }) => {
-  const { t } = useTranslation('frontline');
+  const format = useFormat();
   const channel = useChannel(ticket.channelId);
   const pipeline = useChoices().pipelines.find((row) => row.id === ticket.pipelineId);
 
   return (
-    <>
-      <PanelField icon={IconCircles} label={t('channel', 'Channel')} cell={false}>
-        <span className="truncate px-2 text-xs">{channel.data?.name}</span>
-      </PanelField>
-      <PanelField icon={IconGitBranch} label={t('pipeline', 'Pipeline')} cell={false}>
-        <span className="truncate px-2 text-xs">{pipeline?.name}</span>
-      </PanelField>
-    </>
+    <PanelSection title={t('record', 'Record')}>
+      <InfoRow icon={IconCircles} label={t('channel', 'Channel')}>
+        {channel.data?.name}
+      </InfoRow>
+      <InfoRow icon={IconGitBranch} label={t('pipeline', 'Pipeline')}>
+        {pipeline?.name}
+      </InfoRow>
+      <InfoRow icon={IconUserCircle} label={t('created-by', 'Created by')}>
+        <MemberChip id={ticket.createdBy} />
+      </InfoRow>
+      <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
+        {format.dateTime(ticket.createdAt)}
+      </InfoRow>
+      <InfoRow icon={IconCalendarUp} label={t('updated-at', 'Updated at')}>
+        {format.dateTime(ticket.updatedAt)}
+      </InfoRow>
+    </PanelSection>
   );
 };
 
 /** The ticket's own fields, edited in place by its channel's members. */
 const TicketFields = ({ ticket }: { ticket: Ticket }) => {
   const { t } = useTranslation('frontline');
-  const format = useFormat();
   const edit = useEditTicket(ticket.id);
   const scope = `frontline-ticket.${ticket.id}`;
 
@@ -160,24 +151,13 @@ const TicketFields = ({ ticket }: { ticket: Ticket }) => {
           changeLabel={t('change-assignee', 'Change assignee')}
         />
       </PanelField>
-      <Filing ticket={ticket} />
-      <InfoRow icon={IconUserCircle} label={t('created-by', 'Created by')}>
-        <MemberChip id={ticket.createdBy} />
-      </InfoRow>
-      <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
-        {format.dateTime(ticket.createdAt)}
-      </InfoRow>
-      <InfoRow icon={IconCalendarUp} label={t('updated-at', 'Updated at')}>
-        {format.dateTime(ticket.updatedAt)}
-      </InfoRow>
     </PanelSection>
   );
 };
 
 /**
- * The Detail tab: the ticket's fields, people, contacts, labels and properties, its plan, its SLA
- * and its description and files, each
- * saved as it changes. Core's Activity tab beside it shows what changed (`activity` in config).
+ * The Detail tab: the ticket's fields, people, contacts, labels and properties, its plan, its SLA,
+ * its description and files, each saved as it changes, then where it's filed. Core's Activity tab beside it shows what changed (`activity` in config).
  */
 export const TicketDetail = ({ contentId }: TRecordSlotProps) => (
   <WithTicket id={contentId}>
@@ -191,6 +171,7 @@ export const TicketDetail = ({ contentId }: TRecordSlotProps) => (
         <TicketPlan ticket={ticket} />
         <TicketSla ticket={ticket} />
         <TicketContent ticket={ticket} />
+        <TicketRecord ticket={ticket} />
       </>
     )}
   </WithTicket>

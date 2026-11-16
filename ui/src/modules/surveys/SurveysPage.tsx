@@ -14,7 +14,6 @@ import {
   DisplayMenu,
   ListFilter,
   PageContainer,
-  PageHeader,
   RecordList,
   type TListFilterField,
   useListDisplay,
@@ -26,7 +25,8 @@ import { useChannels } from '@/channels/useChannels.ts';
 import { SURVEY_TYPE } from '~/plugin.ts';
 import { useManagedChannels } from '~/shared/ChannelSelect.tsx';
 import { ArchiveButtons } from '~/shared/ArchiveButtons.tsx';
-import { CreateButton, ListEmpty } from '~/shared/List.tsx';
+import { AppHeader } from '~/shared/Header.tsx';
+import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
 import { DeleteButton, ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
 import { SurveyList, SurveysTable } from './SurveyRows.tsx';
 import {
@@ -125,28 +125,20 @@ export const SurveysPage = () => {
 
   return (
     <PageContainer>
-      <PageHeader>
-        <PageHeader.Start>
-          <span className="flex h-8 items-center gap-1.5 px-3 text-sm font-medium">
-            <IconChecklist />
-            {t('surveys', 'Surveys')}
-          </span>
-        </PageHeader.Start>
-        <PageHeader.End>
-          <CreateButton
-            allowed={canCreate}
-            label={t('new-survey', 'New survey')}
-            onClick={() => openNew(SURVEY_TYPE, {})}
-          />
-        </PageHeader.End>
-      </PageHeader>
+      <AppHeader icon={IconChecklist} app={{ label: t('surveys', 'Surveys') }}>
+        <CreateButton
+          allowed={canCreate}
+          label={t('new-survey', 'New survey')}
+          onClick={() => openNew(SURVEY_TYPE, {})}
+        />
+      </AppHeader>
       <ViewBar allLabel={t('all-surveys', 'All surveys')}>
         <ListFilter id={LIST} fields={useFields()} members={memberQueries} totalCount={totalCount}>
           <DisplayMenu list={LIST} displays={DISPLAYS} />
         </ListFilter>
       </ViewBar>
       {error ? (
-        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+        <ListError error={error} />
       ) : !isPending && surveys.length === 0 ? (
         <ListEmpty
           icon={<IconChecklist />}

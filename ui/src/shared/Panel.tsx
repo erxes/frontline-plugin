@@ -1,5 +1,5 @@
 import { type Icon, IconChevronRight } from '@tabler/icons-react';
-import { PanelField } from 'erxes-ui';
+import { PanelField, Skeleton } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 
@@ -17,6 +17,18 @@ export const ReadOnly = ({ when, children }: { when: boolean; children: ReactNod
   >
     {children}
   </fieldset>
+);
+
+/** A record panel while it loads: grey rows where its icon, label and value will be. */
+export const PanelSkeleton = ({ rows = 6 }: { rows?: number }) => (
+  <div className="flex flex-col gap-2 p-4" aria-busy="true">
+    {Array.from({ length: rows }, (_, index) => (
+      <div key={index} className="flex items-center gap-3">
+        <Skeleton className="h-4 w-28" />
+        <Skeleton className="h-6 flex-1" />
+      </div>
+    ))}
+  </div>
 );
 
 /** A record panel row that only reads: its value as small text beside its icon and label. */

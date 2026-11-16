@@ -26,9 +26,11 @@ import { useChannel } from '@/channels/useChannels.ts';
 import { PIPELINE_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { DeleteButton, SelectionBar, TextCell } from '~/shared/Records.tsx';
-import { DateCell, PagedRows } from '~/shared/Table.tsx';
+import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import { PipelineMenu } from './PipelinePanel.tsx';
 import { type Pipeline, useDeletePipelines, usePipelines } from './queries.ts';
+
+const column = columnOf<Pipeline>;
 
 /** The name opens the pipeline in core's side panel, as a customer's name does. */
 const NameCell = ({ pipeline }: { pipeline: Pipeline }) => {
@@ -79,51 +81,23 @@ const useColumns = (canManage: boolean): RecordTableColumnDef<Pipeline>[] => {
 
   return [
     ...(canManage ? manage : []),
-    {
-      id: 'name',
-      header: () => <RecordTable.InlineHead label={t('name', 'Name')} icon={IconAlignLeft} />,
-      cell: ({ row }) => <NameCell pipeline={row.original} />,
-      size: 240,
-    },
-    {
-      id: 'description',
-      header: () => (
-        <RecordTable.InlineHead
-          label={t('description', 'Description')}
-          icon={IconFileDescription}
-        />
-      ),
-      cell: ({ row }) => <TextCell value={row.original.description} />,
-      size: 260,
-    },
-    {
-      id: 'createdBy',
-      header: () => (
-        <RecordTable.InlineHead label={t('created-by', 'Created by')} icon={IconUser} />
-      ),
-      cell: ({ row }) => (
-        <RecordTableInlineCell>
-          <MemberInline memberId={row.original.createdBy} members={memberQueries} />
-        </RecordTableInlineCell>
-      ),
-      size: 180,
-    },
-    {
-      id: 'createdAt',
-      header: () => (
-        <RecordTable.InlineHead label={t('created-at', 'Created at')} icon={IconCalendarPlus} />
-      ),
-      cell: ({ row }) => <DateCell date={row.original.createdAt} />,
-      size: 130,
-    },
-    {
-      id: 'updatedAt',
-      header: () => (
-        <RecordTable.InlineHead label={t('updated-at', 'Updated at')} icon={IconCalendarUp} />
-      ),
-      cell: ({ row }) => <DateCell date={row.original.updatedAt} />,
-      size: 130,
-    },
+    column('name', t('name', 'Name'), IconAlignLeft, 240, (pipeline) => (
+      <NameCell pipeline={pipeline} />
+    )),
+    column('description', t('description', 'Description'), IconFileDescription, 260, (pipeline) => (
+      <TextCell value={pipeline.description} />
+    )),
+    column('createdBy', t('created-by', 'Created by'), IconUser, 180, (pipeline) => (
+      <RecordTableInlineCell>
+        <MemberInline memberId={pipeline.createdBy} members={memberQueries} />
+      </RecordTableInlineCell>
+    )),
+    column('createdAt', t('created-at', 'Created at'), IconCalendarPlus, 130, (pipeline) => (
+      <DateCell date={pipeline.createdAt} />
+    )),
+    column('updatedAt', t('updated-at', 'Updated at'), IconCalendarUp, 130, (pipeline) => (
+      <DateCell date={pipeline.updatedAt} />
+    )),
   ];
 };
 
@@ -183,6 +157,7 @@ export const PipelinesPage = () => {
     usePipelines(channelId);
 
   const columns = useColumns(canManage);
+  const create = () => openNew(PIPELINE_TYPE, { channelId });
 
   return (
     <PageContainer>
@@ -190,7 +165,7 @@ export const PipelinesPage = () => {
         <CreateButton
           allowed={canManage}
           label={t('create-pipeline', 'Create pipeline')}
-          onClick={() => openNew(PIPELINE_TYPE, { channelId })}
+          onClick={create}
         />
       </ChannelsHeader>
       <ViewBar allLabel={t('all-pipelines', 'All pipelines')}>

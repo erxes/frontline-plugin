@@ -16,7 +16,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { FORM_SUBMISSION_TYPE } from '~/plugin.ts';
-import { ListEmpty } from '~/shared/List.tsx';
+import { ListEmpty, ListError } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, PagedRows } from '~/shared/Table.tsx';
 import { useAnswerText } from './answers.ts';
@@ -161,7 +161,7 @@ export const SubmissionsPage = () => {
         <ListFilter id={LIST} fields={useFields(fields)} totalCount={totalCount} />
       </ViewBar>
       {error ? (
-        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+        <ListError error={error} />
       ) : !isPending && submissions.length === 0 ? (
         <ListEmpty
           icon={<IconSend />}

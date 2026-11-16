@@ -1,5 +1,5 @@
 import { contactQueries } from '@erxes/core-contract/client';
-import { IconMessageCircle, IconPlug, IconRefresh } from '@tabler/icons-react';
+import { IconRefresh } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Avatar,
@@ -14,6 +14,7 @@ import {
   Skeleton,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { KindIcon } from './InboxFilter.tsx';
 import { type Conversation, useMarkRead, useOpenConversation } from './queries.ts';
 
 /** The customer's name, else their email or phone, else "Visitor". */
@@ -50,13 +51,13 @@ const Row = ({ conversation }: { conversation: Conversation }) => {
   const open = openId === conversation.id;
   const picked = selection.has(conversation.id);
   const picking = selection.ids.length > 0;
-  const Kind = conversation.kind === 'messenger' ? IconMessageCircle : IconPlug;
 
   return (
     <li
       className={cn(
-        'group flex gap-3 border-b px-3 hover:bg-accent',
+        'group relative flex gap-3 border-b px-3 hover:bg-accent/60',
         (open || picked) && 'bg-accent',
+        open && 'before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary',
       )}
     >
       <span className="relative mt-3 grid size-8 shrink-0 place-items-center">
@@ -82,9 +83,14 @@ const Row = ({ conversation }: { conversation: Conversation }) => {
         type="button"
         aria-current={open ? 'true' : undefined}
         onClick={() => select(conversation)}
-        className="flex min-w-0 flex-1 flex-col gap-0.5 py-3 text-left"
+        className="flex min-w-0 flex-1 flex-col gap-0.5 py-2.5 text-left outline-none"
       >
         <span className="flex items-center gap-2">
+          {!conversation.isRead && (
+            <span className="size-2 shrink-0 rounded-full bg-primary">
+              <span className="sr-only">{t('unread', 'Unread')}</span>
+            </span>
+          )}
           <span
             className={cn(
               'flex-1 truncate text-sm',
@@ -98,7 +104,7 @@ const Row = ({ conversation }: { conversation: Conversation }) => {
           </span>
         </span>
         <span className="flex items-center gap-1 text-xs text-muted-foreground">
-          <Kind className="size-4 shrink-0" aria-hidden />
+          <KindIcon kind={conversation.kind} className="size-3.5 shrink-0" />
           <span className="truncate">{conversation.integrationName}</span>
         </span>
         <span
@@ -150,6 +156,22 @@ const Toolbar = ({
   );
 };
 
+/** Placeholders shaped like rows while the first page loads. */
+const RowSkeletons = () => (
+  <ul aria-hidden>
+    {['a', 'b', 'c', 'd', 'e', 'f'].map((key) => (
+      <li key={key} className="flex gap-3 border-b px-3 py-3">
+        <Skeleton className="size-8 shrink-0" />
+        <span className="flex flex-1 flex-col gap-2">
+          <Skeleton className="h-3.5 w-2/3" />
+          <Skeleton className="h-3 w-1/3" />
+          <Skeleton className="h-3.5 w-full" />
+        </span>
+      </li>
+    ))}
+  </ul>
+);
+
 /**
  * The conversations on the left of the inbox under their toolbar, the open one marked; the older
  * ones load on demand.
@@ -174,11 +196,7 @@ export const ConversationList = ({
       <Toolbar conversations={conversations} refresh={refresh} />
       <ScrollArea className="min-h-0 flex-1">
         {isPending ? (
-          <div className="flex flex-col gap-2 p-3">
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-            <Skeleton className="h-16" />
-          </div>
+          <RowSkeletons />
         ) : (
           <ul aria-label={t('conversations', 'Conversations')}>
             {conversations.map((conversation) => (

@@ -14,7 +14,7 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { CALL_TYPE } from '~/plugin.ts';
-import { ListEmpty } from '~/shared/List.tsx';
+import { ListEmpty, ListError } from '~/shared/List.tsx';
 import { TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import { CALL_ICONS, CallStatus, DirectionIcon, useCallFields } from './CallFields.tsx';
@@ -110,7 +110,7 @@ export const CallHistoryPage = () => {
         <ListFilter id={LIST} fields={fields} members={memberQueries} totalCount={totalCount} />
       </ViewBar>
       {error ? (
-        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+        <ListError error={error} />
       ) : !isPending && calls.length === 0 ? (
         <ListEmpty
           icon={<IconPhone />}

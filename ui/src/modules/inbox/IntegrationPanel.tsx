@@ -4,7 +4,7 @@ import {
   IconKey,
   IconLetterCase,
   IconMessage,
-  IconPlayerPause,
+  IconPower,
   IconSettings,
   IconTrash,
   IconUser,
@@ -28,6 +28,7 @@ import { messengerPath } from '@/messenger/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
+import { useKindNames } from './InboxFilter.tsx';
 import { type Integration, useIntegration, useIntegrationChange } from './queries.ts';
 import { MemberChip } from '~/shared/MemberLine.tsx';
 
@@ -106,9 +107,11 @@ const Fields = ({ integration }: { integration: Integration }) => {
   const channels = useQuery(orpc.channels.list.queryOptions({ input: {} })).data?.channels ?? [];
   const welcome = typeof integration.config.welcome === 'string' ? integration.config.welcome : '';
   const scope = `frontline-integration.${integration.id}`;
+  const messenger = integration.kind === 'messenger';
+  const kind = useKindNames()[integration.kind] ?? integration.kind;
 
   return (
-    <PanelSection title={t('messenger', 'Messenger')}>
+    <PanelSection title={kind}>
       <ReadOnly when={!integration.canManage}>
         <PanelField icon={IconLetterCase} label={t('name', 'Name')}>
           <TextField
@@ -123,20 +126,22 @@ const Fields = ({ integration }: { integration: Integration }) => {
             }}
           />
         </PanelField>
-        <PanelField icon={IconMessage} label={t('welcome-message', 'Welcome message')}>
-          <TextField
-            scope={`${scope}.welcome`}
-            value={welcome}
-            placeholder={t('welcome-message', 'Welcome message')}
-            onSave={(next) =>
-              update.mutate({
-                id: integration.id,
-                config: { ...integration.config, welcome: next },
-              })
-            }
-          />
-        </PanelField>
-        <PanelField icon={IconPlayerPause} label={t('active', 'Active')} cell={false}>
+        {messenger && (
+          <PanelField icon={IconMessage} label={t('welcome-message', 'Welcome message')}>
+            <TextField
+              scope={`${scope}.welcome`}
+              value={welcome}
+              placeholder={t('welcome-message', 'Welcome message')}
+              onSave={(next) =>
+                update.mutate({
+                  id: integration.id,
+                  config: { ...integration.config, welcome: next },
+                })
+              }
+            />
+          </PanelField>
+        )}
+        <PanelField icon={IconPower} label={t('active', 'Active')} cell={false}>
           <Switch
             aria-label={t('active', 'Active')}
             checked={integration.isActive}
@@ -147,15 +152,15 @@ const Fields = ({ integration }: { integration: Integration }) => {
       <InfoRow icon={IconCircles} label={t('channel', 'Channel')}>
         {channels.find((channel) => channel.id === integration.channelId)?.name}
       </InfoRow>
-      <PanelField icon={IconKey} label={t('messenger-key', 'Messenger key')} cell={false}>
-        {integration.publicKey && (
+      {messenger && integration.publicKey && (
+        <PanelField icon={IconKey} label={t('messenger-key', 'Messenger key')} cell={false}>
           <div className="min-w-0 px-2">
             <CopyText value={integration.publicKey}>
               <span className="truncate font-mono text-xs">{integration.publicKey}</span>
             </CopyText>
           </div>
-        )}
-      </PanelField>
+        </PanelField>
+      )}
       <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
         <MemberChip id={integration.createdBy} />
       </InfoRow>

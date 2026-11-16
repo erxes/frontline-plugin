@@ -236,6 +236,15 @@ export const TagsField = ({
   );
 };
 
+/** The ticket's tags as badges, on a list row or a board card; nothing when it has none. */
+export const TicketTags = ({ tagIds }: { tagIds: string[] }) => {
+  const tags = useQuery({ ...ticketTags, enabled: tagIds.length > 0 });
+  const name = new Map((tags.data?.data ?? []).map((tag) => [tag.id, tag.name]));
+  const labels = tagIds.flatMap((id) => name.get(id) ?? []);
+
+  return labels.length > 0 ? <Badges labels={labels} /> : null;
+};
+
 /** Its tags, branch and department. */
 export const TicketLabels = ({ ticket }: { ticket: Ticket }) => {
   const { t } = useTranslation('frontline');

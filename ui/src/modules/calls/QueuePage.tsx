@@ -1,7 +1,8 @@
-import { InfoCard, PageContainer, ScrollArea, Spinner, Table, useFormat } from 'erxes-ui';
+import { Badge, InfoCard, PageContainer, ScrollArea, Skeleton, Table, useFormat } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
+import { ListError } from '~/shared/List.tsx';
 import { CallsHeader } from './CallsHeader.tsx';
 import { AgentStatus } from './QueuesPage.tsx';
 import { CALLS_PATH, durationText, type QueueLive, useQueue } from './queries.ts';
@@ -28,9 +29,12 @@ const Board = ({
   empty: string;
 }) => (
   <section className="flex flex-col gap-2 rounded-lg border bg-background p-4">
-    <h2 className="text-base font-semibold">{title}</h2>
+    <h2 className="flex items-center gap-2 text-base font-semibold">
+      {title}
+      <Badge variant="secondary">{rows.length}</Badge>
+    </h2>
     {rows.length === 0 ? (
-      <p className="text-sm text-muted-foreground">{empty}</p>
+      <p className="py-2 text-sm text-muted-foreground">{empty}</p>
     ) : (
       <Table>
         <Table.Header>
@@ -76,7 +80,9 @@ const LiveBoard = ({ live }: { live: QueueLive }) => {
           cells: [
             agent.extension,
             agent.name,
-            agent.pausedAt ? t('agent-paused', 'Paused') : agent.status,
+            <Badge key="status" variant={agent.pausedAt ? 'warning' : 'secondary'}>
+              {agent.pausedAt ? t('agent-paused', 'Paused') : agent.status}
+            </Badge>,
             format.number(agent.answered),
             format.number(agent.abandoned),
             durationText(agent.talkSeconds),
@@ -128,11 +134,13 @@ export const QueuePage = () => {
         <AgentStatus />
       </CallsHeader>
       {queue.isPending ? (
-        <Spinner area="lg" />
+        <div className="grid grid-cols-2 gap-3 p-4 md:grid-cols-4 xl:grid-cols-7">
+          {Array.from({ length: 7 }, (_, index) => (
+            <Skeleton key={index} className="h-24" />
+          ))}
+        </div>
       ) : queue.isError ? (
-        <p role="alert" className="m-3 text-sm text-destructive-text">
-          {queue.error.message}
-        </p>
+        <ListError error={queue.error} />
       ) : (
         <ScrollArea>
           <div className="flex flex-col gap-4 p-4">

@@ -16,14 +16,13 @@ import {
   PanelField,
   PanelSection,
   Skeleton,
-  Spinner,
   TextField,
   type TRecordSlotProps,
   useFormat,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { useArticleActions } from './ArticleCells.tsx';
 import { type ArticleEdit, Media, Publishing } from './ArticleOptions.tsx';
@@ -161,7 +160,7 @@ const ArticleFields = ({ article }: { article: ArticleDetail }) => {
 export const ArticleDetailSlot = ({ contentId }: TRecordSlotProps) => {
   const article = useArticle(contentId);
 
-  if (article.isPending) return <Spinner area="lg" />;
+  if (article.isPending) return <PanelSkeleton />;
 
   if (article.isError)
     return (
@@ -192,7 +191,7 @@ const ContentEditor = ({ article }: { article: ArticleDetail }) => {
 export const ArticleContent = ({ contentId }: TRecordSlotProps) => {
   const article = useArticle(contentId);
 
-  if (article.isPending) return <Spinner area="lg" />;
+  if (article.isPending) return <PanelSkeleton />;
 
   if (article.isError)
     return (

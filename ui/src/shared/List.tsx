@@ -1,4 +1,4 @@
-import { IconPlus, IconSearchOff } from '@tabler/icons-react';
+import { IconAlertTriangle, IconPlus, IconSearchOff } from '@tabler/icons-react';
 import { Button, Empty, Kbd, useListFilterParams, useScopedHotkeys } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -29,6 +29,23 @@ export const ListEmpty = ({
         </Empty.Description>
       </Empty.Header>
       {!search && action && <Empty.Content>{action}</Empty.Content>}
+    </Empty>
+  );
+};
+
+/** What a page shows when its query failed: the API's message in an outlined empty state. */
+export const ListError = ({ error }: { error: Error }) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <Empty variant="outline" className="m-3" role="alert">
+      <Empty.Header>
+        <Empty.Media>
+          <IconAlertTriangle />
+        </Empty.Media>
+        <Empty.Title>{t('could-not-load', 'Could not load this page')}</Empty.Title>
+        <Empty.Description>{error.message}</Empty.Description>
+      </Empty.Header>
     </Empty>
   );
 };

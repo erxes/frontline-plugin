@@ -17,7 +17,6 @@ import {
   PanelField,
   PanelSection,
   Skeleton,
-  Spinner,
   TextField,
   type TRecordSlotProps,
   useFormat,
@@ -25,7 +24,7 @@ import {
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChannelSelect } from '~/shared/ChannelSelect.tsx';
-import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { StatusBadge, useSurveyActions } from './SurveyCells.tsx';
 import { type Survey, useEditSurvey, useSurvey } from './useSurveys.ts';
@@ -145,7 +144,7 @@ export const WithSurvey = ({
 }) => {
   const survey = useSurvey(contentId);
 
-  if (survey.isPending) return <Spinner area="lg" />;
+  if (survey.isPending) return <PanelSkeleton />;
 
   if (survey.isError)
     return (

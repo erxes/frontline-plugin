@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
 import { ConversationMenu, VisitorTyping } from './ConversationPresence.tsx';
+import { KindIcon } from './InboxFilter.tsx';
 import {
   type Conversation,
   conversationTags,
@@ -150,6 +151,10 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         contacts={contactQueries}
         placeholder={t('visitor', 'Visitor')}
       />
+      <span className="hidden items-center gap-1 truncate text-xs text-muted-foreground xl:flex">
+        <KindIcon kind={conversation.kind} className="size-3.5 shrink-0" />
+        {conversation.integrationName}
+      </span>
       <VisitorTyping conversation={conversation} />
       <SelectMember.Linked
         value={conversation.assigneeId}
