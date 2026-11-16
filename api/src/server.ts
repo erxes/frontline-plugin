@@ -34,8 +34,8 @@ const memberOf = async (authorization: string | undefined) => {
 
 /**
  * What websites load and call signed out: their routes answer any origin, so they come before
- * web's CORS. Forms find the organisation by the key frontline gave it. The embeds' entries
- * keep their names, so browsers recheck them every few minutes; the chunks carry their hash.
+ * web's CORS. Forms find the organisation by the key frontline gave it. `/widget` serves the
+ * embeds' scripts.
  */
 const embeds = (app: express.Express) => {
   // Providers post webhooks signed out, from their own servers.
