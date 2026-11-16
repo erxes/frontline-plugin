@@ -158,7 +158,7 @@ export const expectAccessible = async (page: Page) => {
 };
 
 /** A member of the owner's organisation, signed in on their own page, whose role holds `permissions`. */
-type NewMember = (permissions: string[]) => Promise<{ page: Page; fullName: string }>;
+type NewMember = (permissions: string[]) => Promise<{ page: Page; id: string; fullName: string }>;
 
 export const test = base.extend<{ api: ReturnType<typeof coreClient>; newMember: NewMember }>({
   api: async ({ page, baseURL }, use) => {
@@ -173,7 +173,7 @@ export const test = base.extend<{ api: ReturnType<typeof coreClient>; newMember:
       const fullName = `Teammate ${suffix}`;
       const credentials = { email: `member-${suffix}@e2e.test`, password: 'Member-pass-12345' };
 
-      await api.users.invite({ ...credentials, role: role.key, fullName });
+      const { id } = await api.users.invite({ ...credentials, role: role.key, fullName });
 
       const context = await browser.newContext({ baseURL, colorScheme });
 
@@ -185,12 +185,35 @@ export const test = base.extend<{ api: ReturnType<typeof coreClient>; newMember:
       await asMember.auth.signIn(credentials);
       await asMember.auth.onboarded({ language: 'en' });
 
-      return { page, fullName };
+      return { page, id, fullName };
     });
 
     await Promise.all(contexts.map((context) => context.close()));
   },
 });
+
+/** The plugin's member API, as its UI calls it with the member's session. */
+const RPC = 'http://localhost:3399/api/rpc';
+
+const Answer = z.object({ json: z.unknown() });
+
+export const Id = z.object({ id: z.string() });
+
+/** Calls the plugin's `path` procedure as the owner, with a plugin session core issued them. */
+export const pluginApi = async (api: ReturnType<typeof coreClient>, request: APIRequestContext) => {
+  const { token } = await api.plugins.session({ name: 'frontline' });
+
+  return async <T extends z.ZodType>(path: string, input: unknown, Output: T) => {
+    const response = await request.post(`${RPC}/${path}`, {
+      headers: { authorization: `Bearer ${token}` },
+      data: { json: input },
+    });
+
+    expect(response.status(), path).toBe(200);
+
+    return Output.parse(Answer.parse(await response.json()).json);
+  };
+};
 
 /** Frontline's inbox. */
 export const INBOX = '/frontline/inbox';

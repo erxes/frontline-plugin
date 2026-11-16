@@ -1,9 +1,12 @@
+import { z } from 'zod';
 import {
   addMessenger,
   createChannel,
   expect,
   expectAccessible,
+  Id,
   INBOX,
+  pluginApi,
   test,
   unique,
   visitorOf,
@@ -11,6 +14,8 @@ import {
 
 // A daily agent: the inbox, their channels, and core's team list to assign from.
 const MEMBER = ['frontline.inbox.view', 'frontline.channel.view', 'team.view'];
+
+const Messenger = z.object({ publicKey: z.string() });
 
 test('the sidebar’s queues and channels filter the inbox and count what waits unread, live', async ({
   page,
@@ -78,19 +83,34 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
 });
 
 test('My inbox and Team inbox split the member’s channels; quiet ones fold, a filter finds any, and a folded group stays folded', async ({
-  page,
   request,
+  api,
   newMember,
 }) => {
   const teammate = await newMember(MEMBER);
-  const busy = await createChannel(page, teammate.fullName);
-  const quiet: string[] = [];
+  const rpc = await pluginApi(api, request);
 
   // Nine team channels: more than the sidebar lists before it folds, so the filter shows.
-  for (let made = 0; made < 8; made++) quiet.push(await createChannel(page, teammate.fullName));
+  // They come from the API, since other specs walk the channel and messenger forms.
+  const channelOf = async () => {
+    const name = `Support ${unique()}`;
+    const { id } = await rpc('channels/create', { name, memberIds: [teammate.id] }, Id);
 
-  await page.goto(INBOX);
-  await (await visitorOf(request, await addMessenger(page, busy))).write(`Hello ${unique()}`);
+    return { id, name };
+  };
+
+  const [{ id: busyId, name: busy }, quiet] = await Promise.all([
+    channelOf(),
+    Promise.all(Array.from({ length: 8 }, async () => (await channelOf()).name)),
+  ]);
+
+  const { publicKey } = await rpc(
+    'integrations/create',
+    { channelId: busyId, kind: 'messenger', name: 'Website', config: { welcome: 'Hi' } },
+    Messenger,
+  );
+
+  await (await visitorOf(request, publicKey)).write(`Hello ${unique()}`);
 
   const member = teammate.page;
   const first = quiet.at(0) ?? '';
