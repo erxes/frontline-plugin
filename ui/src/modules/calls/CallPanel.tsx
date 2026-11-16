@@ -14,7 +14,6 @@ import {
   PanelField,
   PanelSection,
   Skeleton,
-  Spinner,
   toast,
   type TRecordSlotProps,
   useFormat,
@@ -25,7 +24,7 @@ import { PLUGIN } from '~/plugin.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { CALL_ICONS, CallStatus, useDirectionNames } from './CallFields.tsx';
 import { type Call, durationText, useCall, useFetchRecording } from './queries.ts';
-import { InfoRow } from '~/shared/Panel.tsx';
+import { InfoRow, PanelSkeleton } from '~/shared/Panel.tsx';
 import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: who called, or who was called. */
@@ -161,7 +160,7 @@ const Recording = ({ call }: { call: Call }) => {
 export const CallDetail = ({ contentId }: TRecordSlotProps) => {
   const call = useCall(contentId);
 
-  if (call.isPending) return <Spinner area="lg" />;
+  if (call.isPending) return <PanelSkeleton />;
 
   if (call.isError)
     return (

@@ -15,13 +15,12 @@ import {
   PanelField,
   PanelSection,
   Skeleton,
-  Spinner,
   type TRecordSlotProps,
   useFormat,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PanelSkeleton, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { StatusBadge, useFormActions } from './FormCells.tsx';
 import { Appearance, Callout, General, ThankYou } from './FormSettings.tsx';
@@ -133,7 +132,7 @@ const Overview = ({ form }: { form: Form }) => {
 export const FormDetail = ({ contentId }: TRecordSlotProps) => {
   const form = useForm(contentId);
 
-  if (form.isPending) return <Spinner area="lg" />;
+  if (form.isPending) return <PanelSkeleton />;
 
   if (form.isError)
     return (

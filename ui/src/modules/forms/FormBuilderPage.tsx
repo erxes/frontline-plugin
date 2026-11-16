@@ -1,21 +1,14 @@
 import { IconForms, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import {
-  Button,
-  buttonVariants,
-  PageContainer,
-  PageHeader,
-  ScrollArea,
-  Separator,
-  Spinner,
-  TextField,
-} from 'erxes-ui';
+import { Button, PageContainer, ScrollArea, Skeleton, TextField } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
+import { AppHeader } from '~/shared/Header.tsx';
+import { ListError } from '~/shared/List.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { FieldEditor } from './FieldEditor.tsx';
-import { FIELD_TYPES, useFieldTypeNames } from './fieldTypes.ts';
+import { FIELD_ICONS, FIELD_TYPES, useFieldTypeNames } from './fieldTypes.ts';
 import { FormPreview } from './FormPreview.tsx';
 import {
   FORMS_PATH,
@@ -32,23 +25,14 @@ export const FormHeader = ({ form, label }: { form?: Form; label: string }) => {
   const { t } = useTranslation('frontline');
 
   return (
-    <PageHeader>
-      <PageHeader.Start>
-        <Link to={FORMS_PATH} className={buttonVariants({ variant: 'ghost' })}>
-          <IconForms />
-          {t('forms', 'Forms')}
-        </Link>
-        <Separator.Inline />
-        <Link
-          to={`${FORMS_PATH}/${encodeURIComponent(form?.id ?? '')}`}
-          className={buttonVariants({ variant: 'ghost' })}
-        >
-          {form?.name ?? '…'}
-        </Link>
-        <Separator.Inline />
-        <span className="flex h-8 items-center px-3 text-sm font-medium">{label}</span>
-      </PageHeader.Start>
-    </PageHeader>
+    <AppHeader
+      icon={IconForms}
+      app={{ label: t('forms', 'Forms'), to: FORMS_PATH }}
+      levels={[
+        { label: form?.name ?? '…', to: `${FORMS_PATH}/${encodeURIComponent(form?.id ?? '')}` },
+        { label },
+      ]}
+    />
   );
 };
 
@@ -66,12 +50,16 @@ const AddField = ({ formId, pageNumber }: { formId: string; pageNumber: number }
           {t('form-add-field', 'Add field')}
         </Button>
       }
-      actions={FIELD_TYPES.map((type) => ({
-        value: type,
-        icon: null,
-        label: types[type],
-        onSelect: () => add.mutate({ formId, type, label: types[type], pageNumber }),
-      }))}
+      actions={FIELD_TYPES.map((type) => {
+        const TypeIcon = FIELD_ICONS[type];
+
+        return {
+          value: type,
+          icon: <TypeIcon />,
+          label: types[type],
+          onSelect: () => add.mutate({ formId, type, label: types[type], pageNumber }),
+        };
+      })}
     />
   );
 };
@@ -212,11 +200,14 @@ export const FormBuilderPage = () => {
       <FormHeader form={form.data} label={t('form-builder', 'Builder')} />
       <ScrollArea>
         {error ? (
-          <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+          <ListError error={error} />
         ) : form.data && fields.data ? (
           <Builder form={form.data} fields={fields.data} />
         ) : (
-          <Spinner area="lg" />
+          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:grid-cols-3">
+            <Skeleton className="h-80 lg:col-span-2" />
+            <Skeleton className="h-80" />
+          </div>
         )}
       </ScrollArea>
     </PageContainer>

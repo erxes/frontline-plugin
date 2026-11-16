@@ -11,6 +11,7 @@ import {
 } from '@tabler/icons-react';
 import {
   Button,
+  buttonVariants,
   PageContainer,
   RecordTable,
   type RecordTableColumnDef,
@@ -19,7 +20,7 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { ListEmpty } from '~/shared/List.tsx';
+import { ListEmpty, ListError } from '~/shared/List.tsx';
 import { TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, DateCell, Rows } from '~/shared/Table.tsx';
 import { CallsHeader } from './CallsHeader.tsx';
@@ -38,10 +39,12 @@ const NumberCell = ({ value }: { value: string }) => (
 const QueueName = ({ queue }: { queue: Queue }) => (
   <Link
     to={`${CALLS_PATH}/queues/${encodeURIComponent(queue.id)}`}
-    className="flex min-w-0 items-center gap-2 px-2 text-sm hover:underline"
+    className={buttonVariants({ variant: 'ghost', className: 'w-full min-w-0 justify-start' })}
   >
     <span className="truncate">{queue.name || queue.queue}</span>
-    <span className="text-muted-foreground">{queue.queue}</span>
+    {queue.name && queue.name !== queue.queue && (
+      <span className="text-muted-foreground text-xs tabular-nums">{queue.queue}</span>
+    )}
   </Link>
 );
 
@@ -133,7 +136,7 @@ export const QueuesPage = () => {
         <AgentStatus />
       </CallsHeader>
       {error ? (
-        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+        <ListError error={error} />
       ) : !isPending && data.length === 0 ? (
         <ListEmpty
           icon={<IconUsersGroup />}

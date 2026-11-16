@@ -3,6 +3,7 @@ import {
   IconArrowUp,
   IconChevronDown,
   IconChevronRight,
+  IconForms,
   IconTrash,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
@@ -21,6 +22,8 @@ import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { FieldRules } from './FieldRules.tsx';
 import {
+  FIELD_ICONS,
+  FIELD_TYPES,
   PICK_TYPES,
   PRESETS,
   takesValidator,
@@ -203,6 +206,8 @@ export const FieldEditor = ({
   const [open, setOpen] = useState(false);
   const update = useMutation(orpc.forms.fields.update.mutationOptions(useFormChange()));
   const requiredId = `frontline-field-${field.id}-required`;
+  const known = FIELD_TYPES.find((type) => type === field.type);
+  const TypeIcon = known ? FIELD_ICONS[known] : IconForms;
 
   return (
     <div className="rounded-lg border bg-background">
@@ -227,8 +232,9 @@ export const FieldEditor = ({
               onSave={(label) => update.mutate({ id: field.id, label: label.trim() })}
             />
           </span>
-          <span className="w-32 shrink-0 truncate text-xs text-muted-foreground">
-            {typeName(field.type)}
+          <span className="flex w-36 shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+            <TypeIcon className="size-4 shrink-0" />
+            <span className="truncate">{typeName(field.type)}</span>
           </span>
           <div className="flex shrink-0 items-center gap-2">
             <Switch

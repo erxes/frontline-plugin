@@ -28,7 +28,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { KB_CATEGORY_TYPE } from '~/plugin.ts';
-import { CreateButton, ListEmpty } from '~/shared/List.tsx';
+import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
 import { DateCell, Rows } from '~/shared/Table.tsx';
 import { Indent } from './CategoryTree.tsx';
@@ -251,7 +251,7 @@ export const CategoriesPage = () => {
         />
       </ViewBar>
       {error ? (
-        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+        <ListError error={error} />
       ) : !isPending && rows.length === 0 ? (
         <ListEmpty
           icon={<IconFolder />}

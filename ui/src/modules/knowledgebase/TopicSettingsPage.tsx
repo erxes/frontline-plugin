@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate, useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { ImageField } from '~/shared/Files.tsx';
+import { ListError } from '~/shared/List.tsx';
 import { KbHeader } from './KbHeader.tsx';
 import { LanguageSelect } from './LanguageSelect.tsx';
 import { useDeleteTopics } from './useKbDeletes.ts';
@@ -198,7 +199,7 @@ export const TopicSettingsPage = () => {
       <ScrollArea>
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
           {error ? (
-            <p className="text-sm text-destructive-text">{error.message}</p>
+            <ListError error={error} />
           ) : data ? (
             <>
               <HelpCenterForm key={data.id} topic={data} editable={can.topics} />

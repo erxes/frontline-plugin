@@ -29,7 +29,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { KB_ARTICLE_TYPE } from '~/plugin.ts';
-import { CreateButton, ListEmpty } from '~/shared/List.tsx';
+import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
 import { ActionsMenu, DeleteButton, ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
 import { ArticleList } from './ArticleList.tsx';
 import { ArticlesTable } from './ArticlesTable.tsx';
@@ -202,7 +202,7 @@ export const ArticlesPage = () => {
         </ListFilter>
       </ViewBar>
       {error ? (
-        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+        <ListError error={error} />
       ) : !isPending && articles.length === 0 ? (
         <ListEmpty
           icon={<IconArticle />}

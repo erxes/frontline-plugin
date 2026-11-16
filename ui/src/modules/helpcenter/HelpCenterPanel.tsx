@@ -19,13 +19,12 @@ import {
   PanelField,
   PanelSection,
   Skeleton,
-  Spinner,
   TextField,
   type TRecordSlotProps,
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
 import { PickerField } from '~/shared/Pickers.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import {
@@ -47,7 +46,7 @@ export const WithHelpCenter = ({
 }) => {
   const center = useHelpCenter(id);
 
-  if (center.isPending) return <Spinner area="lg" />;
+  if (center.isPending) return <PanelSkeleton />;
 
   if (center.isError) {
     return (
