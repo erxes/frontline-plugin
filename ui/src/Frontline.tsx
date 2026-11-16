@@ -7,6 +7,7 @@ import { PersonalChannel } from '@/channels/PersonalChannel.tsx';
 import {
   CALL_TYPE,
   CHANNEL_TYPE,
+  ACCOUNT_TYPE,
   FORM_SUBMISSION_TYPE,
   FORM_TYPE,
   HELP_CENTER_TYPE,
@@ -76,8 +77,8 @@ const MessengerSettingsPage = lazy(async () => ({
   default: (await import('@/messenger/MessengerSettingsPage.tsx')).MessengerSettingsPage,
 }));
 
-const MetaPage = lazy(async () => ({
-  default: (await import('@/meta/MetaPage.tsx')).MetaPage,
+const IntegrationsPage = lazy(async () => ({
+  default: (await import('@/integrations/IntegrationsPage.tsx')).IntegrationsPage,
 }));
 
 const TicketsPage = lazy(async () => ({
@@ -134,6 +135,40 @@ const ResponseTemplateRedirect = () => (
 );
 
 /** The page module web renders under `/frontline/*` (loaded as `frontline_ui/frontline`). */
+/** Frontline's settings, under `/frontline/settings`, in their own sidebar. */
+const settingsRoutes = (
+  <Route path="settings" element={<SettingsLayout />}>
+    <Route index element={<Navigate to="channels" replace />} />
+    <Route path="channels">
+      <Route index element={<ChannelsPage />} />
+      <Route path=":id" element={<RecordRoute contentType={CHANNEL_TYPE} />} />
+      <Route path=":id/members" element={<ChannelMembersPage />} />
+      <Route path=":id/response" element={<ResponseTemplatesPage />} />
+      <Route path=":id/response/:responseId" element={<ResponseTemplateRedirect />} />
+      <Route path=":id/pipelines" element={<PipelinesPage />} />
+    </Route>
+    <Route path="pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
+    <Route
+      path="response-templates/:id"
+      element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}
+    />
+    <Route path="tags" element={<TagsPage />} />
+    {/*
+      Branches and departments are core's. Old links stay in settings: leaving the plugin
+      would keep the old page as the tab's last place, so every return would leave again.
+    */}
+    <Route path="departments" element={<Navigate to="../channels" replace />} />
+    <Route path="branches" element={<Navigate to="../channels" replace />} />
+    <Route path="ticket-properties" element={<PropertiesPage />} />
+    <Route path="help-centers" element={<HelpCentersPage />} />
+    <Route path="help-centers/:id" element={<RecordRoute contentType={HELP_CENTER_TYPE} />} />
+    <Route path="integrations" element={<IntegrationsPage />} />
+    <Route path="integrations/:id" element={<RecordRoute contentType={ACCOUNT_TYPE} />} />
+    <Route path="meta" element={<Navigate to="../integrations" replace />} />
+    <Route path="meta/bots/:id" element={<RecordRoute contentType={META_BOT_TYPE} />} />
+  </Route>
+);
+
 export const Frontline = () => (
   <Routes>
     <Route element={<FrontlineLayout />}>
@@ -182,34 +217,12 @@ export const Frontline = () => (
         <Route path=":topicId/kbsettings" element={<TopicSettingsPage />} />
       </Route>
     </Route>
-    <Route path="settings" element={<SettingsLayout />}>
-      <Route index element={<Navigate to="channels" replace />} />
-      <Route path="channels">
-        <Route index element={<ChannelsPage />} />
-        <Route path=":id" element={<RecordRoute contentType={CHANNEL_TYPE} />} />
-        <Route path=":id/members" element={<ChannelMembersPage />} />
-        <Route path=":id/response" element={<ResponseTemplatesPage />} />
-        <Route path=":id/response/:responseId" element={<ResponseTemplateRedirect />} />
-        <Route path=":id/pipelines" element={<PipelinesPage />} />
-      </Route>
-      <Route path="pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
-      <Route
-        path="response-templates/:id"
-        element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}
-      />
-      <Route path="tags" element={<TagsPage />} />
-      {/*
-        Branches and departments are core's. Old links stay in settings: leaving the plugin
-        would keep the old page as the tab's last place, so every return would leave again.
-      */}
-      <Route path="departments" element={<Navigate to="../channels" replace />} />
-      <Route path="branches" element={<Navigate to="../channels" replace />} />
-      <Route path="ticket-properties" element={<PropertiesPage />} />
-      <Route path="help-centers" element={<HelpCentersPage />} />
-      <Route path="help-centers/:id" element={<RecordRoute contentType={HELP_CENTER_TYPE} />} />
-      <Route path="meta" element={<MetaPage />} />
-      <Route path="meta/bots/:id" element={<RecordRoute contentType={META_BOT_TYPE} />} />
-    </Route>
+    {settingsRoutes}
     <Route path="helpcenter" element={<Navigate to="../settings/help-centers" replace />} />
+    {/* The old integration detail page, one per channel and kind, is now the accounts list. */}
+    <Route
+      path="details/:id/:integrationType"
+      element={<Navigate to={`/${PLUGIN}/settings/integrations`} replace />}
+    />
   </Routes>
 );

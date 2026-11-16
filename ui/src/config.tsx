@@ -17,12 +17,14 @@ import {
   IconMessageReply,
   IconRobot,
   IconPhone,
+  IconPlugConnected,
   IconTicket,
   IconWorldWww,
 } from '@tabler/icons-react';
 import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
 import { type ComponentType, lazy } from 'react';
 import {
+  ACCOUNT_TYPE,
   CALL_TYPE,
   CHANNEL_TYPE,
   FORM_SUBMISSION_TYPE,
@@ -227,7 +229,14 @@ export const CONFIG: IUIConfig = {
       title: 'Bot',
       icon: IconRobot,
       detailPath: (id) => `/${PLUGIN}/settings/meta/bots/${encodeURIComponent(id)}`,
-      ...slots(() => import('@/meta/slots.ts')),
+      ...slots(() => import('@/integrations/botSlots.ts')),
+    },
+    {
+      contentType: ACCOUNT_TYPE,
+      title: 'Account',
+      icon: IconPlugConnected,
+      detailPath: (id) => `/${PLUGIN}/settings/integrations/${encodeURIComponent(id)}`,
+      ...slots(() => import('@/integrations/accountSlots.ts')),
     },
     {
       contentType: CALL_TYPE,

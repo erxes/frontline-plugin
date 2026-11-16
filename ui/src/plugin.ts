@@ -31,4 +31,6 @@ export const INTEGRATION_TYPE = `${PLUGIN}:integration`;
 
 export const META_BOT_TYPE = `${PLUGIN}:meta-bot`;
 
+export const ACCOUNT_TYPE = `${PLUGIN}:integration-account`;
+
 export const CALL_TYPE = `${PLUGIN}:call`;

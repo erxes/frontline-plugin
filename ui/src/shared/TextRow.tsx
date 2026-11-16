@@ -17,6 +17,7 @@ export const TextRow = ({
   defaultValue,
   maxLength,
   multiline,
+  type,
 }: {
   label: string;
   icon: Icon;
@@ -27,13 +28,19 @@ export const TextRow = ({
   defaultValue?: string;
   maxLength?: number;
   multiline?: boolean;
+  /** A one-line input's type, such as `password` for a secret the screen hides. */
+  type?: 'email' | 'number' | 'password';
 }) => {
   const id = useId();
   const field = { id, name, required, placeholder, defaultValue, maxLength };
 
   return (
     <PanelFormRow label={label} icon={icon} required={required} error={error} htmlFor={id}>
-      {multiline ? <Textarea {...field} /> : <Input {...field} variant="bordered" text="sm" />}
+      {multiline ? (
+        <Textarea {...field} />
+      ) : (
+        <Input {...field} type={type} variant="bordered" text="sm" />
+      )}
     </PanelFormRow>
   );
 };

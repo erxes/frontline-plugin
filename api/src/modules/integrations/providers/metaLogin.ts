@@ -36,7 +36,7 @@ const State = z.object({ orgId: z.string(), userId: z.string() });
 const callbackUrl = () => `${config.publicUrl}/api/public/webhooks/meta/callback`;
 
 /** Where Meta's login returns the member: the Facebook and Instagram settings in web. */
-export const SETTINGS_URL = `${config.coreUiOrigin}/frontline/settings/meta`;
+export const SETTINGS_URL = `${config.coreUiOrigin}/frontline/settings/integrations`;
 
 /**
  * The address of Meta's login dialog, where the member picks the pages and Instagram accounts to
