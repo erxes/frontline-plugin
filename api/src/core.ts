@@ -35,6 +35,10 @@ export const PERMISSIONS = {
   helpCenterManage: 'frontline.help_center.manage',
   /** Read and answer the conversations of the channels you belong to. */
   inboxView: 'frontline.inbox.view',
+  /** See the connected pages, bots and mailboxes. */
+  integrationView: 'frontline.integration.view',
+  /** Connect, check and remove pages, bots and mailboxes. */
+  integrationManage: 'frontline.integration.manage',
 } as const;
 
 /** The record type whose Activity tab in core shows a conversation's events. */
@@ -70,6 +74,9 @@ export const INBOX_NOTIFICATIONS = {
   assigned: 'frontline.conversation.assigned',
   mentioned: 'frontline.conversation.mentioned',
 } as const;
+
+/** Tells whoever connected an account that the provider stopped accepting it. */
+export const INTEGRATION_BROKEN = 'frontline.integration.broken';
 
 /** The record type whose Activity tab in core shows a ticket's events. */
 export const TICKET_TIMELINE = 'frontline.ticket';
@@ -115,6 +122,14 @@ export const JOBS = {
     name: 'messages.send',
     retry: { attempts: SEND_ATTEMPTS, delay: 30, maxDelay: 3600 },
   },
+  /** Reads connected mailboxes (UTC cron, as every `cron` here). */
+  mailSync: {
+    name: 'integrations.mail-sync',
+    cron: '*/2 * * * *',
+    retry: { attempts: 2, delay: 30, maxDelay: 60 },
+  },
+  /** Rechecks every connected account. */
+  check: { name: 'integrations.check', cron: '17 3 * * *' },
 } as const;
 
 /** The record type whose Activity tab shows a form's events, and its submissions. */
@@ -198,12 +213,23 @@ export const manifest = {
       label: "Answer the conversations of the channels you're in",
       group: 'Inbox',
     },
+    {
+      action: PERMISSIONS.integrationView,
+      label: 'See connected pages, bots and mailboxes',
+      group: 'Integrations',
+    },
+    {
+      action: PERMISSIONS.integrationManage,
+      label: 'Connect and remove pages, bots and mailboxes',
+      group: 'Integrations',
+    },
   ],
   notificationKinds: [
     ...TICKET_NOTICES.map(({ event, label }) => ({ kind: event.type, label })),
     ...Object.values(CHANNEL_EVENTS).map(({ type, label }) => ({ kind: type, label })),
     { kind: INBOX_NOTIFICATIONS.assigned, label: 'A conversation is assigned to you' },
     { kind: INBOX_NOTIFICATIONS.mentioned, label: 'You are mentioned in a conversation' },
+    { kind: INTEGRATION_BROKEN, label: 'A page, bot or mailbox you connected stopped working' },
   ],
   jobs: Object.values(JOBS),
   // What automations can start on: ticket and form events, a conversation's events and each

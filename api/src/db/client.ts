@@ -5,6 +5,7 @@ import { config, PLUGIN } from '#/config.ts';
 import * as formSchema from './forms.ts';
 import * as helpCenterSchema from './helpcenter.ts';
 import * as inboxSchema from './inbox.ts';
+import * as integrationSchema from './integrations.ts';
 import * as messengerSchema from './messenger.ts';
 import * as publicSchema from './public.ts';
 import * as schema from './schema.ts';
@@ -28,6 +29,7 @@ export const db = drizzle({
     ...publicSchema,
     ...inboxSchema,
     ...messengerSchema,
+    ...integrationSchema,
   },
   casing: 'snake_case',
 });

@@ -133,7 +133,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] notification `ticketUpdated` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:52`. `frontline.ticket.moved` and `frontline.ticket.fields_changed`
 - [x] notification `ticketMention` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:57`. Notes and their mentions live in core's Activity tab
 - [ ] notification `ticketCustomerReply` (tickets) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:62`
-- [ ] notification `integrationHealthBroken` (integrations) → sdk `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:75`
+- [x] notification `integrationHealthBroken` (integrations) → `frontline.integration.broken` in `manifest.notificationKinds`, sent once when an account breaks `frontline_api/src/meta/notifications.ts:75`
 - [x] notification `channelMembersChange` (channels) → `frontline.channel.members_added` in `manifest.notificationKinds` `frontline_api/src/meta/notifications.ts:89`
 - [x] permission `showConversations` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:18`
 - [x] permission `conversationMessageAdd` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:24`
@@ -150,10 +150,10 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] permission `channelUpdate` (channel) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:84`
 - [x] permission `channelRemove` (channel) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:89`
 - [x] permission `channelManageMembers` (channel) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:94`
-- [x] permission `showIntegrations` (integration) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:108`
-- [x] permission `integrationsAdd` (integration) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:114`
-- [x] permission `integrationsEdit` (integration) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:119`
-- [x] permission `integrationsRemove` (integration) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:124`
+- [x] permission `showIntegrations` (integration) → `frontline.channel.view` for a channel's integrations, `frontline.integration.view` for connected accounts `frontline_api/src/meta/permissions.ts:108`
+- [x] permission `integrationsAdd` (integration) → channel admins for a channel's integrations, `frontline.integration.manage` to connect, check and remove accounts `frontline_api/src/meta/permissions.ts:114`
+- [x] permission `integrationsEdit` (integration) → channel admins for a channel's integrations, `frontline.integration.manage` to connect, check and remove accounts `frontline_api/src/meta/permissions.ts:119`
+- [x] permission `integrationsRemove` (integration) → channel admins for a channel's integrations, `frontline.integration.manage` to connect, check and remove accounts `frontline_api/src/meta/permissions.ts:124`
 - [x] permission `showTickets` (ticket) → `frontline.channel.view` and membership of the ticket's channel `frontline_api/src/meta/permissions.ts:142`
 - [x] permission `createTicket` (ticket) → `frontline.channel.view` and membership of the channel. Decision: a ticket follows its channel, like its pipeline, so no separate grant `frontline_api/src/meta/permissions.ts:148`
 - [x] permission `updateTicket` (ticket) → `frontline.channel.view` and membership of the channel `frontline_api/src/meta/permissions.ts:153`
@@ -241,8 +241,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `CLOUDFLARE_ZONE_ID` → api/src/config.ts `frontline_api/src/modules/customdomain/constants.ts:14`. `config.cloudflare`
 - [ ] `CUTOFF` → api/src/config.ts `frontline_api/src/migrations/migrateCdrDates.ts:11`
 - [ ] `DRY_RUN` → api/src/config.ts `frontline_api/src/migrations/migrateTickets.ts:17`
-- [ ] `ENDPOINT_URL` → api/src/config.ts `frontline_api/src/modules/integrations/instagram/helpers.ts:21`
-- [ ] `FACEBOOK_GRAPH_URL` → api/src/config.ts `frontline_api/src/modules/integrations/facebook/graphRequest.ts:8`
+- [x] `ENDPOINT_URL` → dropped: webhook and login addresses come from `PUBLIC_URL` `frontline_api/src/modules/integrations/instagram/helpers.ts:21`
+- [x] `FACEBOOK_GRAPH_URL` → dropped: the Graph API version is `GRAPH_VERSION` in `modules/integrations/providers/meta.ts` `frontline_api/src/modules/integrations/facebook/graphRequest.ts:8`
 - [ ] `FACEBOOK_REPLY_DEBOUNCE_MEDIA_MS` → api/src/config.ts `frontline_api/src/modules/integrations/facebook/meta/automation/utils/turnTaking.ts:64`
 - [ ] `FACEBOOK_REPLY_DEBOUNCE_TEXT_MS` → api/src/config.ts `frontline_api/src/modules/integrations/facebook/meta/automation/utils/turnTaking.ts:63`
 - [ ] `GATEWAY_URL` → api/src/config.ts `frontline_api/src/modules/integrations/discord/utils/media/attachments.ts:33`
@@ -820,7 +820,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `frontline_facebook_integrations` from collection `facebook_integrations` (11 fields, draft `frontlineFacebookIntegrations` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/facebook/db/definitions/integrations.ts:4`
 - [ ] `frontline_facebook_logs` from collection `facebook_logs` (5 fields, draft `frontlineFacebookLogs` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/facebook/db/definitions/logs.ts:4`
 - [ ] `frontline_posts_conversations_facebooks` from collection `posts_conversations_facebooks` (15 fields, draft `frontlinePostsConversationsFacebooks` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/facebook/db/definitions/postConversations.ts:3`
-- [ ] `frontline_facebook_configs` from collection `facebook_configs` (3 fields, draft `frontlineFacebookConfigs` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/facebook/db/definitions/config.ts:4`
+- [x] `frontline_facebook_configs` from collection `facebook_configs` → dropped: the Meta app is `META_APP_ID`, `META_APP_SECRET` and `META_VERIFY_TOKEN` in api/src/config.ts `frontline_api/src/modules/integrations/facebook/db/definitions/config.ts:4`
 - [ ] `frontline_instagram_integrations` from collection `instagram_integrations` (12 fields, draft `frontlineInstagramIntegrations` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/instagram/db/definitions/integrations.ts:4`
 - [ ] `frontline_instagram_accounts` from collection `instagram_accounts` (8 fields, draft `frontlineInstagramAccounts` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/instagram/db/definitions/accounts.ts:5`
 - [ ] `frontline_instagram_customers` from collection `instagram_customers` (7 fields, draft `frontlineInstagramCustomers` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/instagram/db/definitions/customers.ts:4`
@@ -831,7 +831,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `frontline_instagram_post_conversations` from collection `instagram_post_conversations` (12 fields, draft `frontlineInstagramPostConversations` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/instagram/db/definitions/postConversations.ts:5`
 - [ ] `frontline_instagram_logs` from collection `instagram_logs` (5 fields, draft `frontlineInstagramLogs` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/instagram/db/definitions/logs.ts:6`
 - [ ] `frontline_instagram_bots` from collection `instagram_bots` (12 fields, draft `frontlineInstagramBots` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/instagram/db/definitions/bots.ts:12`
-- [ ] `frontline_instagram_configs` from collection `instagram_configs` (3 fields, draft `frontlineInstagramConfigs` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/instagram/db/definitions/config.ts:4`
+- [x] `frontline_instagram_configs` from collection `instagram_configs` → dropped: the Meta app is `META_APP_ID`, `META_APP_SECRET` and `META_VERIFY_TOKEN` in api/src/config.ts `frontline_api/src/modules/integrations/instagram/db/definitions/config.ts:4`
 - [ ] `frontline_calls_integrations` from collection `calls_integrations` (10 fields, draft `frontlineCallsIntegrations` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/integrations.ts:4`
 - [ ] `frontline_calls_customers` from collection `calls_customers` (5 fields, draft `frontlineCallsCustomers` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/customers.ts:7`
 - [ ] `frontline_calls_history` from collection `calls_history` (20 fields, draft `frontlineCallsHistory` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/histories.ts:4`
@@ -889,10 +889,10 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] query `callProCustomersByPhone` → procedure `callProCustomersByPhones.get` (returns `[Customer]`) `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
 - [ ] mutation `callProCustomerSelect` → procedure `integrations.callProCustomerSelect` (returns `Conversation`) `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:19`
 - [ ] query `discordStickerAnimation` → procedure `discordStickerAnimations.get` (returns `JSON`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordBots` → procedure `discordBots.list` (returns `[DiscordBot]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordBot` → procedure `discordBots.get` (returns `DiscordBot`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordBotsTotalCount` → procedure `discordBots.list` (returns `Int`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordValidateToken` → procedure `discordValidateTokens.get` (returns `DiscordTokenValidation`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
+- [x] query `discordBots` → `integrations.accounts.list({ provider: 'discord' })` `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
+- [x] query `discordBot` → folded into `integrations.accounts.list` `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
+- [x] query `discordBotsTotalCount` → folded into `integrations.accounts.list`, which returns them all `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
+- [x] query `discordValidateToken` → folded into `integrations.discord.connect`, which refuses a token Discord refuses `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
 - [ ] query `discordGuilds` → procedure `discordGuilds.list` (returns `[FrontlineDiscordGuild]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
 - [ ] query `discordGuildChannels` → procedure `discordGuildChannels.list` (returns `[DiscordChannel]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
 - [ ] query `discordBotChannels` → procedure `discordBotChannels.list` (returns `[DiscordChannel]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
@@ -904,21 +904,21 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] query `discordConnectedServers` → procedure `discordConnectedServers.list` (returns `[DiscordConnectedServer]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
 - [ ] query `discordTakenChannels` → procedure `discordTakenChannels.list` (returns `[String]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
 - [ ] query `discordNamePresets` → procedure `discordNamePresets.list` (returns `[String]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] mutation `discordAddBot` → procedure `integrations.discordAddBot` (returns `DiscordBot`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
+- [x] mutation `discordAddBot` → `integrations.discord.connect` `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
 - [ ] mutation `discordUpdateBot` → procedure `integrations.discordUpdateBot` (returns `DiscordBot`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
-- [ ] mutation `discordRemoveBot` → procedure `integrations.discordRemoveBot` (returns `JSON`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
+- [x] mutation `discordRemoveBot` → `integrations.accounts.remove` `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
 - [ ] mutation `discordEditMessage` → procedure `integrations.discordEditMessage` (returns `JSON`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
 - [ ] mutation `discordDeleteMessage` → procedure `integrations.discordDeleteMessage` (returns `JSON`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
-- [ ] query `facebookGetAccounts` → procedure `facebookGetAccounts.list` (returns `[FacebookAccount]`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
-- [ ] query `facebookGetIntegrations` → procedure `facebookGetIntegrations.list` (returns `[FacebookIntegrationRecord]`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
-- [ ] query `facebookGetIntegrationDetail` → procedure `facebookGetIntegrations.get` (returns `JSON`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
-- [ ] query `facebookGetConfigs` → procedure `facebookGetConfigs.list` (returns `[FacebookConfig]`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
+- [x] query `facebookGetAccounts` → `integrations.accounts.list({ provider: 'facebook' })` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
+- [x] query `facebookGetIntegrations` → the inbox's `integrations.list`; a `facebook` integration's `config.accountId` names its page `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
+- [x] query `facebookGetIntegrationDetail` → the inbox's `integrations.get` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
+- [x] query `facebookGetConfigs` → dropped: the Meta app is `META_APP_ID`, `META_APP_SECRET` and `META_VERIFY_TOKEN` in api/src/config.ts `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [ ] query `facebookGetComments` → procedure `facebookGetComments.list` (returns `[FacebookPostMessage]`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [ ] query `facebookGetCommentCount` → procedure `facebookGetCommentCounts.get` (returns `JSON`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
-- [ ] query `facebookGetPages` → procedure `facebookGetPages.list` (returns `[FacebookPage]`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
-- [ ] query `facebookConversationDetail` → procedure `facebookConversations.get` (returns `JSON`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
-- [ ] query `facebookConversationMessages` → procedure `facebookConversationMessages.list` (returns `[FacebookConversationMessage]`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
-- [ ] query `facebookConversationMessagesCount` → procedure `facebookConversationMessagesCounts.get` (returns `Int`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
+- [x] query `facebookGetPages` → folded into Meta's login dialog (`integrations.meta.loginUrl`), where the member picks the pages `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
+- [x] query `facebookConversationDetail` → the inbox's `conversations.get` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
+- [x] query `facebookConversationMessages` → the inbox's `conversations.messages.list` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
+- [x] query `facebookConversationMessagesCount` → folded into `conversations.messages.list` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [ ] query `facebookGetPost` → procedure `facebookGetPosts.get` (returns `FacebookPost`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [ ] query `facebookGetPosts` → procedure `facebookGetPosts.list` (returns `[FacebookPosts!]!`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [ ] query `facebookHasTaggedMessages` → procedure `facebookHasTaggedMessages.list` (returns `Boolean`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
@@ -930,8 +930,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] query `facebookMessengerBotCommentReplyStats` → procedure `facebookMessengerBotCommentReplyStats.list` (returns `[FacebookBotCommentReplyStat]`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [ ] query `facebookGetBotPosts` → procedure `facebookGetBotPosts.list` (returns `[FacebookPosts]`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [ ] query `facebookGetBotPost` → procedure `facebookGetBotPosts.get` (returns `FacebookPosts`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
-- [ ] mutation `facebookUpdateConfigs` → procedure `integrations.facebookUpdateConfigs` (returns `JSON`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
-- [ ] mutation `facebookRepair` → procedure `integrations.facebookRepair` (returns `JSON`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
+- [x] mutation `facebookUpdateConfigs` → dropped: the Meta app is `META_APP_ID`, `META_APP_SECRET` and `META_VERIFY_TOKEN` in api/src/config.ts `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
+- [x] mutation `facebookRepair` → `integrations.accounts.check`; logging in again refreshes the page tokens `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
 - [ ] mutation `facebookReplyToComment` → procedure `integrations.facebookReplyToComment` (returns `FacebookComment`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
 - [ ] mutation `facebookCreatePost` → procedure `integrations.facebookCreatePost` (returns `FacebookCreatePostResult`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
 - [ ] mutation `facebookMessengerAddBot` → procedure `integrations.facebookMessengerAddBot` (returns `FacebookMessengerBot`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
@@ -939,16 +939,16 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] mutation `facebookMessengerRemoveBot` → procedure `integrations.facebookMessengerRemoveBot` (returns `JSON`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
 - [ ] mutation `facebookMessengerRepairBot` → procedure `integrations.facebookMessengerRepairBot` (returns `JSON`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
 - [ ] query `frontlineInstagramCopyImage` → procedure `frontlineInstagramCopyImages.get` (returns `String!`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [ ] query `instagramGetAccounts` → procedure `instagramGetAccounts.list` (returns `[InstagramAccount]`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [ ] query `instagramGetIntegrations` → procedure `instagramGetIntegrations.list` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [ ] query `instagramGetIntegrationDetail` → procedure `instagramGetIntegrations.get` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [ ] query `instagramGetConfigs` → procedure `instagramGetConfigs.list` (returns `[InstagramConfig]`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
+- [x] query `instagramGetAccounts` → `integrations.accounts.list({ provider: 'instagram' })` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
+- [x] query `instagramGetIntegrations` → the inbox's `integrations.list`; an `instagram` integration's `config.accountId` names its account `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
+- [x] query `instagramGetIntegrationDetail` → the inbox's `integrations.get` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
+- [x] query `instagramGetConfigs` → dropped: the Meta app is `META_APP_ID`, `META_APP_SECRET` and `META_VERIFY_TOKEN` in api/src/config.ts `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [ ] query `instagramGetComments` → procedure `instagramGetComments.list` (returns `[InstagramPostMessage]`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [ ] query `instagramGetCommentCount` → procedure `instagramGetCommentCounts.get` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [ ] query `instagramGetPages` → procedure `instagramGetPages.list` (returns `[InstagramPage]`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [ ] query `instagramConversationDetail` → procedure `instagramConversations.get` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [ ] query `instagramConversationMessages` → procedure `instagramConversationMessages.list` (returns `[InstagramConversationMessage]`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [ ] query `instagramConversationMessagesCount` → procedure `instagramConversationMessagesCounts.get` (returns `Int`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
+- [x] query `instagramGetPages` → folded into Meta's login dialog: each page's linked Instagram account connects with it `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
+- [x] query `instagramConversationDetail` → the inbox's `conversations.get` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
+- [x] query `instagramConversationMessages` → the inbox's `conversations.messages.list` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
+- [x] query `instagramConversationMessagesCount` → folded into `conversations.messages.list` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [ ] query `instagramGetPost` → procedure `instagramGetPosts.get` (returns `InstagramPost`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [ ] query `instagramGetPosts` → procedure `instagramGetPosts.list` (returns `[InstagramPosts]`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [ ] query `instagramHasTaggedMessages` → procedure `instagramHasTaggedMessages.list` (returns `Boolean`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
@@ -958,8 +958,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] query `instagramMessengerBot` → procedure `instagramMessengerBots.get` (returns `InstagramMessengerBot`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [ ] query `instagramGetBotPosts` → procedure `instagramGetBotPosts.list` (returns `[InstagramPosts]`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [ ] query `instagramGetBotPost` → procedure `instagramGetBotPosts.get` (returns `InstagramPosts`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [ ] mutation `instagramUpdateConfigs` → procedure `integrations.instagramUpdateConfigs` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
-- [ ] mutation `instagramRepair` → procedure `integrations.instagramRepair` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
+- [x] mutation `instagramUpdateConfigs` → dropped: the Meta app is `META_APP_ID`, `META_APP_SECRET` and `META_VERIFY_TOKEN` in api/src/config.ts `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
+- [x] mutation `instagramRepair` → `integrations.accounts.check`; logging in again refreshes the page tokens `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [ ] mutation `instagramReplyToComment` → procedure `integrations.instagramReplyToComment` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [ ] mutation `instagramResolveComment` → procedure `integrations.instagramResolveComment` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [ ] mutation `instagramMessengerAddBot` → procedure `integrations.instagramMessengerAddBot` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
@@ -967,12 +967,12 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] mutation `instagramMessengerRemoveBot` → procedure `integrations.instagramMessengerRemoveBot` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [ ] mutation `instagramMessengerRepairBot` → procedure `integrations.instagramMessengerRepairBot` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [ ] query `mailVerifiedContacts` → procedure `mailVerifiedContacts.list` (returns `MailVerifiedContacts!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
-- [ ] query `mailConversationDetail` → procedure `mailConversations.get` (returns `MailConversationMessages`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+- [x] query `mailConversationDetail` → the inbox's `conversations.messages.list` `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [ ] query `mailConversationInternalNotes` → procedure `mailConversationInternalNotes.list` (returns `[ConversationMessage!]!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [ ] query `mailConversationInternalNotesCount` → procedure `mailConversationInternalNotesCounts.get` (returns `Int!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [ ] query `mailSendingReadiness` → procedure `mailSendingReadiness.list` (returns `MailSendingReadiness`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [ ] query `mailConversationDrafts` → procedure `mailConversationDrafts.list` (returns `[MailDraft]`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
-- [ ] query `mailInboxes` → procedure `mailInboxes.list` (returns `[MailInbox]`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+- [x] query `mailInboxes` → `integrations.accounts.list({ provider: 'mail' })` `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [ ] query `mailPipelineIntegration` → procedure `mailPipelineIntegrations.get` (returns `MailPipelineIntegration`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [ ] query `mailSenders` → procedure `mailSenders.list` (returns `[MailSender!]!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [ ] query `mailTicketReplyTarget` → procedure `mailTicketReplyTargets.get` (returns `MailTicketReplyTarget`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
@@ -990,20 +990,20 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] mutation `mailDraftSave` → procedure `integrations.mailDraftSave` (returns `MailDraft`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
 - [ ] mutation `mailDraftApprove` → procedure `integrations.mailDraftApprove` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
 - [ ] mutation `mailDraftRemove` → procedure `mailDrafts.remove` (returns `MailDraft`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
-- [ ] mutation `mailCheckConnection` → procedure `integrations.mailCheckConnection` (returns `MailConnectionCheck`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+- [x] mutation `mailCheckConnection` → `integrations.accounts.check` `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
 - [ ] mutation `mailCloudflareConnect` → procedure `integrations.mailCloudflareConnect` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
 - [ ] mutation `mailCloudflareProvision` → procedure `integrations.mailCloudflareProvision` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
 - [ ] mutation `mailCloudflareDisconnect` → procedure `integrations.mailCloudflareDisconnect` (returns `Boolean`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
 - [ ] query `telegramMessageLinkPreviews` → procedure `telegramMessageLinkPreviews.list` (returns `[TelegramLinkPreview!]!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
 - [ ] query `telegramConversationChats` → procedure `telegramConversationChats.list` (returns `[TelegramConversationChat!]!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
-- [ ] query `telegramBots` → procedure `telegramBots.list` (returns `[TelegramBot!]!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
-- [ ] query `telegramBot` → procedure `telegramBots.get` (returns `TelegramBot!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
-- [ ] query `telegramValidateToken` → procedure `telegramValidateTokens.get` (returns `TelegramTokenValidation!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
+- [x] query `telegramBots` → `integrations.accounts.list({ provider: 'telegram' })` `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
+- [x] query `telegramBot` → folded into `integrations.accounts.list` `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
+- [x] query `telegramValidateToken` → folded into `integrations.telegram.connect`, which refuses a token Telegram refuses `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
 - [ ] query `telegramBotWebhookInfo` → procedure `telegramBotWebhookInfos.get` (returns `TelegramWebhookInfo!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
 - [ ] mutation `telegramUpdateBot` → procedure `integrations.telegramUpdateBot` (returns `TelegramBot!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`
-- [ ] mutation `telegramDisconnectBot` → procedure `integrations.telegramDisconnectBot` (returns `Boolean!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`
-- [ ] mutation `telegramAddBot` → procedure `integrations.telegramAddBot` (returns `TelegramBot!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`
-- [ ] mutation `telegramSetWebhook` → procedure `integrations.telegramSetWebhook` (returns `Boolean!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`
+- [x] mutation `telegramDisconnectBot` → `integrations.accounts.remove`, which deletes the webhook `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`
+- [x] mutation `telegramAddBot` → `integrations.telegram.connect` `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`
+- [x] mutation `telegramSetWebhook` → folded into `integrations.telegram.connect`, which sets a webhook with its own key and secret `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`
 
 ### Pages
 
@@ -1026,7 +1026,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/instagram/controller/store.ts:76`
 - [ ] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/integrations/instagram/handleInstagramMessage.ts:176`
 - [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/db/models/Customers.ts:46`
-- [ ] core `customers.createCustomer` → sdk `customers.findOrCreate` (scope customers:write; by email or phone, else customers.create (state: 'lead')) `frontline_api/src/modules/integrations/mail/db/models/Customers.ts:58`
+- [x] core `customers.createCustomer` → the inbox's `customerFor` makes the sender a lead and links their address in `frontline_customer_links` `frontline_api/src/modules/integrations/mail/db/models/Customers.ts:58`
 - [ ] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/integrations/mail/trpc/mail.ts:22`
 - [ ] core `emailDeliveries.create` → plugin-owned `frontline_email_deliveries` (mail sent from the organisation's own mailbox is the plugin's to log) `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:13`
 - [ ] core `emailDeliveries.recordHandoff` → plugin-owned `frontline_email_deliveries` `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:24`
@@ -1046,7 +1046,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `sendNotifications` → sdk `notifications.create` (scope notifications:write) `frontline_api/src/modules/integrations/facebook/handleFacebookMessage.ts:203`
 - [ ] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/facebook/meta/automation/messages/inputWait.ts:153`
 - [ ] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/facebook/meta/automation/utils/messageUtils.ts:165`
-- [ ] `sendNotification` → sdk `notifications.create` (scope notifications:write; kind in manifest.notificationKinds) `frontline_api/src/modules/integrations/healthNotification.ts:30`
+- [x] `sendNotification` → `checkAccount` in `modules/integrations/accounts.ts` tells whoever connected the account `frontline_api/src/modules/integrations/healthNotification.ts:30`
 - [ ] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/instagram/controller/store.ts:230`
 - [ ] `sendNotifications` → sdk `notifications.create` (scope notifications:write) `frontline_api/src/modules/integrations/instagram/graphql/resolvers/mutations.ts:105`
 - [ ] `sendNotifications` → sdk `notifications.create` (scope notifications:write) `frontline_api/src/modules/integrations/instagram/handleInstagramMessage.ts:185`
@@ -1063,19 +1063,19 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] POST `/call/event` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/call/initApp.ts:173`
 - [ ] POST `/call/receiveCall` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/call/initApp.ts:192`
 - [ ] POST `/callpro/receive` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/callpro/routes.ts:11`
-- [ ] GET `/facebook/fblogin` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/facebook/routes.ts:12`
-- [ ] GET `/facebook/kind/:kind/fblogin` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/facebook/routes.ts:13`
+- [x] GET `/facebook/fblogin` → `integrations.meta.loginUrl`, back to GET `/api/public/webhooks/meta/callback` `frontline_api/src/modules/integrations/facebook/routes.ts:12`
+- [x] GET `/facebook/kind/:kind/fblogin` → folded into `integrations.meta.loginUrl`: one login connects Messenger and Instagram `frontline_api/src/modules/integrations/facebook/routes.ts:13`
 - [ ] GET `/facebook/get-post` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/facebook/routes.ts:15`
 - [ ] GET `/facebook/get-status` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/facebook/routes.ts:27`
-- [ ] GET `/facebook/receive` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/facebook/routes.ts:39`
-- [ ] POST `/facebook/receive` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/facebook/routes.ts:51`
-- [ ] GET `/instagram/iglogin` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/instagram/routes.ts:12`
+- [x] GET `/facebook/receive` (webhook) → GET `/api/public/webhooks/meta` answers the subscription check with `META_VERIFY_TOKEN` `frontline_api/src/modules/integrations/facebook/routes.ts:39`
+- [x] POST `/facebook/receive` (webhook) → POST `/api/public/webhooks/meta`: the app secret's signature on the raw body, then the page's organisation from `frontline_public_keys` `frontline_api/src/modules/integrations/facebook/routes.ts:51`
+- [x] GET `/instagram/iglogin` → folded into `integrations.meta.loginUrl`: each page's linked Instagram account connects with it `frontline_api/src/modules/integrations/instagram/routes.ts:12`
 - [ ] GET `/instagram/get-post` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/instagram/routes.ts:13`
 - [ ] GET `/instagram/get-status` → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/instagram/routes.ts:14`
-- [ ] GET `/instagram/receive` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/instagram/routes.ts:15`
-- [ ] POST `/instagram/receive` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/instagram/routes.ts:16`
+- [x] GET `/instagram/receive` (webhook) → folded into GET `/api/public/webhooks/meta` `frontline_api/src/modules/integrations/instagram/routes.ts:15`
+- [x] POST `/instagram/receive` (webhook) → folded into POST `/api/public/webhooks/meta` `frontline_api/src/modules/integrations/instagram/routes.ts:16`
 - [ ] POST `/mail/receive` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/mail/routes.ts:7`
-- [ ] POST `/telegram/receive/:_id` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/telegram/routes.ts:8`
+- [x] POST `/telegram/receive/:_id` (webhook) → POST `/api/public/webhooks/telegram/:key`, with the key frontline issued and the bot's secret token `frontline_api/src/modules/integrations/telegram/routes.ts:8`
 
 ## knowledgebase
 

@@ -85,6 +85,8 @@ export type Incoming = {
   externalId?: string;
   content: string;
   attachments?: Attachment[];
+  /** What only the adapter reads back, such as a mail's subject. */
+  providerData?: Record<string, unknown>;
 };
 
 /** The conversation `incoming` belongs to, locked, or a new one with its `started` event. */
@@ -177,6 +179,7 @@ export const receive = (orgId: string, incoming: Incoming) =>
         content: incoming.content,
         attachments: incoming.attachments ?? [],
         externalId: incoming.externalId,
+        providerData: incoming.providerData,
       })
       .onConflictDoNothing()
       .returning();
