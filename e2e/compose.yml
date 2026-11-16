@@ -1,23 +1,30 @@
 # Laid over core's deploy/docker-compose.yml (e2e/stack.sh): core learns the
 # plugin's key, and the plugin image joins the stack. The browser reaches web
 # on :8080 and the plugin on :3399.
+#
+# The plugin runs in core's network namespace, so http://localhost:3399, the
+# address its manifest gives, reaches it from the browser and from core alike:
+# core delivers events and jobs there. Core sends them to a loopback http
+# address only with OUTBOUND_ALLOW_PRIVATE.
 services:
   api:
     environment:
       CORE_PLUGIN_KEYS: frontline:${PLUGIN_SECRET:?set PLUGIN_SECRET}
+      OUTBOUND_ALLOW_PRIVATE: 'true'
+    ports:
+      - '3399:3399'
 
   frontline:
     image: ${FRONTLINE_IMAGE:-frontline-plugin:ci}
+    network_mode: service:api
     environment:
       # e2e/stack.sh creates the role and passes its password.
       DATA_URL: postgres://erxes_plugin_frontline:${PLUGIN_DATA_PASSWORD:-}@postgres:5432/erxes
-      CORE_URL: http://api:3400
+      CORE_URL: http://localhost:3400
       PLUGIN_SECRET: ${PLUGIN_SECRET:?set PLUGIN_SECRET}
       # A throwaway stack with synthetic data: a fixed key is enough.
       SECRETS_KEY: ZTJlLXNlY3JldHMta2V5LTMyLWJ5dGVzLWxvbmchISE=
       PUBLIC_URL: http://localhost:3399
       CORE_UI_URL: http://localhost:8080
-    ports:
-      - '3399:3399'
     depends_on:
       api: { condition: service_healthy }

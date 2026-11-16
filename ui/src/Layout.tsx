@@ -24,7 +24,7 @@ import {
   Sidebar,
   Skeleton,
 } from 'erxes-ui';
-import { Suspense, useState } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { PLUGIN, STRUCTURE_PATH } from '~/plugin.ts';
@@ -32,6 +32,9 @@ import { PLUGIN, STRUCTURE_PATH } from '~/plugin.ts';
 const ROOT = `/${PLUGIN}`;
 const CALLS = `${ROOT}/calls`;
 const SETTINGS = `${ROOT}/settings`;
+
+// The inbox's queues and channels load with the inbox's API client, after the page module.
+const InboxNav = lazy(async () => ({ default: (await import('@/inbox/InboxNav.tsx')).InboxNav }));
 
 /** The open page, with a placeholder while a lazy one loads. */
 const Page = () => (
@@ -89,7 +92,6 @@ export const FrontlineLayout = () => {
   const { t } = useTranslation('frontline');
 
   const items = [
-    { name: t('inbox', 'Inbox'), to: `${ROOT}/inbox`, icon: IconInbox },
     { name: t('tickets', 'Tickets'), to: `${ROOT}/tickets`, icon: IconTicket },
     { name: t('forms', 'Forms'), to: `${ROOT}/forms`, icon: IconForms },
     { name: t('surveys', 'Surveys'), to: `${ROOT}/surveys`, icon: IconChecklist },
@@ -107,6 +109,17 @@ export const FrontlineLayout = () => {
         <Sidebar.Group variant="flush">
           <Sidebar.GroupContent>
             <Sidebar.Menu>
+              <Suspense
+                fallback={
+                  <NavigationMenuLinkItem
+                    to={`${ROOT}/inbox`}
+                    name={t('inbox', 'Inbox')}
+                    icon={IconInbox}
+                  />
+                }
+              >
+                <InboxNav />
+              </Suspense>
               {items.map((item) => (
                 <NavigationMenuLinkItem
                   key={item.to}

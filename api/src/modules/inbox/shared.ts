@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { CONVERSATION_TIMELINE } from '#/core.ts';
 import { PLUGIN } from '#/config.ts';
 import type { Tx } from '#/db/client.ts';
-import { conversations, conversationTags, integrations } from '#/db/inbox.ts';
+import { conversations, conversationTags, integrations, messages } from '#/db/inbox.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { managesAll, membership } from '../channels/access.ts';
 import { publishEvents } from '../events.ts';
@@ -19,6 +19,12 @@ export const tagIdsOf = sql<string[]>`array(
   select ${conversationTags.tagId} from ${conversationTags}
   where ${conversationTags.conversationId} = ${conversations.id}
   order by ${conversationTags.tagId}
+)`;
+
+/** The members the conversation's messages mention, for the filter bar and the Mentions queue. */
+export const mentionedIdsOf = sql<string[]>`array(
+  select distinct unnest(${messages.mentionedUserIds}) from ${messages}
+  where ${messages.conversationId} = ${conversations.id}
 )`;
 
 /** Whether `member` read the conversation since the customer last wrote. */

@@ -101,11 +101,14 @@ export const useEditMessage = () =>
 export const useSetOperator = () =>
   useMutation(orpc.conversations.setOperator.mutationOptions(useInboxChange()));
 
-/** How many conversations the member can see wait unread by them. */
-export const useUnreadCount = () => {
+/**
+ * How many conversations wait unread by the member: in all, in each sidebar queue and in each of
+ * their channels, kept live as messages arrive.
+ */
+export const useInboxCounts = () => {
   useInboxSignal();
 
-  return useQuery(orpc.conversations.unreadCount.queryOptions({ input: {} })).data?.count;
+  return useQuery(orpc.conversations.counts.queryOptions({ input: {} })).data;
 };
 
 /** The conversation's visitor as the messenger last saw them, kept fresh as they come and go. */

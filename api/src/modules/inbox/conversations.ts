@@ -22,6 +22,7 @@ import {
   conversationRows,
   conversationsFor,
   Ids,
+  mentionedIdsOf,
   publishConversationEvents,
   readSql,
   seenBy,
@@ -37,6 +38,7 @@ const filterFields = (member: PluginMember): FilterFields => ({
   'subject.status': { kind: 'select', expr: conversations.status },
   'subject.assigneeId': { kind: 'member', expr: conversations.assigneeId },
   'subject.participantIds': { kind: 'members', expr: conversations.participantIds },
+  'subject.mentionedUserIds': { kind: 'members', expr: mentionedIdsOf },
   'subject.tagIds': { kind: 'members', expr: tagIdsOf },
   'subject.isRead': { kind: 'boolean', expr: readSql(member) },
   'subject.customerRespondedLast': { kind: 'boolean', expr: conversations.customerRespondedLast },
@@ -84,22 +86,6 @@ const list = reads(PERMISSIONS.inboxView)
     const { items, nextCursor } = pageOf(rows, input.limit);
 
     return { conversations: items, nextCursor, totalCount: total?.value ?? 0 };
-  });
-
-/** How many of the caller's open conversations they haven't read since the customer last wrote. */
-const unreadCount = reads(PERMISSIONS.inboxView)
-  .input(z.object({}))
-  .output(z.object({ count: z.number() }))
-  .handler(async ({ context: { tx, member } }) => {
-    const [unread] = await tx
-      .select({ count: count() })
-      .from(conversations)
-      .leftJoin(channelMembers, membership(member, conversations.channelId))
-      .where(
-        and(seenBy(member), ne(conversations.status, 'resolved'), sql`not ${readSql(member)}`),
-      );
-
-    return { count: unread?.count ?? 0 };
   });
 
 /** One conversation, for the members of its channel. */
@@ -274,7 +260,6 @@ const setTags = writes(PERMISSIONS.inboxView)
 
 export const conversationProcedures = {
   list,
-  unreadCount,
   get,
   assign,
   setStatus,

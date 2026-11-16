@@ -2,7 +2,6 @@ import { memberQueries } from '@erxes/core-contract/client';
 import { IconInbox, IconMessages } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Badge,
   Button,
   Empty,
   ListFilter,
@@ -25,24 +24,9 @@ import {
   useConversation,
   useConversations,
   useOpenConversation,
-  useUnreadCount,
 } from './queries.ts';
 
 const LIST = 'frontline-inbox';
-
-/** How many conversations wait unread by the member, beside the page's title. */
-const UnreadBadge = () => {
-  const { t } = useTranslation('frontline');
-  const count = useUnreadCount();
-
-  if (!count) return null;
-
-  return (
-    <Badge variant="info" aria-label={t('unread-count', '{{count}} unread', { count })}>
-      {count}
-    </Badge>
-  );
-};
 
 /** The open conversation on the right, or a hint to pick one. */
 const ConversationPane = () => {
@@ -123,7 +107,6 @@ export const InboxPage = () => {
             <IconInbox />
             {t('inbox', 'Inbox')}
           </span>
-          <UnreadBadge />
         </PageHeader.Start>
         <PageHeader.End>
           <CreateButton

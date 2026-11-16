@@ -1,4 +1,5 @@
 import {
+  IconAt,
   IconCalendarCheck,
   IconCalendarPlus,
   IconCalendarUp,
@@ -119,6 +120,12 @@ export const useInboxFields = (): TListFilterField[] => {
       label: t('participant', 'Participant'),
       type: 'member',
       icon: IconUsers,
+    },
+    {
+      path: 'subject.mentionedUserIds',
+      label: t('mentioned', 'Mentioned'),
+      type: 'member',
+      icon: IconAt,
     },
     { path: 'subject.tagIds', label: t('tags', 'Tags'), type: 'tags', icon: IconTag },
     { path: 'subject.isRead', label: t('read', 'Read'), type: 'boolean', icon: IconEye },
