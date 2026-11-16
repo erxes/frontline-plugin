@@ -64,7 +64,7 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
     Tags: `${SETTINGS}/tags`,
     'Ticket properties': `${SETTINGS}/ticket-properties`,
     'Help centers': `${SETTINGS}/help-centers`,
-    Meta: `${SETTINGS}/meta`,
+    Integrations: `${SETTINGS}/integrations`,
     Channels: `${SETTINGS}/channels`,
   };
 

@@ -4,12 +4,13 @@ const INTEGRATIONS = '/frontline/settings/integrations';
 
 // The stack has no Meta app and no real bots, so nothing connects here: the API tests feed each
 // provider's recorded payloads through connecting, comments, posts and bots.
-test('the owner sees no accounts yet, what Meta’s login reported, and a provider’s refusal', async ({
+test('the owner sees the accounts page, what Meta’s login reported, and a provider’s refusal', async ({
   page,
 }) => {
   await page.goto(INTEGRATIONS);
 
-  await expect(page.getByText('No accounts connected')).toBeVisible();
+  // Other specs connect phone lines in the same organisation, so the list may not be empty.
+  await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible();
   await expectAccessible(page);
 
   await page.getByRole('button', { name: 'Connect' }).click();
