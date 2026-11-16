@@ -17,6 +17,7 @@ const outgoingOf = (orgId: string, messageId: string) =>
         message: {
           id: messages.id,
           content: messages.content,
+          html: messages.html,
           attachments: messages.attachments,
           userId: messages.userId,
           providerData: messages.providerData,

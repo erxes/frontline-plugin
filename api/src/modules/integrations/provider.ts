@@ -37,6 +37,8 @@ export interface OutboundMessage {
   /** The customer's id at the provider: for mail, their address. */
   to: string;
   text: string;
+  /** The member's rich text, for a provider that sends HTML; the others send `text`. */
+  html: string | null;
   attachments: Attachment[];
   /** What the provider's own code stored on this message, such as a new mail's subject. */
   providerData: Record<string, unknown> | null;

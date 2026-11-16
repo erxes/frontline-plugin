@@ -140,8 +140,10 @@ export const messages = table(
     id: id(),
     orgId: text().notNull(),
     conversationId: text().notNull(),
-    /** Plain text. */
+    /** Plain text: what the list shows and search matches, and what text-only providers send. */
     content: text().notNull().default(''),
+    /** A member's rich text, sanitized, or null for plain text; `content` is its text. */
+    html: text(),
     attachments: jsonb().$type<Attachment[]>().notNull().default([]),
     internal: boolean().notNull().default(false),
     /** A core customer id. */

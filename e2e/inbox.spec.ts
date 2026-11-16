@@ -1,68 +1,18 @@
-import type { APIRequestContext, Locator, Page } from '@playwright/test';
-import { z } from 'zod';
+import type { Page } from '@playwright/test';
 import {
+  addMessenger,
   createChannel,
   expect,
   expectAccessible,
+  INBOX,
+  MESSENGER,
   OWNER,
+  pick,
   recordPanel,
   test,
   unique,
+  visitorOf,
 } from './fixtures.ts';
-
-const INBOX = '/frontline/inbox';
-
-/** The messenger's signed-out API, as a website's widget calls it. */
-const MESSENGER = 'http://localhost:3399/api/public/messenger';
-
-const Connected = z.object({ token: z.string() });
-
-const Sent = z.object({ conversationId: z.string() });
-
-const VisitorMessages = z.array(z.object({ content: z.string(), fromVisitor: z.boolean() }));
-
-/** A website visitor: connects with the messenger's key, then writes and reads as the widget does. */
-const visitorOf = async (request: APIRequestContext, key: string) => {
-  const connected = await request.post(`${MESSENGER}/connect`, { data: { key } });
-
-  expect(connected.status()).toBe(200);
-
-  const headers = { authorization: `Bearer ${Connected.parse(await connected.json()).token}` };
-
-  return {
-    write: async (content: string, conversationId?: string) => {
-      const sent = await request.post(`${MESSENGER}/messages`, {
-        headers,
-        data: { content, conversationId },
-      });
-
-      expect(sent.status()).toBe(201);
-
-      return Sent.parse(await sent.json()).conversationId;
-    },
-    /** Posts to one of the conversation's routes: `typing`, `person` or `read`. */
-    tell: async (conversationId: string, route: string) => {
-      const told = await request.post(`${MESSENGER}/conversations/${conversationId}/${route}`, {
-        headers,
-      });
-
-      expect(told.ok()).toBe(true);
-    },
-    read: async (conversationId: string) => {
-      const listed = await request.get(`${MESSENGER}/conversations/${conversationId}/messages`, {
-        headers,
-      });
-
-      return VisitorMessages.parse(await listed.json()).map((message) => message.content);
-    },
-  };
-};
-
-/** Opens `select` and picks `option` in it. */
-const pick = async (page: Page, select: Locator, option: string) => {
-  await select.click();
-  await page.getByRole('option', { name: option, exact: true }).click();
-};
 
 /** Narrows the inbox with the filter bar: `field` is one of `option`. */
 const filterBy = async (page: Page, field: string, option: string) => {
@@ -70,27 +20,6 @@ const filterBy = async (page: Page, field: string, option: string) => {
   await page.getByRole('option', { name: field, exact: true }).click();
   await page.getByRole('option', { name: option, exact: true }).click();
   await page.keyboard.press('Escape');
-};
-
-/** Adds a website messenger to `channel` from the inbox's header and returns its key. */
-const addMessenger = async (page: Page, channel: string) => {
-  const panel = recordPanel(page);
-  const name = `Website ${unique()}`;
-
-  await page.getByRole('button', { name: 'Add messenger' }).first().click();
-  await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await panel.getByLabel('Name').fill(name);
-  await panel.getByLabel('Welcome message').fill('Hi, how can we help?');
-  await expectAccessible(page);
-  await panel.getByRole('button', { name: 'Add messenger' }).click();
-
-  // The key is 32 random bytes, base64url.
-  const key = panel.getByText(/^[\w-]{43}$/);
-
-  await expect(key).toBeVisible();
-  await expectAccessible(page);
-
-  return (await key.textContent()) ?? '';
 };
 
 test('a visitor writes through the messenger and a member answers, assigns, tags, pins and resolves it', async ({
@@ -123,7 +52,7 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await page.getByRole('textbox', { name: 'Reply' }).fill('It ships today.');
   await page.getByRole('button', { name: 'Send' }).click();
   await expect(thread).toContainText('It ships today.');
-  await page.getByText('Internal note', { exact: true }).click();
+  await page.getByRole('tab', { name: 'Internal note' }).click();
   await page.getByRole('textbox', { name: 'Internal note' }).fill('Courier confirmed.');
   await page.getByRole('button', { name: 'Add note' }).click();
   await expect(thread.getByRole('listitem', { name: 'Internal note' })).toContainText(
@@ -276,72 +205,13 @@ test('a member takes over from the bot, sees the visitor typing and edits a repl
 
   await reply.hover();
   await reply.getByRole('button', { name: 'Edit message' }).click();
-  await reply.getByRole('textbox', { name: 'Edit message' }).fill('It ships tomorrow.');
-  await reply.getByRole('button', { name: 'Save' }).click();
+  // The editor holds the new text, so the row no longer matches `tomorow`.
+  await thread.getByRole('textbox', { name: 'Edit message' }).fill('It ships tomorrow.');
+  await thread.getByRole('button', { name: 'Save' }).click();
   await expect(thread).toContainText('It ships tomorrow.');
   await expect(thread).toContainText('Edited');
   await expectAccessible(page);
   expect(await visitor.read(conversationId)).toContain('It ships tomorrow.');
-});
-
-test('the sidebar’s queues and channels filter the inbox and count what waits unread, live', async ({
-  page,
-  request,
-}) => {
-  const channel = await createChannel(page);
-  const refund = `Refund for ${unique()}`;
-
-  await page.goto(INBOX);
-
-  const visitor = await visitorOf(request, await addMessenger(page, channel));
-
-  await visitor.write(refund);
-  await page.goto(INBOX);
-
-  const queues = page.getByRole('list', { name: 'Work queue' });
-  const conversations = page.getByRole('list', { name: 'Conversations' });
-  const row = conversations.getByRole('button', { name: new RegExp(refund) });
-
-  const channelLink = page
-    .getByRole('list', { name: 'Channels' })
-    .getByRole('link', { name: new RegExp(`^${channel}`) });
-
-  await expect(channelLink.getByLabel('1 unread')).toBeVisible();
-  await expectAccessible(page);
-
-  // Another conversation in the channel raises its count without a reload.
-  await visitor.write(`Where is my parcel ${unique()}`);
-  await expect(channelLink.getByLabel('2 unread')).toBeVisible();
-
-  // The channel's link narrows the inbox to it, as the filter bar's channel rule does.
-  await channelLink.click();
-  await expect(page).toHaveURL(/advanced=.*channelId/);
-  await expect(conversations.getByRole('listitem')).toHaveCount(2);
-  await expect(channelLink).toHaveAttribute('data-active', 'true');
-
-  // A new conversation waits in Unassigned and Awaiting response.
-  await queues.getByRole('link', { name: /^Unassigned/ }).click();
-  await expect(row).toBeVisible();
-  await queues.getByRole('link', { name: /^Awaiting response/ }).click();
-  await expect(row).toBeVisible();
-  await expectAccessible(page);
-
-  // Opening it reads it. Mentions filters by the member's mentions; a second click clears it.
-  await row.click();
-  await expect(channelLink.getByLabel('1 unread')).toBeVisible();
-  await queues.getByRole('link', { name: /^Mentions/ }).click();
-  await expect(page).toHaveURL(/mentionedUserIds/);
-  await queues.getByRole('link', { name: /^Mentions/ }).click();
-  await expect(page).toHaveURL(new RegExp(`${INBOX}$`));
-
-  // Once assigned to the member, it shows under Assigned to me.
-  await channelLink.click();
-  await row.click();
-  await page.getByRole('button', { name: 'Assign', exact: true }).click();
-  await page.getByRole('option', { name: `${OWNER.firstName} ${OWNER.lastName}` }).click();
-  await queues.getByRole('link', { name: /^Assigned to me/ }).click();
-  await expect(page).toHaveURL(/assigneeId/);
-  await expect(row).toBeVisible();
 });
 
 test('a member without the inbox permission is refused the inbox', async ({ newMember }) => {

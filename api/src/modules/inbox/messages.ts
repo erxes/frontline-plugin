@@ -11,14 +11,13 @@ import { Attachment } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import { reads, writes } from '#/orpc.ts';
 import { orderOf, PageInput, pageOf } from '../paging.ts';
+import { Content, Html, writtenText } from './html.ts';
 import { messageColumns, postMessage, queueSend } from './post.ts';
 import { conversationById, conversationsFor, signalConversations } from './shared.ts';
 
 export const Message = createSelectSchema(messages, {
   attachments: () => z.array(Attachment),
 }).omit({ orgId: true, providerData: true });
-
-const Content = z.string().trim().max(10_000);
 
 /** The message `id` of a conversation the caller sees, locked, or NOT_FOUND. */
 const messageFor = async (tx: Tx, member: PluginMember, id: string) => {
@@ -95,26 +94,27 @@ const notifyMentioned = async (member: PluginMember, conversationId: string, use
 
 /**
  * A member's reply to the customer, or an internal note with `internal`, posted as `postMessage`
- * says. Mentioned members hear of it.
+ * says: plain `content`, or rich text as `html`. Members it mentions hear of it.
  */
 const create = writes(PERMISSIONS.inboxView)
   .input(
-    z
-      .object({
-        conversationId: z.string(),
-        content: Content.default(''),
-        attachments: z.array(Attachment).max(20).default([]),
-        internal: z.boolean().default(false),
-        mentionedUserIds: z.array(z.string()).max(50).default([]),
-        replyToId: z.string().nullable().default(null),
-      })
-      .refine((input) => input.content || input.attachments.length > 0, {
-        message: 'Write a message or attach a file',
-        path: ['content'],
-      }),
+    z.object({
+      conversationId: z.string(),
+      content: Content.default(''),
+      html: Html.optional(),
+      attachments: z.array(Attachment).max(20).default([]),
+      internal: z.boolean().default(false),
+      mentionedUserIds: z.array(z.string()).max(50).default([]),
+      replyToId: z.string().nullable().default(null),
+    }),
   )
   .output(Message)
   .handler(async ({ input, context: { tx, member, afterCommit } }) => {
+    const text = writtenText(input);
+
+    if (!text.content && input.attachments.length === 0)
+      throw new ORPCError('BAD_REQUEST', { message: 'Write a message or attach a file' });
+
     const [conversation] = await conversationsFor(tx, member, [input.conversationId]);
 
     if (!conversation) throw new ORPCError('NOT_FOUND', { message: 'No such conversation' });
@@ -129,19 +129,31 @@ const create = writes(PERMISSIONS.inboxView)
         throw new ORPCError('BAD_REQUEST', { message: 'Reply to a message of this conversation' });
     }
 
-    const { conversationId: _conversationId, ...written } = input;
-    const message = await postMessage(tx, member, conversation, written);
+    const mentionedUserIds = [...new Set([...input.mentionedUserIds, ...text.mentionedUserIds])];
 
-    afterCommit(() => notifyMentioned(member, conversation.id, input.mentionedUserIds));
+    const message = await postMessage(tx, member, conversation, {
+      content: text.content,
+      html: text.html,
+      attachments: input.attachments,
+      internal: input.internal,
+      mentionedUserIds,
+      replyToId: input.replyToId,
+    });
+
+    afterCommit(() => notifyMentioned(member, conversation.id, mentionedUserIds));
 
     return message;
   });
 
-/** Changes the text of the caller's own message. */
+/** Changes the text of the caller's own message: plain `content`, or rich text as `html`. */
 const update = writes(PERMISSIONS.inboxView)
-  .input(z.object({ id: z.string(), content: Content.min(1) }))
+  .input(z.object({ id: z.string(), content: Content.default(''), html: Html.optional() }))
   .output(Message)
   .handler(async ({ input, context: { tx, member } }) => {
+    const text = writtenText(input);
+
+    if (!text.content) throw new ORPCError('BAD_REQUEST', { message: 'Write a message' });
+
     const message = await messageFor(tx, member, input.id);
 
     if (message.userId !== member.userId)
@@ -149,7 +161,7 @@ const update = writes(PERMISSIONS.inboxView)
 
     const [updated] = await tx
       .update(messages)
-      .set({ content: input.content, editedAt: new Date() })
+      .set({ content: text.content, html: text.html, editedAt: new Date() })
       .where(eq(messages.id, input.id))
       .returning(messageColumns);
 

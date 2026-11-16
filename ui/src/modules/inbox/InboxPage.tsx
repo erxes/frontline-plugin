@@ -55,7 +55,7 @@ const ConversationPane = () => {
     <>
       <ConversationHeader conversation={conversation} />
       <MessageThread conversation={conversation} />
-      <Composer key={conversation.id} conversationId={conversation.id} />
+      <Composer key={conversation.id} conversation={conversation} />
     </>
   );
 };

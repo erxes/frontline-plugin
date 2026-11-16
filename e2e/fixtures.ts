@@ -8,10 +8,12 @@ import {
   expect,
   type APIRequestContext,
   type BrowserContext,
+  type Locator,
   type Page,
 } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
 import { resolve } from 'node:path';
+import { z } from 'zod';
 
 export const OWNER_STATE = resolve(import.meta.dirname, 'test-results/.auth/owner.json');
 
@@ -189,5 +191,81 @@ export const test = base.extend<{ api: ReturnType<typeof coreClient>; newMember:
     await Promise.all(contexts.map((context) => context.close()));
   },
 });
+
+/** Frontline's inbox. */
+export const INBOX = '/frontline/inbox';
+
+/** The messenger's signed-out API, as a website's widget calls it. */
+export const MESSENGER = 'http://localhost:3399/api/public/messenger';
+
+const Connected = z.object({ token: z.string() });
+
+const Sent = z.object({ conversationId: z.string() });
+
+const VisitorMessages = z.array(z.object({ content: z.string(), fromVisitor: z.boolean() }));
+
+/** A website visitor: connects with the messenger's key, then writes and reads as the widget does. */
+export const visitorOf = async (request: APIRequestContext, key: string) => {
+  const connected = await request.post(`${MESSENGER}/connect`, { data: { key } });
+
+  expect(connected.status()).toBe(200);
+
+  const headers = { authorization: `Bearer ${Connected.parse(await connected.json()).token}` };
+
+  return {
+    write: async (content: string, conversationId?: string) => {
+      const sent = await request.post(`${MESSENGER}/messages`, {
+        headers,
+        data: { content, conversationId },
+      });
+
+      expect(sent.status()).toBe(201);
+
+      return Sent.parse(await sent.json()).conversationId;
+    },
+    /** Posts to one of the conversation's routes: `typing`, `person` or `read`. */
+    tell: async (conversationId: string, route: string) => {
+      const told = await request.post(`${MESSENGER}/conversations/${conversationId}/${route}`, {
+        headers,
+      });
+
+      expect(told.ok()).toBe(true);
+    },
+    read: async (conversationId: string) => {
+      const listed = await request.get(`${MESSENGER}/conversations/${conversationId}/messages`, {
+        headers,
+      });
+
+      return VisitorMessages.parse(await listed.json()).map((message) => message.content);
+    },
+  };
+};
+
+/** Opens `select` and picks `option` in it. */
+export const pick = async (page: Page, select: Locator, option: string) => {
+  await select.click();
+  await page.getByRole('option', { name: option, exact: true }).click();
+};
+
+/** Adds a website messenger to `channel` from the inbox's header and returns its key. */
+export const addMessenger = async (page: Page, channel: string) => {
+  const panel = recordPanel(page);
+  const name = `Website ${unique()}`;
+
+  await page.getByRole('button', { name: 'Add messenger' }).first().click();
+  await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
+  await panel.getByLabel('Name').fill(name);
+  await panel.getByLabel('Welcome message').fill('Hi, how can we help?');
+  await expectAccessible(page);
+  await panel.getByRole('button', { name: 'Add messenger' }).click();
+
+  // The key is 32 random bytes, base64url.
+  const key = panel.getByText(/^[\w-]{43}$/);
+
+  await expect(key).toBeVisible();
+  await expectAccessible(page);
+
+  return (await key.textContent()) ?? '';
+};
 
 export { expect };

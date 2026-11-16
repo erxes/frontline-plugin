@@ -84,6 +84,7 @@ const adapterOf = (provider: ProviderName, label: string): Adapter => ({
       .send({
         threadId,
         text: message.content,
+        html: message.html,
         attachments: message.attachments,
         providerData: message.providerData,
         ...context,

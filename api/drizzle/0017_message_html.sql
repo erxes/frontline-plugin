@@ -1,0 +1,1 @@
+ALTER TABLE "frontline_messages" ADD COLUMN "html" text;

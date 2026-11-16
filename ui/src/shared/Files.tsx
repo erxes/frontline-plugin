@@ -6,7 +6,7 @@ import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /** A file on core's storage, as every record with files stores it (`api/src/db/table.ts`). */
-type Attachment = InferClientOutputs<Client>['tickets']['get']['attachments'][number];
+export type Attachment = InferClientOutputs<Client>['tickets']['get']['attachments'][number];
 
 /** One image: its preview uploads or changes it, the remove button clears it to `null`. */
 export const ImageField = ({
