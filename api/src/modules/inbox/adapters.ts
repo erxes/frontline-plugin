@@ -37,6 +37,17 @@ export type Adapter = {
    * visitors read theirs from the inbox.
    */
   send?: (outgoing: Outgoing) => Promise<{ externalId: string | null }>;
+  /**
+   * Puts the team's reaction on a message at the provider: `emoji` is the one a member added or
+   * took back, `emojis` the team's on the message after it. Without it members don't react.
+   */
+  react?: (
+    reaction: Omit<Outgoing, 'message'> & {
+      message: { externalId: string | null; providerData: Record<string, unknown> | null };
+      emoji: string;
+      emojis: string[];
+    },
+  ) => Promise<void>;
   /** Whether its customers see a survey message and vote on it, as the messenger's visitors do. */
   surveys?: boolean;
 };

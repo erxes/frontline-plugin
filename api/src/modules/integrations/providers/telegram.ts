@@ -5,7 +5,12 @@ import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Account, accountRow, saveAccount } from '../store.ts';
-import { defineProvider, type InboundMessage, type WebhookSource } from '../provider.ts';
+import {
+  defineProvider,
+  type InboundMessage,
+  type InboundReaction,
+  type WebhookSource,
+} from '../provider.ts';
 import { sameText } from '../secrets.ts';
 
 const Config = z.object({ username: z.string() });
@@ -74,12 +79,50 @@ export const telegram = defineProvider({
 
     return `${sent.chat.id}:${sent.message_id}`;
   },
+  // A bot keeps one reaction on a message: the team's latest. Telegram's emoji carry no U+FE0F.
+  react: async ({ secret }, { threadId, message, emojis }) => {
+    const latest = emojis.at(-1)?.replaceAll('️', '');
+
+    await call(secret.token, 'setMessageReaction', z.boolean(), {
+      chat_id: threadId,
+      message_id: Number(message.externalId.split(':').at(-1)),
+      reaction: latest ? [{ type: 'emoji', emoji: latest }] : [],
+    });
+  },
   disconnect: async ({ secret }) => {
     await call(secret.token, 'deleteWebhook', z.boolean());
   },
 });
 
-const Update = z.object({ update_id: z.number(), message: Message.optional() });
+/** A reaction type: an emoji, or a custom or paid one frontline can't show. */
+const Reaction = z.looseObject({ type: z.string(), emoji: z.string().optional() });
+
+/** A person changed their reactions on a message; `new_reaction` is all of theirs now. */
+const MessageReaction = z.object({
+  chat: z.object({ id: z.number() }),
+  message_id: z.number(),
+  user: User.optional(),
+  new_reaction: z.array(Reaction),
+});
+
+const Update = z.object({
+  update_id: z.number(),
+  message: Message.optional(),
+  message_reaction: MessageReaction.optional(),
+});
+
+/** A person's reactions as the inbox keeps them, in the chat's conversation; none from a bot. */
+const reactionOf = (changed: z.infer<typeof MessageReaction>): InboundReaction[] =>
+  changed.user?.is_bot
+    ? []
+    : [
+        {
+          threadId: String(changed.chat.id),
+          messageId: `${changed.chat.id}:${changed.message_id}`,
+          author: { externalId: String(changed.chat.id) },
+          emojis: changed.new_reaction.flatMap((reaction) => reaction.emoji ?? []),
+        },
+      ];
 
 /**
  * A chat's message as the inbox reads it, or none from a bot. The customer is the chat: a person
@@ -115,11 +158,14 @@ export const telegramWebhook: WebhookSource = {
     if (!sameText(account.secret.webhookSecret, headers['x-telegram-bot-api-secret-token']))
       return null;
 
-    return events.flatMap((event) => {
-      const { message } = Update.parse(event);
+    const updates = events.map((event) => Update.parse(event));
 
-      return message ? inboundOf(message) : [];
-    });
+    return {
+      messages: updates.flatMap(({ message }) => (message ? inboundOf(message) : [])),
+      reactions: updates.flatMap(({ message_reaction: changed }) =>
+        changed ? reactionOf(changed) : [],
+      ),
+    };
   },
 };
 
@@ -141,7 +187,7 @@ const connect = writes(PERMISSIONS.integrationManage)
     await call(input.token, 'setWebhook', z.boolean(), {
       url: `${config.publicUrl}/api/public/webhooks/telegram/${key}`,
       secret_token: webhookSecret,
-      allowed_updates: ['message'],
+      allowed_updates: ['message', 'message_reaction'],
     });
 
     return saveAccount(tx, member, {

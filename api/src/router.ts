@@ -32,6 +32,7 @@ import {
 import { messageProcedures } from '#/modules/inbox/messages.ts';
 import { operatorProcedures } from '#/modules/inbox/operator.ts';
 import { presenceProcedures } from '#/modules/inbox/presence.ts';
+import { reactionProcedures } from '#/modules/inbox/reactions.ts';
 import { messengerProcedures } from '#/modules/messenger/settings.ts';
 import { settingsProcedures } from '#/modules/settings/settings.ts';
 import { surveySendProcedures } from '#/modules/surveys/send.ts';
@@ -78,7 +79,7 @@ export const router = {
     ...countProcedures,
     ...operatorProcedures,
     ...presenceProcedures,
-    messages: messageProcedures,
+    messages: { ...messageProcedures, ...reactionProcedures },
   },
   knowledgebase: {
     topics: topicProcedures,

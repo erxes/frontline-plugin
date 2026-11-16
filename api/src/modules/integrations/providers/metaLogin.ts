@@ -29,7 +29,7 @@ const SCOPES = [
 ];
 
 /** The events Meta posts to frontline for a connected page. */
-const PAGE_FIELDS = ['messages', 'messaging_postbacks', 'feed'];
+const PAGE_FIELDS = ['messages', 'messaging_postbacks', 'message_reactions', 'feed'];
 
 const State = z.object({ orgId: z.string(), userId: z.string() });
 

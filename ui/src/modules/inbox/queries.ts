@@ -95,6 +95,9 @@ export const useSendMessage = () =>
 export const usePinMessage = () =>
   useMutation(orpc.conversations.messages.pin.mutationOptions(useInboxChange()));
 
+export const useReact = () =>
+  useMutation(orpc.conversations.messages.react.mutationOptions(useInboxChange()));
+
 export const useEditMessage = () =>
   useMutation(orpc.conversations.messages.update.mutationOptions(useInboxChange()));
 

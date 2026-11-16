@@ -141,6 +141,13 @@
       "when": 1794845750575,
       "tag": "0019_survey_send",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1794847301217,
+      "tag": "0020_message_reactions",
+      "breakpoints": true
     }
   ]
 }

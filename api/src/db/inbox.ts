@@ -198,6 +198,38 @@ export const messages = table(
 );
 
 /**
+ * An emoji on a message, by a member or by the customer at the provider. A reactor has each
+ * emoji once on a message.
+ */
+export const messageReactions = table(
+  'message_reactions',
+  {
+    orgId: text().notNull(),
+    messageId: text().notNull(),
+    /** A core user id, for a member's reaction. */
+    userId: text(),
+    /** A core customer id, for the customer's reaction at the provider. */
+    customerId: text(),
+    emoji: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'frontline_message_reactions_message_fkey',
+      columns: [t.messageId],
+      foreignColumns: [messages.id],
+    }).onDelete('cascade'),
+    unique('frontline_message_reactions_reactor_key')
+      .on(t.orgId, t.messageId, t.userId, t.customerId, t.emoji)
+      .nullsNotDistinct(),
+    check(
+      'frontline_message_reactions_reactor_check',
+      sql`(${t.userId} is null) <> (${t.customerId} is null)`,
+    ),
+  ],
+);
+
+/**
  * The core customer behind a provider's user id: a messenger visitor, a Facebook sender, a
  * Telegram chat. A new one is `customers.create` in core, then this row.
  */

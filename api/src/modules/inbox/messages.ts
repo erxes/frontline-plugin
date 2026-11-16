@@ -13,6 +13,7 @@ import { reads, writes } from '#/orpc.ts';
 import { orderOf, PageInput, pageOf } from '../paging.ts';
 import { Content, Html, writtenText } from './html.ts';
 import { messageColumns, postMessage, queueSend } from './post.ts';
+import { Reaction, reactionsOf } from './reactions.ts';
 import { conversationById, conversationsFor, signalConversations } from './shared.ts';
 
 export const Message = createSelectSchema(messages, {
@@ -36,13 +37,13 @@ const messageFor = async (tx: Tx, member: PluginMember, id: string) => {
 
 /**
  * A conversation's messages, newest first, `limit` at a time; the pinned ones only with `pinned`.
- * `canEdit` marks the caller's own.
+ * `canEdit` marks the caller's own; `reactions` are its emojis.
  */
 const list = reads(PERMISSIONS.inboxView)
   .input(z.object({ conversationId: z.string(), pinned: z.boolean().default(false), ...PageInput }))
   .output(
     z.object({
-      messages: z.array(Message.extend({ canEdit: z.boolean() })),
+      messages: z.array(Message.extend({ canEdit: z.boolean(), reactions: z.array(Reaction) })),
       nextCursor: z.string().nullable(),
     }),
   )
@@ -55,6 +56,7 @@ const list = reads(PERMISSIONS.inboxView)
       .select({
         ...messageColumns,
         canEdit: sql<boolean>`coalesce(${messages.userId} = ${member.userId}, false)`,
+        reactions: reactionsOf(member),
       })
       .from(messages)
       .where(

@@ -1,7 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
 import { logger } from '#/logger.ts';
-import { deliverInbound } from './adapters.ts';
+import { deliverInbound, deliverReactions } from './adapters.ts';
 import type { Routed, WebhookRequest, WebhookSource } from './provider.ts';
 import { WEBHOOKS } from './providers/index.ts';
 import { callWebhooks } from './providers/call/routes.ts';
@@ -27,7 +27,12 @@ const handle = async (webhook: WebhookSource, request: WebhookRequest, routes: R
 
   if (accounts.some(({ inbound }) => !inbound)) return false;
 
-  await Promise.all(accounts.map(({ row, inbound }) => deliverInbound(row, inbound ?? [])));
+  await Promise.all(
+    accounts.map(async ({ row, inbound }) => {
+      await deliverInbound(row, inbound?.messages ?? []);
+      await deliverReactions(row, inbound?.reactions ?? []);
+    }),
+  );
 
   return true;
 };

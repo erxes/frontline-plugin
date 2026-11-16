@@ -18,7 +18,14 @@ vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
 /** The mailbox's INBOX, which IMAP reads, and what went out over SMTP. */
 const mailbox = vi.hoisted(() => ({
   inbox: [] as string[],
-  sent: [] as { to: string; subject: string; messageId?: string; inReplyTo?: string }[],
+  sent: [] as {
+    to: string;
+    subject: string;
+    messageId?: string;
+    inReplyTo?: string;
+    text?: string;
+    headers?: Record<string, string>;
+  }[],
 }));
 
 vi.mock('imapflow', () => ({
@@ -130,6 +137,19 @@ describe('mail', () => {
 
     expect(mailbox.sent.splice(0)).toMatchObject([
       { to: 'saraa@example.mn', subject: 'Re: Your refund', inReplyTo: '<saraa-2@example.mn>' },
+    ]);
+
+    // A reaction is an RFC 9078 reply: one part, marked `reaction`, with the team's emojis.
+    await owner.conversations.messages.react({ id: messages[0]?.id ?? '', emoji: '👍' });
+
+    expect(mailbox.sent.splice(0)).toMatchObject([
+      {
+        to: 'saraa@example.mn',
+        subject: 'Re: Your refund',
+        inReplyTo: '<saraa-2@example.mn>',
+        text: '👍',
+        headers: { 'content-disposition': 'reaction' },
+      },
     ]);
 
     const events = await withOrg('org-mail-a', (tx) =>
