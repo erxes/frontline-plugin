@@ -80,33 +80,16 @@ export const TagEditor = ({
   );
 };
 
-/** The conversation's tags as badges, and the editor that sets them. */
-const Tags = ({ conversation }: { conversation: Conversation }) => {
-  const { t } = useTranslation('frontline');
-
-  const picked = (useQuery(conversationTags).data?.data ?? []).filter((tag) =>
+/** The conversation's tags, as badges under the header's controls. */
+const useTags = (conversation: Conversation) =>
+  (useQuery(conversationTags).data?.data ?? []).filter((tag) =>
     conversation.tagIds.includes(tag.id),
   );
 
-  return (
-    <div className="flex flex-wrap items-center gap-1">
-      {picked.map((tag) => (
-        <Badge key={tag.id} variant="secondary">
-          {tag.name}
-        </Badge>
-      ))}
-      <TagEditor
-        ids={[conversation.id]}
-        tagIds={conversation.tagIds}
-        label={picked.length === 0 ? t('add-tags', 'Add tags') : t('edit-tags', 'Edit tags')}
-      />
-    </div>
-  );
-};
-
 /**
- * Who the open conversation is with and through what, its assignee, its tags, and Resolve or
- * Reopen. Each change saves at once.
+ * The open conversation's controls in the old inbox's order: who it is with, through what, and
+ * its assignee on the left; tags and Resolve or Reopen on the right, the tags themselves under
+ * them. Each change saves at once.
  */
 export const ConversationHeader = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
@@ -115,6 +98,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
   const statuses = useStatusNames();
   const kinds = useKindNames();
   const resolved = conversation.status === 'resolved';
+  const tags = useTags(conversation);
 
   return (
     <header className="flex flex-col gap-2 border-b px-4 py-3">
@@ -129,8 +113,6 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         <Badge variant={conversation.status === 'new' ? 'info' : 'secondary'}>
           {statuses[conversation.status]}
         </Badge>
-        <span className="flex-1" />
-        {conversation.kind === 'messenger' && <OperatorButton conversation={conversation} />}
         <SelectMember.Field
           value={conversation.assigneeId}
           onValueChange={(assigneeId) => assign.mutate({ ids: [conversation.id], assigneeId })}
@@ -138,6 +120,13 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
           noneLabel={t('unassigned', 'Unassigned')}
           placeholder={t('assign', 'Assign')}
           className="w-48"
+        />
+        <span className="flex-1" />
+        {conversation.kind === 'messenger' && <OperatorButton conversation={conversation} />}
+        <TagEditor
+          ids={[conversation.id]}
+          tagIds={conversation.tagIds}
+          label={tags.length === 0 ? t('add-tags', 'Add tags') : t('edit-tags', 'Edit tags')}
         />
         <Button
           variant={resolved ? 'outline' : 'default'}
@@ -151,7 +140,15 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         </Button>
       </div>
       <VisitorPresence conversation={conversation} />
-      <Tags conversation={conversation} />
+      {tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1">
+          {tags.map((tag) => (
+            <Badge key={tag.id} variant="secondary">
+              {tag.name}
+            </Badge>
+          ))}
+        </div>
+      )}
     </header>
   );
 };

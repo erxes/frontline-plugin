@@ -89,7 +89,7 @@ const MessageBody = ({ message }: { message: Message }) => {
     'break-words rounded-lg px-3 py-2 text-sm',
     fromCustomer && 'bg-muted',
     !fromCustomer && !message.internal && 'bg-primary text-primary-foreground',
-    message.internal && 'border border-dashed bg-warning-surface',
+    message.internal && 'border border-dashed border-warning bg-warning/20',
   );
 
   if (!message.html)

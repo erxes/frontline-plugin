@@ -1,5 +1,5 @@
 import { IconLock, IconMessage2, IconSend } from '@tabler/icons-react';
-import { Button, cn, Editor, editorText, Tabs } from 'erxes-ui';
+import { Button, cn, Editor, editorText, Kbd, Tabs } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Attachment, FileList, FilePicker } from '~/shared/Files.tsx';
@@ -10,6 +10,9 @@ import { useSendShortcut } from './useSendShortcut.ts';
 const MODES = ['reply', 'note'] as const;
 
 type Mode = (typeof MODES)[number];
+
+/** The send shortcut's modifier key, as the member's keyboard labels it. */
+const MOD = navigator.userAgent.includes('Mac') ? '⌘' : 'Ctrl';
 
 /** Reply or Internal note, above the editor. */
 const ModeTabs = ({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) => {
@@ -32,10 +35,46 @@ const ModeTabs = ({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => vo
 };
 
 /**
- * The reply box under the thread, on erxes-ui's editor: a reply goes to the customer, an internal
- * note stays with the team and can mention teammates. `/` opens the formatting, the channel's
- * response templates and, in a note, the teammates. Files attach through core's upload. Ctrl or ⌘
- * with Enter sends it.
+ * The composer's foot, in the old inbox's order: attach on the left, then a hint, the send
+ * shortcut and Send, or Add note in a note.
+ */
+const Actions = ({
+  note,
+  disabled,
+  onUploaded,
+}: {
+  note: boolean;
+  disabled: boolean;
+  onUploaded: (file: Attachment) => void;
+}) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <div className="flex items-center gap-2">
+      <FilePicker label={t('attach-file', 'Attach file')} onUploaded={onUploaded} />
+      <span className="flex-1 text-xs text-muted-foreground">
+        {note
+          ? t('note-hint', 'Only your team sees notes. Type / to mention a teammate.')
+          : t('reply-hint', 'Type / for response templates and formatting.')}
+      </span>
+      <span className="flex items-center gap-0.5" aria-hidden>
+        <Kbd>{MOD}</Kbd>
+        <Kbd>↵</Kbd>
+      </span>
+      <Button type="submit" variant={note ? 'outline' : 'default'} disabled={disabled}>
+        {note ? <IconLock /> : <IconSend />}
+        {note ? t('add-note', 'Add note') : t('send', 'Send')}
+      </Button>
+    </div>
+  );
+};
+
+/**
+ * The reply box under the thread, on erxes-ui's editor, as a card like the old inbox's: a reply
+ * goes to the customer, an internal note stays with the team and can mention teammates. A note
+ * turns the card yellow and its button reads Add note, so it can't pass for a reply. `/` opens
+ * the formatting, the channel's response templates and, in a note, the teammates. Files attach
+ * through core's upload. Ctrl or ⌘ with Enter sends it.
  */
 export const Composer = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
@@ -72,7 +111,10 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
     <form
       ref={shortcut}
       onSubmit={submit}
-      className={cn('flex flex-col gap-2 border-t p-3', note && 'bg-warning-surface')}
+      className={cn(
+        'm-3 mt-0 flex flex-col gap-2 rounded-lg border bg-background p-2 shadow-xs',
+        note && 'border-warning bg-warning/10',
+      )}
     >
       <ModeTabs mode={mode} onChange={setMode} />
       <Editor
@@ -98,21 +140,11 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
           onRemove={(file) => setAttachments((files) => files.filter((other) => other !== file))}
         />
       )}
-      <div className="flex items-center gap-2">
-        <FilePicker
-          label={t('attach-file', 'Attach file')}
-          onUploaded={(file) => setAttachments((files) => [...files, file])}
-        />
-        <span className="flex-1 text-xs text-muted-foreground">
-          {note
-            ? t('note-hint', 'Only your team sees notes. Type / to mention a teammate.')
-            : t('reply-hint', 'Type / for response templates and formatting.')}
-        </span>
-        <Button type="submit" disabled={send.isPending || empty}>
-          <IconSend />
-          {note ? t('add-note', 'Add note') : t('send', 'Send')}
-        </Button>
-      </div>
+      <Actions
+        note={note}
+        disabled={send.isPending || empty}
+        onUploaded={(file) => setAttachments((files) => [...files, file])}
+      />
     </form>
   );
 };

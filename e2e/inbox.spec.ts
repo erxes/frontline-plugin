@@ -82,6 +82,13 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await page.keyboard.press('Escape');
   await expect(header).toContainText(tag);
 
+  // The header reads as the old inbox's did: the assignee, then the tags, then Resolve.
+  const left = async (name: string) =>
+    (await header.getByRole('button', { name, exact: true }).boundingBox())?.x ?? Number.NaN;
+
+  expect(await left(fullName)).toBeLessThan(await left('Edit tags'));
+  expect(await left('Edit tags')).toBeLessThan(await left('Resolve'));
+
   const first = thread.getByRole('listitem', { name: 'Message' }).first();
 
   await first.hover();

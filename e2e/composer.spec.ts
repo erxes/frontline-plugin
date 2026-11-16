@@ -69,9 +69,19 @@ test('a member answers with a response template, formats it, attaches a file and
     'Refunds take five days. Sorry for the wait.',
   );
 
-  // A note mentions the teammate through `/` and their name, and Ctrl or ⌘ with Enter adds it.
-  await page.getByRole('tab', { name: 'Internal note' }).click();
+  // A note tints the composer and its button reads Add note, so it can't pass for a reply.
+  const card = page
+    .locator('form')
+    .filter({ has: page.getByRole('tab', { name: 'Internal note' }) });
 
+  const replyTint = await card.evaluate((form) => getComputedStyle(form).backgroundColor);
+
+  await page.getByRole('tab', { name: 'Internal note' }).click();
+  await expect(page.getByRole('button', { name: 'Add note' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Send' })).toBeHidden();
+  await expect(card).not.toHaveCSS('background-color', replyTint);
+
+  // It mentions the teammate through `/` and their name, and Ctrl or ⌘ with Enter adds it.
   const note = page.getByRole('textbox', { name: 'Internal note' });
 
   await expect(note).toBeVisible();
