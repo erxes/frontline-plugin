@@ -5,6 +5,9 @@ services:
   api:
     environment:
       CORE_PLUGIN_KEYS: frontline:${PLUGIN_SECRET:?set PLUGIN_SECRET}
+      # Core posts the plugin's events and jobs to its api.url, http://localhost:3399.
+      # In production core sends only to public https addresses.
+      OUTBOUND_ALLOW_PRIVATE: 'true'
 
   # The manifest's api.url is PUBLIC_URL, localhost:3399, where the browser and
   # the specs reach the plugin. Core posts events and jobs there from its own
