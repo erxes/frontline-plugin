@@ -354,10 +354,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `AUTOMATION_CONDITION_OPERATORS` (1 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `AutomationConditionalField` (1 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `BranchesInline` (1 files). Frontline teams, `useTeams` in `ui/src/modules/tickets/TicketLinks.tsx`
-- [ ] `CardDetailBadgeItem` (1 files)
-  - note: the board's cards show priority, SLA and assignee but no property values (`ui/src/modules/tickets/TicketsBoard.tsx`)
-- [ ] `CardDetailBadges` (1 files)
-  - note: the board's cards show priority, SLA and assignee but no property values (`ui/src/modules/tickets/TicketsBoard.tsx`)
+- [x] `CardDetailBadgeItem` (1 files). A label string for `Badges` in `ui/src/shared/Pickers.tsx`
+- [x] `CardDetailBadges` (1 files). `Badges` with `max` in `ui/src/shared/Pickers.tsx`: a board card shows five tags and three property values, then a count that names the rest on hover (`TicketPropertyBadges` in `ui/src/modules/tickets/TicketProperties.tsx`)
 - [x] `ContactRecordChip` (1 files). The ticket's `contacts` in `ui/src/config.tsx` and erxes-ui's `ContactLink` (`ui/src/modules/tickets/TicketLinks.tsx`)
 - [x] `ContactWidgetRow` (1 files). A customer's tickets are core's `relationTabs` (`ui/src/modules/tickets/TicketRelations.tsx`), and their conversations' events show on the customer's Activity tab (`CONVERSATION_EVENTS` in `api/src/core.ts`)
 - [x] `currentOrganizationState` (1 files). **drop**: it told the config page whether the install was SaaS, and that page is gone (`META_APP_*` in `api/src/config.ts`)
@@ -372,11 +370,9 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `FieldsInDetail` (1 files)
   - note: only the conversation's properties used it; they wait for plugin properties on conversations
 - [x] `FieldsInGroup` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
-- [ ] `formatFieldValue` (1 files)
-  - note: the board's cards show priority, SLA and assignee but no property values (`ui/src/modules/tickets/TicketsBoard.tsx`)
+- [x] `formatFieldValue` (1 files). `useValueText` in `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `getRelationWidgetLabel` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
-- [ ] `hasFieldValue` (1 files)
-  - note: the board's cards show priority, SLA and assignee but no property values (`ui/src/modules/tickets/TicketsBoard.tsx`)
+- [x] `hasFieldValue` (1 files). A property with no value text gets no badge (`TicketPropertyBadges` in `ui/src/modules/tickets/TicketProperties.tsx`)
 - [x] `IAutomationHistoryAction` (1 files). Core's automation runs keep each step's result (the bot delivery stats row in DECISIONS.md); actions answer core at `/api/automations/actions` (`api/src/modules/inbox/automations.ts`, `api/src/modules/integrations/actions.ts`)
 - [x] `IDashboardWidgetProps` (1 files). (filed https://github.com/erxes/erxes/issues/10581)
 - [x] `IFieldMutation` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`

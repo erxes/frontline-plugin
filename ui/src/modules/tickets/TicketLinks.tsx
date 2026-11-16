@@ -209,8 +209,8 @@ const TeamField = ({
 };
 
 /** The ticket's tags as badges, on a list row or a board card; nothing when it has none. */
-export const TicketTags = ({ tagIds }: { tagIds: string[] }) => (
-  <TagBadges tags={ticketTags} tagIds={tagIds} />
+export const TicketTags = ({ tagIds, max }: { tagIds: string[]; max?: number }) => (
+  <TagBadges tags={ticketTags} tagIds={tagIds} max={max} />
 );
 
 /** Its tags, branch and department. */

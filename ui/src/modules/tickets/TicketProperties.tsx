@@ -18,6 +18,7 @@ import {
   PanelSection,
   Switch,
   TextField,
+  useFormat,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
@@ -130,6 +131,41 @@ const PropertyInput = ({
         />
       );
   }
+};
+
+/** A property's value as one line of text, or '' while it has none. */
+const useValueText = () => {
+  const { t } = useTranslation('frontline');
+  const format = useFormat();
+
+  return (property: Property, value: unknown) => {
+    switch (property.type) {
+      case 'number':
+        return typeof value === 'number' ? String(value) : '';
+      case 'date':
+        return typeof value === 'string' ? format.date(new Date(value)) : '';
+      case 'multiselect':
+        return textsOf(value).join(', ');
+      case 'boolean':
+        return typeof value === 'boolean' ? (value ? t('yes', 'Yes') : t('no', 'No')) : '';
+      default:
+        return textOf(value);
+    }
+  };
+};
+
+/** The ticket's property values on its board card, three at most and the rest on hover. */
+export const TicketPropertyBadges = ({ ticket }: { ticket: Ticket }) => {
+  const properties = useProperties(ticket.pipelineId);
+  const valueText = useValueText();
+
+  const labels = properties.flatMap((property) => {
+    const text = valueText(property, ticket.propertiesData[property.id]);
+
+    return text ? [`${property.label}: ${text}`] : [];
+  });
+
+  return labels.length > 0 ? <Badges labels={labels} max={3} /> : null;
 };
 
 /** The ticket's properties from settings, each saved as it changes; nothing when there are none. */
