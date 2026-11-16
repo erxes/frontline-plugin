@@ -223,7 +223,7 @@ describe('ticket report', () => {
 });
 
 describe('call report', () => {
-  it('counts the period’s calls, waits and talk time by day, by hour of the week, by agent and number', async () => {
+  it('counts the period’s calls, waits, talk time and callbacks by day, hour of the week, agent, number and queue', async () => {
     const orgId = 'org-rp-calls';
     const { teammate, owner, inOurs, inOther } = await setUp(orgId);
     const line = await conversation(orgId, inOurs, { createdAt: at('2026-02-01T00:00:00Z') });
@@ -266,9 +266,10 @@ describe('call report', () => {
       const mondayLater = at('2026-03-02T03:00:00Z');
 
       await tx.insert(calls).values([
-        call('k1', sunday, answeredBy(sunday, 10, 120)),
-        call('k2', sundayLater, answeredBy(sundayLater, 30, 60)),
-        call('k3', monday, { status: 'missed', customerPhone: '88000000' }),
+        call('k1', sunday, { queue: '6501', ...answeredBy(sunday, 10, 120) }),
+        call('k2', sundayLater, { queue: '6501', ...answeredBy(sundayLater, 30, 60) }),
+        call('k3', monday, { queue: '6502', status: 'missed', customerPhone: '88000000' }),
+        // The missed call is called back an hour later, and answered.
         call('k4', mondayLater, {
           direction: 'outgoing',
           customerPhone: '88000000',
@@ -305,6 +306,14 @@ describe('call report', () => {
         { customerPhone: '88000000', total: 2, answered: 1, missed: 1 },
         { customerPhone: '99110000', total: 2, answered: 2, missed: 0 },
       ],
+      queues: [
+        { queue: '6501', total: 2, answered: 2, missed: 0, waitSeconds: 20, talkSeconds: 90 },
+        { queue: '6502', total: 1, answered: 0, missed: 1, waitSeconds: null, talkSeconds: null },
+      ],
+      calledBack: 1,
+      reached: 1,
+      callbackSeconds: 3600,
+      callbackHours: 24,
     });
 
     await expect(owner.reports.calls(PERIOD)).resolves.toMatchObject({ total: 5 });

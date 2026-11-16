@@ -1,0 +1,137 @@
+import { memberQueries } from '@erxes/core-contract/client';
+import { MemberInline, useFormat } from 'erxes-ui';
+import { useTranslation } from 'react-i18next';
+import { useKindNames } from '@/inbox/InboxFilter.tsx';
+import { DayChart } from './Charts.tsx';
+import { useConversationReport } from './queries.ts';
+import { BarList, MiniTable, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
+
+/** Started, resolved and open conversations, and how fast members answered and resolved them. */
+export const ConversationSummary = () => {
+  const { t } = useTranslation('frontline');
+  const format = useFormat();
+  const span = useSpanText();
+  const { period, query } = useConversationReport();
+
+  return (
+    <Tile period={period} query={query}>
+      {(report) => (
+        <Stats>
+          <Stat
+            label={t('conversations-started', 'Started')}
+            value={format.number(report.started)}
+          />
+          <Stat
+            label={t('conversations-resolved', 'Resolved')}
+            value={format.number(report.resolved)}
+          />
+          <Stat
+            label={t('conversations-unresolved', 'Unresolved now')}
+            value={format.number(report.unresolved)}
+          />
+          <Stat
+            label={t('average-first-response', 'Average first response')}
+            value={span(report.firstResponseSeconds)}
+          />
+          <Stat
+            label={t('average-resolution', 'Average resolution')}
+            value={span(report.resolutionSeconds)}
+          />
+        </Stats>
+      )}
+    </Tile>
+  );
+};
+
+/** Conversations started and resolved each day. */
+export const ConversationsOverTime = () => {
+  const { t } = useTranslation('frontline');
+  const { period, query } = useConversationReport();
+
+  return (
+    <Tile period={period} query={query}>
+      {(report) => (
+        <DayChart
+          days={report.days}
+          config={{
+            started: { label: t('conversations-started', 'Started'), color: 'var(--chart-1)' },
+            resolved: { label: t('conversations-resolved', 'Resolved'), color: 'var(--chart-2)' },
+          }}
+          empty={t('no-conversations-in-period', 'No conversations in this period.')}
+        />
+      )}
+    </Tile>
+  );
+};
+
+/** The period's conversations by the integration they came through. */
+export const ConversationsBySource = () => {
+  const { t } = useTranslation('frontline');
+  const kinds = useKindNames();
+  const { period, query } = useConversationReport();
+
+  return (
+    <Tile period={period} query={query}>
+      {(report) => (
+        <BarList
+          rows={report.sources.map(({ kind, count }) => {
+            const name = kinds[kind] ?? kind;
+
+            return { key: kind, label: name, name, value: count };
+          })}
+          empty={t('no-conversations-in-period', 'No conversations in this period.')}
+        />
+      )}
+    </Tile>
+  );
+};
+
+/** The tags on the period's conversations, the most used first. */
+export const ConversationsByTag = () => {
+  const { t } = useTranslation('frontline');
+  const { period, query } = useConversationReport();
+
+  return (
+    <Tile period={period} query={query}>
+      {(report) => (
+        <BarList
+          rows={report.tags.map((tag) => ({
+            key: tag.tagId,
+            label: tag.name,
+            name: tag.name,
+            value: tag.count,
+            color: tag.colorCode,
+          }))}
+          empty={t('no-tagged-conversations', 'No tagged conversations in this period.')}
+        />
+      )}
+    </Tile>
+  );
+};
+
+/** The members who replied to customers the most, and in how many conversations. */
+export const ConversationResponders = () => {
+  const { t } = useTranslation('frontline');
+  const format = useFormat();
+  const { period, query } = useConversationReport();
+
+  return (
+    <Tile period={period} query={query}>
+      {(report) => (
+        <MiniTable
+          heads={[
+            t('member', 'Member'),
+            t('replies', 'Replies'),
+            t('conversations', 'Conversations'),
+          ]}
+          rows={report.members.map((row) => ({
+            key: row.userId,
+            lead: <MemberInline memberId={row.userId} members={memberQueries} />,
+            numbers: [format.number(row.replies), format.number(row.conversations)],
+          }))}
+          empty={t('no-replies-in-period', 'No member replied in this period.')}
+        />
+      )}
+    </Tile>
+  );
+};

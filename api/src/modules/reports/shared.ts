@@ -56,7 +56,7 @@ export const countWhere = (condition: SQL | undefined) =>
   sql<number>`count(*) filter (where ${condition ?? sql`true`})`.mapWith(Number);
 
 /** The rounded average of `seconds` over the rows where `condition` holds, or null over none. */
-export const averageSeconds = (seconds: SQL | Column, condition: SQL | undefined) =>
+export const averageSeconds = (seconds: SQL | Column, condition?: SQL) =>
   sql<number | null>`round(avg(${seconds}) filter (where ${condition ?? sql`true`}))::int`;
 
 /** Seconds from `start` to `end`. */

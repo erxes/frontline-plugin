@@ -8,3 +8,4 @@
 @source '.';
 @source not './modules/knowledgebase';
 @source not './modules/pipelines';
+@source not './modules/reports';

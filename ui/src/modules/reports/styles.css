@@ -1,0 +1,6 @@
+/* The report tiles' own Tailwind utilities, added when the first tile loads on core's home
+   dashboard, so the stylesheet web loads on every page leaves them out. Built like ../styles.css. */
+@import 'tailwindcss/theme.css' theme(reference inline);
+@import 'erxes-ui/theme.css' theme(inline);
+@import 'tailwindcss/utilities.css' layer(utilities) source(none);
+@source '.';

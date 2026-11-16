@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
 import { type ComponentType, lazy } from 'react';
+import { DASHBOARD_WIDGETS } from '~/dashboardWidgets.ts';
 import {
   CALL_TYPE,
   CHANNEL_TYPE,
@@ -247,4 +248,5 @@ export const CONFIG: IUIConfig = {
       component: lazy(async () => ({ default: (await ticket()).TicketRelations })),
     },
   ],
+  dashboardWidgets: DASHBOARD_WIDGETS,
 };

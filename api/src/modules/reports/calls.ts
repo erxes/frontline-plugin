@@ -1,4 +1,5 @@
-import { and, count, desc, eq, inArray, isNotNull, type SQL, sql } from 'drizzle-orm';
+import { and, count, desc, eq, gte, inArray, isNotNull, lte, type SQL, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { calls } from '#/db/calls.ts';
@@ -52,9 +53,29 @@ const CallReport = z.object({
   numbers: z.array(
     z.object({ customerPhone: z.string(), total: Count, answered: Count, missed: Count }),
   ),
+  /** The busiest PBX queues, by their incoming calls. */
+  queues: z.array(
+    z.object({
+      queue: z.string(),
+      total: Count,
+      answered: Count,
+      missed: Count,
+      waitSeconds: z.number().nullable(),
+      talkSeconds: z.number().nullable(),
+    }),
+  ),
+  /** Missed calls the organisation called back within `callbackHours`, and how soon. */
+  calledBack: Count,
+  /** Called back and answered. */
+  reached: Count,
+  callbackSeconds: z.number().nullable(),
+  callbackHours: Count,
 });
 
 const UNANSWERED = ['missed', 'busy', 'failed', 'voicemail'] as const;
+
+/** A missed call counts as called back by an outgoing call to its number within this many hours. */
+const CALLBACK_HOURS = 24;
 
 const incoming = eq(calls.direction, 'incoming');
 const outgoing = eq(calls.direction, 'outgoing');
@@ -63,7 +84,50 @@ const missed = and(incoming, inArray(calls.status, UNANSWERED));
 const offered = and(incoming, inArray(calls.status, ['answered', ...UNANSWERED]));
 const waited = secondsBetween(calls.startedAt, calls.answeredAt);
 
-/** The calls `theirs` picks by weekday and hour, and their busiest agents and numbers. */
+/**
+ * Of the missed calls `theirs` picks, those an outgoing call on the same PBX reached back within
+ * `CALLBACK_HOURS` of their end, those it got an answer from, and the average time to the first.
+ */
+const callbacks = async (tx: Tx, theirs: SQL) => {
+  const callback = alias(calls, 'callback');
+  const missedAt = sql`coalesce(${calls.endedAt}, ${calls.startedAt})`;
+
+  const attempts = tx
+    .select({
+      first: sql<Date | null>`min(${callback.startedAt})`.as('first'),
+      reached: sql<boolean | null>`bool_or(${callback.status} = 'answered')`.as('reached'),
+    })
+    .from(callback)
+    .where(
+      and(
+        eq(callback.accountId, calls.accountId),
+        eq(callback.customerPhone, calls.customerPhone),
+        eq(callback.direction, 'outgoing'),
+        gte(callback.startedAt, missedAt),
+        lte(callback.startedAt, sql`${missedAt} + make_interval(hours => ${CALLBACK_HOURS})`),
+      ),
+    )
+    .as('attempts');
+
+  const [row] = await tx
+    .select({
+      calledBack: sql<number>`count(${attempts.first})`.mapWith(Number),
+      reached: countWhere(sql`${attempts.reached}`),
+      callbackSeconds: averageSeconds(sql`extract(epoch from ${attempts.first} - ${missedAt})`),
+    })
+    .from(calls)
+    .leftJoinLateral(attempts, sql`true`)
+    .where(and(theirs, missed));
+
+  return {
+    calledBack: row?.calledBack ?? 0,
+    reached: row?.reached ?? 0,
+    callbackSeconds: row?.callbackSeconds ?? null,
+    callbackHours: CALLBACK_HOURS,
+  };
+};
+
+/** The calls `theirs` picks by weekday and hour, and their busiest agents, numbers and queues. */
 const breakdowns = async (tx: Tx, theirs: SQL, range: Range) => {
   const local = sql`${calls.startedAt} at time zone ${range.timeZone}`;
 
@@ -104,7 +168,22 @@ const breakdowns = async (tx: Tx, theirs: SQL, range: Range) => {
     .orderBy(desc(count()), calls.customerPhone)
     .limit(TOP);
 
-  return { hours, agents, numbers };
+  const queues = await tx
+    .select({
+      queue: sql<string>`${calls.queue}`,
+      total: count(),
+      answered: countWhere(answered),
+      missed: countWhere(missed),
+      waitSeconds: averageSeconds(waited, answered),
+      talkSeconds: averageSeconds(calls.durationSec, answered),
+    })
+    .from(calls)
+    .where(and(theirs, incoming, isNotNull(calls.queue)))
+    .groupBy(calls.queue)
+    .orderBy(desc(count()), calls.queue)
+    .limit(TOP);
+
+  return { hours, agents, numbers, queues };
 };
 
 /**
@@ -170,5 +249,6 @@ export const callReport = reads(PERMISSIONS.callView)
         (day) => byDay.get(day) ?? { day, incoming: 0, outgoing: 0, answered: 0, missed: 0 },
       ),
       ...(await breakdowns(tx, theirs, range)),
+      ...(await callbacks(tx, theirs)),
     };
   });
