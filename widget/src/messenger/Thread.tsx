@@ -4,9 +4,7 @@ import type { Attachment, Message, MessengerApi, Settings, Uploaded } from './ap
 import { Composer, Identify } from './Composer.tsx';
 import { statusOf, timeOf } from './hours.ts';
 import { BackIcon, FileIcon } from './icons.tsx';
-import type { useMessenger } from './useMessenger.ts';
-
-type MessengerState = ReturnType<typeof useMessenger>;
+import type { MessengerState } from './useMessenger.ts';
 
 /** A message from the team, the bot or the messenger itself, on the left. */
 const TeamNote = ({ children }: { children: ComponentChildren }) => (
@@ -16,7 +14,13 @@ const TeamNote = ({ children }: { children: ComponentChildren }) => (
 );
 
 /** A message's files: pictures shown, anything else a link that downloads it. */
-const Files = ({ files, urlOf }: { files: Attachment[]; urlOf: (url: string) => string }) => (
+export const Files = ({
+  files,
+  urlOf,
+}: {
+  files: Attachment[];
+  urlOf: (url: string) => string;
+}) => (
   <div class="fl-files">
     {files.map((file) =>
       file.type?.startsWith('image/') ? (
@@ -53,7 +57,7 @@ const Bubble = ({
 );
 
 /** The bar over a page of the panel: back to the start, and the messenger's name and status. */
-const Bar = ({ settings, onBack }: { settings: Settings; onBack: () => void }) => (
+export const Bar = ({ settings, onBack }: { settings: Settings; onBack: () => void }) => (
   <header class="fl-bar">
     <button type="button" class="fl-icon-button" aria-label="Back" onClick={onBack}>
       <BackIcon />

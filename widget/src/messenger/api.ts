@@ -1,8 +1,10 @@
 import type {
   Connected as ConnectReply,
+  TicketForms as TicketFormsReply,
   Uploaded as UploadReply,
   VisitorConversation,
   VisitorMessage,
+  VisitorTicket,
 } from '@frontline/api/messenger';
 import type { Jsonify } from 'type-fest';
 import { bearer, publicApi } from '../shared/http.ts';
@@ -22,6 +24,13 @@ export type Attachment = Message['attachments'][number];
 export type Uploaded = Jsonify<UploadReply>;
 
 export type Identity = { email?: string; phone?: string; firstName?: string };
+
+export type TicketForms = Jsonify<TicketFormsReply>;
+
+/** A field the organisation adds to its tickets, as one ticket form asks it. */
+export type Property = TicketForms['pipelines'][number]['properties'][number];
+
+export type Ticket = Jsonify<VisitorTicket>;
 
 /** The address of the core file an attachment names, as core's own pages link it. */
 const FILE = /\/files\/([\w-]+)\/download$/;
@@ -88,7 +97,20 @@ export const messengerApi = (base: URL, key: string) => {
     },
     stream: (token: string) =>
       new EventSource(new URL(`stream?token=${encodeURIComponent(token)}`, base)),
+    ticketForms: (token: string) => as(token).get('tickets/forms').json<TicketForms>(),
+    tickets: (token: string) => as(token).get('tickets').json<Ticket[]>(),
+    fileTicket: (token: string, body: NewTicket) => as(token).post(body, 'tickets').json<Ticket>(),
   };
+};
+
+/** What a visitor fills in to file a ticket, as `/tickets` takes it. */
+export type NewTicket = {
+  pipelineId: string;
+  name: string;
+  description: string;
+  files: string[];
+  tagIds: string[];
+  propertiesData: Record<string, unknown>;
 };
 
 export type MessengerApi = ReturnType<typeof messengerApi>;

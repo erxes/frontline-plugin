@@ -1,10 +1,14 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import {
+  addMessenger,
   confirmDelete,
   createPipeline,
   expect,
   expectAccessible,
+  INBOX,
   openChannelPipelines,
+  openShop,
+  pick,
   recordPanel,
   test,
   unique,
@@ -15,12 +19,6 @@ const TICKETS = '/frontline/tickets';
 // One after the other: every test files tickets in the owner's organisation, and a list without
 // a pipeline filter groups by each pipeline's statuses once two pipelines hold tickets.
 test.describe.configure({ mode: 'default' });
-
-/** Opens `select` and picks `option` in it. */
-const pick = async (page: Page, select: Locator, option: string) => {
-  await select.click();
-  await page.getByRole('option', { name: option, exact: true }).click();
-};
 
 /** A ticket's name in the list, which opens it; its number comes first. */
 const ticket = (page: Page, name: string) =>
@@ -203,6 +201,45 @@ test('a member labels a ticket with tags, a department and a property, and filte
   await page.getByRole('button', { name: 'Remove Tags filter' }).click();
   await filterBy(page, 'Department', department);
   await expect(ticket(page, name)).toBeVisible();
+});
+
+test('a visitor files a ticket from the widget in a pipeline the messenger offers', async ({
+  page,
+}) => {
+  const channel = await openChannelPipelines(page);
+  const pipeline = await createPipeline(page);
+  const subject = `Broken zip ${unique()}`;
+
+  await page.goto(INBOX);
+
+  const key = await addMessenger(page, channel);
+
+  await recordPanel(page).getByRole('button', { name: 'Integration actions' }).click();
+  await page.getByRole('option', { name: 'Messenger settings' }).click();
+  await page.getByRole('checkbox', { name: pipeline }).click();
+  await expectAccessible(page);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Messenger saved')).toBeVisible();
+
+  await using site = await openShop(page.context(), key);
+  const { shop, panel } = site;
+
+  await panel.getByRole('button', { name: /^Tickets/ }).click();
+  await expect(panel).toContainText('You have no tickets yet.');
+
+  // The team answers by email or phone, so the visitor leaves one before the form.
+  await panel.getByRole('button', { name: 'File a ticket' }).click();
+  await panel.getByRole('textbox', { name: 'Email or phone' }).fill(`${unique()}@example.com`);
+  await panel.getByRole('button', { name: 'Continue' }).click();
+  await panel.getByRole('textbox', { name: 'Subject' }).fill(subject);
+  await panel.getByRole('textbox', { name: 'What happened' }).fill('The zip came off on day one.');
+  await expectAccessible(shop);
+  await panel.getByRole('button', { name: 'Send ticket' }).click();
+  await expect(panel.getByRole('list', { name: 'Your tickets' })).toContainText(subject);
+  await expectAccessible(shop);
+
+  await page.goto(TICKETS);
+  await expect(ticket(page, subject)).toBeVisible();
 });
 
 test('a member without frontline permissions is refused the tickets', async ({ newMember }) => {

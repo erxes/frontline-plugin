@@ -37,16 +37,18 @@ const Hero = ({ settings }: { settings: Settings }) => (
 
 /**
  * The messenger's first page: the greeting, a button to write, the visitor's conversations,
- * the online hours, the website's own pages and links.
+ * their tickets, the online hours, the website's own pages and links.
  */
 export const Home = ({
   settings,
   conversations,
   onOpen,
+  onTickets,
 }: {
   settings: Settings;
   conversations: Conversation[];
   onOpen: (id: string | null) => void;
+  onTickets: () => void;
 }) => {
   const hours = hoursOf(settings);
 
@@ -78,6 +80,12 @@ export const Home = ({
               </ul>
             )}
           </div>
+        )}
+        {settings.tickets && (
+          <button type="button" class="fl-card fl-app" onClick={onTickets}>
+            <strong>Tickets</strong>
+            <span>File a ticket and follow how it goes.</span>
+          </button>
         )}
         {hours.length > 0 && (
           <div class="fl-card">

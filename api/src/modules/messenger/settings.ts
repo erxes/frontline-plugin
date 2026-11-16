@@ -20,6 +20,7 @@ const settings = reads(PERMISSIONS.channelView)
     z.object({
       id: z.string(),
       name: z.string(),
+      channelId: z.string(),
       publicKey: z.string().nullable(),
       scriptUrl: z.string().nullable(),
       canManage: z.boolean(),

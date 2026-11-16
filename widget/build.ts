@@ -10,6 +10,15 @@ const entries = {
   messenger: resolve(root, 'src/messenger.tsx'),
 };
 
+/**
+ * The chunk a module goes in: packages, Vite's helpers and `src/shared` in `shared`, an embed's
+ * own files in a chunk named after it. An embed's subfolder loads lazily, in a chunk of its own.
+ */
+const chunkOf = (id: string) =>
+  /^\0|\/node_modules\/|\/src\/shared\//.test(id)
+    ? 'shared'
+    : (/\/src\/(\w+)\/[^/]+$/.exec(id)?.[1] ?? null);
+
 await build({
   configFile: false,
   root,
@@ -25,7 +34,16 @@ await build({
     modulePreload: false,
     rolldownOptions: {
       input: entries,
-      output: { entryFileNames: '[name].js', chunkFileNames: 'chunks/[name]-[hash].js' },
+      output: {
+        entryFileNames: '[name].js',
+        chunkFileNames: 'chunks/[name]-[hash].js',
+        // A website loads an embed as `messenger.js?key=…`, a URL a lazy chunk can't import, so
+        // no chunk imports an entry: that would run a second copy of it, and of Preact.
+        codeSplitting: {
+          includeDependenciesRecursively: false,
+          groups: [{ name: chunkOf, debugName: 'by folder' }],
+        },
+      },
     },
     watch: process.argv.includes('--watch') ? {} : null,
   },

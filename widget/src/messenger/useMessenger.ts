@@ -117,3 +117,5 @@ export const useMessenger = (api: MessengerApi) => {
 
   return { settings, session, conversations, changed, typing, error, connect, refresh, signOut };
 };
+
+export type MessengerState = ReturnType<typeof useMessenger>;

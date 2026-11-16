@@ -25,6 +25,7 @@ import { GreetingCard } from './GreetingCard.tsx';
 import { InstallCard } from './InstallCard.tsx';
 import { MessengerPreview } from './MessengerPreview.tsx';
 import { type MessengerSettings, useMessengerSettings } from './queries.ts';
+import { TicketsCard } from './TicketsCard.tsx';
 
 /** The page's one form: every card, the preview beside them, and one Save under them. */
 const SettingsForm = ({ messenger }: { messenger: MessengerSettings }) => {
@@ -59,6 +60,7 @@ const SettingsForm = ({ messenger }: { messenger: MessengerSettings }) => {
             <AvailabilityCard />
             <BehaviourCard />
             <BotCard />
+            <TicketsCard channelId={messenger.channelId} />
           </fieldset>
           {messenger.canManage && (
             <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-background/95 py-3 backdrop-blur">

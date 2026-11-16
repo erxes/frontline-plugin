@@ -53,12 +53,12 @@ const embeds = (app: express.Express) => {
       '/widget',
       cors({ maxAge: 600 }),
       express.static(config.widgetDir, {
+        // Chunks are named by their hash. An entry revalidates on each load, since a stale
+        // one imports chunks the next deploy removed.
         setHeaders: (res, path) =>
           res.set(
             'cache-control',
-            path.includes('/chunks/')
-              ? 'public, max-age=31536000, immutable'
-              : 'public, max-age=300',
+            path.includes('/chunks/') ? 'public, max-age=31536000, immutable' : 'no-cache',
           ),
       }),
     );

@@ -33,7 +33,7 @@
 }
 
 /* Resets without specificity, so each component's class sets its own font and colour. */
-:where(.fl) :where(button, input, textarea) {
+:where(.fl) :where(button, input, textarea, select) {
   font: inherit;
   color: inherit;
 }
@@ -546,4 +546,10 @@
   margin: 0;
   color: #dc2626;
   font-size: 13px;
+}
+
+button.fl-card {
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
 }

@@ -12,6 +12,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
+import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 
@@ -296,6 +297,39 @@ export const addMessenger = async (page: Page, channel: string) => {
   await expectAccessible(page);
 
   return (await key.textContent()) ?? '';
+};
+
+/**
+ * A shop on another origin than the plugin, with the line the install card gives, opened in a
+ * new tab. A real server, since Chrome lets only a loopback page reach the loopback plugin.
+ * Disposing it stops the server.
+ */
+export const openShop = async (context: BrowserContext, key: string) => {
+  const script = new URL(`/widget/messenger.js?key=${key}`, MESSENGER);
+
+  const site = createServer((_req, res) => {
+    res.setHeader('content-type', 'text/html');
+    res.end(
+      `<!doctype html><html lang="en"><title>Shop</title><main><h1>Shop</h1></main><script type="module" src="${script.href}"></script></html>`,
+    );
+  });
+
+  await new Promise<void>((done) => site.listen(0, '127.0.0.1', done));
+
+  const address = site.address();
+  const shop = await context.newPage();
+
+  await shop.goto(`http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}/`);
+  await shop.getByRole('button', { name: 'Open the messenger' }).click();
+
+  return {
+    shop,
+    panel: shop.getByRole('dialog'),
+    [Symbol.asyncDispose]: async () => {
+      await shop.close();
+      await site[Symbol.asyncDispose]();
+    },
+  };
 };
 
 export { expect };

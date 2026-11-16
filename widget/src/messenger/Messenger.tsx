@@ -3,12 +3,73 @@ import type { MessengerApi } from './api.ts';
 import { Home } from './Home.tsx';
 import { ChatIcon, CloseIcon } from './icons.tsx';
 import { Thread } from './Thread.tsx';
-import { useMessenger } from './useMessenger.ts';
+import type { Tickets } from './tickets/Tickets.tsx';
+import { type MessengerState, useMessenger } from './useMessenger.ts';
 
 /** A website opens a messenger it hides the launcher of with this event on `window`. */
 const OPEN_EVENT = 'frontline:open-messenger';
 
-type View = { name: 'home' } | { name: 'thread'; id: string | null };
+type View = { name: 'home' } | { name: 'thread'; id: string | null } | { name: 'tickets' };
+
+/** The tickets tab, its own chunk, fetched once the visitor opens it. */
+const useTicketsTab = (wanted: boolean) => {
+  const [tab, setTab] = useState<typeof Tickets | null>(null);
+
+  useEffect(() => {
+    if (!wanted || tab) return;
+
+    const load = async () => {
+      const chunk = await import('./tickets/Tickets.tsx');
+
+      setTab(() => chunk.Tickets);
+    };
+
+    void load();
+  }, [wanted, tab]);
+
+  return tab;
+};
+
+/** The panel's page: the greeting, a conversation, or the tickets tab. */
+const Page = ({
+  api,
+  messenger,
+  view,
+  onView,
+}: {
+  api: MessengerApi;
+  messenger: MessengerState;
+  view: View;
+  onView: (view: View) => void;
+}) => {
+  const TicketsTab = useTicketsTab(view.name === 'tickets');
+  const home = () => onView({ name: 'home' });
+
+  if (!messenger.settings) return null;
+
+  if (view.name === 'home')
+    return (
+      <Home
+        settings={messenger.settings}
+        conversations={messenger.conversations}
+        onOpen={(id) => onView({ name: 'thread', id })}
+        onTickets={() => onView({ name: 'tickets' })}
+      />
+    );
+
+  if (view.name === 'tickets')
+    return TicketsTab && <TicketsTab api={api} messenger={messenger} onBack={home} />;
+
+  return (
+    <Thread
+      api={api}
+      messenger={messenger}
+      conversationId={view.id}
+      onStarted={(id) => onView({ name: 'thread', id })}
+      onBack={home}
+    />
+  );
+};
 
 /** The launcher in the page's corner and the panel it opens: the greeting, then a conversation. */
 export const Messenger = ({ api }: { api: MessengerApi }) => {
@@ -54,21 +115,7 @@ export const Messenger = ({ api }: { api: MessengerApi }) => {
           >
             <CloseIcon />
           </button>
-          {view.name === 'home' ? (
-            <Home
-              settings={settings}
-              conversations={conversations}
-              onOpen={(id) => setView({ name: 'thread', id })}
-            />
-          ) : (
-            <Thread
-              api={api}
-              messenger={messenger}
-              conversationId={view.id}
-              onStarted={(id) => setView({ name: 'thread', id })}
-              onBack={() => setView({ name: 'home' })}
-            />
-          )}
+          <Page api={api} messenger={messenger} view={view} onView={setView} />
         </section>
       )}
       {launcher && (
