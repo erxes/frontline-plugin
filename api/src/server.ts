@@ -1,4 +1,6 @@
 import { bearerOf, verifyCoreEvent, verifyCoreJob, verifyPluginSession } from '@erxes/plugin-sdk';
+import { pluginOpenApi } from '@erxes/plugin-sdk/openapi';
+import { OpenAPIHandler } from '@orpc/openapi/node';
 import { onError, ORPCError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/node';
 import cors from 'cors';
@@ -7,6 +9,7 @@ import { pinoHttp } from 'pino-http';
 import { config, PLUGIN } from '#/config.ts';
 import { JOB_RUNS } from '#/jobs.ts';
 import { logger } from '#/logger.ts';
+import { manifest } from '#/manifest.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
 import { runAction } from '#/modules/inbox/automations.ts';
@@ -15,12 +18,23 @@ import { messengerRoutes } from '#/modules/messenger/routes.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';
 import { router } from '#/router.ts';
 
-const rpc = new RPCHandler(router, {
-  interceptors: [
-    onError((error) => {
-      if (!(error instanceof ORPCError) || error.status >= 500) logger.error(error);
-    }),
-  ],
+const logFailure = (error: unknown) => {
+  if (!(error instanceof ORPCError) || error.status >= 500) logger.error(error);
+};
+
+// The same procedures twice: RPC for the plugin UI, REST (documented below) for scripts.
+const rpc = new RPCHandler(router, { interceptors: [onError(logFailure)] });
+const rest = new OpenAPIHandler(router, { interceptors: [onError(logFailure)] });
+
+/** Settings › Developer › API reference in core shows it (the manifest's `api.docs`). */
+const memberDoc = pluginOpenApi(router, {
+  plugin: PLUGIN,
+  audience: 'member',
+  title: manifest.title,
+  version: manifest.version,
+  description: manifest.description,
+  server: `${config.publicUrl}/api`,
+  prefix: '/v1',
 });
 
 /** The member behind a request from the plugin UI, or null without a valid session token. */
@@ -31,6 +45,23 @@ const memberOf = async (authorization: string | undefined) => {
 
   return verifyPluginSession(token, { coreUrl: config.coreUrl, plugin: PLUGIN }).catch(() => null);
 };
+
+/** Runs `handler`'s procedures at `prefix` for the member a session token signs in. */
+const signedIn =
+  (prefix: `/${string}`, handler: typeof rpc | typeof rest): express.RequestHandler =>
+  async (req, res, next) => {
+    const member = await memberOf(req.headers.authorization);
+
+    if (!member) {
+      res.status(401).json({ message: 'Send a session token for this plugin from core' });
+
+      return;
+    }
+
+    const { matched } = await handler.handle(req, res, { prefix, context: { member } });
+
+    if (!matched) next();
+  };
 
 export const createApp = () => {
   const app = express();
@@ -48,6 +79,15 @@ export const createApp = () => {
     express.json({ limit: '1mb' }),
     formsPublicRouter,
   );
+  // Core's API reference fetches the document from web at the organisation's own address.
+  // It holds no secrets, so any origin may read it.
+  app.get(
+    '/api/openapi/member.json',
+    cors({ origin: true, credentials: false, maxAge: 600 }),
+    async (_req, res) => {
+      res.json(await memberDoc);
+    },
+  );
   // The plugin UI runs inside web and calls this API from web's origin.
   app.use(cors({ origin: config.coreUiOrigin, maxAge: 600 }));
 
@@ -55,20 +95,10 @@ export const createApp = () => {
     res.json({ ok: true });
   });
 
-  // erxes-ui's pluginFetch adds a 5-minute session token core issued for this member and plugin.
-  app.use('/api/rpc', async (req, res, next) => {
-    const member = await memberOf(req.headers.authorization);
-
-    if (!member) {
-      res.status(401).json({ message: 'Open this plugin inside erxes to sign in' });
-
-      return;
-    }
-
-    const { matched } = await rpc.handle(req, res, { prefix: '/api/rpc', context: { member } });
-
-    if (!matched) next();
-  });
+  // A 5-minute session token core issued for this member and plugin: erxes-ui's pluginFetch
+  // adds it, and a script gets one from core with an API key.
+  app.use('/api/rpc', signedIn('/api/rpc', rpc));
+  app.use('/api/v1', signedIn('/api/v1', rest));
 
   // Signed out: a help center's visitors, found by the key or domain frontline issued.
   app.use('/api/public', publicRouter());

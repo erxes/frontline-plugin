@@ -1,6 +1,7 @@
 import { config } from '#/config.ts';
-import { core, manifest } from '#/core.ts';
+import { core } from '#/core.ts';
 import { pool } from '#/db/client.ts';
+import { manifest } from '#/manifest.ts';
 import { runMigrations } from '#/db/migrate.ts';
 import { logger } from '#/logger.ts';
 import { createApp } from '#/server.ts';
