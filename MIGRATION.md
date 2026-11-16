@@ -90,8 +90,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] frontline `mail.canViewConversation` → plugin-owned `a direct function call` `frontline_api/src/apollo/subscription.ts:527`. The inbox's channel access decides who reads a mail conversation
 - [x] core `segment.fetchSegment` → **drop**: the new core has no segments; the plugin filters its own records `frontline_api/src/conversationQueryBuilder.ts:99`
 - [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/conversationQueryBuilder.ts:363`
-- [ ] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/conversationQueryBuilder.ts:419`
-  - note: the inbox has no customer filter and `search` matches the last message only (`api/src/modules/inbox/conversations.ts`), so a member can't find conversations by a customer's email or phone
+- [x] core `customers.find` → `customers.list({ search })` before the inbox list's transaction, matching the customer's name, email or phone (`readsWithCore` in `api/src/orpc.ts`, `api/src/modules/inbox/conversations.ts`) `frontline_api/src/conversationQueryBuilder.ts:419`
 - [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/meta/import-export/export/getTicketExportData.ts:68`. (filed https://github.com/erxes/erxes/issues/10582)
 - [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/meta/import-export/export/getTicketExportData.ts:83`. (filed https://github.com/erxes/erxes/issues/10582)
 - [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/meta/import-export/utils.ts:48`. (filed https://github.com/erxes/erxes/issues/10582)

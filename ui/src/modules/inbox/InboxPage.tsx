@@ -7,6 +7,7 @@ import {
   ListFilter,
   PageContainer,
   PageHeader,
+  RecordList,
   useOpenRecord,
   ViewBar,
 } from 'erxes-ui';
@@ -14,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { INTEGRATION_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
+import { BulkBar } from './BulkBar.tsx';
 import { Composer } from './Composer.tsx';
 import { ConversationHeader } from './ConversationHeader.tsx';
 import { ConversationList } from './ConversationList.tsx';
@@ -139,12 +141,15 @@ export const InboxPage = () => {
             {empty ? (
               <InboxEmpty onConnect={canConnect ? connect : undefined} />
             ) : (
-              <ConversationList
-                conversations={conversations}
-                isPending={isPending}
-                hasNextPage={hasNextPage}
-                fetchNextPage={() => void fetchNextPage()}
-              />
+              <RecordList.Provider listId={LIST}>
+                <ConversationList
+                  conversations={conversations}
+                  isPending={isPending}
+                  hasNextPage={hasNextPage}
+                  fetchNextPage={() => void fetchNextPage()}
+                />
+                <BulkBar conversations={conversations} />
+              </RecordList.Provider>
             )}
           </aside>
           <section

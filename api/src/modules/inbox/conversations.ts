@@ -1,6 +1,6 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, count, eq, ilike, inArray, ne, sql } from 'drizzle-orm';
+import { and, count, eq, ilike, inArray, ne, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { CONVERSATION_EVENTS, core, INBOX_NOTIFICATIONS, PERMISSIONS } from '#/core.ts';
 import {
@@ -12,7 +12,7 @@ import {
 import { tags } from '#/db/tags.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { logger } from '#/logger.ts';
-import { reads, writes } from '#/orpc.ts';
+import { reads, readsWithCore, writes } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
 import { FilterInput, type FilterFields, filtersBy, filterSql, likeText } from '../filter.ts';
 import { orderOf, PageInput, pageOf } from '../paging.ts';
@@ -48,13 +48,26 @@ const filterFields = (member: PluginMember): FilterFields => ({
   'subject.resolvedAt': { kind: 'date', expr: conversations.resolvedAt },
 });
 
+/** The ids of core's first 100 customers whose name, email or phone matches `search`. */
+const customersMatching = async (member: PluginMember, { search }: { search?: string }) => {
+  if (!search) return [];
+
+  const { data } = await core.forOrg(member.orgId).customers.list({ search, limit: 100 });
+
+  return data.map((customer) => customer.id);
+};
+
 /**
  * The conversations of the caller's channels, or every channel's for a member who manages them
  * all, latest message first, `limit` at a time, narrowed by the filter bar, and how many match.
- * `search` matches the last message; resolved ones show only when the filter asks for a status.
+ * `search` matches the last message or the customer's name, email or phone; resolved ones show
+ * only when the filter asks for a status.
  */
-const list = reads(PERMISSIONS.inboxView)
-  .input(z.object({ ...FilterInput, ...PageInput }))
+const list = readsWithCore(
+  PERMISSIONS.inboxView,
+  z.object({ ...FilterInput, ...PageInput }),
+  customersMatching,
+)
   .output(
     z.object({
       conversations: z.array(Conversation),
@@ -62,11 +75,16 @@ const list = reads(PERMISSIONS.inboxView)
       totalCount: z.number(),
     }),
   )
-  .handler(async ({ input, context: { tx, member } }) => {
+  .handler(async ({ input, context: { tx, member, fromCore: customerIds } }) => {
     const matches = and(
       seenBy(member),
       filtersBy(input.filter, 'subject.status') ? undefined : ne(conversations.status, 'resolved'),
-      input.search ? ilike(conversations.content, likeText(input.search)) : undefined,
+      input.search
+        ? or(
+            ilike(conversations.content, likeText(input.search)),
+            customerIds.length > 0 ? inArray(conversations.customerId, customerIds) : undefined,
+          )
+        : undefined,
       input.filter ? filterSql(filterFields(member), input.filter, member.userId) : undefined,
     );
 
@@ -228,12 +246,14 @@ const markRead = writes(PERMISSIONS.inboxView)
     return conversationById(tx, member, input.id);
   });
 
-/** Sets the conversation's tags to `tagIds`, each a conversation tag. */
+/** Sets each conversation's tags to `tagIds`, each a conversation tag. */
 const setTags = writes(PERMISSIONS.inboxView)
-  .input(z.object({ id: z.string(), tagIds: z.array(z.string()).max(50) }))
-  .output(Conversation)
+  .input(z.object({ ids: Ids, tagIds: z.array(z.string()).max(50) }))
+  .output(z.array(Conversation))
   .handler(async ({ input, context: { tx, member } }) => {
-    await conversationsFor(tx, member, [input.id]);
+    const { ids } = input;
+
+    await conversationsFor(tx, member, ids);
 
     const tagIds = [...new Set(input.tagIds)];
 
@@ -247,16 +267,20 @@ const setTags = writes(PERMISSIONS.inboxView)
         throw new ORPCError('BAD_REQUEST', { message: 'Pick conversation tags' });
     }
 
-    await tx.delete(conversationTags).where(eq(conversationTags.conversationId, input.id));
+    await tx.delete(conversationTags).where(inArray(conversationTags.conversationId, ids));
 
     if (tagIds.length > 0)
       await tx
         .insert(conversationTags)
-        .values(tagIds.map((tagId) => ({ orgId: member.orgId, conversationId: input.id, tagId })));
+        .values(
+          ids.flatMap((conversationId) =>
+            tagIds.map((tagId) => ({ orgId: member.orgId, conversationId, tagId })),
+          ),
+        );
 
     await signalConversations(tx, member.orgId, []);
 
-    return conversationById(tx, member, input.id);
+    return conversationRows(tx, member).where(inArray(conversations.id, ids));
   });
 
 export const conversationProcedures = {

@@ -63,9 +63,12 @@ const TAG_FILTER: FilterFields = {
 
 /**
  * The tags of one type, by name, narrowed by the filter bar, as core's `tags.list` gives them so
- * erxes-ui's tag pickers and filters take the query. Every member reads them.
+ * erxes-ui's tag pickers and filters take the query. A member who reads channels or works the
+ * inbox reads them, since both tag what they see.
  */
-const list = reads(PERMISSIONS.channelView)
+const TAG_READERS = [PERMISSIONS.channelView, PERMISSIONS.inboxView];
+
+const list = reads(TAG_READERS)
   .input(z.object({ type: z.enum(TAG_TYPES), ...FilterInput }))
   .output(z.object({ data: z.array(Tag) }))
   .handler(async ({ input, context: { tx, member } }) => ({
@@ -82,7 +85,7 @@ const list = reads(PERMISSIONS.channelView)
       .orderBy(asc(sql`lower(${tags.name})`)),
   }));
 
-const get = reads(PERMISSIONS.channelView)
+const get = reads(TAG_READERS)
   .input(z.object({ id: z.string() }))
   .output(Tag)
   .handler(({ input, context: { tx } }) => tagById(tx, input.id));

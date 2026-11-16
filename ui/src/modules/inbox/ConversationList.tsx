@@ -3,8 +3,10 @@ import { useQuery } from '@tanstack/react-query';
 import {
   Badge,
   Button,
+  Checkbox,
   cn,
   customerTitle,
+  RecordList,
   RelativeDateDisplay,
   ScrollArea,
   Skeleton,
@@ -34,23 +36,38 @@ export const useSelectConversation = () => {
   };
 };
 
+/**
+ * One conversation: its checkbox picks it for the bar's bulk actions, and shows on hover or focus
+ * until a row is picked, as core's lists do.
+ */
 const Row = ({ conversation }: { conversation: Conversation }) => {
+  const { t } = useTranslation('frontline');
   const [openId] = useOpenConversation();
   const statuses = useStatusNames();
   const name = useCustomerName(conversation.customerId);
   const select = useSelectConversation();
+  const selection = RecordList.useSelection();
   const open = openId === conversation.id;
+  const picked = selection.has(conversation.id);
 
   return (
-    <li>
+    <li className={cn('group flex border-b', (open || picked) && 'bg-accent')}>
+      <span className="flex w-8 shrink-0 justify-end pt-3.5">
+        <Checkbox
+          aria-label={t('select-name', 'Select {{name}}', { name })}
+          checked={picked}
+          onCheckedChange={() => selection.toggle(conversation.id)}
+          className={cn(
+            selection.ids.length === 0 &&
+              'opacity-0 group-focus-within:opacity-100 group-hover:opacity-100',
+          )}
+        />
+      </span>
       <button
         type="button"
         aria-current={open ? 'true' : undefined}
         onClick={() => select(conversation)}
-        className={cn(
-          'flex w-full flex-col gap-1 border-b px-4 py-3 text-left hover:bg-accent',
-          open && 'bg-accent',
-        )}
+        className="flex min-w-0 flex-1 flex-col gap-1 py-3 pr-4 pl-2 text-left hover:bg-accent"
       >
         <span className="flex items-center gap-2">
           {!conversation.isRead && (

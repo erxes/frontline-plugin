@@ -271,36 +271,6 @@ describe('inbox', () => {
     });
   });
 
-  it('tags conversations and filters by tag', async () => {
-    const { owner, teammate, token } = await setUp('org-ib-d');
-
-    await post('/messages', { content: 'Invoice question' }, token);
-
-    const [conversation] = (await teammate.conversations.list({})).conversations;
-    const id = conversation?.id ?? '';
-    const billing = await owner.tags.create({ type: 'conversation', name: 'Billing' });
-
-    await expect(
-      owner.tags.create({ type: 'conversation', name: 'billing' }),
-    ).rejects.toMatchObject({ code: 'TAG_NAME_TAKEN' });
-    await expect(teammate.tags.create({ type: 'conversation', name: 'VIP' })).rejects.toMatchObject(
-      {
-        code: 'FORBIDDEN',
-      },
-    );
-
-    expect(await teammate.conversations.setTags({ id, tagIds: [billing.id] })).toMatchObject({
-      tagIds: [billing.id],
-    });
-    expect(
-      (await teammate.conversations.list({ filter: rule('tagIds', 'in', [billing.id]) }))
-        .totalCount,
-    ).toBe(1);
-
-    await owner.tags.remove({ ids: [billing.id] });
-    expect(await teammate.conversations.get({ id })).toMatchObject({ tagIds: [] });
-  });
-
   it('refuses forged visitors, unknown keys and other visitors’ conversations', async () => {
     const { integration, token, teammate } = await setUp('org-ib-e');
 

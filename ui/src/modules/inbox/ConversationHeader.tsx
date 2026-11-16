@@ -14,15 +14,79 @@ import {
   useSetTags,
 } from './queries.ts';
 
-/** The conversation's tags as badges, and a picker that sets them or makes a new one. */
-const TagPicker = ({ conversation }: { conversation: Conversation }) => {
+/**
+ * A button that opens the conversation tags, `tagIds` picked, and sets them on each of `ids`;
+ * the search makes a new one.
+ */
+export const TagEditor = ({
+  ids,
+  tagIds,
+  label,
+}: {
+  ids: string[];
+  tagIds: string[];
+  label: string;
+}) => {
   const { t } = useTranslation('frontline');
   const tags = useQuery(conversationTags);
   const setTags = useSetTags();
   const create = useCreateTag();
-  const all = tags.data?.data ?? [];
-  const picked = all.filter((tag) => conversation.tagIds.includes(tag.id));
-  const save = (tagIds: string[]) => setTags.mutate({ id: conversation.id, tagIds });
+  const save = (picked: string[]) => setTags.mutate({ ids, tagIds: picked });
+
+  return (
+    <Popover>
+      <Popover.Trigger
+        render={
+          <Button variant="ghost" size="sm">
+            <IconTag />
+            {label}
+          </Button>
+        }
+      />
+      <Popover.Content className="w-64">
+        <EntityPicker
+          multiple
+          items={tags.data?.data ?? []}
+          itemKey={(tag) => ({ id: tag.id, label: tag.name })}
+          value={tagIds}
+          onValueChange={save}
+          loading={tags.isPending}
+          error={tags.error}
+          searchPlaceholder={t('search-tags', 'Search tags')}
+          renderCreate={(search, clear) => (
+            <Button
+              variant="ghost"
+              className="w-full justify-start"
+              disabled={create.isPending}
+              onClick={() =>
+                create.mutate(
+                  { type: 'conversation', name: search },
+                  {
+                    onSuccess: (tag) => {
+                      save([...tagIds, tag.id]);
+                      clear();
+                    },
+                  },
+                )
+              }
+            >
+              <IconPlus />
+              {t('create-tag', 'Create tag: {{name}}', { name: search })}
+            </Button>
+          )}
+        />
+      </Popover.Content>
+    </Popover>
+  );
+};
+
+/** The conversation's tags as badges, and the editor that sets them. */
+const Tags = ({ conversation }: { conversation: Conversation }) => {
+  const { t } = useTranslation('frontline');
+
+  const picked = (useQuery(conversationTags).data?.data ?? []).filter((tag) =>
+    conversation.tagIds.includes(tag.id),
+  );
 
   return (
     <div className="flex flex-wrap items-center gap-1">
@@ -31,49 +95,11 @@ const TagPicker = ({ conversation }: { conversation: Conversation }) => {
           {tag.name}
         </Badge>
       ))}
-      <Popover>
-        <Popover.Trigger
-          render={
-            <Button variant="ghost" size="sm">
-              <IconTag />
-              {picked.length === 0 ? t('add-tags', 'Add tags') : t('edit-tags', 'Edit tags')}
-            </Button>
-          }
-        />
-        <Popover.Content className="w-64">
-          <EntityPicker
-            multiple
-            items={all}
-            itemKey={(tag) => ({ id: tag.id, label: tag.name })}
-            value={conversation.tagIds}
-            onValueChange={save}
-            loading={tags.isPending}
-            error={tags.error}
-            searchPlaceholder={t('search-tags', 'Search tags')}
-            renderCreate={(search, clear) => (
-              <Button
-                variant="ghost"
-                className="w-full justify-start"
-                disabled={create.isPending}
-                onClick={() =>
-                  create.mutate(
-                    { type: 'conversation', name: search },
-                    {
-                      onSuccess: (tag) => {
-                        save([...conversation.tagIds, tag.id]);
-                        clear();
-                      },
-                    },
-                  )
-                }
-              >
-                <IconPlus />
-                {t('create-tag', 'Create tag: {{name}}', { name: search })}
-              </Button>
-            )}
-          />
-        </Popover.Content>
-      </Popover>
+      <TagEditor
+        ids={[conversation.id]}
+        tagIds={conversation.tagIds}
+        label={picked.length === 0 ? t('add-tags', 'Add tags') : t('edit-tags', 'Edit tags')}
+      />
     </div>
   );
 };
@@ -125,7 +151,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         </Button>
       </div>
       <VisitorPresence conversation={conversation} />
-      <TagPicker conversation={conversation} />
+      <Tags conversation={conversation} />
     </header>
   );
 };
