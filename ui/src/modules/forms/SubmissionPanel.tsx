@@ -14,14 +14,13 @@ import {
   PanelField,
   PanelSection,
   Skeleton,
-  Spinner,
   TextField,
   type TRecordSlotProps,
   useFormat,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PanelSkeleton, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu, useConfirmDelete } from '~/shared/Records.tsx';
 import { useAnswerText } from './answers.ts';
 import {
@@ -210,7 +209,7 @@ const SubmissionFields = ({ submission }: { submission: Submission }) => {
 export const SubmissionDetail = ({ contentId }: TRecordSlotProps) => {
   const submission = useSubmission(contentId);
 
-  if (submission.isPending) return <Spinner area="lg" />;
+  if (submission.isPending) return <PanelSkeleton />;
 
   if (submission.isError)
     return (

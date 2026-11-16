@@ -18,7 +18,6 @@ import {
   PanelField,
   PanelSection,
   Skeleton,
-  Spinner,
   TextField,
   type TRecordSlotProps,
   useFormat,
@@ -26,7 +25,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
-import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PanelSkeleton, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { ParentSelect, TopicSelect } from './CategoryTree.tsx';
 import { useDeleteCategories } from './useKbDeletes.ts';
@@ -164,7 +163,7 @@ export const CategoryDetail = ({ contentId }: TRecordSlotProps) => {
   const format = useFormat();
   const category = useCategory(contentId);
 
-  if (category.isPending) return <Spinner area="lg" />;
+  if (category.isPending) return <PanelSkeleton />;
 
   if (category.isError)
     return (

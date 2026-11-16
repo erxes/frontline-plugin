@@ -1,3 +1,23 @@
+import {
+  type Icon,
+  IconAlignLeft,
+  IconCake,
+  IconCalendar,
+  IconCircleDot,
+  IconFileDescription,
+  IconForms,
+  IconGenderBigender,
+  IconMail,
+  IconNumber,
+  IconPaperclip,
+  IconPhone,
+  IconPhoto,
+  IconSelector,
+  IconSquareCheck,
+  IconToggleLeft,
+  IconUser,
+  IconWorld,
+} from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 import type { FormField } from './useForms.ts';
 
@@ -25,6 +45,29 @@ export const FIELD_TYPES = [
 ] as const;
 
 export type FieldType = (typeof FIELD_TYPES)[number];
+
+/** Each type's icon, the same in the add menu and on the field's card. */
+export const FIELD_ICONS: Record<FieldType, Icon> = {
+  text: IconForms,
+  textarea: IconAlignLeft,
+  number: IconNumber,
+  boolean: IconToggleLeft,
+  date: IconCalendar,
+  select: IconSelector,
+  'select:countries': IconWorld,
+  radio: IconCircleDot,
+  check: IconSquareCheck,
+  file: IconPaperclip,
+  'core:customer:firstName': IconUser,
+  'core:customer:middleName': IconUser,
+  'core:customer:lastName': IconUser,
+  'core:customer:email': IconMail,
+  'core:customer:phone': IconPhone,
+  'core:customer:description': IconFileDescription,
+  'core:customer:sex': IconGenderBigender,
+  'core:customer:birthDate': IconCake,
+  'core:customer:avatar': IconPhoto,
+};
 
 /** The types whose answers pick from the field's options. */
 export const PICK_TYPES: readonly string[] = ['select', 'radio', 'check'];

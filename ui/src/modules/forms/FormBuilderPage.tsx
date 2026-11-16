@@ -8,7 +8,7 @@ import { AppHeader } from '~/shared/Header.tsx';
 import { ListError } from '~/shared/List.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { FieldEditor } from './FieldEditor.tsx';
-import { FIELD_TYPES, useFieldTypeNames } from './fieldTypes.ts';
+import { FIELD_ICONS, FIELD_TYPES, useFieldTypeNames } from './fieldTypes.ts';
 import { FormPreview } from './FormPreview.tsx';
 import {
   FORMS_PATH,
@@ -50,12 +50,16 @@ const AddField = ({ formId, pageNumber }: { formId: string; pageNumber: number }
           {t('form-add-field', 'Add field')}
         </Button>
       }
-      actions={FIELD_TYPES.map((type) => ({
-        value: type,
-        icon: null,
-        label: types[type],
-        onSelect: () => add.mutate({ formId, type, label: types[type], pageNumber }),
-      }))}
+      actions={FIELD_TYPES.map((type) => {
+        const TypeIcon = FIELD_ICONS[type];
+
+        return {
+          value: type,
+          icon: <TypeIcon />,
+          label: types[type],
+          onSelect: () => add.mutate({ formId, type, label: types[type], pageNumber }),
+        };
+      })}
     />
   );
 };
