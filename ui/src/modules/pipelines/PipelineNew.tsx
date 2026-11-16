@@ -1,11 +1,12 @@
 import { IconAlignLeft, IconCircles, IconLetterCase } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Input, PanelFormLayout, PanelFormRow, Textarea, type TRecordDraftProps } from 'erxes-ui';
-import type { SubmitEvent } from 'react';
+import { PanelFormLayout, PanelFormRow, type TRecordDraftProps } from 'erxes-ui';
+import { type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChannel } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
+import { TextRow } from '~/shared/TextRow.tsx';
 import { usePipelineChange } from './queries.ts';
 
 /**
@@ -52,19 +53,19 @@ export const PipelineNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps
             {channel.data?.name ?? channel.error?.message}
           </span>
         </PanelFormRow>
-        <PanelFormRow label={t('name', 'Name')} icon={IconLetterCase} required>
-          <Input
-            name="name"
-            required
-            aria-label={t('name', 'Name')}
-            placeholder={t('name', 'Name')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
-        <PanelFormRow label={t('description', 'Description')} icon={IconAlignLeft}>
-          <Textarea name="description" aria-label={t('description', 'Description')} />
-        </PanelFormRow>
+        <TextRow
+          label={t('name', 'Name')}
+          icon={IconLetterCase}
+          name="name"
+          required
+          placeholder={t('name', 'Name')}
+        />
+        <TextRow
+          label={t('description', 'Description')}
+          icon={IconAlignLeft}
+          name="description"
+          multiline
+        />
         {create.error && (
           <p role="alert" className="text-xs text-destructive-text">
             {create.error.message}

@@ -114,7 +114,7 @@ test('an admin builds a form, a visitor sends it, and the admin corrects and del
   await page.goto(FORMS);
   await page.getByRole('button', { name: 'New form' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await panel.getByLabel('Name', { exact: true }).fill(name);
+  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
   await panel.getByLabel('Form title').fill('Book a demo');
   await expectAccessible(page);
   await panel.getByRole('button', { name: 'Create form' }).click();
@@ -185,7 +185,7 @@ test('a channel member reads a form and its submissions but changes neither', as
   await page.goto(FORMS);
   await page.getByRole('button', { name: 'New form' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await panel.getByLabel('Name', { exact: true }).fill(name);
+  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
   await panel.getByRole('button', { name: 'Create form' }).click();
   await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
 
@@ -210,7 +210,7 @@ test('an admin duplicates, archives and deletes forms', async ({ page }) => {
   await page.goto(FORMS);
   await page.getByRole('button', { name: 'New form' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await panel.getByLabel('Name', { exact: true }).fill(name);
+  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
   await panel.getByRole('button', { name: 'Create form' }).click();
   await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
 

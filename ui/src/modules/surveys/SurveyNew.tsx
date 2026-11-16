@@ -1,18 +1,18 @@
 import { IconHelp, IconLetterCase, IconListCheck, IconSelect } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import {
-  Input,
   PanelFormLayout,
   PanelFormRow,
   StringArrayInput,
   Switch,
   type TRecordDraftProps,
 } from 'erxes-ui';
-import { type SubmitEvent, useState } from 'react';
+import { type SubmitEvent, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { ChannelRow, useManagedChannels } from '~/shared/ChannelSelect.tsx';
 import { textOf } from '~/shared/hooks.ts';
+import { TextRow } from '~/shared/TextRow.tsx';
 import { useSurveyChange } from './useSurveys.ts';
 
 /** The first question's rows: what it asks, its options, and whether a voter picks several. */
@@ -28,19 +28,17 @@ const QuestionRows = ({
   onMultiselectChange: (allowMultiselect: boolean) => void;
 }) => {
   const { t } = useTranslation('frontline');
+  const multiselectId = useId();
 
   return (
     <>
-      <PanelFormRow label={t('survey-question', 'Question')} icon={IconHelp} required>
-        <Input
-          name="question"
-          required
-          aria-label={t('survey-question', 'Question')}
-          placeholder={t('survey-question-placeholder', 'What do you ask?')}
-          variant="bordered"
-          text="sm"
-        />
-      </PanelFormRow>
+      <TextRow
+        label={t('survey-question', 'Question')}
+        icon={IconHelp}
+        name="question"
+        required
+        placeholder={t('survey-question-placeholder', 'What do you ask?')}
+      />
       <PanelFormRow label={t('survey-options', 'Options')} icon={IconListCheck} required>
         <StringArrayInput
           value={options}
@@ -48,8 +46,13 @@ const QuestionRows = ({
           placeholder={t('survey-add-option', 'Type an option and press Enter')}
         />
       </PanelFormRow>
-      <PanelFormRow label={t('survey-multiselect', 'Several picks')} icon={IconSelect}>
+      <PanelFormRow
+        label={t('survey-multiselect', 'Several picks')}
+        icon={IconSelect}
+        htmlFor={multiselectId}
+      >
         <Switch
+          id={multiselectId}
           aria-label={t('survey-multiselect', 'Several picks')}
           checked={allowMultiselect}
           onCheckedChange={onMultiselectChange}
@@ -111,16 +114,13 @@ export const SurveyNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
           onChange={setChannelId}
           missing={t('survey-channel-first', 'Be an admin of a channel to add a survey.')}
         />
-        <PanelFormRow label={t('title', 'Title')} icon={IconLetterCase} required>
-          <Input
-            name="title"
-            required
-            aria-label={t('title', 'Title')}
-            placeholder={t('survey-title-placeholder', 'Name the survey for your team')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
+        <TextRow
+          label={t('title', 'Title')}
+          icon={IconLetterCase}
+          name="title"
+          required
+          placeholder={t('survey-title-placeholder', 'Name the survey for your team')}
+        />
         <QuestionRows
           options={options}
           onOptionsChange={setOptions}

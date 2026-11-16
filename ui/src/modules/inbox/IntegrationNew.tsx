@@ -1,17 +1,12 @@
-import { IconCircles, IconLetterCase, IconMessage } from '@tabler/icons-react';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import {
-  Input,
-  PanelFormLayout,
-  PanelFormRow,
-  Select,
-  Textarea,
-  type TRecordDraftProps,
-} from 'erxes-ui';
+import { IconLetterCase, IconMessage } from '@tabler/icons-react';
+import { useMutation } from '@tanstack/react-query';
+import { PanelFormLayout, type TRecordDraftProps } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { ChannelRow, useManagedChannels } from '~/shared/ChannelSelect.tsx';
 import { textOf } from '~/shared/hooks.ts';
+import { TextRow } from '~/shared/TextRow.tsx';
 import { useIntegrationChange } from './queries.ts';
 
 /**
@@ -26,11 +21,9 @@ export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftPr
   const kind = textOf(defaults.kind) || 'messenger';
   const accountId = textOf(defaults.accountId);
 
-  const channels = (
-    useQuery(orpc.channels.list.queryOptions({ input: {} })).data?.channels ?? []
-  ).filter((channel) => channel.canManage);
-
-  const [channelId, setChannelId] = useState('');
+  const first = useManagedChannels()[0]?.id ?? '';
+  const [picked, setChannelId] = useState('');
+  const channelId = picked || first;
   const { onSuccess } = useIntegrationChange();
 
   const create = useMutation(
@@ -63,35 +56,26 @@ export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftPr
           accountId ? t('add-to-channel', 'Add to a channel') : t('add-messenger', 'Add messenger')
         }
       >
-        <PanelFormRow label={t('channel', 'Channel')} icon={IconCircles} required>
-          <Select value={channelId} onValueChange={(next) => next && setChannelId(next)}>
-            <Select.Trigger aria-label={t('channel', 'Channel')}>
-              <Select.Value placeholder={t('channel', 'Channel')} />
-            </Select.Trigger>
-            <Select.Content>
-              {channels.map((channel) => (
-                <Select.Item key={channel.id} value={channel.id}>
-                  {channel.name}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select>
-        </PanelFormRow>
-        <PanelFormRow label={t('name', 'Name')} icon={IconLetterCase} required>
-          <Input
-            name="name"
-            required
-            aria-label={t('name', 'Name')}
-            defaultValue={textOf(defaults.name)}
-            placeholder={t('messenger-name-placeholder', 'Website')}
-            variant="bordered"
-            text="sm"
-          />
-        </PanelFormRow>
+        <ChannelRow
+          value={channelId}
+          onChange={setChannelId}
+          missing={t('messenger-channel-first', 'Be an admin of a channel to add a messenger.')}
+        />
+        <TextRow
+          label={t('name', 'Name')}
+          icon={IconLetterCase}
+          name="name"
+          required
+          placeholder={t('messenger-name-placeholder', 'Website')}
+          defaultValue={textOf(defaults.name)}
+        />
         {!accountId && (
-          <PanelFormRow label={t('welcome-message', 'Welcome message')} icon={IconMessage}>
-            <Textarea name="welcome" aria-label={t('welcome-message', 'Welcome message')} />
-          </PanelFormRow>
+          <TextRow
+            label={t('welcome-message', 'Welcome message')}
+            icon={IconMessage}
+            name="welcome"
+            multiline
+          />
         )}
         {create.error && (
           <p role="alert" className="text-xs text-destructive-text">

@@ -16,7 +16,7 @@ const newTopic = async (page: Page, title: string) => {
   const panel = recordPanel(page);
 
   await page.goto(newRecordPath(KB, 'frontline:kb-topic'));
-  await panel.getByLabel('Title', { exact: true }).fill(title);
+  await panel.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
   await expectAccessible(page);
   await panel.getByRole('button', { name: 'Create topic' }).click();
 
@@ -41,7 +41,7 @@ const newCategory = async (page: Page, title: string, parent?: string) => {
     await page.getByRole('button', { name: 'New category' }).first().click();
   }
 
-  await panel.getByLabel('Title', { exact: true }).fill(title);
+  await panel.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
   await panel.getByRole('button', { name: 'Create category' }).click();
   await expect(panel.getByRole('button', { name: `Title ${title}`, exact: true })).toBeVisible();
   await expect(page.getByRole('row', { name: new RegExp(title) })).toBeVisible();
@@ -52,7 +52,7 @@ const newArticle = async (page: Page, title: string) => {
   const panel = recordPanel(page);
 
   await page.getByRole('button', { name: 'New article' }).first().click();
-  await panel.getByLabel('Title', { exact: true }).fill(title);
+  await panel.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
   await panel.getByLabel('Summary').fill('How long a refund takes.');
   await panel.getByRole('button', { name: 'Create article' }).click();
   await expect(

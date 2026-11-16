@@ -24,8 +24,8 @@ const newSurvey = async (page: Page, channel: string, title: string) => {
   await page.goto(SURVEYS);
   await page.getByRole('button', { name: 'New survey' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await panel.getByLabel('Title', { exact: true }).fill(title);
-  await panel.getByLabel('Question', { exact: true }).fill('How did we do?');
+  await panel.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
+  await panel.getByRole('textbox', { name: 'Question', exact: true }).fill('How did we do?');
 
   for (const option of ['Great', 'Fine', 'Poor']) {
     await panel.getByPlaceholder('Type an option and press Enter').fill(option);
