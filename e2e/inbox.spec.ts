@@ -1,4 +1,4 @@
-import type { Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import {
   addMessenger,
   createChannel,
@@ -13,6 +13,9 @@ import {
   unique,
   visitorOf,
 } from './fixtures.ts';
+
+/** Where a control starts from the left of the page, to check the order of a row. */
+const left = async (control: Locator) => (await control.boundingBox())?.x ?? Number.NaN;
 
 /** Narrows the inbox with the filter bar: `field` is one of `option`. */
 const filterBy = async (page: Page, field: string, option: string) => {
@@ -82,12 +85,11 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await page.keyboard.press('Escape');
   await expect(header).toContainText(tag);
 
-  // The header reads as the old inbox's did: the assignee, then the tags, then Resolve.
-  const left = async (name: string) =>
-    (await header.getByRole('button', { name, exact: true }).boundingBox())?.x ?? Number.NaN;
+  // The tags sit beside Resolve, as the old inbox's header had them.
+  const tags = header.getByRole('button', { name: 'Edit tags', exact: true });
+  const resolve = header.getByRole('button', { name: 'Resolve', exact: true });
 
-  expect(await left(fullName)).toBeLessThan(await left('Edit tags'));
-  expect(await left('Edit tags')).toBeLessThan(await left('Resolve'));
+  expect(await left(tags)).toBeLessThan(await left(resolve));
 
   const first = thread.getByRole('listitem', { name: 'Message' }).first();
 
