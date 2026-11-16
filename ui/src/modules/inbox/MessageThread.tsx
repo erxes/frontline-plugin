@@ -1,14 +1,25 @@
 import {
   IconAlertTriangle,
+  IconFile,
   IconLock,
   IconPencil,
   IconPin,
   IconPinnedOff,
   IconRobot,
 } from '@tabler/icons-react';
-import { Button, cn, Editor, editorText, ScrollArea, Skeleton, useFormat } from 'erxes-ui';
+import {
+  Avatar,
+  Button,
+  cn,
+  Editor,
+  editorText,
+  ScrollArea,
+  Skeleton,
+  toIsoDay,
+  useFormat,
+} from 'erxes-ui';
 import parse from 'html-react-parser';
-import { type SubmitEvent, useState } from 'react';
+import { Fragment, type SubmitEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCustomerName } from './ConversationList.tsx';
 import {
@@ -85,10 +96,14 @@ const EditBox = ({ message, onDone }: { message: Message; onDone: () => void }) 
 const MessageBody = ({ message }: { message: Message }) => {
   const fromCustomer = Boolean(message.customerId);
 
+  const bot = !fromCustomer && !message.userId;
+
   const className = cn(
-    'break-words rounded-lg px-3 py-2 text-sm',
-    fromCustomer && 'bg-muted',
-    !fromCustomer && !message.internal && 'bg-primary text-primary-foreground',
+    'break-words rounded-2xl px-3 py-2 text-sm',
+    fromCustomer && 'rounded-tl-sm bg-muted',
+    !fromCustomer && 'rounded-tr-sm',
+    !fromCustomer && !message.internal && !bot && 'bg-primary text-primary-foreground',
+    bot && !message.internal && 'border border-primary/40 bg-primary/5',
     message.internal && 'border border-dashed border-warning bg-warning/20',
   );
 
@@ -107,6 +122,35 @@ const MessageBody = ({ message }: { message: Message }) => {
   );
 };
 
+/** The message's files: images as thumbnails, the rest as chips with their name. */
+const Attachments = ({ files }: { files: Message['attachments'] }) => {
+  if (files.length === 0) return null;
+
+  return (
+    <ul className="flex flex-wrap gap-2">
+      {files.map((file) => (
+        <li key={file.url}>
+          <a
+            href={file.url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex max-w-60 items-center gap-1.5 rounded-md border bg-background px-2 py-1.5 text-xs hover:bg-accent"
+          >
+            {file.type?.startsWith('image/') ? (
+              <img src={file.url} alt={file.name} className="max-h-40 rounded-sm" />
+            ) : (
+              <>
+                <IconFile className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">{file.name}</span>
+              </>
+            )}
+          </a>
+        </li>
+      ))}
+    </ul>
+  );
+};
+
 const Bubble = ({ message, customerName }: { message: Message; customerName: string }) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
@@ -118,56 +162,66 @@ const Bubble = ({ message, customerName }: { message: Message; customerName: str
   return (
     <li
       aria-label={message.internal ? t('internal-note', 'Internal note') : t('message', 'Message')}
-      className={cn('group flex max-w-xl flex-col gap-1', !fromCustomer && 'self-end')}
+      className={cn('group flex max-w-2xl gap-2', !fromCustomer && 'flex-row-reverse self-end')}
     >
-      <span className="flex items-center gap-2 text-xs text-muted-foreground">
-        <Author message={message} customerName={customerName} />
-        <span>{format.dateTime(message.createdAt)}</span>
-        {message.editedAt && <span>{t('edited', 'Edited')}</span>}
-        {message.internal && <IconLock className="size-3" aria-hidden />}
-        {message.deliveryStatus === 'failed' && (
-          <span className="flex items-center gap-1 text-destructive-text">
-            <IconAlertTriangle className="size-3" aria-hidden />
-            {t('not-delivered', 'Not delivered')}
-          </span>
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          className={cn('size-6', !pinned && 'opacity-0 group-hover:opacity-100 focus:opacity-100')}
-          aria-label={pinned ? t('unpin', 'Unpin') : t('pin', 'Pin')}
-          onClick={() => pin.mutate({ id: message.id, pinned: !pinned })}
+      {fromCustomer && (
+        <Avatar size="lg" className="mt-6 shrink-0">
+          <Avatar.Fallback>{customerName.charAt(0).toUpperCase()}</Avatar.Fallback>
+        </Avatar>
+      )}
+      <div className={cn('flex min-w-0 flex-col gap-1', !fromCustomer && 'items-end')}>
+        <span
+          className={cn(
+            'flex h-6 items-center gap-2 text-xs text-muted-foreground',
+            !fromCustomer && 'flex-row-reverse',
+          )}
         >
-          {pinned ? <IconPinnedOff /> : <IconPin />}
-        </Button>
-        {message.canEdit && !editing && (
+          <Author message={message} customerName={customerName} />
+          <time
+            dateTime={message.createdAt.toISOString()}
+            title={format.dateTime(message.createdAt)}
+          >
+            {format.time(message.createdAt)}
+          </time>
+          {message.editedAt && <span>{t('edited', 'Edited')}</span>}
+          {message.internal && <IconLock className="size-3" aria-hidden />}
+          {message.deliveryStatus === 'failed' && (
+            <span className="flex items-center gap-1 text-destructive-text">
+              <IconAlertTriangle className="size-3" aria-hidden />
+              {t('not-delivered', 'Not delivered')}
+            </span>
+          )}
           <Button
             variant="ghost"
             size="icon"
-            className="size-6 opacity-0 group-hover:opacity-100 focus:opacity-100"
-            aria-label={t('edit-message', 'Edit message')}
-            onClick={() => setEditing(true)}
+            className={cn(
+              'size-6',
+              !pinned && 'opacity-0 group-hover:opacity-100 focus:opacity-100',
+            )}
+            aria-label={pinned ? t('unpin', 'Unpin') : t('pin', 'Pin')}
+            onClick={() => pin.mutate({ id: message.id, pinned: !pinned })}
           >
-            <IconPencil />
+            {pinned ? <IconPinnedOff /> : <IconPin />}
           </Button>
+          {message.canEdit && !editing && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-6 opacity-0 group-hover:opacity-100 focus:opacity-100"
+              aria-label={t('edit-message', 'Edit message')}
+              onClick={() => setEditing(true)}
+            >
+              <IconPencil />
+            </Button>
+          )}
+        </span>
+        {editing ? (
+          <EditBox message={message} onDone={() => setEditing(false)} />
+        ) : (
+          <MessageBody message={message} />
         )}
-      </span>
-      {editing ? (
-        <EditBox message={message} onDone={() => setEditing(false)} />
-      ) : (
-        <MessageBody message={message} />
-      )}
-      {message.attachments.map((file) => (
-        <a
-          key={file.url}
-          href={file.url}
-          className="text-xs underline"
-          target="_blank"
-          rel="noreferrer"
-        >
-          {file.name}
-        </a>
-      ))}
+        <Attachments files={message.attachments} />
+      </div>
     </li>
   );
 };
@@ -194,11 +248,54 @@ const Pinned = ({ conversationId }: { conversationId: string }) => {
   );
 };
 
-/** The open conversation's messages, oldest at the top; earlier ones load on demand. */
+/** The day a run of messages was sent: Today, Yesterday or its date. */
+const DayDivider = ({ date }: { date: Date }) => {
+  const { t } = useTranslation('frontline');
+  const format = useFormat();
+  const day = toIsoDay(date);
+  // The day the thread opened, read once, so the label holds still while it stays open.
+  const [today] = useState(() => new Date());
+  const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+
+  const label =
+    day === toIsoDay(today)
+      ? t('today', 'Today')
+      : day === toIsoDay(yesterday)
+        ? t('yesterday', 'Yesterday')
+        : format.date(date);
+
+  return (
+    <li className="flex items-center gap-3 text-xs text-muted-foreground">
+      <hr className="flex-1" />
+      {label}
+      <hr className="flex-1" />
+    </li>
+  );
+};
+
+/** Placeholders shaped like a short exchange while the messages load. */
+const ThreadSkeleton = () => (
+  <div aria-hidden className="flex flex-col gap-4 p-4">
+    <Skeleton className="h-12 w-2/5" />
+    <Skeleton className="h-16 w-1/2 self-end" />
+    <Skeleton className="h-10 w-1/3" />
+  </div>
+);
+
+/**
+ * The open conversation's messages, oldest at the top under a divider for each day, scrolled to
+ * the newest as one arrives; earlier ones load on demand.
+ */
 export const MessageThread = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const { messages, isPending, hasNextPage, fetchNextPage } = useMessages(conversation.id);
   const customerName = useCustomerName(conversation.customerId);
+  const end = useRef<HTMLDivElement>(null);
+  const lastId = messages.at(-1)?.id;
+
+  useEffect(() => {
+    if (lastId) end.current?.scrollIntoView({ block: 'end' });
+  }, [lastId]);
 
   return (
     <>
@@ -210,14 +307,25 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
           </Button>
         )}
         {isPending ? (
-          <Skeleton className="m-4 h-24" />
+          <ThreadSkeleton />
+        ) : messages.length === 0 ? (
+          <p className="p-6 text-center text-sm text-muted-foreground">
+            {t('no-messages-yet', 'No messages yet. Write the first one below.')}
+          </p>
         ) : (
           <ol aria-label={t('messages', 'Messages')} className="flex flex-col gap-4 p-4">
-            {messages.map((message) => (
-              <Bubble key={message.id} message={message} customerName={customerName} />
+            {messages.map((message, index) => (
+              <Fragment key={message.id}>
+                {toIsoDay(message.createdAt) !==
+                  toIsoDay(messages[index - 1]?.createdAt ?? new Date(0)) && (
+                  <DayDivider date={message.createdAt} />
+                )}
+                <Bubble message={message} customerName={customerName} />
+              </Fragment>
             ))}
           </ol>
         )}
+        <div ref={end} />
       </ScrollArea>
     </>
   );
