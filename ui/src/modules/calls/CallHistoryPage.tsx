@@ -4,7 +4,7 @@ import {
   Button,
   ContactLink,
   ListFilter,
-  MemberInline,
+  MemberLink,
   PageContainer,
   RecordTable,
   type RecordTableColumnDef,
@@ -80,7 +80,7 @@ const useColumns = (): RecordTableColumnDef<Call>[] => {
     )),
     column('answeredBy', t('answered-by', 'Answered by'), CALL_ICONS.answeredBy, 180, (call) => (
       <RecordTableInlineCell>
-        {call.answeredBy && <MemberInline memberId={call.answeredBy} members={memberQueries} />}
+        {call.answeredBy && <MemberLink memberId={call.answeredBy} members={memberQueries} />}
       </RecordTableInlineCell>
     )),
     column('durationSec', t('duration', 'Duration'), CALL_ICONS.durationSec, 100, (call) => (

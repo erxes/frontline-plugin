@@ -29,7 +29,7 @@ import { orpc } from '~/orpc.ts';
 import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { type Integration, useIntegration, useIntegrationChange } from './queries.ts';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the integration's name. */
 export const IntegrationTitle = ({ contentId }: TRecordSlotProps) => {
@@ -157,7 +157,7 @@ const Fields = ({ integration }: { integration: Integration }) => {
         )}
       </PanelField>
       <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
-        <MemberLine id={integration.createdBy} />
+        <MemberChip id={integration.createdBy} />
       </InfoRow>
     </PanelSection>
   );

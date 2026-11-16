@@ -18,7 +18,6 @@ import {
   PIPELINE_TYPE,
   PLUGIN,
   RESPONSE_TEMPLATE_TYPE,
-  STRUCTURE_PATH,
   SURVEY_TYPE,
   TICKET_TYPE,
 } from '~/plugin.ts';
@@ -199,9 +198,12 @@ export const Frontline = () => (
         element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}
       />
       <Route path="tags" element={<TagsPage />} />
-      {/* Branches and departments are core's: old links open its structure settings. */}
-      <Route path="departments" element={<Navigate to={STRUCTURE_PATH} replace />} />
-      <Route path="branches" element={<Navigate to={STRUCTURE_PATH} replace />} />
+      {/*
+        Branches and departments are core's. Old links stay in settings: leaving the plugin
+        would keep the old page as the tab's last place, so every return would leave again.
+      */}
+      <Route path="departments" element={<Navigate to="../channels" replace />} />
+      <Route path="branches" element={<Navigate to="../channels" replace />} />
       <Route path="ticket-properties" element={<PropertiesPage />} />
       <Route path="help-centers" element={<HelpCentersPage />} />
       <Route path="help-centers/:id" element={<RecordRoute contentType={HELP_CENTER_TYPE} />} />

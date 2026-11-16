@@ -35,7 +35,7 @@ import {
   usePipelineChange,
 } from './queries.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /**
  * The pipeline's menu, behind `trigger`: move it to another channel the member is an admin of,
@@ -176,7 +176,7 @@ const PipelineFields = ({ pipeline }: { pipeline: Pipeline }) => {
         <span className="truncate px-2 text-xs">{channel.data?.name}</span>
       </PanelField>
       <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
-        <MemberLine id={pipeline.createdBy} />
+        <MemberChip id={pipeline.createdBy} />
       </InfoRow>
       <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
         {format.dateTime(pipeline.createdAt)}

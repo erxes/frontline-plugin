@@ -75,7 +75,7 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   // Once assigned to the member, it shows under Assigned to me.
   await channelLink.click();
   await row.click();
-  await member.getByRole('button', { name: 'No assignee', exact: true }).click();
+  await member.getByRole('button', { name: 'Assign', exact: true }).click();
   await member.getByRole('option', { name: teammate.fullName }).click();
   await queues.getByRole('link', { name: /^Assigned to me/ }).click();
   await expect(member).toHaveURL(/assigneeId/);

@@ -26,7 +26,7 @@ import { ActionsMenu } from '~/shared/Records.tsx';
 import { CALL_ICONS, CallStatus, useDirectionNames } from './CallFields.tsx';
 import { type Call, durationText, useCall, useFetchRecording } from './queries.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: who called, or who was called. */
 export const CallTitle = ({ contentId }: TRecordSlotProps) => {
@@ -105,7 +105,7 @@ const Fields = ({ call }: { call: Call }) => {
         {call.extension}
       </InfoRow>
       <InfoRow icon={CALL_ICONS.answeredBy} label={t('answered-by', 'Answered by')}>
-        {call.answeredBy && <MemberLine id={call.answeredBy} />}
+        <MemberChip id={call.answeredBy} />
       </InfoRow>
       <InfoRow icon={CALL_ICONS.startedAt} label={t('started-at', 'Started at')}>
         {format.dateTime(call.startedAt)}

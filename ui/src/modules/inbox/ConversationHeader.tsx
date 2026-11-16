@@ -151,14 +151,13 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         placeholder={t('visitor', 'Visitor')}
       />
       <VisitorTyping conversation={conversation} />
-      <SelectMember.Field
+      <SelectMember.Linked
         value={conversation.assigneeId}
         onValueChange={(assigneeId) => assign.mutate({ ids: [conversation.id], assigneeId })}
         members={memberQueries}
         noneLabel={t('unassigned', 'Unassigned')}
-        placeholder={t('no-assignee', 'No assignee')}
-        variant="ghost"
-        className="w-auto"
+        addLabel={t('assign', 'Assign')}
+        changeLabel={t('change-assignee', 'Change assignee')}
       />
       <span className="flex min-w-0 flex-1 justify-end gap-1 overflow-hidden">
         {tags.map((tag) => (

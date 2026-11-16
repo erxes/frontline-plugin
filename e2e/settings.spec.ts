@@ -88,11 +88,11 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
   await page.getByRole('link', { name: 'Exit settings' }).click();
   await expect(page).toHaveURL(/\/frontline\/inbox/);
 
-  // Branches and departments are core's, edited in its own settings; old links go there too.
-  await page.getByRole('link', { name: 'Settings', exact: true }).click();
-  await page.getByRole('link', { name: 'Branches and departments', exact: true }).click();
-  await expect(page).toHaveURL('/settings/structure');
+  // Branches and departments are core's, edited in its own settings. An old link stays in
+  // frontline's settings, so the app's tab never keeps a page that leaves the app.
   await page.goto(`${SETTINGS}/departments`);
+  await expect(page).toHaveURL(`${SETTINGS}/channels`);
+  await page.getByRole('link', { name: 'Branches and departments', exact: true }).click();
   await expect(page).toHaveURL('/settings/structure');
 });
 

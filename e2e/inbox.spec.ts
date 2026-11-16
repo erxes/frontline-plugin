@@ -80,8 +80,7 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   const fullName = `${OWNER.firstName} ${OWNER.lastName}`;
   const header = page.getByRole('region', { name: 'Conversation' }).locator('header');
 
-  await header.getByRole('button', { name: 'No assignee', exact: true }).click();
-  await page.getByPlaceholder('Search', { exact: true }).fill(fullName);
+  await header.getByRole('button', { name: 'Assign', exact: true }).click();
   await page.getByRole('option', { name: fullName }).click();
   await expect(header.getByRole('button', { name: fullName })).toBeVisible();
   await page.getByRole('button', { name: 'Add tags' }).click();

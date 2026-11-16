@@ -35,7 +35,7 @@ import {
   useChannelChange,
   useDeleteChannels,
 } from './useChannels.ts';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the channel's name. */
 export const ChannelTitle = ({ contentId }: TRecordSlotProps) => {
@@ -177,7 +177,7 @@ const ChannelFields = ({ channel }: { channel: Channel }) => {
         </PanelField>
       </ReadOnly>
       <InfoRow icon={IconUser} label={t('created-by', 'Created by')}>
-        <MemberLine id={channel.createdBy} />
+        <MemberChip id={channel.createdBy} />
       </InfoRow>
       <InfoRow icon={IconCalendarPlus} label={t('created-at', 'Created at')}>
         {format.dateTime(channel.createdAt)}
