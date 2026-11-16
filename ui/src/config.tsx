@@ -15,6 +15,7 @@ import {
   IconLock,
   IconMessageCircle,
   IconMessageReply,
+  IconMessages,
   IconRobot,
   IconPhone,
   IconPlugConnected,
@@ -26,6 +27,7 @@ import { type ComponentType, lazy } from 'react';
 import {
   ACCOUNT_TYPE,
   CALL_TYPE,
+  CONVERSATION_TYPE,
   CHANNEL_TYPE,
   FORM_SUBMISSION_TYPE,
   FORM_TYPE,
@@ -245,6 +247,14 @@ export const CONFIG: IUIConfig = {
       detailPath: (id) => `/${PLUGIN}/calls/history/${encodeURIComponent(id)}`,
       // A call comes from the PBX or CallPro, so it has no draft.
       ...readSlots(() => import('@/calls/slots.ts')),
+    },
+    {
+      contentType: CONVERSATION_TYPE,
+      // Its draft is a new mail, which starts one.
+      title: 'Conversation',
+      icon: IconMessages,
+      detailPath: (id) => `/${PLUGIN}/inbox/conversations/${encodeURIComponent(id)}`,
+      ...slots(() => import('@/inbox/conversationSlots.ts')),
     },
   ],
   relationTabs: [

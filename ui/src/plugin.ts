@@ -34,3 +34,6 @@ export const META_BOT_TYPE = `${PLUGIN}:meta-bot`;
 export const ACCOUNT_TYPE = `${PLUGIN}:integration-account`;
 
 export const CALL_TYPE = `${PLUGIN}:call`;
+
+/** A conversation in the inbox; its draft is a new mail. */
+export const CONVERSATION_TYPE = `${PLUGIN}:conversation`;

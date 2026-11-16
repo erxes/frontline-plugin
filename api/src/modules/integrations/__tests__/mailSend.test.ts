@@ -204,6 +204,15 @@ describe('mail', () => {
     await expect(
       owner.integrations.mail.compose({ ...mail, to: 'Gone@example.mn' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    // A new mail's recipients leave the bounced address out.
+    await expect(owner.integrations.mail.recipients({ search: 'saraa' })).resolves.toEqual([
+      {
+        customerId: 'customer-saraa',
+        firstName: 'Saraa',
+        lastName: null,
+        email: 'saraa@example.mn',
+      },
+    ]);
 
     await owner.integrations.mail.suppressions.remove({ ids: suppressions.map(({ id }) => id) });
 

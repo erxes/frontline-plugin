@@ -82,7 +82,7 @@ export const useLinkPreviews = (message: Message) =>
   });
 
 /** Refetches the inbox after a change, and shows a refusal. */
-const useInboxChange = () => useChange(orpc.conversations.key());
+export const useInboxChange = () => useChange(orpc.conversations.key());
 
 export const useAssign = () =>
   useMutation(orpc.conversations.assign.mutationOptions(useInboxChange()));

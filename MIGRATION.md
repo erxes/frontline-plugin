@@ -331,7 +331,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `ContactWidgetSection` (2 files). A customer's tickets are core's `relationTabs` (`ui/src/modules/tickets/TicketRelations.tsx`), and their conversations' events show on the customer's Activity tab (`CONVERSATION_EVENTS` in `api/src/core.ts`)
 - [x] `DashboardWidgetEmptyState` (2 files). (filed https://github.com/erxes/erxes/issues/10581)
 - [x] `EditorMentionItem` (2 files). An internal note's `/` menu lists teammates (`ui/src/modules/inbox/slashItems.tsx`); the API reads the mentions from the note (`api/src/modules/inbox/html.ts`). (filed https://github.com/erxes/erxes/issues/10605)
-- [ ] `EmailTemplate` (2 files)
+- [x] `EmailTemplate` (2 files) (filed https://github.com/erxes/erxes/issues/10652)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `FIELD_TYPES` (2 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `getHostContacts` (2 files). A customer's tickets are core's `relationTabs` (`ui/src/modules/tickets/TicketRelations.tsx`), and their conversations' events show on the customer's Activity tab (`CONVERSATION_EVENTS` in `api/src/core.ts`)
@@ -343,7 +343,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `SettingsHeader` (2 files). `SettingsList` in `ui/src/modules/settings/Settings.tsx`
 - [x] `TagBadge` (2 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [x] `TPlaceholderInputSuggestion` (2 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
-- [ ] `useComposeEmail` (2 files)
+- [x] `useComposeEmail` (2 files). `MailNew`, the new conversation draft in the side panel (`ui/src/modules/inbox/MailNew.tsx`)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `useCustomers` (2 files). erxes-ui's `ContactLink` with `contactQueries` (`ui/src/modules/inbox/ConversationHeader.tsx`, `ui/src/modules/calls/CallHistoryPage.tsx`)
 - [x] `useFieldGroups` (2 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
@@ -362,7 +362,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `DataExtensionCreateFields` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `DataExtensionRecordSection` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `DepartmentsInline` (1 files). Frontline teams, `useTeams` in `ui/src/modules/tickets/TicketLinks.tsx`
-- [ ] `EmailTemplatePicker` (1 files)
+- [x] `EmailTemplatePicker` (1 files) (filed https://github.com/erxes/erxes/issues/10652)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `ExportFieldSelection` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
 - [ ] `FieldsInDetail` (1 files)
@@ -418,7 +418,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `useGetTags` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [x] `useMembersInlineContext` (1 files). erxes-ui's `MemberInline` with `memberQueries` (`ui/src/modules/surveys/SurveyRows.tsx`)
 - [x] `useRelationWidget` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
-- [ ] `useRenderEmailTemplate` (1 files)
+- [x] `useRenderEmailTemplate` (1 files) (filed https://github.com/erxes/erxes/issues/10652)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `useSystemFieldRules` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
 - [x] `useTags` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
@@ -988,7 +988,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `instagramMessengerUpdateBot` → `integrations.meta.bots.update` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [x] mutation `instagramMessengerRemoveBot` → `integrations.meta.bots.remove` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [x] mutation `instagramMessengerRepairBot` → `integrations.meta.bots.sync` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
-- [ ] query `mailVerifiedContacts` → procedure `mailVerifiedContacts.list` (returns `MailVerifiedContacts!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+- [x] query `mailVerifiedContacts` → procedure `mailVerifiedContacts.list` (returns `MailVerifiedContacts!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. `integrations.mail.recipients` (`api/src/modules/integrations/providers/mailCompose.ts`)
   - note: `integrations.mail.compose` takes one address and has no screen yet, so nothing suggests recipients
 - [x] query `mailConversationDetail` → the inbox's `conversations.messages.list` `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [x] query `mailConversationInternalNotes` → procedure `mailConversationInternalNotes.list` (returns `[ConversationMessage!]!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. Folded into `conversations.messages.list`, which returns the inbox's internal notes
@@ -1058,7 +1058,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] core `emailDeliveries.recordHandoff` → plugin-owned `frontline_email_deliveries` `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:24`. Folded into the message's `deliveryStatus`
 - [x] core `emailSuppression.blocked` → plugin-owned `frontline_email_suppressions` (bounces and opt-outs the plugin hears from its mailbox) `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:37`. `frontline_email_suppressions`, filled from bounce and spam reports in the mailbox; `integrations.mail.suppressions` lists and removes them
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/utils/mailRecipient.ts:8`. The reply goes to the customer's linked address
-- [ ] core `customers.findActiveCustomers` → sdk `customers.list` (scope customers:read) `frontline_api/src/modules/integrations/mail/utils/recipients.ts:55`
+- [x] core `customers.findActiveCustomers` → sdk `customers.list` (scope customers:read) `frontline_api/src/modules/integrations/mail/utils/recipients.ts:55`. sdk `customers.list` in `integrations.mail.recipients`
   - note: `integrations.mail.compose` takes one address and has no screen yet, so nothing suggests recipients
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/utils/tickets.ts:187`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/telegram/controller/store.ts:44`. The reply goes to the customer's linked chat

@@ -27,7 +27,7 @@ import type { Conversation } from './queries.ts';
  * Who the customer is: their chip, which opens them in core's side panel, how to reach them and,
  * for a messenger visitor, whether they are online.
  */
-const Customer = ({ conversation }: { conversation: Conversation }) => {
+export const Customer = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const { customerId } = conversation;
   const customer = useQuery(contactQueries.customer(customerId)).data;

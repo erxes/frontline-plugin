@@ -11,6 +11,7 @@ import {
   FORM_SUBMISSION_TYPE,
   FORM_TYPE,
   HELP_CENTER_TYPE,
+  CONVERSATION_TYPE,
   INTEGRATION_TYPE,
   KB_ARTICLE_TYPE,
   KB_CATEGORY_TYPE,
@@ -176,6 +177,7 @@ export const Frontline = () => (
       <Route path="inbox">
         <Route index element={<InboxPage />} />
         <Route path="integrations/:id" element={<RecordRoute contentType={INTEGRATION_TYPE} />} />
+        <Route path="conversations/:id" element={<RecordRoute contentType={CONVERSATION_TYPE} />} />
         <Route path="messengers/:id" element={<MessengerSettingsPage />} />
       </Route>
       <Route path="tickets">
