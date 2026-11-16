@@ -1,9 +1,8 @@
 import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlignLeft,
-  IconBrandTrello,
   IconCalendarPlus,
-  IconCircleCheck,
+  IconCircles,
   IconFileDescription,
   IconTrash,
   IconUser,
@@ -28,9 +27,11 @@ import { useTranslation } from 'react-i18next';
 import { CHANNEL_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
-import { DateCell, Rows } from '~/shared/Table.tsx';
+import { column as columnOf, DateCell, Rows } from '~/shared/Table.tsx';
 import { ChannelsHeader } from './ChannelsHeader.tsx';
 import { type Channel, useChannels, useDeleteChannels } from './useChannels.ts';
+
+const column = columnOf<Channel>;
 
 /** The name opens the channel in core's side panel, as a customer's name does. */
 const NameCell = ({ channel }: { channel: Channel }) => {
@@ -108,62 +109,23 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
       size: 33,
     },
     RecordTable.checkboxColumnOf<Channel>(),
-    {
-      id: 'name',
-      header: () => <RecordTable.InlineHead label={t('name', 'Name')} icon={IconAlignLeft} />,
-      cell: ({ row }) => <NameCell channel={row.original} />,
-      size: 220,
-    },
-    {
-      id: 'description',
-      header: () => (
-        <RecordTable.InlineHead
-          label={t('description', 'Description')}
-          icon={IconFileDescription}
-        />
-      ),
-      cell: ({ row }) => <TextCell value={row.original.description} />,
-      size: 260,
-    },
-    {
-      id: 'members',
-      header: () => <RecordTable.InlineHead label={t('members', 'Members')} icon={IconUsers} />,
-      cell: ({ row }) => <MemberAvatars ids={row.original.memberIds} />,
-      size: 140,
-    },
-    {
-      id: 'status',
-      header: () => <RecordTable.InlineHead label={t('status', 'Status')} icon={IconCircleCheck} />,
-      cell: () => (
-        <RecordTableInlineCell>
-          <span className="flex items-center gap-1.5">
-            <span className="size-1.5 rounded-full bg-success" />
-            {t('active', 'Active')}
-          </span>
-        </RecordTableInlineCell>
-      ),
-      size: 110,
-    },
-    {
-      id: 'createdBy',
-      header: () => (
-        <RecordTable.InlineHead label={t('created-by', 'Created by')} icon={IconUser} />
-      ),
-      cell: ({ row }) => (
-        <RecordTableInlineCell>
-          <MemberInline memberId={row.original.createdBy} members={memberQueries} />
-        </RecordTableInlineCell>
-      ),
-      size: 180,
-    },
-    {
-      id: 'createdAt',
-      header: () => (
-        <RecordTable.InlineHead label={t('created-at', 'Created at')} icon={IconCalendarPlus} />
-      ),
-      cell: ({ row }) => <DateCell date={row.original.createdAt} />,
-      size: 130,
-    },
+    column('name', t('name', 'Name'), IconAlignLeft, 220, (channel) => (
+      <NameCell channel={channel} />
+    )),
+    column('description', t('description', 'Description'), IconFileDescription, 260, (channel) => (
+      <TextCell value={channel.description} />
+    )),
+    column('members', t('members', 'Members'), IconUsers, 140, (channel) => (
+      <MemberAvatars ids={channel.memberIds} />
+    )),
+    column('createdBy', t('created-by', 'Created by'), IconUser, 180, (channel) => (
+      <RecordTableInlineCell>
+        <MemberInline memberId={channel.createdBy} members={memberQueries} />
+      </RecordTableInlineCell>
+    )),
+    column('createdAt', t('created-at', 'Created at'), IconCalendarPlus, 130, (channel) => (
+      <DateCell date={channel.createdAt} />
+    )),
   ];
 };
 
@@ -233,12 +195,17 @@ export const ChannelsPage = () => {
         <p className="m-3 text-sm text-destructive-text">{error.message}</p>
       ) : !isPending && channels.length === 0 ? (
         <ListEmpty
-          icon={<IconBrandTrello />}
-          title={t('no-channels-found', 'No channels found')}
+          icon={<IconCircles />}
+          title={t('no-channels-yet', 'No channels yet')}
           description={t(
             'no-channels-description',
-            'Create a channel to start organizing your team.',
+            'A channel groups the inboxes, pipelines and members a team works with.',
           )}
+          action={
+            data?.canCreate && (
+              <Button onClick={create}>{t('create-channel', 'Create channel')}</Button>
+            )
+          }
         />
       ) : (
         <RecordTable.Provider

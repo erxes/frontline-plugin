@@ -11,13 +11,17 @@ import { StageIcon } from '@/pipelines/StatusRow.tsx';
 import { TICKET_TYPE } from '~/plugin.ts';
 import { AssigneeCell, PriorityCell, TicketMenu, TicketName } from './TicketCells.tsx';
 import { SlaBadge } from './SlaBadge.tsx';
+import { TicketTags } from './TicketLinks.tsx';
 import { type Ticket, useChoices } from './queries.ts';
 
-/** One ticket: its number and name, SLA, priority, assignee, last change, and its menu. */
+/** One ticket: its number and name, tags, SLA, priority, assignee, last change, and its menu. */
 const TicketRow = ({ ticket }: { ticket: Ticket }) => (
   <div className="flex min-w-0 flex-1 items-center gap-3 text-xs">
     <span className="flex min-w-0 flex-1">
       <TicketName ticket={ticket} />
+    </span>
+    <span className="hidden max-w-48 lg:flex">
+      <TicketTags tagIds={ticket.tagIds} />
     </span>
     <SlaBadge ticket={ticket} />
     <span className="w-32 shrink-0">

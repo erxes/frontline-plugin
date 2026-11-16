@@ -1,6 +1,16 @@
 import { memberQueries } from '@erxes/core-contract/client';
-import { IconArchive, IconDots, IconRestore, IconTrash } from '@tabler/icons-react';
-import { Button, Select, SelectMember, useOpenRecord } from 'erxes-ui';
+import {
+  IconAlertSquareRoundedFilled,
+  IconAntennaBars3,
+  IconAntennaBars4,
+  IconAntennaBars5,
+  IconAntennaBarsOff,
+  IconArchive,
+  IconDots,
+  IconRestore,
+  IconTrash,
+} from '@tabler/icons-react';
+import { Button, cn, Select, SelectMember, useOpenRecord } from 'erxes-ui';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRIORITIES, usePriorityNames } from '@/pipelines/queries.ts';
@@ -64,6 +74,36 @@ export const StatusSelect = ({
   );
 };
 
+const PRIORITY_ICONS: Record<number, typeof IconAntennaBarsOff> = {
+  4: IconAlertSquareRoundedFilled,
+  3: IconAntennaBars5,
+  2: IconAntennaBars4,
+  1: IconAntennaBars3,
+  0: IconAntennaBarsOff,
+};
+
+/** A priority as the old ticket list drew it: signal bars, critical as a filled alert. */
+export const PriorityIcon = ({ priority }: { priority: number }) => {
+  const Icon = PRIORITY_ICONS[priority] ?? IconAntennaBarsOff;
+
+  return (
+    <Icon
+      className={cn(
+        'size-4 shrink-0',
+        priority === 4 ? 'text-destructive-text' : 'text-muted-foreground',
+      )}
+    />
+  );
+};
+
+/** A priority's icon and name. */
+const PriorityLabel = ({ priority }: { priority: number }) => (
+  <span className="flex items-center gap-2">
+    <PriorityIcon priority={priority} />
+    {usePriorityNames()[priority]}
+  </span>
+);
+
 /** The five priorities, critical to none. */
 export const PrioritySelect = ({
   value,
@@ -76,8 +116,6 @@ export const PrioritySelect = ({
   label: string;
   variant?: Variant;
 }) => {
-  const names = usePriorityNames();
-
   return (
     <Select
       value={String(value)}
@@ -86,12 +124,14 @@ export const PrioritySelect = ({
       }
     >
       <Select.Trigger variant={variant} aria-label={label}>
-        <Select.Value>{names[value]}</Select.Value>
+        <Select.Value>
+          <PriorityLabel priority={value} />
+        </Select.Value>
       </Select.Trigger>
       <Select.Content>
         {PRIORITIES.map((priority) => (
           <Select.Item key={priority} value={String(priority)}>
-            {names[priority]}
+            <PriorityLabel priority={priority} />
           </Select.Item>
         ))}
       </Select.Content>
