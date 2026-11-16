@@ -26,7 +26,7 @@ test('the owner sees no accounts yet, what Meta’s login reported, and a provid
 
   await panel.getByLabel('Bot token').fill('123456:not-a-real-token');
   await expectAccessible(page);
-  await panel.getByRole('button', { name: 'Connect Telegram bot' }).click();
+  await panel.getByRole('button', { name: 'Connect', exact: true }).click();
   await expect(panel.getByRole('alert')).toContainText('Telegram refused the token');
 
   // The old Meta page and integration detail links land here.

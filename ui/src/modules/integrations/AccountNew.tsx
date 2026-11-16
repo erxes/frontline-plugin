@@ -18,7 +18,6 @@ import { useIntegrationChange } from '@/inbox/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
-import { useProviderNames } from './useIntegrations.ts';
 
 /** The providers connected with a form here; Facebook and Instagram connect through Meta's login. */
 export const FORM_PROVIDERS = ['telegram', 'discord', 'mail', 'call', 'callpro'] as const;
@@ -180,7 +179,6 @@ const ConnectForm = ({
 }: Omit<TRecordDraftProps, 'defaults'> & { provider: FormProvider }) => {
   const { t } = useTranslation('frontline');
   const Fields = FIELDS[provider];
-  const name = useProviderNames()[provider];
   const { onSuccess } = useIntegrationChange();
 
   const connect = useMutation({
@@ -201,7 +199,7 @@ const ConnectForm = ({
       <PanelFormLayout
         onCancel={onCancel}
         saving={connect.isPending}
-        saveLabel={t('connect-provider', 'Connect {{provider}}', { provider: name })}
+        saveLabel={t('connect', 'Connect')}
       >
         <Fields />
         {connect.error && (
