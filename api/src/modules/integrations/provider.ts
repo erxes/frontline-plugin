@@ -20,8 +20,8 @@ export interface InboundMessage {
   threadId: string;
   /** The provider's id for the message, so a repeated delivery adds nothing. */
   messageId: string;
-  /** The customer who wrote it, by their id at the provider. */
-  author: { externalId: string; name?: string };
+  /** The customer who wrote it, by their id at the provider, and their email if it has one. */
+  author: { externalId: string; name?: string; email?: string };
   text: string;
   /** What only the provider's own code reads back, such as a mail's subject. */
   providerData?: Record<string, unknown>;
@@ -36,7 +36,9 @@ export interface OutboundMessage {
   to: string;
   text: string;
   attachments: Attachment[];
-  /** The customer's last message, which the reply answers. */
+  /** What the provider's own code stored on this message, such as a new mail's subject. */
+  providerData: Record<string, unknown> | null;
+  /** The last message the reply answers: the customer's, or a new mail the thread began with. */
   replyTo: { externalId: string; providerData: Record<string, unknown> | null } | null;
 }
 

@@ -1,0 +1,108 @@
+import { randomUUID } from 'node:crypto';
+import { ORPCError } from '@orpc/server';
+import { and, eq } from 'drizzle-orm';
+import { z } from 'zod';
+import { CONVERSATION_EVENTS, PERMISSIONS } from '#/core.ts';
+import { conversations, integrations } from '#/db/inbox.ts';
+import { Attachment } from '#/db/table.ts';
+import { writes } from '#/orpc.ts';
+import { channelFor } from '#/modules/channels/access.ts';
+import { postMessage } from '#/modules/inbox/post.ts';
+import { customerFor } from '#/modules/inbox/receive.ts';
+import { publishConversationEvents } from '#/modules/inbox/shared.ts';
+import { accountRow } from '../store.ts';
+import type { MailData } from './mail.ts';
+import { suppressedAmong } from './mailSuppressions.ts';
+
+const AccountConfig = z.object({ accountId: z.string() });
+
+/**
+ * Writes a new mail from a channel's mailbox: the recipient becomes, or stays, a core customer,
+ * and the mail opens a conversation in that channel that their replies join. It is queued like
+ * any reply. An address that bounced or reported spam is refused.
+ */
+const compose = writes(PERMISSIONS.inboxView)
+  .input(
+    z.object({
+      integrationId: z.string(),
+      to: z.email().max(320),
+      subject: z.string().trim().min(1).max(500),
+      content: z.string().trim().min(1).max(10_000),
+      attachments: z.array(Attachment).max(20).default([]),
+    }),
+  )
+  .output(z.object({ conversationId: z.string(), messageId: z.string() }))
+  .handler(async ({ input, context: { tx, member } }) => {
+    const [integration] = await tx
+      .select()
+      .from(integrations)
+      .where(
+        and(
+          eq(integrations.id, input.integrationId),
+          eq(integrations.kind, 'mail'),
+          eq(integrations.isActive, true),
+        ),
+      );
+
+    if (!integration) throw new ORPCError('NOT_FOUND', { message: 'No such mail integration' });
+
+    await channelFor(tx, member, integration.channelId, { change: false });
+
+    const to = input.to.toLowerCase();
+
+    if ((await suppressedAmong(tx, [to])).length > 0)
+      throw new ORPCError('BAD_REQUEST', {
+        message: `${to} bounced or reported spam, so it isn't mailed`,
+      });
+
+    const account = await accountRow(tx, AccountConfig.parse(integration.config).accountId);
+    const root = `<${randomUUID()}@${account.externalId.split('@').at(-1) ?? 'localhost'}>`;
+
+    const customerId = await customerFor(member.orgId, {
+      source: 'mail',
+      externalId: to,
+      firstName: to,
+      email: to,
+    });
+
+    const [conversation] = await tx
+      .insert(conversations)
+      .values({
+        orgId: member.orgId,
+        channelId: integration.channelId,
+        integrationId: integration.id,
+        customerId,
+        // The thread inbound mail joins: the recipient's part of the thread this mail begins.
+        externalId: `${to} ${root}`,
+      })
+      .returning({
+        id: conversations.id,
+        customerId: conversations.customerId,
+        integrationId: conversations.integrationId,
+      });
+
+    if (!conversation) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+    await publishConversationEvents(tx, member.orgId, member.userId, [
+      {
+        conversationId: conversation.id,
+        customerId,
+        type: CONVERSATION_EVENTS.started.type,
+        summary: 'Started a conversation',
+        payload: { integrationId: integration.id },
+      },
+    ]);
+
+    const message = await postMessage(tx, member, conversation, {
+      content: input.content,
+      attachments: input.attachments,
+      internal: false,
+      mentionedUserIds: [],
+      replyToId: null,
+      providerData: { subject: input.subject, root } satisfies z.infer<typeof MailData>,
+    });
+
+    return { conversationId: conversation.id, messageId: message.id };
+  });
+
+export const composeProcedures = { compose };

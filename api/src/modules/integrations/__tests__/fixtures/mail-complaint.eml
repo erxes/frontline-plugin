@@ -1,0 +1,32 @@
+From: Feedback Loop <fbl@mail.example.mn>
+To: support@shop.mn
+Subject: Abuse report
+Message-ID: <fbl-3@mail.example.mn>
+Date: Sat, 15 Nov 2025 11:00:00 +0800
+MIME-Version: 1.0
+Content-Type: multipart/report; report-type=feedback-report; boundary="f1"
+
+--f1
+Content-Type: text/plain; charset=us-ascii
+
+This is an email abuse report for a message received from shop.mn.
+
+--f1
+Content-Type: message/feedback-report
+
+Feedback-Type: abuse
+User-Agent: ExampleFBL/1.0
+Version: 1
+Original-Rcpt-To: Annoyed@Example.mn
+
+--f1
+Content-Type: message/rfc822
+
+From: Support <support@shop.mn>
+To: annoyed@example.mn
+Subject: Weekly offers
+Message-ID: <offer-9@shop.mn>
+
+This week's offers.
+
+--f1--

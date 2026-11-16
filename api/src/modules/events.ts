@@ -9,7 +9,8 @@ import type { Tx } from '#/db/client.ts';
 export type RecordEvent = {
   entityId: string;
   type: string;
-  summary: string;
+  /** What the timeline shows; an event without one, such as an automation trigger, isn't shown. */
+  summary: string | null;
   payload: Record<string, unknown>;
   customerId?: string | null;
   notify?: { userIds: string[]; title: string };

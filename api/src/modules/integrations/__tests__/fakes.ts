@@ -54,7 +54,10 @@ export const fakeProviders = (answer: (call: ProviderCall) => unknown) => {
 export const fixture = (name: string) =>
   readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
 
-/** Serves the app for the file's tests; `get` and `deliver` reach `/api/public/webhooks`. */
+/**
+ * Serves the app for the file's tests; `get` and `deliver` reach `/api/public/webhooks`, and
+ * `act` core's automation steps.
+ */
 export const serve = () => {
   let base = '';
   let server: ReturnType<ReturnType<typeof createApp>['listen']>;
@@ -68,7 +71,7 @@ export const serve = () => {
 
     if (!address || typeof address === 'string') throw new Error('not listening on a port');
 
-    base = `http://127.0.0.1:${address.port}/api/public/webhooks`;
+    base = `http://127.0.0.1:${address.port}/api`;
   });
 
   afterAll(() => {
@@ -79,16 +82,38 @@ export const serve = () => {
     vi.restoreAllMocks();
   });
 
+  const post = (path: string, raw: string, headers: Record<string, string>) =>
+    fetch(`${base}${path}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...headers },
+      body: raw,
+    });
+
   return {
-    get: (path: string) => fetch(`${base}${path}`, { redirect: 'manual' }),
+    get: (path: string) => fetch(`${base}/public/webhooks${path}`, { redirect: 'manual' }),
     deliver: async (path: string, raw: string, headers: Record<string, string> = {}) =>
-      (
-        await fetch(`${base}${path}`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json', ...headers },
-          body: raw,
-        })
-      ).status,
+      (await post(`/public/webhooks${path}`, raw, headers)).status,
+    /** Runs an automation step as core calls it, as `orgId`'s `user` in run `run`. */
+    act: async (
+      type: string,
+      body: unknown,
+      {
+        orgId,
+        run,
+        token = `core-call:${orgId}:user-${orgId}`,
+      }: {
+        orgId: string;
+        run: string;
+        token?: string;
+      },
+    ) => {
+      const response = await post(`/automations/actions/${type}`, JSON.stringify(body), {
+        authorization: `Bearer ${token}`,
+        'idempotency-key': `${run}:step-1`,
+      });
+
+      return { status: response.status, body: Json.parse(await response.json()) };
+    },
   };
 };
 
@@ -117,7 +142,7 @@ export const channelFor = async (orgId: string, kind: string, accountId: string)
   const owner = clientAs(orgId);
   const channel = await owner.channels.create({ name: `${kind} support` });
 
-  await owner.integrations.create({
+  return owner.integrations.create({
     channelId: channel.id,
     kind,
     name: kind,
@@ -136,6 +161,20 @@ export const telegramApi = (call: ProviderCall) => {
     return {
       ok: true,
       result: { id: 777, is_bot: true, first_name: 'Help', username: 'shop_help_bot' },
+    };
+
+  if (method === 'getWebhookInfo')
+    return {
+      ok: true,
+      result: {
+        url: 'https://frontline.example/api/public/webhooks/telegram/key',
+        has_custom_certificate: false,
+        pending_update_count: 3,
+        last_error_date: 1763180000,
+        last_error_message: 'Wrong response from the webhook: 502 Bad Gateway',
+        max_connections: 40,
+        allowed_updates: ['message'],
+      },
     };
 
   if (method === 'sendMessage')

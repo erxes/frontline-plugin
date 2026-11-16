@@ -92,6 +92,13 @@
       "when": 1794775036093,
       "tag": "0012_integrations",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1794775348965,
+      "tag": "0013_mail",
+      "breakpoints": true
     }
   ]
 }

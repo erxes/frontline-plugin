@@ -4,6 +4,8 @@ import { PERMISSIONS } from '#/core.ts';
 import { writes } from '#/orpc.ts';
 import { Account, saveAccount } from '../store.ts';
 import { checkMail, pullMail, Server } from './mail.ts';
+import { composeProcedures } from './mailCompose.ts';
+import { suppressionProcedures } from './mailSuppressions.ts';
 
 const Login = Server.extend({ password: z.string().min(1).max(500) });
 
@@ -47,4 +49,8 @@ const connect = writes(PERMISSIONS.integrationManage)
     });
   });
 
-export const mailProcedures = { connect };
+export const mailProcedures = {
+  connect,
+  ...composeProcedures,
+  suppressions: suppressionProcedures,
+};

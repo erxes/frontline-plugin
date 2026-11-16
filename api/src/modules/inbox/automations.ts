@@ -9,6 +9,7 @@ import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
 import { fail } from '../fail.ts';
+import { sendKindOf, sendMessage } from '../integrations/actions.ts';
 import { addBotMessage, setOperatorOf } from './operator.ts';
 import { publishConversationEvents, signalConversations } from './shared.ts';
 
@@ -118,7 +119,8 @@ const handOff = async (call: CoreCall, body: Body) => {
 };
 
 /**
- * `POST /api/automations/actions/:type`: core runs one of the inbox's actions for an automation.
+ * `POST /api/automations/actions/:type`: core runs one of the plugin's actions for an automation,
+ * an inbox action or a provider's send step.
  * The JSON answer is the step's output; anything but 2xx fails the step.
  */
 export const runAction = async (req: Request, res: Response) => {
@@ -149,6 +151,14 @@ export const runAction = async (req: Request, res: Response) => {
 
     if (req.params.type === INBOX_ACTIONS.handOff) {
       res.json(await handOff(call, body));
+
+      return;
+    }
+
+    const kind = sendKindOf(String(req.params.type));
+
+    if (kind) {
+      res.json(await sendMessage(call, kind, req.body, key));
 
       return;
     }

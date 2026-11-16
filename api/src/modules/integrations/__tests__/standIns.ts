@@ -20,6 +20,10 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
 
           return { id: `customer-${asked.customers}` };
         },
+        // Core's customer with the email: the same one for the same address.
+        findOrCreate: async ({ primaryEmail }: { primaryEmail?: string }) => ({
+          customer: { id: `customer-${primaryEmail ?? 'without-email'}` },
+        }),
       },
       notifications: {
         create: async (input: unknown) => {
@@ -32,10 +36,20 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
   },
 });
 
-/** The SDK with core's job queue answered here. */
+/**
+ * The SDK with core's job queue answered here, and core's automation calls signed with a token
+ * `core-call:<orgId>:<userId>`.
+ */
 export const sdkStandIn = (actual: typeof Sdk) => ({
   ...actual,
   enqueueJob: async (_tx: unknown, job: unknown) => {
     asked.jobs.push(job);
+  },
+  verifyCoreCall: async (token: string) => {
+    const [kind, orgId, userId] = token.split(':');
+
+    if (kind !== 'core-call' || !orgId || !userId) throw new Error('not signed by core');
+
+    return { orgId, userId, automationId: 'automation-1', runId: 'run-1', stepId: 'step-1' };
   },
 });

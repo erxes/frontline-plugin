@@ -8,7 +8,14 @@ type Outgoing = {
   orgId: string;
   integration: { id: string; config: Record<string, unknown> };
   conversation: { id: string; externalId: string | null; customerId: string };
-  message: { id: string; content: string; attachments: Attachment[]; userId: string | null };
+  message: {
+    id: string;
+    content: string;
+    attachments: Attachment[];
+    userId: string | null;
+    /** What the adapter keeps on its own messages, such as a new mail's subject. */
+    providerData: Record<string, unknown> | null;
+  };
 };
 
 /**

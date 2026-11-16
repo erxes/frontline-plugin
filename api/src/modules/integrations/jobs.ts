@@ -7,6 +7,7 @@ import { checkAccount } from './accounts.ts';
 import { deliverInbound } from './adapters.ts';
 import type { AccountRow } from './provider.ts';
 import { mail, pullMail, SyncState } from './providers/mail.ts';
+import { suppress } from './providers/mailSuppressions.ts';
 
 const accountsOf = (orgId: string, provider?: 'mail') =>
   withOrg(orgId, (tx) =>
@@ -18,8 +19,9 @@ const accountsOf = (orgId: string, provider?: 'mail') =>
 
 /**
  * Reads what reached each of the organisation's mailboxes since the last run and hands it to the
- * inbox, then notes where it left off. A mailbox that refuses the login is marked broken and the
- * rest go on; a failure handing mail to the inbox throws, so the next run reads it again.
+ * inbox, notes the addresses its reports said to stop mailing, then where it left off. A mailbox
+ * that refuses the login is marked broken and the rest go on; a failure handing mail to the inbox
+ * throws, so the next run reads it again.
  */
 export const syncMail = async (job: PluginJobDelivery) => {
   const sync = async (row: AccountRow) => {
@@ -43,12 +45,13 @@ export const syncMail = async (job: PluginJobDelivery) => {
     }
 
     await deliverInbound(row, pulled.messages);
-    await withOrg(job.orgId, (tx) =>
-      tx
+    await withOrg(job.orgId, async (tx) => {
+      await suppress(tx, job.orgId, row.id, pulled.suppressed);
+      await tx
         .update(integrationAccounts)
         .set({ syncState: pulled.state, status: 'healthy', error: null, checkedAt: sql`now()` })
-        .where(eq(integrationAccounts.id, row.id)),
-    );
+        .where(eq(integrationAccounts.id, row.id));
+    });
   };
 
   await Promise.all((await accountsOf(job.orgId, 'mail')).map(sync));

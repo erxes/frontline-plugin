@@ -2,8 +2,10 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { createTransport } from 'nodemailer';
 import { z } from 'zod';
+import { withOrg } from '#/db/client.ts';
 import { logger } from '#/logger.ts';
 import { defineProvider, type InboundMessage } from '../provider.ts';
+import { type Suppressed, suppressedAmong } from './mailSuppressions.ts';
 
 export const Server = z.object({
   host: z.string().trim().min(1).max(255),
@@ -40,20 +42,95 @@ const smtpTransport = (smtp: z.infer<typeof Server>, password: string) =>
 const firstAddress = (value: string | string[] | undefined) =>
   Array.isArray(value) ? value[0] : value;
 
-/** What a mail message keeps for its replies: they answer its subject, in its thread. */
-const MailData = z.object({ subject: z.string().optional(), root: z.string().optional() });
+/**
+ * What a mail message keeps for its replies: they answer its subject, in its thread. A new mail
+ * a member writes keeps its own Message-ID as `root`.
+ */
+export const MailData = z.object({ subject: z.string().optional(), root: z.string().optional() });
+
+/** A report's `Field: value` blocks, names lowercased, with folded lines joined to their field. */
+const reportBlocks = (text: string) =>
+  text.split(/\r?\n[ \t]*\r?\n/).map((block) => {
+    const fields = new Map<string, string>();
+
+    for (const line of block.replace(/\r?\n[ \t]+/g, ' ').split(/\r?\n/)) {
+      const [, name, value] = /^([A-Za-z-]+):\s*(.*)$/.exec(line) ?? [];
+
+      if (name && value !== undefined) fields.set(name.toLowerCase(), value.trim());
+    }
+
+    return fields;
+  });
+
+/** `rfc822; Someone@Example.mn` as `someone@example.mn`. */
+const reportAddress = (value: string) => (value.split(';').at(-1) ?? '').trim().toLowerCase();
 
 /**
- * One message as the inbox reads it, or null for one without a sender or id, or one the mailbox
- * sent itself. Replies join the thread of the first message they reference. The customer is the
- * sender's address, and a conversation is one sender's part of a thread, so someone copied in who
- * answers too gets a conversation of their own.
+ * The addresses a delivery or spam report says to stop mailing: each recipient a delivery report
+ * gave up on for good (a 5.x.x status), or the one a spam report names.
  */
-export const inboundOfMail = async (
+const suppressedBy = (reportType: unknown, text: string): Suppressed[] =>
+  reportBlocks(text).flatMap((fields): Suppressed[] => {
+    const recipient = fields.get('final-recipient');
+    const reported = fields.get('original-rcpt-to');
+
+    if (reportType === 'delivery-status' && recipient)
+      return fields.get('action') === 'failed' && fields.get('status')?.startsWith('5')
+        ? [
+            {
+              address: reportAddress(recipient),
+              reason: 'bounce',
+              detail: fields.get('diagnostic-code') ?? fields.get('status') ?? null,
+            },
+          ]
+        : [];
+
+    if (reportType === 'feedback-report' && reported)
+      return [
+        {
+          address: reportAddress(reported),
+          reason: 'complaint',
+          detail: fields.get('feedback-type') ?? null,
+        },
+      ];
+
+    return [];
+  });
+
+/** A parsed `Content-Type` header. */
+const ContentType = z.object({ value: z.string(), params: z.record(z.string(), z.string()) });
+
+/** What one fetched mail is to frontline: a customer's message, or a report on what it sent. */
+type ReadMail = { message: InboundMessage } | { suppressed: Suppressed[] };
+
+/**
+ * One mail as frontline reads it, or null for one without a sender or id, or one the mailbox sent
+ * itself. A delivery or spam report names the addresses to stop mailing. Replies join the thread
+ * of the first message they reference. The customer is the sender's address, and a conversation
+ * is one sender's part of a thread, so someone copied in who answers too gets a conversation of
+ * their own.
+ */
+export const readMail = async (
   source: Buffer | string,
   address: string,
-): Promise<InboundMessage | null> => {
+): Promise<ReadMail | null> => {
   const mail = await simpleParser(source);
+  const type = ContentType.safeParse(mail.headers.get('content-type')).data;
+
+  // mailparser folds some report parts into the text and keeps others as attachments.
+  if (type?.value === 'multipart/report')
+    return {
+      suppressed: suppressedBy(
+        type.params['report-type'],
+        [
+          mail.text ?? '',
+          ...mail.attachments
+            .filter((part) => part.contentType !== 'message/rfc822')
+            .map((part) => part.content.toString()),
+        ].join('\n\n'),
+      ),
+    };
+
   const from = mail.from?.value[0];
   const sender = from?.address?.toLowerCase();
 
@@ -62,18 +139,21 @@ export const inboundOfMail = async (
   const root = firstAddress(mail.references) ?? mail.inReplyTo ?? mail.messageId;
 
   return {
-    threadId: `${sender} ${root}`,
-    messageId: mail.messageId,
-    author: { externalId: sender, name: from?.name || sender },
-    text: mail.text || '',
-    providerData: { subject: mail.subject, root } satisfies z.infer<typeof MailData>,
-    attachments: [],
+    message: {
+      threadId: `${sender} ${root}`,
+      messageId: mail.messageId,
+      author: { externalId: sender, name: from?.name || sender, email: sender },
+      text: mail.text || '',
+      providerData: { subject: mail.subject, root } satisfies z.infer<typeof MailData>,
+      attachments: [],
+    },
   };
 };
 
 /**
- * The messages that reached INBOX since `state`, and where this pull leaves off. The first pull
- * of a mailbox only notes where INBOX stands, so connecting one doesn't import its history.
+ * The messages that reached INBOX since `state`, the addresses its reports said to stop mailing,
+ * and where this pull leaves off. The first pull of a mailbox only notes where INBOX stands, so
+ * connecting one doesn't import its history.
  */
 export const pullMail = async (
   imap: z.infer<typeof Server>,
@@ -97,9 +177,10 @@ export const pullMail = async (
       const last = mailbox.uidNext - 1;
 
       if (!state || state.uidValidity !== uidValidity)
-        return { messages: [], state: { uidValidity, lastUid: last } };
+        return { messages: [], suppressed: [], state: { uidValidity, lastUid: last } };
 
       const messages: InboundMessage[] = [];
+      const suppressed: Suppressed[] = [];
       let lastUid = state.lastUid;
 
       if (last > state.lastUid) {
@@ -110,16 +191,18 @@ export const pullMail = async (
         )) {
           if (fetched.uid <= state.lastUid || !fetched.source) continue;
 
-          const message = await inboundOfMail(fetched.source, address);
+          const read = await readMail(fetched.source, address);
 
-          if (message) messages.push(message);
-          else logger.warn({ address, uid: fetched.uid }, 'mail without a sender or Message-ID');
+          if (!read)
+            logger.warn({ address, uid: fetched.uid }, 'mail without a sender or Message-ID');
+          else if ('message' in read) messages.push(read.message);
+          else suppressed.push(...read.suppressed);
 
           lastUid = Math.max(lastUid, fetched.uid);
         }
       }
 
-      return { messages, state: { uidValidity, lastUid } };
+      return { messages, suppressed, state: { uidValidity, lastUid } };
     } finally {
       lock.release();
     }
@@ -150,6 +233,15 @@ export const mail = defineProvider({
   Secret,
   check: async ({ config, secret }) => checkMail(config, secret),
   send: async ({ config, secret, row }, message) => {
+    const [blocked] = await withOrg(row.orgId, (tx) => suppressedAmong(tx, [message.to]));
+
+    if (blocked) throw new Error(`${blocked} bounced or reported spam, so it isn't mailed`);
+
+    // A mail that starts a thread brings its own subject and Message-ID.
+    const started = message.replyTo
+      ? undefined
+      : MailData.safeParse(message.providerData ?? {}).data;
+
     const { subject = '', root } =
       MailData.safeParse(message.replyTo?.providerData ?? {}).data ?? {};
 
@@ -158,7 +250,12 @@ export const mail = defineProvider({
     const sent = await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
       from: { name: row.name, address: row.externalId },
       to: message.to,
-      subject: !subject || /^re:/i.test(subject) ? subject : `Re: ${subject}`,
+      subject: started
+        ? (started.subject ?? '')
+        : !subject || /^re:/i.test(subject)
+          ? subject
+          : `Re: ${subject}`,
+      messageId: started?.root,
       text: message.text,
       inReplyTo: answered,
       references: [...new Set([root, answered].filter((id) => id !== undefined))],

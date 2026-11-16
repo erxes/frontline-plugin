@@ -45,6 +45,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
   - ui-modules: `FIELD_TYPES`, `ILayoutAsideApi`, `ILayoutItem`, `LayoutEditor`, `PropertyAddSheet`, `useFields`
   - keeps: toast "Pipeline updated successfully"
 - [ ] `/frontline/:id/pipelines/:pipelineId/mail` (PipelineMailPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:210`
+  - note: a pipeline address is a Cloudflare routing address; waits on the Cloudflare decision
   - files: 49, 3 only here: `modules/integrations/mail/components/PipelineForwardVerification.tsx`, `modules/integrations/mail/components/PipelineMailSettings.tsx`, `pages/PipelineMailPage.tsx`
   - calls: inbox: `integrationDetail`, `integrationsCreateExternalIntegration`; integrations: `mailPipelineConnect`, `mailPipelineDisconnect`, `mailPipelineForwardVerified`, `mailPipelineIntegration`, `mailPipelineUpdate`, `mailSendingReadiness`; ticket: `addTicketStatus`, `getAccessibleTicketStatuses`, `getTicketPipeline`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`, `updateTicket`
   - ui-modules: `currentUserState`, `SelectBrand`, `usePermissionCheck`, `useSidePanel`
@@ -90,7 +91,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 - [x] frontline `conversation.find` → plugin-owned `a direct function call` `frontline_api/src/apollo/subscription.ts:94`
 - [ ] frontline `ticket.matchesProperties` → plugin-owned `a direct function call` `frontline_api/src/apollo/subscription.ts:250`
-- [ ] frontline `mail.canViewConversation` → plugin-owned `a direct function call` `frontline_api/src/apollo/subscription.ts:527`
+- [x] frontline `mail.canViewConversation` → plugin-owned `a direct function call` `frontline_api/src/apollo/subscription.ts:527`. The inbox's channel access decides who reads a mail conversation
 - [x] core `segment.fetchSegment` → **drop**: the new core has no segments; the plugin filters its own records `frontline_api/src/conversationQueryBuilder.ts:99`
 - [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/conversationQueryBuilder.ts:363`
 - [ ] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/conversationQueryBuilder.ts:419`
@@ -110,15 +111,15 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_api/src/modules/customdomain/worker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process. The `helpcenter.domains` job (`JOBS.domains`)
 - [ ] `frontline_api/src/modules/form/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
 - [x] `frontline_api/src/modules/inbox/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
-- [ ] `frontline_api/src/modules/integrations/discord/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
+- [x] `frontline_api/src/modules/integrations/discord/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The send action runs when core calls `/api/automations/actions`
 - [ ] `frontline_api/src/modules/integrations/facebook/commentOutboxWorker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process
 - [ ] `frontline_api/src/modules/integrations/facebook/meta/automation/messages/inputWait.ts` (createMQWorkerWithListeners) → plugin-owned: a job in the API process
 - [ ] `frontline_api/src/modules/integrations/facebook/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
 - [ ] `frontline_api/src/modules/integrations/instagram/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
-- [ ] `frontline_api/src/modules/integrations/mail/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
+- [x] `frontline_api/src/modules/integrations/mail/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The send action runs when core calls `/api/automations/actions`
 - [ ] `frontline_api/src/modules/integrations/mail/utils/cloudflare/worker.ts` (path) → plugin-owned: a job in the API process
 - [ ] `frontline_api/src/modules/integrations/mail/worker/bundle.generated.ts` (path) → plugin-owned: a job in the API process
-- [ ] `frontline_api/src/modules/integrations/telegram/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
+- [x] `frontline_api/src/modules/integrations/telegram/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The send action runs when core calls `/api/automations/actions`
 - [x] `frontline_api/src/modules/knowledgebase/utils/scheduledPublish.ts` (createMQWorkerWithListeners) → no job: every article read first publishes the scheduled articles whose time has passed, so a lost queue job can't leave one unpublished
 - [x] `frontline_api/src/modules/ticket/utils/slaWorker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process. The `tickets.sla` job (`JOBS.sla`)
   - note: waits for notifications; tickets keep their SLA due and met times, which the job will read
@@ -198,19 +199,20 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] automation action `Send Erxes Messenger Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:161`
 - [x] automation action `Hand off to a person` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:172`
 - [x] segment `conversations` → **drop**: the new core has no segments; the plugin filters its own records `frontline_api/src/modules/inbox/meta/segments/configs.ts:3`
-- [ ] automation trigger `Discord Message` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/integrations/discord/meta/automation/constants.ts:45`
-- [ ] automation action `Send Discord Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/discord/meta/automation/constants.ts:33`
+- [x] automation trigger `Discord Message` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/integrations/discord/meta/automation/constants.ts:45` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] automation action `Send Discord Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/discord/meta/automation/constants.ts:33`. `frontline.discord.send_message`; it replies in Discord conversations once inbound arrives
 - [ ] automation trigger `Facebook Message` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/integrations/facebook/meta/automation/constants.ts:161`
 - [ ] automation trigger `Facebook Comments` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/integrations/facebook/meta/automation/constants.ts:172`
 - [ ] automation action `Send Facebook Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/facebook/meta/automation/constants.ts:105`
 - [ ] automation action `Message the customer on Messenger` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/facebook/meta/automation/constants.ts:126`
 - [ ] automation action `Send Facebook Comment` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/facebook/meta/automation/constants.ts:143`
-- [ ] automation trigger `Email Received` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/integrations/mail/meta/automation/constants.ts:84`
-- [ ] automation action `Send Email` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/mail/meta/automation/constants.ts:60`
+- [x] automation trigger `Email Received` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/integrations/mail/meta/automation/constants.ts:84`. `frontline.mail.received`
+- [x] automation action `Send Email` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/mail/meta/automation/constants.ts:60`. `frontline.mail.send` at `/api/automations/actions`
 - [ ] automation action `Draft Email Reply` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/mail/meta/automation/constants.ts:71`
-- [ ] automation trigger `Telegram Message` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/integrations/telegram/meta/automation/constants.ts:43`
-- [ ] automation action `Send Telegram Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/telegram/meta/automation/constants.ts:31`
+- [x] automation trigger `Telegram Message` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/integrations/telegram/meta/automation/constants.ts:43`. `frontline.telegram.message_received`
+- [x] automation action `Send Telegram Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/telegram/meta/automation/constants.ts:31`. `frontline.telegram.send_message` at `/api/automations/actions`
 - [x] automation trigger `Tickets` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/ticket/meta/automations/ticketAutomationsConstants.ts:149`. `frontline.ticket.created` in `manifest.events`
+  - note: drafts need a draft state on inbox messages and a review step in the inbox's composer
   - note: waits for automations
 - [x] automation trigger `Ticket status changed` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/ticket/meta/automations/ticketAutomationsConstants.ts:159`. `frontline.ticket.moved` in `manifest.events`
   - note: waits for automations
@@ -245,7 +247,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `FACEBOOK_GRAPH_URL` → dropped: the Graph API version is `GRAPH_VERSION` in `modules/integrations/providers/meta.ts` `frontline_api/src/modules/integrations/facebook/graphRequest.ts:8`
 - [ ] `FACEBOOK_REPLY_DEBOUNCE_MEDIA_MS` → api/src/config.ts `frontline_api/src/modules/integrations/facebook/meta/automation/utils/turnTaking.ts:64`
 - [ ] `FACEBOOK_REPLY_DEBOUNCE_TEXT_MS` → api/src/config.ts `frontline_api/src/modules/integrations/facebook/meta/automation/utils/turnTaking.ts:63`
-- [ ] `GATEWAY_URL` → api/src/config.ts `frontline_api/src/modules/integrations/discord/utils/media/attachments.ts:33`
+- [x] `GATEWAY_URL` → api/src/config.ts `frontline_api/src/modules/integrations/discord/utils/media/attachments.ts:33` (filed https://github.com/erxes/erxes/issues/10585)
 - [x] `HELPCENTER_DOMAIN_SUFFIX` → api/src/config.ts `frontline_api/src/modules/customdomain/constants.ts:5`. `config.helpCenterDomainSuffix`
 - [ ] `INSTAGRAM_REPLY_DEBOUNCE_MEDIA_MS` → api/src/config.ts `frontline_api/src/modules/integrations/instagram/meta/automation/utils/turnTaking.ts:27`
 - [ ] `INSTAGRAM_REPLY_DEBOUNCE_TEXT_MS` → api/src/config.ts `frontline_api/src/modules/integrations/instagram/meta/automation/utils/turnTaking.ts:21`
@@ -841,23 +843,25 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `frontline_calls_queue_statistics` from collection `calls_queue_statistics` (15 fields, draft `frontlineCallsQueueStatistics` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/queueStatistics.ts:15`
 - [ ] `frontline_calls_sessions` from collection `calls_sessions` (23 fields, draft `frontlineCallsSessions` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/call/db/definitions/callSessions.ts:19`
 - [ ] `frontline_facebook_messengers_bots` from collection `facebook_messengers_bots` (20 fields, draft `frontlineFacebookMessengersBots` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/facebook/db/definitions/bots.ts:99`
-- [ ] `frontline_discord_bots` from collection `discord_bots` (12 fields, draft `frontlineDiscordBots` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/bots.ts:22`
-- [ ] `frontline_customers_discord` from collection `customers_discord` (7 fields, draft `frontlineCustomersDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/customers.ts:4`
-- [ ] `frontline_conversations_discord` from collection `conversations_discord` (12 fields, draft `frontlineConversationsDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/conversations.ts:4`
-- [ ] `frontline_conversation_messages_discord` from collection `conversation_messages_discord` (14 fields, draft `frontlineConversationMessagesDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/conversationMessages.ts:14`
+- [x] `frontline_discord_bots` from collection `discord_bots` (12 fields, draft `frontlineDiscordBots` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/bots.ts:22`. Folded into `frontline_integration_accounts`
+- [x] `frontline_customers_discord` from collection `customers_discord` (7 fields, draft `frontlineCustomersDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
+- [x] `frontline_conversations_discord` from collection `conversations_discord` (12 fields, draft `frontlineConversationsDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/conversations.ts:4`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
+- [x] `frontline_conversation_messages_discord` from collection `conversation_messages_discord` (14 fields, draft `frontlineConversationMessagesDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/conversationMessages.ts:14`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
 - [ ] `frontline_telegram_reactions` from collection `telegram_reactions` (8 fields, draft `frontlineTelegramReactions` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/models/Reactions.ts:4`
-- [ ] `frontline_telegram_bots` from collection `telegram_bots` (11 fields, draft `frontlineTelegramBots` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/bots.ts:4`
-- [ ] `frontline_customers_telegram` from collection `customers_telegram` (7 fields, draft `frontlineCustomersTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/customers.ts:4`
-- [ ] `frontline_conversations_telegram` from collection `conversations_telegram` (11 fields, draft `frontlineConversationsTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/conversations.ts:4`
-- [ ] `frontline_conversation_messages_telegram` from collection `conversation_messages_telegram` (24 fields, draft `frontlineConversationMessagesTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/conversationMessages.ts:5`
+  - note: reactions wait with the inbox's reactions
+- [x] `frontline_telegram_bots` from collection `telegram_bots` (11 fields, draft `frontlineTelegramBots` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/bots.ts:4`. Folded into `frontline_integration_accounts`
+- [x] `frontline_customers_telegram` from collection `customers_telegram` (7 fields, draft `frontlineCustomersTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
+- [x] `frontline_conversations_telegram` from collection `conversations_telegram` (11 fields, draft `frontlineConversationsTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/conversations.ts:4`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
+- [x] `frontline_conversation_messages_telegram` from collection `conversation_messages_telegram` (24 fields, draft `frontlineConversationMessagesTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/conversationMessages.ts:5`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
 - [ ] `frontline_integrations_callpro` from collection `integrations_callpro` (4 fields, draft `frontlineIntegrationsCallpro` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/callpro/db/definitions/integrations.ts:4`
 - [ ] `frontline_customers_callpro` from collection `customers_callpro` (4 fields, draft `frontlineCustomersCallpro` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/callpro/db/definitions/customers.ts:4`
 - [ ] `frontline_conversations_callpro` from collection `conversations_callpro` (7 fields, draft `frontlineConversationsCallpro` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/callpro/db/definitions/conversations.ts:4`
 - [ ] `frontline_logs_callpro` from collection `logs_callpro` (5 fields, draft `frontlineLogsCallpro` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/callpro/db/definitions/logs.ts:4`
-- [ ] `frontline_mail_integrations` from collection `mail_integrations` (13 fields, draft `frontlineMailIntegrations` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/integrations.ts:17`
-- [ ] `frontline_mail_customers` from collection `mail_customers` (6 fields, draft `frontlineMailCustomers` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/customers.ts:4`
-- [ ] `frontline_mail_messages` from collection `mail_messages` (33 fields, draft `frontlineMailMessages` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/messages.ts:31`
+- [x] `frontline_mail_integrations` from collection `mail_integrations` (13 fields, draft `frontlineMailIntegrations` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/integrations.ts:17`. Folded into `frontline_integration_accounts`; pipeline addresses wait with Cloudflare routing
+- [x] `frontline_mail_customers` from collection `mail_customers` (6 fields, draft `frontlineMailCustomers` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
+- [x] `frontline_mail_messages` from collection `mail_messages` (33 fields, draft `frontlineMailMessages` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/messages.ts:31`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
 - [ ] `frontline_mail_drafts` from collection `mail_drafts` (15 fields, draft `frontlineMailDrafts` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/drafts.ts:5`
+  - note: drafts need a draft state on inbox messages and a review step in the inbox's composer
 - [ ] `frontline_mail_cloudflare` from collection `mail_cloudflare` (22 fields, draft `frontlineMailCloudflare` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/cloudflare.ts:15`
 
 ### Procedures
@@ -888,27 +892,27 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] query `callProIntegrationDetail` → procedure `callProIntegrations.get` (returns `CallProIntegrationDetail`) `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
 - [ ] query `callProCustomersByPhone` → procedure `callProCustomersByPhones.get` (returns `[Customer]`) `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
 - [ ] mutation `callProCustomerSelect` → procedure `integrations.callProCustomerSelect` (returns `Conversation`) `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:19`
-- [ ] query `discordStickerAnimation` → procedure `discordStickerAnimations.get` (returns `JSON`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
+- [x] query `discordStickerAnimation` → procedure `discordStickerAnimations.get` (returns `JSON`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
 - [x] query `discordBots` → `integrations.accounts.list({ provider: 'discord' })` `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
 - [x] query `discordBot` → folded into `integrations.accounts.list` `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
 - [x] query `discordBotsTotalCount` → folded into `integrations.accounts.list`, which returns them all `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
 - [x] query `discordValidateToken` → folded into `integrations.discord.connect`, which refuses a token Discord refuses `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordGuilds` → procedure `discordGuilds.list` (returns `[FrontlineDiscordGuild]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordGuildChannels` → procedure `discordGuildChannels.list` (returns `[DiscordChannel]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordBotChannels` → procedure `discordBotChannels.list` (returns `[DiscordChannel]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordConversationChannel` → procedure `discordConversationChannels.get` (returns `DiscordConversationChannel`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordConversationChannels` → procedure `discordConversationChannels.list` (returns `[DiscordConversationChannel]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordConversationParticipants` → procedure `discordConversationParticipants.list` (returns `[DiscordParticipant]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordChannelMembers` → procedure `discordChannelMembers.list` (returns `DiscordChannelMembersResult`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordServers` → procedure `discordServers.list` (returns `[DiscordServer]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordConnectedServers` → procedure `discordConnectedServers.list` (returns `[DiscordConnectedServer]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordTakenChannels` → procedure `discordTakenChannels.list` (returns `[String]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
-- [ ] query `discordNamePresets` → procedure `discordNamePresets.list` (returns `[String]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131`
+- [x] query `discordGuilds` → procedure `discordGuilds.list` (returns `[FrontlineDiscordGuild]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] query `discordGuildChannels` → procedure `discordGuildChannels.list` (returns `[DiscordChannel]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] query `discordBotChannels` → procedure `discordBotChannels.list` (returns `[DiscordChannel]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] query `discordConversationChannel` → procedure `discordConversationChannels.get` (returns `DiscordConversationChannel`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] query `discordConversationChannels` → procedure `discordConversationChannels.list` (returns `[DiscordConversationChannel]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] query `discordConversationParticipants` → procedure `discordConversationParticipants.list` (returns `[DiscordParticipant]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] query `discordChannelMembers` → procedure `discordChannelMembers.list` (returns `DiscordChannelMembersResult`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] query `discordServers` → procedure `discordServers.list` (returns `[DiscordServer]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] query `discordConnectedServers` → procedure `discordConnectedServers.list` (returns `[DiscordConnectedServer]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] query `discordTakenChannels` → procedure `discordTakenChannels.list` (returns `[String]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] query `discordNamePresets` → procedure `discordNamePresets.list` (returns `[String]`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:131` (filed https://github.com/erxes/erxes/issues/10585)
 - [x] mutation `discordAddBot` → `integrations.discord.connect` `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
-- [ ] mutation `discordUpdateBot` → procedure `integrations.discordUpdateBot` (returns `DiscordBot`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
+- [x] mutation `discordUpdateBot` → procedure `integrations.discordUpdateBot` (returns `DiscordBot`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`. Folded into `integrations.discord.connect`: connecting the same bot again refreshes its token
 - [x] mutation `discordRemoveBot` → `integrations.accounts.remove` `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
-- [ ] mutation `discordEditMessage` → procedure `integrations.discordEditMessage` (returns `JSON`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
-- [ ] mutation `discordDeleteMessage` → procedure `integrations.discordDeleteMessage` (returns `JSON`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150`
+- [x] mutation `discordEditMessage` → procedure `integrations.discordEditMessage` (returns `JSON`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] mutation `discordDeleteMessage` → procedure `integrations.discordDeleteMessage` (returns `JSON`) `frontline_api/src/modules/integrations/discord/graphql/schema/discord.ts:150` (filed https://github.com/erxes/erxes/issues/10585)
 - [x] query `facebookGetAccounts` → `integrations.accounts.list({ provider: 'facebook' })` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookGetIntegrations` → the inbox's `integrations.list`; a `facebook` integration's `config.accountId` names its page `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookGetIntegrationDetail` → the inbox's `integrations.get` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
@@ -967,40 +971,55 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] mutation `instagramMessengerRemoveBot` → procedure `integrations.instagramMessengerRemoveBot` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [ ] mutation `instagramMessengerRepairBot` → procedure `integrations.instagramMessengerRepairBot` (returns `JSON`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [ ] query `mailVerifiedContacts` → procedure `mailVerifiedContacts.list` (returns `MailVerifiedContacts!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+  - note: the recipient picker comes with the compose screen; it reads core's customers with the member's session
 - [x] query `mailConversationDetail` → the inbox's `conversations.messages.list` `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
-- [ ] query `mailConversationInternalNotes` → procedure `mailConversationInternalNotes.list` (returns `[ConversationMessage!]!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
-- [ ] query `mailConversationInternalNotesCount` → procedure `mailConversationInternalNotesCounts.get` (returns `Int!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
-- [ ] query `mailSendingReadiness` → procedure `mailSendingReadiness.list` (returns `MailSendingReadiness`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+- [x] query `mailConversationInternalNotes` → procedure `mailConversationInternalNotes.list` (returns `[ConversationMessage!]!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. Folded into `conversations.messages.list`, which returns the inbox's internal notes
+- [x] query `mailConversationInternalNotesCount` → procedure `mailConversationInternalNotesCounts.get` (returns `Int!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. Folded into `conversations.messages.list`
+- [x] query `mailSendingReadiness` → procedure `mailSendingReadiness.list` (returns `MailSendingReadiness`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. Folded into the account's `status` from `integrations.accounts.check`
 - [ ] query `mailConversationDrafts` → procedure `mailConversationDrafts.list` (returns `[MailDraft]`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+  - note: drafts need a draft state on inbox messages and a review step in the inbox's composer
 - [x] query `mailInboxes` → `integrations.accounts.list({ provider: 'mail' })` `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [ ] query `mailPipelineIntegration` → procedure `mailPipelineIntegrations.get` (returns `MailPipelineIntegration`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
-- [ ] query `mailSenders` → procedure `mailSenders.list` (returns `[MailSender!]!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+  - note: a pipeline address is a Cloudflare routing address; waits on the Cloudflare decision
+- [x] query `mailSenders` → procedure `mailSenders.list` (returns `[MailSender!]!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. Folded into `integrations.accounts.list({ provider: 'mail' })`
 - [ ] query `mailTicketReplyTarget` → procedure `mailTicketReplyTargets.get` (returns `MailTicketReplyTarget`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+  - note: a pipeline address is a Cloudflare routing address; waits on the Cloudflare decision
 - [ ] query `mailCloudflareConnection` → procedure `mailCloudflareConnections.get` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [ ] query `mailCloudflareSendingQuota` → procedure `mailCloudflareSendingQuotas.get` (returns `MailCloudflareSendingQuota`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [ ] query `mailCloudflareZones` → procedure `mailCloudflareZones.list` (returns `[MailCloudflareZone]`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
-- [ ] mutation `mailSendMail` → procedure `integrations.mailSendMail` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+- [x] mutation `mailSendMail` → procedure `integrations.mailSendMail` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. `integrations.mail.compose` writes a new mail; replies are `conversations.messages.create`
 - [ ] mutation `mailSendReaction` → procedure `integrations.mailSendReaction` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: reactions wait with the inbox's reactions
 - [ ] mutation `mailPipelineConnect` → procedure `integrations.mailPipelineConnect` (returns `MailPipelineIntegration`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: a pipeline address is a Cloudflare routing address; waits on the Cloudflare decision
 - [ ] mutation `mailPipelineUpdate` → procedure `mailPipelines.update` (returns `MailPipelineIntegration`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: a pipeline address is a Cloudflare routing address; waits on the Cloudflare decision
 - [ ] mutation `mailPipelineForwardVerified` → procedure `integrations.mailPipelineForwardVerified` (returns `MailPipelineIntegration`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: a pipeline address is a Cloudflare routing address; waits on the Cloudflare decision
 - [ ] mutation `mailPipelineDisconnect` → procedure `integrations.mailPipelineDisconnect` (returns `Boolean`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: a pipeline address is a Cloudflare routing address; waits on the Cloudflare decision
 - [ ] mutation `mailTicketNoteRetry` → procedure `integrations.mailTicketNoteRetry` (returns `TicketNote`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
-- [ ] mutation `mailMessageRetry` → procedure `integrations.mailMessageRetry` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: a pipeline address is a Cloudflare routing address; waits on the Cloudflare decision
+- [x] mutation `mailMessageRetry` → procedure `integrations.mailMessageRetry` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. `conversations.messages.retry` sends any failed reply again
 - [ ] mutation `mailDraftSave` → procedure `integrations.mailDraftSave` (returns `MailDraft`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: drafts need a draft state on inbox messages and a review step in the inbox's composer
 - [ ] mutation `mailDraftApprove` → procedure `integrations.mailDraftApprove` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: drafts need a draft state on inbox messages and a review step in the inbox's composer
 - [ ] mutation `mailDraftRemove` → procedure `mailDrafts.remove` (returns `MailDraft`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+  - note: drafts need a draft state on inbox messages and a review step in the inbox's composer
 - [x] mutation `mailCheckConnection` → `integrations.accounts.check` `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
 - [ ] mutation `mailCloudflareConnect` → procedure `integrations.mailCloudflareConnect` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
 - [ ] mutation `mailCloudflareProvision` → procedure `integrations.mailCloudflareProvision` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
 - [ ] mutation `mailCloudflareDisconnect` → procedure `integrations.mailCloudflareDisconnect` (returns `Boolean`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
 - [ ] query `telegramMessageLinkPreviews` → procedure `telegramMessageLinkPreviews.list` (returns `[TelegramLinkPreview!]!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
+  - note: rich messages wait with the inbox's HTML messages
 - [ ] query `telegramConversationChats` → procedure `telegramConversationChats.list` (returns `[TelegramConversationChat!]!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
+  - note: forum topics are not read yet; a group is one conversation named by its title
 - [x] query `telegramBots` → `integrations.accounts.list({ provider: 'telegram' })` `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
 - [x] query `telegramBot` → folded into `integrations.accounts.list` `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
 - [x] query `telegramValidateToken` → folded into `integrations.telegram.connect`, which refuses a token Telegram refuses `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
-- [ ] query `telegramBotWebhookInfo` → procedure `telegramBotWebhookInfos.get` (returns `TelegramWebhookInfo!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
-- [ ] mutation `telegramUpdateBot` → procedure `integrations.telegramUpdateBot` (returns `TelegramBot!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`
+- [x] query `telegramBotWebhookInfo` → procedure `telegramBotWebhookInfos.get` (returns `TelegramWebhookInfo!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`. `integrations.telegram.webhookInfo`
+- [x] mutation `telegramUpdateBot` → procedure `integrations.telegramUpdateBot` (returns `TelegramBot!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`. Folded into `integrations.telegram.connect`: connecting the same bot again refreshes its token and webhook
 - [x] mutation `telegramDisconnectBot` → `integrations.accounts.remove`, which deletes the webhook `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`
 - [x] mutation `telegramAddBot` → `integrations.telegram.connect` `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`
 - [x] mutation `telegramSetWebhook` → folded into `integrations.telegram.connect`, which sets a webhook with its own key and secret `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:73`
@@ -1025,20 +1044,22 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/integrations/facebook/handleFacebookMessage.ts:191`
 - [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/instagram/controller/store.ts:76`
 - [ ] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/integrations/instagram/handleInstagramMessage.ts:176`
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/db/models/Customers.ts:46`
+- [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/db/models/Customers.ts:46`. `customerFor` asks core's `customers.findOrCreate` by the address, then links it
 - [x] core `customers.createCustomer` → the inbox's `customerFor` makes the sender a lead and links their address in `frontline_customer_links` `frontline_api/src/modules/integrations/mail/db/models/Customers.ts:58`
-- [ ] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/integrations/mail/trpc/mail.ts:22`
-- [ ] core `emailDeliveries.create` → plugin-owned `frontline_email_deliveries` (mail sent from the organisation's own mailbox is the plugin's to log) `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:13`
-- [ ] core `emailDeliveries.recordHandoff` → plugin-owned `frontline_email_deliveries` `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:24`
-- [ ] core `emailSuppression.blocked` → plugin-owned `frontline_email_suppressions` (bounces and opt-outs the plugin hears from its mailbox) `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:37`
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/utils/mailRecipient.ts:8`
+- [x] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/integrations/mail/trpc/mail.ts:22`. The inbox's channel access decides who reads a mail conversation
+- [x] core `emailDeliveries.create` → plugin-owned `frontline_email_deliveries` (mail sent from the organisation's own mailbox is the plugin's to log) `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:13`. Folded into the message's `deliveryStatus`
+- [x] core `emailDeliveries.recordHandoff` → plugin-owned `frontline_email_deliveries` `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:24`. Folded into the message's `deliveryStatus`
+- [x] core `emailSuppression.blocked` → plugin-owned `frontline_email_suppressions` (bounces and opt-outs the plugin hears from its mailbox) `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:37`. `frontline_email_suppressions`, filled from bounce and spam reports in the mailbox; `integrations.mail.suppressions` lists and removes them
+- [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/utils/mailRecipient.ts:8`. The reply goes to the customer's linked address
 - [ ] core `customers.findActiveCustomers` → sdk `customers.list` (scope customers:read) `frontline_api/src/modules/integrations/mail/utils/recipients.ts:55`
+  - note: the recipient picker comes with the compose screen; it reads core's customers with the member's session
 - [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/utils/tickets.ts:187`
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/telegram/controller/store.ts:44`
+  - note: a pipeline address is a Cloudflare routing address; waits on the Cloudflare decision
+- [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/telegram/controller/store.ts:44`. The reply goes to the customer's linked chat
 
 ### Events
 
-- [ ] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/discord/services/messages/inbound.ts:115`
+- [x] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/discord/services/messages/inbound.ts:115` (filed https://github.com/erxes/erxes/issues/10585)
 - [ ] `sendAutomationDeferredCompletion` → plugin-owned `the action answers at once ({ queued: true, jobId })` (the plugin keeps the final result on its own job row, and on the timeline with activities.create) `frontline_api/src/modules/integrations/facebook/commentOutbox.ts:196`
 - [ ] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/facebook/controller/store.ts:241`
 - [ ] `sendNotification` → sdk `notifications.create` (scope notifications:write; kind in manifest.notificationKinds) `frontline_api/src/modules/integrations/facebook/db/models/Bots.ts:374`
@@ -1051,8 +1072,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [ ] `sendNotifications` → sdk `notifications.create` (scope notifications:write) `frontline_api/src/modules/integrations/instagram/graphql/resolvers/mutations.ts:105`
 - [ ] `sendNotifications` → sdk `notifications.create` (scope notifications:write) `frontline_api/src/modules/integrations/instagram/handleInstagramMessage.ts:185`
 - [ ] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/instagram/meta/automation/utils/messageUtils.ts:59`
-- [ ] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/mail/controller/receiveMessage.ts:353`
-- [ ] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/telegram/controller/receiveMessage.ts:117`
+- [x] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/mail/controller/receiveMessage.ts:353`. `frontline.mail.received`, published by `receive` with the message
+- [x] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/telegram/controller/receiveMessage.ts:117`. `frontline.telegram.message_received`, published by `receive` with the message
 
 ### Routes
 

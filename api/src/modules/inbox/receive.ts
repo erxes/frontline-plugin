@@ -7,8 +7,8 @@ import { conversations, customerLinks, integrations, messages } from '#/db/inbox
 import type { Attachment } from '#/db/table.ts';
 import { publishConversationEvents, signalConversations } from './shared.ts';
 
-/** The provider's user, as an adapter knows them. */
-type Sender = { source: string; externalId: string; firstName: string };
+/** The provider's user, as an adapter knows them; `email` when the provider gives one. */
+type Sender = { source: string; externalId: string; firstName: string; email?: string };
 
 const linkedCustomer = (orgId: string, { source, externalId }: Sender) =>
   withOrg(orgId, async (tx) => {
@@ -21,20 +21,21 @@ const linkedCustomer = (orgId: string, { source, externalId }: Sender) =>
   });
 
 /**
- * The core customer behind a provider's user id: the linked one, else a new lead in core and its
- * link. Calls core outside any transaction. Two first messages at once make one link; the loser's
- * new customer stays in core unlinked.
+ * The core customer behind a provider's user id: the linked one, else core's customer with that
+ * email, else a new lead in core, and its link. Calls core outside any transaction. Two first
+ * messages at once make one link; the loser's new customer stays in core unlinked.
  */
 export const customerFor = async (orgId: string, sender: Sender) => {
   const linked = await linkedCustomer(orgId, sender);
 
   if (linked) return linked;
 
-  const created = await core.forOrg(orgId).customers.create({
-    firstName: sender.firstName,
-    state: 'lead',
-    source: sender.source,
-  });
+  const lead = { firstName: sender.firstName, state: 'lead' as const, source: sender.source };
+  const customers = core.forOrg(orgId).customers;
+
+  const created = sender.email
+    ? (await customers.findOrCreate({ ...lead, primaryEmail: sender.email })).customer
+    : await customers.create(lead);
 
   await withOrg(orgId, (tx) =>
     tx
@@ -87,6 +88,8 @@ export type Incoming = {
   attachments?: Attachment[];
   /** What only the adapter reads back, such as a mail's subject. */
   providerData?: Record<string, unknown>;
+  /** The event type a new message publishes for automations to start from. */
+  event?: string;
 };
 
 /** The conversation `incoming` belongs to, locked, or a new one with its `started` event. */
@@ -164,7 +167,8 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
 /**
  * Adds a customer's message to its conversation, starting one when it has none, in one
  * transaction: the conversation waits on a reply again, unread by everyone, and a resolved one
- * reopens. A message the provider sent before (`externalId`) adds nothing. Returns the message.
+ * reopens. A new message publishes `event` for automations. A message the provider sent before
+ * (`externalId`) adds nothing. Returns the message.
  */
 export const receive = (orgId: string, incoming: Incoming) =>
   withOrg(orgId, async (tx) => {
@@ -213,6 +217,21 @@ export const receive = (orgId: string, incoming: Incoming) =>
         resolvedBy: null,
       })
       .where(eq(conversations.id, conversation.id));
+
+    if (incoming.event)
+      await publishConversationEvents(tx, orgId, null, [
+        {
+          conversationId: conversation.id,
+          customerId: conversation.customerId,
+          type: incoming.event,
+          summary: null,
+          payload: {
+            messageId: message.id,
+            integrationId: incoming.integrationId,
+            content: message.content,
+          },
+        },
+      ]);
 
     await signalConversations(tx, orgId, [conversation]);
     await publishMessageReceived(tx, orgId, {
