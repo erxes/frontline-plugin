@@ -104,8 +104,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 - [x] `frontline_api/src/modules/customdomain/schedule.ts` (upsertJobScheduler) → plugin-owned: a job in the API process. The `helpcenter.domains` job (`JOBS.domains`)
 - [x] `frontline_api/src/modules/customdomain/worker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process. The `helpcenter.domains` job (`JOBS.domains`)
-- [ ] `frontline_api/src/modules/form/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
-  - note: the Create form link action isn't ported; `manifest.actions` (`api/src/core.ts`) has no form action
+- [x] `frontline_api/src/modules/form/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The Create form link step runs when core calls `/api/automations/actions` (`createFormLink` in `api/src/modules/forms/links.ts`); core matches the Form submitted trigger's conditions on the event's fields itself
 - [x] `frontline_api/src/modules/inbox/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
 - [x] `frontline_api/src/modules/integrations/discord/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The send action runs when core calls `/api/automations/actions`
 - [x] `frontline_api/src/modules/integrations/facebook/commentOutboxWorker.ts` → the inbox's `messages.send` job
@@ -189,8 +188,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] default role `frontline:user` → sdk `manifest.permissionSets` (a set of its permissions an owner adds to any role; members keep one role) `frontline_api/src/meta/permissions.ts:483`. `user` in `manifest.permissionSets` (`api/src/core.ts`): channels, inbox, knowledge base and help centers
 - [x] default role `frontline:viewer` → sdk `manifest.permissionSets` (a set of its permissions an owner adds to any role; members keep one role) `frontline_api/src/meta/permissions.ts:534`. `viewer` in `manifest.permissionSets` (`api/src/core.ts`). Decision: it reads the knowledge base and help centers, since no grant reads conversations or tickets without answering them
 - [x] automation trigger `Form submitted` → `frontline.form.submitted` in `manifest.events`, published in the submission's transaction `frontline_api/src/modules/form/meta/automation/constants.ts:56`
-- [ ] automation action `Create form link` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/form/meta/automation/constants.ts:43`
-  - note: not ported: forms are served by `/api/public/:key/forms/:code` (`api/src/modules/forms/embed.ts`), and no action makes a link to one yet
+- [x] automation action `Create form link` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/form/meta/automation/constants.ts:43`. `frontline.form.create_link`, its form picked from `GET /api/automations/records/form`; `/api/public/:key/forms/:code` takes one answer per link (`api/src/modules/forms/links.ts`, the form link row in DECISIONS.md)
 - [x] automation trigger `Conversation event` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:101`
 - [x] automation trigger `Erxes Messenger Message` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:113`
 - [x] automation action `Send Erxes Messenger Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:161`
@@ -266,8 +264,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `STATIC_CHANNEL_ID` → api/src/config.ts `frontline_api/src/migrations/migrateTickets.ts:24`. dropped: an old Mongo data migration; `scripts/import-mongo.ts` copies the old data
 - [x] `TIMEZONE` → each PBX account's `timeZone`; CDR times are read in it `frontline_api/src/modules/integrations/call/utils.ts:586`
 - [x] `TZ` → api/src/config.ts `frontline_api/src/modules/reports/utils.ts:384`. (filed https://github.com/erxes/erxes/issues/10581)
-- [ ] `WIDGETS_DOMAIN` → api/src/config.ts `frontline_api/src/modules/form/meta/automation/createFormLinkAction.ts:87`
-  - note: the Create form link action isn't ported
+- [x] `WIDGETS_DOMAIN` → api/src/config.ts `frontline_api/src/modules/form/meta/automation/createFormLinkAction.ts:87`. `config.widgetsDomain`: a form link opens `<WIDGETS_DOMAIN>/forms/<key>/<code>?link=<token>`; unset, the step fails and says so
 
 ### Shared UI
 
@@ -301,8 +298,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `IField` (7 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `useFields` (7 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `AutomationNodeMetaInfoRow` (6 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
-- [ ] `buildAutomationSeedLink` (6 files)
-  - note: no page links into core's automation builder with a seeded trigger yet; members start automations there from `manifest.events`
+- [x] `buildAutomationSeedLink` (6 files) (filed https://github.com/erxes/erxes/issues/10658)
 - [x] `useSidePanelDraft` (6 files). Core's panel keeps a draft until Save or Cancel, through `TRecordDraftProps` on each `New` slot in `ui/src/config.tsx` (the usePanelFormDraft row in DECISIONS.md)
 - [x] `AutomationExecutionHistoryNameProps` (5 files). Core's automation runs keep each step's result (the bot delivery stats row in DECISIONS.md); actions answer core at `/api/automations/actions` (`api/src/modules/inbox/automations.ts`, `api/src/modules/integrations/actions.ts`)
 - [x] `Can` (5 files). The API refuses a member without the grant (`reads` and `writes` in `api/src/orpc.ts`), and pages offer changes only in the channels the member manages (`useManagedChannels` in `ui/src/shared/ChannelSelect.tsx`)
@@ -324,8 +320,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `AssignMemberInEditor` (2 files). An internal note's `/` menu lists teammates (`ui/src/modules/inbox/slashItems.tsx`), and `conversations.messages.create` tells each one mentioned (`api/src/modules/inbox/messages.ts`). (filed https://github.com/erxes/erxes/issues/10605)
 - [x] `AUTOMATION_UNARY_OPERATORS` (2 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `AutomationAiKnowledgeSourceSelectorProps` (2 files). **drop**: the new core has no AI agents to give a knowledge source
-- [ ] `automationReturnLinkSearch` (2 files)
-  - note: no page links into core's automation builder with a seeded trigger yet; members start automations there from `manifest.events`
+- [x] `automationReturnLinkSearch` (2 files) (filed https://github.com/erxes/erxes/issues/10658)
 - [x] `AutomationTemplateRequirementProps` (2 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `CompaniesInline` (2 files). erxes-ui's `ContactLink` with `contactQueries` (`ui/src/modules/tickets/TicketLinks.tsx`)
 - [x] `ContactWidgetSection` (2 files). A customer's tickets are core's `relationTabs` (`ui/src/modules/tickets/TicketRelations.tsx`), and their conversations' events show on the customer's Activity tab (`CONVERSATION_EVENTS` in `api/src/core.ts`)

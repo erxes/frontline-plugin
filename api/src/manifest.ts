@@ -5,7 +5,9 @@ import {
   COMMENT_RECEIVED,
   CONVERSATION_EVENTS,
   CONVERSATION_TIMELINE,
+  FORM_ACTIONS,
   FORM_EVENTS,
+  FORM_LINK_DAYS,
   FORM_TIMELINE,
   INBOX_ACTIONS,
   INBOX_NOTIFICATIONS,
@@ -178,6 +180,12 @@ export const manifest = {
       label: FORM_EVENTS.submitted.label,
       description: 'A visitor sent a form; the customer is who sent it',
       subject: 'customer',
+      fields: [
+        { key: 'formId', label: 'Form ID', type: 'text' },
+        { key: 'submissionId', label: 'Submission ID', type: 'text' },
+        { key: 'referenceType', label: 'Answered about (record type)', type: 'text' },
+        { key: 'referenceId', label: 'Answered about (record ID)', type: 'text' },
+      ],
     },
     ...Object.values(CONVERSATION_EVENTS).map(({ type, label }) => ({
       type,
@@ -216,6 +224,28 @@ export const manifest = {
       description: 'Stops automated replies, tells the customer and can assign a member',
       subject: 'customer',
       fields: [{ key: 'assigneeIds', label: 'Assign to', type: 'members', required: false }],
+    },
+    {
+      type: FORM_ACTIONS.createLink,
+      label: 'Create form link',
+      description:
+        "A personal link to a form: its answer is saved as the run's customer's, about the record the run started on, once",
+      fields: [
+        { key: 'formId', label: 'Form', type: 'plugin_record', recordType: 'form', required: true },
+        {
+          key: 'expiresInDays',
+          label: 'Expires after (days)',
+          type: 'number',
+          required: false,
+          placeholder: String(FORM_LINK_DAYS.default),
+        },
+      ],
+      outputs: [
+        { key: 'url', label: 'Form link', type: 'text' },
+        { key: 'expiresAt', label: 'Link expires at', type: 'date' },
+        { key: 'linkId', label: 'Link ID', type: 'text' },
+        { key: 'formId', label: 'Form ID', type: 'text' },
+      ],
     },
     ...Object.values(SEND_ACTIONS).map((action) => ({
       ...action,

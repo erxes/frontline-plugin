@@ -4,11 +4,18 @@ import { eq } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { config, PLUGIN } from '#/config.ts';
-import { CONVERSATION_EVENTS, core, INBOX_ACTIONS, INBOX_NOTIFICATIONS } from '#/core.ts';
+import {
+  CONVERSATION_EVENTS,
+  core,
+  FORM_ACTIONS,
+  INBOX_ACTIONS,
+  INBOX_NOTIFICATIONS,
+} from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
 import { fail } from '../fail.ts';
+import { createFormLink } from '../forms/links.ts';
 import { sendKindOf, sendMessage } from '../integrations/actions.ts';
 import { addBotMessage, setOperatorOf } from './operator.ts';
 import { publishConversationEvents, signalConversations } from './shared.ts';
@@ -120,7 +127,7 @@ const handOff = async (call: CoreCall, body: Body) => {
 
 /**
  * `POST /api/automations/actions/:type`: core runs one of the plugin's actions for an automation,
- * an inbox action or a provider's send step.
+ * an inbox action, a form link or a provider's send step.
  * The JSON answer is the step's output; anything but 2xx fails the step.
  */
 export const runAction = async (req: Request, res: Response) => {
@@ -151,6 +158,12 @@ export const runAction = async (req: Request, res: Response) => {
 
     if (req.params.type === INBOX_ACTIONS.handOff) {
       res.json(await handOff(call, body));
+
+      return;
+    }
+
+    if (req.params.type === FORM_ACTIONS.createLink) {
+      res.json(await createFormLink(call, req.body, key));
 
       return;
     }

@@ -200,6 +200,14 @@ export const FORM_EVENTS = {
   submitted: { type: 'frontline.form.submitted', label: 'Form submitted' },
 } as const;
 
+/** What automations can do with forms (`modules/forms/links.ts`). */
+export const FORM_ACTIONS = {
+  createLink: 'frontline.form.create_link',
+} as const;
+
+/** How many days a form link lasts when the step leaves it out, and at most. */
+export const FORM_LINK_DAYS = { default: 30, max: 365 } as const;
+
 /** The record type whose Activity tab shows a survey's events. */
 export const SURVEY_TIMELINE = 'frontline.survey';
 

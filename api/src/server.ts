@@ -10,7 +10,9 @@ import { config, PLUGIN } from '#/config.ts';
 import { JOB_RUNS } from '#/jobs.ts';
 import { logger } from '#/logger.ts';
 import { manifest } from '#/manifest.ts';
+import { fail } from '#/modules/fail.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
+import { formChoices } from '#/modules/forms/links.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
 import { runAction } from '#/modules/inbox/automations.ts';
 import { webhookRoutes } from '#/modules/integrations/routes.ts';
@@ -62,6 +64,30 @@ const signedIn =
 
     if (!matched) next();
   };
+
+/**
+ * What core's automations call: the manifest's actions, signed by core (the inbox's, the form
+ * link and the send steps), and a `plugin_record` field's choices, as the member in the builder.
+ */
+const automationRoutes = () =>
+  express
+    .Router()
+    .post('/actions/:type', express.json({ limit: '256kb' }), runAction)
+    .get('/records/form', async (req, res) => {
+      const member = await memberOf(req.headers.authorization);
+
+      if (!member) {
+        res.status(401).json({ message: 'Open this plugin inside erxes to sign in' });
+
+        return;
+      }
+
+      try {
+        res.json(await formChoices(member));
+      } catch (error) {
+        fail(res, error, 'form choices');
+      }
+    });
 
 export const createApp = () => {
   const app = express();
@@ -162,8 +188,7 @@ export const createApp = () => {
     res.sendStatus(204);
   });
 
-  // Core runs the manifest's automation actions here, signed: the inbox's and the send steps.
-  app.post('/api/automations/actions/:type', express.json({ limit: '256kb' }), runAction);
+  app.use('/api/automations', automationRoutes());
 
   if (config.uiDir) app.use('/ui', express.static(config.uiDir));
 

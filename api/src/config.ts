@@ -14,6 +14,11 @@ const Env = z.object({
   PLUGIN_SECRET: z.string().min(32),
   /** Where core and browsers reach this API. */
   PUBLIC_URL: z.url().default('http://localhost:3399'),
+  /**
+   * The widgets app that draws forms for visitors. A form link opens
+   * `<WIDGETS_DOMAIN>/forms/<key>/<code>?link=<token>`; without it, automations make no links.
+   */
+  WIDGETS_DOMAIN: z.url().optional(),
   /** The UI remote's entry; the built UI is served at `/ui` unless this points elsewhere. */
   UI_ENTRY_URL: z.url().optional(),
   /** The built UI to serve at `/ui` (the image sets it). */
@@ -53,6 +58,7 @@ export const config = {
   publicUrl: env.PUBLIC_URL.replace(/\/+$/, ''),
   uiEntryUrl: env.UI_ENTRY_URL ?? `${env.PUBLIC_URL.replace(/\/+$/, '')}/ui/remoteEntry.js`,
   uiDir: env.UI_DIR,
+  widgetsDomain: env.WIDGETS_DOMAIN?.replace(/\/+$/, ''),
   coreUiOrigin: new URL(env.CORE_UI_URL ?? env.CORE_URL).origin,
   logLevel: env.LOG_LEVEL,
   version: env.VERSION,
