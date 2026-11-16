@@ -1,0 +1,1 @@
+ALTER TABLE "frontline_conversations" ADD COLUMN "properties_data" jsonb DEFAULT '{}'::jsonb NOT NULL;

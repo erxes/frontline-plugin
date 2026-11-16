@@ -3,6 +3,7 @@ import {
   IconCheck,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
+  IconLayoutSidebarRightExpand,
   IconPlus,
   IconRefresh,
   IconTag,
@@ -17,11 +18,12 @@ import {
   Popover,
   SelectMember,
   stored,
+  useOpenRecord,
 } from 'erxes-ui';
 import { useAtom } from 'jotai';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { PLUGIN } from '~/plugin.ts';
+import { CONVERSATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { ConversationMenu, VisitorTyping } from './ConversationPresence.tsx';
 import { KindIcon } from './InboxFilter.tsx';
 import {
@@ -141,6 +143,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
   const setStatus = useSetStatus();
   const resolved = conversation.status === 'resolved';
   const tags = useTags(conversation);
+  const { open } = useOpenRecord();
 
   return (
     <header className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
@@ -176,6 +179,16 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         tagIds={conversation.tagIds}
         label={tags.length === 0 ? t('add-tags', 'Add tags') : t('edit-tags', 'Edit tags')}
       />
+      <IconTip label={t('conversation-details', 'Details and properties')}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t('conversation-details', 'Details and properties')}
+          onClick={() => open({ contentType: CONVERSATION_TYPE, contentId: conversation.id })}
+        >
+          <IconLayoutSidebarRightExpand />
+        </Button>
+      </IconTip>
       <Button
         variant="outline"
         size="sm"

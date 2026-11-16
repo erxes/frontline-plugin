@@ -5,9 +5,19 @@ import { PERMISSIONS } from '#/core.ts';
 import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 
+type Values = Record<string, unknown>;
+
 // Tests never reach core: each visitor becomes a customer of this stand-in, a search finds the
-// customers a test sets, and notifications go nowhere.
-const created = vi.hoisted(() => ({ customers: 0, searches: new Map<string, string[]>() }));
+// customers a test sets, `ada@e2e.test` is a customer already, Acme is a company already, a
+// field check applies the patch, and notifications go nowhere. Changes to customers and new
+// companies are kept for the test to read.
+const created = vi.hoisted(() => ({
+  customers: 0,
+  searches: new Map<string, string[]>(),
+  updates: [] as { id: string; customFields?: Values }[],
+  companies: [] as { primaryName: string; customFields?: Values }[],
+  links: [] as { id: string; companyId: string }[],
+}));
 
 vi.mock('#/core.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof CoreModule>();
@@ -25,6 +35,35 @@ vi.mock('#/core.ts', async (importOriginal) => {
           },
           list: async ({ search }: { search: string }) => ({
             data: (created.searches.get(search) ?? []).map((id) => ({ id })),
+          }),
+          findOrCreate: async ({ primaryEmail }: { primaryEmail?: string }) =>
+            primaryEmail === 'ada@e2e.test'
+              ? { customer: { id: 'customer-ada' }, created: false }
+              : { customer: { id: `lead-${primaryEmail}` }, created: true },
+          update: async (input: { id: string; customFields?: Values }) => {
+            created.updates.push(input);
+
+            return { id: input.id };
+          },
+          linkCompany: async (input: { id: string; companyId: string }) => {
+            created.links.push(input);
+
+            return { ok: true };
+          },
+        },
+        companies: {
+          list: async () => ({ data: [{ id: 'company-acme', primaryName: 'Acme' }] }),
+          create: async (input: { primaryName: string; customFields?: Values }) => {
+            created.companies.push(input);
+
+            return { id: `company-${input.primaryName}`, primaryName: input.primaryName };
+          },
+        },
+        fields: {
+          check: async ({ current, patch }: { current: Values; patch: Values }) => ({
+            values: Object.fromEntries(
+              Object.entries({ ...current, ...patch }).filter(([, value]) => value !== null),
+            ),
           }),
         },
         notifications: { create: async () => ({ ok: true }) },
@@ -61,7 +100,7 @@ const setUp = async (orgId: string, contents: string[]) => {
   // Newest first.
   const ids = (await teammate.conversations.list({})).conversations.map((row) => row.id);
 
-  return { owner, teammate, channel, ids };
+  return { owner, teammate, channel, ids, key: integration.publicKey };
 };
 
 describe('inbox list', () => {
@@ -194,5 +233,66 @@ describe('inbox list', () => {
     await expect(
       clientAs('org-ib-other').conversations.messages.linkPreviews({ id: message?.id ?? '' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it("keeps a conversation's custom field values as core checks them", async () => {
+    const { owner, teammate, ids } = await setUp('org-ib-fields', ['I need ten seats']);
+    const id = ids[0] ?? '';
+
+    await expect(
+      owner.conversations.properties.save({ id, patch: { plan: 'pro', seats: 10 } }),
+    ).resolves.toEqual({ plan: 'pro', seats: 10 });
+    await owner.conversations.properties.save({ id, patch: { seats: null } });
+    await expect(teammate.conversations.properties.values({ id })).resolves.toEqual({
+      plan: 'pro',
+    });
+
+    // Reading the conversation is not changing its fields.
+    await expect(
+      teammate.conversations.properties.save({ id, patch: { plan: 'free' } }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(
+      clientAs('org-ib-elsewhere').conversations.properties.values({ id }),
+    ).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
+  it("saves a visitor's custom fields and company on the lead the messenger made", async () => {
+    const { key } = await setUp('org-ib-visitor', []);
+
+    created.updates.length = 0;
+    created.companies.length = 0;
+    created.links.length = 0;
+
+    await post('/connect', { key, customFields: { plan: 'pro' }, company: { name: 'acme' } });
+    await post('/connect', {
+      key,
+      identity: { email: 'new@e2e.test' },
+      customFields: { plan: 'team' },
+      company: { name: 'Globex', customFields: { size: 'small' } },
+    });
+    // An email anyone can type finds Ada, whom the visitor may not change.
+    await post('/connect', {
+      key,
+      identity: { email: 'ada@e2e.test' },
+      customFields: { plan: 'free' },
+      company: { name: 'Initech' },
+    });
+
+    expect(created.updates.map(({ customFields }) => customFields)).toEqual([
+      { plan: 'pro' },
+      { plan: 'team' },
+    ]);
+    expect(created.updates[1]?.id).toBe('lead-new@e2e.test');
+    // Acme is found by its name in any case; Globex is made with the website's fields.
+    expect(created.companies).toMatchObject([
+      { primaryName: 'Globex', customFields: { size: 'small' } },
+    ]);
+    expect(created.links.map(({ companyId }) => companyId)).toEqual([
+      'company-acme',
+      'company-Globex',
+    ]);
+    expect(created.links[1]?.id).toBe('lead-new@e2e.test');
   });
 });

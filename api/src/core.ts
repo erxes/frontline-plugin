@@ -36,6 +36,8 @@ export const PERMISSIONS = {
   inboxView: 'frontline.inbox.view',
   /** Send a channel's active surveys into its conversations. */
   surveySend: 'frontline.survey.send',
+  /** Change the custom fields of the conversations you can read. */
+  conversationEditFields: 'frontline.conversation.edit_fields',
   /** See the connected pages, bots and mailboxes. */
   integrationView: 'frontline.integration.view',
   /** Connect, check and remove pages, bots and mailboxes. */
@@ -44,7 +46,7 @@ export const PERMISSIONS = {
   callView: 'frontline.call.view',
 } as const;
 
-/** The record type whose Activity tab in core shows a conversation's events. */
+/** The conversation's record type in core: its Activity tab's events and its custom fields. */
 export const CONVERSATION_TIMELINE = 'frontline.conversation';
 
 /** What happens to a conversation, published in the change's transaction. */

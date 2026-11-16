@@ -80,7 +80,7 @@ test('the customer, their tickets and their other conversations show beside the 
   await expect(theirs.getByText(email)).toBeHidden();
 });
 
-test('a conversation opens on its own page with its customer and status, and resolves from its menu', async ({
+test('a conversation opens on its own page with its customer and status, resolves from its menu, and shows its properties', async ({
   page,
   request,
   newMember,
@@ -114,6 +114,11 @@ test('a conversation opens on its own page with its customer and status, and res
 
   await page.getByRole('link', { name: /Open in the inbox/ }).click();
   await expect(page).toHaveURL(new RegExp(`conversationId=${conversationId}`));
+
+  // The inbox opens the same record in core's panel, with the custom fields core keeps.
+  await page.getByRole('button', { name: 'Details and properties' }).click();
+  await page.getByRole('tab', { name: 'Properties' }).click();
+  await expect(page.getByRole('tabpanel', { name: 'Properties' })).toBeVisible();
 
   // A member without the inbox permission reads none of it.
   const outsider = await newMember(['frontline.channel.view']);

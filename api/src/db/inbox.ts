@@ -1,3 +1,4 @@
+import type { CustomValue } from '@erxes/core-contract';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -92,6 +93,8 @@ export const conversations = table(
     firstRespondedBy: text(),
     resolvedAt: timestamp({ withTimezone: true }),
     resolvedBy: text(),
+    /** Values of the custom fields core keeps for `frontline.conversation`, by field id. */
+    propertiesData: jsonb().$type<Record<string, CustomValue>>().notNull().default({}),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

@@ -139,7 +139,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] permission `conversationsUnassign` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:39`
 - [x] permission `conversationsChangeStatus` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:44`
 - [x] permission `conversationsResolve` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:49`
-- [ ] permission `conversationEditCustomFields` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:54`
+- [x] permission `conversationEditCustomFields` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:54`. `frontline.conversation.edit_fields` (`PERMISSIONS.conversationEditFields` in `api/src/core.ts`)
   - note: waits for plugin properties
 - [x] permission `showChannels` (channel) → `frontline.channel.view` `frontline_api/src/meta/permissions.ts:68`
 - [x] permission `showAllChannels` (channel) → `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:74`
@@ -365,8 +365,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `EmailTemplatePicker` (1 files) (filed https://github.com/erxes/erxes/issues/10652)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `ExportFieldSelection` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
-- [ ] `FieldsInDetail` (1 files)
-  - note: only the conversation's properties used it; they wait for plugin properties on conversations
+- [x] `FieldsInDetail` (1 files). Core's Properties tab on the conversation record type, `properties` in `ui/src/config.tsx`
 - [x] `FieldsInGroup` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `formatFieldValue` (1 files). `useValueText` in `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `getRelationWidgetLabel` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
@@ -379,8 +378,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `Import` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
 - [x] `InternalNoteDisplay` (1 files). Internal notes in `ui/src/modules/inbox/MessageThread.tsx`
 - [x] `IOpenRecordOptions` (1 files). erxes-ui's `useOpenRecord` (`ui/src/modules/tickets/TicketCells.tsx`)
-- [ ] `isFieldVisibleByLogic` (1 files)
-  - note: ticket properties have no show-when rules; forms have them (`api/src/modules/forms/logic.ts`)
+- [x] `isFieldVisibleByLogic` (1 files). Core's fields have no show-when rules (the conversation custom fields row in DECISIONS.md); a form's fields keep theirs in `api/src/modules/forms/logic.ts`
 - [x] `ISidePanelDraft` (1 files). Core's panel keeps a draft until Save or Cancel, through `TRecordDraftProps` on each `New` slot in `ui/src/config.tsx` (the usePanelFormDraft row in DECISIONS.md)
 - [x] `ISystemFieldRules` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
 - [x] `ITag` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
@@ -665,8 +663,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `changeConversationOperator` → procedure `inbox.changeConversationOperator` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
 - [x] mutation `conversationSetAutomatedReplyControl` → procedure `inbox.conversationSetAutomatedReplyControl` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
 - [x] mutation `conversationsResolve` → procedure `inbox.conversationsResolve` (returns `Int`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [ ] mutation `conversationEditCustomFields` → procedure `inbox.conversationEditCustomFields` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-  - note: waits for plugin properties on conversations (the HTML messages, reactions and custom fields row in DECISIONS.md)
+- [x] mutation `conversationEditCustomFields` → procedure `inbox.conversationEditCustomFields` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`. `conversations.properties.save` in `api/src/modules/inbox/properties.ts` (the conversation custom fields row in DECISIONS.md)
 - [x] query `integrations` → procedure `integrations.list` (returns `IntegrationRespone`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
 - [x] query `allLeadIntegrations` → procedure `allLeadIntegrations.list` (returns `[Integration]`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
 - [x] query `integrationsGetUsedTypes` → procedure `integrationsGetUsedTypes.list` (returns `[integrationsGetUsedTypes]`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
@@ -752,21 +749,15 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/inbox/actionHandlers.ts:104`. Each PBX operator's member comes from `frontline_call_operators` (`operatorOf` in `api/src/modules/integrations/providers/call/record.ts`)
 - [x] core `config.getConfig` → plugin-owned `frontline_settings` (country and currency: organizations.current (sdk)) `frontline_api/src/modules/inbox/actionHandlers.ts:217`. dropped: it answered the old integrations service; providers now run in the plugin (`api/src/modules/integrations/providers`)
 - [x] core `users.getIds` → sdk `users.list` (scope users:read) `frontline_api/src/modules/inbox/actionHandlers.ts:230`. dropped: it answered the old integrations service; providers now run in the plugin (`api/src/modules/integrations/providers`)
-- [ ] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/inbox/db/models/Conversations.ts:180`
-  - note: waits for plugin properties on conversations (the HTML messages, reactions and custom fields row in DECISIONS.md)
+- [x] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/inbox/db/models/Conversations.ts:180`. Core's `fields.check` in `conversations.properties.save` (`api/src/modules/inbox/properties.ts`)
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/events.ts:44`. dropped: the old code wrote visitor events to an Elasticsearch index that never existed; `frontline_visitors` keeps visits (`api/src/modules/messenger/visitors.ts`)
 - [x] core `customers.getWidgetCustomer` → sdk `customers.findOrCreate` (scope customers:write; by email or phone) `frontline_api/src/modules/inbox/events.ts:140`. `identify` in `api/src/modules/messenger/visitors.ts`, `customers.findOrCreate` by email or phone
 - [x] core `customers.createCustomer` → sdk `customers.findOrCreate` (scope customers:write; by email or phone, else customers.create (state: 'lead')) `frontline_api/src/modules/inbox/events.ts:152`. `identify` in `api/src/modules/messenger/visitors.ts`, `customers.findOrCreate` by email or phone
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/events.ts:182`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
-- [ ] core `fields.generateTypedListFromMap` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/events.ts:238`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
-- [ ] core `fields.generateTypedListFromMap` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/events.ts:251`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
-- [ ] core `customers.updateCustomer` → sdk `customers.update` (scope customers:write) `frontline_api/src/modules/inbox/events.ts:264`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/events.ts:276`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/events.ts:182`. dropped: core's `customers.update` merges the changed custom fields onto the stored ones (`saveVisitorData` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `fields.generateTypedListFromMap` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/events.ts:238`. dropped: tracked data has no place in the new core; a website sends custom fields by field id to `/connect` (`VisitorData` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `fields.generateTypedListFromMap` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/events.ts:251`. dropped: core keeps custom field values as a map by field id; `/connect` takes them as one (`VisitorData` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `customers.updateCustomer` → sdk `customers.update` (scope customers:write) `frontline_api/src/modules/inbox/events.ts:264`. `saveVisitorData` in `api/src/modules/messenger/visitors.ts`, only on a lead the messenger made (the widget's visitor data row in DECISIONS.md)
+- [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/events.ts:276`. dropped: the old code read the customer back and threw the result away
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/conversationMessageMutations.ts:77`. A reply's adapter sends it from the conversation's own fields (`api/src/modules/inbox/send.ts`)
 - [x] core `core.sendEmail` → sdk `emails.send` (scope emails:write; plain text, up to 50 addresses, replyTo; team members: notifications.create) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/conversationMessageMutations.ts:98`. dropped with lead conversations: forms own lead forms and a submission is no conversation to reply in (the Lead integrations row in DECISIONS.md)
 - [x] core `cpUsers.get` → **drop**: the new core has no client portal `frontline_api/src/modules/inbox/graphql/resolvers/mutations/conversationNotifications.ts:79`
@@ -777,19 +768,14 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] core `brands.updateOne` → **drop**: the new core has no brands; leave brand ids and names out `frontline_api/src/modules/inbox/graphql/resolvers/mutations/integrations.ts:350`
 - [x] core `customers.createCustomer` → sdk `customers.findOrCreate` (scope customers:write; by email or phone, else customers.create (state: 'lead')) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:218`
 - [x] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:247`. `identify` in `api/src/modules/messenger/visitors.ts`, `customers.findOrCreate` by email or phone
-- [ ] core `companies.findOne` → sdk `companies.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:297`
-  - note: the messenger takes no company data: `/connect` identifies the person only (`api/src/modules/messenger/visitors.ts`)
-- [ ] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:365`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `companies.findOne` → sdk `companies.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:297`. `companyFor` in `api/src/modules/messenger/visitors.ts` finds the company by its name through `companies.list`
+- [x] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:365`. Core checks the values in `customers.update` and `companies.create`; `/connect` parses them with `CustomFieldsPatch` (`VisitorData` in `api/src/modules/messenger/visitors.ts`)
 - [x] core `customers.getWidgetCustomer` → sdk `customers.findOrCreate` (scope customers:write; by email or phone) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:445`
 - [x] core `customers.updateMessengerCustomer` → sdk `customers.update` (scope customers:write; messenger session data (last seen, online, location) stays in the plugin) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:468`. the visitor's customer is the one their signed token names (`api/src/modules/messenger/session.ts`); visits, browser and address are `frontline_visitors` (`recordVisit` in `api/src/modules/messenger/visitors.ts`)
 - [x] core `customers.createMessengerCustomer` → sdk `customers.findOrCreate` (scope customers:write; state: 'lead', source: 'chat') `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:481`
-- [ ] core `fields.generatePropertiesData` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:499`
-  - note: the messenger takes no company data: `/connect` identifies the person only (`api/src/modules/messenger/visitors.ts`)
-- [ ] core `companies.updateCompany` → sdk `companies.update` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:517`
-  - note: the messenger takes no company data: `/connect` identifies the person only (`api/src/modules/messenger/visitors.ts`)
-- [ ] core `companies.createCompany` → sdk `companies.create` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:537`
-  - note: the messenger takes no company data: `/connect` identifies the person only (`api/src/modules/messenger/visitors.ts`)
+- [x] core `fields.generatePropertiesData` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:499`. dropped: `/connect` takes the company's custom fields by field id, as core keeps them (`VisitorData` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `companies.updateCompany` → sdk `companies.update` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:517`. dropped: a visitor never changes an existing company (the widget's visitor data row in DECISIONS.md)
+- [x] core `companies.createCompany` → sdk `companies.create` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:537`. `companyFor` in `api/src/modules/messenger/visitors.ts`, then `customers.linkCompany`
 - [x] core `customers.markCustomerAsActive` → plugin-owned `frontline_customers` (messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:786`
 - [x] core `customers.updateLocation` → plugin-owned `frontline_customers` (the visitor's location is messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:999`
 - [x] core `customers.updateSession` → plugin-owned `frontline_customers` (messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:1011`

@@ -33,6 +33,7 @@ import { linkPreviewProcedures } from '#/modules/inbox/linkPreviews.ts';
 import { messageProcedures } from '#/modules/inbox/messages.ts';
 import { operatorProcedures } from '#/modules/inbox/operator.ts';
 import { presenceProcedures } from '#/modules/inbox/presence.ts';
+import { conversationPropertyProcedures } from '#/modules/inbox/properties.ts';
 import { reactionProcedures } from '#/modules/inbox/reactions.ts';
 import { messengerProcedures } from '#/modules/messenger/settings.ts';
 import { settingsProcedures } from '#/modules/settings/settings.ts';
@@ -80,6 +81,7 @@ export const router = {
     ...countProcedures,
     ...operatorProcedures,
     ...presenceProcedures,
+    ...conversationPropertyProcedures,
     messages: { ...messageProcedures, ...reactionProcedures, ...linkPreviewProcedures },
   },
   knowledgebase: {

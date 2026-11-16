@@ -12,7 +12,12 @@ import { managesAll, membership } from '../channels/access.ts';
 import { publishEvents } from '../events.ts';
 
 /** The row without `org_id`, which the caller already knows. */
-const { orgId: _orgId, ...conversationColumns } = getTableColumns(conversations);
+// The custom field values load with the record's Properties tab, not with every row.
+const {
+  orgId: _orgId,
+  propertiesData: _propertiesData,
+  ...conversationColumns
+} = getTableColumns(conversations);
 
 /** The conversation's tag ids, for its row and the filter bar. */
 export const tagIdsOf = sql<string[]>`array(
@@ -33,7 +38,7 @@ export const readSql = (member: PluginMember) =>
 
 /** The row, its integration's kind and name, its tags, and whether the caller read it. */
 export const Conversation = createSelectSchema(conversations)
-  .omit({ orgId: true, readBy: true })
+  .omit({ orgId: true, readBy: true, propertiesData: true })
   .extend({
     /** Its integration's adapter kind, such as `messenger`. */
     kind: z.string(),

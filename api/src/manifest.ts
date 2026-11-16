@@ -115,6 +115,11 @@ export const manifest = {
       group: 'Inbox',
     },
     {
+      action: PERMISSIONS.conversationEditFields,
+      label: "Change conversations' custom fields",
+      group: 'Inbox',
+    },
+    {
       action: PERMISSIONS.integrationView,
       label: 'See connected pages, bots and mailboxes',
       group: 'Integrations',
@@ -142,6 +147,7 @@ export const manifest = {
         PERMISSIONS.channelView,
         PERMISSIONS.inboxView,
         PERMISSIONS.surveySend,
+        PERMISSIONS.conversationEditFields,
         PERMISSIONS.kbView,
         PERMISSIONS.helpCenterView,
       ],

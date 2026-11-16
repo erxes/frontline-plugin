@@ -255,6 +255,18 @@ export const CONFIG: IUIConfig = {
       icon: IconMessages,
       detailPath: (id) => `/${PLUGIN}/inbox/conversations/${encodeURIComponent(id)}`,
       ...slots(() => import('@/inbox/conversationSlots.ts')),
+      activity: `${PLUGIN}.conversation`,
+      // Core keeps the fields; the API client loads only when the Properties tab does.
+      properties: {
+        type: `${PLUGIN}.conversation`,
+        values: (id) => ({
+          queryKey: [PLUGIN, 'conversation-properties', id],
+          queryFn: async () =>
+            (await import('~/orpc.ts')).orpc.conversations.properties.values.call({ id }),
+        }),
+        save: async (id, patch) =>
+          (await import('~/orpc.ts')).orpc.conversations.properties.save.call({ id, patch }),
+      },
     },
   ],
   relationTabs: [

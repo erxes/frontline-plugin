@@ -12,9 +12,17 @@ import { isOnlineAt, messenger } from './adapter.ts';
 import { messengerOf, tokenOf, visitorOf } from './session.ts';
 import { streaming, subscribe } from './stream.ts';
 import { asVisitor, messengerIntegration, threadRoutes, visitorConversations } from './threads.ts';
-import { identify, Identity, recordVisit, setOnline, supportersOf } from './visitors.ts';
+import {
+  identify,
+  Identity,
+  recordVisit,
+  saveVisitorData,
+  setOnline,
+  supportersOf,
+  VisitorData,
+} from './visitors.ts';
 
-const Connect = z.object({
+const Connect = VisitorData.extend({
   key: z.string().min(1).max(200),
   token: z.string().optional(),
   /** The visitor's email or phone, when they leave one. */
@@ -44,6 +52,7 @@ const connect = async (req: Request, res: Response) => {
       : {
           ...found,
           identified: false,
+          owns: true,
           customerId: await customerFor(found.orgId, {
             source: messenger.kind,
             externalId: randomUUID(),
@@ -54,6 +63,7 @@ const connect = async (req: Request, res: Response) => {
     const visitor = input.identity ? await identify(anonymous, input.identity) : anonymous;
 
     await recordVisit(visitor, { browser: input.browser, remoteAddress: req.ip }, true);
+    await saveVisitorData(visitor, input);
 
     const { supporterIds, ...shown } = settings;
 
