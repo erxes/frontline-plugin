@@ -15,7 +15,6 @@ import {
   DisplayMenu,
   ListFilter,
   PageContainer,
-  PageHeader,
   RecordList,
   type TListFilterField,
   useListDisplay,
@@ -27,7 +26,8 @@ import { useChannels } from '@/channels/useChannels.ts';
 import { FORM_TYPE } from '~/plugin.ts';
 import { useManagedChannels } from '~/shared/ChannelSelect.tsx';
 import { ArchiveButtons } from '~/shared/ArchiveButtons.tsx';
-import { CreateButton, ListEmpty } from '~/shared/List.tsx';
+import { AppHeader } from '~/shared/Header.tsx';
+import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
 import { DeleteButton, ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
 import { useSetFormStatus } from './FormCells.tsx';
 import { FormList, FormsTable } from './FormRows.tsx';
@@ -143,24 +143,16 @@ export const FormsPage = () => {
 
   return (
     <PageContainer>
-      <PageHeader>
-        <PageHeader.Start>
-          <span className="flex h-8 items-center gap-1.5 px-3 text-sm font-medium">
-            <IconForms />
-            {t('forms', 'Forms')}
-          </span>
-        </PageHeader.Start>
-        <PageHeader.End>
-          <CreateButton allowed={canCreate} label={t('new-form', 'New form')} onClick={create} />
-        </PageHeader.End>
-      </PageHeader>
+      <AppHeader icon={IconForms} app={{ label: t('forms', 'Forms') }}>
+        <CreateButton allowed={canCreate} label={t('new-form', 'New form')} onClick={create} />
+      </AppHeader>
       <ViewBar allLabel={t('all-forms', 'All forms')}>
         <ListFilter id={LIST} fields={useFields()} members={memberQueries} totalCount={totalCount}>
           <DisplayMenu list={LIST} displays={DISPLAYS} />
         </ListFilter>
       </ViewBar>
       {error ? (
-        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+        <ListError error={error} />
       ) : !isPending && forms.length === 0 ? (
         <ListEmpty
           icon={<IconForms />}
