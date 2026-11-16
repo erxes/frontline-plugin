@@ -25,21 +25,22 @@ const DAY = 86_400_000;
 const isPeriod = (value: string | undefined): value is Period =>
   PERIODS.some((period) => period === value);
 
-const currentMinute = () => {
-  const now = new Date();
+/** The end of the current minute, so what happened seconds ago counts. */
+const minuteEnd = () => {
+  const end = new Date();
 
-  now.setSeconds(0, 0);
+  end.setSeconds(60, 0);
 
-  return now.getTime();
+  return end.getTime();
 };
 
 /**
- * The last 30, 7 or 90 days to the minute the tile mounted, in the browser's time zone. Tiles
- * on the same period share one request.
+ * The last 30, 7 or 90 days to the end of the minute the tile mounted, in the browser's time
+ * zone. Tiles on the same period share one request.
  */
 export const usePeriod = () => {
   const [days, setDays] = useState<Period>('30');
-  const [to] = useState(currentMinute);
+  const [to] = useState(minuteEnd);
 
   const range = useMemo(
     () => ({
