@@ -1,8 +1,9 @@
 import { hkdfSync } from 'node:crypto';
+import { ORPCError } from '@orpc/server';
 import { jwtVerify, SignJWT } from 'jose';
 import { z } from 'zod';
 import { config } from '#/config.ts';
-import { Attachment } from '#/db/table.ts';
+import { filesOf } from '../files.ts';
 import { INTEGRATION_KEY } from '../inbox/integrations.ts';
 import { openedBy } from '../public.ts';
 
@@ -40,37 +41,17 @@ export const visitorOf = async (token: string | undefined) => {
   return visitor.success ? visitor.data : null;
 };
 
-/** Who a file receipt is for; a visitor token, which has no audience, is no receipt. */
-const RECEIPT = 'frontline messenger file';
+/** Whom a visitor's file receipts are for: that customer, on that messenger. */
+export const ownerOf = (visitor: Visitor) =>
+  `messenger ${visitor.integrationId} ${visitor.customerId}`;
 
-const Receipt = z.object({ file: Attachment, integrationId: z.string(), customerId: z.string() });
+/** The files the visitor's receipts name; a forged, expired or foreign one is refused. */
+export const attachmentsOf = async (visitor: Visitor, receipts: string[]) => {
+  const files = await filesOf(ownerOf(visitor), receipts);
 
-/**
- * A signed receipt for a file the visitor uploaded. Their message attaches files by receipt, so
- * it carries only files they uploaded, and `/files/:id` serves them only those and the team's.
- */
-export const receiptOf = (visitor: Visitor, file: Attachment) =>
-  new SignJWT({ file, integrationId: visitor.integrationId, customerId: visitor.customerId })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setAudience(RECEIPT)
-    .setIssuedAt()
-    .setExpirationTime('1d')
-    .sign(secret);
+  if (!files) throw new ORPCError('BAD_REQUEST', { message: 'Attach the file again' });
 
-/** The file a receipt names, or null when it is forged, expired or another visitor's. */
-export const fileOf = async (visitor: Visitor, receipt: string) => {
-  const verified = await jwtVerify(receipt, secret, {
-    algorithms: ['HS256'],
-    audience: RECEIPT,
-  }).catch(() => null);
-
-  const parsed = Receipt.safeParse(verified?.payload);
-
-  return parsed.success &&
-    parsed.data.integrationId === visitor.integrationId &&
-    parsed.data.customerId === visitor.customerId
-    ? parsed.data.file
-    : null;
+  return files;
 };
 
 /** The organisation and integration a messenger's key opens, or null for an unknown key. */

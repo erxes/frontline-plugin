@@ -4,6 +4,7 @@ import { z } from 'zod';
 import type * as CoreModule from '#/core.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
+import type * as FilesModule from '#/modules/files.ts';
 import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 import type * as Sdk from '@erxes/plugin-sdk';
@@ -49,7 +50,8 @@ vi.mock('#/core.ts', async (importOriginal) => {
 // Core's storage, by file id: what a visitor uploads, and what reading it back gives.
 const stored = vi.hoisted(() => new Map<string, string>());
 
-vi.mock('#/modules/files.ts', () => ({
+vi.mock('#/modules/files.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof FilesModule>()),
   storeFile: async (_orgId: string, file: { name: string; bytes: Uint8Array }) => {
     stored.set(`file-${stored.size + 1}`, Buffer.from(file.bytes).toString());
 
@@ -334,12 +336,12 @@ describe('messenger', () => {
     const id = await write(token, 'Where is my parcel?');
     const event = { payload: { conversationId: id } };
 
-    const action = (type: string, input: Record<string, unknown>, key = 'r1:s1') =>
+    const action = (type: string, input: Record<string, unknown>, key = 'r1:s1', as = 'core') =>
       fetch(api.url(`/automations/actions/${type}`), {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
-          authorization: 'Bearer core',
+          authorization: `Bearer ${as}`,
           'idempotency-key': key,
         },
         body: JSON.stringify({ input, context: { event } }),
@@ -372,11 +374,7 @@ describe('messenger', () => {
 
     expect(await quiet.json()).toEqual({ sent: false });
 
-    const forged = await fetch(api.url('/automations/actions/frontline.conversation.reply'), {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', authorization: 'Bearer forged' },
-      body: '{}',
-    });
+    const forged = await action('frontline.conversation.reply', {}, 'r3:s1', 'forged');
 
     expect(forged.status).toBe(401);
     expect((await action('frontline.nothing', {})).status).toBe(404);

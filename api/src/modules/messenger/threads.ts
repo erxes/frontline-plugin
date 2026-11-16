@@ -11,7 +11,7 @@ import { setOperatorOf } from '../inbox/operator.ts';
 import { receive } from '../inbox/receive.ts';
 import { signalConversations, typingTopic } from '../inbox/shared.ts';
 import { MessengerConfig, messenger } from './adapter.ts';
-import { fileOf, type Visitor, visitorOf } from './session.ts';
+import { attachmentsOf, type Visitor, visitorOf } from './session.ts';
 
 /** What a visitor sees of a message: never an internal note or who on the team is who. */
 const visitorMessage = {
@@ -150,13 +150,7 @@ const send = asVisitor(async (visitor, req, res) => {
   if (!input.content && files.length === 0)
     throw new ORPCError('BAD_REQUEST', { message: 'Write a message or attach a file' });
 
-  const attachments = (await Promise.all(files.map((receipt) => fileOf(visitor, receipt)))).filter(
-    (file) => file !== null,
-  );
-
-  if (attachments.length < files.length)
-    throw new ORPCError('BAD_REQUEST', { message: 'Attach the file again' });
-
+  const attachments = await attachmentsOf(visitor, files);
   const settings = await messengerIntegration(visitor.orgId, visitor.integrationId);
 
   if (settings?.requireAuth && !visitor.identified)

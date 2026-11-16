@@ -6,7 +6,7 @@ import { tags } from '#/db/tags.ts';
 import { pipelineStatuses, pipelines, ticketProperties, tickets } from '#/db/tickets.ts';
 import { PropertiesPatch } from '../tickets/properties.ts';
 import { insertTicket } from '../tickets/tickets.ts';
-import { fileOf, type Visitor } from './session.ts';
+import { attachmentsOf, type Visitor } from './session.ts';
 import { asVisitor, messengerIntegration } from './threads.ts';
 
 /** The visitor's messenger, or NOT_FOUND once it is gone or switched off. */
@@ -133,13 +133,7 @@ const fileTicket = asVisitor(async (visitor, req, res) => {
   if (!visitor.identified)
     throw new ORPCError('FORBIDDEN', { message: 'Leave your email or phone number first' });
 
-  const attachments = (await Promise.all(files.map((receipt) => fileOf(visitor, receipt)))).filter(
-    (file) => file !== null,
-  );
-
-  if (attachments.length < files.length)
-    throw new ORPCError('BAD_REQUEST', { message: 'Attach the file again' });
-
+  const attachments = await attachmentsOf(visitor, files);
   const settings = await openMessenger(visitor);
 
   const filed = await withOrg(visitor.orgId, async (tx) => {

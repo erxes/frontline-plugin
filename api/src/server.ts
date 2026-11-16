@@ -41,12 +41,7 @@ const embeds = (app: express.Express) => {
   // Providers post webhooks signed out, from their own servers.
   app.use('/api/public/webhooks', webhookRoutes());
   app.use('/api/public/messenger', messengerRoutes());
-  app.use(
-    '/api/public/:key',
-    cors({ maxAge: 600 }),
-    express.json({ limit: '1mb' }),
-    formsPublicRouter,
-  );
+  app.use('/api/public/:key', cors({ maxAge: 600 }), formsPublicRouter);
 
   if (config.widgetDir)
     app.use(

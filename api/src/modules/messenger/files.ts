@@ -5,48 +5,22 @@ import express, { type Request, type Response } from 'express';
 import { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
 import { conversations, messages } from '#/db/inbox.ts';
-import type { Attachment } from '#/db/table.ts';
 import { tickets } from '#/db/tickets.ts';
 import { fail } from '../fail.ts';
-import { readFile, storeFile } from '../files.ts';
-import { receiptOf, type Visitor, visitorOf } from './session.ts';
+import { rawUpload, readFile, receiptOf, storeFile, type Uploaded, uploadOf } from '../files.ts';
+import { ownerOf, type Visitor, visitorOf } from './session.ts';
 import { asVisitor } from './threads.ts';
-
-/** The most a visitor uploads at once; core's file settings may allow less. */
-const MAX_BYTES = 25 * 1024 * 1024;
-
-const Upload = z.object({
-  /** The file's name, URI-encoded, since a header carries only ASCII. */
-  name: z
-    .string()
-    .min(1)
-    .max(1500)
-    .transform((name) => decodeURIComponent(name).trim().slice(0, 500)),
-  contentType: z.string().min(1).max(200),
-  bytes: z.instanceof(Buffer).refine((bytes) => bytes.length > 0, 'Send the file'),
-});
 
 /**
  * The visitor uploads a file's bytes, named in `x-file-name`; core stores it, and the visitor's
  * next message attaches it by the receipt this answers with it.
  */
 const upload = asVisitor(async (visitor, req, res) => {
-  const bytes: unknown = req.body;
-
-  const input = Upload.parse({
-    name: req.get('x-file-name'),
-    contentType: req.get('content-type'),
-    bytes,
-  });
-
-  const file = await storeFile(visitor.orgId, input);
-  const reply: Uploaded = { ...file, receipt: await receiptOf(visitor, file) };
+  const file = await storeFile(visitor.orgId, uploadOf(req));
+  const reply: Uploaded = { ...file, receipt: await receiptOf(ownerOf(visitor), file) };
 
   res.status(201).json(reply);
 });
-
-/** A file the visitor uploaded, and the receipt their message attaches it by. */
-export type Uploaded = Attachment & { receipt: string };
 
 /** Whether the attachments in `column` name the core file `id`, at the address core gives it. */
 const carries = (column: AnyPgColumn, id: string) => {
@@ -129,8 +103,4 @@ const download = async (req: Request, res: Response) => {
 };
 
 /** A visitor's files, under `/api/public/messenger/files`. */
-export const fileRoutes = () =>
-  express
-    .Router()
-    .post('/', express.raw({ type: () => true, limit: MAX_BYTES }), upload)
-    .get('/:id', download);
+export const fileRoutes = () => express.Router().post('/', rawUpload, upload).get('/:id', download);

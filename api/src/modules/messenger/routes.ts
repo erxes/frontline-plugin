@@ -25,7 +25,7 @@ const Connect = z.object({
 
 export type { VisitorConversation, VisitorMessage } from './threads.ts';
 
-export type { Uploaded } from './files.ts';
+export type { Uploaded } from '../files.ts';
 
 export type { TicketForms, VisitorTicket } from './tickets.ts';
 

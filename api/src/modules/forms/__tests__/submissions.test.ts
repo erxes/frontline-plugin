@@ -1,7 +1,20 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { z } from 'zod';
+import type * as FilesModule from '#/modules/files.ts';
 import { createApp } from '#/server.ts';
 import { clientAs } from '#/test/member.ts';
+
+// Core's storage: each upload becomes the next file id.
+const stored = vi.hoisted(() => ({ count: 0 }));
+
+vi.mock('#/modules/files.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof FilesModule>()),
+  storeFile: async (_orgId: string, file: { name: string }) => {
+    stored.count += 1;
+
+    return { url: `/core/v1/files/file-${stored.count}/download`, name: file.name };
+  },
+}));
 
 let base = '';
 let server: ReturnType<ReturnType<typeof createApp>['listen']>;
@@ -35,6 +48,19 @@ const send = (url: string, answers: Record<string, unknown>) =>
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ answers }),
   });
+
+/** Uploads a file to the form at `url`, as the embed does, and gives its receipt. */
+const upload = async (url: string) => {
+  const uploaded = await fetch(`${url}/files`, {
+    method: 'POST',
+    headers: { 'content-type': 'image/png', 'x-file-name': 'zip.png' },
+    body: 'png',
+  });
+
+  expect(uploaded.status).toBe(201);
+
+  return z.object({ receipt: z.string() }).parse(await uploaded.json()).receipt;
+};
 
 const Created = z.object({ submissionId: z.string(), customerId: z.string().nullable() });
 
@@ -167,6 +193,41 @@ describe('form submissions', () => {
 
     await expect(owner.forms.submissions.list({ formId: form.id })).resolves.toMatchObject({
       totalCount: 0,
+    });
+  });
+
+  it('takes a file answer only by the receipt its upload to the form gave', async () => {
+    const owner = clientAs('org-fs-e');
+    const channel = await owner.channels.create({ name: 'Claims' });
+
+    const [form, other] = await Promise.all(
+      ['Claim', 'Other'].map((name) => owner.forms.create({ channelId: channel.id, name })),
+    );
+
+    if (!form || !other) throw new Error('no forms');
+
+    const photo = await owner.forms.fields.add({ formId: form.id, type: 'file', label: 'Photo' });
+
+    await owner.forms.fields.add({ formId: other.id, type: 'file', label: 'Photo' });
+
+    const url = await embedOf(owner, form.id);
+    const receipt = await upload(url);
+    const foreign = await upload(await embedOf(owner, other.id));
+
+    // A file's address is no answer, and another form's receipt doesn't attach here.
+    expect((await send(url, { [photo.id]: [{ url: '/core/v1/files/x/download' }] })).status).toBe(
+      400,
+    );
+    expect((await send(url, { [photo.id]: [foreign] })).status).toBe(422);
+
+    const created = await send(url, { [photo.id]: [receipt] });
+
+    expect(created.status).toBe(201);
+
+    const { submissionId } = Created.parse(await created.json());
+
+    await expect(owner.forms.submissions.get({ id: submissionId })).resolves.toMatchObject({
+      answers: { [photo.id]: [{ url: '/core/v1/files/file-1/download', name: 'zip.png' }] },
     });
   });
 
