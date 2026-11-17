@@ -193,6 +193,13 @@ await run(
    EXCEPTION WHEN duplicate_object OR unique_violation THEN NULL; END $$`,
 );
 
+// Core's role for plugins' views (the manifest's `relations`), which migrations grant to.
+await run(
+  adminUrl,
+  `DO $$ BEGIN CREATE ROLE erxes_core_reader NOLOGIN NOBYPASSRLS;
+   EXCEPTION WHEN duplicate_object OR unique_violation THEN NULL; END $$`,
+);
+
 await run(adminUrl, `CREATE DATABASE ${database} OWNER ${ROLE}`);
 
 await run(urlOf(database), `${CORE_FUNCTIONS}${CORE_LIVE}`);

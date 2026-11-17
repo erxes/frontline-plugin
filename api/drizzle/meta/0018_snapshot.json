@@ -1,5 +1,5 @@
 {
-  "id": "0e3864f4-7a83-4a56-8193-00fa415d2276",
+  "id": "895201fe-8b54-4f73-abbd-257a7f1bf339",
   "prevId": "55150415-1aa4-4cb3-99af-04da03d0280b",
   "version": "7",
   "dialect": "postgresql",
@@ -65,26 +65,26 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_channel_members_channel_fkey": {
           "name": "frontline_channel_members_channel_fkey",
           "tableFrom": "frontline_channel_members",
-          "tableTo": "frontline_channels",
           "columnsFrom": [
             "org_id",
             "channel_id"
           ],
+          "tableTo": "frontline_channels",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -181,16 +181,16 @@
             },
             {
               "expression": "lower(\"name\")",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
-          "where": "\"frontline_channels\".\"owner_id\" is null",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"frontline_channels\".\"owner_id\" is null",
+          "concurrently": false
         },
         "frontline_channels_owner_key": {
           "name": "frontline_channels_owner_key",
@@ -209,9 +209,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_channels_org_id_key": {
           "name": "frontline_channels_org_id_key",
@@ -230,9 +230,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -393,9 +393,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_knowledgebase_articles_org_scheduled_idx": {
           "name": "frontline_knowledgebase_articles_org_scheduled_idx",
@@ -414,27 +414,27 @@
             }
           ],
           "isUnique": false,
-          "where": "\"frontline_knowledgebase_articles\".\"status\" = 'scheduled'",
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "where": "\"frontline_knowledgebase_articles\".\"status\" = 'scheduled'",
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_knowledgebase_articles_category_fkey": {
           "name": "frontline_knowledgebase_articles_category_fkey",
           "tableFrom": "frontline_knowledgebase_articles",
-          "tableTo": "frontline_knowledgebase_categories",
           "columnsFrom": [
             "org_id",
             "category_id"
           ],
+          "tableTo": "frontline_knowledgebase_categories",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -539,9 +539,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_knowledgebase_categories_org_topic_idx": {
           "name": "frontline_knowledgebase_categories_org_topic_idx",
@@ -560,9 +560,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_knowledgebase_categories_parent_idx": {
           "name": "frontline_knowledgebase_categories_parent_idx",
@@ -575,50 +575,50 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_knowledgebase_categories_topic_fkey": {
           "name": "frontline_knowledgebase_categories_topic_fkey",
           "tableFrom": "frontline_knowledgebase_categories",
-          "tableTo": "frontline_knowledgebase_topics",
           "columnsFrom": [
             "org_id",
             "topic_id"
           ],
+          "tableTo": "frontline_knowledgebase_topics",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "frontline_knowledgebase_categories_parent_fkey": {
           "name": "frontline_knowledgebase_categories_parent_fkey",
           "tableFrom": "frontline_knowledgebase_categories",
-          "tableTo": "frontline_knowledgebase_categories",
           "columnsFrom": [
             "parent_id"
           ],
+          "tableTo": "frontline_knowledgebase_categories",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_knowledgebase_categories_org_id_key": {
           "name": "frontline_knowledgebase_categories_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -716,9 +716,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -726,11 +726,11 @@
       "uniqueConstraints": {
         "frontline_knowledgebase_topics_org_id_key": {
           "name": "frontline_knowledgebase_topics_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -823,26 +823,26 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_response_templates_channel_fkey": {
           "name": "frontline_response_templates_channel_fkey",
           "tableFrom": "frontline_response_templates",
-          "tableTo": "frontline_channels",
           "columnsFrom": [
             "org_id",
             "channel_id"
           ],
+          "tableTo": "frontline_channels",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -977,38 +977,38 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_pipeline_statuses_pipeline_fkey": {
           "name": "frontline_pipeline_statuses_pipeline_fkey",
           "tableFrom": "frontline_pipeline_statuses",
-          "tableTo": "frontline_pipelines",
           "columnsFrom": [
             "org_id",
             "pipeline_id"
           ],
+          "tableTo": "frontline_pipelines",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_pipeline_statuses_org_pipeline_id_key": {
           "name": "frontline_pipeline_statuses_org_pipeline_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "pipeline_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -1161,46 +1161,46 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_pipelines_channel_fkey": {
           "name": "frontline_pipelines_channel_fkey",
           "tableFrom": "frontline_pipelines",
-          "tableTo": "frontline_channels",
           "columnsFrom": [
             "org_id",
             "channel_id"
           ],
+          "tableTo": "frontline_channels",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_pipelines_org_id_key": {
           "name": "frontline_pipelines_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         },
         "frontline_pipelines_org_channel_id_key": {
           "name": "frontline_pipelines_org_channel_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "channel_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -1308,9 +1308,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -1575,9 +1575,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_tickets_org_pipeline_status_idx": {
           "name": "frontline_tickets_org_pipeline_status_idx",
@@ -1602,9 +1602,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_tickets_org_updated_idx": {
           "name": "frontline_tickets_org_updated_idx",
@@ -1629,9 +1629,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_tickets_org_channel_idx": {
           "name": "frontline_tickets_org_channel_idx",
@@ -1650,9 +1650,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_tickets_org_assignee_idx": {
           "name": "frontline_tickets_org_assignee_idx",
@@ -1671,9 +1671,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_tickets_org_customer_idx": {
           "name": "frontline_tickets_org_customer_idx",
@@ -1692,9 +1692,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_tickets_org_company_idx": {
           "name": "frontline_tickets_org_company_idx",
@@ -1713,9 +1713,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_tickets_tag_ids_idx": {
           "name": "frontline_tickets_tag_ids_idx",
@@ -1728,60 +1728,60 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "gin",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_tickets_channel_fkey": {
           "name": "frontline_tickets_channel_fkey",
           "tableFrom": "frontline_tickets",
-          "tableTo": "frontline_channels",
           "columnsFrom": [
             "org_id",
             "channel_id"
           ],
+          "tableTo": "frontline_channels",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "frontline_tickets_pipeline_fkey": {
           "name": "frontline_tickets_pipeline_fkey",
           "tableFrom": "frontline_tickets",
-          "tableTo": "frontline_pipelines",
           "columnsFrom": [
             "org_id",
             "channel_id",
             "pipeline_id"
           ],
+          "tableTo": "frontline_pipelines",
           "columnsTo": [
             "org_id",
             "channel_id",
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "cascade"
+          "onUpdate": "cascade",
+          "onDelete": "no action"
         },
         "frontline_tickets_status_fkey": {
           "name": "frontline_tickets_status_fkey",
           "tableFrom": "frontline_tickets",
-          "tableTo": "frontline_pipeline_statuses",
           "columnsFrom": [
             "org_id",
             "pipeline_id",
             "status_id"
           ],
+          "tableTo": "frontline_pipeline_statuses",
           "columnsTo": [
             "org_id",
             "pipeline_id",
             "id"
           ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1847,26 +1847,26 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_team_members_team_fkey": {
           "name": "frontline_team_members_team_fkey",
           "tableFrom": "frontline_team_members",
-          "tableTo": "frontline_teams",
           "columnsFrom": [
             "org_id",
             "team_id"
           ],
+          "tableTo": "frontline_teams",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -1969,9 +1969,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_teams_parent_idx": {
           "name": "frontline_teams_parent_idx",
@@ -1984,35 +1984,35 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_teams_parent_fkey": {
           "name": "frontline_teams_parent_fkey",
           "tableFrom": "frontline_teams",
-          "tableTo": "frontline_teams",
           "columnsFrom": [
             "parent_id"
           ],
+          "tableTo": "frontline_teams",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_teams_org_id_key": {
           "name": "frontline_teams_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -2128,15 +2128,15 @@
             },
             {
               "expression": "lower(\"name\")",
-              "asc": true,
               "isExpression": true,
+              "asc": true,
               "nulls": "last"
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2144,18 +2144,18 @@
       "uniqueConstraints": {
         "frontline_tags_org_id_key": {
           "name": "frontline_tags_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
       "checkConstraints": {
         "frontline_tags_type_check": {
           "name": "frontline_tags_type_check",
-          "value": "\"frontline_tags\".\"type\" in ('ticket', 'conversation', 'form')"
+          "value": "\"frontline_tags\".\"type\" in ('ticket', 'conversation')"
         }
       },
       "isRLSEnabled": false
@@ -2340,9 +2340,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -2350,17 +2350,17 @@
       "uniqueConstraints": {
         "frontline_help_centers_public_key_key": {
           "name": "frontline_help_centers_public_key_key",
-          "nullsNotDistinct": false,
           "columns": [
             "public_key"
-          ]
+          ],
+          "nullsNotDistinct": false
         },
         "frontline_help_centers_hostname_key": {
           "name": "frontline_help_centers_hostname_key",
-          "nullsNotDistinct": false,
           "columns": [
             "hostname"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -2431,9 +2431,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_form_answers_org_field_idx": {
           "name": "frontline_form_answers_org_field_idx",
@@ -2452,26 +2452,26 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_form_answers_submission_fkey": {
           "name": "frontline_form_answers_submission_fkey",
           "tableFrom": "frontline_form_answers",
-          "tableTo": "frontline_form_submissions",
           "columnsFrom": [
             "org_id",
             "submission_id"
           ],
+          "tableTo": "frontline_form_submissions",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -2633,26 +2633,26 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_form_fields_form_fkey": {
           "name": "frontline_form_fields_form_fkey",
           "tableFrom": "frontline_form_fields",
-          "tableTo": "frontline_forms",
           "columnsFrom": [
             "org_id",
             "form_id"
           ],
+          "tableTo": "frontline_forms",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -2748,9 +2748,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_form_submissions_org_form_created_idx": {
           "name": "frontline_form_submissions_org_form_created_idx",
@@ -2781,9 +2781,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_form_submissions_org_customer_idx": {
           "name": "frontline_form_submissions_org_customer_idx",
@@ -2802,37 +2802,37 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_form_submissions_form_fkey": {
           "name": "frontline_form_submissions_form_fkey",
           "tableFrom": "frontline_form_submissions",
-          "tableTo": "frontline_forms",
           "columnsFrom": [
             "org_id",
             "form_id"
           ],
+          "tableTo": "frontline_forms",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_form_submissions_org_id_key": {
           "name": "frontline_form_submissions_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -2995,13 +2995,6 @@
           "notNull": true,
           "default": 0
         },
-        "tag_ids": {
-          "name": "tag_ids",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'{}'"
-        },
         "created_by": {
           "name": "created_by",
           "type": "text",
@@ -3041,9 +3034,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_forms_org_created_idx": {
           "name": "frontline_forms_org_created_idx",
@@ -3068,52 +3061,37 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
-        },
-        "frontline_forms_tag_ids_idx": {
-          "name": "frontline_forms_tag_ids_idx",
-          "columns": [
-            {
-              "expression": "tag_ids",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "gin",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_forms_channel_fkey": {
           "name": "frontline_forms_channel_fkey",
           "tableFrom": "frontline_forms",
-          "tableTo": "frontline_channels",
           "columnsFrom": [
             "org_id",
             "channel_id"
           ],
+          "tableTo": "frontline_channels",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_forms_org_id_key": {
           "name": "frontline_forms_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -3223,9 +3201,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_survey_votes_org_survey_idx": {
           "name": "frontline_survey_votes_org_survey_idx",
@@ -3244,26 +3222,26 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_survey_votes_survey_fkey": {
           "name": "frontline_survey_votes_survey_fkey",
           "tableFrom": "frontline_survey_votes",
-          "tableTo": "frontline_surveys",
           "columnsFrom": [
             "org_id",
             "survey_id"
           ],
+          "tableTo": "frontline_surveys",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
@@ -3378,9 +3356,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_surveys_org_created_idx": {
           "name": "frontline_surveys_org_created_idx",
@@ -3405,37 +3383,37 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_surveys_channel_fkey": {
           "name": "frontline_surveys_channel_fkey",
           "tableFrom": "frontline_surveys",
-          "tableTo": "frontline_channels",
           "columnsFrom": [
             "org_id",
             "channel_id"
           ],
+          "tableTo": "frontline_channels",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_surveys_org_id_key": {
           "name": "frontline_surveys_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -3505,9 +3483,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -3558,41 +3536,41 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_conversation_tags_conversation_fkey": {
           "name": "frontline_conversation_tags_conversation_fkey",
           "tableFrom": "frontline_conversation_tags",
-          "tableTo": "frontline_conversations",
           "columnsFrom": [
             "org_id",
             "conversation_id"
           ],
+          "tableTo": "frontline_conversations",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "frontline_conversation_tags_tag_fkey": {
           "name": "frontline_conversation_tags_tag_fkey",
           "tableFrom": "frontline_conversation_tags",
-          "tableTo": "frontline_tags",
           "columnsFrom": [
             "org_id",
             "tag_id"
           ],
+          "tableTo": "frontline_tags",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {
@@ -3775,9 +3753,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_conversations_org_last_message_idx": {
           "name": "frontline_conversations_org_last_message_idx",
@@ -3802,9 +3780,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_conversations_org_channel_status_idx": {
           "name": "frontline_conversations_org_channel_status_idx",
@@ -3829,9 +3807,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_conversations_org_customer_idx": {
           "name": "frontline_conversations_org_customer_idx",
@@ -3850,9 +3828,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_conversations_org_assignee_idx": {
           "name": "frontline_conversations_org_assignee_idx",
@@ -3871,39 +3849,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_conversations_integration_fkey": {
           "name": "frontline_conversations_integration_fkey",
           "tableFrom": "frontline_conversations",
-          "tableTo": "frontline_integrations",
           "columnsFrom": [
             "org_id",
             "channel_id",
             "integration_id"
           ],
+          "tableTo": "frontline_integrations",
           "columnsTo": [
             "org_id",
             "channel_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "cascade"
+          "onUpdate": "cascade",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_conversations_org_id_key": {
           "name": "frontline_conversations_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -3973,9 +3951,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4081,46 +4059,46 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_integrations_channel_fkey": {
           "name": "frontline_integrations_channel_fkey",
           "tableFrom": "frontline_integrations",
-          "tableTo": "frontline_channels",
           "columnsFrom": [
             "org_id",
             "channel_id"
           ],
+          "tableTo": "frontline_channels",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_integrations_org_id_key": {
           "name": "frontline_integrations_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         },
         "frontline_integrations_org_channel_id_key": {
           "name": "frontline_integrations_org_channel_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "channel_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -4275,9 +4253,9 @@
             }
           ],
           "isUnique": true,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_messages_org_conversation_created_idx": {
           "name": "frontline_messages_org_conversation_created_idx",
@@ -4308,9 +4286,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_messages_reply_to_idx": {
           "name": "frontline_messages_reply_to_idx",
@@ -4323,39 +4301,39 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_messages_conversation_fkey": {
           "name": "frontline_messages_conversation_fkey",
           "tableFrom": "frontline_messages",
-          "tableTo": "frontline_conversations",
           "columnsFrom": [
             "org_id",
             "conversation_id"
           ],
+          "tableTo": "frontline_conversations",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "frontline_messages_reply_to_fkey": {
           "name": "frontline_messages_reply_to_fkey",
           "tableFrom": "frontline_messages",
-          "tableTo": "frontline_messages",
           "columnsFrom": [
             "reply_to_id"
           ],
+          "tableTo": "frontline_messages",
           "columnsTo": [
             "id"
           ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "set null"
         }
       },
       "compositePrimaryKeys": {},
@@ -4448,9 +4426,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {},
@@ -4568,20 +4546,20 @@
       "uniqueConstraints": {
         "frontline_integration_accounts_org_provider_external_key": {
           "name": "frontline_integration_accounts_org_provider_external_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "provider",
             "external_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         },
         "frontline_integration_accounts_org_id_key": {
           "name": "frontline_integration_accounts_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -4651,11 +4629,11 @@
       "uniqueConstraints": {
         "frontline_email_suppressions_org_address_key": {
           "name": "frontline_email_suppressions_org_address_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "address"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -4766,28 +4744,28 @@
         "frontline_meta_bots_account_fkey": {
           "name": "frontline_meta_bots_account_fkey",
           "tableFrom": "frontline_meta_bots",
-          "tableTo": "frontline_integration_accounts",
           "columnsFrom": [
             "org_id",
             "account_id"
           ],
+          "tableTo": "frontline_integration_accounts",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_meta_bots_org_account_key": {
           "name": "frontline_meta_bots_org_account_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "account_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -4846,29 +4824,29 @@
         "frontline_call_legs_call_fkey": {
           "name": "frontline_call_legs_call_fkey",
           "tableFrom": "frontline_call_legs",
-          "tableTo": "frontline_calls",
           "columnsFrom": [
             "org_id",
             "call_id"
           ],
+          "tableTo": "frontline_calls",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_call_legs_org_call_leg_key": {
           "name": "frontline_call_legs_org_call_leg_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "call_id",
             "leg_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -4942,47 +4920,47 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_call_operators_account_fkey": {
           "name": "frontline_call_operators_account_fkey",
           "tableFrom": "frontline_call_operators",
-          "tableTo": "frontline_integration_accounts",
           "columnsFrom": [
             "org_id",
             "account_id"
           ],
+          "tableTo": "frontline_integration_accounts",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_call_operators_org_account_user_key": {
           "name": "frontline_call_operators_org_account_user_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "account_id",
             "user_id"
-          ]
+          ],
+          "nullsNotDistinct": false
         },
         "frontline_call_operators_org_account_extension_key": {
           "name": "frontline_call_operators_org_account_extension_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "account_id",
             "extension"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -5102,29 +5080,29 @@
         "frontline_call_queues_account_fkey": {
           "name": "frontline_call_queues_account_fkey",
           "tableFrom": "frontline_call_queues",
-          "tableTo": "frontline_integration_accounts",
           "columnsFrom": [
             "org_id",
             "account_id"
           ],
+          "tableTo": "frontline_integration_accounts",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_call_queues_org_account_queue_key": {
           "name": "frontline_call_queues_org_account_queue_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "account_id",
             "queue"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -5290,9 +5268,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_calls_org_customer_idx": {
           "name": "frontline_calls_org_customer_idx",
@@ -5311,9 +5289,9 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         },
         "frontline_calls_org_conversation_idx": {
           "name": "frontline_calls_org_conversation_idx",
@@ -5332,61 +5310,61 @@
             }
           ],
           "isUnique": false,
-          "concurrently": false,
+          "with": {},
           "method": "btree",
-          "with": {}
+          "concurrently": false
         }
       },
       "foreignKeys": {
         "frontline_calls_account_fkey": {
           "name": "frontline_calls_account_fkey",
           "tableFrom": "frontline_calls",
-          "tableTo": "frontline_integration_accounts",
           "columnsFrom": [
             "org_id",
             "account_id"
           ],
+          "tableTo": "frontline_integration_accounts",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         },
         "frontline_calls_conversation_fkey": {
           "name": "frontline_calls_conversation_fkey",
           "tableFrom": "frontline_calls",
-          "tableTo": "frontline_conversations",
           "columnsFrom": [
             "org_id",
             "conversation_id"
           ],
+          "tableTo": "frontline_conversations",
           "columnsTo": [
             "org_id",
             "id"
           ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
+          "onUpdate": "no action",
+          "onDelete": "cascade"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {
         "frontline_calls_org_id_key": {
           "name": "frontline_calls_org_id_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "id"
-          ]
+          ],
+          "nullsNotDistinct": false
         },
         "frontline_calls_org_account_key_key": {
           "name": "frontline_calls_org_account_key_key",
-          "nullsNotDistinct": false,
           "columns": [
             "org_id",
             "account_id",
             "call_key"
-          ]
+          ],
+          "nullsNotDistinct": false
         }
       },
       "policies": {},
@@ -5405,10 +5383,10 @@
   },
   "enums": {},
   "schemas": {},
+  "views": {},
   "sequences": {},
   "roles": {},
   "policies": {},
-  "views": {},
   "_meta": {
     "columns": {},
     "schemas": {},

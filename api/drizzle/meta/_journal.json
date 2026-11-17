@@ -131,36 +131,15 @@
     {
       "idx": 18,
       "version": "7",
-      "when": 1794845051969,
-      "tag": "0018_form_tags",
+      "when": 1794876882793,
+      "tag": "0018_customer_relations",
       "breakpoints": true
     },
     {
       "idx": 19,
       "version": "7",
-      "when": 1794845750575,
-      "tag": "0019_survey_send",
-      "breakpoints": true
-    },
-    {
-      "idx": 20,
-      "version": "7",
-      "when": 1794847301217,
-      "tag": "0020_message_reactions",
-      "breakpoints": true
-    },
-    {
-      "idx": 21,
-      "version": "7",
-      "when": 1794849881527,
-      "tag": "0021_conversation_properties",
-      "breakpoints": true
-    },
-    {
-      "idx": 22,
-      "version": "7",
-      "when": 1794851843542,
-      "tag": "0022_call_operator_sip_secret",
+      "when": 1794879977611,
+      "tag": "0019_compose",
       "breakpoints": true
     }
   ]

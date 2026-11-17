@@ -9,3 +9,4 @@
 @source not './modules/knowledgebase';
 @source not './modules/pipelines';
 @source not './modules/calls/softphone';
+@source not './modules/reports';

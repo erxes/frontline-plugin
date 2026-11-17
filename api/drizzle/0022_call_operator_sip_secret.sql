@@ -1,1 +1,0 @@
-ALTER TABLE "frontline_call_operators" ADD COLUMN "sip_secret" text;

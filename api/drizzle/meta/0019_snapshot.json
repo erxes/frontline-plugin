@@ -1,6 +1,6 @@
 {
-  "id": "9c3cdc6c-b91d-4055-b15e-6ca2549102a3",
-  "prevId": "0e3864f4-7a83-4a56-8193-00fa415d2276",
+  "id": "1b1b733f-216a-4462-8e2a-1c947e1772a7",
+  "prevId": "895201fe-8b54-4f73-abbd-257a7f1bf339",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3805,6 +3805,13 @@
           "primaryKey": false,
           "notNull": false
         },
+        "properties_data": {
+          "name": "properties_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'{}'::jsonb"
+        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -4194,6 +4201,87 @@
       },
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.frontline_message_reactions": {
+      "name": "frontline_message_reactions",
+      "schema": "",
+      "columns": {
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message_id": {
+          "name": "message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_id": {
+          "name": "user_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "emoji": {
+          "name": "emoji",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "frontline_message_reactions_message_fkey": {
+          "name": "frontline_message_reactions_message_fkey",
+          "tableFrom": "frontline_message_reactions",
+          "tableTo": "frontline_messages",
+          "columnsFrom": [
+            "message_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "frontline_message_reactions_reactor_key": {
+          "name": "frontline_message_reactions_reactor_key",
+          "nullsNotDistinct": true,
+          "columns": [
+            "org_id",
+            "message_id",
+            "user_id",
+            "customer_id",
+            "emoji"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {
+        "frontline_message_reactions_reactor_check": {
+          "name": "frontline_message_reactions_reactor_check",
+          "value": "(\"frontline_message_reactions\".\"user_id\" is null) <> (\"frontline_message_reactions\".\"customer_id\" is null)"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.frontline_messages": {
@@ -4983,6 +5071,12 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true
+        },
+        "sip_secret": {
+          "name": "sip_secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
         },
         "status": {
           "name": "status",

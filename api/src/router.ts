@@ -12,6 +12,9 @@ import { categoryProcedures } from '#/modules/knowledgebase/categories.ts';
 import { topicProcedures } from '#/modules/knowledgebase/topics.ts';
 import { pipelineProcedures } from '#/modules/pipelines/pipelines.ts';
 import { statusProcedures } from '#/modules/pipelines/statuses.ts';
+import { callReport } from '#/modules/reports/calls.ts';
+import { conversationReport } from '#/modules/reports/conversations.ts';
+import { ticketReport } from '#/modules/reports/tickets.ts';
 import { responseTemplateProcedures } from '#/modules/responseTemplates/responseTemplates.ts';
 import { conversationProcedures } from '#/modules/inbox/conversations.ts';
 import { countProcedures } from '#/modules/inbox/counts.ts';
@@ -95,6 +98,7 @@ export const router = {
     categories: categoryProcedures,
     articles: articleProcedures,
   },
+  reports: { tickets: ticketReport, conversations: conversationReport, calls: callReport },
 };
 
 /** The typed client the UI builds (`ui/src/orpc.ts`). */

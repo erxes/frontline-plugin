@@ -215,6 +215,42 @@ export const pluginApi = async (api: ReturnType<typeof coreClient>, request: API
   };
 };
 
+const CallSettings = z.object({ webhookUrl: z.string() });
+
+/**
+ * A CallPro line in a new channel, connected through the API: no screen connects a phone line
+ * yet. Returns how to post CallPro's events to it, as its servers do.
+ */
+export const callProLine = async (
+  api: ReturnType<typeof coreClient>,
+  request: APIRequestContext,
+  phone: string,
+) => {
+  const rpc = await pluginApi(api, request);
+  const channel = await rpc('channels/create', { name: `Phones ${unique()}` }, Id);
+  const account = await rpc('integrations/callpro/connect', { phone }, Id);
+
+  await rpc(
+    'integrations/create',
+    { channelId: channel.id, kind: 'callpro', name: phone, config: { accountId: account.id } },
+    Id,
+  );
+
+  const { webhookUrl } = await rpc(
+    'integrations/call/settings',
+    { accountId: account.id },
+    CallSettings,
+  );
+
+  return async (callID: string, numberFrom: string, disp: string) => {
+    const posted = await request.post(webhookUrl, {
+      data: { callID, numberFrom, numberTo: phone, disp },
+    });
+
+    expect(posted.status()).toBe(200);
+  };
+};
+
 /** Frontline's inbox. */
 export const INBOX = '/frontline/inbox';
 

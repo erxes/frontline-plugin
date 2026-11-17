@@ -39,6 +39,8 @@ const memberDoc = pluginOpenApi(router, {
   prefix: '/v1',
 });
 
+const anyOrigin = cors({ origin: true, credentials: false, maxAge: 600 });
+
 /** The member behind a request from the plugin UI, or null without a valid session token. */
 const memberOf = async (authorization: string | undefined) => {
   const token = bearerOf(authorization);
@@ -97,7 +99,7 @@ export const createApp = () => {
   // Providers post webhooks signed out, from their own servers.
   app.use('/api/public/webhooks', webhookRoutes());
   // Websites embed the messenger and forms: their routes answer any origin, so they come before
-  // web's CORS. Forms find the organisation by the key frontline gave it.
+  // member CORS. Forms find the organisation by the key frontline gave it.
   app.use('/api/public/messenger', messengerRoutes());
   app.use(
     '/api/public/:key',
@@ -107,15 +109,14 @@ export const createApp = () => {
   );
   // Core's API reference fetches the document from web at the organisation's own address.
   // It holds no secrets, so any origin may read it.
-  app.get(
-    '/api/openapi/member.json',
-    cors({ origin: true, credentials: false, maxAge: 600 }),
-    async (_req, res) => {
-      res.json(await memberDoc);
-    },
-  );
-  // The plugin UI runs inside web and calls this API from web's origin.
-  app.use(cors({ origin: config.coreUiOrigin, maxAge: 600 }));
+  app.get('/api/openapi/member.json', anyOrigin, async (_req, res) => {
+    res.json(await memberDoc);
+  });
+  // The plugin UI calls this API from web, at whatever address the organisation
+  // uses (acme.os.erxes.io, its own domain). Any origin may: access is the
+  // Bearer session token core issues, never a cookie, so CORS guards nothing here.
+  // Routes for websites (an API key, customer tokens) set their own CORS.
+  app.use(['/api/rpc', '/api/v1', '/ui'], anyOrigin);
 
   app.get('/health', (_req, res) => {
     res.json({ ok: true });
@@ -127,7 +128,7 @@ export const createApp = () => {
   app.use('/api/v1', signedIn('/api/v1', rest));
 
   // Signed out: a help center's visitors, found by the key or domain frontline issued.
-  app.use('/api/public', publicRouter());
+  app.use('/api/public', cors({ origin: config.coreUiOrigin, maxAge: 600 }), publicRouter());
 
   // Core POSTs each job attempt here, signed over the raw body; anything but 2xx retries.
   app.post('/api/jobs/:name', express.text({ type: '*/*' }), async (req, res) => {
