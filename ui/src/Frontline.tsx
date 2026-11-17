@@ -1,9 +1,6 @@
 import { addPluginStyles, RecordPage } from 'erxes-ui';
 import { lazy, type ReactNode, Suspense } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
-import { ChannelMembersPage } from '@/channels/ChannelMembersPage.tsx';
-import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
-import { PersonalChannel } from '@/channels/PersonalChannel.tsx';
 import {
   CALL_TYPE,
   CHANNEL_TYPE,
@@ -40,19 +37,19 @@ const ResponseTemplatesPage = lazy(async () => ({
 }));
 
 const TopicsPage = lazy(async () => ({
-  default: (await import('@/knowledgebase/TopicsPage.tsx')).TopicsPage,
+  default: (await import('@/knowledgebase/pages.ts')).TopicsPage,
 }));
 
 const ArticlesPage = lazy(async () => ({
-  default: (await import('@/knowledgebase/ArticlesPage.tsx')).ArticlesPage,
+  default: (await import('@/knowledgebase/pages.ts')).ArticlesPage,
 }));
 
 const CategoriesPage = lazy(async () => ({
-  default: (await import('@/knowledgebase/CategoriesPage.tsx')).CategoriesPage,
+  default: (await import('@/knowledgebase/pages.ts')).CategoriesPage,
 }));
 
 const TopicSettingsPage = lazy(async () => ({
-  default: (await import('@/knowledgebase/TopicSettingsPage.tsx')).TopicSettingsPage,
+  default: (await import('@/knowledgebase/pages.ts')).TopicSettingsPage,
 }));
 
 const PipelinesPage = lazy(async () => ({
@@ -81,6 +78,18 @@ const MessengerSettingsPage = lazy(async () => ({
 
 const IntegrationsPage = lazy(async () => ({
   default: (await import('@/integrations/IntegrationsPage.tsx')).IntegrationsPage,
+}));
+
+const ChannelsPage = lazy(async () => ({
+  default: (await import('@/channels/pages.ts')).ChannelsPage,
+}));
+
+const ChannelMembersPage = lazy(async () => ({
+  default: (await import('@/channels/pages.ts')).ChannelMembersPage,
+}));
+
+const PersonalChannel = lazy(async () => ({
+  default: (await import('@/channels/pages.ts')).PersonalChannel,
 }));
 
 const TicketsPage = lazy(async () => ({
@@ -112,15 +121,15 @@ const SubmissionsRedirect = () => (
 );
 
 const CallHistoryPage = lazy(async () => ({
-  default: (await import('@/calls/CallHistoryPage.tsx')).CallHistoryPage,
+  default: (await import('@/calls/pages.ts')).CallHistoryPage,
 }));
 
 const QueuesPage = lazy(async () => ({
-  default: (await import('@/calls/QueuesPage.tsx')).QueuesPage,
+  default: (await import('@/calls/pages.ts')).QueuesPage,
 }));
 
 const QueuePage = lazy(async () => ({
-  default: (await import('@/calls/QueuePage.tsx')).QueuePage,
+  default: (await import('@/calls/pages.ts')).QueuePage,
 }));
 
 /** The old calls dashboard's queue links open that queue's board. */
