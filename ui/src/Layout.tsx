@@ -34,12 +34,13 @@ const ROOT = `/${PLUGIN}`;
 const CALLS = `${ROOT}/calls`;
 const SETTINGS = `${ROOT}/settings`;
 
-// The inbox's count, queues and channels load with the inbox's API client, after the page module.
-const InboxNav = lazy(async () => ({ default: (await import('@/inbox/InboxNav.tsx')).InboxNav }));
+// The inbox's count, queues and channels and the ticket pipelines load with the API client, after
+// the page module.
+const InboxNav = lazy(async () => ({ default: (await import('@/nav.ts')).InboxNav }));
 
-const InboxGroups = lazy(async () => ({
-  default: (await import('@/inbox/InboxNav.tsx')).InboxGroups,
-}));
+const InboxGroups = lazy(async () => ({ default: (await import('@/nav.ts')).InboxGroups }));
+
+const TicketsNav = lazy(async () => ({ default: (await import('@/nav.ts')).TicketsNav }));
 
 /** The open page, with a placeholder while a lazy one loads. */
 const Page = () => (
@@ -98,7 +99,6 @@ export const FrontlineLayout = () => {
   const { t } = useTranslation('frontline');
 
   const items = [
-    { name: t('tickets', 'Tickets'), to: `${ROOT}/tickets`, icon: IconTicket },
     { name: t('forms', 'Forms'), to: `${ROOT}/forms`, icon: IconForms },
     { name: t('surveys', 'Surveys'), to: `${ROOT}/surveys`, icon: IconChecklist },
     { name: t('knowledge-base', 'Knowledge Base'), to: `${ROOT}/knowledgebase`, icon: IconBook },
@@ -127,6 +127,17 @@ export const FrontlineLayout = () => {
                     }
                   >
                     <InboxNav />
+                  </Suspense>
+                  <Suspense
+                    fallback={
+                      <NavigationMenuLinkItem
+                        to={`${ROOT}/tickets`}
+                        name={t('tickets', 'Tickets')}
+                        icon={IconTicket}
+                      />
+                    }
+                  >
+                    <TicketsNav />
                   </Suspense>
                   {items.map((item) => (
                     <NavigationMenuLinkItem

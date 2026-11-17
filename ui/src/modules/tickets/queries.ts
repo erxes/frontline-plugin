@@ -1,12 +1,18 @@
 import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  type InfiniteData,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
 import { toast, useListFilterParams, useLiveSignal } from 'erxes-ui';
-import { parseAsStringLiteral, useQueryStates } from 'nuqs';
+import { parseAsStringLiteral, useQueryState, useQueryStates } from 'nuqs';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
-import { useChange } from '~/shared/hooks.ts';
+import { useChange, useOptimistic } from '~/shared/hooks.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 
 type Outputs = InferClientOutputs<Client>['tickets'];
@@ -26,13 +32,36 @@ export const useTicketSort = () =>
     direction: parseAsStringLiteral(['desc', 'asc'] as const).withDefault('desc'),
   });
 
+/** The address's key for the pipeline the tickets page shows. */
+export const PIPELINE_PARAM = 'pipeline';
+
+/** The pipelines and statuses of the member's channels: what a ticket is filed under. */
+export const useChoices = () => {
+  const { data, isPending, error } = useQuery(orpc.pipelines.choices.queryOptions());
+
+  return { pipelines: data?.pipelines ?? [], statuses: data?.statuses ?? [], isPending, error };
+};
+
 /**
- * The tickets the filter bar keeps, in the chosen order, a page at a time. Another member's
- * change refetches them, and the open ticket.
+ * The pipeline the tickets page shows, one at a time as the old page did: the one the sidebar
+ * picked into the address, else the member's first.
+ */
+export const useTicketPipeline = () => {
+  const [picked] = useQueryState(PIPELINE_PARAM);
+  const { pipelines } = useChoices();
+
+  return pipelines.find((pipeline) => pipeline.id === picked) ?? pipelines[0];
+};
+
+/**
+ * The shown pipeline's tickets the filter bar keeps, in the chosen order, a page at a time.
+ * Another member's change refetches them, and the open ticket.
  */
 export const useTickets = () => {
   const params = useListFilterParams();
   const [{ sort, direction }] = useTicketSort();
+  const choices = useChoices();
+  const pipelineId = useTicketPipeline()?.id;
   const ascending = direction === 'asc';
   const queryClient = useQueryClient();
 
@@ -44,14 +73,18 @@ export const useTickets = () => {
 
   const query = useInfiniteQuery(
     orpc.tickets.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ ...params, sort, ascending, cursor }),
+      input: (cursor: string | undefined) => ({ ...params, pipelineId, sort, ascending, cursor }),
       initialPageParam: undefined,
       getNextPageParam: (page) => page.nextCursor ?? undefined,
+      enabled: Boolean(pipelineId),
     }),
   );
 
+  // Without a pipeline the list never asks, so it waits only on the choices and shows their refusal.
   return {
     ...query,
+    isPending: choices.isPending || (Boolean(pipelineId) && query.isPending),
+    error: choices.error ?? query.error,
     tickets: query.data?.pages.flatMap((page) => page.tickets) ?? [],
     totalCount: query.data?.pages[0]?.totalCount,
   };
@@ -60,19 +93,44 @@ export const useTickets = () => {
 /** One ticket: every slot of its panel reads this query. */
 export const useTicket = (id: string) => useQuery(orpc.tickets.get.queryOptions({ input: { id } }));
 
-/** The pipelines and statuses of the member's channels: what a ticket is filed under. */
-export const useChoices = () => {
-  const { data } = useQuery(orpc.pipelines.choices.queryOptions());
-
-  return { pipelines: data?.pipelines ?? [], statuses: data?.statuses ?? [] };
-};
-
 /** Refetches every ticket query after a change, and shows a refusal. */
 export const useTicketChange = () => useChange(orpc.tickets.key());
 
-/** Saves the given fields of one ticket, or moves it to another status of its pipeline. */
+type TicketPages = InfiniteData<Outputs['list'], string | undefined>;
+
+/**
+ * Saves the given fields of a ticket, or moves it to another status of its pipeline. The list,
+ * the board and the open ticket show the change at once; a property waits for the API, which
+ * parses it.
+ */
+export const useUpdateTicket = () =>
+  useMutation(
+    orpc.tickets.update.mutationOptions(
+      useOptimistic(orpc.tickets.key(), (queryClient, change: TicketChange & { id: string }) => {
+        const apply = (ticket: Ticket) =>
+          ticket.id === change.id
+            ? { ...ticket, ...change, propertiesData: ticket.propertiesData }
+            : ticket;
+
+        queryClient.setQueriesData<TicketPages>(
+          { queryKey: orpc.tickets.list.key({ type: 'infinite' }) },
+          (data) =>
+            data && {
+              ...data,
+              pages: data.pages.map((page) => ({ ...page, tickets: page.tickets.map(apply) })),
+            },
+        );
+        queryClient.setQueryData(
+          orpc.tickets.get.queryKey({ input: { id: change.id } }),
+          (ticket) => ticket && apply(ticket),
+        );
+      }),
+    ),
+  );
+
+/** `useUpdateTicket` for one ticket. */
 export const useEditTicket = (id: string) => {
-  const update = useMutation(orpc.tickets.update.mutationOptions(useTicketChange()));
+  const update = useUpdateTicket();
 
   return (change: TicketChange) => update.mutate({ id, ...change });
 };

@@ -96,25 +96,34 @@ export const PriorityIcon = ({ priority }: { priority: number }) => {
   );
 };
 
-/** A priority's icon and name. */
-const PriorityLabel = ({ priority }: { priority: number }) => (
-  <span className="flex items-center gap-2">
-    <PriorityIcon priority={priority} />
-    {usePriorityNames()[priority]}
-  </span>
-);
+/** A priority's icon and name; `named` false leaves the name to the label. */
+const PriorityLabel = ({ priority, named = true }: { priority: number; named?: boolean }) => {
+  const name = usePriorityNames()[priority];
 
-/** The five priorities, critical to none. */
+  return (
+    <span className="flex items-center gap-2">
+      <PriorityIcon priority={priority} />
+      {named && name}
+    </span>
+  );
+};
+
+/**
+ * The five priorities, critical to none. `quiet`, in a row, shows no priority as its icon alone,
+ * so a list of unset ones doesn't repeat "No priority", and fits the trigger to it.
+ */
 export const PrioritySelect = ({
   value,
   onChange,
   label,
   variant,
+  quiet,
 }: {
   value: number;
   onChange: (priority: number) => void;
   label: string;
   variant?: Variant;
+  quiet?: boolean;
 }) => {
   return (
     <Select
@@ -123,9 +132,9 @@ export const PrioritySelect = ({
         onChange(PRIORITIES.find((priority) => String(priority) === next) ?? 0)
       }
     >
-      <Select.Trigger variant={variant} aria-label={label}>
+      <Select.Trigger variant={variant} aria-label={label} className={quiet ? 'w-auto' : undefined}>
         <Select.Value>
-          <PriorityLabel priority={value} />
+          <PriorityLabel priority={value} named={!quiet || value > 0} />
         </Select.Value>
       </Select.Trigger>
       <Select.Content>
@@ -166,6 +175,7 @@ export const PriorityCell = ({ ticket }: { ticket: Ticket }) => {
       onChange={(priority) => edit({ priority })}
       label={t('priority-of', 'Priority of {{name}}', { name: ticket.name })}
       variant="flush"
+      quiet
     />
   );
 };
@@ -181,7 +191,8 @@ export const AssigneeCell = ({ ticket }: { ticket: Ticket }) => {
       onValueChange={(assigneeId) => edit({ assigneeId })}
       members={memberQueries}
       noneLabel={t('no-assignee', 'No assignee')}
-      placeholder={t('assignee', 'Assignee')}
+      // A row without one stays blank, as the old list's did; the cell still opens the picker.
+      placeholder=""
       aria-label={
         ticket.assigneeId
           ? undefined

@@ -1,5 +1,5 @@
 import { memberQueries } from '@erxes/core-contract/client';
-import { IconTicket } from '@tabler/icons-react';
+import { IconChevronRight, IconTicket } from '@tabler/icons-react';
 import {
   Button,
   DisplayMenu,
@@ -21,7 +21,7 @@ import { SortMenu, useTicketFields } from './TicketFilter.tsx';
 import { TicketList } from './TicketList.tsx';
 import { TicketsBoard } from './TicketsBoard.tsx';
 import { TicketsTable } from './TicketsTable.tsx';
-import { type Ticket, useChoices, useTickets } from './queries.ts';
+import { type Ticket, useTicketPipeline, useTickets } from './queries.ts';
 
 const LIST = 'frontline-tickets';
 
@@ -36,8 +36,16 @@ const bulkOf = (tickets: Ticket[]) => (selected: string[], clear: () => void) =>
   />
 );
 
-/** The page header, as core's breadcrumb draws it, and Create ticket. */
-const TicketsHeader = ({ canCreate, create }: { canCreate: boolean; create: () => void }) => {
+/** The page header, as core's breadcrumb draws it: Tickets, the shown pipeline, Create ticket. */
+const TicketsHeader = ({
+  pipeline,
+  canCreate,
+  create,
+}: {
+  pipeline?: string;
+  canCreate: boolean;
+  create: () => void;
+}) => {
   const { t } = useTranslation('frontline');
 
   return (
@@ -46,6 +54,12 @@ const TicketsHeader = ({ canCreate, create }: { canCreate: boolean; create: () =
         <span className="flex h-8 items-center gap-1.5 px-3 text-sm font-medium">
           <IconTicket />
           {t('tickets', 'Tickets')}
+          {pipeline && (
+            <>
+              <IconChevronRight className="text-muted-foreground" />
+              {pipeline}
+            </>
+          )}
         </span>
       </PageHeader.Start>
       <PageHeader.End>
@@ -60,16 +74,18 @@ const TicketsHeader = ({ canCreate, create }: { canCreate: boolean; create: () =
 };
 
 /**
- * Every ticket of the member's channels under core's list bar: the filter (`F`) on every field
- * the old page filtered by, Sort, and Display, which groups them by status, lays them on a board
- * or shows a table. A ticket opens in core's side panel; Create ticket drafts one there.
+ * One pipeline's tickets at a time, the one the sidebar picked, under core's list bar: the filter
+ * (`F`) on every field the old page filtered by, Sort, and Display, which groups them by status,
+ * lays them on a board or shows a table. A ticket opens in core's side panel; Create ticket
+ * drafts one there, in the shown pipeline.
  */
 export const TicketsPage = () => {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
   const [display] = useListDisplay(LIST, DISPLAYS);
-  const canCreate = useChoices().pipelines.length > 0;
-  const create = () => openNew(TICKET_TYPE);
+  const pipeline = useTicketPipeline();
+  const canCreate = Boolean(pipeline);
+  const create = () => openNew(TICKET_TYPE, { pipelineId: pipeline?.id });
 
   const { tickets, totalCount, isPending, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
     useTickets();
@@ -87,7 +103,7 @@ export const TicketsPage = () => {
 
   return (
     <PageContainer>
-      <TicketsHeader canCreate={canCreate} create={create} />
+      <TicketsHeader pipeline={pipeline?.name} canCreate={canCreate} create={create} />
       <ViewBar allLabel={t('all-tickets', 'All tickets')}>
         <ListFilter
           id={LIST}
@@ -105,8 +121,16 @@ export const TicketsPage = () => {
       ) : !isPending && tickets.length === 0 ? (
         <ListEmpty
           icon={<IconTicket />}
-          title={t('no-tickets-yet', 'No tickets yet')}
-          description={t('no-tickets-description', 'Create a ticket in one of your pipelines.')}
+          title={
+            pipeline
+              ? t('no-tickets-in', 'No tickets in {{pipeline}} yet', { pipeline: pipeline.name })
+              : t('no-tickets-yet', 'No tickets yet')
+          }
+          description={
+            pipeline
+              ? t('no-tickets-in-description', 'Create one here, or pick another pipeline.')
+              : t('no-ticket-pipelines', 'A channel admin adds pipelines in its settings.')
+          }
           action={
             canCreate && <Button onClick={create}>{t('create-ticket', 'Create ticket')}</Button>
           }

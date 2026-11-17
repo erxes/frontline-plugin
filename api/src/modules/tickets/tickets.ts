@@ -32,7 +32,6 @@ const TICKET_FILTER: FilterFields = {
   'subject.name': { kind: 'text', expr: tickets.name },
   'subject.number': { kind: 'text', expr: tickets.number },
   'subject.channelId': { kind: 'select', expr: tickets.channelId },
-  'subject.pipelineId': { kind: 'select', expr: tickets.pipelineId },
   'subject.statusId': { kind: 'select', expr: tickets.statusId },
   'subject.priority': { kind: 'select', expr: sql`${tickets.priority}::text` },
   'subject.assigneeId': { kind: 'member', expr: tickets.assigneeId },
@@ -56,15 +55,16 @@ const TICKET_FILTER: FilterFields = {
 
 /**
  * The tickets of the caller's channels, or every channel's for a member who manages them all,
- * `limit` at a time, narrowed by the filter bar, and how many match. `search` matches the name
- * or number; archived tickets show only when the filter asks for a state. Sorted by the last
- * change unless `sort` says creation, newest first unless `ascending`.
+ * `limit` at a time, in `pipelineId` when given, narrowed by the filter bar, and how many match.
+ * `search` matches the name or number; archived tickets show only when the filter asks for a
+ * state. Sorted by the last change unless `sort` says creation, newest first unless `ascending`.
  */
 const list = reads(PERMISSIONS.channelView)
   .input(
     z.object({
       ...FilterInput,
       ...PageInput,
+      pipelineId: z.string().optional(),
       sort: z.enum(['updatedAt', 'createdAt']).default('updatedAt'),
       ascending: z.boolean().default(false),
     }),
@@ -81,6 +81,7 @@ const list = reads(PERMISSIONS.channelView)
 
     const matches = and(
       seenBy(member),
+      input.pipelineId ? eq(tickets.pipelineId, input.pipelineId) : undefined,
       filtersBy(input.filter, 'subject.state') ? undefined : eq(tickets.state, 'active'),
       search ? or(ilike(tickets.name, search), ilike(tickets.number, search)) : undefined,
       input.filter ? filterSql(TICKET_FILTER, input.filter, member.userId) : undefined,

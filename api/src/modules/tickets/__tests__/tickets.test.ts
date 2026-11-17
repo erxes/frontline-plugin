@@ -146,7 +146,8 @@ describe('tickets', () => {
     ]);
     await expect(names({ filter: rule('assigneeId', 'not_exists') })).resolves.toHaveLength(2);
     await expect(names({ filter: rule('channelId', 'eq', channel.id) })).resolves.toHaveLength(3);
-    await expect(names({ filter: rule('pipelineId', 'eq', pipeline.id) })).resolves.toHaveLength(3);
+    await expect(names({ pipelineId: pipeline.id })).resolves.toHaveLength(3);
+    await expect(names({ pipelineId: 'other' })).resolves.toEqual([]);
     await expect(names({ filter: rule('priority', 'in', ['3', '4']) })).resolves.toEqual([
       'Refund',
     ]);

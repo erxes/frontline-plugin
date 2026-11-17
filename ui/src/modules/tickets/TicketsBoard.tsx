@@ -11,13 +11,11 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
-import { useMutation } from '@tanstack/react-query';
 import { IconCalendarX, IconPlus } from '@tabler/icons-react';
 import { Button, cn, DragHandle, useFormat, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { usePriorityNames } from '@/pipelines/queries.ts';
 import { StageIcon } from '@/pipelines/StatusRow.tsx';
-import { orpc } from '~/orpc.ts';
 import { TICKET_TYPE } from '~/plugin.ts';
 import { MemberLine } from '~/shared/MemberLine.tsx';
 import { SlaBadge } from './SlaBadge.tsx';
@@ -25,14 +23,14 @@ import { PriorityIcon, TicketMenu, TicketName } from './TicketCells.tsx';
 import { TicketTags } from './TicketLinks.tsx';
 import { TicketPropertyBadges } from './TicketProperties.tsx';
 import { useStatusGroups } from './TicketList.tsx';
-import { type Ticket, useTicketChange } from './queries.ts';
+import { type Ticket, useUpdateTicket } from './queries.ts';
 
 type Group = ReturnType<typeof useStatusGroups>[number];
 
 /**
  * A ticket on the board, laid out as the old board's card: its name and number, then its
- * priority, SLA and tags, then its target date and assignee. The handle drags it to another
- * status of its pipeline.
+ * priority, SLA and tags, then its target date and assignee, each only when it has one. The
+ * handle drags it to another status of its pipeline.
  */
 const TicketCard = ({ ticket }: { ticket: Ticket }) => {
   const { t } = useTranslation('frontline');
@@ -67,14 +65,13 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
         </span>
         <TicketMenu ticket={ticket} />
       </div>
-      <div className="flex flex-wrap items-center gap-2 px-2">
-        <span
-          className="flex items-center gap-1 text-muted-foreground"
-          title={priorities[ticket.priority]}
-        >
-          <PriorityIcon priority={ticket.priority} />
-          {priorities[ticket.priority]}
-        </span>
+      <div className="flex flex-wrap items-center gap-2 px-2 empty:hidden">
+        {ticket.priority > 0 && (
+          <span className="flex items-center gap-1 text-muted-foreground">
+            <PriorityIcon priority={ticket.priority} />
+            {priorities[ticket.priority]}
+          </span>
+        )}
         <SlaBadge ticket={ticket} />
         <TicketTags tagIds={ticket.tagIds} max={5} />
       </div>
@@ -152,12 +149,12 @@ const Column = ({ group: { status, label, rows } }: { group: Group }) => {
 };
 
 /**
- * The shown tickets in a column per status of their pipelines, the same list and filter as the
- * other displays. Dropping a card on a column of its pipeline moves it there.
+ * The shown pipeline's tickets in a column per status, the same list and filter as the other
+ * displays. Dropping a card on another column moves it there at once.
  */
 export const TicketsBoard = ({ tickets }: { tickets: Ticket[] }) => {
   const groups = useStatusGroups(tickets);
-  const update = useMutation(orpc.tickets.update.mutationOptions(useTicketChange()));
+  const update = useUpdateTicket();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
