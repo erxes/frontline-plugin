@@ -9,6 +9,7 @@ import {
   IconLetterCase,
   IconLayoutBottombar,
   IconProgressCheck,
+  IconTag,
 } from '@tabler/icons-react';
 import {
   Button,
@@ -33,6 +34,7 @@ import { useSetFormStatus } from './FormCells.tsx';
 import { FormList, FormsTable } from './FormRows.tsx';
 import {
   FORM_STATUSES,
+  formTags,
   LOAD_TYPES,
   useDeleteForms,
   useForms,
@@ -101,6 +103,7 @@ const useFields = (): TListFilterField[] => {
       icon: IconLayoutBottombar,
       options: LOAD_TYPES.map((type) => ({ value: type, label: loadTypes[type] })),
     },
+    { path: 'subject.tagIds', label: t('tags', 'Tags'), type: 'tags', icon: IconTag },
     { path: 'subject.viewCount', label: t('form-views', 'Views'), type: 'number', icon: IconEye },
     {
       path: 'subject.contactsGathered',
@@ -147,7 +150,13 @@ export const FormsPage = () => {
         <CreateButton allowed={canCreate} label={t('new-form', 'New form')} onClick={create} />
       </AppHeader>
       <ViewBar allLabel={t('all-forms', 'All forms')}>
-        <ListFilter id={LIST} fields={useFields()} members={memberQueries} totalCount={totalCount}>
+        <ListFilter
+          id={LIST}
+          fields={useFields()}
+          members={memberQueries}
+          tags={formTags}
+          totalCount={totalCount}
+        >
           <DisplayMenu list={LIST} displays={DISPLAYS} />
         </ListFilter>
       </ViewBar>

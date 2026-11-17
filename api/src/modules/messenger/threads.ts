@@ -20,6 +20,8 @@ const visitorMessage = {
   conversationId: messages.conversationId,
   content: messages.content,
   attachments: messages.attachments,
+  /** A survey the visitor votes on, read from `/surveys/:messageId`. */
+  surveyId: messages.surveyId,
   fromVisitor: isNotNull(messages.customerId),
   createdAt: messages.createdAt,
 };

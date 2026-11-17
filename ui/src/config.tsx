@@ -15,8 +15,10 @@ import {
   IconLock,
   IconMessageCircle,
   IconMessageReply,
+  IconMessages,
   IconRobot,
   IconPhone,
+  IconPlugConnected,
   IconTicket,
   IconWorldWww,
 } from '@tabler/icons-react';
@@ -24,7 +26,9 @@ import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
 import { type ComponentType, lazy } from 'react';
 import { DASHBOARD_WIDGETS } from '~/dashboardWidgets.ts';
 import {
+  ACCOUNT_TYPE,
   CALL_TYPE,
+  CONVERSATION_TYPE,
   CHANNEL_TYPE,
   FORM_SUBMISSION_TYPE,
   FORM_TYPE,
@@ -228,7 +232,14 @@ export const CONFIG: IUIConfig = {
       title: 'Bot',
       icon: IconRobot,
       detailPath: (id) => `/${PLUGIN}/settings/meta/bots/${encodeURIComponent(id)}`,
-      ...slots(() => import('@/meta/slots.ts')),
+      ...slots(() => import('@/integrations/botSlots.ts')),
+    },
+    {
+      contentType: ACCOUNT_TYPE,
+      title: 'Account',
+      icon: IconPlugConnected,
+      detailPath: (id) => `/${PLUGIN}/settings/integrations/${encodeURIComponent(id)}`,
+      ...slots(() => import('@/integrations/accountSlots.ts')),
     },
     {
       contentType: CALL_TYPE,
@@ -238,7 +249,31 @@ export const CONFIG: IUIConfig = {
       // A call comes from the PBX or CallPro, so it has no draft.
       ...readSlots(() => import('@/calls/slots.ts')),
     },
+    {
+      contentType: CONVERSATION_TYPE,
+      // Its draft is a new mail, which starts one.
+      title: 'Conversation',
+      icon: IconMessages,
+      detailPath: (id) => `/${PLUGIN}/inbox/conversations/${encodeURIComponent(id)}`,
+      ...slots(() => import('@/inbox/conversationSlots.ts')),
+      activity: `${PLUGIN}.conversation`,
+      // Core keeps the fields; the API client loads only when the Properties tab does.
+      properties: {
+        type: `${PLUGIN}.conversation`,
+        values: (id) => ({
+          queryKey: [PLUGIN, 'conversation-properties', id],
+          queryFn: async () =>
+            (await import('~/orpc.ts')).orpc.conversations.properties.values.call({ id }),
+        }),
+        save: async (id, patch) =>
+          (await import('~/orpc.ts')).orpc.conversations.properties.save.call({ id, patch }),
+      },
+    },
   ],
+  // The softphone on every page, for a member with a SIP line.
+  floatingWidget: lazy(async () => ({
+    default: (await import('@/calls/softphone/Softphone.tsx')).Softphone,
+  })),
   relationTabs: [
     {
       name: 'tickets',

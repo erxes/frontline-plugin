@@ -17,6 +17,8 @@ export const Visitor = z.object({
   customerId: z.string(),
   /** Whether the visitor left an email or phone, which a messenger with `requireAuth` asks for. */
   identified: z.boolean().default(false),
+  /** Whether the messenger made the customer, so what the website tells about the visitor may change it. */
+  owns: z.boolean().default(false),
 });
 
 export type Visitor = z.output<typeof Visitor>;

@@ -26,6 +26,18 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
             id: `customer-${input.primaryEmail ?? input.primaryPhone ?? 'without-contact'}`,
           },
         }),
+        // Every search finds Saraa, with her two addresses.
+        list: async () => ({
+          data: [
+            {
+              id: 'customer-saraa',
+              firstName: 'Saraa',
+              lastName: null,
+              primaryEmail: 'Saraa@example.mn',
+              emails: ['saraa@example.mn', 'gone@example.mn'],
+            },
+          ],
+        }),
       },
       // Core's storage, as `files.createUpload`, a PUT to its address, then `files.complete`.
       files: {

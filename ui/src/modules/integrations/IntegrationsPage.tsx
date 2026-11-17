@@ -1,6 +1,6 @@
 import {
-  IconBrandFacebook,
   IconCalendarCheck,
+  IconChevronDown,
   IconCircles,
   IconHeartbeat,
   IconLetterCase,
@@ -9,10 +9,9 @@ import {
   IconRobot,
   IconTrash,
 } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
 import {
-  Badge,
   Button,
+  DropdownMenu,
   PageContainer,
   PageHeader,
   RecordTable,
@@ -22,32 +21,51 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
-import { orpc } from '~/orpc.ts';
-import { INTEGRATION_TYPE, META_BOT_TYPE } from '~/plugin.ts';
+import { ACCOUNT_TYPE, INTEGRATION_TYPE, META_BOT_TYPE } from '~/plugin.ts';
 import { ListEmpty } from '~/shared/List.tsx';
 import { RowActions, TextCell } from '~/shared/Records.tsx';
 import { DateCell, Rows } from '~/shared/Table.tsx';
+import { FORM_PROVIDERS } from './AccountNew.tsx';
+import { StatusBadge } from './parts.tsx';
 import {
   type Account,
   type Bot,
+  isMeta,
+  useAccounts,
   useBots,
-  useConnect,
-  useIntegrationChange,
-  useMetaAccounts,
+  useCheckAccount,
+  useConnectMeta,
+  useProviderNames,
   useRemoveAccount,
-} from './useMeta.ts';
+} from './useIntegrations.ts';
 
 type Row = Account & { bot: Bot | undefined };
 
 const MoreCell = ({ row }: { row: Row }) => {
   const { t } = useTranslation('frontline');
   const { open, openNew } = useOpenRecord();
-
-  const check = useMutation(
-    orpc.integrations.accounts.check.mutationOptions(useIntegrationChange()),
-  );
-
+  const check = useCheckAccount();
   const remove = useRemoveAccount();
+
+  const bot = isMeta(row)
+    ? row.bot
+      ? [
+          {
+            value: 'bot',
+            icon: <IconRobot />,
+            label: t('open-bot', 'Open bot'),
+            onSelect: () => open({ contentType: META_BOT_TYPE, contentId: row.bot?.id ?? '' }),
+          },
+        ]
+      : [
+          {
+            value: 'bot',
+            icon: <IconRobot />,
+            label: t('set-up-bot', 'Set up a bot'),
+            onSelect: () => openNew(META_BOT_TYPE, { accountId: row.id }),
+          },
+        ]
+    : [];
 
   return (
     <RowActions
@@ -60,19 +78,7 @@ const MoreCell = ({ row }: { row: Row }) => {
           onSelect: () =>
             openNew(INTEGRATION_TYPE, { kind: row.provider, accountId: row.id, name: row.name }),
         },
-        row.bot
-          ? {
-              value: 'bot',
-              icon: <IconRobot />,
-              label: t('open-bot', 'Open bot'),
-              onSelect: () => open({ contentType: META_BOT_TYPE, contentId: row.bot?.id ?? '' }),
-            }
-          : {
-              value: 'bot',
-              icon: <IconRobot />,
-              label: t('set-up-bot', 'Set up a bot'),
-              onSelect: () => openNew(META_BOT_TYPE, { accountId: row.id }),
-            },
+        ...bot,
         {
           value: 'check',
           icon: <IconRefresh />,
@@ -90,19 +96,28 @@ const MoreCell = ({ row }: { row: Row }) => {
   );
 };
 
-const BotCell = ({ bot }: { bot: Bot | undefined }) => {
+/** A cell that opens the record `contentType` with its `label`, or reads empty without one. */
+const OpenCell = ({
+  label,
+  contentType,
+  contentId,
+}: {
+  label: string | undefined;
+  contentType: string;
+  contentId: string;
+}) => {
   const { open } = useOpenRecord();
 
-  if (!bot) return <TextCell value={null} />;
+  if (!label) return <TextCell value={null} />;
 
   return (
     <RecordTableInlineCell>
       <Button
         variant="ghost"
         className="w-full justify-start"
-        onClick={() => open({ contentType: META_BOT_TYPE, contentId: bot.id })}
+        onClick={() => open({ contentType, contentId })}
       >
-        {bot.name}
+        <span className="truncate">{label}</span>
       </Button>
     </RecordTableInlineCell>
   );
@@ -110,6 +125,7 @@ const BotCell = ({ bot }: { bot: Bot | undefined }) => {
 
 const useColumns = (): RecordTableColumnDef<Row>[] => {
   const { t } = useTranslation('frontline');
+  const names = useProviderNames();
 
   return [
     {
@@ -121,21 +137,19 @@ const useColumns = (): RecordTableColumnDef<Row>[] => {
     {
       id: 'name',
       header: () => <RecordTable.InlineHead label={t('name', 'Name')} icon={IconLetterCase} />,
-      cell: ({ row }) => <TextCell value={row.original.name} />,
+      cell: ({ row }) => (
+        <OpenCell
+          label={row.original.name}
+          contentType={ACCOUNT_TYPE}
+          contentId={row.original.id}
+        />
+      ),
       size: 240,
     },
     {
       id: 'provider',
-      header: () => <RecordTable.InlineHead label={t('type', 'Type')} icon={IconBrandFacebook} />,
-      cell: ({ row }) => (
-        <TextCell
-          value={
-            row.original.provider === 'instagram'
-              ? t('instagram-account', 'Instagram account')
-              : t('facebook-page', 'Facebook page')
-          }
-        />
-      ),
+      header: () => <RecordTable.InlineHead label={t('type', 'Type')} icon={IconPlugConnected} />,
+      cell: ({ row }) => <TextCell value={names[row.original.provider]} />,
       size: 170,
     },
     {
@@ -143,9 +157,7 @@ const useColumns = (): RecordTableColumnDef<Row>[] => {
       header: () => <RecordTable.InlineHead label={t('status', 'Status')} icon={IconHeartbeat} />,
       cell: ({ row }) => (
         <RecordTableInlineCell title={row.original.error ?? undefined}>
-          <Badge variant={row.original.status === 'healthy' ? 'success' : 'destructive'}>
-            {row.original.status === 'healthy' ? t('working', 'Working') : t('broken', 'Broken')}
-          </Badge>
+          <StatusBadge status={row.original.status} />
         </RecordTableInlineCell>
       ),
       size: 130,
@@ -153,7 +165,13 @@ const useColumns = (): RecordTableColumnDef<Row>[] => {
     {
       id: 'bot',
       header: () => <RecordTable.InlineHead label={t('bot', 'Bot')} icon={IconRobot} />,
-      cell: ({ row }) => <BotCell bot={row.original.bot} />,
+      cell: ({ row }) => (
+        <OpenCell
+          label={row.original.bot?.name}
+          contentType={META_BOT_TYPE}
+          contentId={row.original.bot?.id ?? ''}
+        />
+      ),
       size: 200,
     },
     {
@@ -200,39 +218,68 @@ const LoginResult = () => {
 };
 
 /**
- * The Facebook pages and Instagram accounts the organisation connected through Meta's login, with
- * the bot each one runs. A row's menu adds it to a channel, sets up its bot, checks it or
- * disconnects it.
+ * Connect: Facebook and Instagram through Meta's login, every other provider with its form in
+ * core's side panel.
  */
-export const MetaPage = () => {
+const ConnectMenu = () => {
   const { t } = useTranslation('frontline');
-  const accounts = useMetaAccounts();
+  const { openNew } = useOpenRecord();
+  const meta = useConnectMeta();
+  const names = useProviderNames();
+
+  return (
+    <DropdownMenu>
+      <DropdownMenu.Trigger
+        render={
+          <Button>
+            <IconPlugConnected />
+            {t('connect', 'Connect')}
+            <IconChevronDown />
+          </Button>
+        }
+      />
+      <DropdownMenu.Content align="end">
+        <DropdownMenu.Item disabled={meta.isPending} onClick={() => meta.mutate({})}>
+          {t('facebook-and-instagram', 'Facebook and Instagram')}
+        </DropdownMenu.Item>
+        {FORM_PROVIDERS.map((provider) => (
+          <DropdownMenu.Item key={provider} onClick={() => openNew(ACCOUNT_TYPE, { provider })}>
+            {names[provider]}
+          </DropdownMenu.Item>
+        ))}
+      </DropdownMenu.Content>
+    </DropdownMenu>
+  );
+};
+
+/**
+ * Every account the organisation connected: Facebook pages and Instagram accounts with the bot
+ * each runs, Telegram and Discord bots, mailboxes and phone lines. A name opens the account; a
+ * row's menu adds it to a channel, sets up a page's bot, checks it or disconnects it.
+ */
+export const IntegrationsPage = () => {
+  const { t } = useTranslation('frontline');
+  const accounts = useAccounts();
   const bots = useBots();
-  const connect = useConnect();
   const columns = useColumns();
 
-  const rows = (accounts.data ?? []).map((account) => ({
+  const rows = (accounts.data?.accounts ?? []).map((account) => ({
     ...account,
     bot: bots.data?.find((bot) => bot.accountId === account.id),
   }));
-
-  const connectButton = (variant: 'default' | 'secondary') => (
-    <Button variant={variant} disabled={connect.isPending} onClick={() => connect.mutate({})}>
-      <IconPlugConnected />
-      {t('connect-facebook', 'Connect Facebook')}
-    </Button>
-  );
 
   return (
     <PageContainer>
       <PageHeader>
         <PageHeader.Start>
           <span className="flex h-8 items-center gap-1.5 px-3 text-sm font-medium">
-            <IconBrandFacebook />
-            {t('facebook-and-instagram', 'Facebook and Instagram')}
+            <IconPlugConnected />
+            {t('integrations', 'Integrations')}
           </span>
         </PageHeader.Start>
-        <PageHeader.End>{connectButton('default')}</PageHeader.End>
+        <PageHeader.End>
+          <ConnectMenu />
+        </PageHeader.End>
       </PageHeader>
       <LoginResult />
       {accounts.error ? (
@@ -241,17 +288,16 @@ export const MetaPage = () => {
         </p>
       ) : !accounts.isPending && rows.length === 0 ? (
         <ListEmpty
-          icon={<IconBrandFacebook />}
-          title={t('no-pages-connected', 'No pages connected')}
+          icon={<IconPlugConnected />}
+          title={t('no-accounts-connected', 'No accounts connected')}
           description={t(
-            'connect-pages-description',
-            'Connect your Facebook pages and their Instagram accounts to answer messages and comments in the inbox',
+            'connect-accounts-description',
+            'Connect your pages, bots, mailboxes and phone lines to answer them in the inbox',
           )}
-          action={connectButton('secondary')}
         />
       ) : (
         <RecordTable.Provider
-          tableId="frontline_meta_accounts"
+          tableId="frontline_integration_accounts"
           columns={columns}
           data={rows}
           stickyColumns={['more', 'name']}

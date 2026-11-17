@@ -8,6 +8,7 @@ import {
   inOrder,
   type OpenAccount,
   type OutboundMessage,
+  type OutboundReaction,
   type ProviderName,
 } from '../provider.ts';
 import { postOfThread } from './metaWebhook.ts';
@@ -171,6 +172,33 @@ const sendThrough = (provider: ProviderName) => (account: MetaAccount, message: 
     ? replyToComment(provider, account, message)
     : sendMessage(account, message);
 
+/** The only reaction Messenger and Instagram take from a page. */
+const LOVE = '❤';
+
+/**
+ * Puts the page's ❤️ on the customer's message, or takes it back when no member has it. A
+ * comment takes no reactions this way.
+ */
+const reactThrough = async ({ secret }: MetaAccount, reaction: OutboundReaction) => {
+  const loved = reaction.emojis.some((emoji) => emoji.replaceAll('️', '') === LOVE);
+
+  if (postOfThread(reaction.threadId) || reaction.emoji.replaceAll('️', '') !== LOVE)
+    throw new ORPCError('BAD_REQUEST', { message: 'Meta takes only ❤️ on a message' });
+
+  await askMeta(
+    graph('me/messages', secret.pageToken, {
+      method: 'POST',
+      body: {
+        recipient: { id: reaction.to },
+        sender_action: loved ? 'react' : 'unreact',
+        payload: loved
+          ? { message_id: reaction.message.externalId, reaction: 'love' }
+          : { message_id: reaction.message.externalId },
+      },
+    }),
+  );
+};
+
 const checkToken = async ({ secret }: MetaAccount) =>
   graph('me', secret.pageToken, { query: { fields: 'id' } }).then(
     () => null,
@@ -184,6 +212,7 @@ export const facebook = defineProvider({
   Secret,
   check: checkToken,
   send: sendThrough('facebook'),
+  react: reactThrough,
 });
 
 /** An Instagram professional account, reached through its Facebook page's token. */
@@ -193,4 +222,5 @@ export const instagram = defineProvider({
   Secret,
   check: checkToken,
   send: sendThrough('instagram'),
+  react: reactThrough,
 });

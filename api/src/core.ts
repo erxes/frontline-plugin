@@ -34,6 +34,10 @@ export const PERMISSIONS = {
   helpCenterManage: 'frontline.help_center.manage',
   /** Read and answer the conversations of the channels you belong to. */
   inboxView: 'frontline.inbox.view',
+  /** Send a channel's active surveys into its conversations. */
+  surveySend: 'frontline.survey.send',
+  /** Change the custom fields of the conversations you can read. */
+  conversationEditFields: 'frontline.conversation.edit_fields',
   /** See the connected pages, bots and mailboxes. */
   integrationView: 'frontline.integration.view',
   /** Connect, check and remove pages, bots and mailboxes. */
@@ -42,7 +46,7 @@ export const PERMISSIONS = {
   callView: 'frontline.call.view',
 } as const;
 
-/** The record type whose Activity tab in core shows a conversation's events. */
+/** The conversation's record type in core: its Activity tab's events and its custom fields. */
 export const CONVERSATION_TIMELINE = 'frontline.conversation';
 
 /** What happens to a conversation, published in the change's transaction. */
@@ -195,6 +199,14 @@ export const FORM_EVENTS = {
   /** About the customer who sent it, so it also starts automations. */
   submitted: { type: 'frontline.form.submitted', label: 'Form submitted' },
 } as const;
+
+/** What automations can do with forms (`modules/forms/links.ts`). */
+export const FORM_ACTIONS = {
+  createLink: 'frontline.form.create_link',
+} as const;
+
+/** How many days a form link lasts when the step leaves it out, and at most. */
+export const FORM_LINK_DAYS = { default: 30, max: 365 } as const;
 
 /** The record type whose Activity tab shows a survey's events. */
 export const SURVEY_TIMELINE = 'frontline.survey';

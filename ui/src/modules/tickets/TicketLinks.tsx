@@ -24,11 +24,11 @@ import {
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { Badges, MembersField, PickerField } from '~/shared/Pickers.tsx';
+import { MembersField, PickerField, TagBadges, TagsField, tagsOf } from '~/shared/Pickers.tsx';
 import { type Ticket, useEditTicket } from './queries.ts';
 
 /** The organisation's ticket tags, as erxes-ui's tag lookups take them. */
-export const ticketTags = orpc.tags.list.queryOptions({ input: { type: 'ticket' } });
+export const ticketTags = tagsOf('ticket');
 
 /** The organisation's departments or branches. */
 export const useTeams = (kind: 'department' | 'branch') =>
@@ -208,42 +208,10 @@ const TeamField = ({
   );
 };
 
-/** The ticket's tags, picked in place. */
-export const TagsField = ({
-  value,
-  onChange,
-}: {
-  value: string[];
-  onChange: (tagIds: string[]) => void;
-}) => {
-  const { t } = useTranslation('frontline');
-  const tags = useQuery(ticketTags);
-  const rows = tags.data?.data ?? [];
-  const name = new Map(rows.map((tag) => [tag.id, tag.name]));
-
-  return (
-    <PickerField
-      label={t('tags', 'Tags')}
-      placeholder={t('no-tags', 'No tags')}
-      display={<Badges labels={value.map((id) => name.get(id) ?? '')} />}
-      options={rows.map((tag) => ({ value: tag.id, label: tag.name }))}
-      loading={tags.isPending}
-      error={tags.error}
-      value={value}
-      onValueChange={onChange}
-      multiple
-    />
-  );
-};
-
 /** The ticket's tags as badges, on a list row or a board card; nothing when it has none. */
-export const TicketTags = ({ tagIds }: { tagIds: string[] }) => {
-  const tags = useQuery({ ...ticketTags, enabled: tagIds.length > 0 });
-  const name = new Map((tags.data?.data ?? []).map((tag) => [tag.id, tag.name]));
-  const labels = tagIds.flatMap((id) => name.get(id) ?? []);
-
-  return labels.length > 0 ? <Badges labels={labels} /> : null;
-};
+export const TicketTags = ({ tagIds, max }: { tagIds: string[]; max?: number }) => (
+  <TagBadges tags={ticketTags} tagIds={tagIds} max={max} />
+);
 
 /** Its tags, branch and department. */
 export const TicketLabels = ({ ticket }: { ticket: Ticket }) => {
@@ -253,7 +221,11 @@ export const TicketLabels = ({ ticket }: { ticket: Ticket }) => {
   return (
     <PanelSection title={t('labels', 'Labels')}>
       <PanelField icon={IconTag} label={t('tags', 'Tags')} cell={false}>
-        <TagsField value={ticket.tagIds} onChange={(tagIds) => edit({ tagIds })} />
+        <TagsField
+          tags={ticketTags}
+          value={ticket.tagIds}
+          onChange={(tagIds) => edit({ tagIds })}
+        />
       </PanelField>
       <PanelField icon={IconBuildingStore} label={t('branch', 'Branch')} cell={false}>
         <TeamField

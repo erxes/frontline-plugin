@@ -22,6 +22,14 @@ describe('tags', () => {
       data: [{ name: 'billing' }],
     });
     await expect(clientAs('org-tg-b').tags.list({ type: 'ticket' })).resolves.toEqual({ data: [] });
+
+    const { data: every } = await owner.tags.list({});
+
+    expect(every.map((tag) => [tag.name, tag.type])).toEqual([
+      ['billing', 'ticket'],
+      ['Urgent', 'conversation'],
+      ['Urgent', 'ticket'],
+    ]);
   });
 
   it('lets members read tags and only settings managers change them', async () => {

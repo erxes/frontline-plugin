@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { config } from '#/config.ts';
 import { COMMENT_RECEIVED } from '#/core.ts';
 import type { Attachment } from '#/db/table.ts';
-import type { InboundMessage, ProviderName, WebhookSource } from '../provider.ts';
+import type { InboundMessage, InboundReaction, ProviderName, WebhookSource } from '../provider.ts';
 import { sameText } from '../secrets.ts';
 import { metaKey } from '../store.ts';
 
@@ -29,6 +29,14 @@ const Messaging = z.object({
       quick_reply: z.object({ payload: z.string() }).optional(),
       reply_to: z.object({ story: z.object({ url: z.string() }).optional() }).optional(),
       attachments: z.array(z.object({ type: z.string(), payload: File.nullish() })).optional(),
+    })
+    .optional(),
+  // A person put an emoji on a message, or took theirs back: one each on Messenger and Instagram.
+  reaction: z
+    .object({
+      mid: z.string(),
+      action: z.enum(['react', 'unreact']),
+      emoji: z.string().optional(),
     })
     .optional(),
   // A tap on a bot's button, persistent menu item, ice breaker or Get Started.
@@ -214,12 +222,30 @@ export const metaWebhook: WebhookSource = {
       ],
     }));
   },
-  receive: (row, events) =>
-    events.flatMap((raw) => {
-      const event = MetaEvent.parse(raw);
+  receive: (row, events) => {
+    const parsed = events.map((raw) => MetaEvent.parse(raw));
 
-      return 'change' in event
-        ? fromChange(row.provider, row.externalId, event.change)
-        : fromMessaging(event);
-    }),
+    return {
+      messages: parsed.flatMap((event) =>
+        'change' in event
+          ? fromChange(row.provider, row.externalId, event.change)
+          : fromMessaging(event),
+      ),
+      reactions: parsed.flatMap((event): InboundReaction[] =>
+        'reaction' in event && event.reaction
+          ? [
+              {
+                threadId: event.sender.id,
+                messageId: event.reaction.mid,
+                author: { externalId: event.sender.id },
+                emojis:
+                  event.reaction.action === 'react' && event.reaction.emoji
+                    ? [event.reaction.emoji]
+                    : [],
+              },
+            ]
+          : [],
+      ),
+    };
+  },
 };

@@ -8,16 +8,12 @@ import {
   IconMenu2,
   IconMessage,
   IconMessageQuestion,
-  IconPlus,
   IconRefresh,
   IconTrash,
-  IconX,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import {
-  Badge,
   Button,
-  Input,
   PanelField,
   PanelSection,
   Skeleton,
@@ -25,13 +21,13 @@ import {
   TextField,
   type TRecordSlotProps,
 } from 'erxes-ui';
-import { type SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InfoRow } from '~/shared/Panel.tsx';
 import { orpc } from '~/orpc.ts';
-import { textOf } from '~/shared/hooks.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
-import { type Bot, useBot, useIntegrationChange, useRemoveBot, useUpdateBot } from './useMeta.ts';
+import { useIntegrationChange } from '@/inbox/queries.ts';
+import { AddRow, ItemRow, StatusBadge } from './parts.tsx';
+import { type Bot, useBot, useRemoveBot, useUpdateBot } from './useIntegrations.ts';
 
 /** The panel header's title: the bot's name. */
 export const BotTitle = ({ contentId }: TRecordSlotProps) => {
@@ -79,77 +75,6 @@ export const BotActions = ({ contentId }: TRecordSlotProps) => {
         },
       ]}
     />
-  );
-};
-
-/** One row of a list the bot shows: its text, and a button that takes it out. */
-const ItemRow = ({
-  label,
-  hint,
-  onRemove,
-}: {
-  label: string;
-  hint?: string;
-  onRemove: () => void;
-}) => {
-  const { t } = useTranslation('frontline');
-
-  return (
-    <li className="flex items-center gap-2 px-2 py-1 text-xs">
-      <span className="flex-1 truncate">
-        {label}
-        {hint && <span className="ml-2 text-muted-foreground">{hint}</span>}
-      </span>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={t('remove-item', 'Remove {{name}}', { name: label })}
-        onClick={onRemove}
-      >
-        <IconX />
-      </Button>
-    </li>
-  );
-};
-
-/** A row's inputs and its Add button, cleared once the item is added. */
-const AddRow = ({
-  fields,
-  onAdd,
-}: {
-  fields: { name: string; label: string; maxLength?: number; required?: boolean; type?: string }[];
-  onAdd: (values: Record<string, string>) => void;
-}) => {
-  const { t } = useTranslation('frontline');
-
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-
-    onAdd(Object.fromEntries(fields.map(({ name }) => [name, textOf(form.get(name)).trim()])));
-    event.currentTarget.reset();
-  };
-
-  return (
-    <form onSubmit={submit} className="flex items-center gap-2 px-2 py-1">
-      {fields.map((field) => (
-        <Input
-          key={field.name}
-          name={field.name}
-          type={field.type}
-          required={field.required}
-          maxLength={field.maxLength}
-          aria-label={field.label}
-          placeholder={field.label}
-          variant="bordered"
-          text="sm"
-        />
-      ))}
-      <Button type="submit" variant="secondary">
-        <IconPlus />
-        {t('add', 'Add')}
-      </Button>
-    </form>
   );
 };
 
@@ -258,9 +183,7 @@ const BotFields = ({ bot }: { bot: Bot }) => {
       </InfoRow>
       <PanelField icon={IconHeartbeat} label={t('status', 'Status')} cell={false}>
         <span className="flex items-center gap-2 px-2 text-xs">
-          <Badge variant={bot.status === 'healthy' ? 'success' : 'destructive'}>
-            {bot.status === 'healthy' ? t('working', 'Working') : t('broken', 'Broken')}
-          </Badge>
+          <StatusBadge status={bot.status} />
           {bot.error}
         </span>
       </PanelField>

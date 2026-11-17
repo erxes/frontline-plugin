@@ -22,6 +22,20 @@ vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
 
 const { get, deliver } = serve();
 
+/** Telegram's update with the customer's emojis on their message 41. */
+const reacted = (emojis: string[], updateId: number) =>
+  JSON.stringify({
+    update_id: updateId,
+    message_reaction: {
+      chat: { id: 4242, type: 'private' },
+      message_id: 41,
+      user: { id: 4242, is_bot: false, first_name: 'Bat' },
+      date: 1763180200,
+      old_reaction: [],
+      new_reaction: emojis.map((emoji) => ({ type: 'emoji', emoji })),
+    },
+  });
+
 describe('telegram', () => {
   it('connects a bot, takes its updates into a conversation and replies through it', async () => {
     const calls = fakeProviders(telegramApi);
@@ -80,6 +94,46 @@ describe('telegram', () => {
       { content: 'It ships today', deliveryStatus: 'sent', externalId: '4242:42' },
       { content: 'Hello, is my order on its way?', deliveryStatus: null, externalId: '4242:41' },
     ]);
+  });
+
+  it("reacts to a customer's message through the bot and keeps the customer's reactions", async () => {
+    const calls = fakeProviders(telegramApi);
+    const owner = clientAs('org-tg-react');
+    const account = await owner.integrations.telegram.connect({ token: '777:good-token-abc' });
+    const { path, signed } = webhookOf(calls);
+
+    await channelFor('org-tg-react', 'telegram', account.id);
+    expect(await deliver(path, fixture('telegram-update.json'), signed)).toBe(200);
+
+    const [conversation] = (await owner.conversations.list({})).conversations;
+    const conversationId = conversation?.id ?? '';
+    const [message] = (await owner.conversations.messages.list({ conversationId })).messages;
+    const id = message?.id ?? '';
+
+    await expect(owner.conversations.messages.react({ id, emoji: '❤️' })).resolves.toEqual({
+      reactions: [{ emoji: '❤️', count: 1, mine: true }],
+    });
+    // One bot, one reaction: Telegram's emoji has no U+FE0F.
+    expect(calls.at(-1)?.url.pathname).toBe('/bot777:good-token-abc/setMessageReaction');
+    expect(calls.at(-1)?.body).toEqual({
+      chat_id: '4242',
+      message_id: 41,
+      reaction: [{ type: 'emoji', emoji: '❤' }],
+    });
+
+    await owner.conversations.messages.react({ id, emoji: '❤️', remove: true });
+    expect(calls.at(-1)?.body).toMatchObject({ reaction: [] });
+    await expect(owner.conversations.messages.react({ id, emoji: 'nope' })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+
+    // The customer's own reactions replace theirs each time Telegram reports them.
+    expect(await deliver(path, reacted(['👍', '🔥'], 918273002), signed)).toBe(200);
+    expect(await deliver(path, reacted(['👍'], 918273003), signed)).toBe(200);
+
+    const [shown] = (await owner.conversations.messages.list({ conversationId })).messages;
+
+    expect(shown?.reactions).toEqual([{ emoji: '👍', count: 1, mine: false }]);
   });
 
   it('refuses a token Telegram refuses', async () => {

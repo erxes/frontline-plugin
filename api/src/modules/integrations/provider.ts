@@ -30,6 +30,36 @@ export interface InboundMessage {
   event?: string;
 }
 
+/** A customer's reactions on one message, as they stand now after a change at the provider. */
+export interface InboundReaction {
+  threadId: string;
+  /** The provider's id for the message reacted to. */
+  messageId: string;
+  author: { externalId: string };
+  /** Every emoji the customer has on the message now; none once they took theirs back. */
+  emojis: string[];
+}
+
+/** What one account's webhook events carry. */
+interface Inbound {
+  messages: InboundMessage[];
+  reactions: InboundReaction[];
+}
+
+/** A member's reaction on its way to the provider. */
+export interface OutboundReaction {
+  /** The conversation's id at the provider. */
+  threadId: string;
+  /** The customer's id at the provider: for mail, their address. */
+  to: string;
+  /** The provider's id for the message, and what it stored on it, such as a mail's subject. */
+  message: { externalId: string; providerData: Record<string, unknown> | null };
+  /** The emoji a member added or took back. */
+  emoji: string;
+  /** The team's emojis on the message after the change, oldest first: one bot or page reacts for all. */
+  emojis: string[];
+}
+
 /** A reply the inbox sends through an account. */
 export interface OutboundMessage {
   /** The conversation's id at the provider. */
@@ -59,6 +89,8 @@ interface ProviderSpec<Config, Secret> {
   check: (account: OpenAccount<Config, Secret>) => Promise<string | null>;
   /** Sends a reply and resolves to the provider's id for it. */
   send: (account: OpenAccount<Config, Secret>, message: OutboundMessage) => Promise<string>;
+  /** Puts the team's reaction on the customer's message at the provider, for one that takes them. */
+  react?: (account: OpenAccount<Config, Secret>, reaction: OutboundReaction) => Promise<void>;
   /** Stops the provider sending events for an account that is being removed. */
   disconnect?: (account: OpenAccount<Config, Secret>) => Promise<void>;
 }
@@ -70,6 +102,8 @@ interface ProviderSpec<Config, Secret> {
 export const defineProvider = <Config, Secret>(spec: ProviderSpec<Config, Secret>) => ({
   name: spec.name,
   open: (row: AccountRow) => {
+    const { react } = spec;
+
     const account: OpenAccount<Config, Secret> = {
       row,
       config: spec.Config.parse(row.config),
@@ -80,6 +114,7 @@ export const defineProvider = <Config, Secret>(spec: ProviderSpec<Config, Secret
       account,
       check: () => spec.check(account),
       send: (message: OutboundMessage) => spec.send(account, message),
+      react: react ? (reaction: OutboundReaction) => react(account, reaction) : null,
       disconnect: async () => {
         await spec.disconnect?.(account);
       },
@@ -119,6 +154,6 @@ export interface WebhookSource {
   confirm?: (query: Record<string, unknown>) => string | null;
   /** The accounts a delivery addresses with their events, or null when it isn't the provider's. */
   route: (request: WebhookRequest) => Routed[] | null;
-  /** The messages in one account's events, or null when the delivery isn't that account's. */
-  receive: (row: AccountRow, events: unknown[], request: WebhookRequest) => InboundMessage[] | null;
+  /** The messages and reactions in one account's events, or null when the delivery isn't that account's. */
+  receive: (row: AccountRow, events: unknown[], request: WebhookRequest) => Inbound | null;
 }

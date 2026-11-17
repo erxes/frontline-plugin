@@ -84,10 +84,14 @@ const get = reads(PERMISSIONS.callView)
   });
 
 const Agent = createSelectSchema(callOperators)
-  .omit({ orgId: true })
+  .omit({ orgId: true, sipSecret: true })
   .extend({ status: z.enum(OPERATOR_STATUSES), accountName: z.string() });
 
-const { orgId: _operatorOrg, ...operatorColumns } = getTableColumns(callOperators);
+const {
+  orgId: _operatorOrg,
+  sipSecret: _sipSecret,
+  ...operatorColumns
+} = getTableColumns(callOperators);
 
 /** The caller's extensions on each PBX, with what they last told its queues. */
 const mine = reads(PERMISSIONS.callView)

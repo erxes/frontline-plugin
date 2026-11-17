@@ -2,10 +2,10 @@ import { randomUUID } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { CONVERSATION_EVENTS, PERMISSIONS } from '#/core.ts';
+import { core, CONVERSATION_EVENTS, PERMISSIONS } from '#/core.ts';
 import { conversations, integrations } from '#/db/inbox.ts';
 import { Attachment } from '#/db/table.ts';
-import { writes } from '#/orpc.ts';
+import { reads, writes } from '#/orpc.ts';
 import { channelFor } from '#/modules/channels/access.ts';
 import { postMessage } from '#/modules/inbox/post.ts';
 import { customerFor } from '#/modules/inbox/receive.ts';
@@ -105,4 +105,41 @@ const compose = writes(PERMISSIONS.inboxView)
     return { conversationId: conversation.id, messageId: message.id };
   });
 
-export const composeProcedures = { compose };
+/**
+ * Who a new mail may go to: core's customers the search finds, one row for each of their
+ * addresses, less those that bounced or reported spam.
+ */
+const recipients = reads(PERMISSIONS.inboxView)
+  .input(z.object({ search: z.string().trim().max(200).default('') }))
+  .output(
+    z.array(
+      z.object({
+        customerId: z.string(),
+        firstName: z.string().nullable(),
+        lastName: z.string().nullable(),
+        email: z.string(),
+      }),
+    ),
+  )
+  .handler(async ({ input, context: { tx, member } }) => {
+    const { data } = await core
+      .forOrg(member.orgId)
+      .customers.list({ search: input.search || undefined, limit: 20 });
+
+    const rows = data.flatMap(({ id, firstName, lastName, primaryEmail, emails }) =>
+      [...new Set([primaryEmail, ...emails].flatMap((email) => email?.toLowerCase() ?? []))].map(
+        (email) => ({ customerId: id, firstName, lastName, email }),
+      ),
+    );
+
+    const suppressed = new Set(
+      await suppressedAmong(
+        tx,
+        rows.map((row) => row.email),
+      ),
+    );
+
+    return rows.filter((row) => !suppressed.has(row.email));
+  });
+
+export const composeProcedures = { compose, recipients };

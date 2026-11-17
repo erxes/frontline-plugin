@@ -2,13 +2,15 @@ import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
 import { useTranslation } from 'react-i18next';
+import { useIntegrationChange } from '@/inbox/queries.ts';
 import { orpc } from '~/orpc.ts';
-import { useChange } from '~/shared/hooks.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 
 type Outputs = InferClientOutputs<Client>;
 
 export type Account = Outputs['integrations']['accounts']['list']['accounts'][number];
+
+export type Provider = Account['provider'];
 
 export type Bot = Outputs['integrations']['meta']['bots']['get'];
 
@@ -17,8 +19,37 @@ export type BotSettings = Omit<
   'id'
 >;
 
-const isMeta = (account: Account) =>
+/** Whether the account came through Meta's login: a Facebook page or an Instagram account. */
+export const isMeta = (account: Pick<Account, 'provider'>) =>
   account.provider === 'facebook' || account.provider === 'instagram';
+
+/** A provider's accounts as members read them. */
+export const useProviderNames = (): Record<Provider, string> => {
+  const { t } = useTranslation('frontline');
+
+  return {
+    facebook: t('facebook-page', 'Facebook page'),
+    instagram: t('instagram-account', 'Instagram account'),
+    telegram: t('telegram-bot', 'Telegram bot'),
+    discord: t('discord-bot', 'Discord bot'),
+    mail: t('mailbox', 'Mailbox'),
+    call: t('grandstream-pbx', 'Grandstream PBX'),
+    callpro: t('callpro-line', 'CallPro line'),
+  };
+};
+
+/** The organisation's connected accounts, by provider then name. */
+export const useAccounts = () =>
+  useQuery(orpc.integrations.accounts.list.queryOptions({ input: {} }));
+
+/** One connected account, read from the list the page and the side panel share. */
+export const useAccount = (id: string) =>
+  useQuery(
+    orpc.integrations.accounts.list.queryOptions({
+      input: {},
+      select: (data) => data.accounts.find((account) => account.id === id),
+    }),
+  );
 
 /** The connected Facebook pages and Instagram accounts, by provider then name. */
 export const useMetaAccounts = () =>
@@ -35,9 +66,6 @@ export const useBots = () =>
 
 export const useBot = (id: string) =>
   useQuery(orpc.integrations.meta.bots.get.queryOptions({ input: { id } }));
-
-/** Refetches accounts and bots after a change, and shows a refusal. */
-export const useIntegrationChange = () => useChange(orpc.integrations.key());
 
 /** A bot's settings as `update` takes them, from the bot as shown. */
 const settingsOf = (bot: Bot): BotSettings => ({
@@ -62,7 +90,7 @@ export const useUpdateBot = (bot: Bot) => {
 };
 
 /** Sends the member to Meta's login, where they pick the pages to connect. */
-export const useConnect = () => {
+export const useConnectMeta = () => {
   const { onError } = useIntegrationChange();
 
   return useMutation(
@@ -73,6 +101,10 @@ export const useConnect = () => {
   );
 };
 
+/** Asks the provider whether the account still works, and records its answer. */
+export const useCheckAccount = () =>
+  useMutation(orpc.integrations.accounts.check.mutationOptions(useIntegrationChange()));
+
 /** Asks for "delete" to be typed, then disconnects the account and its bot. */
 export const useRemoveAccount = () => {
   const { t } = useTranslation('frontline');
@@ -82,7 +114,7 @@ export const useRemoveAccount = () => {
     orpc.integrations.accounts.remove.mutationOptions(useIntegrationChange()),
   );
 
-  return async (account: Account) => {
+  return async (account: Pick<Account, 'id' | 'name'>) => {
     await confirm(t('disconnect-account-confirm', 'Disconnect {{name}}?', { name: account.name }));
     remove.mutate({ ids: [account.id] });
   };

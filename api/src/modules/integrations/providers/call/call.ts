@@ -14,6 +14,13 @@ export const PbxConfig = z.object({
   dstTrunk: z.string().default(''),
   /** Its clock's IANA zone: CDR times are wall-clock times there. */
   timeZone: z.string(),
+  /**
+   * The TURN server softphones relay their audio through when the PBX or the member is behind
+   * NAT (`turn:turn.example.com:3478`), and its login. Every operator's softphone gets them.
+   */
+  turnUrl: z.string().default(''),
+  turnUsername: z.string().default(''),
+  turnPassword: z.string().default(''),
 });
 
 const PbxSecret = z.object({

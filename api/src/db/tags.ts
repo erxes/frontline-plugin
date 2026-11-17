@@ -3,12 +3,12 @@ import { check, text, unique, uniqueIndex } from 'drizzle-orm/pg-core';
 import { id, stamps, table } from './table.ts';
 
 /** What a tag labels: core's tags are for customers and companies, so the plugin keeps its own. */
-export const TAG_TYPES = ['ticket', 'conversation'] as const;
+export const TAG_TYPES = ['ticket', 'conversation', 'form'] as const;
 
 /** Names are unique per type, ignoring case; a write that breaks one fails with 23505. */
 export const TAG_NAME_INDEX = 'frontline_tags_org_type_name_key';
 
-/** A label members put on tickets or conversations, which lists filter by. */
+/** A label members put on tickets, conversations or forms, which lists filter by. */
 export const tags = table(
   'tags',
   {
@@ -24,6 +24,6 @@ export const tags = table(
     // What a conversation's tag foreign key names (`frontline_conversation_tags`).
     unique('frontline_tags_org_id_key').on(t.orgId, t.id),
     uniqueIndex(TAG_NAME_INDEX).on(t.orgId, t.type, sql`lower(${t.name})`),
-    check('frontline_tags_type_check', sql`${t.type} in ('ticket', 'conversation')`),
+    check('frontline_tags_type_check', sql`${t.type} in ('ticket', 'conversation', 'form')`),
   ],
 );

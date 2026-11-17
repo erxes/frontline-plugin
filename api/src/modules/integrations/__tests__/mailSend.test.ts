@@ -18,7 +18,14 @@ vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
 /** The mailbox's INBOX, which IMAP reads, and what went out over SMTP. */
 const mailbox = vi.hoisted(() => ({
   inbox: [] as string[],
-  sent: [] as { to: string; subject: string; messageId?: string; inReplyTo?: string }[],
+  sent: [] as {
+    to: string;
+    subject: string;
+    messageId?: string;
+    inReplyTo?: string;
+    text?: string;
+    headers?: Record<string, string>;
+  }[],
 }));
 
 vi.mock('imapflow', () => ({
@@ -132,6 +139,19 @@ describe('mail', () => {
       { to: 'saraa@example.mn', subject: 'Re: Your refund', inReplyTo: '<saraa-2@example.mn>' },
     ]);
 
+    // A reaction is an RFC 9078 reply: one part, marked `reaction`, with the team's emojis.
+    await owner.conversations.messages.react({ id: messages[0]?.id ?? '', emoji: '👍' });
+
+    expect(mailbox.sent.splice(0)).toMatchObject([
+      {
+        to: 'saraa@example.mn',
+        subject: 'Re: Your refund',
+        inReplyTo: '<saraa-2@example.mn>',
+        text: '👍',
+        headers: { 'content-disposition': 'reaction' },
+      },
+    ]);
+
     const events = await withOrg('org-mail-a', (tx) =>
       tx.execute(
         sql`select type, entity_id, summary from core_events where type = 'frontline.mail.received'`,
@@ -184,6 +204,15 @@ describe('mail', () => {
     await expect(
       owner.integrations.mail.compose({ ...mail, to: 'Gone@example.mn' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    // A new mail's recipients leave the bounced address out.
+    await expect(owner.integrations.mail.recipients({ search: 'saraa' })).resolves.toEqual([
+      {
+        customerId: 'customer-saraa',
+        firstName: 'Saraa',
+        lastName: null,
+        email: 'saraa@example.mn',
+      },
+    ]);
 
     await owner.integrations.mail.suppressions.remove({ ids: suppressions.map(({ id }) => id) });
 

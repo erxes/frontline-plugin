@@ -1,3 +1,4 @@
+import { CustomFieldsPatch } from '@erxes/core-contract';
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PLUGIN } from '#/config.ts';
@@ -27,7 +28,7 @@ export const Identity = z
  * conversations so far, written as an anonymous visitor, move to that customer.
  */
 export const identify = async (visitor: Visitor, identity: z.infer<typeof Identity>) => {
-  const { customer } = await core.forOrg(visitor.orgId).customers.findOrCreate({
+  const { customer, created } = await core.forOrg(visitor.orgId).customers.findOrCreate({
     primaryEmail: identity.email,
     primaryPhone: identity.phone,
     firstName: identity.firstName,
@@ -49,7 +50,73 @@ export const identify = async (visitor: Visitor, identity: z.infer<typeof Identi
         ),
     );
 
-  return { ...visitor, customerId: customer.id, identified: true };
+  return { ...visitor, customerId: customer.id, identified: true, owns: created };
+};
+
+/** What the website tells about the visitor beside who they are. */
+export const VisitorData = z.object({
+  /** Values of the customer's custom fields, by core field id. */
+  customFields: CustomFieldsPatch.optional(),
+  /** The company they are with: found by its name, else made with the rest. */
+  company: z
+    .object({
+      name: z.string().trim().min(1).max(200),
+      website: z.url().max(500).optional(),
+      customFields: CustomFieldsPatch.optional(),
+    })
+    .optional(),
+});
+
+type VisitorData = z.infer<typeof VisitorData>;
+
+/** The organisation's company named `name`, any case, or a new one with the website's data. */
+const companyFor = async (
+  orgId: string,
+  { name, website, customFields }: NonNullable<VisitorData['company']>,
+) => {
+  const client = core.forOrg(orgId);
+  const { data } = await client.companies.list({ search: name, limit: 20 });
+  const found = data.find((company) => company.primaryName.toLowerCase() === name.toLowerCase());
+
+  return (
+    found ??
+    (await client.companies.create({
+      primaryName: name,
+      names: [name],
+      website,
+      customFields,
+      source: messenger.kind,
+    }))
+  );
+};
+
+/** The visitor's custom fields, and the company they work at, found or made. */
+const saveOn = async (visitor: Visitor, { customFields, company }: VisitorData) => {
+  const client = core.forOrg(visitor.orgId);
+
+  if (customFields) await client.customers.update({ id: visitor.customerId, customFields });
+
+  if (company)
+    await client.customers.linkCompany({
+      id: visitor.customerId,
+      companyId: (await companyFor(visitor.orgId, company)).id,
+    });
+};
+
+/**
+ * Saves the website's data on a customer the messenger made, never on one an unchecked email or
+ * phone found. An existing company never takes the website's data. Core checks the values; a
+ * refusal is logged and the visit goes on.
+ */
+export const saveVisitorData = async (visitor: Visitor, data: VisitorData) => {
+  if (!visitor.owns) return;
+
+  await saveOn(visitor, data).catch((error: unknown) =>
+    logger.warn(
+      { err: error, orgId: visitor.orgId, integrationId: visitor.integrationId },
+      "the visitor's data was not saved",
+    ),
+  );
 };
 
 /** Tells the open inbox screens that a visitor came or went. */

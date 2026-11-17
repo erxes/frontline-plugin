@@ -23,6 +23,7 @@ import { MemberLine } from '~/shared/MemberLine.tsx';
 import { SlaBadge } from './SlaBadge.tsx';
 import { PriorityIcon, TicketMenu, TicketName } from './TicketCells.tsx';
 import { TicketTags } from './TicketLinks.tsx';
+import { TicketPropertyBadges } from './TicketProperties.tsx';
 import { useStatusGroups } from './TicketList.tsx';
 import { type Ticket, useTicketChange } from './queries.ts';
 
@@ -75,7 +76,10 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
           {priorities[ticket.priority]}
         </span>
         <SlaBadge ticket={ticket} />
-        <TicketTags tagIds={ticket.tagIds} />
+        <TicketTags tagIds={ticket.tagIds} max={5} />
+      </div>
+      <div className="px-2 empty:hidden">
+        <TicketPropertyBadges ticket={ticket} />
       </div>
       {(ticket.targetDate ?? ticket.assigneeId) && (
         <div className="flex items-center justify-between gap-2 border-t px-2 pt-1.5 text-muted-foreground">

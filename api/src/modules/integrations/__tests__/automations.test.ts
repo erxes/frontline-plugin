@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vite-plus/test';
+import { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
 import { clientAs } from '#/test/member.ts';
 import {
@@ -20,7 +21,14 @@ vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
   (await import('./standIns.ts')).sdkStandIn(await importOriginal()),
 );
 
-const { deliver, act } = serve();
+const { deliver, act, send } = serve();
+
+const Link = z.object({
+  url: z.url(),
+  linkId: z.string(),
+  formId: z.string(),
+  expiresAt: z.iso.datetime(),
+});
 
 /** A Telegram bot in a channel of `orgId`, with one customer's conversation. */
 const telegramConversation = async (orgId: string) => {
@@ -175,5 +183,73 @@ describe('automations', () => {
     await expect(
       clientAs('org-auto-e').integrations.telegram.webhookInfo({ id: account.id }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it("makes a form link that takes one answer, as the run's customer, about its record", async () => {
+    const owner = clientAs('org-auto-link');
+    const channel = await owner.channels.create({ name: 'Support' });
+    const form = await owner.forms.create({ channelId: channel.id, name: 'Rating', title: 'Rate' });
+    const field = await owner.forms.fields.add({ formId: form.id, type: 'text', label: 'Comment' });
+
+    const step = {
+      // Core leaves out the days the member left blank.
+      input: { formId: form.id },
+      context: {
+        event: {
+          subjectType: 'customer',
+          subjectId: 'customer-rated',
+          entityType: 'frontline.ticket',
+          entityId: 'ticket-rated',
+        },
+      },
+    };
+
+    const made = await act('frontline.form.create_link', step, {
+      orgId: 'org-auto-link',
+      run: 'run-link',
+    });
+
+    expect(made.status).toBe(200);
+
+    const { url, linkId, expiresAt } = Link.parse(made.body);
+    const days = (Date.parse(expiresAt) - Date.now()) / (24 * 60 * 60 * 1000);
+
+    expect(Math.round(days)).toBe(30);
+    const link = new URL(url);
+    // The widgets app answers `/forms/<key>/<code>` through the API's public form route.
+    const [, , key, code] = link.pathname.split('/');
+
+    const answer = (token: string) =>
+      send(`/public/${key}/forms/${code}`, {
+        answers: { [field.id]: 'Quick and kind' },
+        link: token,
+      });
+
+    expect(link.origin).toBe('https://widgets.e2e.test');
+    expect(linkId).toBe('run-link:step-1');
+
+    const token = link.searchParams.get('link') ?? '';
+
+    expect(await answer(`${token}x`)).toBe(403);
+    expect(await answer(token)).toBe(201);
+    expect(await answer(token)).toBe(409);
+
+    const { submissions } = await owner.forms.submissions.list({ formId: form.id });
+
+    expect(submissions).toMatchObject([
+      {
+        customerId: 'customer-rated',
+        referenceType: 'frontline.ticket',
+        referenceId: 'ticket-rated',
+        linkId,
+        answers: { [field.id]: 'Quick and kind' },
+      },
+    ]);
+
+    // A form of another organisation makes no link.
+    expect(
+      (await act('frontline.form.create_link', step, { orgId: 'org-auto-other', run: 'run-x' }))
+        .status,
+    ).toBe(404);
   });
 });
