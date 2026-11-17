@@ -1,7 +1,7 @@
 import { and, asc, count, eq, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
-import { conversations } from '#/db/inbox.ts';
+import { conversations, integrations } from '#/db/inbox.ts';
 import { channelMembers, channels } from '#/db/schema.ts';
 import { reads } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
@@ -10,7 +10,8 @@ import { mentionedIdsOf, readSql, seenBy } from './shared.ts';
 /**
  * How many open conversations wait unread by the caller: all they see, and each queue of the
  * inbox's sidebar (assigned to them, mentioning them, unassigned, awaiting a reply), and in each
- * channel they belong to, by name. A queue's link filters the inbox by the same rule.
+ * channel they belong to, by name, and in each kind of integration the channel has. A queue's
+ * link filters the inbox by the same rule.
  */
 const counts = reads(PERMISSIONS.inboxView)
   .input(z.object({}))
@@ -29,6 +30,8 @@ const counts = reads(PERMISSIONS.inboxView)
           /** The caller's personal inbox, which the sidebar shows as My inbox. */
           personal: z.boolean(),
           unread: z.number(),
+          /** The kinds of integration the channel has, such as `messenger`, each with its unread. */
+          kinds: z.array(z.object({ kind: z.string(), unread: z.number() })),
         }),
       ),
     }),
@@ -65,13 +68,30 @@ const counts = reads(PERMISSIONS.inboxView)
       // The caller's personal inbox first, then the team channels.
       .orderBy(sql`${channels.ownerId} is null`, asc(channels.name));
 
+    const kinds = await tx
+      .select({
+        channelId: integrations.channelId,
+        kind: integrations.kind,
+        unread: count(conversations.id),
+      })
+      .from(integrations)
+      .innerJoin(channelMembers, membership(member, integrations.channelId))
+      .leftJoin(conversations, and(eq(conversations.integrationId, integrations.id), unread))
+      .groupBy(integrations.channelId, integrations.kind)
+      .orderBy(asc(integrations.kind));
+
     return {
       unread: queues?.unread ?? 0,
       assignedToMe: queues?.assignedToMe ?? 0,
       mentioned: queues?.mentioned ?? 0,
       unassigned: queues?.unassigned ?? 0,
       awaitingResponse: queues?.awaitingResponse ?? 0,
-      channels: rows,
+      channels: rows.map((row) => ({
+        ...row,
+        kinds: kinds
+          .filter((kind) => kind.channelId === row.id)
+          .map(({ kind, unread: kindUnread }) => ({ kind, unread: kindUnread })),
+      })),
     };
   });
 

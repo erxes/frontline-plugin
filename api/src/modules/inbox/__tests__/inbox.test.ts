@@ -98,6 +98,7 @@ describe('inbox', () => {
       integrationId: integration.id,
       kind: 'messenger',
       integrationName: 'Website',
+      channelName: 'Support',
       status: 'new',
       content: 'My order is late',
       messageCount: 1,

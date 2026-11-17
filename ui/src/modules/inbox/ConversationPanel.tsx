@@ -13,8 +13,8 @@ import { PLUGIN } from '~/plugin.ts';
 import { useChannelNames } from '~/shared/ChannelSelect.tsx';
 import { MemberChip } from '~/shared/MemberLine.tsx';
 import { InfoRow, PageLink, PanelSkeleton } from '~/shared/Panel.tsx';
+import { useCustomer } from '~/shared/PersonAvatar.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
-import { useCustomerName } from './ConversationList.tsx';
 import { Customer } from './CustomerSidebar.tsx';
 import { KindIcon, useStatusNames } from './InboxFilter.tsx';
 import { useConversation, useSetStatus } from './queries.ts';
@@ -22,7 +22,7 @@ import { useConversation, useSetStatus } from './queries.ts';
 /** The panel header's title: the customer the conversation is with, and its provider. */
 export const ConversationTitle = ({ contentId }: TRecordSlotProps) => {
   const conversation = useConversation(contentId);
-  const name = useCustomerName(conversation.data?.customerId ?? '');
+  const { name } = useCustomer(conversation.data?.customerId);
 
   if (conversation.isPending) return <Skeleton className="h-4 w-32" />;
 

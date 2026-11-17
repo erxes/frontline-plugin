@@ -114,15 +114,24 @@ describe('inbox list', () => {
       mentioned: 0,
       unassigned: 2,
       awaitingResponse: 2,
-      channels: [{ id: channel.id, name: 'Support', icon: null, personal: false, unread: 2 }],
+      channels: [
+        {
+          id: channel.id,
+          name: 'Support',
+          icon: null,
+          personal: false,
+          unread: 2,
+          kinds: [{ kind: 'messenger', unread: 2 }],
+        },
+      ],
     });
 
     // Their personal inbox comes first, flagged, so the sidebar shows it as My inbox.
     const mine = await teammate.channels.personal();
 
     expect((await teammate.conversations.counts({})).channels).toEqual([
-      { id: mine.id, name: 'Personal inbox', icon: null, personal: true, unread: 0 },
-      { id: channel.id, name: 'Support', icon: null, personal: false, unread: 2 },
+      { id: mine.id, name: 'Personal inbox', icon: null, personal: true, unread: 0, kinds: [] },
+      expect.objectContaining({ id: channel.id, personal: false, unread: 2 }),
     ]);
 
     // Assigned to them, and mentioned in another's note: each queue counts its own.

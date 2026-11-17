@@ -1,5 +1,12 @@
-import type { InferClientOutputs } from '@orpc/client';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
+import {
+  type InfiniteData,
+  type QueryClient,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
 import { useListFilterParams, useLiveSignal } from 'erxes-ui';
 import { parseAsString, useQueryState } from 'nuqs';
@@ -9,6 +16,8 @@ import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
 
 type Outputs = InferClientOutputs<Client>;
+
+type Inputs = InferClientInputs<Client>['conversations'];
 
 export type Conversation = Outputs['conversations']['get'];
 
@@ -50,18 +59,62 @@ export const useConversations = () => {
   };
 };
 
-export const useConversation = (id: string) =>
-  useQuery(orpc.conversations.get.queryOptions({ input: { id }, enabled: Boolean(id) }));
+type ListPage = Outputs['conversations']['list'];
+
+/** Every conversation the inbox's lists hold in the cache. */
+const listedConversations = (queryClient: QueryClient) =>
+  queryClient
+    .getQueriesData<InfiniteData<ListPage>>({
+      queryKey: orpc.conversations.list.key({ type: 'infinite' }),
+    })
+    .flatMap(([, data]) => data?.pages.flatMap((page) => page.conversations) ?? []);
+
+const conversationOptions = (id: string) =>
+  orpc.conversations.get.queryOptions({ input: { id }, enabled: Boolean(id) });
+
+/**
+ * One conversation. A conversation picked from the list shows at once from the list's row, and
+ * refreshes from the API behind it.
+ */
+export const useConversation = (id: string) => {
+  const queryClient = useQueryClient();
+
+  return useQuery({
+    ...conversationOptions(id),
+    initialData: () => listedConversations(queryClient).find((row) => row.id === id),
+    initialDataUpdatedAt: 0,
+  });
+};
+
+const messagesOptions = (conversationId: string) =>
+  orpc.conversations.messages.list.infiniteOptions({
+    enabled: Boolean(conversationId),
+    input: (cursor: string | undefined) => ({ conversationId, cursor }),
+    initialPageParam: undefined,
+    getNextPageParam: (page) => page.nextCursor ?? undefined,
+  });
+
+/** How long a prefetched thread counts as fresh, so moving the pointer back and forth asks once. */
+const PREFETCH_FRESH_MS = 30_000;
+
+/**
+ * Loads a conversation's messages before it opens, as the pointer rests on its row or the keys
+ * move to it, so opening it shows the thread at once.
+ */
+export const usePrefetchConversation = () => {
+  const queryClient = useQueryClient();
+
+  return (conversation: Conversation) => {
+    // A failed prefetch is only a slower open; the thread shows its own error.
+    queryClient
+      .infiniteQuery({ ...messagesOptions(conversation.id), staleTime: PREFETCH_FRESH_MS })
+      .catch(() => undefined);
+  };
+};
 
 /** A conversation's messages, oldest first for reading, the older ones a page at a time. */
 export const useMessages = (conversationId: string) => {
-  const query = useInfiniteQuery(
-    orpc.conversations.messages.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ conversationId, cursor }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-    }),
-  );
+  const query = useInfiniteQuery(messagesOptions(conversationId));
 
   return {
     ...query,
@@ -84,17 +137,104 @@ export const useLinkPreviews = (message: Message) =>
 /** Refetches the inbox after a change, and shows a refusal. */
 export const useInboxChange = () => useChange(orpc.conversations.key());
 
+/** Rewrites the conversations of `ids` wherever the cache holds them: the open one and the lists. */
+const patchConversations = (
+  queryClient: QueryClient,
+  ids: string[],
+  patch: Partial<Conversation>,
+) => {
+  const apply = (row: Conversation) => (ids.includes(row.id) ? { ...row, ...patch } : row);
+
+  queryClient.setQueriesData<InfiniteData<ListPage>>(
+    { queryKey: orpc.conversations.list.key({ type: 'infinite' }) },
+    (data) =>
+      data && {
+        ...data,
+        pages: data.pages.map((page) => ({
+          ...page,
+          conversations: page.conversations.map(apply),
+        })),
+      },
+  );
+
+  for (const id of ids)
+    queryClient.setQueryData(conversationOptions(id).queryKey, (row) => row && apply(row));
+};
+
+/**
+ * A change that shows at once: the cached conversations take `patch` before the request goes,
+ * go back if the API refuses, and the inbox refetches once it settles.
+ */
+const useOptimistic = <TInput>(
+  idsOf: (input: TInput) => string[],
+  patch: (input: TInput) => Partial<Conversation>,
+) => {
+  const queryClient = useQueryClient();
+  const { onError } = useInboxChange();
+  const queryKey = orpc.conversations.key();
+
+  return {
+    onMutate: async (input: TInput) => {
+      await queryClient.cancelQueries({ queryKey });
+
+      const before = queryClient.getQueriesData({ queryKey });
+
+      patchConversations(queryClient, idsOf(input), patch(input));
+
+      return { before };
+    },
+    onError: (
+      error: Error,
+      _input: TInput,
+      context: { before: ReturnType<QueryClient['getQueriesData']> } | undefined,
+    ) => {
+      for (const [key, data] of context?.before ?? []) queryClient.setQueryData(key, data);
+
+      onError(error);
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+  };
+};
+
 export const useAssign = () =>
-  useMutation(orpc.conversations.assign.mutationOptions(useInboxChange()));
+  useMutation(
+    orpc.conversations.assign.mutationOptions(
+      useOptimistic(
+        (input: Inputs['assign']) => input.ids,
+        ({ assigneeId }) => ({ assigneeId }),
+      ),
+    ),
+  );
 
 export const useSetStatus = () =>
-  useMutation(orpc.conversations.setStatus.mutationOptions(useInboxChange()));
+  useMutation(
+    orpc.conversations.setStatus.mutationOptions(
+      useOptimistic(
+        (input: Inputs['setStatus']) => input.ids,
+        ({ status }) => ({ status }),
+      ),
+    ),
+  );
 
 export const useSetTags = () =>
-  useMutation(orpc.conversations.setTags.mutationOptions(useInboxChange()));
+  useMutation(
+    orpc.conversations.setTags.mutationOptions(
+      useOptimistic(
+        (input: Inputs['setTags']) => input.ids,
+        ({ tagIds }) => ({ tagIds }),
+      ),
+    ),
+  );
 
 export const useMarkRead = () =>
-  useMutation(orpc.conversations.markRead.mutationOptions(useInboxChange()));
+  useMutation(
+    orpc.conversations.markRead.mutationOptions(
+      useOptimistic(
+        (input: Inputs['markRead']) => [input.id],
+        () => ({ isRead: true }),
+      ),
+    ),
+  );
 
 export const useSendMessage = () =>
   useMutation(orpc.conversations.messages.create.mutationOptions(useInboxChange()));
