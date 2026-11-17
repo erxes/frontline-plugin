@@ -71,7 +71,8 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
   await page.goto('/frontline/tickets');
 
   for (const [name, path] of Object.entries(pages)) {
-    await page.getByRole('link', { name, exact: true }).click();
+    // A link with unread items says how many: "Inbox 12 unread".
+    await page.getByRole('link', { name: new RegExp(`^${name}( \\d+ unread)?$`) }).click();
     await expect(page).toHaveURL(new RegExp(`${path}(/|\\?|$)`));
   }
 
