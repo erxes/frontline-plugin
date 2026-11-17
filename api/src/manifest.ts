@@ -20,6 +20,7 @@ import {
   TICKET_EVENTS,
   TICKET_TIMELINE,
 } from '#/core.ts';
+import { RELATIONS } from '#/relations.ts';
 
 /** What a ticket's people hear about, each sent with the event it names (`notify`). */
 const TICKET_NOTICES = [
@@ -62,6 +63,8 @@ export const manifest = {
   ],
   // Any change to a unit refreshes the copy (`modules/teams/sync.ts`).
   subscriptions: ['core.unit.*'],
+  // Conversations, tickets and form submissions in core's customer filter (`relations.ts`).
+  relations: RELATIONS,
   permissions: [
     {
       action: PERMISSIONS.channelView,
