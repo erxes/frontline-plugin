@@ -80,6 +80,11 @@ export const Publishing = ({ article, edit }: Props) => {
   const [today] = useState(() => new Date());
   const schedule = (scheduledAt: Date) => edit({ status: 'scheduled', scheduledAt });
 
+  const reactions = REACTIONS.map(({ key, ...reaction }) => ({
+    ...reaction,
+    label: t(key, reaction.label),
+  }));
+
   return (
     <PanelSection title={t('kb-publishing', 'Publishing')}>
       <PanelField icon={IconProgressCheck} label={t('status', 'Status')}>
@@ -120,10 +125,10 @@ export const Publishing = ({ article, edit }: Props) => {
       </PanelField>
       <PanelField icon={IconMoodSmile} label={t('kb-reaction-choices', 'Reactions')} cell={false}>
         <MultipleSelector
-          options={REACTIONS}
+          options={reactions}
           value={article.reactionChoices.map((choice) => ({
             value: choice,
-            label: REACTIONS.find((reaction) => reaction.value === choice)?.label ?? choice,
+            label: reactions.find((reaction) => reaction.value === choice)?.label ?? choice,
           }))}
           onChange={(options) => edit({ reactionChoices: options.map((option) => option.value) })}
         />

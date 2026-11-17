@@ -24,6 +24,8 @@ import {
 } from '@tabler/icons-react';
 import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
 import { type ComponentType, lazy } from 'react';
+import { addConfigText } from '~/i18n/configText.ts';
+import { withText } from '~/i18n/withText.ts';
 import { DASHBOARD_WIDGETS } from '~/dashboardWidgets.ts';
 import {
   ACCOUNT_TYPE,
@@ -54,25 +56,35 @@ type ReadSlots = { Title: Slot; Actions: Slot; Detail: Slot };
 
 type Slots = ReadSlots & { New: ComponentType<TRecordDraftProps> };
 
+addConfigText();
+
 /** The slots of a record members read and change but never draft. */
-const readSlots = (load: () => Promise<ReadSlots>) => ({
-  Title: lazy(async () => ({ default: (await load()).Title })),
-  Actions: lazy(async () => ({ default: (await load()).Actions })),
-  Detail: lazy(async () => ({ default: (await load()).Detail })),
-});
+const readSlots = (loadSlots: () => Promise<ReadSlots>) => {
+  const load = withText(loadSlots);
 
-const slots = (load: () => Promise<Slots>) => ({
-  ...readSlots(load),
-  New: lazy(async () => ({ default: (await load()).New })),
-});
+  return {
+    Title: lazy(async () => ({ default: (await load()).Title })),
+    Actions: lazy(async () => ({ default: (await load()).Actions })),
+    Detail: lazy(async () => ({ default: (await load()).Detail })),
+  };
+};
 
-const pipeline = () => import('@/pipelines/slots.ts');
-const ticket = () => import('@/tickets/slots.ts');
-const helpCenter = () => import('@/helpcenter/slots.ts');
-const kb = () => import('@/knowledgebase/slots.ts');
+const slots = (loadSlots: () => Promise<Slots>) => {
+  const load = withText(loadSlots);
+
+  return {
+    ...readSlots(load),
+    New: lazy(async () => ({ default: (await load()).New })),
+  };
+};
+
+const pipeline = withText(() => import('@/pipelines/slots.ts'));
+const ticket = withText(() => import('@/tickets/slots.ts'));
+const helpCenter = withText(() => import('@/helpcenter/slots.ts'));
+const kb = withText(() => import('@/knowledgebase/slots.ts'));
 const KB = `/${PLUGIN}/knowledgebase`;
-const forms = () => import('@/forms/slots.ts');
-const surveys = () => import('@/surveys/slots.ts');
+const forms = withText(() => import('@/forms/slots.ts'));
+const surveys = withText(() => import('@/surveys/slots.ts'));
 
 /**
  * What web reads from `./config`: the app tab, the page module under `/frontline/*`, and the
@@ -272,7 +284,7 @@ export const CONFIG: IUIConfig = {
   ],
   // The softphone on every page, for a member with a SIP line.
   floatingWidget: lazy(async () => ({
-    default: (await import('@/calls/softphone/Softphone.tsx')).Softphone,
+    default: (await withText(() => import('@/calls/softphone/Softphone.tsx'))()).Softphone,
   })),
   relationTabs: [
     {

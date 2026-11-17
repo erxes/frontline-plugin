@@ -1,10 +1,11 @@
 import { IconMessageCircle, IconPhone, IconTicket } from '@tabler/icons-react';
 import type { TDashboardWidget } from 'erxes-ui';
 import { lazy } from 'react';
+import { withText } from '~/i18n/withText.ts';
 
 // `./config` imports this, so like it, it holds only icons, names and lazy slots. A tile's icon
 // says what it counts, the preview how it draws, so three icons, which `./config` has anyway.
-const reports = () => import('@/reports/tiles.ts');
+const reports = withText(() => import('@/reports/tiles.ts'));
 
 /** A report tile whose body is the `TILES` entry `body`; core draws its frame and title. */
 const tile = ({

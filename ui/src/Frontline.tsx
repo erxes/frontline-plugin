@@ -1,5 +1,5 @@
 import { addPluginStyles, RecordPage } from 'erxes-ui';
-import { lazy } from 'react';
+import { lazy, type ReactNode, Suspense } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import { ChannelMembersPage } from '@/channels/ChannelMembersPage.tsx';
 import { ChannelsPage } from '@/channels/ChannelsPage.tsx';
@@ -24,6 +24,7 @@ import {
   TICKET_TYPE,
 } from '~/plugin.ts';
 import { FrontlineLayout, SettingsLayout } from './Layout.tsx';
+import { withText } from '~/i18n/withText.ts';
 import css from './styles.css?inline';
 
 addPluginStyles(PLUGIN, css);
@@ -170,7 +171,15 @@ const settingsRoutes = (
   </Route>
 );
 
-export const Frontline = () => (
+// The Mongolian text is its own chunk: the module waits for it before its first render, so
+// what web loads on every page stays small and no screen shows in English first.
+const loadText = withText(async () => ({
+  default: ({ children }: { children: ReactNode }) => children,
+}));
+
+const WithText = lazy(loadText);
+
+const FrontlineRoutes = () => (
   <Routes>
     <Route element={<FrontlineLayout />}>
       <Route index element={<Navigate to="inbox" replace />} />
@@ -227,4 +236,12 @@ export const Frontline = () => (
       element={<Navigate to={`/${PLUGIN}/settings/integrations`} replace />}
     />
   </Routes>
+);
+
+export const Frontline = () => (
+  <Suspense fallback={null}>
+    <WithText>
+      <FrontlineRoutes />
+    </WithText>
+  </Suspense>
 );

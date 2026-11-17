@@ -2,6 +2,7 @@ import type { InferClientOutputs } from '@orpc/client';
 import type { Client } from '@frontline/api';
 import { toast } from 'erxes-ui';
 import { UA, WebSocketInterface } from 'jssip';
+import { getI18n } from 'react-i18next';
 import type { RTCSession } from 'jssip/lib/RTCSession';
 import type { RTCSessionEvent } from 'jssip/lib/UA';
 import {
@@ -87,7 +88,13 @@ const follow = (
     if (direction === 'outgoing' && originator !== 'local') toast({ title: cause });
   });
   session.on('getusermediafailed', () =>
-    toast({ variant: 'destructive', title: 'The browser gave the phone no microphone' }),
+    toast({
+      variant: 'destructive',
+      title: getI18n().t('phone-no-microphone', {
+        ns: 'frontline',
+        defaultValue: 'The browser gave the phone no microphone',
+      }),
+    }),
   );
 };
 

@@ -63,7 +63,11 @@ export const REACTIONS = (
     ['like', 'Like'],
     ['dislike', 'Dislike'],
   ] as const
-).map(([name, label]) => ({ value: `https://erxes.s3.amazonaws.com/icons/${name}.svg`, label }));
+).map(([name, label]) => ({
+  value: `https://erxes.s3.amazonaws.com/icons/${name}.svg`,
+  key: `kb-reaction-${name}`,
+  label,
+}));
 
 /** A status as members read it. */
 export const useStatusNames = (): Record<ArticleStatus, string> => {

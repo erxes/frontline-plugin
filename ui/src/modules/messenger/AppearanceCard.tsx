@@ -75,7 +75,7 @@ const Themes = () => {
               setValue('textColor', theme.textColor, { shouldDirty: true });
             }}
           >
-            {theme.name}
+            {t(`messenger-theme-${theme.name.toLowerCase()}`, theme.name)}
           </Button>
         ))}
       </div>
