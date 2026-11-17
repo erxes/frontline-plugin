@@ -22,7 +22,7 @@ import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { PLUGIN } from '~/plugin.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
-import { CALL_ICONS, CallStatus, useDirectionNames } from './CallFields.tsx';
+import { CALL_ICONS, CallStatus, queueLabel, useDirectionNames } from './CallFields.tsx';
 import { type Call, durationText, useCall, useFetchRecording } from './queries.ts';
 import { InfoRow, PanelSkeleton } from '~/shared/Panel.tsx';
 import { MemberChip } from '~/shared/MemberLine.tsx';
@@ -98,7 +98,7 @@ const Fields = ({ call }: { call: Call }) => {
         {call.number}
       </InfoRow>
       <InfoRow icon={CALL_ICONS.queue} label={t('queue', 'Queue')}>
-        {call.queue}
+        {queueLabel(call)}
       </InfoRow>
       <InfoRow icon={CALL_ICONS.extension} label={t('extension', 'Extension')}>
         {call.extension}

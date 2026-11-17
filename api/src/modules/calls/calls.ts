@@ -5,7 +5,7 @@ import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { CALL_DIRECTIONS, CALL_STATUSES, calls } from '#/db/calls.ts';
+import { CALL_DIRECTIONS, CALL_STATUSES, callQueues, calls } from '#/db/calls.ts';
 import { conversations } from '#/db/inbox.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { channelMembers } from '#/db/schema.ts';
@@ -26,19 +26,27 @@ const Call = createSelectSchema(calls, {
   recording: () => Attachment.nullable(),
 })
   .omit({ orgId: true })
-  .extend({ accountName: z.string(), provider: z.string() });
+  .extend({ accountName: z.string(), provider: z.string(), queueName: z.string().nullable() });
 
-/** Calls as the caller sees them: their channels', or every channel's for one who manages all. */
+/**
+ * Calls as the caller sees them: their channels', or every channel's for one who manages all. Each
+ * has the name its queue goes by in settings, or null for a queue no admin added.
+ */
 const callRows = (tx: Tx, member: PluginMember) =>
   tx
     .select({
       ...callColumns,
       accountName: integrationAccounts.name,
       provider: integrationAccounts.provider,
+      queueName: callQueues.name,
     })
     .from(calls)
     .innerJoin(conversations, eq(conversations.id, calls.conversationId))
     .innerJoin(integrationAccounts, eq(integrationAccounts.id, calls.accountId))
+    .leftJoin(
+      callQueues,
+      and(eq(callQueues.accountId, calls.accountId), eq(callQueues.queue, calls.queue)),
+    )
     .leftJoin(channelMembers, membership(member, conversations.channelId))
     .$dynamic();
 

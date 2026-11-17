@@ -7,12 +7,14 @@ import {
   IconFileDescription,
   IconFolders,
   IconLanguage,
+  IconLayoutGrid,
   IconLetterCase,
   IconTrash,
   IconUser,
 } from '@tabler/icons-react';
 import {
   Button,
+  DisplayMenu,
   ListFilter,
   MemberInline,
   PageContainer,
@@ -20,6 +22,7 @@ import {
   type RecordTableColumnDef,
   RecordTableInlineCell,
   type TListFilterField,
+  useListDisplay,
   useOpenRecord,
   ViewBar,
 } from 'erxes-ui';
@@ -31,6 +34,7 @@ import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Recor
 import { column, DateCell, Rows } from '~/shared/Table.tsx';
 import { KbHeader } from './KbHeader.tsx';
 import { OldLink } from './OldLink.tsx';
+import { TopicCards } from './TopicCards.tsx';
 import { useDeleteTopics } from './useKbDeletes.ts';
 import {
   LANGUAGE_CODES,
@@ -178,9 +182,12 @@ const useFields = (): TListFilterField[] => {
   ];
 };
 
+const LIST = 'frontline-kb-topics';
+
 /**
- * The knowledge base's topics by title, under core's list bar. A topic opens in core's side
- * panel, its counts lead to its articles and categories, and New topic drafts one there.
+ * The knowledge base's topics under core's list bar, as cards that open their articles or as a
+ * table (the Display menu). In the table a topic opens in core's side panel and its counts lead
+ * to its articles and categories. New topic drafts one in the panel.
  */
 export const TopicsPage = () => {
   const { t } = useTranslation('frontline');
@@ -188,6 +195,13 @@ export const TopicsPage = () => {
   const { data, isPending, error } = useTopics();
   const topics = data?.topics ?? [];
   const columns = useColumns();
+
+  const displays = [
+    { key: 'cards', label: t('cards', 'Cards'), icon: IconLayoutGrid },
+    'table',
+  ] as const;
+
+  const [display] = useListDisplay(LIST, displays);
 
   return (
     <PageContainer>
@@ -201,11 +215,13 @@ export const TopicsPage = () => {
       </KbHeader>
       <ViewBar allLabel={t('kb-all-topics', 'All topics')}>
         <ListFilter
-          id="frontline-kb-topics"
+          id={LIST}
           fields={useFields()}
           members={memberQueries}
           totalCount={isPending ? undefined : topics.length}
-        />
+        >
+          <DisplayMenu list={LIST} displays={displays} />
+        </ListFilter>
       </ViewBar>
       {error ? (
         <ListError error={error} />
@@ -218,6 +234,8 @@ export const TopicsPage = () => {
             'Create your first topic and start your knowledge base.',
           )}
         />
+      ) : display === 'cards' ? (
+        <TopicCards topics={topics} isPending={isPending} />
       ) : (
         <RecordTable.Provider
           tableId="frontline_kb_topics"

@@ -35,7 +35,13 @@ describe('calls through a PBX', () => {
     expect(await post('cdr', fixture('cdr-noanswer.json'))).toBe(200);
 
     expect((await owner.calls.list({})).calls).toMatchObject([
-      { status: 'missed', direction: 'incoming', customerPhone: '99112233', queue: '6500' },
+      {
+        status: 'missed',
+        direction: 'incoming',
+        customerPhone: '99112233',
+        queue: '6500',
+        queueName: 'Sales',
+      },
     ]);
 
     expect(await post('cdr', fixture('cdr-answered.json'))).toBe(200);

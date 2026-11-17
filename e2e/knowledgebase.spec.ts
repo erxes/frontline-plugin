@@ -20,10 +20,9 @@ const newTopic = async (page: Page, title: string) => {
   await expectAccessible(page);
   await panel.getByRole('button', { name: 'Create topic' }).click();
 
-  // The topic takes the draft's place in the panel, and joins the list.
+  // The topic takes the draft's place in the panel, and joins the cards; its card opens its articles.
   await expect(panel.getByRole('button', { name: `Title ${title}`, exact: true })).toBeVisible();
-  await expect(page.getByRole('row', { name: new RegExp(title) })).toBeVisible();
-  await panel.getByRole('link', { name: /Manage articles/ }).click();
+  await page.getByRole('link', { name: title, exact: true }).click();
   await expect(page).toHaveURL(/\/knowledgebase\/[^/]+\/articles$/);
   await expect(page.getByText('No articles yet')).toBeVisible();
 
@@ -154,7 +153,7 @@ test('a manager duplicates and deletes an article, then sets up and deletes its 
   await confirmDelete(page);
   await expect(page.getByText('Topic deleted')).toBeVisible();
   await expect(page).toHaveURL(new RegExp(`${KB}$`));
-  await expect(page.getByRole('row', { name: new RegExp(topic) })).toBeHidden();
+  await expect(page.getByRole('link', { name: topic, exact: true })).toBeHidden();
 });
 
 test('a member without the knowledge base permission is refused', async ({ newMember }) => {

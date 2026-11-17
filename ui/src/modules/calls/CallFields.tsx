@@ -52,6 +52,10 @@ export const useDirectionNames = (): Record<Call['direction'], string> => {
   };
 };
 
+/** The queue by its name from settings with its PBX number after it, or the number alone. */
+export const queueLabel = (call: Pick<Call, 'queue' | 'queueName'>) =>
+  call.queue && call.queueName ? `${call.queueName} · ${call.queue}` : call.queue;
+
 export const CallStatus = ({ status }: { status: Status }) => (
   <Badge variant={BADGES[status]}>{useStatusNames()[status]}</Badge>
 );
