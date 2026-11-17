@@ -196,4 +196,39 @@ describe('forms', () => {
 
     await expect(owner.forms.get({ id: form.id })).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
+
+  it('tags a form with form tags, filters by them and drops a deleted tag', async () => {
+    const owner = clientAs('org-fm-tags');
+    const channel = await owner.channels.create({ name: 'Marketing' });
+
+    const [tagged, plain] = await Promise.all([
+      owner.forms.create({ channelId: channel.id, name: 'Webinar' }),
+      owner.forms.create({ channelId: channel.id, name: 'Newsletter' }),
+    ]);
+
+    const tag = await owner.tags.create({ type: 'form', name: 'Events' });
+    const ticketTag = await owner.tags.create({ type: 'ticket', name: 'Events' });
+
+    await expect(
+      owner.forms.update({ id: tagged.id, tagIds: [ticketTag.id] }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(owner.forms.update({ id: tagged.id, tagIds: [tag.id] })).resolves.toMatchObject({
+      tagIds: [tag.id],
+    });
+
+    const byTag = JSON.stringify({
+      match: 'all',
+      rules: [{ path: 'subject.tagIds', op: 'in', value: [tag.id] }],
+    });
+
+    await expect(owner.forms.list({ filter: byTag })).resolves.toMatchObject({
+      forms: [{ id: tagged.id }],
+      totalCount: 1,
+    });
+
+    await owner.tags.remove({ ids: [tag.id] });
+
+    await expect(owner.forms.get({ id: tagged.id })).resolves.toMatchObject({ tagIds: [] });
+    await expect(owner.forms.get({ id: plain.id })).resolves.toMatchObject({ tagIds: [] });
+  });
 });

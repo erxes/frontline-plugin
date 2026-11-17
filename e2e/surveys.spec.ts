@@ -1,21 +1,19 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 import {
+  addMessenger,
   confirmDelete,
   expect,
   expectAccessible,
+  INBOX,
   openChannelPipelines,
+  pick,
   recordPanel,
   test,
   unique,
+  visitorOf,
 } from './fixtures.ts';
 
 const SURVEYS = '/frontline/surveys';
-
-/** Opens `select` and picks `option` in it. */
-const pick = async (page: Page, select: Locator, option: string) => {
-  await select.click();
-  await page.getByRole('option', { name: option, exact: true }).click();
-};
 
 /** Drafts a survey in `channel` with one question and its options, and creates it. */
 const newSurvey = async (page: Page, channel: string, title: string) => {
@@ -130,6 +128,35 @@ test('an admin archives, reactivates and deletes surveys', async ({ page }) => {
   await expect(page.getByText('No results found')).toBeVisible();
   await page.getByRole('button', { name: 'Display' }).click();
   await page.getByRole('button', { name: 'List', exact: true }).click();
+});
+
+test('a member sends a survey into a messenger conversation and the visitor gets it', async ({
+  page,
+  request,
+}) => {
+  const channel = await openChannelPipelines(page);
+  const title = `Rate us ${unique()}`;
+  const hello = `Hello ${unique()}`;
+
+  await newSurvey(page, channel, title);
+  await page.goto(INBOX);
+
+  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const conversationId = await visitor.write(hello);
+
+  await page.goto(INBOX);
+  await page
+    .getByRole('list', { name: 'Conversations' })
+    .getByRole('button', { name: new RegExp(hello) })
+    .click();
+  await page.getByRole('button', { name: 'Send survey' }).click();
+  await page.getByRole('menuitem', { name: title }).click();
+
+  const thread = page.getByRole('list', { name: 'Messages' });
+
+  await expect(thread.getByRole('button', { name: `${title} 0 votes` })).toBeVisible();
+  await expectAccessible(page);
+  await expect.poll(() => visitor.read(conversationId)).toContain('How did we do?');
 });
 
 test('a member without frontline permissions is refused the surveys', async ({ newMember }) => {

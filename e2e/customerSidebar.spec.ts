@@ -1,5 +1,6 @@
 import {
   addMessenger,
+  createChannel,
   createPipeline,
   expect,
   expectAccessible,
@@ -77,4 +78,54 @@ test('the customer, their tickets and their other conversations show beside the 
   await expect(theirRail.getByRole('button', { name: 'Tickets', exact: true })).toBeHidden();
   await theirRail.getByRole('button', { name: 'Customer', exact: true }).click();
   await expect(theirs.getByText(email)).toBeHidden();
+});
+
+test('a conversation opens on its own page with its customer and status, resolves from its menu, and shows its properties', async ({
+  page,
+  request,
+  newMember,
+}) => {
+  const channel = await createChannel(page);
+  const suffix = unique();
+  const name = `Bat ${suffix}`;
+
+  await page.goto(INBOX);
+  // Without a mailbox in a channel there is no mail to write.
+  await expect(page.getByRole('button', { name: 'New mail' })).toBeHidden();
+
+  const key = await addMessenger(page, channel);
+
+  const visitor = await visitorOf(request, key, {
+    email: `bat-${suffix}@e2e.test`,
+    firstName: name,
+  });
+
+  const conversationId = await visitor.write(`Is the shop open on Sunday ${suffix}`);
+  const path = `${INBOX}/conversations/${conversationId}`;
+
+  await page.goto(path);
+  await expect(page.getByText(name).first()).toBeVisible();
+  await expect(page.getByText('New', { exact: true })).toBeVisible();
+  await expectAccessible(page);
+
+  await page.getByRole('button', { name: 'Conversation actions' }).click();
+  await page.getByRole('option', { name: 'Resolve' }).click();
+  await expect(page.getByText('Resolved', { exact: true })).toBeVisible();
+
+  await page.getByRole('link', { name: /Open in the inbox/ }).click();
+  await expect(page).toHaveURL(new RegExp(`conversationId=${conversationId}`));
+
+  // The inbox opens the same record in core's panel, with the custom fields core keeps.
+  await page.getByRole('button', { name: 'Details and properties' }).click();
+  await page.getByRole('tab', { name: 'Properties' }).click();
+  await expect(page.getByRole('tabpanel', { name: 'Properties' })).toBeVisible();
+
+  // A member without the inbox permission reads none of it.
+  const outsider = await newMember(['frontline.channel.view']);
+
+  await outsider.page.goto(path);
+  await expect(
+    outsider.page.getByText('You need the frontline.inbox.view permission').first(),
+  ).toBeVisible();
+  await expect(outsider.page.getByText(name)).toBeHidden();
 });

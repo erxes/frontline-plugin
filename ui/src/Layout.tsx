@@ -1,6 +1,6 @@
 import {
   IconBook,
-  IconBrandFacebook,
+  IconPlugConnected,
   IconChecklist,
   IconChevronDown,
   IconChevronLeft,
@@ -174,7 +174,11 @@ export const SettingsLayout = () => {
       to: `${SETTINGS}/help-centers`,
       icon: IconHelpCircle,
     },
-    { name: t('meta', 'Meta'), to: `${SETTINGS}/meta`, icon: IconBrandFacebook },
+    {
+      name: t('integrations', 'Integrations'),
+      to: `${SETTINGS}/integrations`,
+      icon: IconPlugConnected,
+    },
   ];
 
   return (

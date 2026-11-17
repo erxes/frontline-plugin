@@ -22,8 +22,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
   - ui-modules: `MembersInline`, `SelectMember`, `useMembersInlineContext`, `useSidePanel`
   - keeps: useSidePanel · toast "failed-to-edit-messenger" · toast "Fill in the config step" · atomWithStorage "STORAGE_KEYS.SETUP_STEP" · atomWithStorage "settedIntegrationDetail" · atomWithStorage "STORAGE_KEYS.APPEARANCE" · atomWithStorage "STORAGE_KEYS.GREETING" · atomWithStorage "STORAGE_KEYS.INTRO" · atomWithStorage "STORAGE_KEYS.HOURS" · atomWithStorage "STORAGE_KEYS.SETTINGS" · atomWithStorage "STORAGE_KEYS.CONFIG" · usePanelFormDraft "{ form, recordKey, values: values ?? initial.current, drafts" · useConfirm · confirm "{ message: discardMessage }" · useQueryState "integrationId"
 - [x] `/frontline/` (PageContainer) → `ui/src/channels/ChannelsLayout.tsx`, the header with the Channels › channel › Members breadcrumb `frontline_ui/src/modules/channels/components/settings/Settings.tsx:164`
-- [ ] `/frontline/details/:id/:integrationType` (IntegrationDetailPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:181`
-  - note: only Meta's pages have a screen (`/frontline/settings/meta`, `ui/src/modules/meta/MetaPage.tsx`); Telegram, Discord, mail, PBX and CallPro accounts connect through their procedures with no screen yet (the PBX row in DECISIONS.md)
+- [x] `/frontline/details/:id/:integrationType` (IntegrationDetailPage) → `/frontline/settings/integrations` (`ui/src/modules/integrations/IntegrationsPage.tsx`), every connected account; each opens in core's side panel, where a Telegram, Discord, mail, PBX or CallPro account connects and a PBX keeps its queues and operators. The old address redirects there `frontline_ui/src/modules/channels/components/settings/Settings.tsx:181`
   - files: 289, 5 only here: `modules/integrations/components/IntegrationRecordRow.tsx`, `modules/integrations/components/IntegrationsRecordTable.tsx`, `modules/integrations/discord/components/DiscordIntegrationDetail.tsx`, `pages/IntegrationDetailPage.tsx`, `widgets/automations/modules/facebook/components/bots/components/FacebookIntegrationBotCell.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; core: `automations`, `automationsAiAgents`, `conversationClientMessageInserted`, `members`, `status`, `truncated`; inbox: `integrationDetail`, `integrations`, `integrationsArchive`, `integrationsCreateExternalIntegration`, `integrationsCreateMessengerIntegration`, `integrationsEditCommonFields`, `integrationsEditMessengerIntegration`, `integrationsGetUsedTypes`, `integrationsGetUsedTypesByChannel`, `integrationsRemove`, `integrationsRepair`, `integrationsSaveMessengerAppearanceData`, `integrationsSaveMessengerConfigs`, `integrationsSaveMessengerTicketData`; integrations: `callGetAgentStatus`, `callProConfig`, `callProCustomersByPhone`, `callProIntegrationDetail`, `callQueueInitialList`, `callsCustomerDetail`, `callsGetConfigs`, `callsIntegrationDetail`, `callUserIntegrations`, `discordBotChannels`, `discordBots`, `discordChannelMembers`, `discordConnectedServers`, `discordConversationChannel`, `discordConversationChannels`, `discordConversationParticipants`, `discordGuildChannels`, `discordGuilds`, `discordNamePresets`, `discordServers`, `discordTakenChannels`, `discordValidateToken`, `facebookGetAccounts`, `facebookGetBotPost`, `facebookGetBotPosts`, `facebookGetIntegrations`, `facebookGetPages`, `facebookMessengerAddBot`, `facebookMessengerBot`, `facebookMessengerBotCommentReplyStats`, `facebookMessengerBotDelivery`, `facebookMessengerBots`, `facebookMessengerBotsTotalCount`, `facebookMessengerRemoveBot`, `facebookMessengerRepairBot`, `facebookMessengerUpdateBot`, `facebookUpdateConfigs`, `instagramGetAccounts`, `instagramGetPages`, `instagramRepair`, `instagramUpdateConfigs`, `mailCheckConnection`, `mailDraftApprove`, `mailDraftRemove`, `mailDraftSave`, `mailMessageRetry`, `mailSendingReadiness`, `mailSendMail`, `mailSendReaction`, `telegramAddBot`, `telegramBots`, `telegramBotWebhookInfo`, `telegramConversationChats`, `telegramDisconnectBot`, `telegramSetWebhook`, `telegramUpdateBot`; knowledgebase: `knowledgeBaseArticleDetail`, `knowledgeBaseArticles`, `knowledgeBaseArticlesAdd`, `knowledgeBaseArticlesEdit`, `knowledgeBaseArticlesRemove`, `knowledgeBaseArticlesTotalCount`, `knowledgeBaseCategories`, `knowledgeBaseCategoriesAdd`, `knowledgeBaseCategoriesEdit`, `knowledgeBaseCategoriesRemove`, `knowledgeBaseCategoriesTotalCount`, `knowledgeBaseCategoryDetail`, `knowledgeBaseTopicDetail`, `knowledgeBaseTopics`, `knowledgeBaseTopicsAdd`, `knowledgeBaseTopicsEdit`, `knowledgeBaseTopicsRemove`, `knowledgeBaseTopicsTotalCount`; ticket: `addTicketStatus`, `createPipeline`, `getAccessibleTicketStatuses`, `getTicketPipelines`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`, `ticketConfigDetail`, `ticketConfigs`, `ticketRemoveConfig`, `ticketSaveConfig`, `updateTicket`
   - ui-modules: `automationReturnLinkSearch`, `buildAutomationSeedLink`, `currentUserState`, `generateAutomationElementId`, `getSidePanelRecordPath`, `IField`, `PANEL_INPUT_CLASS_NAME`, `PanelFormLayout`, `PanelFormRow`, `RecordSidePanel`, `SelectBrand`, `SelectBrands`, `SelectMember`, `SelectTags`, `sidePanelDraftState`, `useFieldGroups`, `useFields`, `usePermissionCheck`, `useSidePanel`
@@ -105,8 +104,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 - [x] `frontline_api/src/modules/customdomain/schedule.ts` (upsertJobScheduler) → plugin-owned: a job in the API process. The `helpcenter.domains` job (`JOBS.domains`)
 - [x] `frontline_api/src/modules/customdomain/worker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process. The `helpcenter.domains` job (`JOBS.domains`)
-- [ ] `frontline_api/src/modules/form/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
-  - note: the Create form link action isn't ported; `manifest.actions` (`api/src/core.ts`) has no form action
+- [x] `frontline_api/src/modules/form/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The Create form link step runs when core calls `/api/automations/actions` (`createFormLink` in `api/src/modules/forms/links.ts`); core matches the Form submitted trigger's conditions on the event's fields itself
 - [x] `frontline_api/src/modules/inbox/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
 - [x] `frontline_api/src/modules/integrations/discord/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The send action runs when core calls `/api/automations/actions`
 - [x] `frontline_api/src/modules/integrations/facebook/commentOutboxWorker.ts` → the inbox's `messages.send` job
@@ -140,7 +138,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] permission `conversationsUnassign` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:39`
 - [x] permission `conversationsChangeStatus` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:44`
 - [x] permission `conversationsResolve` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:49`
-- [ ] permission `conversationEditCustomFields` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:54`
+- [x] permission `conversationEditCustomFields` (inbox) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:54`. `frontline.conversation.edit_fields` (`PERMISSIONS.conversationEditFields` in `api/src/core.ts`)
   - note: waits for plugin properties
 - [x] permission `showChannels` (channel) → `frontline.channel.view` `frontline_api/src/meta/permissions.ts:68`
 - [x] permission `showAllChannels` (channel) → `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:74`
@@ -173,8 +171,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] permission `surveyEdit` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:246`
 - [x] permission `surveyRemove` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:251`
 - [x] permission `surveyToggleStatus` (survey) → channel admins, or `frontline.channel.manage` `frontline_api/src/meta/permissions.ts:256`
-- [ ] permission `surveySendToConversation` (survey) → sdk `manifest.permissions` (frontline.<record>.<verb>; own/team/all reach stays in the plugin) `frontline_api/src/meta/permissions.ts:261`
-  - note: a survey sent into a conversation needs a message the visitor votes in, and inbox messages are plain text (the `surveySendToConversation` row in DECISIONS.md)
+- [x] permission `surveySendToConversation` (survey) → `frontline.survey.send`, with membership of the conversation's channel `frontline_api/src/meta/permissions.ts:261`
 - [x] permission `showCallReports` (callReport) → `frontline.call.view`; reach stays in the plugin: channel members see their channels' calls, `frontline.channel.manage` sees all, and a member sees the queues of the PBXs they answer `frontline_api/src/meta/permissions.ts:275`
 - [x] permission `showAllCallReports` (callReport) → `frontline.call.view`; reach stays in the plugin: channel members see their channels' calls, `frontline.channel.manage` sees all `frontline_api/src/meta/permissions.ts:281`
 - [x] permission `showResponseTemplates` (responseTemplate) → `frontline.channel.view`, for the template's channel members. Decision: a template belongs to a channel, so the channel's rights decide, with no grant of its own. `frontline_api/src/meta/permissions.ts:296`
@@ -191,8 +188,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] default role `frontline:user` → sdk `manifest.permissionSets` (a set of its permissions an owner adds to any role; members keep one role) `frontline_api/src/meta/permissions.ts:483`. `user` in `manifest.permissionSets` (`api/src/core.ts`): channels, inbox, knowledge base and help centers
 - [x] default role `frontline:viewer` → sdk `manifest.permissionSets` (a set of its permissions an owner adds to any role; members keep one role) `frontline_api/src/meta/permissions.ts:534`. `viewer` in `manifest.permissionSets` (`api/src/core.ts`). Decision: it reads the knowledge base and help centers, since no grant reads conversations or tickets without answering them
 - [x] automation trigger `Form submitted` → `frontline.form.submitted` in `manifest.events`, published in the submission's transaction `frontline_api/src/modules/form/meta/automation/constants.ts:56`
-- [ ] automation action `Create form link` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/form/meta/automation/constants.ts:43`
-  - note: not ported: forms are served by `/api/public/:key/forms/:code` (`api/src/modules/forms/embed.ts`), and no action makes a link to one yet
+- [x] automation action `Create form link` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/form/meta/automation/constants.ts:43`. `frontline.form.create_link`, its form picked from `GET /api/automations/records/form`; `/api/public/:key/forms/:code` takes one answer per link (`api/src/modules/forms/links.ts`, the form link row in DECISIONS.md)
 - [x] automation trigger `Conversation event` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:101`
 - [x] automation trigger `Erxes Messenger Message` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:113`
 - [x] automation action `Send Erxes Messenger Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:161`
@@ -267,9 +263,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `SINCE` → dropped: an old Mongo data migration `frontline_api/src/migrations/migrateCallConversationContents.ts:19`
 - [x] `STATIC_CHANNEL_ID` → api/src/config.ts `frontline_api/src/migrations/migrateTickets.ts:24`. dropped: an old Mongo data migration; `scripts/import-mongo.ts` copies the old data
 - [x] `TIMEZONE` → each PBX account's `timeZone`; CDR times are read in it `frontline_api/src/modules/integrations/call/utils.ts:586`
-- [x] `TZ` → api/src/config.ts `frontline_api/src/modules/reports/utils.ts:384`. (filed https://github.com/erxes/erxes/issues/10581)
-- [ ] `WIDGETS_DOMAIN` → api/src/config.ts `frontline_api/src/modules/form/meta/automation/createFormLinkAction.ts:87`
-  - note: the Create form link action isn't ported
+- [x] `TZ` → dropped: a report's days and hours use the member's browser time zone, sent with the period (`api/src/modules/reports/shared.ts`) `frontline_api/src/modules/reports/utils.ts:384`
+- [x] `WIDGETS_DOMAIN` → api/src/config.ts `frontline_api/src/modules/form/meta/automation/createFormLinkAction.ts:87`. `config.widgetsDomain`: a form link opens `<WIDGETS_DOMAIN>/forms/<key>/<code>?link=<token>`; unset, the step fails and says so
 
 ### Shared UI
 
@@ -303,8 +298,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `IField` (7 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `useFields` (7 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `AutomationNodeMetaInfoRow` (6 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
-- [ ] `buildAutomationSeedLink` (6 files)
-  - note: no page links into core's automation builder with a seeded trigger yet; members start automations there from `manifest.events`
+- [x] `buildAutomationSeedLink` (6 files) (filed https://github.com/erxes/erxes/issues/10658)
 - [x] `useSidePanelDraft` (6 files). Core's panel keeps a draft until Save or Cancel, through `TRecordDraftProps` on each `New` slot in `ui/src/config.tsx` (the usePanelFormDraft row in DECISIONS.md)
 - [x] `AutomationExecutionHistoryNameProps` (5 files). Core's automation runs keep each step's result (the bot delivery stats row in DECISIONS.md); actions answer core at `/api/automations/actions` (`api/src/modules/inbox/automations.ts`, `api/src/modules/integrations/actions.ts`)
 - [x] `Can` (5 files). The API refuses a member without the grant (`reads` and `writes` in `api/src/orpc.ts`), and pages offer changes only in the channels the member manages (`useManagedChannels` in `ui/src/shared/ChannelSelect.tsx`)
@@ -321,19 +315,18 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `sidePanelDraftState` (3 files). Core's panel keeps a draft until Save or Cancel, through `TRecordDraftProps` on each `New` slot in `ui/src/config.tsx` (the usePanelFormDraft row in DECISIONS.md)
 - [x] `TagsSelect` (3 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [x] `TAutomationAction` (3 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
-- [x] `TDashboardWidgetConfig` (3 files). (filed https://github.com/erxes/erxes/issues/10581)
+- [x] `TDashboardWidgetConfig` (3 files). Core's `dashboardWidgets`, `TDashboardWidget` in `ui/src/dashboardWidgets.ts`; a tile picks its own period instead of a config form
 - [x] `usePermissionCheck` (3 files). The API refuses a member without the grant (`reads` and `writes` in `api/src/orpc.ts`), and pages offer changes only in the channels the member manages (`useManagedChannels` in `ui/src/shared/ChannelSelect.tsx`)
 - [x] `AssignMemberInEditor` (2 files). An internal note's `/` menu lists teammates (`ui/src/modules/inbox/slashItems.tsx`), and `conversations.messages.create` tells each one mentioned (`api/src/modules/inbox/messages.ts`). (filed https://github.com/erxes/erxes/issues/10605)
 - [x] `AUTOMATION_UNARY_OPERATORS` (2 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `AutomationAiKnowledgeSourceSelectorProps` (2 files). **drop**: the new core has no AI agents to give a knowledge source
-- [ ] `automationReturnLinkSearch` (2 files)
-  - note: no page links into core's automation builder with a seeded trigger yet; members start automations there from `manifest.events`
+- [x] `automationReturnLinkSearch` (2 files) (filed https://github.com/erxes/erxes/issues/10658)
 - [x] `AutomationTemplateRequirementProps` (2 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `CompaniesInline` (2 files). erxes-ui's `ContactLink` with `contactQueries` (`ui/src/modules/tickets/TicketLinks.tsx`)
 - [x] `ContactWidgetSection` (2 files). A customer's tickets are core's `relationTabs` (`ui/src/modules/tickets/TicketRelations.tsx`), and their conversations' events show on the customer's Activity tab (`CONVERSATION_EVENTS` in `api/src/core.ts`)
-- [x] `DashboardWidgetEmptyState` (2 files). (filed https://github.com/erxes/erxes/issues/10581)
+- [x] `DashboardWidgetEmptyState` (2 files). Each tile's empty text, `Nothing` in `ui/src/modules/reports/Tile.tsx`
 - [x] `EditorMentionItem` (2 files). An internal note's `/` menu lists teammates (`ui/src/modules/inbox/slashItems.tsx`); the API reads the mentions from the note (`api/src/modules/inbox/html.ts`). (filed https://github.com/erxes/erxes/issues/10605)
-- [ ] `EmailTemplate` (2 files)
+- [x] `EmailTemplate` (2 files) (filed https://github.com/erxes/erxes/issues/10652)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `FIELD_TYPES` (2 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `getHostContacts` (2 files). A customer's tickets are core's `relationTabs` (`ui/src/modules/tickets/TicketRelations.tsx`), and their conversations' events show on the customer's Activity tab (`CONVERSATION_EVENTS` in `api/src/core.ts`)
@@ -345,7 +338,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `SettingsHeader` (2 files). `SettingsList` in `ui/src/modules/settings/Settings.tsx`
 - [x] `TagBadge` (2 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [x] `TPlaceholderInputSuggestion` (2 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
-- [ ] `useComposeEmail` (2 files)
+- [x] `useComposeEmail` (2 files). `MailNew`, the new conversation draft in the side panel (`ui/src/modules/inbox/MailNew.tsx`)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `useCustomers` (2 files). erxes-ui's `ContactLink` with `contactQueries` (`ui/src/modules/inbox/ConversationHeader.tsx`, `ui/src/modules/calls/CallHistoryPage.tsx`)
 - [x] `useFieldGroups` (2 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
@@ -354,39 +347,33 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `AUTOMATION_CONDITION_OPERATORS` (1 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `AutomationConditionalField` (1 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `BranchesInline` (1 files). Frontline teams, `useTeams` in `ui/src/modules/tickets/TicketLinks.tsx`
-- [ ] `CardDetailBadgeItem` (1 files)
-  - note: the board's cards show priority, SLA and assignee but no property values (`ui/src/modules/tickets/TicketsBoard.tsx`)
-- [ ] `CardDetailBadges` (1 files)
-  - note: the board's cards show priority, SLA and assignee but no property values (`ui/src/modules/tickets/TicketsBoard.tsx`)
+- [x] `CardDetailBadgeItem` (1 files). A label string for `Badges` in `ui/src/shared/Pickers.tsx`
+- [x] `CardDetailBadges` (1 files). `Badges` with `max` in `ui/src/shared/Pickers.tsx`: a board card shows five tags and three property values, then a count that names the rest on hover (`TicketPropertyBadges` in `ui/src/modules/tickets/TicketProperties.tsx`)
 - [x] `ContactRecordChip` (1 files). The ticket's `contacts` in `ui/src/config.tsx` and erxes-ui's `ContactLink` (`ui/src/modules/tickets/TicketLinks.tsx`)
 - [x] `ContactWidgetRow` (1 files). A customer's tickets are core's `relationTabs` (`ui/src/modules/tickets/TicketRelations.tsx`), and their conversations' events show on the customer's Activity tab (`CONVERSATION_EVENTS` in `api/src/core.ts`)
 - [x] `currentOrganizationState` (1 files). **drop**: it told the config page whether the install was SaaS, and that page is gone (`META_APP_*` in `api/src/config.ts`)
-- [x] `DashboardWidgetCard` (1 files). (filed https://github.com/erxes/erxes/issues/10581)
-- [x] `DashboardWidgetListSkeleton` (1 files). (filed https://github.com/erxes/erxes/issues/10581)
+- [x] `DashboardWidgetCard` (1 files). Core draws the tile's frame and title; `Tile` in `ui/src/modules/reports/Tile.tsx` fills the body
+- [x] `DashboardWidgetListSkeleton` (1 files). `Tile`'s skeleton while the report loads, `ui/src/modules/reports/Tile.tsx`
 - [x] `DataExtensionCreateFields` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `DataExtensionRecordSection` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `DepartmentsInline` (1 files). Frontline teams, `useTeams` in `ui/src/modules/tickets/TicketLinks.tsx`
-- [ ] `EmailTemplatePicker` (1 files)
+- [x] `EmailTemplatePicker` (1 files) (filed https://github.com/erxes/erxes/issues/10652)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `ExportFieldSelection` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
-- [ ] `FieldsInDetail` (1 files)
-  - note: only the conversation's properties used it; they wait for plugin properties on conversations
+- [x] `FieldsInDetail` (1 files). Core's Properties tab on the conversation record type, `properties` in `ui/src/config.tsx`
 - [x] `FieldsInGroup` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
-- [ ] `formatFieldValue` (1 files)
-  - note: the board's cards show priority, SLA and assignee but no property values (`ui/src/modules/tickets/TicketsBoard.tsx`)
+- [x] `formatFieldValue` (1 files). `useValueText` in `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `getRelationWidgetLabel` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
-- [ ] `hasFieldValue` (1 files)
-  - note: the board's cards show priority, SLA and assignee but no property values (`ui/src/modules/tickets/TicketsBoard.tsx`)
+- [x] `hasFieldValue` (1 files). A property with no value text gets no badge (`TicketPropertyBadges` in `ui/src/modules/tickets/TicketProperties.tsx`)
 - [x] `IAutomationHistoryAction` (1 files). Core's automation runs keep each step's result (the bot delivery stats row in DECISIONS.md); actions answer core at `/api/automations/actions` (`api/src/modules/inbox/automations.ts`, `api/src/modules/integrations/actions.ts`)
-- [x] `IDashboardWidgetProps` (1 files). (filed https://github.com/erxes/erxes/issues/10581)
+- [x] `IDashboardWidgetProps` (1 files). Core's `TDashboardWidget`; a tile takes no props and reads its own report
 - [x] `IFieldMutation` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `ILayoutAsideApi` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
 - [x] `ILayoutItem` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
 - [x] `Import` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
 - [x] `InternalNoteDisplay` (1 files). Internal notes in `ui/src/modules/inbox/MessageThread.tsx`
 - [x] `IOpenRecordOptions` (1 files). erxes-ui's `useOpenRecord` (`ui/src/modules/tickets/TicketCells.tsx`)
-- [ ] `isFieldVisibleByLogic` (1 files)
-  - note: ticket properties have no show-when rules; forms have them (`api/src/modules/forms/logic.ts`)
+- [x] `isFieldVisibleByLogic` (1 files). Core's fields have no show-when rules (the conversation custom fields row in DECISIONS.md); a form's fields keep theirs in `api/src/modules/forms/logic.ts`
 - [x] `ISidePanelDraft` (1 files). Core's panel keeps a draft until Save or Cancel, through `TRecordDraftProps` on each `New` slot in `ui/src/config.tsx` (the usePanelFormDraft row in DECISIONS.md)
 - [x] `ISystemFieldRules` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
 - [x] `ITag` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
@@ -424,7 +411,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `useGetTags` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [x] `useMembersInlineContext` (1 files). erxes-ui's `MemberInline` with `memberQueries` (`ui/src/modules/surveys/SurveyRows.tsx`)
 - [x] `useRelationWidget` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
-- [ ] `useRenderEmailTemplate` (1 files)
+- [x] `useRenderEmailTemplate` (1 files) (filed https://github.com/erxes/erxes/issues/10652)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `useSystemFieldRules` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
 - [x] `useTags` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
@@ -499,8 +486,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_form_fields` from collection `frontline_form_fields` (37 fields, draft `frontlineFormFields` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/fields.ts:137`. Only forms use it now, so the property fields (`groupId`, `isVisible`, `showInCard`, `productCategoryId` and the rest) are gone; `validation` and `regexValidation` fold into `validator`, a preset or an RE2 pattern; customer fields are types such as `core:customer:email`
 - [x] `frontline_forms` from collection `frontline_forms` (20 fields, draft `frontlineForms` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:318`. `leadData` flattens into columns; its email, redirect, CSS, template and `rules` settings are gone (DECISIONS.md, Forms)
 - [x] `frontline_form_submissions` from collection `frontline_form_submissions` (13 fields, draft `frontlineFormSubmissions` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:114`. One row per submission, with one `frontline_form_answers` row per answered field; `aboutRecord` is `referenceType` and `referenceId`
-- [ ] `formSchema.departmentIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/form/db/definitions/forms.ts:318`
-  - note: tags and departments on a form wait for their ports (the forms row in DECISIONS.md); a form follows its channel
+- [x] `formSchema.departmentIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/form/db/definitions/forms.ts:318`. Dropped: no screen set or read it, and a form follows its channel (the forms row in DECISIONS.md)
 
 ### Procedures
 
@@ -565,8 +551,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] core `customers.findOne` → not called. Decision: the browser's cached customer id is ignored; the customer comes from the answers' email or phone `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:438`
 - [x] core `customers.createCustomer` → `customers.findOrCreate` by email or phone, else `customers.create`, in `api/src/modules/forms/customers.ts` `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:449`
 - [x] core `customers.updateCustomer` → `customers.update` with the middle name, description, birth date, sex and avatar `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:506`
-- [ ] core `tags.findOne` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/form/graphql/resolvers/queries/forms.ts:23`
-  - note: tags on a form wait for their port (the forms row in DECISIONS.md)
+- [x] core `tags.findOne` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/form/graphql/resolvers/queries/forms.ts:23`. Form tags in `frontline_forms.tag_ids`, the forms bar's `subject.tagIds` filter (`api/src/modules/forms/forms.ts`); frontline tags have no children to expand
 
 ### Events
 
@@ -660,7 +645,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] query `conversationsGetLast` → procedure `conversationsGetLasts.get` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
 - [x] query `conversationsTotalUnreadCount` → procedure `conversationsTotalUnreadCounts.get` (returns `Int`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
 - [x] query `userConversations` → procedure `userConversations.list` (returns `UserConversationListResponse`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
-- [ ] mutation `conversationMessageReact` → procedure `inbox.conversationMessageReact` (returns `Boolean!`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `conversationMessageReact` → procedure `inbox.conversationMessageReact` (returns `Boolean!`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`. `conversations.messages.react` (`api/src/modules/inbox/reactions.ts`)
   - note: reactions go out through each provider's adapter, and no adapter sends one yet (the HTML messages, reactions and custom fields row in DECISIONS.md)
 - [x] mutation `conversationMessageAdd` → procedure `conversationMessages.create` (returns `ConversationMessage`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
 - [x] mutation `conversationMessagePin` → procedure `inbox.conversationMessagePin` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
@@ -673,8 +658,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `changeConversationOperator` → procedure `inbox.changeConversationOperator` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
 - [x] mutation `conversationSetAutomatedReplyControl` → procedure `inbox.conversationSetAutomatedReplyControl` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
 - [x] mutation `conversationsResolve` → procedure `inbox.conversationsResolve` (returns `Int`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [ ] mutation `conversationEditCustomFields` → procedure `inbox.conversationEditCustomFields` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-  - note: waits for plugin properties on conversations (the HTML messages, reactions and custom fields row in DECISIONS.md)
+- [x] mutation `conversationEditCustomFields` → procedure `inbox.conversationEditCustomFields` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`. `conversations.properties.save` in `api/src/modules/inbox/properties.ts` (the conversation custom fields row in DECISIONS.md)
 - [x] query `integrations` → procedure `integrations.list` (returns `IntegrationRespone`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
 - [x] query `allLeadIntegrations` → procedure `allLeadIntegrations.list` (returns `[Integration]`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
 - [x] query `integrationsGetUsedTypes` → procedure `integrationsGetUsedTypes.list` (returns `[integrationsGetUsedTypes]`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
@@ -749,21 +733,15 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/inbox/actionHandlers.ts:104`. Each PBX operator's member comes from `frontline_call_operators` (`operatorOf` in `api/src/modules/integrations/providers/call/record.ts`)
 - [x] core `config.getConfig` → plugin-owned `frontline_settings` (country and currency: organizations.current (sdk)) `frontline_api/src/modules/inbox/actionHandlers.ts:217`. dropped: it answered the old integrations service; providers now run in the plugin (`api/src/modules/integrations/providers`)
 - [x] core `users.getIds` → sdk `users.list` (scope users:read) `frontline_api/src/modules/inbox/actionHandlers.ts:230`. dropped: it answered the old integrations service; providers now run in the plugin (`api/src/modules/integrations/providers`)
-- [ ] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/inbox/db/models/Conversations.ts:180`
-  - note: waits for plugin properties on conversations (the HTML messages, reactions and custom fields row in DECISIONS.md)
+- [x] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/inbox/db/models/Conversations.ts:180`. Core's `fields.check` in `conversations.properties.save` (`api/src/modules/inbox/properties.ts`)
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/events.ts:44`. dropped: the old code wrote visitor events to an Elasticsearch index that never existed; `frontline_visitors` keeps visits (`api/src/modules/messenger/visitors.ts`)
 - [x] core `customers.getWidgetCustomer` → sdk `customers.findOrCreate` (scope customers:write; by email or phone) `frontline_api/src/modules/inbox/events.ts:140`. `identify` in `api/src/modules/messenger/visitors.ts`, `customers.findOrCreate` by email or phone
 - [x] core `customers.createCustomer` → sdk `customers.findOrCreate` (scope customers:write; by email or phone, else customers.create (state: 'lead')) `frontline_api/src/modules/inbox/events.ts:152`. `identify` in `api/src/modules/messenger/visitors.ts`, `customers.findOrCreate` by email or phone
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/events.ts:182`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
-- [ ] core `fields.generateTypedListFromMap` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/events.ts:238`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
-- [ ] core `fields.generateTypedListFromMap` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/events.ts:251`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
-- [ ] core `customers.updateCustomer` → sdk `customers.update` (scope customers:write) `frontline_api/src/modules/inbox/events.ts:264`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/events.ts:276`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/events.ts:182`. dropped: core's `customers.update` merges the changed custom fields onto the stored ones (`saveVisitorData` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `fields.generateTypedListFromMap` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/events.ts:238`. dropped: tracked data has no place in the new core; a website sends custom fields by field id to `/connect` (`VisitorData` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `fields.generateTypedListFromMap` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/events.ts:251`. dropped: core keeps custom field values as a map by field id; `/connect` takes them as one (`VisitorData` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `customers.updateCustomer` → sdk `customers.update` (scope customers:write) `frontline_api/src/modules/inbox/events.ts:264`. `saveVisitorData` in `api/src/modules/messenger/visitors.ts`, only on a lead the messenger made (the widget's visitor data row in DECISIONS.md)
+- [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/events.ts:276`. dropped: the old code read the customer back and threw the result away
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/conversationMessageMutations.ts:77`. A reply's adapter sends it from the conversation's own fields (`api/src/modules/inbox/send.ts`)
 - [x] core `core.sendEmail` → sdk `emails.send` (scope emails:write; plain text, up to 50 addresses, replyTo; team members: notifications.create) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/conversationMessageMutations.ts:98`. dropped with lead conversations: forms own lead forms and a submission is no conversation to reply in (the Lead integrations row in DECISIONS.md)
 - [x] core `cpUsers.get` → **drop**: the new core has no client portal `frontline_api/src/modules/inbox/graphql/resolvers/mutations/conversationNotifications.ts:79`
@@ -774,19 +752,14 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] core `brands.updateOne` → **drop**: the new core has no brands; leave brand ids and names out `frontline_api/src/modules/inbox/graphql/resolvers/mutations/integrations.ts:350`
 - [x] core `customers.createCustomer` → sdk `customers.findOrCreate` (scope customers:write; by email or phone, else customers.create (state: 'lead')) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:218`
 - [x] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:247`. `identify` in `api/src/modules/messenger/visitors.ts`, `customers.findOrCreate` by email or phone
-- [ ] core `companies.findOne` → sdk `companies.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:297`
-  - note: the messenger takes no company data: `/connect` identifies the person only (`api/src/modules/messenger/visitors.ts`)
-- [ ] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:365`
-  - note: the messenger takes no custom customer properties: `/connect` takes email, phone and name (`Identity` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `companies.findOne` → sdk `companies.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:297`. `companyFor` in `api/src/modules/messenger/visitors.ts` finds the company by its name through `companies.list`
+- [x] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:365`. Core checks the values in `customers.update` and `companies.create`; `/connect` parses them with `CustomFieldsPatch` (`VisitorData` in `api/src/modules/messenger/visitors.ts`)
 - [x] core `customers.getWidgetCustomer` → sdk `customers.findOrCreate` (scope customers:write; by email or phone) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:445`
 - [x] core `customers.updateMessengerCustomer` → sdk `customers.update` (scope customers:write; messenger session data (last seen, online, location) stays in the plugin) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:468`. the visitor's customer is the one their signed token names (`api/src/modules/messenger/session.ts`); visits, browser and address are `frontline_visitors` (`recordVisit` in `api/src/modules/messenger/visitors.ts`)
 - [x] core `customers.createMessengerCustomer` → sdk `customers.findOrCreate` (scope customers:write; state: 'lead', source: 'chat') `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:481`
-- [ ] core `fields.generatePropertiesData` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:499`
-  - note: the messenger takes no company data: `/connect` identifies the person only (`api/src/modules/messenger/visitors.ts`)
-- [ ] core `companies.updateCompany` → sdk `companies.update` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:517`
-  - note: the messenger takes no company data: `/connect` identifies the person only (`api/src/modules/messenger/visitors.ts`)
-- [ ] core `companies.createCompany` → sdk `companies.create` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:537`
-  - note: the messenger takes no company data: `/connect` identifies the person only (`api/src/modules/messenger/visitors.ts`)
+- [x] core `fields.generatePropertiesData` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:499`. dropped: `/connect` takes the company's custom fields by field id, as core keeps them (`VisitorData` in `api/src/modules/messenger/visitors.ts`)
+- [x] core `companies.updateCompany` → sdk `companies.update` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:517`. dropped: a visitor never changes an existing company (the widget's visitor data row in DECISIONS.md)
+- [x] core `companies.createCompany` → sdk `companies.create` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:537`. `companyFor` in `api/src/modules/messenger/visitors.ts`, then `customers.linkCompany`
 - [x] core `customers.markCustomerAsActive` → plugin-owned `frontline_customers` (messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:786`
 - [x] core `customers.updateLocation` → plugin-owned `frontline_customers` (the visitor's location is messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:999`
 - [x] core `customers.updateSession` → plugin-owned `frontline_customers` (messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:1011`
@@ -861,7 +834,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_customers_discord` from collection `customers_discord` (7 fields, draft `frontlineCustomersDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
 - [x] `frontline_conversations_discord` from collection `conversations_discord` (12 fields, draft `frontlineConversationsDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/conversations.ts:4`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
 - [x] `frontline_conversation_messages_discord` from collection `conversation_messages_discord` (14 fields, draft `frontlineConversationMessagesDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/conversationMessages.ts:14`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
-- [ ] `frontline_telegram_reactions` from collection `telegram_reactions` (8 fields, draft `frontlineTelegramReactions` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/models/Reactions.ts:4`
+- [x] `frontline_telegram_reactions` from collection `telegram_reactions` (8 fields, draft `frontlineTelegramReactions` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/models/Reactions.ts:4`. `frontline_message_reactions`, for every provider (`api/src/db/inbox.ts`)
   - note: reactions go out through each provider's adapter, and no adapter sends one yet (the HTML messages, reactions and custom fields row in DECISIONS.md)
 - [x] `frontline_telegram_bots` from collection `telegram_bots` (11 fields, draft `frontlineTelegramBots` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/bots.ts:4`. Folded into `frontline_integration_accounts`
 - [x] `frontline_customers_telegram` from collection `customers_telegram` (7 fields, draft `frontlineCustomersTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
@@ -880,7 +853,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 ### Procedures
 
 - [x] query `callQueueInitialList` → `calls.queues.get`, the live board the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/resolvers/queries.ts:213`
-- [x] subscription `sessionTerminateRequested` → waits on a plugin widget on every page (filed https://github.com/erxes/erxes/issues/10586) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
+- [x] subscription `sessionTerminateRequested` → dropped: nothing published it; the softphone hangs up through JsSIP `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
 - [x] subscription `queueRealtimeUpdate` → `core_live_signal()` on `calls` tells members' pages to refetch, and `calls.queues.get` reads what the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
 - [x] subscription `callStatistic` → `core_live_signal()` on `calls` tells members' pages to refetch, and `calls.queues.get` reads what the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
 - [x] query `callsIntegrationDetail` → `integrations.call.settings` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
@@ -890,7 +863,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] query `callHistoriesTotalCount` → `calls.list`'s `totalCount` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callsGetConfigs` → dropped: `calls_configs` is gone `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callGetAgentStatus` → `calls.agents.mine` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [x] query `callExtensionList` → waits on a plugin widget on every page for the softphone's transfer (filed https://github.com/erxes/erxes/issues/10586) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callExtensionList` → `calls.phone.extensions` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callQueueList` → `calls.queues.list` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callQueueInitialList` → `calls.queues.get`, the live board the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callConversationNotes` → dropped: the call's inbox conversation carries internal notes `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
@@ -899,7 +872,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `callAddCustomer` → dropped: every call finds or creates its customer by phone, edited in core's panel `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
 - [x] mutation `callsUpdateConfigs` → dropped: `calls_configs` is gone `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
 - [x] mutation `callsPauseAgent` → `calls.agents.setStatus` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
-- [x] mutation `callTransfer` → waits on a plugin widget on every page for the softphone (filed https://github.com/erxes/erxes/issues/10586) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
+- [x] mutation `callTransfer` → `calls.phone.transfer` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
 - [x] mutation `callSyncRecordFile` → `calls.fetchRecording`, which queues the `calls.recording` job `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:297`
 - [x] query `callProConfig` → dropped: `CALLPRO_ENABLED` is gone; `integrations.call.settings` shows a CallPro line's address `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
 - [x] query `callProIntegrationDetail` → `integrations.call.settings` `frontline_api/src/modules/integrations/callpro/graphql/schema/callpro.ts:13`
@@ -955,8 +928,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `facebookMessengerUpdateBot` → `integrations.meta.bots.update` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
 - [x] mutation `facebookMessengerRemoveBot` → `integrations.meta.bots.remove` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
 - [x] mutation `facebookMessengerRepairBot` → `integrations.meta.bots.sync` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:275`
-- [ ] query `frontlineInstagramCopyImage` → procedure `frontlineInstagramCopyImages.get` (returns `String!`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-  - note: Meta's attachment addresses are kept as sent, and copying them into core's files isn't built (the Inbound attachments row in DECISIONS.md)
+- [x] query `frontlineInstagramCopyImage` → **drop**: the thread shows an Instagram image as an image, which the browser's own Copy image copies; the old server fetch only got around a copy button's CORS refusal `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramGetAccounts` → `integrations.accounts.list({ provider: 'instagram' })` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramGetIntegrations` → the inbox's `integrations.list`; an `instagram` integration's `config.accountId` names its account `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramGetIntegrationDetail` → the inbox's `integrations.get` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
@@ -984,7 +956,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `instagramMessengerUpdateBot` → `integrations.meta.bots.update` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [x] mutation `instagramMessengerRemoveBot` → `integrations.meta.bots.remove` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [x] mutation `instagramMessengerRepairBot` → `integrations.meta.bots.sync` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
-- [ ] query `mailVerifiedContacts` → procedure `mailVerifiedContacts.list` (returns `MailVerifiedContacts!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
+- [x] query `mailVerifiedContacts` → procedure `mailVerifiedContacts.list` (returns `MailVerifiedContacts!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. `integrations.mail.recipients` (`api/src/modules/integrations/providers/mailCompose.ts`)
   - note: `integrations.mail.compose` takes one address and has no screen yet, so nothing suggests recipients
 - [x] query `mailConversationDetail` → the inbox's `conversations.messages.list` `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`
 - [x] query `mailConversationInternalNotes` → procedure `mailConversationInternalNotes.list` (returns `[ConversationMessage!]!`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. Folded into `conversations.messages.list`, which returns the inbox's internal notes
@@ -999,7 +971,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] query `mailCloudflareSendingQuota` → procedure `mailCloudflareSendingQuotas.get` (returns `MailCloudflareSendingQuota`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 - [x] query `mailCloudflareZones` → procedure `mailCloudflareZones.list` (returns `[MailCloudflareZone]`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:223`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 - [x] mutation `mailSendMail` → procedure `integrations.mailSendMail` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. `integrations.mail.compose` writes a new mail; replies are `conversations.messages.create`
-- [ ] mutation `mailSendReaction` → procedure `integrations.mailSendReaction` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`
+- [x] mutation `mailSendReaction` → procedure `integrations.mailSendReaction` (returns `MailDeliveryOutcome`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. `conversations.messages.react` sends an RFC 9078 reply (`api/src/modules/integrations/providers/mail.ts`)
   - note: reactions go out through each provider's adapter, and no adapter sends one yet (the HTML messages, reactions and custom fields row in DECISIONS.md)
 - [x] mutation `mailPipelineConnect` → procedure `integrations.mailPipelineConnect` (returns `MailPipelineIntegration`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 - [x] mutation `mailPipelineUpdate` → procedure `mailPipelines.update` (returns `MailPipelineIntegration`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
@@ -1014,7 +986,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `mailCloudflareConnect` → procedure `integrations.mailCloudflareConnect` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 - [x] mutation `mailCloudflareProvision` → procedure `integrations.mailCloudflareProvision` (returns `MailCloudflareConnection`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 - [x] mutation `mailCloudflareDisconnect` → procedure `integrations.mailCloudflareDisconnect` (returns `Boolean`) `frontline_api/src/modules/integrations/mail/graphql/schema/mail.ts:247`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
-- [ ] query `telegramMessageLinkPreviews` → procedure `telegramMessageLinkPreviews.list` (returns `[TelegramLinkPreview!]!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`
+- [x] query `telegramMessageLinkPreviews` → procedure `telegramMessageLinkPreviews.list` (returns `[TelegramLinkPreview!]!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`. `conversations.messages.linkPreviews`, for every provider (`api/src/modules/inbox/linkPreviews.ts`)
   - note: link previews of Telegram messages aren't kept; inbox messages are plain text with attachments
 - [x] query `telegramConversationChats` → procedure `telegramConversationChats.list` (returns `[TelegramConversationChat!]!`) `frontline_api/src/modules/integrations/telegram/graphql/schema/telegram.ts:64`. The chat is the conversation's customer, named after it (`customerFor` in `api/src/modules/inbox/receive.ts`), the Telegram chats row in DECISIONS.md
   - note: forum topics are not read yet; a group is one conversation named by its title
@@ -1054,7 +1026,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] core `emailDeliveries.recordHandoff` → plugin-owned `frontline_email_deliveries` `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:24`. Folded into the message's `deliveryStatus`
 - [x] core `emailSuppression.blocked` → plugin-owned `frontline_email_suppressions` (bounces and opt-outs the plugin hears from its mailbox) `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:37`. `frontline_email_suppressions`, filled from bounce and spam reports in the mailbox; `integrations.mail.suppressions` lists and removes them
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/utils/mailRecipient.ts:8`. The reply goes to the customer's linked address
-- [ ] core `customers.findActiveCustomers` → sdk `customers.list` (scope customers:read) `frontline_api/src/modules/integrations/mail/utils/recipients.ts:55`
+- [x] core `customers.findActiveCustomers` → sdk `customers.list` (scope customers:read) `frontline_api/src/modules/integrations/mail/utils/recipients.ts:55`. sdk `customers.list` in `integrations.mail.recipients`
   - note: `integrations.mail.compose` takes one address and has no screen yet, so nothing suggests recipients
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/utils/tickets.ts:187`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/telegram/controller/store.ts:44`. The reply goes to the customer's linked chat
@@ -1150,7 +1122,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Pages
 
-- [x] `/frontline/reports/*` (Report) `frontline_ui/src/modules/FrontlineMain.tsx:144`. Core has no dashboard widgets for plugins (filed https://github.com/erxes/erxes/issues/10581)
+- [x] `/frontline/reports/*` (Report) `frontline_ui/src/modules/FrontlineMain.tsx:144` → 16 tiles on core's home dashboard, `ui/src/dashboardWidgets.ts` and `ui/src/modules/reports/`, over `reports.tickets`, `reports.conversations` and `reports.calls`. The filters, lists and export wait on a report page (filed https://github.com/erxes/erxes/issues/10654)
   - files: 161, 1 only here: `modules/ticket/components/ticket-selects/SelectStateTicket.tsx`
   - calls: channel: `channelAdd`, `channelAddMembers`, `channelMoveResources`, `channelRemove`, `channelRemoveMember`, `channelUpdate`, `channelUpdateMember`, `getChannel`, `getChannelMembers`, `getChannels`, `getMyChannels`, `getPersonalChannel`; inbox: `integrations`; reports: `callCarrierBreakdown`, `callGetAgentStats`, `callGetQueueStats`, `callHeatmap`, `callHeatmapDaily`, `callHistoryList`, `callKpiScorecard`, `callReportIntegrations`, `callSlaReport`, `callTopNumbers`, `callVolumeSeries`, `getCallbackStats`, `reportChartAdd`, `reportChartRemove`, `reportCharts`, `reportConversationClosed`, `reportConversationExport`, `reportConversationList`, `reportConversationOpen`, `reportConversationOpenDate`, `reportConversationResolved`, `reportConversationResolvedDate`, `reportConversationResponses`, `reportConversationSources`, `reportConversationTags`, `reportFacebookActivity`, `reportFacebookBots`, `reportFacebookPages`, `reportFacebookPosts`, `reportFacebookSummary`, `reportFacebookSyncPostStats`, `reportTicketCustomProperties`, `reportTicketDate`, `reportTicketExport`, `reportTicketList`, `reportTicketOpen`, `reportTicketPriority`, `reportTicketSource`, `reportTicketStatusSummary`, `reportTicketTags`, `reportTicketTotalCount`; ticket: `addTicketStatus`, `getAccessibleTicketStatuses`, `getTicketPipeline`, `getTicketPipelines`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`, `updateTicket`
   - ui-modules: `CompaniesInline`, `createFavoriteBreadcrumb`, `currentUserState`, `CustomersInline`, `IField`, `IUser`, `MembersInline`, `PageHeader`, `SelectCompany`, `SelectCustomer`, `SelectMember`, `SelectTags`, `TagBadge`, `useFields`, `usePermissionCheck`, `useSelectMemberContext`, `useUsers`
@@ -1160,82 +1132,82 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_report_charts` from collection `frontline_report_charts` (7 fields, draft `frontlineReportCharts` in migration/schema-draft.ts) `frontline_api/src/modules/reports/db/definitions/chart.ts:45`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] `reportChartFiltersSchema.branchIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/reports/db/definitions/chart.ts:13`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] `frontline_report_charts` from collection `frontline_report_charts` (7 fields, draft `frontlineReportCharts` in migration/schema-draft.ts) `frontline_api/src/modules/reports/db/definitions/chart.ts:45`. Dropped: core's dashboard layout keeps each member's tiles (DECISIONS.md, Reports)
+- [x] `reportChartFiltersSchema.branchIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/reports/db/definitions/chart.ts:13`. Dropped with the saved charts
 
 ### Procedures
 
-- [x] query `callReportIntegrations` → procedure `callReportIntegrations.list` (returns `[CallReportIntegration!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callGetQueueStats` → procedure `callGetQueueStats.list` (returns `[QueueStats!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callGetAgentStats` → procedure `callGetAgentStats.list` (returns `[AgentStats!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `getCallbackStats` → procedure `callbackStats.list` (returns `[CallbackStats!]!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callKpiScorecard` → procedure `callKpiScorecards.get` (returns `CallKeyStatistics`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callVolumeSeries` → procedure `callVolumeSeries.list` (returns `[CallVolumePoint]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callCarrierBreakdown` → procedure `callCarrierBreakdowns.get` (returns `[CarrierSlice]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callHeatmap` → procedure `callHeatmaps.get` (returns `[HeatCell]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callHeatmapDaily` → procedure `callHeatmapDailies.get` (returns `[CallDayHourCell]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callTopNumbers` → procedure `callTopNumbers.list` (returns `[TopNumber]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callTodayStatistics` → procedure `callTodayStatistics.list` (returns `CallKeyStatistics`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callCalculateServiceLevel` → procedure `callCalculateServiceLevels.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callCalculateFirstCallResolution` → procedure `callCalculateFirstCallResolutions.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callCalculateAbandonmentRate` → procedure `callCalculateAbandonmentRates.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callCalculateAverageSpeedOfAnswer` → procedure `callCalculateAverageSpeedOfAnswers.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callCalculateAverageHandlingTime` → procedure `callCalculateAverageHandlingTimes.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callCalculateOccupancyRate` → procedure `callCalculateOccupancyRates.get` (returns `Float`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callGetOperatorStats` → procedure `callGetOperatorStats.list` (returns `[OperatorStat]`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callSlaReport` → procedure `callSlaReports.get` (returns `CallSlaReport!`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `callHistoryList` → procedure `callHistoryLists.get` (returns `CallHistoryPage`) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportCharts` → procedure `reportCharts.list` (returns `[ReportChart]`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:52`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportChartDetail` → procedure `reportCharts.get` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:52`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] mutation `reportChartAdd` → procedure `reportCharts.create` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] mutation `reportChartEdit` → procedure `reportCharts.update` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] mutation `reportChartRemove` → procedure `reportCharts.remove` (returns `ReportChart`) `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] query `callReportIntegrations` → Not built: the integration filter waits on a report page (filed https://github.com/erxes/erxes/issues/10654) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callGetQueueStats` → `reports.calls` `queues`, the Calls by queue tile; today's counters are the live board, `calls.queues.get` `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callGetAgentStats` → `reports.calls` `agents`, the Top agents tile `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `getCallbackStats` → `reports.calls` `calledBack`, `reached` and `callbackSeconds`, the Call summary tile, with a fixed 24 hour window `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callKpiScorecard` → `reports.calls` totals, the Call summary tile `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callVolumeSeries` → `reports.calls` `days`, the Call volume tile `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callCarrierBreakdown` → Dropped: it read carriers from hardcoded Mongolian prefixes (DECISIONS.md, Reports) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callHeatmap` → `reports.calls` `hours`, the Calls by hour tile `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callHeatmapDaily` → `reports.calls` `hours`, the Calls by hour tile `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callTopNumbers` → `reports.calls` `numbers`, the Top numbers tile `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callTodayStatistics` → The live queue board, `calls.queues.get` `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callCalculateServiceLevel` → `reports.calls` `serviceLevel`, the Call summary tile `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callCalculateFirstCallResolution` → Dropped: it counted callers who called once (DECISIONS.md, Reports) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callCalculateAbandonmentRate` → `reports.calls` `missed` of `incoming`, the Call summary tile `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callCalculateAverageSpeedOfAnswer` → `reports.calls` `waitSeconds`, the Call summary tile `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callCalculateAverageHandlingTime` → `reports.calls` `talkSeconds`, the Call summary tile `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callCalculateOccupancyRate` → Dropped: it assumed an 8 hour shift (DECISIONS.md, Reports) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callGetOperatorStats` → `reports.calls` `agents`, the Top agents tile `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callSlaReport` → `reports.calls` `serviceLevel` and the callbacks, the Call summary tile, at fixed targets; its filters wait on a report page (filed https://github.com/erxes/erxes/issues/10654) `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `callHistoryList` → `calls.list`, the history page at `/frontline/calls/history` `frontline_api/src/modules/reports/graphql/schema/call.ts:212`
+- [x] query `reportCharts` → Dropped: core's dashboard layout keeps each member's tiles `frontline_api/src/modules/reports/graphql/schema/chart.ts:52`
+- [x] query `reportChartDetail` → Dropped: core's dashboard layout keeps each member's tiles `frontline_api/src/modules/reports/graphql/schema/chart.ts:52`
+- [x] mutation `reportChartAdd` → Dropped: core's dashboard layout keeps each member's tiles `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`
+- [x] mutation `reportChartEdit` → Dropped: core's dashboard layout keeps each member's tiles `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`
+- [x] mutation `reportChartRemove` → Dropped: core's dashboard layout keeps each member's tiles `frontline_api/src/modules/reports/graphql/schema/chart.ts:57`
 - [x] query `reportFacebookPages` → procedure `reportFacebookPages.list` (returns `[ReportFacebookPage]`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`. (filed https://github.com/erxes/erxes/issues/10581)
 - [x] query `reportFacebookSummary` → procedure `reportFacebookSummaries.get` (returns `ReportFacebookSummary`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`. (filed https://github.com/erxes/erxes/issues/10581)
 - [x] query `reportFacebookActivity` → procedure `reportFacebookActivities.get` (returns `[ReportFacebookActivityPoint]`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`. (filed https://github.com/erxes/erxes/issues/10581)
 - [x] query `reportFacebookPosts` → procedure `reportFacebookPosts.list` (returns `ReportFacebookPostResult`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`. (filed https://github.com/erxes/erxes/issues/10581)
 - [x] query `reportFacebookBots` → procedure `reportFacebookBots.list` (returns `[ReportFacebookBot]`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:82`. (filed https://github.com/erxes/erxes/issues/10581)
 - [x] mutation `reportFacebookSyncPostStats` → procedure `reports.reportFacebookSyncPostStats` (returns `ReportFacebookSyncResult`) `frontline_api/src/modules/reports/graphql/schema/facebook.ts:90`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `conversationProgressChart` → procedure `conversationProgressCharts.get` (returns `ConversationProgressChart`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `conversationMemberProgress` → procedure `conversationMemberProgress.list` (returns `[ConversationMemberProgress]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `conversationSourceProgress` → procedure `conversationSourceProgress.list` (returns `ConversationSourceProgress`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `conversationTagProgress` → procedure `conversationTagProgress.list` (returns `ConversationTagProgress`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportConversationOpenDate` → procedure `reportConversationOpenDates.get` (returns `[ConversationDateStat]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportConversationResolvedDate` → procedure `reportConversationResolvedDates.get` (returns `[ConversationDateStat]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportConversationList` → procedure `reportConversationLists.get` (returns `ConversationListResult`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportConversationResponses` → procedure `reportConversationResponses.list` (returns `[ConversationUserMessageStat]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportConversationOpen` → procedure `reportConversationOpens.get` (returns `ReportMetric`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportConversationClosed` → procedure `reportConversationCloseds.get` (returns `ReportMetric`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportConversationResolved` → procedure `reportConversationResolveds.get` (returns `ReportMetric`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportConversationTags` → procedure `reportConversationTags.list` (returns `[ReportTag]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportConversationSources` → procedure `reportConversationSources.list` (returns `[ReportSource]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportConversationExport` → procedure `reportConversationExports.get` (returns `[ConversationExportItem]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportTicketSource` → procedure `reportTicketSources.get` (returns `[ReportTicketSource]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportTicketDate` → procedure `reportTicketDates.get` (returns `[TicketDateStat]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportTicketOpen` → procedure `reportTicketOpens.get` (returns `ReportTicketMetric`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportTicketList` → procedure `reportTicketLists.get` (returns `TicketListResult`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportTicketTags` → procedure `reportTicketTags.list` (returns `[ReportTicketTag]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportTicketCustomProperties` → procedure `reportTicketCustomProperties.list` (returns `[ReportTicketCustomProperty]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportTicketTotalCount` → procedure `reportTickets.list` (returns `Int`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportTicketStatusSummary` → procedure `reportTicketStatusSummaries.get` (returns `[ReportTicketStatusSummary]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportTicketPriority` → procedure `reportTicketPriorities.get` (returns `[ReportTicketPriority]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] query `reportTicketExport` → procedure `reportTicketExports.get` (returns `[TicketExportItem]`) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`. (filed https://github.com/erxes/erxes/issues/10581)
+- [ ] query `conversationProgressChart` → procedure `conversationProgressCharts.get` (returns `ConversationProgressChart`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. The conversation detail's customer Progress panel, which the inbox port has not built yet
+- [ ] query `conversationMemberProgress` → procedure `conversationMemberProgress.list` (returns `[ConversationMemberProgress]`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. The conversation detail's customer Progress panel, which the inbox port has not built yet
+- [ ] query `conversationSourceProgress` → procedure `conversationSourceProgress.list` (returns `ConversationSourceProgress`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. The conversation detail's customer Progress panel, which the inbox port has not built yet
+- [ ] query `conversationTagProgress` → procedure `conversationTagProgress.list` (returns `ConversationTagProgress`) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`. The conversation detail's customer Progress panel, which the inbox port has not built yet
+- [x] query `reportConversationOpenDate` → `reports.conversations` `days.started`, the Conversations over time tile `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
+- [x] query `reportConversationResolvedDate` → `reports.conversations` `days.resolved`, the Conversations over time tile `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
+- [x] query `reportConversationList` → Not built: the lists behind a number wait on a report page (filed https://github.com/erxes/erxes/issues/10654) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
+- [x] query `reportConversationResponses` → `reports.conversations` `members`, the Top responders tile `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
+- [x] query `reportConversationOpen` → `reports.conversations` `started` and `unresolved`, the Conversation summary tile `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
+- [x] query `reportConversationClosed` → `reports.conversations` `resolved`, the Conversation summary tile `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
+- [x] query `reportConversationResolved` → `reports.conversations` `resolved` and `resolutionSeconds`, the Conversation summary tile `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
+- [x] query `reportConversationTags` → `reports.conversations` `tags`, the Conversations by tag tile `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
+- [x] query `reportConversationSources` → `reports.conversations` `sources`, the Conversations by source tile `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
+- [x] query `reportConversationExport` → Not built: the export waits on a report page (filed https://github.com/erxes/erxes/issues/10654) `frontline_api/src/modules/reports/graphql/schema/inbox.ts:122`
+- [x] query `reportTicketSource` → Dropped: it counted the ticket customers' conversations (DECISIONS.md, Reports) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
+- [x] query `reportTicketDate` → `reports.tickets` `days`, the Tickets over time tile `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
+- [x] query `reportTicketOpen` → `reports.tickets` `unresolved` and `overdue`, the Ticket summary tile `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
+- [x] query `reportTicketList` → Not built: the lists behind a number wait on a report page (filed https://github.com/erxes/erxes/issues/10654) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
+- [x] query `reportTicketTags` → `reports.tickets` `tags`, the Tickets by tag tile `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
+- [x] query `reportTicketCustomProperties` → Not built: it goes with a report page and its filters (filed https://github.com/erxes/erxes/issues/10654) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
+- [x] query `reportTicketTotalCount` → `reports.tickets` `created`, the Ticket summary tile `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
+- [x] query `reportTicketStatusSummary` → `reports.tickets` `stages`, the Tickets by stage tile `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
+- [x] query `reportTicketPriority` → `reports.tickets` `priorities`, the Tickets by priority tile `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
+- [x] query `reportTicketExport` → Not built: the export waits on a report page (filed https://github.com/erxes/erxes/issues/10654) `frontline_api/src/modules/reports/graphql/schema/ticket.ts:131`
 
 ### Core calls
 
-- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:285`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1011`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1201`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1225`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:496`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:572`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:583`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:597`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:126`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:277`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:535`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:641`. (filed https://github.com/erxes/erxes/issues/10581)
-- [x] core `<module>.find` → **gap**: not in migration/core-map.ts yet `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:880`. (filed https://github.com/erxes/erxes/issues/10581)
+- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:285`. The reports return user ids and the tiles name them with core's `MemberInline`
+- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1011`. The reports return user ids and the tiles name them with core's `MemberInline`
+- [x] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1201`. Not needed: no tile names customers
+- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/callQueries.ts:1225`. The reports return user ids and the tiles name them with core's `MemberInline`
+- [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:496`. Joined from `frontline_tags` in the report query
+- [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:572`. The reports return user ids and the tiles name them with core's `MemberInline`
+- [x] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:583`. Not needed: no tile names customers
+- [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/inboxQueries.ts:597`. Joined from `frontline_tags` in the report query
+- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:126`. Not needed: the custom field report waits on a report page (filed https://github.com/erxes/erxes/issues/10654)
+- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:277`. Not needed: the custom field report waits on a report page (filed https://github.com/erxes/erxes/issues/10654)
+- [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:535`. Joined from `frontline_tags` in the report query
+- [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:641`. Not needed: the custom field report waits on a report page (filed https://github.com/erxes/erxes/issues/10654)
+- [x] core `<module>.find` → **gap**: not in migration/core-map.ts yet `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:880`. Not needed: it named the ticket list's pipelines, statuses, channels and teams, and the list waits on a report page (filed https://github.com/erxes/erxes/issues/10654)
 
 ## response
 
@@ -1293,8 +1265,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `surveyEdit` → `surveys.update`, which keeps each step's and option's id so votes stay with them `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 - [x] mutation `surveyRemove` → `surveys.remove` `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 - [x] mutation `surveyToggleStatus` → `surveys.setStatus`. Decision: only pending to active or rejected, rejected to active, and active to archived and back `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
-- [ ] mutation `surveySendToConversation` → procedure `survey.surveySendToConversation` (returns `ConversationMessage`) `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
-  - note: a survey sent into a conversation needs a message the visitor votes in, and inbox messages are plain text (the `surveySendToConversation` row in DECISIONS.md)
+- [x] mutation `surveySendToConversation` → `surveys.send`, a message with `surveyId` the messenger's visitor votes on at `/api/public/messenger/surveys/:messageId`; `surveys.sendable` lists what the composer offers `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 - [x] mutation `cpSurveySubmit` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 - [x] mutation `cpSurveyAdd` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
 - [x] mutation `cpSurveyEdit` → **drop**: the new core has no client portal `frontline_api/src/modules/survey/graphql/schema/survey.ts:180`
@@ -1458,8 +1429,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
   - note: waits for customers and companies on tickets; the import map keeps `company_id`
 - [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/ticket/utils/pipelineProperties.ts:15`. `frontline_ticket_properties`
   - note: waits for custom properties
-- [ ] core `branches.findOne` → sdk `units.list` (scopes units:read and units:write, subscription core.unit.*; a read-only copy in frontline_teams and frontline_team_members, old ones brought to core once with units.import) `frontline_api/src/modules/ticket/utils/slaCalendar.ts:26`
-  - note: SLA due times count calendar hours: `frontline_teams` (`api/src/db/teams.ts`) has no working hours or holidays yet
+- [x] core `branches.findOne` → sdk `units.list` (scopes units:read and units:write, subscription core.unit.*; a read-only copy in frontline_teams and frontline_team_members, old ones brought to core once with units.import) `frontline_api/src/modules/ticket/utils/slaCalendar.ts:26`. SLA due times count clock hours until core's units carry working hours and holidays (filed https://github.com/erxes/erxes/issues/10651)
 - [x] core `<module>.findWithChild` → **gap**: not in migration/core-map.ts yet `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:29`. `teamsOf` walks `frontline_teams.parent_id`
   - note: waits for teams
 - [x] core `configs.getConfigs` → plugin-owned `frontline_settings` (country and currency: organizations.current (sdk)) `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:50`. The pipeline's `isCheckDepartment` and `isCheckBranch` (decision)

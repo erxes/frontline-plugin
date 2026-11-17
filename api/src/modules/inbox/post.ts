@@ -24,6 +24,8 @@ export type Written = {
   internal: boolean;
   mentionedUserIds: string[];
   replyToId: string | null;
+  /** The survey the customer votes on in this message. */
+  surveyId?: string;
   /** What the adapter reads back when it sends it, such as a new mail's subject. */
   providerData?: Record<string, unknown>;
 };

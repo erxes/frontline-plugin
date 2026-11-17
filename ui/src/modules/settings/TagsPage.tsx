@@ -1,6 +1,7 @@
 import type { InferClientOutputs } from '@orpc/client';
 import {
   IconCalendarPlus,
+  IconCategory,
   IconDots,
   IconLetterCase,
   IconPalette,
@@ -15,6 +16,7 @@ import {
   ColorPicker,
   Input,
   RecordTableInlineCell,
+  Select,
   TextField,
   useListFilterParams,
 } from 'erxes-ui';
@@ -23,6 +25,7 @@ import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { FormSheet } from '~/shared/FormSheet.tsx';
 import { textOf } from '~/shared/hooks.ts';
+import { TextCell } from '~/shared/Records.tsx';
 import { column, DateCell } from '~/shared/Table.tsx';
 import {
   DeleteRowAction,
@@ -34,6 +37,21 @@ import {
 } from './Settings.tsx';
 
 type Tag = InferClientOutputs<Client>['tags']['get'];
+
+type TagType = Tag['type'];
+
+const TAG_TYPES: TagType[] = ['ticket', 'conversation', 'form'];
+
+/** What each kind of tag labels, as the page names it. */
+const useTagTypeNames = (): Record<TagType, string> => {
+  const { t } = useTranslation('frontline');
+
+  return {
+    ticket: t('tickets', 'Tickets'),
+    conversation: t('conversations', 'Conversations'),
+    form: t('forms', 'Forms'),
+  };
+};
 
 const DEFAULT_COLOR = '#6366F1';
 
@@ -90,7 +108,9 @@ const MoreCell = ({ tag }: { tag: Tag }) => {
 
 const AddTag = () => {
   const { t } = useTranslation('frontline');
+  const types = useTagTypeNames();
   const [open, setOpen] = useState(false);
+  const [type, setType] = useState<TagType>('ticket');
   const [colorCode, setColorCode] = useState(DEFAULT_COLOR);
   const { onSuccess, onError } = useSettingsChange();
 
@@ -113,15 +133,32 @@ const AddTag = () => {
       <FormSheet
         open={open}
         onOpenChange={setOpen}
-        title={t('add-ticket-tag', 'Add ticket tag')}
+        title={t('add-tag', 'Add tag')}
         submitting={create.isPending}
         error={create.error}
         onSubmit={(form) =>
-          create.mutate({ type: 'ticket', name: textOf(form.get('name')).trim(), colorCode })
+          create.mutate({ type, name: textOf(form.get('name')).trim(), colorCode })
         }
       >
         <SheetField label={t('name', 'Name')}>
           <Input name="name" required aria-label={t('name', 'Name')} />
+        </SheetField>
+        <SheetField label={t('tags-for', 'For')}>
+          <Select
+            value={type}
+            onValueChange={(next) => setType(TAG_TYPES.find((row) => row === next) ?? 'ticket')}
+          >
+            <Select.Trigger aria-label={t('tags-for', 'For')}>
+              <Select.Value>{types[type]}</Select.Value>
+            </Select.Trigger>
+            <Select.Content>
+              {TAG_TYPES.map((row) => (
+                <Select.Item key={row} value={row}>
+                  {types[row]}
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select>
         </SheetField>
         <SheetField label={t('color', 'Colour')}>
           <ColorPicker
@@ -138,23 +175,31 @@ const AddTag = () => {
 
 const useColumns = (canManage: boolean) => {
   const { t } = useTranslation('frontline');
+  const types = useTagTypeNames();
 
   return [
     ...(canManage ? [column<Tag>('more', '', IconDots, 33, (tag) => <MoreCell tag={tag} />)] : []),
     column<Tag>('color', t('color', 'Colour'), IconPalette, 80, (tag) => <ColorCell tag={tag} />),
     column<Tag>('name', t('name', 'Name'), IconLetterCase, 280, (tag) => <NameCell tag={tag} />),
+    column<Tag>('type', t('tags-for', 'For'), IconCategory, 140, (tag) => (
+      <TextCell value={types[tag.type]} />
+    )),
     column<Tag>('createdAt', t('created-at', 'Created at'), IconCalendarPlus, 140, (tag) => (
       <DateCell date={tag.createdAt} />
     )),
   ];
 };
 
-/** Settings › Tags: the tags members put on tickets, renamed and recoloured in place. */
+/**
+ * Settings › Tags: the tags members put on tickets, conversations and forms, renamed and
+ * recoloured in place.
+ */
 export const TagsPage = () => {
   const { t } = useTranslation('frontline');
   const { filter, search } = useListFilterParams();
   const canManage = useCanManageSettings();
-  const tags = useQuery(orpc.tags.list.queryOptions({ input: { type: 'ticket', filter, search } }));
+  const types = useTagTypeNames();
+  const tags = useQuery(orpc.tags.list.queryOptions({ input: { filter, search } }));
 
   return (
     <SettingsList
@@ -165,6 +210,13 @@ export const TagsPage = () => {
       action={<AddTag />}
       fields={[
         { path: 'subject.name', label: t('name', 'Name'), type: 'text', icon: IconLetterCase },
+        {
+          path: 'subject.type',
+          label: t('tags-for', 'For'),
+          type: 'select',
+          icon: IconCategory,
+          options: TAG_TYPES.map((type) => ({ value: type, label: types[type] })),
+        },
         {
           path: 'subject.createdBy',
           label: t('created-by', 'Created by'),
@@ -185,7 +237,10 @@ export const TagsPage = () => {
       empty={{
         icon: <IconTag />,
         title: t('no-tags-yet', 'No tags yet'),
-        description: t('tags-empty', 'Tags group tickets by topic, such as billing or VIP.'),
+        description: t(
+          'tags-empty',
+          'Tags group tickets, conversations and forms by topic, such as billing or VIP.',
+        ),
       }}
     />
   );

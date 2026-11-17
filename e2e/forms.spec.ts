@@ -256,6 +256,47 @@ test('an admin duplicates, archives and deletes forms', async ({ page }) => {
   await page.getByRole('button', { name: 'List', exact: true }).click();
 });
 
+test('an admin tags a form and narrows the forms by its tag', async ({ page }) => {
+  const channel = await openChannelPipelines(page);
+  const panel = recordPanel(page);
+  const name = `Webinar ${unique()}`;
+  const tag = `Events ${unique()}`;
+
+  await page.goto('/frontline/settings/tags');
+  await page.getByRole('button', { name: 'Add tag' }).click();
+  const sheet = page.getByRole('dialog');
+
+  await sheet.getByLabel('Name', { exact: true }).fill(tag);
+  await pick(page, sheet.getByRole('combobox', { name: 'For' }), 'Forms');
+  await sheet.getByRole('button', { name: 'Create' }).click();
+  await expect(page.getByRole('row', { name: new RegExp(`${tag}.*Forms`) })).toBeVisible();
+
+  await page.goto(FORMS);
+  await page.getByRole('button', { name: 'New form' }).first().click();
+  await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
+  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
+  await panel.getByRole('button', { name: 'Create form' }).click();
+  await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  await page.getByRole('button', { name: 'Display' }).click();
+  await page.getByRole('button', { name: 'Table', exact: true }).click();
+  await page.keyboard.press('Escape');
+  const row = page.getByRole('row', { name: new RegExp(name) });
+
+  await row.getByText('No tags').click();
+  await page.getByRole('option', { name: tag, exact: true }).click();
+  await page.keyboard.press('Escape');
+  await expect(row.getByText(tag)).toBeVisible();
+  await expectAccessible(page);
+
+  await filterBy(page, 'Tags', tag);
+  await expect(page.getByRole('row', { name: new RegExp(name) })).toBeVisible();
+  await expect(page.getByRole('row')).toHaveCount(2);
+  await page.getByRole('button', { name: 'Display' }).click();
+  await page.getByRole('button', { name: 'List', exact: true }).click();
+});
+
 test('a member without frontline permissions is refused the forms', async ({ newMember }) => {
   const { page } = await newMember(['team.view']);
 

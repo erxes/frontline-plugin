@@ -315,7 +315,7 @@ describe('tickets', () => {
       config: { ticketPipelineIds: [pipeline.id, foreign.id] },
     });
 
-    const visitor = { orgId: 'org-tk-visitor', integrationId: integration.id };
+    const visitor = { orgId: 'org-tk-visitor', integrationId: integration.id, owns: false };
     const ann = await tokenOf({ ...visitor, customerId: 'customer-ann', identified: true });
     const anonymous = await tokenOf({ ...visitor, customerId: 'customer-bob', identified: false });
     const file = { pipelineId: pipeline.id, name: 'Broken zip', tagIds: [tag.id] };

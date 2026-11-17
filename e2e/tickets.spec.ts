@@ -189,15 +189,21 @@ test('a member labels a ticket with tags, a department and a property, and filte
   await page.getByRole('option', { name: department }).click();
   await page.keyboard.press('Escape');
   await expect(panel.getByRole('button', { name: 'Department' })).toContainText(department);
-  await expect(panel.getByRole('button', { name: property })).toBeVisible();
+  await panel.getByRole('button', { name: property }).click();
+  await page.getByPlaceholder(property, { exact: true }).fill('Gold');
+  await page.keyboard.press('Enter');
+  await expect(panel.getByRole('button', { name: property })).toContainText('Gold');
   await expect(panel.getByText('Contacts')).toBeVisible();
   await expectAccessible(page);
 
-  // The filter bar narrows the list by the ticket's tag.
+  // The filter bar narrows the list by the ticket's tag; its card shows the tag and the value.
   await page.goto(TICKETS);
   await filterBy(page, 'Pipeline', pipeline);
   await filterBy(page, 'Tags', tag);
   await expect(ticket(page, name)).toBeVisible();
+  await display(page, 'Board');
+  await expect(page.getByText(`${property}: Gold`)).toBeVisible();
+  await display(page, 'List');
   await page.getByRole('button', { name: 'Remove Tags filter' }).click();
   await filterBy(page, 'Department', department);
   await expect(ticket(page, name)).toBeVisible();

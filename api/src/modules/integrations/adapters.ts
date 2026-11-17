@@ -3,11 +3,24 @@ import { and, desc, eq, isNotNull, or, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { MESSAGE_RECEIVED } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
-import { customerLinks, integrations, messages } from '#/db/inbox.ts';
+import {
+  conversations,
+  customerLinks,
+  integrations,
+  messageReactions,
+  messages,
+} from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
 import type { Adapter } from '../inbox/adapters.ts';
 import { customerFor, receive } from '../inbox/receive.ts';
-import { type AccountRow, type InboundMessage, inOrder, type ProviderName } from './provider.ts';
+import { signalConversations } from '../inbox/shared.ts';
+import {
+  type AccountRow,
+  type InboundMessage,
+  type InboundReaction,
+  inOrder,
+  type ProviderName,
+} from './provider.ts';
 import { providerOf } from './providers/index.ts';
 import { accountRow } from './store.ts';
 
@@ -60,37 +73,67 @@ const replyContext = async (
   };
 };
 
+/** The integration's account, opened, with the thread and what a reply answers at the provider. */
+const threadOf = async (
+  provider: ProviderName,
+  {
+    orgId,
+    integration,
+    conversation,
+  }: Pick<Parameters<NonNullable<Adapter['send']>>[0], 'orgId' | 'integration' | 'conversation'>,
+) => {
+  const { accountId } = AccountConfig.parse(integration.config);
+
+  if (!conversation.externalId)
+    throw new ORPCError('BAD_REQUEST', {
+      message: 'The conversation has no thread at the provider',
+    });
+
+  const threadId = conversation.externalId;
+
+  const { row, context } = await withOrg(orgId, async (tx) => ({
+    row: await accountRow(tx, accountId),
+    context: await replyContext(tx, provider, conversation.id, conversation.customerId),
+  }));
+
+  return { account: providerOf(row.provider).open(row), threadId, context };
+};
+
 const adapterOf = (provider: ProviderName, label: string): Adapter => ({
   kind: provider,
   label,
   config: AccountConfig,
-  send: async ({ orgId, integration, conversation, message }) => {
-    const { accountId } = AccountConfig.parse(integration.config);
+  send: async (outgoing) => {
+    const { account, threadId, context } = await threadOf(provider, outgoing);
+    const { message } = outgoing;
 
-    if (!conversation.externalId)
-      throw new ORPCError('BAD_REQUEST', {
-        message: 'The conversation has no thread at the provider',
-      });
-
-    const threadId = conversation.externalId;
-
-    const { row, context } = await withOrg(orgId, async (tx) => ({
-      row: await accountRow(tx, accountId),
-      context: await replyContext(tx, provider, conversation.id, conversation.customerId),
-    }));
-
-    const externalId = await providerOf(row.provider)
-      .open(row)
-      .send({
-        threadId,
-        text: message.content,
-        html: message.html,
-        attachments: message.attachments,
-        providerData: message.providerData,
-        ...context,
-      });
+    const externalId = await account.send({
+      threadId,
+      text: message.content,
+      html: message.html,
+      attachments: message.attachments,
+      providerData: message.providerData,
+      ...context,
+    });
 
     return { externalId };
+  },
+  react: async ({ emoji, emojis, ...outgoing }) => {
+    const { account, threadId, context } = await threadOf(provider, outgoing);
+    const { externalId, providerData } = outgoing.message;
+
+    if (!account.react || !externalId)
+      throw new ORPCError('BAD_REQUEST', {
+        message: `${label} takes no reactions on this message`,
+      });
+
+    await account.react({
+      threadId,
+      to: context.to,
+      message: { externalId, providerData },
+      emoji,
+      emojis,
+    });
   },
 });
 
@@ -167,4 +210,63 @@ export const deliverInbound = async (row: AccountRow, inbound: InboundMessage[])
         ),
     ),
   );
+};
+
+/**
+ * Keeps each customer's reactions as the provider reports them: their set replaces what they had
+ * on the message. One on a message or from a customer frontline doesn't have is skipped.
+ */
+export const deliverReactions = async (row: AccountRow, reactions: InboundReaction[]) => {
+  if (!reactions.length) return;
+
+  const integrationId = await integrationOf(row);
+
+  if (!integrationId) return;
+
+  await withOrg(row.orgId, async (tx) => {
+    // One transaction: the changes go one after another on its connection.
+    await inOrder(reactions, async (reaction) => {
+      const [found] = await tx
+        .select({ messageId: messages.id, customerId: customerLinks.customerId })
+        .from(messages)
+        .innerJoin(conversations, eq(conversations.id, messages.conversationId))
+        .innerJoin(
+          customerLinks,
+          and(
+            eq(customerLinks.source, row.provider),
+            eq(customerLinks.externalId, reaction.author.externalId),
+          ),
+        )
+        .where(
+          and(
+            eq(conversations.integrationId, integrationId),
+            eq(conversations.externalId, reaction.threadId),
+            eq(messages.externalId, reaction.messageId),
+          ),
+        );
+
+      if (!found) return;
+
+      await tx
+        .delete(messageReactions)
+        .where(
+          and(
+            eq(messageReactions.messageId, found.messageId),
+            eq(messageReactions.customerId, found.customerId),
+          ),
+        );
+
+      if (reaction.emojis.length)
+        await tx.insert(messageReactions).values(
+          [...new Set(reaction.emojis)].map((emoji) => ({
+            orgId: row.orgId,
+            messageId: found.messageId,
+            customerId: found.customerId,
+            emoji,
+          })),
+        );
+    });
+
+    await signalConversations(tx, row.orgId, []);
+  });
 };

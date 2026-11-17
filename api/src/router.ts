@@ -12,6 +12,9 @@ import { categoryProcedures } from '#/modules/knowledgebase/categories.ts';
 import { topicProcedures } from '#/modules/knowledgebase/topics.ts';
 import { pipelineProcedures } from '#/modules/pipelines/pipelines.ts';
 import { statusProcedures } from '#/modules/pipelines/statuses.ts';
+import { callReport } from '#/modules/reports/calls.ts';
+import { conversationReport } from '#/modules/reports/conversations.ts';
+import { ticketReport } from '#/modules/reports/tickets.ts';
 import { responseTemplateProcedures } from '#/modules/responseTemplates/responseTemplates.ts';
 import { conversationProcedures } from '#/modules/inbox/conversations.ts';
 import { countProcedures } from '#/modules/inbox/counts.ts';
@@ -24,16 +27,21 @@ import { metaProcedures } from '#/modules/integrations/providers/metaLogin.ts';
 import { metaPostProcedures } from '#/modules/integrations/providers/metaPosts.ts';
 import { telegramProcedures } from '#/modules/integrations/providers/telegram.ts';
 import { callListProcedures } from '#/modules/calls/calls.ts';
+import { phoneProcedures } from '#/modules/calls/phone.ts';
 import { agentProcedures, queueProcedures } from '#/modules/calls/queues.ts';
 import {
   callProcedures,
   callProProcedures,
 } from '#/modules/integrations/providers/call/connect.ts';
+import { linkPreviewProcedures } from '#/modules/inbox/linkPreviews.ts';
 import { messageProcedures } from '#/modules/inbox/messages.ts';
 import { operatorProcedures } from '#/modules/inbox/operator.ts';
 import { presenceProcedures } from '#/modules/inbox/presence.ts';
+import { conversationPropertyProcedures } from '#/modules/inbox/properties.ts';
+import { reactionProcedures } from '#/modules/inbox/reactions.ts';
 import { messengerProcedures } from '#/modules/messenger/settings.ts';
 import { settingsProcedures } from '#/modules/settings/settings.ts';
+import { surveySendProcedures } from '#/modules/surveys/send.ts';
 import { surveyStatusProcedures } from '#/modules/surveys/status.ts';
 import { surveyProcedures } from '#/modules/surveys/surveys.ts';
 import { tagProcedures } from '#/modules/tags/tags.ts';
@@ -59,7 +67,7 @@ export const router = {
     fields: fieldProcedures,
     submissions: submissionProcedures,
   },
-  surveys: { ...surveyProcedures, ...surveyStatusProcedures },
+  surveys: { ...surveyProcedures, ...surveyStatusProcedures, ...surveySendProcedures },
   integrations: {
     ...integrationProcedures,
     messenger: messengerProcedures,
@@ -71,19 +79,26 @@ export const router = {
     call: callProcedures,
     callpro: callProProcedures,
   },
-  calls: { ...callListProcedures, queues: queueProcedures, agents: agentProcedures },
+  calls: {
+    ...callListProcedures,
+    queues: queueProcedures,
+    agents: agentProcedures,
+    phone: phoneProcedures,
+  },
   conversations: {
     ...conversationProcedures,
     ...countProcedures,
     ...operatorProcedures,
     ...presenceProcedures,
-    messages: messageProcedures,
+    ...conversationPropertyProcedures,
+    messages: { ...messageProcedures, ...reactionProcedures, ...linkPreviewProcedures },
   },
   knowledgebase: {
     topics: topicProcedures,
     categories: categoryProcedures,
     articles: articleProcedures,
   },
+  reports: { tickets: ticketReport, conversations: conversationReport, calls: callReport },
 };
 
 /** The typed client the UI builds (`ui/src/orpc.ts`). */

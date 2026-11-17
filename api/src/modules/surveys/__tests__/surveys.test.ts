@@ -1,8 +1,50 @@
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it, vi } from 'vite-plus/test';
+import { z } from 'zod';
+import type * as CoreModule from '#/core.ts';
 import { PERMISSIONS } from '#/core.ts';
+import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 
+// Tests never reach core: each messenger visitor becomes a new stand-in customer.
+const core = vi.hoisted(() => ({ customers: 0 }));
+
+vi.mock('#/core.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof CoreModule>();
+
+  return {
+    ...actual,
+    core: {
+      ...actual.core,
+      forOrg: () => ({
+        customers: {
+          create: async () => {
+            core.customers += 1;
+
+            return { id: `customer-${core.customers}` };
+          },
+        },
+        notifications: { create: async () => ({ ok: true }) },
+      }),
+    },
+  };
+});
+
+const messenger = serve('/api/public/messenger');
+
 const agent = [PERMISSIONS.channelView];
+
+const Connected = z.looseObject({ token: z.string() });
+
+/** A new messenger visitor's token. */
+const visitorOf = async (key: string) =>
+  Connected.parse((await messenger.post('/connect', { key })).body).token;
+
+/** What the visitor reads of a sent survey. */
+const Shown = z.object({
+  open: z.boolean(),
+  optionIds: z.array(z.string()),
+  steps: z.array(z.object({ options: z.array(z.looseObject({})) })),
+});
 
 const question = (text: string, options: string[]) => ({
   name: text,
@@ -100,6 +142,97 @@ describe('surveys', () => {
     await expect(
       owner.surveys.create({ channelId: billing.id, title: 'Rate', steps }),
     ).resolves.toMatchObject({ channelId: billing.id });
+  });
+
+  it('sends a survey to a messenger visitor, takes their vote and opens its ticket', async () => {
+    const owner = clientAs('org-sv-send');
+    const channel = await owner.channels.create({ name: 'Support', memberIds: ['teammate'] });
+    const teammate = clientAs('org-sv-send', [PERMISSIONS.inboxView, ...agent], 'teammate');
+
+    const { publicKey } = await owner.integrations.create({
+      channelId: channel.id,
+      kind: 'messenger',
+      name: 'Website',
+      config: {},
+    });
+
+    const token = await visitorOf(publicKey ?? '');
+
+    const { conversationId } = z
+      .object({ conversationId: z.string() })
+      .parse((await messenger.post('/messages', { content: 'Hi' }, token)).body);
+
+    const pipeline = await owner.pipelines.create({ channelId: channel.id, name: 'Complaints' });
+    const [status] = await owner.pipelines.statuses.list({ pipelineId: pipeline.id });
+
+    if (!status) throw new Error('no status');
+
+    const ticket = { threshold: 1, pipelineId: pipeline.id, statusId: status.id };
+
+    const survey = await owner.surveys.create({
+      channelId: channel.id,
+      title: 'How did we do?',
+      steps: [
+        {
+          name: 'Rate',
+          question: 'Rate our answer',
+          options: [{ text: 'Good' }, { text: 'Bad', ticket }],
+        },
+      ],
+    });
+
+    const [good, bad] = survey.steps[0]?.options ?? [];
+    const billing = await owner.channels.create({ name: 'Billing' });
+
+    const elsewhere = await owner.surveys.create({
+      channelId: billing.id,
+      title: 'Elsewhere',
+      steps: [question('Yes or no?', ['Yes', 'No'])],
+    });
+
+    // The teammate reads the inbox but may not send surveys, so the composer offers none.
+    await expect(teammate.surveys.sendable({ conversationId })).resolves.toEqual([]);
+    await expect(owner.surveys.sendable({ conversationId })).resolves.toEqual([
+      { id: survey.id, title: 'How did we do?' },
+    ]);
+    await expect(owner.surveys.send({ id: elsewhere.id, conversationId })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+
+    const sent = await owner.surveys.send({ id: survey.id, conversationId });
+
+    expect(sent).toMatchObject({ content: 'Rate our answer', surveyId: survey.id });
+
+    const shown = Shown.parse((await messenger.get(`/surveys/${sent.id}`, token)).body);
+
+    expect(shown).toMatchObject({ open: true, optionIds: [] });
+    // The visitor sees the options, never their ticket rules.
+    expect(shown.steps[0]?.options[1]).toEqual({ id: bad?.id, text: 'Bad' });
+
+    const vote = async (optionIds: (string | undefined)[]) =>
+      (await messenger.post(`/surveys/${sent.id}/votes`, { optionIds }, token)).status;
+
+    expect(await vote(['nope'])).toBe(400);
+    expect(await vote([good?.id, bad?.id])).toBe(400);
+    expect(await vote([bad?.id])).toBe(204);
+    // A second vote replaces the first and opens no second ticket.
+    expect(await vote([bad?.id])).toBe(204);
+
+    expect(Shown.parse((await messenger.get(`/surveys/${sent.id}`, token)).body)).toMatchObject({
+      optionIds: [bad?.id],
+    });
+    await expect(owner.surveys.get({ id: survey.id })).resolves.toMatchObject({
+      sentCount: 1,
+      voteCount: 1,
+    });
+    await expect(owner.tickets.list({ search: 'How did we do' })).resolves.toMatchObject({
+      tickets: [{ name: 'How did we do?: Bad', pipelineId: pipeline.id, statusId: status.id }],
+    });
+
+    // Another visitor can't read this one's survey.
+    const stranger = await visitorOf(publicKey ?? '');
+
+    expect((await messenger.get(`/surveys/${sent.id}`, stranger)).status).toBe(404);
   });
 
   it('archives a survey and makes it active again, refusing moves it has no way to', async () => {

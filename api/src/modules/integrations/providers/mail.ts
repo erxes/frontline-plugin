@@ -226,6 +226,17 @@ export const checkMail = async (config: z.infer<typeof Config>, secret: z.infer<
   }
 };
 
+/** A reply's subject: the one it answers, with one `Re:`. */
+const replySubject = (subject: string) =>
+  !subject || /^re:/i.test(subject) ? subject : `Re: ${subject}`;
+
+/** Refuses an address that bounced or reported spam. */
+const checkSuppressed = async (orgId: string, address: string) => {
+  const [blocked] = await withOrg(orgId, (tx) => suppressedAmong(tx, [address]));
+
+  if (blocked) throw new Error(`${blocked} bounced or reported spam, so it isn't mailed`);
+};
+
 /** A mailbox the organisation already has: frontline reads INBOX over IMAP and replies over SMTP. */
 export const mail = defineProvider({
   name: 'mail',
@@ -233,9 +244,7 @@ export const mail = defineProvider({
   Secret,
   check: async ({ config, secret }) => checkMail(config, secret),
   send: async ({ config, secret, row }, message) => {
-    const [blocked] = await withOrg(row.orgId, (tx) => suppressedAmong(tx, [message.to]));
-
-    if (blocked) throw new Error(`${blocked} bounced or reported spam, so it isn't mailed`);
+    await checkSuppressed(row.orgId, message.to);
 
     // A mail that starts a thread brings its own subject and Message-ID.
     const started = message.replyTo
@@ -250,11 +259,7 @@ export const mail = defineProvider({
     const sent = await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
       from: { name: row.name, address: row.externalId },
       to: message.to,
-      subject: started
-        ? (started.subject ?? '')
-        : !subject || /^re:/i.test(subject)
-          ? subject
-          : `Re: ${subject}`,
+      subject: started ? (started.subject ?? '') : replySubject(subject),
       messageId: started?.root,
       text: message.text,
       html: message.html ?? undefined,
@@ -264,5 +269,22 @@ export const mail = defineProvider({
     });
 
     return sent.messageId;
+  },
+  // RFC 9078: a reply whose one part, marked `reaction`, holds the team's emojis now; none
+  // takes them all back.
+  react: async ({ config, secret, row }, { to, message, emojis }) => {
+    await checkSuppressed(row.orgId, to);
+
+    const { subject = '', root } = MailData.safeParse(message.providerData ?? {}).data ?? {};
+
+    await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
+      from: { name: row.name, address: row.externalId },
+      to,
+      subject: replySubject(subject),
+      inReplyTo: message.externalId,
+      references: [...new Set([root, message.externalId].filter((id) => id !== undefined))],
+      text: [...new Set(emojis)].join(''),
+      headers: { 'content-disposition': 'reaction' },
+    });
   },
 });

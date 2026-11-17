@@ -118,6 +118,35 @@ const get = reads(PERMISSIONS.channelView)
     return ticket;
   });
 
+/**
+ * Adds a ticket numbered by its pipeline and due by its SLA, and publishes its creation, by a
+ * member or by the plugin itself (`userId` null), as a survey's vote count does.
+ */
+export const insertTicket = async (
+  tx: Tx,
+  actor: { orgId: string; userId: string | null },
+  values: Omit<typeof tickets.$inferInsert, 'orgId' | 'number' | 'statusChangedBy'>,
+) => {
+  const [number = null] = await nextNumbers(tx, values.pipelineId, 1);
+
+  const [created] = await tx
+    .insert(tickets)
+    .values({ ...values, orgId: actor.orgId, number, statusChangedBy: actor.userId })
+    .returning({ id: tickets.id });
+
+  if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+  await refreshSla(tx, [created.id]);
+  await publish(
+    tx,
+    actor,
+    (await snapshot(tx, [created.id])).map((row) => createdEvent(row)),
+  );
+  await signalTickets(tx, actor);
+
+  return created.id;
+};
+
 type NewTicket = Omit<
   typeof tickets.$inferInsert,
   | 'orgId'
@@ -131,11 +160,11 @@ type NewTicket = Omit<
 > & { statusId?: string; propertiesData: Record<string, unknown> };
 
 /**
- * Adds a ticket to `pipeline` by `actor`, a member or, with no user, the customer it names: in
- * `statusId` or the pipeline's first status, numbered by the pipeline, due by its SLA, and on
- * its timeline. The caller checks that `actor` may file in the pipeline.
+ * Files a ticket in `pipeline` by `actor`, a member or, with no user, the customer it names:
+ * its properties and links checked, in `statusId` or the pipeline's first status. The caller
+ * checks that `actor` may file in the pipeline.
  */
-export const insertTicket = async (
+export const fileTicket = async (
   tx: Tx,
   actor: { orgId: string; userId: string | null },
   pipeline: { id: string; channelId: string },
@@ -159,34 +188,14 @@ export const insertTicket = async (
 
   if (!status) throw new ORPCError('BAD_REQUEST', { message: 'Pick a status of this pipeline' });
 
-  const [number = null] = await nextNumbers(tx, pipeline.id, 1);
-
-  const [created] = await tx
-    .insert(tickets)
-    .values({
-      ...input,
-      pipelineId: pipeline.id,
-      propertiesData: properties,
-      orgId: actor.orgId,
-      channelId: pipeline.channelId,
-      statusId: status.id,
-      number,
-      statusChangedBy: actor.userId,
-      createdBy: actor.userId,
-    })
-    .returning({ id: tickets.id });
-
-  if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
-
-  await refreshSla(tx, [created.id]);
-  await publish(
-    tx,
-    actor,
-    (await snapshot(tx, [created.id])).map((row) => createdEvent(row)),
-  );
-  await signalTickets(tx, actor);
-
-  return created.id;
+  return insertTicket(tx, actor, {
+    ...input,
+    pipelineId: pipeline.id,
+    propertiesData: properties,
+    channelId: pipeline.channelId,
+    statusId: status.id,
+    createdBy: actor.userId,
+  });
 };
 
 /**
@@ -229,7 +238,7 @@ const create = writes(PERMISSIONS.channelView)
   .handler(async ({ input, context: { tx, member } }) => {
     const pipeline = await pipelineFor(tx, member, input.pipelineId, { change: false });
 
-    return ticketById(tx, member, await insertTicket(tx, member, pipeline, input));
+    return ticketById(tx, member, await fileTicket(tx, member, pipeline, input));
   });
 
 export const ticketProcedures = { list, get, create };

@@ -8,6 +8,7 @@ import {
   IconLetterCase,
   IconProgressCheck,
   IconSend,
+  IconTag,
   IconUser,
 } from '@tabler/icons-react';
 import {
@@ -26,8 +27,9 @@ import { useChannelNames } from '~/shared/ChannelSelect.tsx';
 import { ActionsMenu, RowActions, TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import { FormName, StatusBadge, useFormActions } from './FormCells.tsx';
-import { FORM_STATUSES, type Form, useStatusNames } from './useForms.ts';
+import { FORM_STATUSES, type Form, formTags, useEditForm, useStatusNames } from './useForms.ts';
 import { MemberLine } from '~/shared/MemberLine.tsx';
+import { TagBadges, TagsField } from '~/shared/Pickers.tsx';
 
 const RowMenu = ({ form }: { form: Form }) => {
   const { t } = useTranslation('frontline');
@@ -117,6 +119,15 @@ const MoreCell = ({ form }: { form: Form }) => {
   );
 };
 
+/** The form's tags, picked in place by a member who may change it. */
+const TagsCell = ({ form }: { form: Form }) => {
+  const edit = useEditForm(form.id);
+
+  if (!form.canManage) return <TagBadges tags={formTags} tagIds={form.tagIds} />;
+
+  return <TagsField tags={formTags} value={form.tagIds} onChange={(tagIds) => edit({ tagIds })} />;
+};
+
 const useColumns = (manage: boolean): RecordTableColumnDef<Form>[] => {
   const { t } = useTranslation('frontline');
   const channels = useChannelNames();
@@ -142,6 +153,7 @@ const useColumns = (manage: boolean): RecordTableColumnDef<Form>[] => {
     column('channel', t('channel', 'Channel'), IconCircles, 180, (form) => (
       <TextCell value={channels.get(form.channelId) ?? null} />
     )),
+    column('tagIds', t('tags', 'Tags'), IconTag, 200, (form) => <TagsCell form={form} />),
     column('title', t('form-title', 'Form title'), IconLetterCase, 220, (form) => (
       <TextCell value={form.title} />
     )),

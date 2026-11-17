@@ -1,6 +1,5 @@
 import {
   IconAlertTriangle,
-  IconFile,
   IconLock,
   IconPencil,
   IconPin,
@@ -18,7 +17,6 @@ import {
   toIsoDay,
   useFormat,
 } from 'erxes-ui';
-import parse from 'html-react-parser';
 import { Fragment, type SubmitEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useCustomerName } from './ConversationList.tsx';
@@ -30,7 +28,10 @@ import {
   usePinMessage,
   usePinnedMessages,
 } from './queries.ts';
+import { SentSurvey } from '~/modules/surveys/SurveyMessage.tsx';
 import { MemberLine } from '~/shared/MemberLine.tsx';
+import { Attachments, LinkPreviews, MessageBody } from './MessageContent.tsx';
+import { Reactions } from './Reactions.tsx';
 import { useSendShortcut } from './useSendShortcut.ts';
 
 /** Who wrote the message: the customer, a member, or the bot when it has neither. */
@@ -89,71 +90,38 @@ const EditBox = ({ message, onDone }: { message: Message; onDone: () => void }) 
   );
 };
 
-/**
- * What the message says: a member's rich text as the API sanitized it (`api/src/modules/inbox/html.ts`),
- * else its plain text.
- */
-const MessageBody = ({ message }: { message: Message }) => {
-  const fromCustomer = Boolean(message.customerId);
-
-  const bot = !fromCustomer && !message.userId;
-
-  const className = cn(
-    'break-words rounded-2xl px-3 py-2 text-sm',
-    fromCustomer && 'rounded-tl-sm bg-muted',
-    !fromCustomer && 'rounded-tr-sm',
-    !fromCustomer && !message.internal && !bot && 'bg-primary text-primary-foreground',
-    bot && !message.internal && 'border border-primary/40 bg-primary/5',
-    message.internal && 'border border-dashed border-warning bg-warning/20',
-  );
-
-  if (!message.html)
-    return <p className={cn('whitespace-pre-wrap', className)}>{message.content}</p>;
-
-  return (
-    <div
-      className={cn(
-        className,
-        'flex flex-col gap-1 [&_a]:underline [&_blockquote]:border-l-2 [&_blockquote]:pl-2 [&_ol]:list-decimal [&_ol]:pl-5 [&_ul]:list-disc [&_ul]:pl-5 [&_[data-inline-content-type=mention]]:font-semibold',
-      )}
-    >
-      {parse(message.html)}
-    </div>
-  );
-};
-
-/** The message's files: images as thumbnails, the rest as chips with their name. */
-const Attachments = ({ files }: { files: Message['attachments'] }) => {
-  if (files.length === 0) return null;
-
-  return (
-    <ul className="flex flex-wrap gap-2">
-      {files.map((file) => (
-        <li key={file.url}>
-          <a
-            href={file.url}
-            target="_blank"
-            rel="noreferrer"
-            className="flex max-w-60 items-center gap-1.5 rounded-md border bg-background px-2 py-1.5 text-xs hover:bg-accent"
-          >
-            {file.type?.startsWith('image/') ? (
-              <img src={file.url} alt={file.name} className="max-h-40 rounded-sm" />
-            ) : (
-              <>
-                <IconFile className="size-4 shrink-0" aria-hidden />
-                <span className="truncate">{file.name}</span>
-              </>
-            )}
-          </a>
-        </li>
-      ))}
-    </ul>
-  );
-};
-
-const Bubble = ({ message, customerName }: { message: Message; customerName: string }) => {
+/** When a message was written, and whether it was edited, is internal or failed to go out. */
+const Marks = ({ message }: { message: Message }) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
+
+  return (
+    <>
+      <time dateTime={message.createdAt.toISOString()} title={format.dateTime(message.createdAt)}>
+        {format.time(message.createdAt)}
+      </time>
+      {message.editedAt && <span>{t('edited', 'Edited')}</span>}
+      {message.internal && <IconLock className="size-3" aria-hidden />}
+      {message.deliveryStatus === 'failed' && (
+        <span className="flex items-center gap-1 text-destructive-text">
+          <IconAlertTriangle className="size-3" aria-hidden />
+          {t('not-delivered', 'Not delivered')}
+        </span>
+      )}
+    </>
+  );
+};
+
+const Bubble = ({
+  message,
+  customerName,
+  kind,
+}: {
+  message: Message;
+  customerName: string;
+  kind: string;
+}) => {
+  const { t } = useTranslation('frontline');
   const pin = usePinMessage();
   const [editing, setEditing] = useState(false);
   const fromCustomer = Boolean(message.customerId);
@@ -177,20 +145,7 @@ const Bubble = ({ message, customerName }: { message: Message; customerName: str
           )}
         >
           <Author message={message} customerName={customerName} />
-          <time
-            dateTime={message.createdAt.toISOString()}
-            title={format.dateTime(message.createdAt)}
-          >
-            {format.time(message.createdAt)}
-          </time>
-          {message.editedAt && <span>{t('edited', 'Edited')}</span>}
-          {message.internal && <IconLock className="size-3" aria-hidden />}
-          {message.deliveryStatus === 'failed' && (
-            <span className="flex items-center gap-1 text-destructive-text">
-              <IconAlertTriangle className="size-3" aria-hidden />
-              {t('not-delivered', 'Not delivered')}
-            </span>
-          )}
+          <Marks message={message} />
           <Button
             variant="ghost"
             size="icon"
@@ -221,6 +176,9 @@ const Bubble = ({ message, customerName }: { message: Message; customerName: str
           <MessageBody message={message} />
         )}
         <Attachments files={message.attachments} />
+        <LinkPreviews message={message} />
+        {message.surveyId && <SentSurvey surveyId={message.surveyId} />}
+        <Reactions message={message} kind={kind} />
       </div>
     </li>
   );
@@ -320,7 +278,7 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
                   toIsoDay(messages[index - 1]?.createdAt ?? new Date(0)) && (
                   <DayDivider date={message.createdAt} />
                 )}
-                <Bubble message={message} customerName={customerName} />
+                <Bubble message={message} customerName={customerName} kind={conversation.kind} />
               </Fragment>
             ))}
           </ol>

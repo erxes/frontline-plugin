@@ -5,7 +5,9 @@ import {
   COMMENT_RECEIVED,
   CONVERSATION_EVENTS,
   CONVERSATION_TIMELINE,
+  FORM_ACTIONS,
   FORM_EVENTS,
+  FORM_LINK_DAYS,
   FORM_TIMELINE,
   INBOX_ACTIONS,
   INBOX_NOTIFICATIONS,
@@ -20,6 +22,7 @@ import {
   TICKET_EVENTS,
   TICKET_TIMELINE,
 } from '#/core.ts';
+import { RELATIONS } from '#/relations.ts';
 
 /** What a ticket's people hear about, each sent with the event it names (`notify`). */
 const TICKET_NOTICES = [
@@ -42,11 +45,16 @@ export const manifest = {
   description: 'Inbox, channels, tickets and customer messaging for erxes',
   version: config.version,
   ui: { remote: 'frontline_ui', entry: config.uiEntryUrl },
-  api: { url: `${config.publicUrl}/api` },
+  // `server.ts` serves the procedures as REST at /api/v1 and their document here.
+  api: {
+    url: `${config.publicUrl}/api`,
+    docs: [{ audience: 'member', path: '/openapi/member.json' }],
+  },
   // Form senders, messenger visitors and provider senders become core customers; members hear
-  // of assignments; a messenger shows its team; recordings and visitors' uploads are core files,
-  // which visitors read back through the plugin. Tickets' branches and departments are core's
-  // units: frontline brings its teams in once and keeps a copy for ticket visibility.
+  // of assignments; a messenger shows its team's names and pictures; call recordings and
+  // visitors' uploads are core files, which visitors read back through the plugin. Tickets'
+  // branches and departments are core's units: frontline brings its own teams in once and keeps
+  // a copy for ticket visibility.
   scopes: [
     'customers:read',
     'customers:write',
@@ -59,6 +67,8 @@ export const manifest = {
   ],
   // Any change to a unit refreshes the copy (`modules/teams/sync.ts`).
   subscriptions: ['core.unit.*'],
+  // Conversations, tickets and form submissions in core's customer filter (`relations.ts`).
+  relations: RELATIONS,
   permissions: [
     {
       action: PERMISSIONS.channelView,
@@ -107,6 +117,16 @@ export const manifest = {
       group: 'Inbox',
     },
     {
+      action: PERMISSIONS.surveySend,
+      label: 'Send surveys into conversations',
+      group: 'Inbox',
+    },
+    {
+      action: PERMISSIONS.conversationEditFields,
+      label: "Change conversations' custom fields",
+      group: 'Inbox',
+    },
+    {
       action: PERMISSIONS.integrationView,
       label: 'See connected pages, bots and mailboxes',
       group: 'Integrations',
@@ -133,6 +153,8 @@ export const manifest = {
       permissions: [
         PERMISSIONS.channelView,
         PERMISSIONS.inboxView,
+        PERMISSIONS.surveySend,
+        PERMISSIONS.conversationEditFields,
         PERMISSIONS.kbView,
         PERMISSIONS.helpCenterView,
       ],
@@ -163,6 +185,12 @@ export const manifest = {
       label: FORM_EVENTS.submitted.label,
       description: 'A visitor sent a form; the customer is who sent it',
       subject: 'customer',
+      fields: [
+        { key: 'formId', label: 'Form ID', type: 'text' },
+        { key: 'submissionId', label: 'Submission ID', type: 'text' },
+        { key: 'referenceType', label: 'Answered about (record type)', type: 'text' },
+        { key: 'referenceId', label: 'Answered about (record ID)', type: 'text' },
+      ],
     },
     ...Object.values(CONVERSATION_EVENTS).map(({ type, label }) => ({
       type,
@@ -201,6 +229,28 @@ export const manifest = {
       description: 'Stops automated replies, tells the customer and can assign a member',
       subject: 'customer',
       fields: [{ key: 'assigneeIds', label: 'Assign to', type: 'members', required: false }],
+    },
+    {
+      type: FORM_ACTIONS.createLink,
+      label: 'Create form link',
+      description:
+        "A personal link to a form: its answer is saved as the run's customer's, about the record the run started on, once",
+      fields: [
+        { key: 'formId', label: 'Form', type: 'plugin_record', recordType: 'form', required: true },
+        {
+          key: 'expiresInDays',
+          label: 'Expires after (days)',
+          type: 'number',
+          required: false,
+          placeholder: String(FORM_LINK_DAYS.default),
+        },
+      ],
+      outputs: [
+        { key: 'url', label: 'Form link', type: 'text' },
+        { key: 'expiresAt', label: 'Link expires at', type: 'date' },
+        { key: 'linkId', label: 'Link ID', type: 'text' },
+        { key: 'formId', label: 'Form ID', type: 'text' },
+      ],
     },
     ...Object.values(SEND_ACTIONS).map((action) => ({
       ...action,

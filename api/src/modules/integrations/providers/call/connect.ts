@@ -10,6 +10,7 @@ import { callOperators, callQueues } from '#/db/calls.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { publicKeys } from '#/db/public.ts';
 import { reads, writes } from '#/orpc.ts';
+import { sealSecret } from '../../secrets.ts';
 import { Account, accountColumns, accountRow, saveAccount } from '../../store.ts';
 import { call, PbxConfig } from './call.ts';
 import { checkPbx } from './pbx.ts';
@@ -30,6 +31,14 @@ const PbxInput = z.object({
   srcTrunk: z.string().trim().max(100).default(''),
   dstTrunk: z.string().trim().max(100).default(''),
   timeZone: TimeZone,
+  turnUrl: z
+    .string()
+    .trim()
+    .max(300)
+    .regex(/^(turns?:\S+)?$/, 'A TURN address, such as turn:turn.example.com:3478')
+    .default(''),
+  turnUsername: z.string().trim().max(200).default(''),
+  turnPassword: z.string().max(200).default(''),
 });
 
 const newKey = () => randomBytes(24).toString('base64url');
@@ -80,10 +89,18 @@ const connectCallPro = writes(PERMISSIONS.integrationManage)
   );
 
 const Queue = createSelectSchema(callQueues).omit({ orgId: true, live: true });
-const Operator = createSelectSchema(callOperators).omit({ orgId: true });
+
+const Operator = createSelectSchema(callOperators)
+  .omit({ orgId: true, sipSecret: true })
+  .extend({ hasSipPassword: z.boolean() });
 
 const { orgId: _queueOrg, live: _live, ...queueColumns } = getTableColumns(callQueues);
-const { orgId: _operatorOrg, ...operatorColumns } = getTableColumns(callOperators);
+
+const {
+  orgId: _operatorOrg,
+  sipSecret: _sipSecret,
+  ...operatorColumns
+} = getTableColumns(callOperators);
 
 /** The phone account's address its posts go to, for the provider's `<key>`. */
 const webhookUrl = async (tx: Tx, accountId: string, provider: string) => {
@@ -131,7 +148,10 @@ const settings = reads(PERMISSIONS.integrationManage)
         .where(eq(callQueues.accountId, row.id))
         .orderBy(callQueues.queue),
       operators: await tx
-        .select(operatorColumns)
+        .select({
+          ...operatorColumns,
+          hasSipPassword: sql<boolean>`${callOperators.sipSecret} is not null`,
+        })
         .from(callOperators)
         .where(eq(callOperators.accountId, row.id))
         .orderBy(callOperators.extension),
@@ -142,7 +162,8 @@ const settings = reads(PERMISSIONS.integrationManage)
 
 /**
  * Saves a PBX's settings, the queues frontline follows and the members who answer it by
- * extension. Queues and operators not listed go; a kept queue keeps its counters.
+ * extension. Queues and operators not listed go; a kept queue keeps its counters, and a kept
+ * operator its status and SIP password unless the change gives a new one.
  */
 const saveSettings = writes(PERMISSIONS.integrationManage)
   .input(
@@ -154,7 +175,14 @@ const saveSettings = writes(PERMISSIONS.integrationManage)
         )
         .max(100),
       operators: z
-        .array(z.object({ userId: z.string().min(1), extension: z.string().trim().min(1).max(30) }))
+        .array(
+          z.object({
+            userId: z.string().min(1),
+            extension: z.string().trim().min(1).max(30),
+            /** The extension's SIP password, for the member's softphone. */
+            sipPassword: z.string().min(1).max(200).optional(),
+          }),
+        )
         .max(500),
     }),
   )
@@ -206,8 +234,27 @@ const saveSettings = writes(PERMISSIONS.integrationManage)
     if (operators.length)
       await tx
         .insert(callOperators)
-        .values(operators.map((operator) => ({ ...operator, orgId: member.orgId, accountId })))
+        .values(
+          operators.map(({ sipPassword: _password, ...operator }) => ({
+            ...operator,
+            orgId: member.orgId,
+            accountId,
+          })),
+        )
         .onConflictDoNothing();
+
+    for (const { userId, extension, sipPassword } of operators)
+      if (sipPassword)
+        await tx
+          .update(callOperators)
+          .set({ sipSecret: sealSecret(member.orgId, { password: sipPassword }) })
+          .where(
+            and(
+              eq(callOperators.accountId, accountId),
+              eq(callOperators.userId, userId),
+              eq(callOperators.extension, extension),
+            ),
+          );
 
     if (!saved) throw new ORPCError('INTERNAL_SERVER_ERROR');
 

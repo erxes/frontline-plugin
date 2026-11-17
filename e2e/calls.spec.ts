@@ -1,53 +1,7 @@
-import type { APIRequestContext, Page } from '@playwright/test';
-import { z } from 'zod';
-import {
-  type coreClient,
-  expect,
-  expectAccessible,
-  Id,
-  pluginApi,
-  recordPanel,
-  test,
-  unique,
-} from './fixtures.ts';
+import type { Page } from '@playwright/test';
+import { callProLine, expect, expectAccessible, recordPanel, test, unique } from './fixtures.ts';
 
 const HISTORY = '/frontline/calls/history';
-
-const Settings = z.object({ webhookUrl: z.string() });
-
-/**
- * A CallPro line in a new channel, connected through the API: no screen connects a phone line
- * yet. Returns how to post CallPro's events to it, as its servers do.
- */
-const callProLine = async (
-  api: ReturnType<typeof coreClient>,
-  request: APIRequestContext,
-  phone: string,
-) => {
-  const rpc = await pluginApi(api, request);
-  const channel = await rpc('channels/create', { name: `Phones ${unique()}` }, Id);
-  const account = await rpc('integrations/callpro/connect', { phone }, Id);
-
-  await rpc(
-    'integrations/create',
-    { channelId: channel.id, kind: 'callpro', name: phone, config: { accountId: account.id } },
-    Id,
-  );
-
-  const { webhookUrl } = await rpc(
-    'integrations/call/settings',
-    { accountId: account.id },
-    Settings,
-  );
-
-  return async (callID: string, numberFrom: string, disp: string) => {
-    const posted = await request.post(webhookUrl, {
-      data: { callID, numberFrom, numberTo: phone, disp },
-    });
-
-    expect(posted.status()).toBe(200);
-  };
-};
 
 /** Narrows the list with the filter bar: `field` is `option`. */
 const filterBy = async (page: Page, field: string, option: string) => {
@@ -123,8 +77,31 @@ test('the queues dashboard lists the queues of the PBXs the member answers', asy
   await expectAccessible(page);
 });
 
+/** The softphone's ask for the member's SIP lines, which core's floating widget makes on load. */
+const linesAsked = (page: Page) =>
+  page.waitForResponse((response) => response.url().includes('/rpc/calls/phone/lines'));
+
+test('the softphone asks for the SIP lines of the member on every page, and shows none without one', async ({
+  page,
+}) => {
+  const asked = linesAsked(page);
+
+  await page.goto('/frontline/inbox');
+
+  const lines = await asked;
+
+  expect(lines.status()).toBe(200);
+  expect(await lines.json()).toMatchObject({ json: [] });
+  await expect(page.getByRole('button', { name: 'Phone', exact: true })).toHaveCount(0);
+});
+
 test('a member without the call permission is refused the calls', async ({ newMember }) => {
   const { page } = await newMember(['team.view']);
+  const asked = linesAsked(page);
+
+  await page.goto('/frontline/inbox');
+  expect((await asked).status()).toBe(403);
+  await expect(page.getByRole('button', { name: 'Phone', exact: true })).toHaveCount(0);
 
   await page.goto(HISTORY);
   await expect(page.getByText('You need the frontline.call.view permission')).toBeVisible();

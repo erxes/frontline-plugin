@@ -94,6 +94,9 @@ export const serve = () => {
     get: (path: string) => fetch(`${base}/public/webhooks${path}`, { redirect: 'manual' }),
     deliver: async (path: string, raw: string, headers: Record<string, string> = {}) =>
       (await post(`/public/webhooks${path}`, raw, headers)).status,
+    /** POSTs `body` as JSON to `path` under `/api`, and answers its status. */
+    send: async (path: string, body: unknown) =>
+      (await post(path, JSON.stringify(body), {})).status,
     /** Runs an automation step as core calls it, as `orgId`'s `user` in run `run`. */
     act: async (
       type: string,

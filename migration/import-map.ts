@@ -1236,8 +1236,6 @@ export const IMPORT_MAP: {
       'leadData.contactsGathered': 'contacts_gathered',
       createdUserId: 'created_by',
       createdDate: 'created_at',
-      // For the ports still to come: teams and tags.
-      departmentIds: 'department_ids',
       tagIds: 'tag_ids',
     },
   },

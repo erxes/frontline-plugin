@@ -25,10 +25,11 @@ import { useTranslation } from 'react-i18next';
 import { useChannels } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
+import { TagsField } from '~/shared/Pickers.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { PrioritySelect, StatusSelect } from './TicketCells.tsx';
 import { dayOf } from './TicketFields.tsx';
-import { TagsField } from './TicketLinks.tsx';
+import { ticketTags } from './TicketLinks.tsx';
 import { PropertyRows } from './TicketProperties.tsx';
 import { useChoices, useTicketChange } from './queries.ts';
 
@@ -173,7 +174,11 @@ const LabelRows = ({
   return (
     <>
       <PanelFormRow label={t('tags', 'Tags')} icon={IconTag}>
-        <TagsField value={labels.tagIds} onChange={(tagIds) => onChange({ tagIds })} />
+        <TagsField
+          tags={ticketTags}
+          value={labels.tagIds}
+          onChange={(tagIds) => onChange({ tagIds })}
+        />
       </PanelFormRow>
       <PropertyRows
         pipelineId={pipelineId}

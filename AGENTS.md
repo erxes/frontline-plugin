@@ -64,8 +64,8 @@ without line-by-line review.
   through `@erxes/core-contract/client` with the member's session. Neither reads
   `core_*` tables or imports core's app code.
 - Members are signed in by core: the UI sends a session token, the API checks it
-  with `verifyPluginSession`. There is no public route yet. One will find its
-  org by a key frontline issued, as `PORTING.md` says.
+  with `verifyPluginSession`. The same procedures are REST at `/api/v1`,
+  documented at `/api/openapi/member.json`.
 - Skills in `.agents/skills/`: `endpoint` for a procedure, `schema-change` for a
   table or column, `ui-patterns` for any page (lists, filters, forms, record
   details look like core's), `verify` before calling a change done.

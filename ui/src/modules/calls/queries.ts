@@ -18,7 +18,7 @@ export type QueueLive = NonNullable<Outputs['queues']['get']['live']>;
 export const CALLS_PATH = `/${PLUGIN}/calls`;
 
 /** Refetches every call query when a PBX, CallPro or another member changes one. */
-const useCallsSignal = () => {
+export const useCallsSignal = () => {
   const queryClient = useQueryClient();
 
   useLiveSignal(PLUGIN, 'calls', () => {

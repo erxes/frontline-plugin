@@ -19,6 +19,8 @@ const visitorMessage = {
   conversationId: messages.conversationId,
   content: messages.content,
   attachments: messages.attachments,
+  /** A survey the visitor votes on, read from `/surveys/:messageId`. */
+  surveyId: messages.surveyId,
   fromVisitor: isNotNull(messages.customerId),
   createdAt: messages.createdAt,
 };
@@ -164,6 +166,7 @@ const send = asVisitor(async (visitor, req, res) => {
     conversationId: message.conversationId,
     content: message.content,
     attachments: message.attachments,
+    surveyId: message.surveyId,
     fromVisitor: true,
     createdAt: message.createdAt,
   };

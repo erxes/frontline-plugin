@@ -32,6 +32,11 @@ export const callOperators = table(
     /** A core user id. */
     userId: text().notNull(),
     extension: text().notNull(),
+    /**
+     * The extension's SIP password, sealed (`sealSecret`), which the member's softphone signs in
+     * to the PBX with. Without it the member has no softphone on this PBX.
+     */
+    sipSecret: text(),
     /** What the member last told the PBX: available for its queues, or paused. */
     status: text({ enum: OPERATOR_STATUSES }).notNull().default('unavailable'),
     updatedAt: timestamp({ withTimezone: true })

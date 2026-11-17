@@ -1,5 +1,5 @@
 import { memberQueries } from '@erxes/core-contract/client';
-import { IconInbox, IconMessages } from '@tabler/icons-react';
+import { IconInbox, IconMail, IconMessages } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -15,7 +15,7 @@ import {
 import { useAtomValue } from 'jotai';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { INTEGRATION_TYPE } from '~/plugin.ts';
+import { CONVERSATION_TYPE, INTEGRATION_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { BulkBar } from './BulkBar.tsx';
 import { Composer } from './Composer.tsx';
@@ -28,6 +28,7 @@ import {
   conversationTags,
   useConversation,
   useConversations,
+  useIntegrations,
   useOpenConversation,
 } from './queries.ts';
 
@@ -100,6 +101,10 @@ export const InboxPage = () => {
   const canConnect = channels.some((channel) => channel.canManage);
   const connect = () => openNew(INTEGRATION_TYPE);
 
+  const mails = (useIntegrations().data ?? []).some(
+    (integration) => integration.kind === 'mail' && integration.isActive,
+  );
+
   const [openId] = useOpenConversation();
 
   // The header's toggle hides the list beside an open conversation only.
@@ -121,6 +126,12 @@ export const InboxPage = () => {
           </span>
         </PageHeader.Start>
         <PageHeader.End>
+          {mails && (
+            <Button variant="outline" onClick={() => openNew(CONVERSATION_TYPE)}>
+              <IconMail />
+              {t('new-mail', 'New mail')}
+            </Button>
+          )}
           <CreateButton
             allowed={canConnect}
             label={t('add-messenger', 'Add messenger')}

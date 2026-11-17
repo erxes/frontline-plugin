@@ -14,10 +14,17 @@ const Sent = z.object({ id: z.string(), channel_id: z.string() });
 
 const Failure = z.object({ message: z.string() });
 
-/** One Discord REST call as the bot. Resolves to the parsed body, or fails with Discord's message. */
-const rest = async (token: string, route: `/${string}`, body?: unknown) => {
+/**
+ * One Discord REST call as the bot. Resolves to the parsed body, null for 204 No Content, or
+ * fails with Discord's message.
+ */
+const rest = async (
+  token: string,
+  route: `/${string}`,
+  { method = 'GET', body }: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {},
+) => {
   const response = await fetch(`${RouteBases.api}${route}`, {
-    method: body ? 'POST' : 'GET',
+    method,
     headers: {
       authorization: `Bot ${token}`,
       ...(body ? { 'content-type': 'application/json' } : {}),
@@ -25,7 +32,7 @@ const rest = async (token: string, route: `/${string}`, body?: unknown) => {
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const answer: unknown = await response.json();
+  const answer: unknown = response.status === 204 ? null : await response.json();
 
   if (!response.ok)
     throw new Error(
@@ -48,11 +55,20 @@ export const discord = defineProvider({
   send: async ({ secret }, message) => {
     const sent = Sent.parse(
       await rest(secret.token, Routes.channelMessages(message.threadId), {
-        content: message.text,
+        method: 'POST',
+        body: { content: message.text },
       }),
     );
 
     return sent.id;
+  },
+  // Discord keeps several emoji on a message: the bot has one while any member does.
+  react: async ({ secret }, { threadId, message, emoji, emojis }) => {
+    await rest(
+      secret.token,
+      Routes.channelMessageOwnReaction(threadId, message.externalId, encodeURIComponent(emoji)),
+      { method: emojis.includes(emoji) ? 'PUT' : 'DELETE' },
+    );
   },
 });
 

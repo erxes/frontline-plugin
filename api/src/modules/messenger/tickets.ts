@@ -5,7 +5,7 @@ import { type Tx, withOrg } from '#/db/client.ts';
 import { tags } from '#/db/tags.ts';
 import { pipelineStatuses, pipelines, ticketProperties, tickets } from '#/db/tickets.ts';
 import { PropertiesPatch } from '../tickets/properties.ts';
-import { insertTicket } from '../tickets/tickets.ts';
+import { fileTicket } from '../tickets/tickets.ts';
 import { attachmentsOf, type Visitor } from './session.ts';
 import { asVisitor, messengerIntegration } from './threads.ts';
 
@@ -127,7 +127,7 @@ const File = z.object({
  * The visitor files a ticket in a pipeline their messenger offers, as its customer. The team
  * reaches them by the email or phone they left, so a visitor leaves one first.
  */
-const fileTicket = asVisitor(async (visitor, req, res) => {
+const createTicket = asVisitor(async (visitor, req, res) => {
   const { pipelineId, files, ...input } = File.parse(req.body);
 
   if (!visitor.identified)
@@ -141,7 +141,7 @@ const fileTicket = asVisitor(async (visitor, req, res) => {
 
     if (!pipeline) throw new ORPCError('BAD_REQUEST', { message: 'Pick a ticket form' });
 
-    const id = await insertTicket(tx, { orgId: visitor.orgId, userId: null }, pipeline, {
+    const id = await fileTicket(tx, { orgId: visitor.orgId, userId: null }, pipeline, {
       ...input,
       attachments,
       customerId: visitor.customerId,
@@ -156,4 +156,4 @@ const fileTicket = asVisitor(async (visitor, req, res) => {
 });
 
 /** The messenger's ticket routes, under `/api/public/messenger/tickets`. */
-export const ticketRoutes = { ticketForms, listTickets, fileTicket };
+export const ticketRoutes = { ticketForms, listTickets, createTicket };

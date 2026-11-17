@@ -1,3 +1,4 @@
+import type { CustomValue } from '@erxes/core-contract';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -92,6 +93,8 @@ export const conversations = table(
     firstRespondedBy: text(),
     resolvedAt: timestamp({ withTimezone: true }),
     resolvedBy: text(),
+    /** Values of the custom fields core keeps for `frontline.conversation`, by field id. */
+    propertiesData: jsonb().$type<Record<string, CustomValue>>().notNull().default({}),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()
@@ -155,6 +158,8 @@ export const messages = table(
       .notNull()
       .default(sql`'{}'`),
     replyToId: text(),
+    /** The survey a member sent, which the customer votes on in this message. */
+    surveyId: text(),
     externalId: text(),
     deliveryStatus: text({ enum: DELIVERY_STATUSES }),
     providerData: jsonb().$type<Record<string, unknown>>(),
@@ -191,6 +196,38 @@ export const messages = table(
     check(
       'frontline_messages_delivery_status_check',
       sql`${t.deliveryStatus} in ('queued', 'sent', 'failed')`,
+    ),
+  ],
+);
+
+/**
+ * An emoji on a message, by a member or by the customer at the provider. A reactor has each
+ * emoji once on a message.
+ */
+export const messageReactions = table(
+  'message_reactions',
+  {
+    orgId: text().notNull(),
+    messageId: text().notNull(),
+    /** A core user id, for a member's reaction. */
+    userId: text(),
+    /** A core customer id, for the customer's reaction at the provider. */
+    customerId: text(),
+    emoji: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'frontline_message_reactions_message_fkey',
+      columns: [t.messageId],
+      foreignColumns: [messages.id],
+    }).onDelete('cascade'),
+    unique('frontline_message_reactions_reactor_key')
+      .on(t.orgId, t.messageId, t.userId, t.customerId, t.emoji)
+      .nullsNotDistinct(),
+    check(
+      'frontline_message_reactions_reactor_check',
+      sql`(${t.userId} is null) <> (${t.customerId} is null)`,
     ),
   ],
 );

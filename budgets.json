@@ -1,9 +1,9 @@
 {
-  "ui.config.gzip": 3450,
-  "ui.frontline.gzip": 58000,
-  "ui.remoteEntry.gzip": 34000,
+  "ui.config.gzip": 4600,
+  "ui.frontline.gzip": 61500,
+  "ui.remoteEntry.gzip": 34150,
   "agents.context.bytes": 12750,
-  "widget.form.gzip": 13700,
+  "widget.form.gzip": 13650,
   "widget.knowledgebase.gzip": 12500,
-  "widget.messenger.gzip": 16000
+  "widget.messenger.gzip": 15950
 }

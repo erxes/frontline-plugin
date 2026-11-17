@@ -6,7 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
-import { useBots, useIntegrationChange, useMetaAccounts } from './useMeta.ts';
+import { useIntegrationChange } from '@/inbox/queries.ts';
+import { useBots, useMetaAccounts } from './useIntegrations.ts';
 
 /** The pages and accounts without a bot: a page has one. */
 const AccountSelect = ({ value, onChange }: { value: string; onChange: (id: string) => void }) => {
