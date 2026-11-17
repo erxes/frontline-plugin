@@ -51,14 +51,16 @@ export const manifest = {
     docs: [{ audience: 'member', path: '/openapi/member.json' }],
   },
   // Form senders, messenger visitors and provider senders become core customers; members hear
-  // of assignments; a messenger shows its team's names and pictures; call recordings are stored
-  // as core files. Tickets' branches and departments are core's units: frontline brings its own
-  // teams in once and keeps a copy for ticket visibility.
+  // of assignments; a messenger shows its team's names and pictures; call recordings and
+  // visitors' uploads are core files, which visitors read back through the plugin. Tickets'
+  // branches and departments are core's units: frontline brings its own teams in once and keeps
+  // a copy for ticket visibility.
   scopes: [
     'customers:read',
     'customers:write',
     'notifications:write',
     'users:read',
+    'files:read',
     'files:write',
     'units:read',
     'units:write',

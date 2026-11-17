@@ -1,10 +1,10 @@
 import type { PluginJobDelivery } from '@erxes/core-contract';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { core } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { callLegs, calls } from '#/db/calls.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
+import { storeFile } from '#/modules/files.ts';
 import { call, pbxOf } from './call.ts';
 import { Cdr, isAnsweredLeg, recordingOf } from './cdr.ts';
 import { downloadRecording, type Pbx, pbxAction } from './pbx.ts';
@@ -67,30 +67,9 @@ export const copyRecording = async (job: PluginJobDelivery) => {
 
   if (!path) return;
 
-  const recording = await downloadRecording(pbx, path);
-
-  const files = core.forOrg(job.orgId).files;
-
-  const { file, upload } = await files.createUpload({
-    name: recording.name,
-    contentType: recording.contentType,
-    size: recording.bytes.length,
-  });
-
-  const sent = await fetch(upload.url, {
-    method: upload.method,
-    headers: upload.headers,
-    body: recording.bytes,
-  });
-
-  if (!sent.ok) throw new Error(`Core's storage refused the recording: ${sent.status}`);
-
-  const ready = await files.complete({ id: file.id });
+  const recording = await storeFile(job.orgId, await downloadRecording(pbx, path));
 
   await updateCall(found.account, callId, () =>
-    Promise.resolve({
-      recording: { url: ready.url, name: ready.name, type: ready.contentType, size: ready.size },
-      recordingFile: null,
-    }),
+    Promise.resolve({ recording, recordingFile: null }),
   );
 };

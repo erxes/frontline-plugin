@@ -23,7 +23,9 @@ const Env = z.object({
   UI_ENTRY_URL: z.url().optional(),
   /** The built UI to serve at `/ui` (the image sets it). */
   UI_DIR: z.string().optional(),
-  /** web's origin for Meta redirects and help center CORS. Defaults to CORE_URL's origin. */
+  /** The built embeds websites load, served at `/widget` (the image sets it). */
+  WIDGET_DIR: z.string().optional(),
+  /** web's origin, where Meta's login sends members back. Defaults to CORE_URL's origin. */
   CORE_UI_URL: z.url().optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   VERSION: z.string().default('0.1.0'),
@@ -58,6 +60,7 @@ export const config = {
   publicUrl: env.PUBLIC_URL.replace(/\/+$/, ''),
   uiEntryUrl: env.UI_ENTRY_URL ?? `${env.PUBLIC_URL.replace(/\/+$/, '')}/ui/remoteEntry.js`,
   uiDir: env.UI_DIR,
+  widgetDir: env.WIDGET_DIR,
   widgetsDomain: env.WIDGETS_DOMAIN?.replace(/\/+$/, ''),
   coreUiOrigin: new URL(env.CORE_UI_URL ?? env.CORE_URL).origin,
   logLevel: env.LOG_LEVEL,

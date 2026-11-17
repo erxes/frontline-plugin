@@ -98,15 +98,28 @@ export const createApp = () => {
   app.use(pinoHttp({ logger }));
   // Providers post webhooks signed out, from their own servers.
   app.use('/api/public/webhooks', webhookRoutes());
-  // Websites embed the messenger and forms: their routes answer any origin, so they come before
-  // member CORS. Forms find the organisation by the key frontline gave it.
+  // What websites load and call signed out answers any origin: the messenger, forms (found by
+  // the key frontline gave the organisation), a help center and its knowledge base embed (by the
+  // key or domain frontline issued), and at `/widget` the embeds' scripts.
   app.use('/api/public/messenger', messengerRoutes());
-  app.use(
-    '/api/public/:key',
-    cors({ maxAge: 600 }),
-    express.json({ limit: '1mb' }),
-    formsPublicRouter,
-  );
+  app.use('/api/public', cors({ maxAge: 600 }), publicRouter());
+  app.use('/api/public/:key', cors({ maxAge: 600 }), formsPublicRouter);
+
+  if (config.widgetDir)
+    app.use(
+      '/widget',
+      cors({ maxAge: 600 }),
+      express.static(config.widgetDir, {
+        // Chunks are named by their hash. An entry revalidates on each load, since a stale
+        // one imports chunks the next deploy removed.
+        setHeaders: (res, path) =>
+          res.set(
+            'cache-control',
+            path.includes('/chunks/') ? 'public, max-age=31536000, immutable' : 'no-cache',
+          ),
+      }),
+    );
+
   // Core's API reference fetches the document from web at the organisation's own address.
   // It holds no secrets, so any origin may read it.
   app.get('/api/openapi/member.json', anyOrigin, async (_req, res) => {
@@ -126,9 +139,6 @@ export const createApp = () => {
   // adds it, and a script gets one from core with an API key.
   app.use('/api/rpc', signedIn('/api/rpc', rpc));
   app.use('/api/v1', signedIn('/api/v1', rest));
-
-  // Signed out: a help center's visitors, found by the key or domain frontline issued.
-  app.use('/api/public', cors({ origin: config.coreUiOrigin, maxAge: 600 }), publicRouter());
 
   // Core POSTs each job attempt here, signed over the raw body; anything but 2xx retries.
   app.post('/api/jobs/:name', express.text({ type: '*/*' }), async (req, res) => {

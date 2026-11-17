@@ -101,12 +101,12 @@ describe('server', () => {
     },
   );
 
-  it('keeps the help center response CORS origin', async () => {
+  it('lets web and the websites a knowledge base is embedded in read the help center routes', async () => {
     const response = await fetch(`${base}/api/public/custom-domains/resolve`, {
       headers: { origin: config.coreUiOrigin },
     });
 
     expect(response.status).toBe(404);
-    expect(response.headers.get('access-control-allow-origin')).toBe(config.coreUiOrigin);
+    expect(response.headers.get('access-control-allow-origin')).toBe('*');
   });
 });

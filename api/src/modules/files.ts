@@ -1,0 +1,147 @@
+import { hkdfSync } from 'node:crypto';
+import { Readable } from 'node:stream';
+import express, { type Request, type Response } from 'express';
+import { jwtVerify, SignJWT } from 'jose';
+import { z } from 'zod';
+import { config } from '#/config.ts';
+import { core } from '#/core.ts';
+import { Attachment } from '#/db/table.ts';
+
+/**
+ * Stores `bytes` as a file of the organisation in core, and gives it as records keep their files
+ * (`Attachment`). Core refuses a type or a size the organisation's file settings don't allow.
+ */
+export const storeFile = async (
+  orgId: string,
+  { name, contentType, bytes }: { name: string; contentType: string; bytes: Uint8Array },
+) => {
+  const files = core.forOrg(orgId).files;
+  const { file, upload } = await files.createUpload({ name, contentType, size: bytes.length });
+
+  const sent = await fetch(new URL(upload.url, config.coreUrl), {
+    method: upload.method,
+    headers: upload.headers,
+    body: bytes,
+  });
+
+  if (!sent.ok) throw new Error(`Core's storage refused the file: ${sent.status}`);
+
+  const ready = await files.complete({ id: file.id });
+
+  return { url: ready.url, name: ready.name, type: ready.contentType, size: ready.size };
+};
+
+/** A file of the organisation from core: its name and type, and its bytes as core streams them. */
+export const readFile = async (orgId: string, id: string) => {
+  const file = await core.forOrg(orgId).files.get({ id });
+
+  if (!file.downloadUrl) return null;
+
+  const answer = await fetch(new URL(file.downloadUrl, config.coreUrl));
+
+  if (!answer.ok || !answer.body)
+    throw new Error(`Core's storage refused the file: ${answer.status}`);
+
+  return { name: file.name, contentType: file.contentType, size: file.size, body: answer.body };
+};
+
+/** The id of the core file at `url`, the address core gives its files, or null for another address. */
+export const fileIdOf = (url: string) => /\/files\/([\w-]{1,64})\/download$/.exec(url)?.[1] ?? null;
+
+/**
+ * Streams a file read from core to a signed-out visitor, cached as `cacheControl` says: an image
+ * shows inline, anything else downloads, and nothing in it runs.
+ */
+export const sendFile = (
+  res: Response,
+  file: NonNullable<Awaited<ReturnType<typeof readFile>>>,
+  cacheControl: string,
+) => {
+  res.set({
+    'content-type': file.contentType,
+    'content-length': String(file.size),
+    'cache-control': cacheControl,
+    'x-content-type-options': 'nosniff',
+    'content-security-policy':
+      "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; sandbox",
+  });
+
+  if (file.contentType.startsWith('image/')) res.set('content-disposition', 'inline');
+  else res.attachment(file.name);
+
+  Readable.fromWeb(file.body).pipe(res);
+};
+
+/** The most a signed-out visitor uploads at once; core's file settings may allow less. */
+const MAX_BYTES = 25 * 1024 * 1024;
+
+/** Reads a signed-out upload's body as bytes. */
+export const rawUpload = express.raw({ type: () => true, limit: MAX_BYTES });
+
+const Upload = z.object({
+  /** The file's name, URI-encoded, since a header carries only ASCII. */
+  name: z
+    .string()
+    .min(1)
+    .max(1500)
+    .transform((name) => decodeURIComponent(name).trim().slice(0, 500)),
+  contentType: z.string().min(1).max(200),
+  bytes: z.instanceof(Buffer).refine((bytes) => bytes.length > 0, 'Send the file'),
+});
+
+/** The file a signed-out visitor sends: its bytes, named in `x-file-name`. */
+export const uploadOf = (req: Request) => {
+  const bytes: unknown = req.body;
+
+  return Upload.parse({
+    name: req.get('x-file-name'),
+    contentType: req.get('content-type'),
+    bytes,
+  });
+};
+
+/** The receipts' signing key, derived from the plugin's secret so it needs no setting of its own. */
+const receiptKey = new Uint8Array(
+  hkdfSync('sha256', config.pluginSecret, '', 'frontline file receipts', 32),
+);
+
+/** What a receipt's audience says, so no other token of the plugin passes for one. */
+const RECEIPT = 'frontline file';
+
+/**
+ * A signed receipt for a file a signed-out visitor uploaded, for `owner`: the visitor or form
+ * that may attach it. What they send attaches files by receipt only, never by address, so it
+ * carries only files they uploaded.
+ */
+export const receiptOf = (owner: string, file: Attachment) =>
+  new SignJWT({ file })
+    .setProtectedHeader({ alg: 'HS256' })
+    .setAudience(RECEIPT)
+    .setSubject(owner)
+    .setIssuedAt()
+    .setExpirationTime('1d')
+    .sign(receiptKey);
+
+/** The file a receipt names, or null when it is forged, expired or someone else's. */
+export const fileOf = async (owner: string, receipt: string) => {
+  const verified = await jwtVerify(receipt, receiptKey, {
+    algorithms: ['HS256'],
+    audience: RECEIPT,
+    subject: owner,
+  }).catch(() => null);
+
+  const parsed = z.object({ file: Attachment }).safeParse(verified?.payload);
+
+  return parsed.success ? parsed.data.file : null;
+};
+
+/** The files `receipts` name for `owner`, or null when any of them is no good. */
+export const filesOf = async (owner: string, receipts: string[]) => {
+  const files = await Promise.all(receipts.map((receipt) => fileOf(owner, receipt)));
+  const good = files.filter((file) => file !== null);
+
+  return good.length === receipts.length ? good : null;
+};
+
+/** A file a visitor uploaded, and the receipt they attach it by. */
+export type Uploaded = Attachment & { receipt: string };

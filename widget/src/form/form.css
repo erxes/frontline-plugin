@@ -1,0 +1,189 @@
+/* A form, inside its shadow root, on the embeds' base. Its primary colour sets --fl-color. */
+@import '../shared/base.css';
+
+.fl-embedded {
+  max-width: 640px;
+  padding: 20px;
+  border: 1px solid var(--fl-line);
+  border-radius: 12px;
+  background: var(--fl-page);
+}
+
+.fl-panel {
+  position: fixed;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 40px);
+  padding: 20px;
+  overflow-y: auto;
+  background: var(--fl-page);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
+}
+
+.fl-popup .fl-panel {
+  top: 50%;
+  left: 50%;
+  width: min(520px, calc(100vw - 32px));
+  border-radius: 16px;
+  transform: translate(-50%, -50%);
+}
+
+.fl-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  background: rgb(0 0 0 / 0.4);
+}
+
+.fl-shoutbox .fl-panel {
+  right: 20px;
+  bottom: 88px;
+  width: min(380px, calc(100vw - 40px));
+  max-height: calc(100vh - 108px);
+  border-radius: 16px;
+}
+
+.fl-dropdown .fl-panel {
+  top: 0;
+  right: 0;
+  left: 0;
+  max-height: 70vh;
+  border-radius: 0 0 16px 16px;
+}
+
+.fl-slideInLeft .fl-panel,
+.fl-slideInRight .fl-panel {
+  top: 0;
+  bottom: 0;
+  width: min(400px, 100vw);
+  max-height: none;
+}
+
+.fl-slideInLeft .fl-panel {
+  left: 0;
+}
+
+.fl-slideInRight .fl-panel {
+  right: 0;
+}
+
+.fl-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.fl-form,
+.fl-callout {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.fl-form h2,
+.fl-callout h2 {
+  margin: 0;
+  padding-right: 32px;
+  font-size: 18px;
+}
+
+.fl-form > p,
+.fl-callout p {
+  margin: 0;
+  color: var(--fl-muted);
+  white-space: pre-wrap;
+}
+
+.fl-callout img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.fl-step {
+  display: flex;
+  flex-direction: column;
+  font-weight: 600;
+}
+
+.fl-step small {
+  color: var(--fl-muted);
+  font-weight: 400;
+}
+
+.fl-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.fl-field {
+  display: flex;
+  flex-direction: column;
+  grid-column: span 2;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fl-half {
+  grid-column: span 1;
+}
+
+.fl-field > label,
+.fl-field legend {
+  padding: 0;
+  font-weight: 600;
+}
+
+.fl-field small {
+  color: var(--fl-muted);
+}
+
+.fl-field input:not([type='checkbox'], [type='radio'], [type='file']),
+.fl-field textarea,
+.fl-field select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--fl-line);
+  border-radius: 10px;
+  background: var(--fl-page);
+}
+
+.fl-field input[type='checkbox'],
+.fl-field input[type='radio'] {
+  align-self: flex-start;
+}
+
+.fl-options {
+  display: flex;
+  flex-flow: row wrap;
+  gap: 6px 16px;
+}
+
+.fl-check {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.fl-files {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.fl-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.fl-secondary {
+  padding: 10px 16px;
+  border: 1px solid var(--fl-line);
+  border-radius: 10px;
+  background: none;
+}

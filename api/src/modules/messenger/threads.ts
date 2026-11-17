@@ -6,13 +6,12 @@ import { z } from 'zod';
 import { PLUGIN } from '#/config.ts';
 import { withOrg } from '#/db/client.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
-import { Attachment } from '#/db/table.ts';
 import { fail } from '../fail.ts';
 import { setOperatorOf } from '../inbox/operator.ts';
 import { receive } from '../inbox/receive.ts';
 import { signalConversations, typingTopic } from '../inbox/shared.ts';
 import { MessengerConfig, messenger } from './adapter.ts';
-import { type Visitor, visitorOf } from './session.ts';
+import { attachmentsOf, type Visitor, visitorOf } from './session.ts';
 
 /** What a visitor sees of a message: never an internal note or who on the team is who. */
 const visitorMessage = {
@@ -29,16 +28,22 @@ const visitorMessage = {
 const Send = z.object({
   conversationId: z.string().optional(),
   content: z.string().trim().max(10_000).default(''),
-  attachments: z.array(Attachment).max(20).default([]),
+  /** The receipts `/files` gave for the visitor's uploads. */
+  files: z.array(z.string().max(4000)).max(20).default([]),
 });
 
-const Params = z.object({ id: z.string() });
+/** A route whose path names one record by `:id`. */
+export const Params = z.object({ id: z.string() });
 
 /** The integration the visitor writes to, with its settings, if it is still an active messenger. */
 export const messengerIntegration = (orgId: string, integrationId: string) =>
   withOrg(orgId, async (tx) => {
     const [row] = await tx
-      .select({ name: integrations.name, config: integrations.config })
+      .select({
+        name: integrations.name,
+        channelId: integrations.channelId,
+        config: integrations.config,
+      })
       .from(integrations)
       .where(
         and(
@@ -48,7 +53,9 @@ export const messengerIntegration = (orgId: string, integrationId: string) =>
         ),
       );
 
-    return row ? { name: row.name, ...MessengerConfig.parse(row.config) } : null;
+    return row
+      ? { name: row.name, channelId: row.channelId, ...MessengerConfig.parse(row.config) }
+      : null;
   });
 
 /**
@@ -113,20 +120,27 @@ export const asVisitor =
   };
 
 /** A conversation's messages, oldest first, without internal notes. */
+const messagesOf = (visitor: Visitor, conversationId: string) =>
+  withOrg(visitor.orgId, (tx) =>
+    tx
+      .select(visitorMessage)
+      .from(messages)
+      .where(and(eq(messages.conversationId, conversationId), eq(messages.internal, false)))
+      .orderBy(asc(messages.createdAt), asc(messages.id)),
+  );
+
+/** A message as the visitor sees it. */
+export type VisitorMessage = Awaited<ReturnType<typeof messagesOf>>[number];
+
+/** A conversation of the visitor's, as their messenger lists it. */
+export type VisitorConversation = Awaited<ReturnType<typeof visitorConversations>>[number];
+
 const conversationMessages = asVisitor(async (visitor, req, res) => {
   const { id } = Params.parse(req.params);
 
   await ownConversation(visitor, id);
 
-  res.json(
-    await withOrg(visitor.orgId, (tx) =>
-      tx
-        .select(visitorMessage)
-        .from(messages)
-        .where(and(eq(messages.conversationId, id), eq(messages.internal, false)))
-        .orderBy(asc(messages.createdAt), asc(messages.id)),
-    ),
-  );
+  res.json(await messagesOf(visitor, id));
 });
 
 /**
@@ -134,26 +148,30 @@ const conversationMessages = asVisitor(async (visitor, req, res) => {
  * takes messages only from a visitor who left an email or phone.
  */
 const send = asVisitor(async (visitor, req, res) => {
-  const input = Send.parse(req.body);
+  const { files, ...input } = Send.parse(req.body);
 
-  if (!input.content && input.attachments.length === 0)
+  if (!input.content && files.length === 0)
     throw new ORPCError('BAD_REQUEST', { message: 'Write a message or attach a file' });
 
+  const attachments = await attachmentsOf(visitor, files);
   const settings = await messengerIntegration(visitor.orgId, visitor.integrationId);
 
   if (settings?.requireAuth && !visitor.identified)
     throw new ORPCError('FORBIDDEN', { message: 'Leave your email or phone number first' });
 
-  const message = await receive(visitor.orgId, { ...visitor, ...input });
+  const message = await receive(visitor.orgId, { ...visitor, ...input, attachments });
 
-  res.status(201).json({
+  const reply: VisitorMessage = {
     id: message.id,
     conversationId: message.conversationId,
     content: message.content,
     attachments: message.attachments,
+    surveyId: message.surveyId,
     fromVisitor: true,
     createdAt: message.createdAt,
-  });
+  };
+
+  res.status(201).json(reply);
 });
 
 /** The visitor saw the team's replies so far. */

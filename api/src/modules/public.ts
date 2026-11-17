@@ -1,8 +1,13 @@
 import { randomBytes } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
 import { and, eq, inArray } from 'drizzle-orm';
+import { config } from '#/config.ts';
 import { db, type Tx } from '#/db/client.ts';
 import { publicKeys } from '#/db/public.ts';
+
+/** The script a website adds to show the embed `name`, which reads `query` from its own address. */
+export const widgetScript = (name: string, query: Record<string, string>) =>
+  `${config.publicUrl}/widget/${name}.js?${new URLSearchParams(query).toString()}`;
 
 /** The kind of key that opens an organisation's form embeds, its `targetId` the organisation. */
 const ORGANIZATION_KEY = 'organization';

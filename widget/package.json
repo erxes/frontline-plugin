@@ -1,0 +1,18 @@
+{
+  "name": "@frontline/widget",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.ts",
+    "dev": "node build.ts --watch"
+  },
+  "dependencies": {
+    "preact": "^11.2.0",
+    "wretch": "^3.0.9"
+  },
+  "devDependencies": {
+    "@frontline/api": "workspace:*",
+    "type-fest": "^5.10.0"
+  }
+}

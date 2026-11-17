@@ -1,6 +1,91 @@
-import { confirmDelete, expect, expectAccessible, recordPanel, test, unique } from './fixtures.ts';
+import { z } from 'zod';
+import {
+  confirmDelete,
+  expect,
+  expectAccessible,
+  Id,
+  openMessenger,
+  openShop,
+  pluginApi,
+  recordPanel,
+  test,
+  unique,
+} from './fixtures.ts';
 
 const HELP_CENTERS = '/frontline/settings/help-centers';
+
+test('a visitor reads the knowledge base from its script on a website and in the messenger', async ({
+  page,
+  api,
+  request,
+}) => {
+  const rpc = await pluginApi(api, request);
+  const answers = `Answers ${unique()}`;
+  const title = `Acme ${unique()}`;
+  const topic = await rpc('knowledgebase/topics/create', { title: answers }, Id);
+
+  const category = await rpc(
+    'knowledgebase/categories/create',
+    { topicId: topic.id, title: 'Billing' },
+    Id,
+  );
+
+  await rpc(
+    'knowledgebase/articles/create',
+    {
+      categoryId: category.id,
+      title: 'Refunds',
+      summary: 'Money back within 30 days',
+      content: '<p>Write to us within 30 days.</p>',
+      status: 'publish',
+    },
+    Id,
+  );
+  await rpc('helpCenters/create', { title, kbTopicId: topic.id }, Id);
+
+  // The help center's panel gives the script line; the website shows a launcher with its topic.
+  await page.goto(HELP_CENTERS);
+  await page.getByRole('button', { name: title, exact: true }).click();
+
+  const installCode =
+    (await recordPanel(page).getByLabel('Knowledge base install code').textContent()) ?? '';
+
+  {
+    await using site = await openShop(page.context(), installCode);
+    const panel = site.shop.getByRole('dialog', { name: answers });
+
+    await site.shop.getByRole('button', { name: `Open ${answers}` }).click();
+    await panel.getByRole('button', { name: /^Billing/ }).click();
+    await panel.getByRole('button', { name: /^Refunds/ }).click();
+    await expect(panel.getByText('Write to us within 30 days.')).toBeVisible();
+    await expectAccessible(site.shop);
+  }
+
+  // A messenger that offers the topic has a Help articles tab, searched in place.
+  const channel = await rpc('channels/create', { name: `Site ${unique()}` }, Id);
+
+  const { publicKey } = await rpc(
+    'integrations/create',
+    {
+      channelId: channel.id,
+      kind: 'messenger',
+      name: 'Website',
+      config: { knowledgeBaseTopicId: topic.id },
+    },
+    z.object({ publicKey: z.string() }),
+  );
+
+  await using site = await openMessenger(page.context(), publicKey);
+  const search = site.panel.getByRole('searchbox', { name: 'Search articles' });
+
+  await site.panel.getByRole('button', { name: /^Help articles/ }).click();
+  await search.fill('money');
+  await site.panel.getByRole('button', { name: /^Refunds/ }).click();
+  await expect(site.panel.getByText('Write to us within 30 days.')).toBeVisible();
+  await expectAccessible(site.shop);
+  await site.panel.getByRole('button', { name: 'Back' }).click();
+  await expect(search).toHaveValue('money');
+});
 
 test('the owner creates a help center, edits it, sees its domain tab and deletes it', async ({
   page,

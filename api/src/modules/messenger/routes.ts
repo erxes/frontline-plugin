@@ -9,8 +9,11 @@ import { fail } from '../fail.ts';
 import { customerFor } from '../inbox/receive.ts';
 import { voteRoutes } from '../surveys/votes.ts';
 import { isOnlineAt, messenger } from './adapter.ts';
+import { articleRoutes } from './articles.ts';
+import { fileRoutes } from './files.ts';
 import { messengerOf, tokenOf, visitorOf } from './session.ts';
 import { streaming, subscribe } from './stream.ts';
+import { ticketRoutes } from './tickets.ts';
 import { asVisitor, messengerIntegration, threadRoutes, visitorConversations } from './threads.ts';
 import {
   identify,
@@ -30,6 +33,43 @@ const Connect = VisitorData.extend({
   browser: BrowserInfo.optional(),
 });
 
+export type { VisitorConversation, VisitorMessage } from './threads.ts';
+
+export type { TicketForms, VisitorTicket } from './tickets.ts';
+
+/** The active messenger a key opens, with its settings, or NOT_FOUND. */
+const opened = async (key: string) => {
+  const found = await messengerOf(key);
+  const settings = found && (await messengerIntegration(found.orgId, found.integrationId));
+
+  if (!found || !settings) throw new ORPCError('NOT_FOUND', { message: 'No such messenger' });
+
+  return { ...found, settings };
+};
+
+/**
+ * What a visitor sees of the messenger: its settings with its team in place of the team's ids,
+ * whether that team is online now, and whether it takes tickets.
+ */
+const messengerView = async ({ orgId, settings }: Awaited<ReturnType<typeof opened>>) => {
+  const { supporterIds, channelId, ticketPipelineIds, ...shown } = settings;
+
+  return {
+    ...shown,
+    isOnline: isOnlineAt(settings, new Date()),
+    supporters: await supportersOf(orgId, supporterIds),
+    tickets: ticketPipelineIds.length > 0,
+  };
+};
+
+/** What `/connect` answers, as the widget reads it. */
+export type Connected = {
+  token: string;
+  identified: boolean;
+  messenger: Awaited<ReturnType<typeof messengerView>>;
+  conversations: Awaited<ReturnType<typeof visitorConversations>>;
+};
+
 /**
  * A visitor opens the messenger with its integration's key, and gets back a signed token that
  * names them, the messenger's settings, its team and their conversations. A token for this
@@ -39,10 +79,8 @@ const Connect = VisitorData.extend({
 const connect = async (req: Request, res: Response) => {
   try {
     const input = Connect.parse(req.body);
-    const found = await messengerOf(input.key);
-    const settings = found && (await messengerIntegration(found.orgId, found.integrationId));
-
-    if (!found || !settings) throw new ORPCError('NOT_FOUND', { message: 'No such messenger' });
+    const shown = await opened(input.key);
+    const found = { orgId: shown.orgId, integrationId: shown.integrationId };
 
     const known = await visitorOf(input.token);
     const kept = known?.orgId === found.orgId && known.integrationId === found.integrationId;
@@ -65,20 +103,34 @@ const connect = async (req: Request, res: Response) => {
     await recordVisit(visitor, { browser: input.browser, remoteAddress: req.ip }, true);
     await saveVisitorData(visitor, input);
 
-    const { supporterIds, ...shown } = settings;
-
-    res.json({
-      token: visitor === known ? input.token : await tokenOf(visitor),
+    const reply: Connected = {
+      token: visitor === known && input.token ? input.token : await tokenOf(visitor),
       identified: visitor.identified,
-      messenger: {
-        ...shown,
-        isOnline: isOnlineAt(settings, new Date()),
-        supporters: await supportersOf(found.orgId, supporterIds),
-      },
+      messenger: await messengerView(shown),
       conversations: await visitorConversations(visitor),
-    });
+    };
+
+    res.json(reply);
   } catch (error) {
     fail(res, error, 'messenger connect');
+  }
+};
+
+/**
+ * What the messenger shows before anyone writes, by its key: the launcher and greeting need no
+ * visitor, so a page view makes no core customer until the visitor opens the messenger.
+ */
+const settings = async (req: Request, res: Response) => {
+  try {
+    const key = Connect.shape.key.parse(req.query.key);
+
+    const reply: Pick<Connected, 'messenger'> = {
+      messenger: await messengerView(await opened(key)),
+    };
+
+    res.set('cache-control', 'public, max-age=60').json(reply);
+  } catch (error) {
+    fail(res, error, 'messenger settings');
   }
 };
 
@@ -144,7 +196,9 @@ export const messengerRoutes = () => {
 
   // Websites embed the messenger, so any origin calls it; the token, not a cookie, is the visitor.
   router.use(cors({ origin: '*', maxAge: 600 }));
+  router.use('/files', fileRoutes());
   router.use(express.json({ limit: '64kb' }));
+  router.get('/settings', settings);
   router.post('/connect', connect);
   router.post('/browser', browserInfo);
   router.get('/conversations', threadRoutes.conversations);
@@ -156,6 +210,11 @@ export const messengerRoutes = () => {
   router.get('/surveys/:messageId', voteRoutes.read);
   router.post('/surveys/:messageId/votes', voteRoutes.vote);
   router.get('/stream', stream);
+  router.get('/tickets', ticketRoutes.listTickets);
+  router.post('/tickets', ticketRoutes.createTicket);
+  router.get('/tickets/forms', ticketRoutes.ticketForms);
+  router.get('/knowledge-base', articleRoutes.knowledgeBase);
+  router.get('/knowledge-base/articles/:id', articleRoutes.article);
 
   return router;
 };

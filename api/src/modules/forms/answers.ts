@@ -13,8 +13,22 @@ export const Answer = z.union([
   z.array(Attachment).max(10),
 ]);
 
-/** Answers by field id. */
-export const Answers = z.record(z.string().max(100), Answer);
+/**
+ * A visitor's answers by field id: as `Answer`, but a file field's answer is the receipts its
+ * uploads gave, never a file's address.
+ */
+export const VisitorAnswers = z.record(
+  z.string().max(100),
+  z.union([
+    z.string().max(10_000),
+    z.number(),
+    z.boolean(),
+    z.array(z.string().max(4000)).max(300),
+  ]),
+);
+
+/** The field types whose answer is files. */
+export const FILE_FIELDS: ReadonlySet<string> = new Set(['file', 'core:customer:avatar']);
 
 type Field = typeof formFields.$inferSelect;
 
@@ -117,7 +131,7 @@ export const typeError = (field: Field, value: z.infer<typeof Answer>) => {
  * hidden or unknown field is dropped, a shown required field must be answered, and each answer
  * must fit its field's type and validator.
  */
-export const checkAnswers = (fields: Field[], answers: z.infer<typeof Answers>) => {
+export const checkAnswers = (fields: Field[], answers: Record<string, z.infer<typeof Answer>>) => {
   const errors: AnswerError[] = [];
   const kept: [string, z.infer<typeof Answer>][] = [];
 

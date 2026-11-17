@@ -64,6 +64,8 @@ export const MessengerConfig = z.object({
   forceLogoutWhenResolve: z.boolean().default(false),
   /** The knowledge base topic the messenger lets visitors search. */
   knowledgeBaseTopicId: z.string().nullable().default(null),
+  /** The pipelines of its channel a visitor files tickets in; none hides the ticket tab. */
+  ticketPipelineIds: z.array(z.string()).max(10).default([]),
   /** Pages of the website the messenger links to, each a button. */
   websiteApps: z
     .array(

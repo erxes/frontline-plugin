@@ -20,11 +20,12 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { InstallCode, scriptTag } from '~/shared/InstallCode.tsx';
 import { InfoRow, PanelSkeleton, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { StatusBadge, useFormActions } from './FormCells.tsx';
 import { Appearance, Callout, General, ThankYou } from './FormSettings.tsx';
-import { type Form, formPath, useForm, useFormFields } from './useForms.ts';
+import { type Form, formPath, type LoadType, useForm, useFormFields } from './useForms.ts';
 import { MemberChip } from '~/shared/MemberLine.tsx';
 
 /** The panel header's title: the form's name. */
@@ -58,28 +59,53 @@ export const FormActions = ({ contentId }: TRecordSlotProps) => {
   return form ? <FormMenu form={form} /> : null;
 };
 
-/** The address an embed loads the form from, made the first time it is asked for. */
+/**
+ * What a website pastes to show the form: an embedded form's slot, a pop-up's button, then the
+ * script. The other load types open by themselves or with their own launcher.
+ */
+const installCode = (loadType: LoadType, code: string, scriptUrl: string) => {
+  const script = scriptTag(scriptUrl);
+
+  if (loadType === 'embedded') return `<div data-frontline-form="${code}"></div>\n${script}`;
+
+  if (loadType === 'popup')
+    return `<button type="button" data-frontline-form-open="${code}">Open form</button>\n${script}`;
+
+  return script;
+};
+
+/** The form's install code and public address, made the first time they are asked for. */
 const Embed = ({ form }: { form: Form }) => {
   const { t } = useTranslation('frontline');
   const embed = useMutation(orpc.forms.embed.mutationOptions());
 
-  return (
-    <PanelField icon={IconCode} label={t('form-embed-url', 'Embed address')} cell={false}>
-      {embed.data ? (
-        <span className="min-w-0 truncate px-2 text-xs">
-          <CopyText value={embed.data.url}>{embed.data.url}</CopyText>
-        </span>
-      ) : (
+  if (!embed.data)
+    return (
+      <PanelField icon={IconCode} label={t('form-install', 'Install')} cell={false}>
         <Button
           variant="ghost"
           size="sm"
           disabled={embed.isPending}
           onClick={() => embed.mutate({ id: form.id })}
         >
-          {t('form-show-embed-url', 'Show address')}
+          {t('form-show-install', 'Show install code')}
         </Button>
-      )}
-    </PanelField>
+      </PanelField>
+    );
+
+  const snippet = installCode(form.loadType, embed.data.code, embed.data.scriptUrl);
+
+  return (
+    <>
+      <div className="px-2 py-1">
+        <InstallCode code={snippet} label={t('form-install-code', 'Install code')} />
+      </div>
+      <PanelField icon={IconCode} label={t('form-embed-url', 'Embed address')} cell={false}>
+        <span className="min-w-0 truncate px-2 text-xs">
+          <CopyText value={embed.data.url}>{embed.data.url}</CopyText>
+        </span>
+      </PanelField>
+    </>
   );
 };
 

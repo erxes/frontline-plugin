@@ -1,0 +1,53 @@
+/* A help center's knowledge base, inside its shadow root, on the embeds' base. Its colour sets
+   --fl-color. */
+@import '../shared/base.css';
+@import '../articles/articles.css';
+
+.fl-panel {
+  position: fixed;
+  right: 20px;
+  bottom: 88px;
+  z-index: 2147483000;
+  display: flex;
+  flex-direction: column;
+  width: min(400px, calc(100vw - 40px));
+  height: min(640px, calc(100vh - 108px));
+  overflow: hidden;
+  border-radius: 16px;
+  background: var(--fl-page);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
+}
+
+@media (max-width: 480px) {
+  .fl-panel {
+    inset: 0;
+    width: auto;
+    height: auto;
+    border-radius: 0;
+  }
+}
+
+.fl-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 12px 12px 16px;
+  background: var(--fl-color);
+  color: var(--fl-text);
+}
+
+.fl-bar h2 {
+  flex: 1;
+  margin: 0;
+  font-size: 16px;
+}
+
+.fl-bar .fl-icon-button:hover {
+  background: rgb(255 255 255 / 0.15);
+}
+
+.fl-scroll {
+  flex: 1;
+  overflow-y: auto;
+}

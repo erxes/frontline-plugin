@@ -1,7 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
 import { createApp } from '#/server.ts';
+import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
+import { tokenOf } from '../../messenger/session.ts';
+
+const messenger = serve('/api/public/messenger');
 
 let base = '';
 let server: ReturnType<ReturnType<typeof createApp>['listen']>;
@@ -22,6 +26,10 @@ afterAll(() => {
   server.close();
 });
 
+/** The published article's body as visitors get it: no handlers, scripts or script links. */
+const SANITIZED =
+  '<p>Money back</p><a target="_blank" rel="noreferrer">Terms</a><a href="https://acme.test/refunds" target="_blank" rel="noreferrer">Policy</a>';
+
 /** A help center over a topic with one published article, one draft and one private. */
 const publishedSite = async (orgId: string) => {
   const owner = clientAs(orgId);
@@ -35,7 +43,8 @@ const publishedSite = async (orgId: string) => {
   const article = await owner.knowledgebase.articles.create({
     categoryId: category.id,
     title: 'Refunds',
-    content: '<p>Money back</p>',
+    content:
+      '<p onclick="steal()">Money back</p><script>steal()</script><a href="javascript:steal()">Terms</a><a href="https://acme.test/refunds">Policy</a>',
     status: 'publish',
   });
 
@@ -50,19 +59,25 @@ const publishedSite = async (orgId: string) => {
 
   const center = await owner.helpCenters.create({ title: 'Acme help', kbTopicId: topic.id });
 
-  return { owner, center, article };
+  return { owner, topic, center, article };
 };
 
 describe('help centers', () => {
-  it('serves its published public articles to signed-out visitors by its key', async () => {
+  it('serves its published public articles to any website by its key, their HTML sanitized', async () => {
     const { center, article } = await publishedSite('org-hc-a');
 
     expect(center.publicKey).toMatch(/^[0-9a-f]{20}$/);
     expect(center.cnameTarget).toBe(`${center.publicKey}.helpcenter.erxes.io`);
+    expect(center.scriptUrl).toBe(
+      `http://localhost:3399/widget/knowledgebase.js?key=${center.publicKey}`,
+    );
 
-    const site = await fetch(`${base}/help-centers/${center.publicKey}`);
+    const site = await fetch(`${base}/help-centers/${center.publicKey}`, {
+      headers: { origin: 'https://shop.test' },
+    });
 
     expect(site.status).toBe(200);
+    expect(site.headers.get('access-control-allow-origin')).toBe('*');
     await expect(site.json()).resolves.toMatchObject({
       helpCenter: { title: 'Acme help' },
       topic: { title: 'Help' },
@@ -73,7 +88,7 @@ describe('help centers', () => {
     const read = await fetch(`${base}/help-centers/${center.publicKey}/articles/${article.id}`);
 
     await expect(read.json()).resolves.toMatchObject({
-      content: '<p>Money back</p>',
+      content: SANITIZED,
       viewCount: 1,
     });
     expect((await fetch(`${base}/help-centers/unknown-key`)).status).toBe(404);
@@ -90,6 +105,39 @@ describe('help centers', () => {
 
     expect((await fetch(`${base}/help-centers/${center.publicKey}`)).status).toBe(404);
     await expect(owner.helpCenters.list({})).resolves.toEqual({ helpCenters: [], canManage: true });
+  });
+
+  it("gives a messenger's visitors the topic it offers, and nothing when it offers none", async () => {
+    const { owner, topic, article } = await publishedSite('org-hc-ms');
+    const channel = await owner.channels.create({ name: 'Support' });
+
+    const visitorOf = async (config: Record<string, unknown>) => {
+      const integration = await owner.integrations.create({
+        channelId: channel.id,
+        kind: 'messenger',
+        name: 'Website',
+        config,
+      });
+
+      return tokenOf({
+        orgId: 'org-hc-ms',
+        integrationId: integration.id,
+        customerId: 'ann',
+        identified: false,
+        owns: false,
+      });
+    };
+
+    const offered = await visitorOf({ knowledgeBaseTopicId: topic.id });
+
+    expect((await messenger.get('/knowledge-base', offered)).body).toMatchObject({
+      topic: { title: 'Help' },
+      articles: [{ id: article.id, title: 'Refunds' }],
+    });
+    expect(
+      (await messenger.get(`/knowledge-base/articles/${article.id}`, offered)).body,
+    ).toMatchObject({ title: 'Refunds', content: SANITIZED });
+    expect((await messenger.get('/knowledge-base', await visitorOf({}))).status).toBe(404);
   });
 
   it('resolves only domains Cloudflare serves, and refuses one where Cloudflare is off', async () => {

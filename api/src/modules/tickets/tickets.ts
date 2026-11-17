@@ -119,6 +119,86 @@ const get = reads(PERMISSIONS.channelView)
   });
 
 /**
+ * Adds a ticket numbered by its pipeline and due by its SLA, and publishes its creation, by a
+ * member or by the plugin itself (`userId` null), as a survey's vote count does.
+ */
+export const insertTicket = async (
+  tx: Tx,
+  actor: { orgId: string; userId: string | null },
+  values: Omit<typeof tickets.$inferInsert, 'orgId' | 'number' | 'statusChangedBy'>,
+) => {
+  const [number = null] = await nextNumbers(tx, values.pipelineId, 1);
+
+  const [created] = await tx
+    .insert(tickets)
+    .values({ ...values, orgId: actor.orgId, number, statusChangedBy: actor.userId })
+    .returning({ id: tickets.id });
+
+  if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+  await refreshSla(tx, [created.id]);
+  await publish(
+    tx,
+    actor,
+    (await snapshot(tx, [created.id])).map((row) => createdEvent(row)),
+  );
+  await signalTickets(tx, actor);
+
+  return created.id;
+};
+
+type NewTicket = Omit<
+  typeof tickets.$inferInsert,
+  | 'orgId'
+  | 'channelId'
+  | 'pipelineId'
+  | 'statusId'
+  | 'number'
+  | 'createdBy'
+  | 'statusChangedBy'
+  | 'propertiesData'
+> & { statusId?: string; propertiesData: Record<string, unknown> };
+
+/**
+ * Files a ticket in `pipeline` by `actor`, a member or, with no user, the customer it names:
+ * its properties and links checked, in `statusId` or the pipeline's first status. The caller
+ * checks that `actor` may file in the pipeline.
+ */
+export const fileTicket = async (
+  tx: Tx,
+  actor: { orgId: string; userId: string | null },
+  pipeline: { id: string; channelId: string },
+  { propertiesData, ...input }: NewTicket,
+) => {
+  const properties = await parseProperties(tx, pipeline.id, propertiesData, { create: true });
+
+  await assertLinks(tx, input);
+
+  const [status] = await tx
+    .select({ id: pipelineStatuses.id })
+    .from(pipelineStatuses)
+    .where(
+      and(
+        eq(pipelineStatuses.pipelineId, pipeline.id),
+        input.statusId ? eq(pipelineStatuses.id, input.statusId) : undefined,
+      ),
+    )
+    .orderBy(asc(pipelineStatuses.type), asc(pipelineStatuses.order))
+    .limit(1);
+
+  if (!status) throw new ORPCError('BAD_REQUEST', { message: 'Pick a status of this pipeline' });
+
+  return insertTicket(tx, actor, {
+    ...input,
+    pipelineId: pipeline.id,
+    propertiesData: properties,
+    channelId: pipeline.channelId,
+    statusId: status.id,
+    createdBy: actor.userId,
+  });
+};
+
+/**
  * A new ticket in a pipeline of a channel the caller belongs to, in `statusId` or the pipeline's
  * first status, numbered by the pipeline and due by its SLA.
  */
@@ -155,64 +235,10 @@ const create = writes(PERMISSIONS.channelView)
       .extend({ propertiesData: PropertiesPatch.default({}) }),
   )
   .output(Ticket)
-  .handler(async ({ input: { propertiesData, ...input }, context: { tx, member } }) => {
+  .handler(async ({ input, context: { tx, member } }) => {
     const pipeline = await pipelineFor(tx, member, input.pipelineId, { change: false });
-    const properties = await parseProperties(tx, pipeline.id, propertiesData, { create: true });
 
-    await assertLinks(tx, input);
-
-    const [status] = await tx
-      .select({ id: pipelineStatuses.id })
-      .from(pipelineStatuses)
-      .where(
-        and(
-          eq(pipelineStatuses.pipelineId, pipeline.id),
-          input.statusId ? eq(pipelineStatuses.id, input.statusId) : undefined,
-        ),
-      )
-      .orderBy(asc(pipelineStatuses.type), asc(pipelineStatuses.order))
-      .limit(1);
-
-    if (!status) throw new ORPCError('BAD_REQUEST', { message: 'Pick a status of this pipeline' });
-
-    const id = await insertTicket(tx, member, {
-      ...input,
-      propertiesData: properties,
-      channelId: pipeline.channelId,
-      statusId: status.id,
-      createdBy: member.userId,
-    });
-
-    return ticketById(tx, member, id);
+    return ticketById(tx, member, await fileTicket(tx, member, pipeline, input));
   });
-
-/**
- * Adds a ticket numbered by its pipeline and due by its SLA, and publishes its creation, by a
- * member or by the plugin itself (`userId` null), as a survey's vote count does.
- */
-export const insertTicket = async (
-  tx: Tx,
-  actor: { orgId: string; userId: string | null },
-  values: Omit<typeof tickets.$inferInsert, 'orgId' | 'number' | 'statusChangedBy'>,
-) => {
-  const [number = null] = await nextNumbers(tx, values.pipelineId, 1);
-
-  const [created] = await tx
-    .insert(tickets)
-    .values({ ...values, orgId: actor.orgId, number, statusChangedBy: actor.userId })
-    .returning({ id: tickets.id });
-
-  if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
-
-  await refreshSla(tx, [created.id]);
-  await publish(
-    tx,
-    actor,
-    (await snapshot(tx, [created.id])).map((row) => createdEvent(row)),
-  );
-  await signalTickets(tx, actor);
-
-  return created.id;
-};
 
 export const ticketProcedures = { list, get, create };

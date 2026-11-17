@@ -2,3 +2,5 @@
 *
 !.runtime
 !ui/dist
+!widget/dist
+widget/dist/.vite

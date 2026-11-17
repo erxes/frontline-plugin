@@ -234,6 +234,8 @@ export const tickets = table(
     resolutionWarnedAt: timestamp({ withTimezone: true }),
     resolutionBreachedAt: timestamp({ withTimezone: true }),
     ...stamps(),
+    /** The member who made it, or null when the customer filed it from the messenger. */
+    createdBy: text(),
   },
   (t) => [
     foreignKey({

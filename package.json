@@ -5,7 +5,7 @@
   "description": "Inbox, channels, tickets and customer messaging for erxes",
   "type": "module",
   "scripts": {
-    "build": "pnpm --filter @frontline/api build && pnpm --filter @frontline/ui build",
+    "build": "pnpm --filter @frontline/api build && pnpm --filter @frontline/ui build && pnpm --filter @frontline/widget build",
     "budgets": "node tools/budgets.ts",
     "db:generate": "pnpm --filter @frontline/api db:generate",
     "db:check": "pnpm --filter @frontline/api db:check",
@@ -14,6 +14,7 @@
     "check:rls": "bash tools/check-rls.sh",
     "dev:api": "pnpm --filter @frontline/api dev",
     "dev:ui": "pnpm --filter @frontline/ui dev",
+    "dev:widget": "pnpm --filter @frontline/widget dev",
     "e2e": "playwright test -c e2e/playwright.config.ts",
     "e2e:stack": "bash e2e/stack.sh",
     "image": "pnpm build && rm -rf .runtime && pnpm --filter @frontline/api deploy --prod .runtime && docker build --build-arg VERSION=${VERSION:-dev} -t frontline-plugin:ci .",

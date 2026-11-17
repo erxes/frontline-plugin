@@ -1,7 +1,9 @@
 import { hkdfSync } from 'node:crypto';
+import { ORPCError } from '@orpc/server';
 import { jwtVerify, SignJWT } from 'jose';
 import { z } from 'zod';
 import { config } from '#/config.ts';
+import { filesOf } from '../files.ts';
 import { INTEGRATION_KEY } from '../inbox/integrations.ts';
 import { openedBy } from '../public.ts';
 
@@ -39,6 +41,19 @@ export const visitorOf = async (token: string | undefined) => {
   const visitor = Visitor.safeParse(verified?.payload);
 
   return visitor.success ? visitor.data : null;
+};
+
+/** Whom a visitor's file receipts are for: that customer, on that messenger. */
+export const ownerOf = (visitor: Visitor) =>
+  `messenger ${visitor.integrationId} ${visitor.customerId}`;
+
+/** The files the visitor's receipts name; a forged, expired or foreign one is refused. */
+export const attachmentsOf = async (visitor: Visitor, receipts: string[]) => {
+  const files = await filesOf(ownerOf(visitor), receipts);
+
+  if (!files) throw new ORPCError('BAD_REQUEST', { message: 'Attach the file again' });
+
+  return files;
 };
 
 /** The organisation and integration a messenger's key opens, or null for an unknown key. */

@@ -1,0 +1,89 @@
+/* A knowledge base topic, in whichever embed shows it, on the embeds' base. */
+.fl-articles {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.fl-articles h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.fl-articles input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid var(--fl-line);
+  border-radius: 10px;
+  background: var(--fl-page);
+}
+
+.fl-muted {
+  margin: 0;
+  color: var(--fl-muted);
+}
+
+.fl-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fl-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 10px 4px;
+  border: 0;
+  border-top: 1px solid var(--fl-line);
+  background: none;
+  text-align: left;
+}
+
+.fl-rows li:first-child .fl-row {
+  border-top: 0;
+}
+
+.fl-row small {
+  color: var(--fl-muted);
+}
+
+.fl-article {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+
+.fl-article-body :where(p, ul, ol, pre, blockquote) {
+  margin: 0 0 12px;
+}
+
+.fl-article-body :where(h1, h2, h3, h4) {
+  margin: 16px 0 8px;
+  font-size: 15px;
+}
+
+.fl-article-body a {
+  color: var(--fl-color);
+}
+
+.fl-article-body img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.fl-article-body pre {
+  overflow-x: auto;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--fl-soft);
+}
+
+.fl-article-body blockquote {
+  padding-left: 12px;
+  border-left: 2px solid var(--fl-line);
+  color: var(--fl-muted);
+}

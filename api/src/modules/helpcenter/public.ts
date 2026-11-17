@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import express, { type Response, type Router } from 'express';
+import sanitizeHtml from 'sanitize-html';
 import { withOrg } from '#/db/client.ts';
 import { HELP_CENTER_DOMAIN, HELP_CENTER_KEY, helpCenters } from '#/db/helpcenter.ts';
 import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
@@ -29,10 +30,23 @@ const centerAt = async (address: string) => {
 
 type Center = NonNullable<Awaited<ReturnType<typeof centerAt>>>;
 
-/** What a visitor sees of the help center: its look and its topic's published articles. */
-const siteOf = ({ orgId, center }: Center) =>
+/**
+ * An article's HTML as a visitor's page may show it: sanitize-html's default formatting tags,
+ * plus images, with links opening in a new tab.
+ */
+const visitorHtml = (html: string) =>
+  sanitizeHtml(html, {
+    allowedTags: [...sanitizeHtml.defaults.allowedTags, 'img'],
+    allowedAttributes: { ...sanitizeHtml.defaults.allowedAttributes, a: ['href', 'target', 'rel'] },
+    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
+    transformTags: {
+      a: sanitizeHtml.simpleTransform('a', { target: '_blank', rel: 'noreferrer' }),
+    },
+  });
+
+/** A topic's categories and published public articles, as a help center or messenger shows them. */
+export const topicOf = (orgId: string, topicId: string) =>
   withOrg(orgId, async (tx) => {
-    const topicId = center.kbTopicId ?? '';
     const [topic] = await tx.select().from(kbTopics).where(eq(kbTopics.id, topicId));
 
     const categories = await tx
@@ -70,25 +84,30 @@ const siteOf = ({ orgId, center }: Center) =>
       .orderBy(desc(kbArticles.publishedAt));
 
     return {
-      helpCenter: {
-        title: center.title,
-        description: center.description,
-        languageCode: center.languageCode,
-        kbLabel: center.kbLabel,
-        color: center.color,
-        backgroundImage: center.backgroundImage,
-        styles: center.styles,
-        header: center.header,
-        footer: center.footer,
-      },
-      topic: topic && { title: topic.title, description: topic.description },
+      topic: topic && { title: topic.title, description: topic.description, color: topic.color },
       categories,
       articles,
     };
   });
 
-/** One published article of the help center's topic, counted as viewed. */
-const articleOf = ({ orgId, center }: Center, id: string) =>
+/** What a visitor sees of the help center: its look and its topic's published articles. */
+const siteOf = async ({ orgId, center }: Center) => ({
+  helpCenter: {
+    title: center.title,
+    description: center.description,
+    languageCode: center.languageCode,
+    kbLabel: center.kbLabel,
+    color: center.color,
+    backgroundImage: center.backgroundImage,
+    styles: center.styles,
+    header: center.header,
+    footer: center.footer,
+  },
+  ...(await topicOf(orgId, center.kbTopicId ?? '')),
+});
+
+/** One published public article of the topic, its body sanitized, counted as viewed. */
+export const articleOf = (orgId: string, topicId: string, id: string) =>
   withOrg(orgId, async (tx) => {
     const [article] = await tx
       .update(kbArticles)
@@ -103,7 +122,7 @@ const articleOf = ({ orgId, center }: Center, id: string) =>
             tx
               .select({ id: kbCategories.id })
               .from(kbCategories)
-              .where(eq(kbCategories.topicId, center.kbTopicId ?? '')),
+              .where(eq(kbCategories.topicId, topicId)),
           ),
         ),
       )
@@ -119,8 +138,15 @@ const articleOf = ({ orgId, center }: Center, id: string) =>
         publishedAt: kbArticles.publishedAt,
       });
 
-    return article ?? null;
+    return article ? { ...article, content: visitorHtml(article.content) } : null;
   });
+
+/** What a topic gives a visitor, for the embeds to type their replies. */
+export type VisitorTopic = Awaited<ReturnType<typeof topicOf>>;
+
+export type VisitorArticle = NonNullable<Awaited<ReturnType<typeof articleOf>>>;
+
+export type VisitorSite = Awaited<ReturnType<typeof siteOf>>;
 
 const notFound = (res: Response, message: string) => {
   res.status(404).json({ message });
@@ -144,7 +170,9 @@ export const publicRouter = (): Router => {
 
   router.get('/help-centers/:address/articles/:id', async (req, res) => {
     const found = await centerAt(req.params.address);
-    const article = found && (await articleOf(found, req.params.id));
+
+    const article =
+      found && (await articleOf(found.orgId, found.center.kbTopicId ?? '', req.params.id));
 
     if (!article) return notFound(res, 'No such article');
 

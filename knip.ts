@@ -21,6 +21,11 @@ const config: KnipConfig = {
       entry: ['src/config.tsx', 'src/Frontline.tsx'],
       project: ['src/**/*.{ts,tsx,css}'],
     },
+    // Each file in src/ is an embed a website loads (build.ts).
+    widget: {
+      entry: ['src/*.tsx'],
+      project: ['src/**/*.{ts,tsx}'],
+    },
   },
 };
 

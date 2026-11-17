@@ -1,6 +1,7 @@
 packages:
   - api
   - ui
+  - widget
 # `pnpm deploy` copies api/ with real files for the image.
 injectWorkspacePackages: true
 catalog:

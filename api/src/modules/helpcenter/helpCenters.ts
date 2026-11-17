@@ -19,6 +19,7 @@ import { kbTopics } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Color, Title } from '../fields.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { widgetScript } from '../public.ts';
 import {
   cnameTarget,
   connectDomain,
@@ -47,12 +48,15 @@ const HelpCenter = createSelectSchema(helpCenters, refine).omit({ orgId: true })
   cnameTarget: z.string(),
   /** Whether this installation connects domains through Cloudflare. */
   domainsAvailable: z.boolean(),
+  /** The script a website adds to show the knowledge base. */
+  scriptUrl: z.string(),
 });
 
 const withTarget = <T extends { publicKey: string }>(row: T) => ({
   ...row,
   cnameTarget: cnameTarget(row.publicKey),
   domainsAvailable: domainsAvailable(),
+  scriptUrl: widgetScript('knowledgebase', { key: row.publicKey }),
 });
 
 const centerById = async (tx: Tx, id: string) => {

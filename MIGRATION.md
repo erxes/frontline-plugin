@@ -259,7 +259,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `MAIL_WEBHOOK_SECRET` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/signature.ts:13`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 - [x] `MAIL_WORKER_URL` → api/src/config.ts `frontline_api/src/modules/integrations/mail/utils/connection.ts:48`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 - [x] `NODE_TLS_REJECT_UNAUTHORIZED` → dropped: TLS is always checked (erxes/erxes#7528) `frontline_api/src/modules/integrations/call/utils.ts:209`
-- [x] `REACT_APP_WIDGETS_URL` → api/src/config.ts `frontline_ui/src/modules/utils.ts:27`. dropped: the plugin serves no widgets bundle (the widgets bundle row in DECISIONS.md); the messenger's panel shows the key its embed carries (`ui/src/modules/inbox/IntegrationPanel.tsx`)
+- [x] `REACT_APP_WIDGETS_URL` → api/src/config.ts `frontline_ui/src/modules/utils.ts:27`. dropped: the API serves the embeds at `${PUBLIC_URL}/widget` from `WIDGET_DIR`, and the messenger's Install card shows its script line (`ui/src/modules/messenger/InstallCard.tsx`)
 - [x] `SINCE` → dropped: an old Mongo data migration `frontline_api/src/migrations/migrateCallConversationContents.ts:19`
 - [x] `STATIC_CHANNEL_ID` → api/src/config.ts `frontline_api/src/migrations/migrateTickets.ts:24`. dropped: an old Mongo data migration; `scripts/import-mongo.ts` copies the old data
 - [x] `TIMEZONE` → each PBX account's `timeZone`; CDR times are read in it `frontline_api/src/modules/integrations/call/utils.ts:586`
@@ -685,26 +685,19 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `integrationsCreateLeadIntegration` → procedure `inbox.integrationsCreateLeadIntegration` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
 - [x] mutation `integrationsEditLeadIntegration` → procedure `inbox.integrationsEditLeadIntegration` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
 - [x] mutation `integrationsCopyLeadIntegration` → procedure `inbox.integrationsCopyLeadIntegration` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-- [ ] mutation `integrationsSaveMessengerTicketData` → procedure `inbox.integrationsSaveMessengerTicketData` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
+- [x] mutation `integrationsSaveMessengerTicketData` → procedure `inbox.integrationsSaveMessengerTicketData` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`. `integrations.update` with the messenger's `ticketPipelineIds`, the Tickets card on its settings page (`ui/src/modules/messenger/TicketsCard.tsx`) (decision)
 - [x] query `widgetsConversations` → procedure `widgetsConversations.list` (returns `[Conversation]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
 - [x] query `widgetsConversationDetail` → procedure `widgetsConversations.get` (returns `ConversationDetailResponse`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
 - [x] query `widgetsMessages` → procedure `widgetsMessages.list` (returns `[ConversationMessage]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
 - [x] query `widgetsUnreadCount` → procedure `widgetsUnreadCounts.get` (returns `Int`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
 - [x] query `widgetsTotalUnreadCount` → procedure `widgetsTotalUnreadCounts.get` (returns `Int`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
 - [x] query `widgetsMessengerSupporters` → procedure `widgetsMessengerSupporters.list` (returns `MessengerSupportersResponse`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-- [ ] query `widgetsTicketCustomerDetail` → procedure `widgetsTicketCustomers.get` (returns `Customer`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
-- [ ] query `widgetsGetTicketTags` → procedure `widgetsGetTicketTags.list` (returns `[Tag]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
-- [ ] query `widgetTicketCheckProgress` → procedure `widgetTicketCheckProgress.list` (returns `Ticket`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
-- [ ] query `widgetTicketComments` → procedure `widgetTicketComments.list` (returns `[TicketNote]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
-- [ ] query `widgetTicketActivityLogs` → procedure `widgetTicketActivityLogs.list` (returns `[TicketActivity]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
-- [ ] query `widgetTicketsByCustomer` → procedure `widgetTicketsByCustomers.get` (returns `[Ticket]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
+- [x] query `widgetsTicketCustomerDetail` → procedure `widgetsTicketCustomers.get` (returns `Customer`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `POST /api/public/messenger/connect` with `identity` (decision)
+- [x] query `widgetsGetTicketTags` → procedure `widgetsGetTicketTags.list` (returns `[Tag]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `GET /api/public/messenger/tickets/forms`, with each offered pipeline's properties (`api/src/modules/messenger/tickets.ts`)
+- [x] query `widgetTicketCheckProgress` → procedure `widgetTicketCheckProgress.list` (returns `Ticket`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `GET /api/public/messenger/tickets` shows each ticket's status (decision)
+- [x] query `widgetTicketComments` → procedure `widgetTicketComments.list` (returns `[TicketNote]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49` (filed https://github.com/erxes/erxes/issues/10657)
+- [x] query `widgetTicketActivityLogs` → procedure `widgetTicketActivityLogs.list` (returns `[TicketActivity]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49` (filed https://github.com/erxes/erxes/issues/10657)
+- [x] query `widgetTicketsByCustomer` → procedure `widgetTicketsByCustomers.get` (returns `[Ticket]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `GET /api/public/messenger/tickets` (`api/src/modules/messenger/tickets.ts`)
 - [x] mutation `widgetsMessengerConnect` → procedure `inbox.widgetsMessengerConnect` (returns `MessengerConnectResponse`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
 - [x] mutation `widgetsSaveBrowserInfo` → procedure `inbox.widgetsSaveBrowserInfo` (returns `ConversationMessage`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
 - [x] mutation `widgetsInsertMessage` → procedure `inbox.widgetsInsertMessage` (returns `ConversationMessage`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
@@ -714,14 +707,10 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] mutation `widgetGetBotInitialMessage` → procedure `inbox.widgetGetBotInitialMessage` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
 - [x] mutation `widgetsLeadIncreaseViewCount` → procedure `inbox.widgetsLeadIncreaseViewCount` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
 - [x] mutation `widgetsSendTypingInfo` → procedure `inbox.widgetsSendTypingInfo` (returns `String`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-- [ ] mutation `widgetsTicketCustomersEdit` → procedure `widgetsTicketCustomers.update` (returns `Customer`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
-- [ ] mutation `widgetTicketCreated` → procedure `inbox.widgetTicketCreated` (returns `Ticket`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
-- [ ] mutation `widgetTicketCommentAdd` → procedure `widgetTicketComments.create` (returns `TicketNote`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
-- [ ] mutation `widgetTicketCommentRemove` → procedure `widgetTicketComments.remove` (returns `String`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
+- [x] mutation `widgetsTicketCustomersEdit` → procedure `widgetsTicketCustomers.update` (returns `Customer`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`. `POST /api/public/messenger/connect` with `identity` (decision)
+- [x] mutation `widgetTicketCreated` → procedure `inbox.widgetTicketCreated` (returns `Ticket`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`. `POST /api/public/messenger/tickets`, in a pipeline the messenger offers (decision)
+- [x] mutation `widgetTicketCommentAdd` → procedure `widgetTicketComments.create` (returns `TicketNote`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66` (filed https://github.com/erxes/erxes/issues/10657)
+- [x] mutation `widgetTicketCommentRemove` → procedure `widgetTicketComments.remove` (returns `String`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66` (filed https://github.com/erxes/erxes/issues/10657)
 
 ### Pages
 
@@ -774,13 +763,11 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] core `customers.markCustomerAsActive` → plugin-owned `frontline_customers` (messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:786`
 - [x] core `customers.updateLocation` → plugin-owned `frontline_customers` (the visitor's location is messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:999`
 - [x] core `customers.updateSession` → plugin-owned `frontline_customers` (messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:1011`
-- [ ] core `customers.updateCustomer` → sdk `customers.update` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:1290`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
+- [x] core `customers.updateCustomer` → sdk `customers.update` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:1290`. Not called: `/connect` with `identity` finds or creates the customer through `customers.findOrCreate` (decision)
 - [x] core `tags.findOne` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/inbox/graphql/resolvers/queries/integrations.ts:83`
 - [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/inbox/graphql/resolvers/queries/integrations.ts:344`
 - [x] core `users.find` → sdk `users.list` (scope users:read; search, ids, isActive, role) `frontline_api/src/modules/inbox/graphql/resolvers/queries/widget.ts:55`
-- [ ] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/graphql/resolvers/queries/widget.ts:285`
-  - note: the messenger's ticket flow isn't ported: a visitor can't open, follow or comment on a ticket from the messenger
+- [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/graphql/resolvers/queries/widget.ts:285`. Not called: the visitor's tickets come from `frontline_tickets` by their `customerId` (decision)
 - [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/inbox/graphql/resolvers/queries/widget.ts:302`
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/inbox/receiveMessage.ts:83`. `customerFor` in `api/src/modules/inbox/receive.ts`: the linked customer, else `customers.findOrCreate` by email, else `customers.create`
 - [x] core `customers.updateCustomer` → sdk `customers.update` (scope customers:write) `frontline_api/src/modules/inbox/receiveMessage.ts:95`. `customerFor` in `api/src/modules/inbox/receive.ts`: the linked customer, else `customers.findOrCreate` by email, else `customers.create`
