@@ -1,13 +1,14 @@
 import { IconInbox } from '@tabler/icons-react';
 import { useIntegrationChange } from '@/inbox/queries.ts';
 import { useMutation } from '@tanstack/react-query';
-import { Button, Form, PageContainer, ScrollArea, Skeleton, toast } from 'erxes-ui';
+import { Form, PageContainer, ScrollArea, Skeleton, toast } from 'erxes-ui';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
+import { SaveBar } from '~/shared/Settings.tsx';
 import { AppearanceCard } from './AppearanceCard.tsx';
 import { AvailabilityCard } from './AvailabilityCard.tsx';
 import { BehaviourCard } from './BehaviourCard.tsx';
@@ -54,19 +55,11 @@ const SettingsForm = ({ messenger }: { messenger: MessengerSettings }) => {
             <TicketsCard channelId={messenger.channelId} />
           </fieldset>
           {messenger.canManage && (
-            <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-background/95 py-3 backdrop-blur">
-              <Button
-                type="button"
-                variant="ghost"
-                disabled={!form.formState.isDirty}
-                onClick={() => form.reset()}
-              >
-                {t('discard', 'Discard')}
-              </Button>
-              <Button type="submit" disabled={update.isPending}>
-                {update.isPending ? t('saving', 'Saving…') : t('save', 'Save')}
-              </Button>
-            </div>
+            <SaveBar
+              dirty={form.formState.isDirty}
+              saving={update.isPending}
+              onDiscard={() => form.reset()}
+            />
           )}
         </div>
         <MessengerPreview />

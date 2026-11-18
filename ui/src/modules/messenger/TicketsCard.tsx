@@ -2,7 +2,7 @@ import { Checkbox, Form, Label } from 'erxes-ui';
 import { useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useChoices } from '@/tickets/queries.ts';
-import { SettingsCard } from './fields.tsx';
+import { SettingsCard } from '~/shared/Settings.tsx';
 import type { MessengerForm } from './queries.ts';
 
 /** The pipelines of the messenger's channel its visitors file tickets in, each a checkbox. */

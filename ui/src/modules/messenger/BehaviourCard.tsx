@@ -5,7 +5,8 @@ import { useFieldArray, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { LanguageSelect } from '@/knowledgebase/LanguageSelect.tsx';
 import { orpc } from '~/orpc.ts';
-import { SettingsCard, SwitchRow } from './fields.tsx';
+import { SettingsCard } from '~/shared/Settings.tsx';
+import { SwitchRow } from './fields.tsx';
 import type { MessengerForm } from './queries.ts';
 
 const NO_TOPIC = 'none';

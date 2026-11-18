@@ -15,6 +15,7 @@ import {
   IconSitemap,
   IconTag,
   IconTicket,
+  type Icon,
 } from '@tabler/icons-react';
 import {
   AppLayout,
@@ -103,15 +104,33 @@ const WithText = ({ children }: { children: ReactNode }) => (
   </Suspense>
 );
 
+/** A sidebar link: where it leads, its text's key and English, and its icon. */
+type NavLink = [to: string, key: string, text: string, icon: Icon];
+
+const links = (t: (key: string, text: string) => string, items: NavLink[]) =>
+  items.map(([to, key, text, icon]) => (
+    <NavigationMenuLinkItem key={to} to={to} name={t(key, text)} icon={icon} />
+  ));
+
+const MODULES: NavLink[] = [
+  [`${ROOT}/forms`, 'forms', 'Forms', IconForms],
+  [`${ROOT}/surveys`, 'surveys', 'Surveys', IconChecklist],
+  [`${ROOT}/knowledgebase`, 'knowledge-base', 'Knowledge Base', IconBook],
+  [`${ROOT}/help-centers`, 'help-centers', 'Help centers', IconHelpCircle],
+];
+
+const SETTINGS_PAGES: NavLink[] = [
+  [`${SETTINGS}/channels`, 'channels', 'Channels', IconCircles],
+  [`${SETTINGS}/tags`, 'tags', 'Tags', IconTag],
+  // Core keeps them, at its own Settings › Structure.
+  [STRUCTURE_PATH, 'branches-and-departments', 'Branches and departments', IconSitemap],
+  [`${SETTINGS}/ticket-properties`, 'ticket-properties', 'Ticket properties', IconForms],
+  [`${SETTINGS}/integrations`, 'integrations', 'Integrations', IconPlugConnected],
+];
+
 /** The app sidebar: the inbox and tickets with their counts, the other modules, and Calls. */
 const FrontlineSidebar = () => {
   const { t } = useTranslation('frontline');
-
-  const items = [
-    { name: t('forms', 'Forms'), to: `${ROOT}/forms`, icon: IconForms },
-    { name: t('surveys', 'Surveys'), to: `${ROOT}/surveys`, icon: IconChecklist },
-    { name: t('knowledge-base', 'Knowledge Base'), to: `${ROOT}/knowledgebase`, icon: IconBook },
-  ];
 
   return (
     <>
@@ -140,14 +159,7 @@ const FrontlineSidebar = () => {
             >
               <TicketsNav />
             </Suspense>
-            {items.map((item) => (
-              <NavigationMenuLinkItem
-                key={item.to}
-                to={item.to}
-                name={item.name}
-                icon={item.icon}
-              />
-            ))}
+            {links(t, MODULES)}
             <CallsGroup />
           </Sidebar.Menu>
         </Sidebar.GroupContent>
@@ -197,32 +209,6 @@ export const FrontlineLayout = () => {
 const SettingsSidebar = () => {
   const { t } = useTranslation('frontline');
 
-  const items = [
-    { name: t('channels', 'Channels'), to: `${SETTINGS}/channels`, icon: IconCircles },
-    { name: t('tags', 'Tags'), to: `${SETTINGS}/tags`, icon: IconTag },
-    // Core keeps them, at its own Settings › Structure.
-    {
-      name: t('branches-and-departments', 'Branches and departments'),
-      to: STRUCTURE_PATH,
-      icon: IconSitemap,
-    },
-    {
-      name: t('ticket-properties', 'Ticket properties'),
-      to: `${SETTINGS}/ticket-properties`,
-      icon: IconForms,
-    },
-    {
-      name: t('help-centers', 'Help centers'),
-      to: `${SETTINGS}/help-centers`,
-      icon: IconHelpCircle,
-    },
-    {
-      name: t('integrations', 'Integrations'),
-      to: `${SETTINGS}/integrations`,
-      icon: IconPlugConnected,
-    },
-  ];
-
   return (
     <>
       <Sidebar.Header variant="sticky">
@@ -238,16 +224,7 @@ const SettingsSidebar = () => {
       <Sidebar.Content>
         <Sidebar.Group>
           <Sidebar.GroupContent>
-            <Sidebar.Menu>
-              {items.map((item) => (
-                <NavigationMenuLinkItem
-                  key={item.to}
-                  to={item.to}
-                  name={item.name}
-                  icon={item.icon}
-                />
-              ))}
-            </Sidebar.Menu>
+            <Sidebar.Menu>{links(t, SETTINGS_PAGES)}</Sidebar.Menu>
           </Sidebar.GroupContent>
         </Sidebar.Group>
       </Sidebar.Content>

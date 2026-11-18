@@ -1,28 +1,6 @@
-import { Card, Form, Input, Select, Switch, Textarea } from 'erxes-ui';
-import type { ReactNode } from 'react';
+import { Form, Input, Select, Switch, Textarea } from 'erxes-ui';
 import { type FieldPathByValue, useFormContext } from 'react-hook-form';
 import type { MessengerForm } from './queries.ts';
-
-/** One card of the settings page: a title, a line on what it's for, and its fields in a grid. */
-export const SettingsCard = ({
-  title,
-  description,
-  children,
-}: {
-  title: string;
-  description: string;
-  children: ReactNode;
-}) => (
-  <Card>
-    <Card.Header>
-      <Card.Title>{title}</Card.Title>
-      <Card.Description>{description}</Card.Description>
-    </Card.Header>
-    <Card.Content>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
-    </Card.Content>
-  </Card>
-);
 
 /** A text setting; `long` makes it a full-width text box. */
 export const TextRow = ({

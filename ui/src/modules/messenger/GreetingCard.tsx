@@ -2,7 +2,8 @@ import { memberQueries } from '@erxes/core-contract/client';
 import { Form, LookupPicker, StringArrayInput, useMemberOptions } from 'erxes-ui';
 import { useFormContext, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { SettingsCard, TextRow } from './fields.tsx';
+import { SettingsCard } from '~/shared/Settings.tsx';
+import { TextRow } from './fields.tsx';
 import type { MessengerForm } from './queries.ts';
 
 /** The members the messenger shows as its team, at most ten. */

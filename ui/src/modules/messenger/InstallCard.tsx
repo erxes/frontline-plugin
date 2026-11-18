@@ -4,7 +4,7 @@ import { Button, Label, useConfirm } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { InstallCode, scriptTag } from '~/shared/InstallCode.tsx';
-import { SettingsCard } from './fields.tsx';
+import { SettingsCard } from '~/shared/Settings.tsx';
 import type { MessengerSettings } from './queries.ts';
 
 /** What a website sets before the script to sign its visitor in. */

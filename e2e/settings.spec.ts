@@ -55,6 +55,7 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
     Forms: '/frontline/forms',
     Surveys: '/frontline/surveys',
     'Knowledge Base': '/frontline/knowledgebase',
+    'Help centers': '/frontline/help-centers',
     History: '/frontline/calls/history',
     Queues: '/frontline/calls/queues',
   };
@@ -62,7 +63,6 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
   const settings = {
     Tags: `${SETTINGS}/tags`,
     'Ticket properties': `${SETTINGS}/ticket-properties`,
-    'Help centers': `${SETTINGS}/help-centers`,
     Integrations: `${SETTINGS}/integrations`,
     Channels: `${SETTINGS}/channels`,
   };
