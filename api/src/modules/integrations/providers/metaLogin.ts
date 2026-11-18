@@ -6,7 +6,7 @@ import { withOrg } from '#/db/client.ts';
 import { writes } from '#/orpc.ts';
 import { readToken, signToken } from '../../tokens.ts';
 import { inOrder } from '../provider.ts';
-import { metaKey, saveAccount } from '../store.ts';
+import { Into, intoChannel, metaKey, saveAccount } from '../store.ts';
 import { GRAPH_VERSION, graph, subscribeToPage } from './meta.ts';
 import { routeThroughRelay } from './metaRelay.ts';
 
@@ -30,7 +30,7 @@ const SCOPES = [
   'instagram_manage_comments',
 ];
 
-const State = z.object({ orgId: z.string(), userId: z.string() });
+const State = z.object({ orgId: z.string(), userId: z.string(), ...Into });
 
 const callbackUrl = () => `${config.publicUrl}/api/public/webhooks/meta/callback`;
 
@@ -40,11 +40,13 @@ export const SETTINGS_URL = `${config.coreUiOrigin}/frontline/settings/integrati
 /**
  * The address of Meta's login dialog, where the member picks the pages and Instagram accounts to
  * connect. Meta sends them back to `/api/public/webhooks/meta/callback` with a state only frontline
- * signs, good for 10 minutes.
+ * signs, good for 10 minutes. Started from a channel, the state names it, and every page and
+ * account the member grants joins it.
  */
 const loginUrl = writes(PERMISSIONS.integrationManage)
+  .input(z.object(Into).optional())
   .output(z.object({ url: z.string() }))
-  .handler(async ({ context: { member } }) => {
+  .handler(async ({ input, context: { tx, member } }) => {
     if (!config.meta.appId || !config.meta.appSecret)
       throw new ORPCError('PRECONDITION_FAILED', {
         message: 'Set META_APP_ID and META_APP_SECRET to connect Facebook and Instagram',
@@ -58,7 +60,15 @@ const loginUrl = writes(PERMISSIONS.integrationManage)
     url.searchParams.set('response_type', 'code');
     url.searchParams.set(
       'state',
-      await signToken(STATE, { orgId: member.orgId, userId: member.userId }, '10m'),
+      await signToken(
+        STATE,
+        {
+          orgId: member.orgId,
+          userId: member.userId,
+          channelId: await intoChannel(tx, member, input?.channelId),
+        },
+        '10m',
+      ),
     );
 
     return { url: url.toString() };
@@ -156,7 +166,7 @@ export const connectMetaPages = async (code: string, stateToken: string) => {
   ]);
 
   await withOrg(state.orgId, (tx) =>
-    inOrder(accounts, (account) => saveAccount(tx, state, account)),
+    inOrder(accounts, (account) => saveAccount(tx, state, account, state.channelId)),
   );
 
   return pages.length;

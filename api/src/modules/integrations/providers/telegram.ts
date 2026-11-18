@@ -7,7 +7,7 @@ import { withOrg } from '#/db/client.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { readsWithCore, writesWithCore } from '#/orpc.ts';
 import { AccountRefused, defineProvider, sendInParts } from '../provider.ts';
-import { Account, accountRow, saveAccount } from '../store.ts';
+import { Account, accountRow, checkInto, Into, intoChannel, saveAccount } from '../store.ts';
 
 const Config = z.object({ username: z.string() });
 
@@ -199,12 +199,15 @@ export const telegram = defineProvider({
 /**
  * Connects a bot by its token from BotFather: Telegram checks the token, then posts the bot's
  * updates to a webhook address only frontline knows, signed with a secret of its own. Telegram
- * is asked before the transaction opens.
+ * is asked before the transaction opens, once the channel it joins is checked, so a refusal
+ * leaves a connected bot's webhook where it was.
  */
 const connect = writesWithCore(
   PERMISSIONS.integrationManage,
-  z.object({ token: z.string().trim().min(10).max(200) }),
-  async (_member, input) => {
+  z.object({ token: z.string().trim().min(10).max(200), ...Into }),
+  async (member, input) => {
+    await checkInto(member, input.channelId);
+
     const bot = await call(input.token, 'getMe', User).catch((error: unknown) => {
       throw new ORPCError('BAD_REQUEST', { message: `Telegram refused the token: ${why(error)}` });
     });
@@ -219,7 +222,7 @@ const connect = writesWithCore(
 )
   .output(Account)
   .handler(
-    ({
+    async ({
       input,
       context: {
         tx,
@@ -227,14 +230,19 @@ const connect = writesWithCore(
         fromCore: { bot, key, webhookSecret },
       },
     }) =>
-      saveAccount(tx, member, {
-        provider: 'telegram',
-        externalId: String(bot.id),
-        name: bot.username ? `@${bot.username}` : bot.first_name,
-        config: { username: bot.username },
-        secret: { token: input.token, webhookSecret },
-        webhookKey: key,
-      }),
+      saveAccount(
+        tx,
+        member,
+        {
+          provider: 'telegram',
+          externalId: String(bot.id),
+          name: bot.username ? `@${bot.username}` : bot.first_name,
+          config: { username: bot.username },
+          secret: { token: input.token, webhookSecret },
+          webhookKey: key,
+        },
+        await intoChannel(tx, member, input.channelId),
+      ),
   );
 
 /** A bot's webhook: where updates go, how many wait, and its last failure. */

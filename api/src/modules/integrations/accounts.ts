@@ -82,18 +82,21 @@ export const markRefused = async (row: AccountRow, error: unknown) => {
   });
 };
 
-/** The organisation's connected accounts, one provider's or all, by provider then name. */
+/**
+ * The organisation's connected accounts, one provider's or all, by provider then name, and
+ * whether the caller may connect and change them.
+ */
 const list = reads(PERMISSIONS.integrationView)
   .input(z.object({ provider: z.enum(PROVIDERS).optional() }))
-  .output(z.object({ accounts: z.array(Account) }))
-  .handler(async ({ input, context: { tx } }) => {
+  .output(z.object({ accounts: z.array(Account), canManage: z.boolean() }))
+  .handler(async ({ input, context: { tx, member } }) => {
     const accounts = await tx
       .select(accountColumns)
       .from(integrationAccounts)
       .where(input.provider ? eq(integrationAccounts.provider, input.provider) : undefined)
       .orderBy(integrationAccounts.provider, integrationAccounts.name, integrationAccounts.id);
 
-    return { accounts };
+    return { accounts, canManage: member.can(PERMISSIONS.integrationManage) };
   });
 
 /**

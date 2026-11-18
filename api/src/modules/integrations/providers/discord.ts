@@ -7,7 +7,7 @@ import { JOBS, PERMISSIONS } from '#/core.ts';
 import { writesWithCore } from '#/orpc.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { AccountRefused, defineProvider } from '../provider.ts';
-import { Account, saveAccount } from '../store.ts';
+import { Account, Into, intoChannel, saveAccount } from '../store.ts';
 
 const Secret = z.object({ token: z.string() });
 
@@ -104,7 +104,7 @@ export const discord = defineProvider({
  */
 const connect = writesWithCore(
   PERMISSIONS.integrationManage,
-  z.object({ token: z.string().trim().min(20).max(200) }),
+  z.object({ token: z.string().trim().min(20).max(200), ...Into }),
   (_member, input) =>
     Promise.all([
       botOf(input.token),
@@ -123,13 +123,18 @@ const connect = writesWithCore(
         fromCore: [bot, application],
       },
     }) => {
-      const account = await saveAccount(tx, member, {
-        provider: 'discord',
-        externalId: bot.id,
-        name: bot.username,
-        config: { applicationId: application.id },
-        secret: { token: input.token },
-      });
+      const account = await saveAccount(
+        tx,
+        member,
+        {
+          provider: 'discord',
+          externalId: bot.id,
+          name: bot.username,
+          config: { applicationId: application.id },
+          secret: { token: input.token },
+        },
+        await intoChannel(tx, member, input.channelId),
+      );
 
       // Its gateway opens now rather than on the next minute's run.
       await enqueueJob(tx, { orgId: member.orgId, name: JOBS.discordGateway.name, payload: {} });

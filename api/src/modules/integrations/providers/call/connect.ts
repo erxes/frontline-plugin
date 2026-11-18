@@ -12,7 +12,14 @@ import { publicKeys } from '#/db/public.ts';
 import { isBlockedIp } from '#/modules/outbound.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
 import { sealSecret } from '../../secrets.ts';
-import { Account, accountColumns, accountRow, saveAccount } from '../../store.ts';
+import {
+  Account,
+  accountColumns,
+  accountRow,
+  Into,
+  intoChannel,
+  saveAccount,
+} from '../../store.ts';
 import { call, PbxConfig } from './call.ts';
 import { checkPbx } from './pbx.ts';
 
@@ -54,6 +61,7 @@ const connect = writesWithCore(
     host: Host,
     apiUser: z.string().trim().min(1).max(100),
     apiPassword: z.string().min(1).max(200),
+    ...Into,
   }),
   async (_member, input) => {
     const refused = await checkPbx({
@@ -66,32 +74,42 @@ const connect = writesWithCore(
   },
 )
   .output(Account)
-  .handler(({ input, context: { tx, member } }) => {
-    const { apiUser, apiPassword, ...settings } = input;
+  .handler(async ({ input, context: { tx, member } }) => {
+    const { apiUser, apiPassword, channelId, ...settings } = input;
 
-    return saveAccount(tx, member, {
-      provider: 'call',
-      externalId: input.host.toLowerCase(),
-      name: input.phone,
-      config: settings,
-      secret: { apiUser, apiPassword, webhookSecret: randomBytes(32).toString('hex') },
-      webhookKey: newKey(),
-    });
+    return saveAccount(
+      tx,
+      member,
+      {
+        provider: 'call',
+        externalId: input.host.toLowerCase(),
+        name: input.phone,
+        config: settings,
+        secret: { apiUser, apiPassword, webhookSecret: randomBytes(32).toString('hex') },
+        webhookKey: newKey(),
+      },
+      await intoChannel(tx, member, channelId),
+    );
   });
 
 /** Connects a CallPro line by its number; CallPro posts its calls to the address frontline gives. */
 const connectCallPro = writes(PERMISSIONS.integrationManage)
-  .input(z.object({ phone: Phone }))
+  .input(z.object({ phone: Phone, ...Into }))
   .output(Account)
   .handler(async ({ input, context: { tx, member } }) =>
-    saveAccount(tx, member, {
-      provider: 'callpro',
-      externalId: input.phone,
-      name: input.phone,
-      config: { phone: input.phone },
-      secret: {},
-      webhookKey: newKey(),
-    }),
+    saveAccount(
+      tx,
+      member,
+      {
+        provider: 'callpro',
+        externalId: input.phone,
+        name: input.phone,
+        config: { phone: input.phone },
+        secret: {},
+        webhookKey: newKey(),
+      },
+      await intoChannel(tx, member, input.channelId),
+    ),
   );
 
 const Queue = createSelectSchema(callQueues).omit({ orgId: true, live: true });

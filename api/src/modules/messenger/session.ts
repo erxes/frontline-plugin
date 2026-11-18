@@ -1,7 +1,7 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { filesOf } from '../files.ts';
-import { INTEGRATION_KEY } from '../inbox/integrations.ts';
+import { INTEGRATION_KEY } from '../inbox/insertIntegration.ts';
 import { openedBy } from '../public.ts';
 import { readToken, signToken } from '../tokens.ts';
 

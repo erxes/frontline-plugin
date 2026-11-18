@@ -31,20 +31,26 @@ const serverOf = (form: FormData, kind: 'imap' | 'smtp') => {
   };
 };
 
+/** The channel the form was opened from, which the account joins as it connects. */
+interface Into {
+  channelId?: string;
+}
+
 /** Each provider's call with the form's fields. */
 const CONNECT = {
-  telegram: (form: FormData) =>
-    orpc.integrations.telegram.connect.call({ token: textOf(form.get('token')) }),
-  discord: (form: FormData) =>
-    orpc.integrations.discord.connect.call({ token: textOf(form.get('token')) }),
-  mail: (form: FormData) =>
+  telegram: (form: FormData, into: Into) =>
+    orpc.integrations.telegram.connect.call({ token: textOf(form.get('token')), ...into }),
+  discord: (form: FormData, into: Into) =>
+    orpc.integrations.discord.connect.call({ token: textOf(form.get('token')), ...into }),
+  mail: (form: FormData, into: Into) =>
     orpc.integrations.mail.connect.call({
       address: textOf(form.get('address')),
       name: textOf(form.get('name')),
       imap: serverOf(form, 'imap'),
       smtp: serverOf(form, 'smtp'),
+      ...into,
     }),
-  call: (form: FormData) =>
+  call: (form: FormData, into: Into) =>
     orpc.integrations.call.connect.call({
       phone: textOf(form.get('phone')),
       host: textOf(form.get('host')),
@@ -54,10 +60,11 @@ const CONNECT = {
       turnUrl: textOf(form.get('turnUrl')),
       turnUsername: textOf(form.get('turnUsername')),
       turnPassword: textOf(form.get('turnPassword')),
+      ...into,
     }),
-  callpro: (form: FormData) =>
-    orpc.integrations.callpro.connect.call({ phone: textOf(form.get('phone')) }),
-} satisfies Record<FormProvider, (form: FormData) => Promise<{ id: string }>>;
+  callpro: (form: FormData, into: Into) =>
+    orpc.integrations.callpro.connect.call({ phone: textOf(form.get('phone')), ...into }),
+} satisfies Record<FormProvider, (form: FormData, into: Into) => Promise<{ id: string }>>;
 
 const FIELDS: Record<FormProvider, ComponentType> = {
   telegram: TelegramFields,
@@ -70,15 +77,16 @@ const FIELDS: Record<FormProvider, ComponentType> = {
 /** The form for `provider`: its rows, and the provider's refusal under them. */
 const ConnectForm = ({
   provider,
+  into,
   onCreated,
   onCancel,
-}: Omit<TRecordDraftProps, 'defaults'> & { provider: FormProvider }) => {
+}: Omit<TRecordDraftProps, 'defaults'> & { provider: FormProvider; into: Into }) => {
   const { t } = useTranslation('frontline');
   const Fields = FIELDS[provider];
   const { onSuccess } = useIntegrationChange();
 
   const connect = useMutation({
-    mutationFn: CONNECT[provider],
+    mutationFn: (form: FormData) => CONNECT[provider](form, into),
     onSuccess: (account) => {
       onSuccess();
       onCreated(account.id);
@@ -112,6 +120,7 @@ const ConnectForm = ({
  * A new connected account in core's side panel, for the provider the integrations page picked:
  * a Telegram or Discord bot by its token, a mailbox by its IMAP and SMTP login, a Grandstream PBX
  * by its API user, or a CallPro line by its number. The provider checks it before it saves.
+ * Opened from a channel, the account joins it.
  */
 export const AccountNew = ({ defaults, ...props }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
@@ -124,5 +133,11 @@ export const AccountNew = ({ defaults, ...props }: TRecordDraftProps) => {
       </p>
     );
 
-  return <ConnectForm provider={provider.data} {...props} />;
+  return (
+    <ConnectForm
+      provider={provider.data}
+      into={{ channelId: textOf(defaults.channelId) || undefined }}
+      {...props}
+    />
+  );
 };
