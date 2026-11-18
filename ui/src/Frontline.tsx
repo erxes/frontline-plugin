@@ -180,19 +180,19 @@ const settingsRoutes = (
       element={<RecordRoute contentType={RESPONSE_TEMPLATE_TYPE} />}
     />
     <Route path="tags" element={<TagsPage />} />
-    {/*
-      Branches, departments and ticket properties are core's. Old links stay in settings: leaving the plugin
-      would keep the old page as the tab's last place, so every return would leave again.
-    */}
-    <Route path="departments" element={<Navigate to="../channels" replace />} />
-    <Route path="branches" element={<Navigate to="../channels" replace />} />
-    <Route path="ticket-properties" element={<Navigate to="../channels" replace />} />
     {/* Help centers moved out of settings. */}
     <Route path="help-centers/*" element={<Redirect path="help-centers" param="*" />} />
     <Route path="integrations" element={<IntegrationsPage />} />
     <Route path="integrations/:id" element={<RecordRoute contentType={ACCOUNT_TYPE} />} />
     <Route path="meta" element={<Navigate to="../integrations" replace />} />
     <Route path="meta/bots/:id" element={<RecordRoute contentType={META_BOT_TYPE} />} />
+    {/*
+      Any other settings address opens the channels: a record's list without its id, and old links
+      to branches, departments and ticket properties, which are core's. These stay in settings:
+      leaving the plugin would keep the old page as the tab's last place, so every return would
+      leave again.
+    */}
+    <Route path="*" element={<Navigate to={`/${PLUGIN}/settings/channels`} replace />} />
   </Route>
 );
 

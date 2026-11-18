@@ -79,6 +79,11 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
   await expect(page).toHaveURL(`${SETTINGS}/channels`);
   await page.getByRole('link', { name: 'Ticket properties', exact: true }).click();
   await expect(page).toHaveURL('/settings/properties/frontline.ticket');
+
+  // A record's address without its id opens the channels, not a blank page.
+  await page.goto(`${SETTINGS}/response-templates`);
+  await expect(page).toHaveURL(`${SETTINGS}/channels`);
+  await expect(page.getByRole('button', { name: 'Create channel' })).toBeVisible();
 });
 
 test('a channel member reads the settings, and a member without frontline permissions is refused', async ({
