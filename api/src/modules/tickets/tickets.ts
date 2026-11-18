@@ -24,6 +24,7 @@ import {
   refreshSla,
   resolutionSla,
   seenBy,
+  seenTicket,
   signalTickets,
   Ticket,
   ticketById,
@@ -142,15 +143,7 @@ const list = readsWithCore(
 const get = reads(PERMISSIONS.channelView)
   .input(z.object({ id: z.string() }))
   .output(Ticket)
-  .handler(async ({ input, context: { tx, member } }) => {
-    const [ticket] = await ticketRows(tx, member).where(
-      and(eq(tickets.id, input.id), seenBy(member)),
-    );
-
-    if (!ticket) throw new ORPCError('NOT_FOUND', { message: 'No such ticket' });
-
-    return ticket;
-  });
+  .handler(({ input, context: { tx, member } }) => seenTicket(tx, member, input.id));
 
 /**
  * Adds a ticket numbered by its pipeline and due by its SLA, and publishes its creation, by a

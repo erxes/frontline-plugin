@@ -23,7 +23,7 @@ const openMessenger = async (visitor: Visitor) => {
 
 type Settings = Awaited<ReturnType<typeof openMessenger>>;
 
-/** The pipelines a messenger takes tickets in: those it picks, of its own channel. */
+/** The pipelines a messenger takes tickets in: the public ones it picks, of its own channel. */
 const offered = (tx: Tx, settings: Settings) =>
   tx
     .select({ id: pipelines.id, name: pipelines.name, channelId: pipelines.channelId })
@@ -32,6 +32,7 @@ const offered = (tx: Tx, settings: Settings) =>
       and(
         eq(pipelines.channelId, settings.channelId),
         inArray(pipelines.id, settings.ticketPipelineIds),
+        eq(pipelines.visibility, 'public'),
       ),
     )
     .orderBy(asc(pipelines.name));

@@ -26,6 +26,39 @@ import {
 
 type Check = 'isCheckUser' | 'isCheckDepartment' | 'isCheckBranch' | 'isCheckDate';
 
+/**
+ * Whether the pipeline, its statuses and its tickets show to every member of its channel, or only
+ * to the ones it lists.
+ */
+const PipelineAccess = ({ pipeline }: { pipeline: Pipeline }) => {
+  const { t } = useTranslation('frontline');
+  const edit = useEditPipeline(pipeline.id);
+  const isPrivate = pipeline.visibility === 'private';
+
+  return (
+    <PanelSection title={t('pipeline', 'Pipeline')}>
+      <PanelField icon={IconLock} label={t('pipeline-private', 'Private to its members')}>
+        <Switch
+          aria-label={t('pipeline-private-of', '{{name}} is private', { name: pipeline.name })}
+          checked={isPrivate}
+          disabled={!pipeline.canManage}
+          onCheckedChange={(on) => edit({ visibility: on ? 'private' : 'public' })}
+          className="mx-2"
+        />
+      </PanelField>
+      {isPrivate && (
+        <PanelField icon={IconEye} label={t('status-members', 'Who sees it')} cell={false}>
+          <MembersField
+            label={t('status-members-of', 'Who sees {{name}}', { name: pipeline.name })}
+            value={pipeline.memberIds}
+            onValueChange={(memberIds) => edit({ memberIds })}
+          />
+        </PanelField>
+      )}
+    </PanelSection>
+  );
+};
+
 /** Who sees the pipeline's tickets beyond its channel: their own, their team's. */
 const VisibilityFields = ({ pipeline }: { pipeline: Pipeline }) => {
   const { t } = useTranslation('frontline');
@@ -149,14 +182,15 @@ const StatusesRights = ({ pipelineId, disabled }: { pipelineId: string; disabled
 };
 
 /**
- * The pipeline's Permissions tab: which tickets its channel's members see, and per status who sees
- * it, who edits its tickets and who moves them. Nobody listed means every member of the channel.
- * Only the channel's admins change it.
+ * The pipeline's Permissions tab: who sees it, which tickets its channel's members see, and per
+ * status who sees it, who edits its tickets and who moves them. Nobody listed means every member
+ * of the channel. Only the channel's admins change it.
  */
 export const PipelinePermissions = ({ contentId }: TRecordSlotProps) => (
   <WithPipeline id={contentId}>
     {(pipeline) => (
       <ReadOnly when={!pipeline.canManage}>
+        <PipelineAccess pipeline={pipeline} />
         <VisibilityFields pipeline={pipeline} />
         <StatusesRights pipelineId={pipeline.id} disabled={!pipeline.canManage} />
       </ReadOnly>

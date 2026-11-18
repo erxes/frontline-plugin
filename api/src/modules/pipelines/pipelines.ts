@@ -30,7 +30,7 @@ import { Blank, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
-import { statusRights } from './rights.ts';
+import { pipelineSeen, statusRights } from './rights.ts';
 
 /** Core user ids a setting lists. */
 export const UserIds = z.array(z.string()).max(1000);
@@ -46,6 +46,7 @@ const refine = {
   nameConfig: () => Blank(200),
   slaPolicy: () => SlaPolicy,
   excludeCheckUserIds: () => UserIds,
+  memberIds: () => UserIds,
 };
 
 /** The row, and whether the caller may change it, which the query selects. */
@@ -75,8 +76,8 @@ const DEFAULT_STATUSES = [
 ];
 
 /**
- * The pipeline `member` may act on: its channel's members read it, the
- * channel's admins and members who manage every channel change it.
+ * The pipeline `member` may act on: its channel's members read it, unless it is private and
+ * leaves them out; the channel's admins and members who manage every channel change it.
  */
 export const pipelineFor = async (
   tx: Tx,
@@ -88,7 +89,15 @@ export const pipelineFor = async (
 
   if (!pipeline) throw new ORPCError('NOT_FOUND', { message: 'No such pipeline' });
 
-  await channelFor(tx, member, pipeline.channelId, { change });
+  const { role } = await channelFor(tx, member, pipeline.channelId, { change });
+
+  if (
+    pipeline.visibility === 'private' &&
+    role !== 'admin' &&
+    !managesAll(member) &&
+    !pipeline.memberIds.includes(member.userId)
+  )
+    throw new ORPCError('NOT_FOUND', { message: 'No such pipeline' });
 
   return pipeline;
 };
@@ -121,8 +130,8 @@ const PIPELINE_FILTER: FilterFields = {
 const order = orderOf(pipelines);
 
 /**
- * A channel's pipelines, newest first, `limit` at a time, narrowed by the filter bar, and how
- * many match: `search` matches the name or description, ignoring case.
+ * A channel's pipelines the caller sees (`pipelineSeen`), newest first, `limit` at a time,
+ * narrowed by the filter bar, and how many match: `search` matches the name or description, ignoring case.
  */
 const list = reads(PERMISSIONS.channelView)
   .input(z.object({ channelId: z.string(), ...PageInput, ...FilterInput }))
@@ -137,6 +146,7 @@ const list = reads(PERMISSIONS.channelView)
 
     const matches = and(
       eq(pipelines.channelId, input.channelId),
+      pipelineSeen(member),
       input.search
         ? or(
             ilike(pipelines.name, likeText(input.search)),
@@ -157,7 +167,11 @@ const list = reads(PERMISSIONS.channelView)
       pipelines: items,
       nextCursor,
       totalCount: await firstPageCount(input.cursor, () =>
-        tx.select({ value: count() }).from(pipelines).where(matches),
+        tx
+          .select({ value: count() })
+          .from(pipelines)
+          .leftJoin(channelMembers, membership(member, pipelines.channelId))
+          .where(matches),
       ),
     };
   });
@@ -219,6 +233,8 @@ const update = writes(PERMISSIONS.channelView)
         isCheckBranch: true,
         isCheckDate: true,
         excludeCheckUserIds: true,
+        visibility: true,
+        memberIds: true,
       })
       .extend({ id: z.string() }),
   )
@@ -277,7 +293,7 @@ const StatusChoice = createSelectSchema(pipelineStatuses)
   });
 
 /**
- * Every pipeline of the channels the caller sees, by name, and the statuses they see by stage and
+ * Every pipeline the caller sees in the channels they see, by name, and the statuses they see by stage and
  * order, with what they may do in each: what a ticket is filed under, for the ticket screens'
  * pickers and filters.
  */
@@ -291,7 +307,7 @@ const choices = reads(PERMISSIONS.channelView)
       .select({ id: pipelines.id, channelId: pipelines.channelId, name: pipelines.name })
       .from(pipelines)
       .leftJoin(channelMembers, membership(member, pipelines.channelId))
-      .where(seen)
+      .where(and(seen, pipelineSeen(member)))
       .orderBy(asc(pipelines.name), asc(pipelines.id));
 
     const statuses = await tx

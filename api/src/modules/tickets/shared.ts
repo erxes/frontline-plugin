@@ -119,9 +119,19 @@ export const refine = {
 
 const UserIds = z.array(z.string()).max(100);
 
+/** One ticket `member` sees (`seenBy`), or NOT_FOUND. */
+export const seenTicket = async (tx: Tx, member: PluginMember, id: string) => {
+  const [ticket] = await ticketRows(tx, member).where(and(eq(tickets.id, id), seenBy(member)));
+
+  if (!ticket) throw new ORPCError('NOT_FOUND', { message: 'No such ticket' });
+
+  return ticket;
+};
+
 /**
- * The tickets of `ids`, all of them or NOT_FOUND, oldest first, with their channels held
- * (`heldInChannels`). Their channels' members change them; with `remove`, only the admins.
+ * The tickets of `ids` the caller sees (`seenBy`), all of them or NOT_FOUND, oldest first, with
+ * their channels held (`heldInChannels`). Their channels' members change them; with `remove`,
+ * only the admins.
  */
 export const ticketsFor = async (
   tx: Tx,
@@ -136,7 +146,8 @@ export const ticketsFor = async (
     await tx
       .select(ticketColumns)
       .from(tickets)
-      .where(inArray(tickets.id, ids))
+      .leftJoin(channelMembers, membership(member, tickets.channelId))
+      .where(and(inArray(tickets.id, ids), seenBy(member)))
       .orderBy(asc(tickets.createdAt), asc(tickets.id)),
     { change: remove, noun: 'ticket' },
   );

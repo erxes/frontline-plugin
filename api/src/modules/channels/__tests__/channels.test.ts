@@ -116,6 +116,24 @@ describe('channels', () => {
     ).resolves.toMatchObject([{ name: 'Billing' }]);
   });
 
+  it('gets the tickets of a pipeline that moves to it, and takes them when it is removed', async () => {
+    const owner = clientAs('org-ch-moves');
+    const support = await owner.channels.create({ name: 'Support' });
+    const billing = await owner.channels.create({ name: 'Billing' });
+    const pipeline = await owner.pipelines.create({ channelId: support.id, name: 'Main' });
+    const ticket = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Moves' });
+
+    await owner.pipelines.update({ id: pipeline.id, channelId: billing.id });
+
+    await expect(owner.tickets.get({ id: ticket.id })).resolves.toMatchObject({
+      channelId: billing.id,
+    });
+    await owner.channels.remove({ ids: [billing.id] });
+    await expect(owner.tickets.get({ id: ticket.id })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
   it('refuses a name the organisation already uses, ignoring case', async () => {
     const owner = clientAs('org-b');
 
