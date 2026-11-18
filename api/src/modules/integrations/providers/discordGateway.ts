@@ -1,24 +1,22 @@
 import { randomUUID } from 'node:crypto';
 import type { PluginJobDelivery } from '@erxes/core-contract';
-import { REST } from '@discordjs/rest';
+import { DiscordAPIError, REST } from '@discordjs/rest';
 import { WebSocketManager, WebSocketShardEvents } from '@discordjs/ws';
 import {
   GatewayCloseCodes,
   GatewayDispatchEvents,
   type GatewayDispatchPayload,
   GatewayIntentBits,
-  type GatewayMessageCreateDispatchData,
 } from 'discord-api-types/v10';
 import { and, eq, or, sql } from 'drizzle-orm';
-import { config } from '#/config.ts';
 import { withOrg } from '#/db/client.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { logger } from '#/logger.ts';
-import { FileRefused } from '#/modules/files.ts';
 import { recordCheck } from '../accounts.ts';
 import { deliverInbound } from '../inbound.ts';
-import type { AccountRow, InboundMessage } from '../provider.ts';
+import type { AccountRow } from '../provider.ts';
 import { discord } from './discord.ts';
+import { catchUp, inboundOf } from './discordInbound.ts';
 
 /** Discord's intents are bit flags, so their union is a number the enum type doesn't name. */
 const isIntents = (value: number): value is GatewayIntentBits => Number.isInteger(value);
@@ -32,9 +30,11 @@ const INTENT_BITS = GatewayIntentBits.GuildMessages | GatewayIntentBits.DirectMe
  */
 const INTENTS = isIntents(INTENT_BITS) ? INTENT_BITS : 0;
 
+const REFUSED_TOKEN = 'Discord refused the bot token: connect the bot again';
+
 /** Closes Discord won't come back from: the bot has to be connected again, or the code fixed. */
 const FATAL: Partial<Record<number, string>> = {
-  [GatewayCloseCodes.AuthenticationFailed]: 'Discord refused the bot token: connect the bot again',
+  [GatewayCloseCodes.AuthenticationFailed]: REFUSED_TOKEN,
   [GatewayCloseCodes.InvalidIntents]: 'Discord refused the intents frontline asked for',
   [GatewayCloseCodes.DisallowedIntents]: 'Discord refused the intents frontline asked for',
   [GatewayCloseCodes.InvalidAPIVersion]: 'Discord no longer takes this gateway version',
@@ -48,7 +48,7 @@ const REPLICA = randomUUID();
 const RENEW_MS = 60_000;
 const LEASE = sql`interval '3 minutes'`;
 
-/** The bots this replica keeps a gateway open for, by account id. */
+/** The bots this replica keeps a gateway open for, by account id, with their latest row. */
 const held = new Map<string, { row: AccountRow; manager: WebSocketManager }>();
 
 /** The bots this replica is opening a gateway for. */
@@ -97,6 +97,13 @@ const letGo = async (row: AccountRow) => {
   );
 };
 
+/** Closes the bot's gateway for good and marks the account broken with why. */
+const refused = async (row: AccountRow, why: string) => {
+  logger.warn({ accountId: row.id, why }, 'Discord refused the bot');
+  await letGo(row);
+  await recordCheck(row, why);
+};
+
 /** Renews this replica's leases; a bot whose lease it lost, or that was removed, is let go. */
 const renew = async () => {
   await Promise.all(
@@ -110,75 +117,32 @@ const renew = async () => {
 
 let renewing: NodeJS.Timeout | null = null;
 
-/** An attachment's bytes from Discord's CDN. */
-const download = async (url: string) => {
-  const response = await fetch(url, { signal: AbortSignal.timeout(4 * config.outboundMs) });
+/** What a gateway sent, if it is still the bot's: a message for the bot goes to the inbox. */
+const received = async (manager: WebSocketManager, payload: GatewayDispatchPayload) => {
+  const open = [...held.values()].find((entry) => entry.manager === manager);
 
-  if (!response.ok)
-    throw new (response.status < 500 ? FileRefused : Error)(
-      `Discord did not send the file: ${response.status}`,
-    );
+  if (!open) return;
 
-  return new Uint8Array(await response.arrayBuffer());
-};
+  if (payload.t === GatewayDispatchEvents.Ready)
+    await catchUp(open.row, discord.open(open.row).account.secret.token);
 
-/**
- * A message for the bot as the inbox reads it: a direct message, or one in a server that
- * mentions the bot or answers it, with the mention taken out. A conversation is one channel or
- * thread; none from a bot or a webhook.
- */
-const inboundOf = (
-  botId: string,
-  message: GatewayMessageCreateDispatchData,
-): InboundMessage | null => {
-  const forBot =
-    !message.guild_id ||
-    message.mentions.some((user) => user.id === botId) ||
-    message.referenced_message?.author.id === botId;
-
-  if (!forBot || message.author.bot || message.webhook_id) return null;
-
-  return {
-    threadId: message.channel_id,
-    messageId: message.id,
-    author: {
-      externalId: message.author.id,
-      name: message.author.global_name ?? message.author.username,
-    },
-    text: message.content.replaceAll(new RegExp(`<@!?${botId}>`, 'g'), '').trim(),
-    attachments: [],
-    files: message.attachments.map((file) => ({
-      name: file.filename,
-      contentType: file.content_type ?? 'application/octet-stream',
-      bytes: () => download(file.url),
-    })),
-  };
-};
-
-/** What the bot's gateway sent: a message for it goes to the inbox. */
-const received = async (accountId: string, payload: GatewayDispatchPayload) => {
-  const open = held.get(accountId);
-
-  if (!open || payload.t !== GatewayDispatchEvents.MessageCreate) return;
+  if (payload.t !== GatewayDispatchEvents.MessageCreate) return;
 
   const message = inboundOf(open.row.externalId, payload.d);
 
   if (message) await deliverInbound(open.row, [message]);
 };
 
-/** A close Discord won't come back from marks the account broken and gives the lease up. */
-const closed = async (row: AccountRow, code: number) => {
+/** A close Discord won't come back from, on the bot's current gateway, marks it broken. */
+const closed = async (manager: WebSocketManager, code: number) => {
+  const open = [...held.values()].find((entry) => entry.manager === manager);
   const why = FATAL[code];
 
-  if (!why) return;
-
-  logger.warn({ accountId: row.id, code }, 'Discord closed the gateway for good');
-  await letGo(row);
-  await recordCheck(row, why);
+  if (open && why) await refused(open.row, why);
 };
 
 /** Opens the bot's gateway on this replica once it holds the bot's lease. */
-const open = async (row: AccountRow) => {
+const openGateway = async (row: AccountRow) => {
   if (!(await lease(row))) return;
 
   const { token } = discord.open(row).account.secret;
@@ -193,18 +157,28 @@ const open = async (row: AccountRow) => {
   renewing ??= setInterval(() => void renew(), RENEW_MS).unref();
 
   manager.on(WebSocketShardEvents.Dispatch, (payload) => {
-    received(row.id, payload).catch((error: unknown) => {
+    received(manager, payload).catch((error: unknown) => {
       logger.error({ err: error, accountId: row.id }, 'Discord message not delivered');
     });
   });
 
   manager.on(WebSocketShardEvents.Closed, (code) => {
-    closed(row, code).catch((error: unknown) => {
+    closed(manager, code).catch((error: unknown) => {
       logger.error({ err: error, accountId: row.id }, 'Discord gateway not let go');
     });
   });
 
+  // The library reports a close it won't come back from here too; without a listener the
+  // emit would throw and take the process down.
+  manager.on(WebSocketShardEvents.Error, (error) => {
+    logger.warn({ err: error, accountId: row.id }, 'Discord gateway failed');
+  });
+
   await manager.connect().catch(async (error: unknown) => {
+    // Discord asks for the token before the socket opens; a refused one won't pass next minute.
+    if (error instanceof DiscordAPIError && error.status === 401)
+      return refused(row, REFUSED_TOKEN);
+
     await letGo(row);
     throw error;
   });
@@ -217,16 +191,31 @@ const hold = async (row: AccountRow) => {
   opening.add(row.id);
 
   try {
-    await open(row);
+    await openGateway(row);
   } finally {
     opening.delete(row.id);
   }
 };
 
 /**
- * Opens a gateway for each of the organisation's Discord bots whose lease no replica holds, and
- * closes the ones this replica holds for bots that were removed. The replica that holds a lease
- * renews it itself, since core may run this job on any replica.
+ * Brings this replica's gateway for the bot up to date with its row: a bot that broke or was
+ * connected again with another token is let go, and the rest carry the new row.
+ */
+const refresh = async (row: AccountRow) => {
+  const open = held.get(row.id);
+
+  if (!open) return;
+
+  if (row.status === 'healthy' && row.secret === open.row.secret)
+    held.set(row.id, { ...open, row });
+  else await letGo(open.row);
+};
+
+/**
+ * Opens a gateway for each of the organisation's healthy Discord bots whose lease no replica
+ * holds, and closes the ones this replica holds for bots that were removed, broke or got a new
+ * token. A broken bot opens again once a repair or a new connect marks it healthy. The replica
+ * that holds a lease renews it itself, since core may run this job on any replica.
  */
 export const keepDiscordGateways = async (job: PluginJobDelivery) => {
   const rows = await withOrg(job.orgId, (tx) =>
@@ -235,18 +224,21 @@ export const keepDiscordGateways = async (job: PluginJobDelivery) => {
 
   const ids = new Set(rows.map(({ id }) => id));
 
-  await Promise.all(
-    [...held.values()]
+  await Promise.all([
+    ...[...held.values()]
       .filter(({ row }) => row.orgId === job.orgId && !ids.has(row.id))
       .map(({ row }) => letGo(row)),
-  );
+    ...rows.map(refresh),
+  ]);
 
   await Promise.all(
-    rows.map((row) =>
-      hold(row).catch((error: unknown) => {
-        logger.error({ err: error, accountId: row.id }, 'Discord gateway did not open');
-      }),
-    ),
+    rows
+      .filter((row) => row.status === 'healthy')
+      .map((row) =>
+        hold(row).catch((error: unknown) => {
+          logger.error({ err: error, accountId: row.id }, 'Discord gateway did not open');
+        }),
+      ),
   );
 };
 
