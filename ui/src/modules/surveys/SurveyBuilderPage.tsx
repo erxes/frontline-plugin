@@ -1,23 +1,10 @@
-import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { IconChecklist, IconPlus } from '@tabler/icons-react';
 import { Button, PageContainer, ScrollArea, Skeleton } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
+import { useListDrag } from '~/shared/drag.ts';
 import { AppHeader } from '~/shared/Header.tsx';
 import { ListError } from '~/shared/List.tsx';
 import { QuestionCard } from './QuestionCard.tsx';
@@ -32,10 +19,7 @@ const Questions = ({ survey }: { survey: Survey }) => {
   const save = useSaveSteps(survey.id);
   const { steps } = survey;
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const drag = useListDrag((id) => steps.find((step) => step.id === id)?.question ?? '');
 
   const dragEnd = ({ active, over }: DragEndEvent) => {
     const from = steps.findIndex((step) => step.id === active.id);
@@ -46,12 +30,7 @@ const Questions = ({ survey }: { survey: Survey }) => {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        modifiers={[restrictToVerticalAxis]}
-        onDragEnd={dragEnd}
-      >
+      <DndContext {...drag} collisionDetection={closestCenter} onDragEnd={dragEnd}>
         <SortableContext
           items={steps.map((step) => step.id)}
           strategy={verticalListSortingStrategy}

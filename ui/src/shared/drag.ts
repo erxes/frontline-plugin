@@ -1,0 +1,63 @@
+import {
+  type Announcements,
+  KeyboardSensor,
+  PointerSensor,
+  type UniqueIdentifier,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { useTranslation } from 'react-i18next';
+
+/**
+ * A list's rows dragged up and down by their handles: by pointer once it moves 4 px, or by
+ * keyboard (Space, the arrows, Space). Spread it into `DndContext`. A screen reader hears each
+ * row by `nameOf` its id rather than the id itself, and specs wait for the same words.
+ */
+export const useListDrag = (nameOf: (id: UniqueIdentifier) => string) => {
+  const { t } = useTranslation('frontline');
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const announcements: Announcements = {
+    onDragStart: ({ active }) =>
+      t('drag-start', 'Picked up {{item}}.', { item: nameOf(active.id) }),
+    onDragOver: ({ active, over }) => {
+      const item = nameOf(active.id);
+
+      if (!over) return t('drag-over-none', '{{item}} is over no place to drop.', { item });
+
+      if (over.id === active.id)
+        return t('drag-over-itself', '{{item}} is in its place.', { item });
+
+      return t('drag-over', '{{item}} is over {{target}}.', { item, target: nameOf(over.id) });
+    },
+    onDragEnd: ({ active, over }) => {
+      const item = nameOf(active.id);
+
+      return over && over.id !== active.id
+        ? t('drag-end', '{{item}} dropped on {{target}}.', { item, target: nameOf(over.id) })
+        : t('drag-end-none', '{{item}} dropped where it was.', { item });
+    },
+    onDragCancel: ({ active }) =>
+      t('drag-cancel', '{{item}} put back.', { item: nameOf(active.id) }),
+  };
+
+  return {
+    sensors,
+    modifiers: [restrictToVerticalAxis],
+    accessibility: {
+      announcements,
+      screenReaderInstructions: {
+        draggable: t(
+          'drag-help',
+          'Press Space to pick it up, the arrow keys to move it, Space to drop it, or Escape to put it back.',
+        ),
+      },
+    },
+  };
+};

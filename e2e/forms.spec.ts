@@ -4,8 +4,10 @@ import {
   confirmDelete,
   expect,
   expectAccessible,
+  moveByKeys,
   openChannelPipelines,
   openShop,
+  pick,
   recordPanel,
   test,
   unique,
@@ -15,14 +17,6 @@ const FORMS = '/frontline/forms';
 
 /** What the public address gives a visitor: the fields, by id. */
 const Shown = z.object({ fields: z.array(z.object({ id: z.string(), label: z.string() })) });
-
-/** Opens `select` and picks `option` in it. */
-const pick = async (page: Page, select: Locator, option: string) => {
-  await select.click();
-  await page.getByRole('option', { name: option, exact: true }).click();
-  // A click while the menu still closes would only dismiss it.
-  await expect(page.getByRole('option', { name: option, exact: true })).toBeHidden();
-};
 
 /** Opens the in-place text `name`, types `value` and saves it with Enter. */
 const retype = async (page: Page, button: Locator, placeholder: string, value: string) => {
@@ -86,26 +80,11 @@ const buildFields = async (page: Page) => {
 
   // Fields drag into a new order, and the keyboard drags them too: Seats goes above Plan and back.
   const first = page.getByRole('button', { name: /^Settings of/ }).first();
+  const seats = page.getByRole('button', { name: 'Move Seats', exact: true });
 
-  // Each key waits for the screen reader announcement, since dnd-kit listens for the next key
-  // only after it.
-  const announcement = page.getByText(/was moved over droppable area/);
-
-  const moveSeats = async (key: 'ArrowUp' | 'ArrowDown') => {
-    const handle = page.getByRole('button', { name: 'Move Seats', exact: true });
-
-    await handle.press('Space');
-    await expect(handle).toHaveAttribute('aria-pressed', 'true');
-    const overItself = await announcement.textContent();
-
-    await page.keyboard.press(key);
-    await expect(announcement).not.toHaveText(overItself ?? '');
-    await page.keyboard.press('Space');
-  };
-
-  await moveSeats('ArrowUp');
+  await moveByKeys(seats, 'ArrowUp', 'Seats', 'Plan');
   await expect(first).toHaveAccessibleName('Settings of Seats');
-  await moveSeats('ArrowDown');
+  await moveByKeys(seats, 'ArrowDown', 'Seats', 'Plan');
   await expect(first).toHaveAccessibleName('Settings of Plan');
 };
 
