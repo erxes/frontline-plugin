@@ -40,8 +40,9 @@ without line-by-line review.
   (`doctor.config.jsonc`), knip, the docs guard and `pnpm check:generated`, which
   compares the migrations with the schema. `pnpm exec react-doctor why <file:line>`,
   run in `ui/`, explains a React Doctor hit.
-- Other gates: `vp run test` on real Postgres via `DATA_TEST_URL`,
-  `pnpm check:rls`, `pnpm image` then `pnpm budgets`, and `pnpm e2e`. `vp run fix`
+- Other gates: `vp run test` on real Postgres via `DATA_TEST_URL`, which
+  runs `pnpm check:migration` (each `MIGRATION.md` tick names code that exists, each drop
+  its `DECISIONS.md` row), `pnpm check:rls`, `pnpm image` then `pnpm budgets`, and `pnpm e2e`. `vp run fix`
   formats and fixes lint. CI's one required status is `Check`.
 - `pnpm e2e:stack up` runs core's released images and the plugin image on a
   fresh database, web on :8080. `pnpm e2e` drives Chromium; `a11y.spec.ts`
