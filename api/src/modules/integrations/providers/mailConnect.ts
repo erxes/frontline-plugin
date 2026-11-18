@@ -5,6 +5,7 @@ import { writesWithCore } from '#/orpc.ts';
 import { Account, saveAccount } from '../store.ts';
 import { checkMail, pullMail, Server } from './mail.ts';
 import { composeProcedures } from './mailCompose.ts';
+import { servers } from './mailServers.ts';
 import { suppressionProcedures } from './mailSuppressions.ts';
 
 const Login = Server.extend({ password: z.string().min(1).max(500) });
@@ -55,6 +56,7 @@ const connect = writesWithCore(
 
 export const mailProcedures = {
   connect,
+  servers,
   ...composeProcedures,
   suppressions: suppressionProcedures,
 };
