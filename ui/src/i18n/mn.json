@@ -216,6 +216,7 @@
   "direction": "Чиглэл",
   "discard": "Болих",
   "discard-draft-confirm": "Бичсэнээ хаях уу?",
+  "discard-ticket": "Энэ шинэ тикетийг хаях уу?",
   "disconnect": "Салгах",
   "disconnect-account-confirm": "{{name}}-г салгах уу?",
   "discord-add-bot-to-server": "Энэ ботыг сервертээ нэмэх",
