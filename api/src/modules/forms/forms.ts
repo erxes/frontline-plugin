@@ -13,7 +13,7 @@ import { changedEvent } from '../events.ts';
 import { Blank, Color, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
-import { orderOf, PageInput } from '../paging.ts';
+import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 import { Form, formById, formFor, formRows, newCode, publishFormEvents, seenBy } from './shared.ts';
 
 /** What the forms list's filter bar narrows by (`ui/src/modules/forms`). */
@@ -39,9 +39,7 @@ const order = orderOf(forms);
  */
 const list = reads(PERMISSIONS.channelView)
   .input(z.object({ ...FilterInput, ...PageInput }))
-  .output(
-    z.object({ forms: z.array(Form), nextCursor: z.string().nullable(), totalCount: z.number() }),
-  )
+  .output(z.object({ forms: z.array(Form), ...PageOutput }))
   .handler(async ({ input, context: { tx, member } }) => {
     const matches = and(
       seenBy(member),
@@ -56,15 +54,17 @@ const list = reads(PERMISSIONS.channelView)
       .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
-    const [total] = await tx
-      .select({ value: count() })
-      .from(forms)
-      .leftJoin(channelMembers, membership(member, forms.channelId))
-      .where(matches);
+    const totalCount = await firstPageCount(input.cursor, () =>
+      tx
+        .select({ value: count() })
+        .from(forms)
+        .leftJoin(channelMembers, membership(member, forms.channelId))
+        .where(matches),
+    );
 
     const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
-    return { forms: items, nextCursor, totalCount: total?.value ?? 0 };
+    return { forms: items, nextCursor, totalCount };
   });
 
 /** One form of a channel the member belongs to. */

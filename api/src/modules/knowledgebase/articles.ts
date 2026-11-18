@@ -10,7 +10,7 @@ import { reads, writes } from '#/orpc.ts';
 import { Blank, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
-import { orderOf, PageInput } from '../paging.ts';
+import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 import { categoryFor, topicFor } from './shared.ts';
 
 const { orgId, content, reactionChoices, image, attachments, pdfAttachment, ...rowColumns } =
@@ -157,8 +157,7 @@ const list = reads(PERMISSIONS.kbView)
   .output(
     z.object({
       articles: z.array(Article),
-      nextCursor: z.string().nullable(),
-      totalCount: z.number(),
+      ...PageOutput,
     }),
   )
   .handler(async ({ input, context: { tx, member } }) => {
@@ -189,13 +188,16 @@ const list = reads(PERMISSIONS.kbView)
       .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
-    const [total] = await tx.select({ value: count() }).from(kbArticles).where(matches);
+    const totalCount = await firstPageCount(input.cursor, () =>
+      tx.select({ value: count() }).from(kbArticles).where(matches),
+    );
+
     const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return {
       articles: items,
       nextCursor,
-      totalCount: total?.value ?? 0,
+      totalCount,
     };
   });
 

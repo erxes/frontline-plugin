@@ -9,7 +9,7 @@ import { formAnswers, formFields, formSubmissions } from '#/db/forms.ts';
 import { reads, writes } from '#/orpc.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
-import { orderOf, PageInput } from '../paging.ts';
+import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 import { Answer, typeError } from './answers.ts';
 import { Ids } from '../fields.ts';
 import { formFor, formsFor } from './shared.ts';
@@ -92,8 +92,7 @@ const list = reads(PERMISSIONS.channelView)
   .output(
     z.object({
       submissions: z.array(Submission),
-      nextCursor: z.string().nullable(),
-      totalCount: z.number(),
+      ...PageOutput,
     }),
   )
   .handler(async ({ input, context: { tx, member } }) => {
@@ -116,10 +115,13 @@ const list = reads(PERMISSIONS.channelView)
       .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
-    const [total] = await tx.select({ value: count() }).from(formSubmissions).where(matches);
+    const totalCount = await firstPageCount(input.cursor, () =>
+      tx.select({ value: count() }).from(formSubmissions).where(matches),
+    );
+
     const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
-    return { submissions: items, nextCursor, totalCount: total?.value ?? 0 };
+    return { submissions: items, nextCursor, totalCount };
   });
 
 /** One submission with its answers. */

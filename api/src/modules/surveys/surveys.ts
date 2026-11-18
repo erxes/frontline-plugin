@@ -11,7 +11,7 @@ import { Ids, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
 import { newCode } from '../forms/shared.ts';
-import { orderOf, PageInput } from '../paging.ts';
+import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 import {
   checkTickets,
   publishSurveyEvents,
@@ -47,8 +47,7 @@ const list = reads(PERMISSIONS.channelView)
   .output(
     z.object({
       surveys: z.array(Survey),
-      nextCursor: z.string().nullable(),
-      totalCount: z.number(),
+      ...PageOutput,
     }),
   )
   .handler(async ({ input, context: { tx, member } }) => {
@@ -65,15 +64,17 @@ const list = reads(PERMISSIONS.channelView)
       .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
-    const [total] = await tx
-      .select({ value: count() })
-      .from(surveys)
-      .leftJoin(channelMembers, membership(member, surveys.channelId))
-      .where(matches);
+    const totalCount = await firstPageCount(input.cursor, () =>
+      tx
+        .select({ value: count() })
+        .from(surveys)
+        .leftJoin(channelMembers, membership(member, surveys.channelId))
+        .where(matches),
+    );
 
     const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
-    return { surveys: items, nextCursor, totalCount: total?.value ?? 0 };
+    return { surveys: items, nextCursor, totalCount };
   });
 
 const get = reads(PERMISSIONS.channelView)

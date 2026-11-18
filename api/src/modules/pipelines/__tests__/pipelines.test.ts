@@ -122,6 +122,8 @@ describe('pipelines', () => {
 
     expect(rest.pipelines.map((pipeline) => pipeline.name)).toEqual(['First']);
     expect(rest.nextCursor).toBeNull();
+    // Only the first page counts.
+    expect(rest.totalCount).toBeUndefined();
   });
 
   it('narrows the list by search and the filter bar, counting only what matches', async () => {
