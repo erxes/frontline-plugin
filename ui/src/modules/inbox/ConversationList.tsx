@@ -14,7 +14,9 @@ import {
 } from 'erxes-ui';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LoadPage } from '~/shared/List.tsx';
 import { PersonAvatar } from '~/shared/Person.tsx';
+import type { Paging } from '~/shared/paging.ts';
 import { KindIcon } from './InboxFilter.tsx';
 import { type Conversation, useOpenConversation, usePrefetchConversation } from './queries.ts';
 import { useMarkRead } from './changes.ts';
@@ -244,16 +246,12 @@ const useListKeys = (conversations: Conversation[]) => {
 export const ConversationList = ({
   conversations,
   customers,
-  isPending,
-  hasNextPage,
-  fetchNextPage,
+  paging,
   refresh,
 }: {
   conversations: Conversation[];
   customers: ReadonlyMap<string, CustomerContact>;
-  isPending: boolean;
-  hasNextPage: boolean;
-  fetchNextPage: () => void;
+  paging: Paging;
   refresh: () => void;
 }) => {
   const { t } = useTranslation('frontline');
@@ -263,7 +261,8 @@ export const ConversationList = ({
     <div className="flex h-full flex-col">
       <Toolbar conversations={conversations} refresh={refresh} />
       <ScrollArea className="min-h-0 flex-1">
-        {isPending ? (
+        <LoadPage paging={paging} newer />
+        {paging.isPending ? (
           <RowSkeletons />
         ) : (
           // As wide as the inbox's column, however it is dragged: erxes-ui's ScrollArea lets its
@@ -284,13 +283,7 @@ export const ConversationList = ({
             ))}
           </ul>
         )}
-        {hasNextPage && (
-          <div className="p-3">
-            <Button variant="ghost" className="w-full" onClick={fetchNextPage}>
-              {t('load-more', 'Load more')}
-            </Button>
-          </div>
-        )}
+        <LoadPage paging={paging} />
       </ScrollArea>
     </div>
   );

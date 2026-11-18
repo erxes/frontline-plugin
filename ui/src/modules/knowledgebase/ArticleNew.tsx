@@ -1,10 +1,9 @@
 import { IconFolder, IconLetterCase, IconNotes, IconProgressCheck } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { PanelFormLayout, PanelFormRow, Select, type TRecordDraftProps } from 'erxes-ui';
+import { PanelFormLayout, PanelFormRow, Select, type TRecordDraftProps, textOf } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { textOf } from '~/shared/hooks.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { CategorySelect } from './CategoryTree.tsx';
 import {

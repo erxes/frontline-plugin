@@ -4,6 +4,7 @@ import type { Client } from '@frontline/api';
 import { useListFilterParams } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { useChange } from '~/shared/hooks.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 
@@ -52,19 +53,15 @@ export const useStatusNames = (): Record<SurveyStatus, string> => {
 export const useSurveys = () => {
   const filter = useListFilterParams();
 
-  const query = useInfiniteQuery(
-    orpc.surveys.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ ...filter, cursor }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-    }),
+  return usePaged(
+    useInfiniteQuery(
+      orpc.surveys.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ ...filter, cursor }),
+        ...pageOptions,
+      }),
+    ),
+    (page) => page.surveys,
   );
-
-  return {
-    ...query,
-    surveys: query.data?.pages.flatMap((page) => page.surveys) ?? [],
-    totalCount: query.data?.pages[0]?.totalCount,
-  };
 };
 
 export const useSurvey = (id: string) => useQuery(orpc.surveys.get.queryOptions({ input: { id } }));

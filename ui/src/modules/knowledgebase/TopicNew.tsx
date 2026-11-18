@@ -1,11 +1,10 @@
 import { isDefinedError, type ORPCError } from '@orpc/client';
 import { IconAlignLeft, IconCode, IconLanguage, IconLetterCase } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { PanelFormLayout, PanelFormRow, type TRecordDraftProps } from 'erxes-ui';
+import { PanelFormLayout, PanelFormRow, type TRecordDraftProps, textOf } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { textOf } from '~/shared/hooks.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { LanguageSelect } from './LanguageSelect.tsx';
 import { useKbChange } from './useKnowledgeBase.ts';

@@ -200,7 +200,7 @@ export const InboxPage = () => {
   const shown = useAtomValue(listShown);
 
   const list = useConversations();
-  const { conversations, isPending } = list;
+  const { rows: conversations, isPending } = list;
 
   // A conversation the filters no longer match stays open beside the empty list.
   const empty = !isPending && conversations.length === 0;
@@ -252,9 +252,7 @@ export const InboxPage = () => {
                 <ConversationList
                   conversations={conversations}
                   customers={list.customers}
-                  isPending={isPending}
-                  hasNextPage={list.hasNextPage}
-                  fetchNextPage={() => void list.fetchNextPage()}
+                  paging={list}
                   refresh={() => void list.refetch()}
                 />
                 <BulkBar conversations={conversations} />

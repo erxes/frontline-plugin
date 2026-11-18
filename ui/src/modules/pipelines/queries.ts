@@ -1,11 +1,12 @@
 import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
 import { addPluginStyles, toast, useListFilterParams } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { PLUGIN } from '~/plugin.ts';
-import { useChange } from '~/shared/hooks.ts';
+import { useChange, useOptimistic } from '~/shared/hooks.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 import css from './styles.css?inline';
 
@@ -25,19 +26,15 @@ export type PipelineFields = Omit<InferClientInputs<Client>['pipelines']['update
 export const usePipelines = (channelId: string) => {
   const params = useListFilterParams();
 
-  const query = useInfiniteQuery(
-    orpc.pipelines.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ channelId, cursor, ...params }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-    }),
+  return usePaged(
+    useInfiniteQuery(
+      orpc.pipelines.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ channelId, cursor, ...params }),
+        ...pageOptions,
+      }),
+    ),
+    (page) => page.pipelines,
   );
-
-  return {
-    ...query,
-    pipelines: query.data?.pages.flatMap((page) => page.pipelines) ?? [],
-    totalCount: query.data?.pages[0]?.totalCount,
-  };
 };
 
 /** One pipeline: every slot of its panel reads this query. */
@@ -53,20 +50,21 @@ export const usePipelineChange = () => useChange(orpc.pipelines.key());
 
 /** Saves the given fields of the pipeline, one in-place edit at a time. */
 export const useEditPipeline = (id: string) => {
-  const queryClient = useQueryClient();
-  const change = usePipelineChange();
-  const { queryKey } = orpc.pipelines.get.queryOptions({ input: { id } });
-
-  const update = useMutation(
-    orpc.pipelines.update.mutationOptions({ onError: change.onError, onSettled: change.onSuccess }),
-  );
+  const queryKey = orpc.pipelines.get.queryKey({ input: { id } });
 
   // The panel shows the edit at once, so the next edit (the SLA saves its whole policy) builds on
   // it instead of on the last fetch.
-  return (fields: PipelineFields) => {
-    queryClient.setQueryData(queryKey, (pipeline) => pipeline && { ...pipeline, ...fields });
-    update.mutate({ id, ...fields });
-  };
+  const update = useMutation(
+    orpc.pipelines.update.mutationOptions(
+      useOptimistic(
+        [queryKey, orpc.pipelines.list.key(), orpc.pipelines.choices.key()],
+        (queryClient, fields: PipelineFields) =>
+          queryClient.setQueryData(queryKey, (pipeline) => pipeline && { ...pipeline, ...fields }),
+      ),
+    ),
+  );
+
+  return (fields: PipelineFields) => update.mutate({ id, ...fields });
 };
 
 /** Asks for "delete" to be typed, then deletes the pipelines and their statuses, all or none. */

@@ -21,6 +21,7 @@ import { useTranslation } from 'react-i18next';
 import { type Conversation, type Message, useMessages, usePinnedMessages } from './queries.ts';
 import { useEditMessage, usePinMessage } from './changes.ts';
 import { SentSurvey } from '~/modules/surveys/SurveyMessage.tsx';
+import { LoadPage } from '~/shared/List.tsx';
 import { MemberLine, PersonAvatar, useCustomer } from '~/shared/Person.tsx';
 import { Attachments, LinkPreviews, MessageBody } from './MessageContent.tsx';
 import { Reactions } from './Reactions.tsx';
@@ -275,10 +276,12 @@ const ThreadSkeleton = () => (
  */
 export const MessageThread = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
-  const { messages, isPending, hasNextPage, fetchNextPage } = useMessages(conversation.id);
+  const thread = useMessages(conversation.id);
+  const { messages, isPending, hasNextPage, fetchNextPage } = thread;
   const customer = useCustomer(conversation.customerId);
   const end = useRef<HTMLDivElement>(null);
-  const lastId = messages.at(-1)?.id;
+  // While the newest messages are dropped for older ones, the last shown is no new arrival.
+  const lastId = thread.hasPreviousPage ? undefined : messages.at(-1)?.id;
 
   useEffect(() => {
     if (lastId) end.current?.scrollIntoView({ block: 'end' });
@@ -320,6 +323,7 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
             ))}
           </ol>
         )}
+        <LoadPage paging={thread} newer />
         <div ref={end} />
       </ScrollArea>
     </>

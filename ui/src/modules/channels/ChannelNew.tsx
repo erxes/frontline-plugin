@@ -9,12 +9,12 @@ import {
   PanelFormLayout,
   PanelFormRow,
   type TRecordDraftProps,
+  textOf,
 } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MemberLine } from '~/shared/Person.tsx';
 import { orpc } from '~/orpc.ts';
-import { textOf } from '~/shared/hooks.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { useChannelChange } from './useChannels.ts';
 

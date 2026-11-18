@@ -29,7 +29,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { KB_ARTICLE_TYPE } from '~/plugin.ts';
-import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
+import { CreateButton, ListEmpty, ListError, LoadPage } from '~/shared/List.tsx';
 import { ActionsMenu, DeleteButton, ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
 import { ArticleList } from './ArticleList.tsx';
 import { ArticlesTable } from './ArticlesTable.tsx';
@@ -174,8 +174,8 @@ export const ArticlesPage = () => {
   const { openNew } = useOpenRecord();
   const [display] = useListDisplay(LIST, DISPLAYS);
 
-  const { articles, totalCount, isPending, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
-    useArticles(topicId);
+  const list = useArticles(topicId);
+  const { rows: articles, totalCount, isPending, error } = list;
 
   const bulk = (selected: string[], clear: () => void) => (
     <BulkActions topicId={topicId} selected={selected} clear={clear} />
@@ -210,14 +210,7 @@ export const ArticlesPage = () => {
           description={t('kb-no-articles-description', 'Write the first article of this topic.')}
         />
       ) : display === 'table' ? (
-        <ArticlesTable
-          topicId={topicId}
-          articles={articles}
-          manage={can.articles}
-          isPending={isPending}
-          hasNextPage={hasNextPage}
-          fetchNextPage={() => void fetchNextPage()}
-        >
+        <ArticlesTable topicId={topicId} articles={articles} manage={can.articles} paging={list}>
           {can.articles && <SelectionBar>{bulk}</SelectionBar>}
         </ArticlesTable>
       ) : (
@@ -227,16 +220,7 @@ export const ArticlesPage = () => {
           ) : (
             <ArticleList articles={articles} topicId={topicId} />
           )}
-          {hasNextPage && (
-            <Button
-              variant="ghost"
-              className="m-3 self-center"
-              disabled={isFetchingNextPage}
-              onClick={() => void fetchNextPage()}
-            >
-              {t('load-more', 'Load more')}
-            </Button>
-          )}
+          <LoadPage paging={list} />
           {can.articles && (
             <ListSelectionBar shown={articles.map((article) => article.id)}>
               {bulk}

@@ -14,47 +14,41 @@ import {
   sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 import { CommandBar, RecordList, Separator, Spinner, type TRecordSlotProps } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { useOptimistic } from '~/shared/hooks.ts';
 import { DeleteButton } from '~/shared/Records.tsx';
 import { WithPipeline } from './PipelinePanel.tsx';
-import {
-  type Pipeline,
-  type Status,
-  usePipelineChange,
-  useStages,
-  useStatuses,
-} from './queries.ts';
-import { AddStatus, StageIcon, StatusRow, useDeleteStatuses } from './StatusRow.tsx';
+import { type Pipeline, type Status, useStages, useStatuses } from './queries.ts';
+import { StageIcon } from './StageIcon.tsx';
+import { AddStatus, StatusRow, useDeleteStatuses } from './StatusRow.tsx';
 
 /**
  * Puts a stage's statuses in their new order at once, then saves it in one
  * call; a refusal shows and the saved order comes back.
  */
 const useReorder = (pipelineId: string) => {
-  const queryClient = useQueryClient();
-  const change = usePipelineChange();
   const queryKey = orpc.pipelines.statuses.list.queryKey({ input: { pipelineId } });
 
   const reorder = useMutation(
-    orpc.pipelines.statuses.reorder.mutationOptions({
-      onError: change.onError,
-      onSettled: change.onSuccess,
-    }),
+    orpc.pipelines.statuses.reorder.mutationOptions(
+      useOptimistic(
+        [queryKey, orpc.pipelines.choices.key()],
+        (queryClient, { type, ids }: { type: number; ids: string[] }) =>
+          queryClient.setQueryData(queryKey, (statuses) =>
+            statuses
+              ?.map((status) =>
+                status.type === type ? { ...status, order: ids.indexOf(status.id) } : status,
+              )
+              .toSorted((a, b) => a.type - b.type || a.order - b.order),
+          ),
+      ),
+    ),
   );
 
-  return (type: number, ids: string[]) => {
-    queryClient.setQueryData(queryKey, (statuses) =>
-      statuses
-        ?.map((status) =>
-          status.type === type ? { ...status, order: ids.indexOf(status.id) } : status,
-        )
-        .toSorted((a, b) => a.type - b.type || a.order - b.order),
-    );
-    reorder.mutate({ pipelineId, type, ids });
-  };
+  return (type: number, ids: string[]) => reorder.mutate({ pipelineId, type, ids });
 };
 
 /** Deletes the picked statuses from the bar under the list, for the pipeline's admins. */

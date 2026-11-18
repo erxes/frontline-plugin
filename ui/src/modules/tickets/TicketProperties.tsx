@@ -21,11 +21,11 @@ import {
   Switch,
   TextField,
   useFormat,
+  textOf,
 } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { textOf } from '~/shared/hooks.ts';
 import { Badges, PickerField } from '~/shared/Pickers.tsx';
 import { dayOf } from './TicketFields.tsx';
 import { type Ticket, useEditTicket } from './queries.ts';

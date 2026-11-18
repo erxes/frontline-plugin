@@ -5,6 +5,7 @@ import {
   RelativeDateDisplay,
 } from 'erxes-ui';
 import type { ComponentProps, ReactNode } from 'react';
+import type { Paging } from './paging.ts';
 
 /** A column headed by `label` and its icon, drawing each row with `render`. */
 export const column = <TRow extends object>(
@@ -33,25 +34,25 @@ export const Rows = ({ isPending, skeletons = 10 }: { isPending: boolean; skelet
   </RecordTable.Scroll>
 );
 
-/** A table's rows a page at a time: skeletons while loading, the next page fetched on scroll. */
-export const PagedRows = ({
-  isPending,
-  hasNextPage,
-  count,
-  fetchNextPage,
-}: {
-  isPending: boolean;
-  hasNextPage: boolean;
-  count: number;
-  fetchNextPage: () => void;
-}) => (
-  <RecordTable.CursorProvider hasNextPage={hasNextPage} dataLength={count}>
+/**
+ * A table's rows a page at a time: skeletons while loading, the next page fetched on scroll down,
+ * and a page the list dropped fetched again on scroll up.
+ */
+export const PagedRows = ({ paging, count }: { paging: Paging; count: number }) => (
+  <RecordTable.CursorProvider
+    hasNextPage={paging.hasNextPage}
+    hasPreviousPage={paging.hasPreviousPage}
+    dataLength={count}
+  >
     <RecordTable>
       <RecordTable.Header />
       <RecordTable.Body>
-        {isPending && <RecordTable.RowSkeleton rows={10} />}
+        {paging.isPending && <RecordTable.RowSkeleton rows={10} />}
+        <RecordTable.CursorBackwardSkeleton
+          handleFetchMore={() => void paging.fetchPreviousPage()}
+        />
         <RecordTable.RowList />
-        <RecordTable.CursorForwardSkeleton handleFetchMore={fetchNextPage} />
+        <RecordTable.CursorForwardSkeleton handleFetchMore={() => void paging.fetchNextPage()} />
       </RecordTable.Body>
     </RecordTable>
   </RecordTable.CursorProvider>

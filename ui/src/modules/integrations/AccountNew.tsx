@@ -10,13 +10,12 @@ import {
   IconUser,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { PanelFormLayout, type TRecordDraftProps } from 'erxes-ui';
+import { PanelFormLayout, type TRecordDraftProps, textOf } from 'erxes-ui';
 import type { ComponentType, SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { useIntegrationChange } from '@/inbox/queries.ts';
 import { orpc } from '~/orpc.ts';
-import { textOf } from '~/shared/hooks.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 
 /** The providers connected with a form here; Facebook and Instagram connect through Meta's login. */

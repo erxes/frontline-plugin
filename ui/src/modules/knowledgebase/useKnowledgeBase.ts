@@ -5,8 +5,10 @@ import { addPluginStyles, listFilterQuery, useListFilterParams } from 'erxes-ui'
 import { createSerializer } from 'nuqs';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
+import { REFERENCE_MS } from '~/shared/reference.ts';
 import css from './styles.css?inline';
 
 // Every knowledge base page and panel slot imports this module, so its utilities load with the
@@ -96,9 +98,18 @@ const topicsQuery = (input: { filter?: string; search?: string }) =>
 /** The topics the filter bar leaves. */
 export const useTopics = () => useQuery(topicsQuery(useListFilterParams()));
 
+/**
+ * Every topic with what the member may change, read by each article row and topic pick. The
+ * knowledge base's own changes refetch it, so a mounting row doesn't.
+ */
+const everyTopic = orpc.knowledgebase.topics.list.queryOptions({
+  input: {},
+  staleTime: REFERENCE_MS,
+});
+
 /** What the member may change; nothing until the topics load. */
 export const useKbAccess = () =>
-  useQuery({ ...topicsQuery({}), select: (data) => data.can }).data ?? {
+  useQuery({ ...everyTopic, select: (data) => data.can }).data ?? {
     topics: false,
     categories: false,
     articles: false,
@@ -106,7 +117,7 @@ export const useKbAccess = () =>
 
 /** Every topic, for a pick of one. */
 export const useAllTopics = () =>
-  useQuery({ ...topicsQuery({}), select: (data) => data.topics }).data ?? [];
+  useQuery({ ...everyTopic, select: (data) => data.topics }).data ?? [];
 
 export const useTopic = (id: string) =>
   useQuery(orpc.knowledgebase.topics.get.queryOptions({ input: { id }, enabled: Boolean(id) }));
@@ -128,19 +139,15 @@ export const useCategory = (id: string) =>
 export const useArticles = (topicId: string) => {
   const filter = useListFilterParams();
 
-  const query = useInfiniteQuery(
-    orpc.knowledgebase.articles.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ topicId, ...filter, cursor }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-    }),
+  return usePaged(
+    useInfiniteQuery(
+      orpc.knowledgebase.articles.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ topicId, ...filter, cursor }),
+        ...pageOptions,
+      }),
+    ),
+    (page) => page.articles,
   );
-
-  return {
-    ...query,
-    articles: query.data?.pages.flatMap((page) => page.articles) ?? [],
-    totalCount: query.data?.pages[0]?.totalCount,
-  };
 };
 
 export const useArticle = (id: string) =>

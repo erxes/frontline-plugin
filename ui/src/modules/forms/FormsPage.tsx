@@ -12,7 +12,6 @@ import {
   IconTag,
 } from '@tabler/icons-react';
 import {
-  Button,
   DisplayMenu,
   ListFilter,
   PageContainer,
@@ -28,7 +27,7 @@ import { FORM_TYPE } from '~/plugin.ts';
 import { useManagedChannels } from '~/shared/ChannelSelect.tsx';
 import { ArchiveButtons } from '~/shared/ArchiveButtons.tsx';
 import { AppHeader } from '~/shared/Header.tsx';
-import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
+import { CreateButton, ListEmpty, ListError, LoadPage } from '~/shared/List.tsx';
 import { DeleteButton, ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
 import { useSetFormStatus } from './FormCells.tsx';
 import { FormList, FormsTable } from './FormRows.tsx';
@@ -138,8 +137,8 @@ export const FormsPage = () => {
   const [display] = useListDisplay(LIST, DISPLAYS);
   const canCreate = useManagedChannels().length > 0;
 
-  const { forms, totalCount, isPending, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
-    useForms();
+  const list = useForms();
+  const { rows: forms, totalCount, isPending, error } = list;
 
   const manage = forms.some((form) => form.canManage);
   const create = () => openNew(FORM_TYPE, {});
@@ -172,28 +171,13 @@ export const FormsPage = () => {
           )}
         />
       ) : display === 'table' ? (
-        <FormsTable
-          forms={forms}
-          manage={manage}
-          isPending={isPending}
-          hasNextPage={hasNextPage}
-          fetchNextPage={() => void fetchNextPage()}
-        >
+        <FormsTable forms={forms} manage={manage} paging={list}>
           {manage && <SelectionBar>{bulk}</SelectionBar>}
         </FormsTable>
       ) : (
         <RecordList.Provider listId={LIST}>
           {isPending ? <RecordList.Skeleton /> : <FormList forms={forms} />}
-          {hasNextPage && (
-            <Button
-              variant="ghost"
-              className="m-3 self-center"
-              disabled={isFetchingNextPage}
-              onClick={() => void fetchNextPage()}
-            >
-              {t('load-more', 'Load more')}
-            </Button>
-          )}
+          <LoadPage paging={list} />
           {manage && (
             <ListSelectionBar shown={forms.map((form) => form.id)}>{bulk}</ListSelectionBar>
           )}

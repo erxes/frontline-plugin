@@ -153,8 +153,8 @@ const useFields = (): TListFilterField[] => {
 const TemplatesTable = ({ channel, onCreate }: { channel: Channel; onCreate: () => void }) => {
   const { t } = useTranslation('frontline');
 
-  const { templates, totalCount, isPending, error, hasNextPage, fetchNextPage } =
-    useResponseTemplates(channel.id);
+  const list = useResponseTemplates(channel.id);
+  const { rows: templates, totalCount, isPending, error } = list;
 
   const columns = useColumns(channel.canManage);
 
@@ -195,12 +195,7 @@ const TemplatesTable = ({ channel, onCreate }: { channel: Channel; onCreate: () 
           stickyColumns={['more', 'checkbox', 'name']}
           className="m-3"
         >
-          <PagedRows
-            isPending={isPending}
-            hasNextPage={hasNextPage}
-            count={templates.length}
-            fetchNextPage={() => void fetchNextPage()}
-          />
+          <PagedRows paging={list} count={templates.length} />
           {channel.canManage && <TemplatesCommandBar />}
         </RecordTable.Provider>
       )}

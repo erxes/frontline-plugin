@@ -1,23 +1,11 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import {
-  type Icon,
-  IconCircle,
-  IconCircleCheck,
-  IconCircleDashed,
-  IconCircleDashedCheck,
-  IconCircleDot,
-  IconCircleX,
-  IconDots,
-  IconPlus,
-  IconTrash,
-} from '@tabler/icons-react';
+import { IconDots, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Button, cn, ColorPicker, DragHandle, Input, Popover, TextField } from 'erxes-ui';
+import { Button, cn, ColorPicker, DragHandle, Input, Popover, TextField, textOf } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { textOf } from '~/shared/hooks.ts';
 import { ActionsMenu, useConfirmDelete } from '~/shared/Records.tsx';
 import { type Status, usePipelineChange } from './queries.ts';
 
@@ -27,23 +15,6 @@ declare module 'react' {
     '--sortable-transition'?: string;
   }
 }
-
-/** Each stage's icon, by `type`. */
-const STAGE_ICONS: Record<number, Icon> = {
-  1: IconCircle,
-  2: IconCircleDot,
-  3: IconCircleDashed,
-  4: IconCircleCheck,
-  5: IconCircleDashedCheck,
-  6: IconCircleX,
-};
-
-/** The stage's icon, drawn in a status's own colour when given one. */
-export const StageIcon = ({ type, color }: { type: number; color?: string }) => {
-  const StageGlyph = STAGE_ICONS[type] ?? IconCircle;
-
-  return <StageGlyph aria-hidden color={color} className="size-4 shrink-0 text-muted-foreground" />;
-};
 
 /** Asks for "delete" to be typed, then deletes the statuses, all of them or none. */
 export const useDeleteStatuses = () => {
