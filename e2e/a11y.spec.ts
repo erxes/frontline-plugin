@@ -179,7 +179,8 @@ test('a help center, and its articles on a website', async ({ page, api, request
   const code = panel.getByLabel('Knowledge base install code');
 
   await page.goto(HELP_CENTERS);
-  await page.getByRole('button', { name: 'Add help center' }).click();
+  // The header's button; an empty list offers a second.
+  await page.getByRole('button', { name: 'Add help center' }).first().click();
   await expectAccessible(page, panel.getByLabel('Title'));
   const center = await rpc('helpCenters/create', { title, kbTopicId }, Id);
   await page.goto(HELP_CENTERS);

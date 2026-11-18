@@ -224,18 +224,14 @@ export const HelpCentersPage = () => {
   const { rows: centers, totalCount, isPending, error } = list;
   const columns = useColumns(manage);
 
-  const create = (
-    <CreateButton
-      allowed={manage}
-      label={t('add-help-center', 'Add help center')}
-      onClick={() => openNew(HELP_CENTER_TYPE)}
-    />
-  );
-
   return (
     <PageContainer>
       <AppHeader icon={IconHelpCircle} app={{ label: t('help-centers', 'Help centers') }}>
-        {create}
+        <CreateButton
+          allowed={manage}
+          label={t('add-help-center', 'Add help center')}
+          onClick={() => openNew(HELP_CENTER_TYPE)}
+        />
       </AppHeader>
       <ViewBar allLabel={t('all-help-centers', 'All help centers')}>
         <ListFilter
@@ -255,7 +251,14 @@ export const HelpCentersPage = () => {
             'help-centers-empty',
             "A help center publishes a knowledge base topic's articles for your customers.",
           )}
-          action={create}
+          action={
+            manage && (
+              // The header's button holds the C shortcut; this one only clicks.
+              <Button onClick={() => openNew(HELP_CENTER_TYPE)}>
+                {t('add-help-center', 'Add help center')}
+              </Button>
+            )
+          }
         />
       ) : (
         <RecordTable.Provider

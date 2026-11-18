@@ -87,7 +87,7 @@ test('the owner creates a help center, edits it, sees its domain tab and deletes
   await page.goto('/frontline/helpcenter');
   await expect(page).toHaveURL(new RegExp(`${HELP_CENTERS}$`));
   await expect(page.getByRole('link', { name: 'Help centers' })).toBeVisible();
-  await page.getByRole('button', { name: 'Add help center' }).click();
+  await page.getByRole('button', { name: 'Add help center' }).first().click();
   await panel.getByLabel('Title').fill(title);
 
   await panel.getByRole('button', { name: 'Create help center' }).click();
@@ -184,7 +184,7 @@ test('a reader sees help centers read-only, and a member without the permission 
   const panel = recordPanel(page);
 
   await page.goto(HELP_CENTERS);
-  await page.getByRole('button', { name: 'Add help center' }).click();
+  await page.getByRole('button', { name: 'Add help center' }).first().click();
   await panel.getByLabel('Title').fill(title);
   await panel.getByRole('button', { name: 'Create help center' }).click();
   await expect(page.getByRole('row', { name: new RegExp(title) })).toBeVisible();

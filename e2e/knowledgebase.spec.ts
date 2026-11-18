@@ -16,7 +16,8 @@ const newTopic = async (page: Page, title: string) => {
   await expect(panel.getByRole('button', { name: `Title ${title}`, exact: true })).toBeVisible();
   await page.getByRole('link', { name: title, exact: true }).click();
   await expect(page).toHaveURL(/\/knowledgebase\/[^/]+\/articles$/);
-  await expect(page.getByText('No articles yet')).toBeVisible();
+  // The topic cards say "No articles yet" too, and stay on screen until the articles page renders.
+  await expect(page.getByText('Write the first article of this topic.')).toBeVisible();
 
   return page.url();
 };
