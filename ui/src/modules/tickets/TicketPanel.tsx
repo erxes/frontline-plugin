@@ -5,12 +5,14 @@ import {
   IconCalendarPlus,
   IconCalendarUp,
   IconCircles,
+  IconForms,
   IconGitBranch,
   IconHash,
   IconLetterCase,
   IconProgressCheck,
   IconUserCircle,
 } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import {
   PanelField,
   PanelSection,
@@ -19,10 +21,13 @@ import {
   TextField,
   type TRecordSlotProps,
   useFormat,
+  useOpenRecord,
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChannel } from '@/channels/useChannels.ts';
+import { orpc } from '~/orpc.ts';
+import { FORM_SUBMISSION_TYPE } from '~/plugin.ts';
 import { PrioritySelect, StatusSelect, TicketMenu } from './TicketCells.tsx';
 import { TicketContent, TicketPlan, TicketSla } from './TicketFields.tsx';
 import { TicketContacts, TicketLabels, TicketPeople } from './TicketLinks.tsx';
@@ -163,8 +168,46 @@ const TicketFields = ({ ticket }: { ticket: Ticket }) => {
 };
 
 /**
+ * The answers customers sent about the ticket through a form link, newest first, each opening its
+ * submission on top of the ticket; nothing when there are none.
+ */
+const TicketResponses = ({ ticketId }: { ticketId: string }) => {
+  const { t } = useTranslation('frontline');
+  const format = useFormat();
+  const { open } = useOpenRecord();
+
+  const { data: responses = [] } = useQuery(
+    orpc.tickets.responses.queryOptions({ input: { id: ticketId } }),
+  );
+
+  if (responses.length === 0) return null;
+
+  return (
+    <PanelSection title={t('ticket-form-responses', 'Responses')}>
+      {responses.map((response) => (
+        <button
+          key={response.id}
+          type="button"
+          className="flex h-8 w-full items-center justify-between gap-2 rounded px-2 text-xs hover:bg-accent"
+          onClick={() => open({ contentType: FORM_SUBMISSION_TYPE, contentId: response.id })}
+        >
+          <span className="flex min-w-0 items-center gap-2">
+            <IconForms className="size-4 shrink-0 text-muted-foreground" />
+            <span className="truncate">{response.formName}</span>
+          </span>
+          <span className="shrink-0 text-muted-foreground">
+            {format.dateTime(response.createdAt)}
+          </span>
+        </button>
+      ))}
+    </PanelSection>
+  );
+};
+
+/**
  * The Detail tab: the ticket's fields, people, contacts, labels and properties, its plan, its SLA,
- * its description and files, each saved as it changes, then where it's filed. Core's Activity tab beside it shows what changed (`activity` in config).
+ * its description and files, each saved as it changes, the answers sent about it, then where it's
+ * filed. Core's Activity tab beside it shows what changed (`activity` in config).
  */
 export const TicketDetail = ({ contentId }: TRecordSlotProps) => (
   <WithTicket id={contentId}>
@@ -177,6 +220,7 @@ export const TicketDetail = ({ contentId }: TRecordSlotProps) => (
         <TicketPlan ticket={ticket} />
         <TicketSla ticket={ticket} />
         <TicketContent ticket={ticket} />
+        <TicketResponses ticketId={ticket.id} />
         <TicketRecord ticket={ticket} />
       </>
     )}

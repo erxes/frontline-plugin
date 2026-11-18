@@ -190,6 +190,8 @@ describe('automations', () => {
     const channel = await owner.channels.create({ name: 'Support' });
     const form = await owner.forms.create({ channelId: channel.id, name: 'Rating', title: 'Rate' });
     const field = await owner.forms.fields.add({ formId: form.id, type: 'text', label: 'Comment' });
+    const pipeline = await owner.pipelines.create({ channelId: channel.id, name: 'Main' });
+    const ticket = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Rated' });
 
     const step = {
       // Core leaves out the days the member left blank.
@@ -199,7 +201,7 @@ describe('automations', () => {
           subjectType: 'customer',
           subjectId: 'customer-rated',
           entityType: 'frontline.ticket',
-          entityId: 'ticket-rated',
+          entityId: ticket.id,
         },
       },
     };
@@ -240,10 +242,15 @@ describe('automations', () => {
       {
         customerId: 'customer-rated',
         referenceType: 'frontline.ticket',
-        referenceId: 'ticket-rated',
+        referenceId: ticket.id,
         linkId,
         answers: { [field.id]: 'Quick and kind' },
       },
+    ]);
+
+    // The ticket lists the answer sent about it.
+    await expect(owner.tickets.responses({ id: ticket.id })).resolves.toMatchObject([
+      { id: submissions[0]?.id, formName: 'Rating', customerId: 'customer-rated' },
     ]);
 
     // A form of another organisation makes no link.
