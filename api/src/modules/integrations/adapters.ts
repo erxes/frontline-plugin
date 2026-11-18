@@ -4,7 +4,8 @@ import { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
 import { customerLinks, messages } from '#/db/inbox.ts';
 import type { Adapter, Outgoing } from '../inbox/adapters.ts';
-import type { ProviderName } from './provider.ts';
+import { markRefused } from './accounts.ts';
+import type { AccountRow, ProviderName } from './provider.ts';
 import { providerOf } from './providers/index.ts';
 import { accountRow } from './store.ts';
 
@@ -70,33 +71,44 @@ const threadOf = async (
   const row = await accountRow(tx, accountId);
 
   return {
+    row,
     account: providerOf(row.provider).open(row),
     threadId: conversation.externalId,
     context: await replyContext(tx, provider, conversation.id, conversation.customerId),
   };
 };
 
+/** `call` through `row`; a token the provider refused marks the account broken at once. */
+const through = <T>(row: AccountRow, call: () => Promise<T>) =>
+  call().catch(async (error: unknown) => {
+    await markRefused(row, error);
+
+    throw error;
+  });
+
 const adapterOf = (provider: ProviderName, label: string): Adapter => ({
   kind: provider,
   label,
   config: AccountConfig,
   send: async (tx, outgoing) => {
-    const { account, threadId, context } = await threadOf(tx, provider, outgoing);
+    const { row, account, threadId, context } = await threadOf(tx, provider, outgoing);
     const { message } = outgoing;
 
     return async () => ({
-      externalId: await account.send({
-        threadId,
-        text: message.content,
-        html: message.html,
-        attachments: message.attachments,
-        providerData: message.providerData,
-        ...context,
-      }),
+      externalId: await through(row, () =>
+        account.send({
+          threadId,
+          text: message.content,
+          html: message.html,
+          attachments: message.attachments,
+          providerData: message.providerData,
+          ...context,
+        }),
+      ),
     });
   },
   react: async (tx, { emoji, emojis, ...outgoing }) => {
-    const { account, threadId, context } = await threadOf(tx, provider, outgoing);
+    const { row, account, threadId, context } = await threadOf(tx, provider, outgoing);
     const { externalId, providerData } = outgoing.message;
     const { react } = account;
 
@@ -106,7 +118,9 @@ const adapterOf = (provider: ProviderName, label: string): Adapter => ({
       });
 
     return () =>
-      react({ threadId, to: context.to, message: { externalId, providerData }, emoji, emojis });
+      through(row, () =>
+        react({ threadId, to: context.to, message: { externalId, providerData }, emoji, emojis }),
+      );
   },
 });
 

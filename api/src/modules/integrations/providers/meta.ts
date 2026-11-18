@@ -7,6 +7,7 @@ import { attachedFile } from '#/modules/files.ts';
 import { openSecret } from '../secrets.ts';
 import { accountRow } from '../store.ts';
 import {
+  AccountRefused,
   defineProvider,
   sendInParts,
   type OpenAccount,
@@ -23,7 +24,12 @@ export const GRAPH_VERSION = 'v23.0';
 /** Why the Graph API refused a call, in its own words. */
 class MetaError extends Error {}
 
-const GraphFailure = z.object({ error: z.object({ message: z.string() }) });
+const GraphFailure = z.object({
+  error: z.object({ message: z.string(), code: z.number().optional() }),
+});
+
+/** Meta's code for an access token it no longer takes: expired, revoked or the password changed. */
+const TOKEN_REFUSED = 190;
 
 /**
  * A Graph API call with `token` in the Authorization header, so tokens stay out of addresses
@@ -61,11 +67,10 @@ export const graph = async (
   const body: unknown = await response.json();
 
   if (!response.ok) {
-    const failure = GraphFailure.safeParse(body);
+    const { data } = GraphFailure.safeParse(body);
+    const message = data?.error.message ?? `Meta answered ${response.status}`;
 
-    throw new MetaError(
-      failure.success ? failure.data.error.message : `Meta answered ${response.status}`,
-    );
+    throw data?.error.code === TOKEN_REFUSED ? new AccountRefused(message) : new MetaError(message);
   }
 
   return body;
@@ -90,7 +95,7 @@ export const metaAccount = async (tx: Tx, id: string) => {
 /** `call`, with Meta's refusal as a BAD_REQUEST the member reads. */
 export const askMeta = <T>(call: Promise<T>) =>
   call.catch((error: unknown) => {
-    if (error instanceof MetaError)
+    if (error instanceof MetaError || error instanceof AccountRefused)
       throw new ORPCError('BAD_REQUEST', { message: `Meta refused: ${error.message}` });
 
     throw error;
@@ -218,18 +223,18 @@ const reactThrough = async ({ secret }: MetaAccount, reaction: OutboundReaction)
   if (postOfThread(reaction.threadId) || reaction.emoji.replaceAll('️', '') !== LOVE)
     throw new ORPCError('BAD_REQUEST', { message: 'Meta takes only ❤️ on a message' });
 
-  await askMeta(
-    graph('me/messages', secret.pageToken, {
-      method: 'POST',
-      body: {
-        recipient: { id: reaction.to },
-        sender_action: loved ? 'react' : 'unreact',
-        payload: loved
-          ? { message_id: reaction.message.externalId, reaction: 'love' }
-          : { message_id: reaction.message.externalId },
-      },
-    }),
-  );
+  // Not through askMeta: the inbox names the provider in its refusal, and the adapter needs a
+  // refused token as it is to mark the page broken.
+  await graph('me/messages', secret.pageToken, {
+    method: 'POST',
+    body: {
+      recipient: { id: reaction.to },
+      sender_action: loved ? 'react' : 'unreact',
+      payload: loved
+        ? { message_id: reaction.message.externalId, reaction: 'love' }
+        : { message_id: reaction.message.externalId },
+    },
+  });
 };
 
 /**

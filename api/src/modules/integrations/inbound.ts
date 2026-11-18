@@ -13,6 +13,7 @@ import { logger } from '#/logger.ts';
 import { customerFor, receiveIn } from '../inbox/receive.ts';
 import { signalConversations, signalMembers } from '../inbox/shared.ts';
 import { FileRefused, storeFile } from '../files.ts';
+import { markRefused } from './accounts.ts';
 import {
   type AccountRow,
   type InboundMessage,
@@ -125,8 +126,10 @@ const withFiles = async (row: AccountRow, integrationId: string, message: Inboun
         .then((bytes) =>
           storeFile(row.orgId, { name: file.name, contentType: file.contentType, bytes }),
         )
-        .catch((error: unknown) => {
+        .catch(async (error: unknown) => {
           if (!(error instanceof FileRefused)) throw error;
+
+          await markRefused(row, error);
 
           logger.warn(
             { err: error, accountId: row.id, messageId: message.messageId, file: file.name },

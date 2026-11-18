@@ -129,6 +129,49 @@ describe('meta', () => {
     });
   });
 
+  it('keeps the messages sent with an event it can’t read, and fails replies once Meta refuses the token', async () => {
+    fakeProviders(graphApi);
+    const owner = clientAs('org-meta-revoked');
+
+    await loggedIn('org-meta-revoked');
+
+    const { accounts } = await owner.integrations.accounts.list({ provider: 'facebook' });
+
+    await channelFor('org-meta-revoked', 'facebook', accounts[0]?.id ?? '');
+
+    // An event in a shape frontline doesn't read, ahead of the customer's two messages.
+    const raw = fixture('meta-delivery.json').replace(
+      '"messaging": [',
+      '"messaging": [{ "recipient": { "id": "page-1" }, "timestamp": 1763180000000 },',
+    );
+
+    expect(await deliver('/meta', raw, signedByMeta(raw))).toBe(200);
+
+    const [conversation] = (await owner.conversations.list({})).conversations;
+    const conversationId = conversation?.id ?? '';
+
+    expect((await owner.conversations.messages.list({ conversationId })).messages).toHaveLength(2);
+
+    // The page's admin took frontline's access away.
+    fakeProviders(() =>
+      Response.json(
+        { error: { message: 'Error validating access token', code: 190 } },
+        { status: 400 },
+      ),
+    );
+
+    const reply = await owner.conversations.messages.create({ conversationId, content: 'Hi?' });
+
+    await runQueued();
+
+    const after = (await owner.conversations.messages.list({ conversationId })).messages;
+
+    expect(after.find((message) => message.id === reply.id)?.deliveryStatus).toBe('failed');
+    expect(
+      (await owner.integrations.accounts.list({ provider: 'facebook' })).accounts,
+    ).toMatchObject([{ status: 'broken', error: 'Error validating access token' }]);
+  });
+
   it('refuses a login state it did not sign', async () => {
     fakeProviders(graphApi);
 
