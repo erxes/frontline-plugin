@@ -235,7 +235,14 @@ export const changeTickets = async (
   if (statusId || pipelineId || fields.priority !== undefined) await refreshSla(tx, ids);
 
   await publish(tx, member, changeEvents(before, await snapshot(tx, ids)));
-  await signalTickets(tx, member, rows);
+  // The customers before and after, so a ticket handed to someone else leaves one tab and joins
+  // the other.
+  const { customerId } = fields;
+
+  await signalTickets(tx, member, [
+    ...rows,
+    ...(customerId ? rows.map(({ id }) => ({ id, customerId })) : []),
+  ]);
 };
 
 const TicketUpdate = Changes.omit({ pipelineId: true }).extend({ id: z.string() });

@@ -69,7 +69,8 @@ const Filed = ({ ticket }: { ticket: Ticket }) => {
         {number ? `Ticket ${number} is filed.` : 'Your ticket is filed.'} Its status shows here as
         the team works on it.
       </p>
-      {number && (
+      {/* A page served over plain http has no clipboard; the number above is there to select. */}
+      {number && window.isSecureContext && (
         <button
           type="button"
           class="fl-link"
@@ -109,6 +110,7 @@ const useTickets = (api: MessengerApi, token: string | undefined, version: numbe
 
         setTickets(list);
         setForms(offered);
+        setError(null);
       } catch (failure) {
         if (live) setError(messageOf(failure));
       }

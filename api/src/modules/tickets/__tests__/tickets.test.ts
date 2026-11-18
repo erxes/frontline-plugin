@@ -376,13 +376,19 @@ describe('tickets', () => {
     ]);
     expect((await messenger.get('/tickets', anonymous)).body).toEqual([]);
 
-    // The team moving Ann's ticket tells her messenger's stream, so its ticket tab refetches.
-    const heard: unknown[] = [];
-    const stop = await subscribe('org-tk-visitor', 'customer-ann', (notice) => heard.push(notice));
-    const [ticket] = (await owner.tickets.list({})).tickets;
+    // The team moving Ann's ticket on to Bob tells both their messengers' streams, so it leaves
+    // her ticket tab and joins his.
+    const heard: string[] = [];
+    const id = (await owner.tickets.list({})).tickets[0]?.id ?? '';
 
-    await owner.tickets.update({ id: ticket?.id ?? '', statusId: stage(4) });
-    await vi.waitFor(() => expect(heard).toEqual([{ id: ticket?.id, event: 'ticket' }]));
-    stop();
+    const listen = (who: string) =>
+      subscribe('org-tk-visitor', `customer-${who}`, (n) => heard.push(`${who} ${n.event}`));
+
+    const stops = [await listen('ann'), await listen('bob')];
+
+    await owner.tickets.update({ id, statusId: stage(4), customerId: 'customer-bob' });
+    await vi.waitFor(() => expect(heard.toSorted()).toEqual(['ann ticket', 'bob ticket']));
+
+    for (const stop of stops) stop();
   });
 });

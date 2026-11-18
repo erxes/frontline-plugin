@@ -294,10 +294,16 @@ export const signalTickets = async (
   changed: { id: string; customerId: string | null }[],
 ) => {
   await tx.execute(sql`select core_live_signal(${actor.orgId}, 'frontline', 'tickets')`);
+
+  // One event per customer: their tab refetches every ticket, however many changed.
+  const byCustomer = new Map(
+    changed.flatMap(({ id, customerId }) => (customerId ? [[customerId, id] as const] : [])),
+  );
+
   await notifyVisitors(
     tx,
     actor.orgId,
-    changed.flatMap(({ id, customerId }) => (customerId ? [{ id, customerId }] : [])),
+    [...byCustomer].map(([customerId, id]) => ({ id, customerId })),
     'ticket',
   );
 };
