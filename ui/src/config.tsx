@@ -82,7 +82,9 @@ const pipeline = withText(() => import('@/pipelines/slots.ts'));
 const ticket = withText(() => import('@/tickets/slots.ts'));
 const helpCenter = withText(() => import('@/helpcenter/slots.ts'));
 const kb = withText(() => import('@/knowledgebase/slots.ts'));
-const KB = `/${PLUGIN}/knowledgebase`;
+
+/** A record's own page, `/frontline/<path>/<id>`, where its panel expands to. */
+const pageOf = (path: string) => (id: string) => `/${PLUGIN}/${path}/${encodeURIComponent(id)}`;
 const forms = withText(() => import('@/forms/slots.ts'));
 const surveys = withText(() => import('@/surveys/slots.ts'));
 
@@ -101,21 +103,21 @@ export const CONFIG: IUIConfig = {
       contentType: CHANNEL_TYPE,
       title: 'Channel',
       icon: IconCircles,
-      detailPath: (id) => `/${PLUGIN}/settings/channels/${encodeURIComponent(id)}`,
+      detailPath: pageOf('settings/channels'),
       ...slots(() => import('@/channels/slots.ts')),
     },
     {
       contentType: RESPONSE_TEMPLATE_TYPE,
       title: 'Response template',
       icon: IconMessageReply,
-      detailPath: (id) => `/${PLUGIN}/settings/response-templates/${encodeURIComponent(id)}`,
+      detailPath: pageOf('settings/response-templates'),
       ...slots(() => import('@/responseTemplates/slots.ts')),
     },
     {
       contentType: PIPELINE_TYPE,
       title: 'Pipeline',
       icon: IconGitBranch,
-      detailPath: (id) => `/${PLUGIN}/settings/pipelines/${encodeURIComponent(id)}`,
+      detailPath: pageOf('settings/pipelines'),
       ...slots(pipeline),
       tabs: [
         {
@@ -142,21 +144,21 @@ export const CONFIG: IUIConfig = {
       contentType: KB_TOPIC_TYPE,
       title: 'Topic',
       icon: IconBook,
-      detailPath: (id) => `${KB}/${encodeURIComponent(id)}`,
+      detailPath: pageOf('knowledgebase'),
       ...slots(async () => (await kb()).Topic),
     },
     {
       contentType: KB_CATEGORY_TYPE,
       title: 'Category',
       icon: IconFolder,
-      detailPath: (id) => `${KB}/category/${encodeURIComponent(id)}`,
+      detailPath: pageOf('knowledgebase/category'),
       ...slots(async () => (await kb()).Category),
     },
     {
       contentType: KB_ARTICLE_TYPE,
       title: 'Article',
       icon: IconArticle,
-      detailPath: (id) => `${KB}/article/${encodeURIComponent(id)}`,
+      detailPath: pageOf('knowledgebase/article'),
       ...slots(async () => (await kb()).Article),
       tabs: [
         {
@@ -171,7 +173,7 @@ export const CONFIG: IUIConfig = {
       contentType: TICKET_TYPE,
       title: 'Ticket',
       icon: IconTicket,
-      detailPath: (id) => `/${PLUGIN}/tickets/${encodeURIComponent(id)}`,
+      detailPath: pageOf('tickets'),
       ...slots(ticket),
       contacts: (id) => ({
         queryKey: [PLUGIN, 'ticket-contacts', id],
@@ -184,7 +186,7 @@ export const CONFIG: IUIConfig = {
       contentType: HELP_CENTER_TYPE,
       title: 'Help center',
       icon: IconHelpCircle,
-      detailPath: (id) => `/${PLUGIN}/settings/help-centers/${encodeURIComponent(id)}`,
+      detailPath: pageOf('settings/help-centers'),
       ...slots(helpCenter),
       tabs: [
         {
@@ -199,7 +201,7 @@ export const CONFIG: IUIConfig = {
       contentType: FORM_TYPE,
       title: 'Form',
       icon: IconForms,
-      detailPath: (id) => `/${PLUGIN}/forms/${encodeURIComponent(id)}`,
+      detailPath: pageOf('forms'),
       ...slots(async () => (await forms()).FormSlots),
       activity: `${PLUGIN}.form`,
     },
@@ -207,14 +209,14 @@ export const CONFIG: IUIConfig = {
       contentType: FORM_SUBMISSION_TYPE,
       title: 'Submission',
       icon: IconSend,
-      detailPath: (id) => `/${PLUGIN}/forms/submission/${encodeURIComponent(id)}`,
+      detailPath: pageOf('forms/submission'),
       ...readSlots(async () => (await forms()).SubmissionSlots),
     },
     {
       contentType: SURVEY_TYPE,
       title: 'Survey',
       icon: IconChecklist,
-      detailPath: (id) => `/${PLUGIN}/surveys/${encodeURIComponent(id)}`,
+      detailPath: pageOf('surveys'),
       ...slots(async () => (await surveys()).SurveySlots),
       tabs: [
         {
@@ -236,28 +238,28 @@ export const CONFIG: IUIConfig = {
       contentType: INTEGRATION_TYPE,
       title: 'Integration',
       icon: IconMessageCircle,
-      detailPath: (id) => `/${PLUGIN}/inbox/integrations/${encodeURIComponent(id)}`,
+      detailPath: pageOf('inbox/integrations'),
       ...slots(() => import('@/inbox/slots.ts')),
     },
     {
       contentType: META_BOT_TYPE,
       title: 'Bot',
       icon: IconRobot,
-      detailPath: (id) => `/${PLUGIN}/settings/meta/bots/${encodeURIComponent(id)}`,
+      detailPath: pageOf('settings/meta/bots'),
       ...slots(() => import('@/integrations/botSlots.ts')),
     },
     {
       contentType: ACCOUNT_TYPE,
       title: 'Account',
       icon: IconPlugConnected,
-      detailPath: (id) => `/${PLUGIN}/settings/integrations/${encodeURIComponent(id)}`,
+      detailPath: pageOf('settings/integrations'),
       ...slots(() => import('@/integrations/accountSlots.ts')),
     },
     {
       contentType: CALL_TYPE,
       title: 'Call',
       icon: IconPhone,
-      detailPath: (id) => `/${PLUGIN}/calls/history/${encodeURIComponent(id)}`,
+      detailPath: pageOf('calls/history'),
       // A call comes from the PBX or CallPro, so it has no draft.
       ...readSlots(() => import('@/calls/slots.ts')),
     },
@@ -266,7 +268,7 @@ export const CONFIG: IUIConfig = {
       // Its draft is a new mail, which starts one.
       title: 'Conversation',
       icon: IconMessages,
-      detailPath: (id) => `/${PLUGIN}/inbox/conversations/${encodeURIComponent(id)}`,
+      detailPath: pageOf('inbox/conversations'),
       ...slots(() => import('@/inbox/conversationSlots.ts')),
       activity: `${PLUGIN}.conversation`,
       // Core keeps the fields; the API client loads only when the Properties tab does.
