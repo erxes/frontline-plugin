@@ -3,17 +3,20 @@ import {
   IconCalendarCheck,
   IconCircles,
   IconDots,
+  IconExternalLink,
   IconHeartbeat,
   IconKey,
   IconLink,
   IconListNumbers,
   IconPlugConnected,
   IconRefresh,
+  IconServer,
   IconTrash,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
+  buttonVariants,
   PanelSection,
   Skeleton,
   Spinner,
@@ -88,6 +91,38 @@ export const AccountActions = ({ contentId }: TRecordSlotProps) => {
         },
       ]}
     />
+  );
+};
+
+/**
+ * What the bot does in a server: read and send in its channels and threads, and manage messages.
+ * Discord's permission bits 10, 11, 13, 16, 34 and 38, as the old plugin asked for them.
+ */
+const DISCORD_PERMISSIONS = String(2 ** 10 + 2 ** 11 + 2 ** 13 + 2 ** 16 + 2 ** 34 + 2 ** 38);
+
+/** Discord's page that adds the bot to a server, whose id is its application's. */
+const DiscordInvite = ({ account }: { account: Account }) => {
+  const { t } = useTranslation('frontline');
+  const url = new URL('https://discord.com/oauth2/authorize');
+
+  url.searchParams.set('client_id', account.externalId);
+  url.searchParams.set('permissions', DISCORD_PERMISSIONS);
+  url.searchParams.set('scope', 'bot');
+
+  return (
+    <PanelSection title={t('servers', 'Servers')}>
+      <InfoRow icon={IconServer} label={t('invite', 'Invite')}>
+        <a
+          href={url.toString()}
+          target="_blank"
+          rel="noreferrer"
+          className={buttonVariants({ variant: 'ghost', size: 'sm' })}
+        >
+          <IconExternalLink />
+          {t('discord-add-bot-to-server', 'Add this bot to a server')}
+        </a>
+      </InfoRow>
+    </PanelSection>
   );
 };
 
@@ -182,6 +217,7 @@ export const AccountDetail = ({ contentId }: TRecordSlotProps) => {
         </InfoRow>
       </PanelSection>
       {data.provider === 'telegram' && <TelegramWebhook account={data} />}
+      {data.provider === 'discord' && <DiscordInvite account={data} />}
       {(data.provider === 'call' || data.provider === 'callpro') && (
         <PhoneSettings account={data} />
       )}
