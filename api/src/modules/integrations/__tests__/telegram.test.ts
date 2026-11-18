@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vite-plus/test';
-import { SEND_ATTEMPTS } from '#/core.ts';
 import { clientAs } from '#/test/member.ts';
 import {
   channelFor,
@@ -166,18 +165,14 @@ describe('telegram', () => {
       caption: 'Sorry, a new one ships today',
     });
 
-    // A file that isn't in core's storage fails the reply rather than send it without.
-    const { id } = await owner.conversations.messages.create({
-      conversationId,
-      content: 'Here is the label',
-      attachments: [{ url: 'https://elsewhere.example/label.pdf', name: 'label.pdf' }],
-    });
-
-    await expect(runQueued(SEND_ATTEMPTS)).rejects.toThrow('label.pdf is not a file');
-
-    const sent = (await owner.conversations.messages.list({ conversationId })).messages;
-
-    expect(sent.find((message) => message.id === id)).toMatchObject({ deliveryStatus: 'failed' });
+    // A file that isn't in core's storage isn't taken, so no reply goes without it.
+    await expect(
+      owner.conversations.messages.create({
+        conversationId,
+        content: 'Here is the label',
+        attachments: [{ url: 'https://elsewhere.example/label.pdf', name: 'label.pdf' }],
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
 
     // Text too long for a caption goes first; Telegram refuses the file after it. The reply fails
     // at once, without a retry, so the customer doesn't get the text again.
