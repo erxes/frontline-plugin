@@ -26,17 +26,17 @@ import {
   useTicketActions,
 } from './TicketCells.tsx';
 import { SlaBadge } from './SlaBadge.tsx';
-import { type Ticket, useChoices } from './queries.ts';
+import { type Ticket, type TicketRowActions, useChoices, useTicketRowActions } from './queries.ts';
 
 const column = columnOf<Ticket>;
 
-const MoreCell = ({ ticket }: { ticket: Ticket }) => {
+const MoreCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
   const { t } = useTranslation('frontline');
 
   return (
     <RowActions
       label={t('ticket-actions', 'Actions for {{name}}', { name: ticket.name })}
-      actions={useTicketActions(ticket)}
+      actions={useTicketActions(ticket, act)}
     />
   );
 };
@@ -60,12 +60,13 @@ const MaybeDate = ({ date }: { date: Date | null }) =>
 /** What a ticket is, where it stands, who has it and when. */
 const useColumns = (): RecordTableColumnDef<Ticket>[] => {
   const { t } = useTranslation('frontline');
+  const act = useTicketRowActions();
 
   return [
     {
       id: 'more',
       header: () => <RecordTable.ColumnSelector />,
-      cell: ({ row }) => <MoreCell ticket={row.original} />,
+      cell: ({ row }) => <MoreCell ticket={row.original} act={act} />,
       size: 33,
     },
     RecordTable.checkboxColumnOf<Ticket>(),
@@ -76,16 +77,16 @@ const useColumns = (): RecordTableColumnDef<Ticket>[] => {
     )),
     column('status', t('status', 'Status'), IconProgressCheck, 180, (ticket) => (
       <RecordTableInlineCell>
-        <StatusCell ticket={ticket} />
+        <StatusCell ticket={ticket} act={act} />
       </RecordTableInlineCell>
     )),
     column('priority', t('priority', 'Priority'), IconAlertSquareRounded, 140, (ticket) => (
       <RecordTableInlineCell>
-        <PriorityCell ticket={ticket} />
+        <PriorityCell ticket={ticket} act={act} />
       </RecordTableInlineCell>
     )),
     column('assignee', t('assignee', 'Assignee'), IconUser, 200, (ticket) => (
-      <AssigneeCell ticket={ticket} />
+      <AssigneeCell ticket={ticket} act={act} />
     )),
     column('sla', t('sla', 'SLA'), IconAlarm, 180, (ticket) => (
       <RecordTableInlineCell>

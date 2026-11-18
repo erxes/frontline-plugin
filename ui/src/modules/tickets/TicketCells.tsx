@@ -17,7 +17,7 @@ import { StageIcon } from '@/pipelines/StageIcon.tsx';
 import { TICKET_TYPE } from '~/plugin.ts';
 import { MemberCell } from '~/shared/MemberPicker.tsx';
 import { ActionsMenu, type RowAction } from '~/shared/Records.tsx';
-import { type Ticket, useChoices, useDeleteTickets, useEditTicket } from './queries.ts';
+import { type Ticket, type TicketRowActions, useChoices } from './queries.ts';
 
 type Variant = ComponentProps<typeof Select.Trigger>['variant'];
 
@@ -149,15 +149,14 @@ export const PrioritySelect = ({
 };
 
 /** The ticket's status; picking another moves it. */
-export const StatusCell = ({ ticket }: { ticket: Ticket }) => {
+export const StatusCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
   const { t } = useTranslation('frontline');
-  const edit = useEditTicket(ticket.id);
 
   return (
     <StatusSelect
       pipelineId={ticket.pipelineId}
       value={ticket.statusId}
-      onChange={(statusId) => edit({ statusId })}
+      onChange={(statusId) => act.edit(ticket.id, { statusId })}
       label={t('status-of', 'Status of {{name}}', { name: ticket.name })}
       variant="flush"
       disabled={!ticket.canMove}
@@ -165,14 +164,13 @@ export const StatusCell = ({ ticket }: { ticket: Ticket }) => {
   );
 };
 
-export const PriorityCell = ({ ticket }: { ticket: Ticket }) => {
+export const PriorityCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
   const { t } = useTranslation('frontline');
-  const edit = useEditTicket(ticket.id);
 
   return (
     <PrioritySelect
       value={ticket.priority}
-      onChange={(priority) => edit({ priority })}
+      onChange={(priority) => act.edit(ticket.id, { priority })}
       label={t('priority-of', 'Priority of {{name}}', { name: ticket.name })}
       variant="flush"
       quiet
@@ -180,15 +178,14 @@ export const PriorityCell = ({ ticket }: { ticket: Ticket }) => {
   );
 };
 
-export const AssigneeCell = ({ ticket }: { ticket: Ticket }) => {
+export const AssigneeCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
   const { t } = useTranslation('frontline');
-  const edit = useEditTicket(ticket.id);
 
   return (
     <MemberCell
       scope={`frontline-ticket.${ticket.id}.assignee`}
       value={ticket.assigneeId}
-      onValueChange={(assigneeId) => edit({ assigneeId })}
+      onValueChange={(assigneeId) => act.edit(ticket.id, { assigneeId })}
       noneLabel={t('no-assignee', 'No assignee')}
       // A row without one stays blank, as the old list's did; the cell still opens the picker.
       placeholder=""
@@ -201,11 +198,9 @@ export const AssigneeCell = ({ ticket }: { ticket: Ticket }) => {
   );
 };
 
-/** Archive or unarchive, and delete for its channel's admins; `onDeleted` runs after. */
-export const useTicketActions = (ticket: Ticket, onDeleted?: () => void): RowAction[] => {
+/** Archive or unarchive, and delete for its channel's admins. */
+export const useTicketActions = (ticket: Ticket, act: TicketRowActions): RowAction[] => {
   const { t } = useTranslation('frontline');
-  const edit = useEditTicket(ticket.id);
-  const { deleteTickets } = useDeleteTickets();
   const archived = ticket.state === 'archived';
 
   return [
@@ -213,7 +208,7 @@ export const useTicketActions = (ticket: Ticket, onDeleted?: () => void): RowAct
       value: 'archive',
       icon: archived ? <IconRestore /> : <IconArchive />,
       label: archived ? t('unarchive', 'Unarchive') : t('archive', 'Archive'),
-      onSelect: () => edit({ state: archived ? 'active' : 'archived' }),
+      onSelect: () => act.edit(ticket.id, { state: archived ? 'active' : 'archived' }),
     },
     ...(ticket.canManage
       ? [
@@ -221,7 +216,7 @@ export const useTicketActions = (ticket: Ticket, onDeleted?: () => void): RowAct
             value: 'delete',
             icon: <IconTrash />,
             label: t('delete', 'Delete'),
-            onSelect: () => void deleteTickets([ticket.id], onDeleted),
+            onSelect: () => void act.deleteTickets([ticket.id]),
           },
         ]
       : []),
@@ -229,7 +224,7 @@ export const useTicketActions = (ticket: Ticket, onDeleted?: () => void): RowAct
 };
 
 /** The ticket's actions behind a "more" button, on a list row or a board card. */
-export const TicketMenu = ({ ticket }: { ticket: Ticket }) => {
+export const TicketMenu = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
   const { t } = useTranslation('frontline');
 
   return (
@@ -243,7 +238,7 @@ export const TicketMenu = ({ ticket }: { ticket: Ticket }) => {
           <IconDots />
         </Button>
       }
-      actions={useTicketActions(ticket)}
+      actions={useTicketActions(ticket, act)}
     />
   );
 };

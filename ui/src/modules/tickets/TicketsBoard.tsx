@@ -13,7 +13,9 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { IconCalendarX, IconPlus } from '@tabler/icons-react';
 import { Button, cn, DragHandle, useFormat, useOpenRecord } from 'erxes-ui';
+import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { type CustomItemComponentProps, Virtualizer } from 'virtua';
 import { usePriorityNames } from '@/pipelines/queries.ts';
 import { StageIcon } from '@/pipelines/StageIcon.tsx';
 import { TICKET_TYPE } from '~/plugin.ts';
@@ -23,7 +25,7 @@ import { PriorityIcon, TicketMenu, TicketName } from './TicketCells.tsx';
 import { TicketTags } from './TicketLinks.tsx';
 import { TicketPropertyBadges } from './TicketProperties.tsx';
 import { useStatusGroups } from './TicketList.tsx';
-import { type Ticket, useUpdateTicket } from './queries.ts';
+import { type Ticket, type TicketRowActions, useTicketRowActions } from './queries.ts';
 
 type Group = ReturnType<typeof useStatusGroups>[number];
 
@@ -32,7 +34,7 @@ type Group = ReturnType<typeof useStatusGroups>[number];
  * priority, SLA and tags, then its target date and assignee, each only when it has one. The
  * handle drags it to another status of its pipeline.
  */
-const TicketCard = ({ ticket }: { ticket: Ticket }) => {
+const TicketCard = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
   const { t } = useTranslation('frontline');
   const priorities = usePriorityNames();
   const format = useFormat();
@@ -46,7 +48,7 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
   const cssVariables = { '--sortable-transform': CSS.Translate.toString(transform) };
 
   return (
-    <li
+    <div
       ref={setNodeRef}
       style={cssVariables}
       className={cn(
@@ -63,7 +65,7 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
         <span className="flex min-w-0 flex-1">
           <TicketName ticket={ticket} />
         </span>
-        <TicketMenu ticket={ticket} />
+        <TicketMenu ticket={ticket} act={act} />
       </div>
       <div className="flex flex-wrap items-center gap-2 px-2 empty:hidden">
         {ticket.priority > 0 && (
@@ -91,24 +93,46 @@ const TicketCard = ({ ticket }: { ticket: Ticket }) => {
           {ticket.assigneeId && <MemberLine id={ticket.assigneeId} size="sm" />}
         </div>
       )}
-    </li>
+    </div>
   );
 };
+
+/** A card's place in its column's window, with the gap under it. */
+const CardSlot = ({ style, children, ref }: CustomItemComponentProps) => (
+  <li ref={ref} style={style} className="pb-2">
+    {children}
+  </li>
+);
+
+/** The column's header height and the gap under it, above the cards. */
+const HEADER_HEIGHT = 40;
 
 /**
  * One status's tickets, where a card of the same pipeline drops to move there. Its header adds a
  * ticket in that status; an empty column says so.
  */
-const Column = ({ group: { status, label, rows } }: { group: Group }) => {
+const Column = ({
+  group: { status, label, rows },
+  act,
+}: {
+  group: Group;
+  act: TicketRowActions;
+}) => {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
   const { active } = useDndContext();
   const accepts = active?.data.current?.pipelineId === status.pipelineId;
   const { setNodeRef, isOver } = useDroppable({ id: status.id, disabled: !accepts });
+  const column = useRef<HTMLElement>(null);
+  // The dragged card stays mounted while its column scrolls it out of view.
+  const dragged = rows.findIndex((ticket) => ticket.id === active?.id);
 
   return (
     <section
-      ref={setNodeRef}
+      ref={(node) => {
+        setNodeRef(node);
+        column.current = node;
+      }}
       aria-labelledby={`column-${status.id}`}
       className={cn(
         'flex w-72 shrink-0 flex-col gap-2 overflow-y-auto rounded-lg bg-muted p-2',
@@ -134,11 +158,16 @@ const Column = ({ group: { status, label, rows } }: { group: Group }) => {
         </Button>
       </header>
       {rows.length > 0 ? (
-        <ul className="flex flex-col gap-2">
-          {rows.map((ticket) => (
-            <TicketCard key={ticket.id} ticket={ticket} />
-          ))}
-        </ul>
+        <Virtualizer
+          scrollRef={column}
+          startMargin={HEADER_HEIGHT}
+          data={rows}
+          keepMounted={dragged === -1 ? undefined : [dragged]}
+          as="ul"
+          item={CardSlot}
+        >
+          {(ticket) => <TicketCard key={ticket.id} ticket={ticket} act={act} />}
+        </Virtualizer>
       ) : (
         <p className="rounded-md border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
           {t('no-tickets-in-status', 'No tickets here')}
@@ -154,7 +183,7 @@ const Column = ({ group: { status, label, rows } }: { group: Group }) => {
  */
 export const TicketsBoard = ({ tickets }: { tickets: Ticket[] }) => {
   const groups = useStatusGroups(tickets);
-  const update = useUpdateTicket();
+  const act = useTicketRowActions();
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -162,14 +191,14 @@ export const TicketsBoard = ({ tickets }: { tickets: Ticket[] }) => {
   );
 
   const dragEnd = ({ active, over }: DragEndEvent) => {
-    if (over && !over.disabled) update.mutate({ id: String(active.id), statusId: String(over.id) });
+    if (over && !over.disabled) act.edit(String(active.id), { statusId: String(over.id) });
   };
 
   return (
     <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={dragEnd}>
       <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-3">
         {groups.map((group) => (
-          <Column key={group.status.id} group={group} />
+          <Column key={group.status.id} group={group} act={act} />
         ))}
       </div>
     </DndContext>

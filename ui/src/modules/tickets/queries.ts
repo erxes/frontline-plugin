@@ -112,7 +112,7 @@ const TICKET_ROWS = [orpc.tickets.list.key(), orpc.tickets.get.key()];
  * the board and the open ticket show the change at once; a property waits for the API, which
  * parses it.
  */
-export const useUpdateTicket = () =>
+const useUpdateTicket = () =>
   useMutation(
     orpc.tickets.update.mutationOptions(
       useOptimistic(TICKET_ROWS, (queryClient, change: TicketChange & { id: string }) => {
@@ -143,6 +143,22 @@ export const useEditTicket = (id: string) => {
 
   return (change: TicketChange) => update.mutate({ id, ...change });
 };
+
+/**
+ * What a list's rows change, made once for the whole list and handed to each row: edit one
+ * ticket, or delete some after asking.
+ */
+export const useTicketRowActions = () => {
+  const update = useUpdateTicket();
+  const { deleteTickets } = useDeleteTickets();
+
+  return {
+    edit: (id: string, change: TicketChange) => update.mutate({ id, ...change }),
+    deleteTickets,
+  };
+};
+
+export type TicketRowActions = ReturnType<typeof useTicketRowActions>;
 
 /** Changes the selected tickets in one request; `done` runs after. */
 export const useBulkChange = () => {
