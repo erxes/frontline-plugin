@@ -105,6 +105,20 @@ describe('help centers', () => {
 
     await expect(read.json()).resolves.toMatchObject({ content: SANITIZED, viewCount: 0 });
 
+    // Search reads the text without its tags, and a draft, a private article or a wildcard in
+    // the words finds nothing.
+    const search = async (q: string) =>
+      (await fetch(`${base}/help-centers/${center.publicKey}/search?q=${q}`)).json();
+
+    await expect(search('MONEY%20back')).resolves.toEqual([
+      expect.objectContaining({ id: article.id, title: 'Refunds' }),
+    ]);
+
+    for (const missed of ['onclick', 'Draft', 'Internal', 'M_ney'])
+      await expect(search(missed)).resolves.toEqual([]);
+
+    expect((await fetch(`${base}/help-centers/${center.publicKey}/search?q=`)).status).toBe(400);
+
     // The view is written with the others that came meanwhile.
     await flushViews();
     await expect(
@@ -302,6 +316,9 @@ describe('help centers', () => {
     expect(
       (await messenger.get(`/knowledge-base/articles/${article.id}`, offered)).body,
     ).toMatchObject({ title: 'Refunds', content: SANITIZED });
+    expect((await messenger.get('/knowledge-base/search?q=money', offered)).body).toMatchObject([
+      { id: article.id },
+    ]);
     expect((await messenger.get('/knowledge-base', await visitorOf({}))).status).toBe(404);
   });
 

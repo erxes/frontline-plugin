@@ -1,5 +1,5 @@
 import { ORPCError } from '@orpc/server';
-import { articleOf, topicOf } from '../helpcenter/public.ts';
+import { articleOf, SearchQuery, searchOf, topicOf } from '../helpcenter/public.ts';
 import type { Visitor } from './session.ts';
 import { asVisitor, messengerIntegration, Params } from './threads.ts';
 
@@ -31,5 +31,12 @@ const article = asVisitor(async (visitor, req, res) => {
   res.json(found);
 });
 
+/** The topic's articles that hold the visitor's search, in their title, summary or text. */
+const search = asVisitor(async (visitor, req, res) => {
+  const { q } = SearchQuery.parse(req.query);
+
+  res.json(await searchOf(visitor.orgId, await topicIdOf(visitor), q));
+});
+
 /** The messenger's knowledge base routes, under `/api/public/messenger/knowledge-base`. */
-export const articleRoutes = { knowledgeBase, article };
+export const articleRoutes = { knowledgeBase, article, search };

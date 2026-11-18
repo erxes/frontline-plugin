@@ -272,6 +272,7 @@ export const messengerRoutes = () => {
   router.get('/tickets/forms', ticketRoutes.ticketForms);
   router.get('/knowledge-base', articleRoutes.knowledgeBase);
   router.get('/knowledge-base/articles/:id', articleRoutes.article);
+  router.get('/knowledge-base/search', articleRoutes.search);
 
   return router;
 };

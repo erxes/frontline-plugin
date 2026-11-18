@@ -1,6 +1,6 @@
 import type { VisitorSite } from '@frontline/api/helpcenter';
 import type { Jsonify } from 'type-fest';
-import type { Article } from '../articles/api.ts';
+import type { Article, ArticleSummary } from '../articles/api.ts';
 import { publicApi } from '../shared/http.ts';
 
 /** A help center as its embed reads it: its look, and its topic's categories and articles. */
@@ -13,5 +13,7 @@ export const knowledgeBaseApi = (base: URL) => {
   return {
     site: () => http.get().json<Site>(),
     read: (id: string) => http.get(`/articles/${encodeURIComponent(id)}`).json<Article>(),
+    search: (term: string) =>
+      http.get(`/search?q=${encodeURIComponent(term)}`).json<ArticleSummary[]>(),
   };
 };
