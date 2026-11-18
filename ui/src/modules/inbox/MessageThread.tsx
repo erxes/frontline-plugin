@@ -138,6 +138,30 @@ const LatestButton = ({
 };
 
 /**
+ * The thread's top edge: a spinner while earlier messages load, else a button that loads them,
+ * for a thread too short to scroll or a page that failed to load.
+ */
+const EarlierMessages = ({ thread }: { thread: ReturnType<typeof useMessages> }) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <div className="flex h-12 items-center justify-center">
+      {thread.isFetchingNextPage ? (
+        <Spinner aria-label={t('earlier-messages', 'Earlier messages')} />
+      ) : (
+        thread.hasNextPage && (
+          <Button variant="ghost" size="sm" onClick={() => void thread.fetchNextPage()}>
+            {thread.isFetchNextPageError
+              ? t('earlier-messages-failed', 'Earlier messages did not load. Try again')
+              : t('earlier-messages', 'Earlier messages')}
+          </Button>
+        )
+      )}
+    </div>
+  );
+};
+
+/**
  * Where the reader is in the thread. A new message scrolls into view while they sit at the end,
  * or when the member sent it; a reader up in the history stays put, and `unseen` counts what came
  * below. Earlier messages load as the reader nears the top.
@@ -196,7 +220,7 @@ const useReader = (thread: ReturnType<typeof useMessages>) => {
 export const MessageThread = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const thread = useMessages(conversation.id);
-  const { messages, isPending, hasNextPage } = thread;
+  const { messages, isPending } = thread;
   const customer = useCustomer(conversation.customerId);
   const viewport = useRef<HTMLDivElement>(null);
   const shift = usePrepended(messages);
@@ -231,13 +255,7 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
                 {(message, index) => (
                   <Fragment key={message.id}>
                     {/* The thread's edges sit inside its first and last rows, so virtua's offsets count them. */}
-                    {index === 0 && (
-                      <div className="flex h-12 items-start justify-center pt-6">
-                        {hasNextPage && (
-                          <Spinner aria-label={t('earlier-messages', 'Earlier messages')} />
-                        )}
-                      </div>
-                    )}
+                    {index === 0 && <EarlierMessages thread={thread} />}
                     {toIsoDay(message.createdAt) !==
                       toIsoDay(messages[index - 1]?.createdAt ?? new Date(0)) && (
                       <DayDivider date={message.createdAt} />

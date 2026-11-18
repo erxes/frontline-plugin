@@ -228,6 +228,7 @@
   "duration": "Үргэлжлэх хугацаа",
   "duration-seconds": "Үргэлжлэх хугацаа (секунд)",
   "earlier-messages": "Өмнөх зурвасууд",
+  "earlier-messages-failed": "Өмнөх зурвасууд ачаалагдсангүй. Дахин оролдох",
   "edit-appearance": "Харагдах байдлыг засах",
   "edit-message": "Зурвас засах",
   "edit-tags": "Шошго засах",
