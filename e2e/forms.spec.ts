@@ -7,7 +7,6 @@ import {
   moveByKeys,
   openChannelPipelines,
   openShop,
-  pick,
   recordPanel,
   test,
   unique,
@@ -17,6 +16,14 @@ const FORMS = '/frontline/forms';
 
 /** What the public address gives a visitor: the fields, by id. */
 const Shown = z.object({ fields: z.array(z.object({ id: z.string(), label: z.string() })) });
+
+/** Opens `select` and picks `option` in it. */
+const pick = async (page: Page, select: Locator, option: string) => {
+  await select.click();
+  await page.getByRole('option', { name: option, exact: true }).click();
+  // A click while the menu still closes would only dismiss it.
+  await expect(page.getByRole('option', { name: option, exact: true })).toBeHidden();
+};
 
 /** Opens the in-place text `name`, types `value` and saves it with Enter. */
 const retype = async (page: Page, button: Locator, placeholder: string, value: string) => {

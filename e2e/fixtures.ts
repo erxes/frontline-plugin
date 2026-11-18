@@ -355,8 +355,6 @@ export const visitorOf = async (
 export const pick = async (page: Page, select: Locator, option: string) => {
   await select.click();
   await page.getByRole('option', { name: option, exact: true }).click();
-  // A click while the menu still closes would only dismiss it.
-  await expect(page.getByRole('option', { name: option, exact: true })).toBeHidden();
 };
 
 /**
