@@ -9,7 +9,6 @@ import {
   IconTag,
   IconUser,
 } from '@tabler/icons-react';
-import type { CustomValue } from '@erxes/core-contract';
 import { useMutation } from '@tanstack/react-query';
 import {
   DatePicker,
@@ -20,10 +19,11 @@ import {
   type TRecordDraftProps,
   textOf,
 } from 'erxes-ui';
-import { type SubmitEvent, useState } from 'react';
+import type { SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChannels } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
+import { useDiscard } from '~/shared/drafts.ts';
 import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { TagsField } from '~/shared/Pickers.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
@@ -32,6 +32,7 @@ import { dayOf } from './TicketFields.tsx';
 import { ticketTags } from './TicketLinks.tsx';
 import { PropertyRows } from './TicketProperties.tsx';
 import { useChoices, useTicketChange } from './queries.ts';
+import { type TicketDraft, useOpener, useTicketDraft, written } from './ticketDraft.ts';
 
 /** The pipelines of the member's channels, each after its channel's name. */
 const PipelineSelect = ({
@@ -104,14 +105,7 @@ const FilingRows = ({
 };
 
 /** What a new ticket is planned with, beside its filing and name. */
-type Plan = {
-  priority: number;
-  assigneeId: string | null;
-  startDate: Date | null;
-  targetDate: Date | null;
-};
-
-const NO_PLAN: Plan = { priority: 0, assigneeId: null, startDate: null, targetDate: null };
+type Plan = Pick<TicketDraft, 'priority' | 'assigneeId' | 'startDate' | 'targetDate'>;
 
 /** The draft's priority, assignee and dates; each change patches `plan`. */
 const PlanRows = ({ plan, onChange }: { plan: Plan; onChange: (patch: Partial<Plan>) => void }) => {
@@ -155,9 +149,7 @@ const PlanRows = ({ plan, onChange }: { plan: Plan; onChange: (patch: Partial<Pl
 };
 
 /** A new ticket's tags and the properties its pipeline shows. */
-type Labels = { tagIds: string[]; propertiesData: Record<string, CustomValue | null> };
-
-const NO_LABELS: Labels = { tagIds: [], propertiesData: {} };
+type Labels = Pick<TicketDraft, 'tagIds' | 'propertiesData'>;
 
 const LabelRows = ({
   pipelineId,
@@ -191,23 +183,32 @@ const LabelRows = ({
 /**
  * A new ticket in core's side panel: its pipeline and status, name, priority, assignee, dates and
  * description. It starts in the opener's pipeline and status (`openNew(TICKET_TYPE, { pipelineId,
- * statusId })`), else the first pipeline and its first status. Nothing saves until Save; the
- * ticket then takes the draft's place.
+ * statusId })`), else the first pipeline and its first status. What is typed is kept as a draft
+ * until the ticket is created or Cancel discards it, so closing the panel, leaving the page or
+ * reloading loses none of it, as the old create sheet kept it.
  */
 export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
   const { pipelines } = useChoices();
-  const [picked, setPipelineId] = useState(() => textOf(defaults.pipelineId));
-  const [statusId, setStatusId] = useState(() => textOf(defaults.statusId));
-  const [plan, setPlan] = useState(NO_PLAN);
-  const [description, setDescription] = useState('');
-  const [labels, setLabels] = useState(NO_LABELS);
-  const pipelineId = picked || (pipelines[0]?.id ?? '');
+  const draft = useTicketDraft();
+  const discard = useDiscard(written(draft.value), draft.clear, onCancel);
+
+  useOpener(draft, textOf(defaults.pipelineId), textOf(defaults.statusId));
+
+  const { pipelineId: picked, statusId: pickedStatus, name, description, ...fields } = draft.value;
+  const pipelineId = picked || textOf(defaults.pipelineId) || (pipelines[0]?.id ?? '');
+  const statusId = picked ? pickedStatus : textOf(defaults.statusId);
+
+  // Every save pins the filing the form shows, so its properties never follow another pipeline.
+  const save = (patch: Partial<TicketDraft>) =>
+    draft.save((last) => ({ ...last, pipelineId, statusId, ...patch }));
+
   const { onSuccess } = useTicketChange();
 
   const create = useMutation(
     orpc.tickets.create.mutationOptions({
       onSuccess: (ticket) => {
+        draft.clear();
         onSuccess();
         onCreated(ticket.id);
       },
@@ -217,51 +218,40 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
   // onSubmit rather than a form action, which would clear the fields when the API refuses them.
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const form = new FormData(event.currentTarget);
-
-    create.mutate({
-      pipelineId,
-      statusId: statusId || undefined,
-      name: textOf(form.get('name')),
-      description,
-      ...labels,
-      ...plan,
-    });
+    create.mutate({ pipelineId, statusId: statusId || undefined, name, description, ...fields });
   };
 
   return (
-    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
+    <form
+      onSubmit={submit}
+      onChange={(event) => save({ name: textOf(new FormData(event.currentTarget).get('name')) })}
+      className="flex min-h-0 flex-1 flex-col"
+    >
       <PanelFormLayout
-        onCancel={onCancel}
+        onCancel={() => void discard()}
         saving={create.isPending}
         saveLabel={t('create-ticket', 'Create ticket')}
       >
         <FilingRows
           pipelineId={pipelineId}
           statusId={statusId}
-          onPipeline={(next) => {
-            setPipelineId(next);
-            setStatusId('');
-            setLabels((last) => ({ ...last, propertiesData: {} }));
-          }}
-          onStatus={setStatusId}
+          onPipeline={(next) => save({ pipelineId: next, statusId: '', propertiesData: {} })}
+          onStatus={(next) => save({ statusId: next })}
         />
         <TextRow
           label={t('name', 'Name')}
           icon={IconLetterCase}
           name="name"
+          defaultValue={name}
           required
           placeholder={t('name', 'Name')}
         />
-        <PlanRows plan={plan} onChange={(patch) => setPlan((last) => ({ ...last, ...patch }))} />
-        <LabelRows
-          pipelineId={pipelineId}
-          labels={labels}
-          onChange={(patch) => setLabels((last) => ({ ...last, ...patch }))}
-        />
+        <PlanRows plan={fields} onChange={save} />
+        <LabelRows pipelineId={pipelineId} labels={fields} onChange={save} />
         <PanelFormRow label={t('description', 'Description')} icon={IconAlignLeft}>
           <Editor
-            onChange={setDescription}
+            initialContent={description}
+            onChange={(next) => save({ description: next })}
             label={t('description', 'Description')}
             variant="outline"
             className="min-h-24"
