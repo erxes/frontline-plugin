@@ -1,7 +1,6 @@
-import { hkdfSync, timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual } from 'node:crypto';
 import { xchacha20poly1305 } from '@noble/ciphers/chacha.js';
 import { bytesToUtf8, managedNonce, utf8ToBytes } from '@noble/ciphers/utils.js';
-import { jwtVerify, SignJWT } from 'jose';
 import type { z } from 'zod';
 import { config } from '#/config.ts';
 
@@ -34,26 +33,3 @@ export const sameText = (expected: string, received: unknown) =>
   typeof received === 'string' &&
   Buffer.byteLength(received) === Buffer.byteLength(expected) &&
   timingSafeEqual(Buffer.from(received), Buffer.from(expected));
-
-/** A signing key for one purpose, derived from `SECRETS_KEY`. */
-const signingKey = (purpose: string) =>
-  new Uint8Array(hkdfSync('sha256', config.secretsKey, '', `frontline ${purpose}`, 32));
-
-/** `payload` as a token a provider hands back to frontline, such as an OAuth `state`. */
-export const signToken = (purpose: string, payload: Record<string, unknown>, expiresIn: string) =>
-  new SignJWT(payload)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime(expiresIn)
-    .sign(signingKey(purpose));
-
-/** The payload of a `signToken` token for `purpose`, or null when it is forged or expired. */
-export const readToken = async <T>(purpose: string, token: string, schema: z.ZodType<T>) => {
-  const verified = await jwtVerify(token, signingKey(purpose), { algorithms: ['HS256'] }).catch(
-    () => null,
-  );
-
-  const payload = schema.safeParse(verified?.payload);
-
-  return payload.success ? payload.data : null;
-};

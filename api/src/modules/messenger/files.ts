@@ -15,7 +15,7 @@ import {
   type Uploaded,
   uploadOf,
 } from '../files.ts';
-import { ownerOf, type Visitor, visitorOf } from './session.ts';
+import { type Visitor, visitorOf, visitorReceiptOwner } from './session.ts';
 import { asVisitor } from './threads.ts';
 
 /**
@@ -24,7 +24,7 @@ import { asVisitor } from './threads.ts';
  */
 const upload = asVisitor(async (visitor, req, res) => {
   const file = await storeFile(visitor.orgId, uploadOf(req));
-  const reply: Uploaded = { ...file, receipt: await receiptOf(ownerOf(visitor), file) };
+  const reply: Uploaded = { ...file, receipt: await receiptOf(visitorReceiptOwner(visitor), file) };
 
   res.status(201).json(reply);
 });
