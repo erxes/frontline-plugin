@@ -16,18 +16,12 @@ import { LoadPage } from '~/shared/List.tsx';
 import type { Paging } from '~/shared/paging.ts';
 import { ConversationRow, ROW, type RowHandlers } from './ConversationRow.tsx';
 import { type Conversation, useOpenConversation, usePrefetchConversation } from './queries.ts';
-import { useMarkRead } from './changes.ts';
 
-/** Opens a conversation and reads it, as the old inbox did. */
+/** Opens a conversation; the pane reads it once it shows. */
 export const useSelectConversation = () => {
   const [, setOpenId] = useOpenConversation();
-  const markRead = useMarkRead();
 
-  return (conversation: Conversation) => {
-    void setOpenId(conversation.id);
-
-    if (!conversation.isRead) markRead.mutate({ id: conversation.id });
-  };
+  return (conversation: Conversation) => void setOpenId(conversation.id);
 };
 
 /**
