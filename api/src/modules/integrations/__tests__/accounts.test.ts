@@ -84,6 +84,30 @@ describe('integration accounts', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
+  it('joins an account connected from a channel to it once, and only for the channel admin', async () => {
+    fakeProviders(telegramApi);
+
+    const owner = clientAs('org-acc-into');
+    const channel = await owner.channels.create({ name: 'Sales' });
+
+    const connect = () =>
+      owner.integrations.telegram.connect({ token: '777:good-token-abc', channelId: channel.id });
+
+    const account = await connect();
+
+    await connect();
+    expect(await owner.integrations.list({ channelId: channel.id })).toMatchObject([
+      { kind: 'telegram', name: account.name, config: { accountId: account.id } },
+    ]);
+    await expect(
+      clientAs(
+        'org-acc-into',
+        [PERMISSIONS.integrationManage],
+        'user-outsider',
+      ).integrations.telegram.connect({ token: '777:good-token-abc', channelId: channel.id }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
   it('marks an account broken when the provider stops taking it, and tells who connected it', async () => {
     let revoked = false;
 
