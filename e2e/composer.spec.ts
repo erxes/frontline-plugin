@@ -53,7 +53,7 @@ test('a member answers with a response template, formats it, attaches a file and
   await expect(page.getByRole('button', { name: 'Remove receipt.txt' })).toBeVisible();
   await page.getByRole('button', { name: 'Send', exact: true }).click();
 
-  const sent = thread.getByRole('listitem', { name: 'Message' }).last();
+  const sent = thread.getByRole('article', { name: 'Message' }).last();
 
   await expect(sent).toContainText('Refunds take five days.');
   await expect(sent.locator('strong')).toHaveText('Sorry for the wait.');
@@ -87,7 +87,7 @@ test('a member answers with a response template, formats it, attaches a file and
   await page.getByRole('button', { name: teammate.fullName, exact: true }).click();
   await expect(note).toContainText(`@${teammate.fullName}`);
   await page.keyboard.press('ControlOrMeta+Enter');
-  await expect(thread.getByRole('listitem', { name: 'Internal note' })).toContainText(
+  await expect(thread.getByRole('article', { name: 'Internal note' })).toContainText(
     `@${teammate.fullName}`,
   );
 
