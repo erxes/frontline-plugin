@@ -345,15 +345,9 @@ describe('tickets', () => {
     const anonymous = await tokenOf({ ...visitor, customerId: 'customer-bob', identified: false });
     const file = { pipelineId: pipeline.id, name: 'Broken zip', tagIds: [tag.id] };
 
-    // Only the pipeline of the messenger's own channel is offered, with core's fields.
+    // Only the pipeline of the messenger's own channel is offered.
     expect((await messenger.get('/tickets/forms', ann)).body).toMatchObject({
-      pipelines: [
-        {
-          id: pipeline.id,
-          name: 'Main',
-          properties: [{ id: 'size' }, { id: 'seats' }, { id: 'labels' }],
-        },
-      ],
+      pipelines: [{ id: pipeline.id, name: 'Main' }],
       tags: [{ id: tag.id, name: 'Shipping', colorCode: null }],
     });
     expect((await messenger.post('/tickets', file, anonymous)).status).toBe(403);
