@@ -4,6 +4,7 @@ import type {
   TicketForms as TicketFormsReply,
   VisitorConversation,
   VisitorMessage,
+  VisitorMessages,
   VisitorTicket,
 } from '@frontline/api/messenger';
 import type { Jsonify } from 'type-fest';
@@ -18,6 +19,9 @@ export type Settings = Connected['messenger'];
 export type Conversation = Jsonify<VisitorConversation>;
 
 export type Message = Jsonify<VisitorMessage>;
+
+/** A page of a conversation's messages, newest first, and the cursor for earlier ones. */
+export type MessagePage = Jsonify<VisitorMessages>;
 
 export type Attachment = Message['attachments'][number];
 
@@ -81,10 +85,12 @@ export const messengerApi = (base: URL, key: string) => {
         )
         .json<Connected>(),
     conversations: (token: string) => as(token).get('conversations').json<Conversation[]>(),
-    messages: (token: string, id: string) =>
+    messages: (token: string, id: string, cursor?: string) =>
       as(token)
-        .get(`conversations/${encodeURIComponent(id)}/messages`)
-        .json<Message[]>(),
+        .get(
+          `conversations/${encodeURIComponent(id)}/messages${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+        )
+        .json<MessagePage>(),
     send: (token: string, body: { conversationId?: string; content: string; files: string[] }) =>
       as(token).post(body, 'messages').json<Message>(),
     read: (token: string, id: string) => notify(token, id, 'read'),

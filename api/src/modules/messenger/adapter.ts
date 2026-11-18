@@ -1,3 +1,4 @@
+import { EventEmitter } from 'node:events';
 import { z } from 'zod';
 import type { Adapter } from '../inbox/adapters.ts';
 import { Color } from '../fields.ts';
@@ -125,3 +126,9 @@ export const messenger = {
   config: MessengerConfig,
   surveys: true,
 } satisfies Adapter;
+
+/**
+ * Hears in this process that an integration's settings changed or it went, so what the
+ * messenger's `/settings` keeps of it goes too.
+ */
+export const integrationChanges = new EventEmitter<{ changed: [integrationId: string] }>();

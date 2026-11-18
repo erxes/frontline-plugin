@@ -177,10 +177,13 @@ describe('inbox', () => {
 
     const seen = await get(`/conversations/${id}/messages`, token);
 
-    expect(seen.body).toEqual([
-      expect.objectContaining({ content: 'Hello?', fromVisitor: true }),
-      expect.objectContaining({ content: 'Hi, how can we help?', fromVisitor: false }),
-    ]);
+    expect(seen.body).toEqual({
+      items: [
+        expect.objectContaining({ content: 'Hi, how can we help?', fromVisitor: false }),
+        expect.objectContaining({ content: 'Hello?', fromVisitor: true }),
+      ],
+      nextCursor: null,
+    });
 
     const { messages } = await teammate.conversations.messages.list({ conversationId: id });
 
@@ -229,8 +232,12 @@ describe('inbox', () => {
       html: '<p>It ships <em>today</em>.</p><ul><li>Tracking follows</li></ul>',
     });
 
-    expect((await get(`/conversations/${id}/messages`, token)).body).toContainEqual(
-      expect.objectContaining({ content: 'It ships today.\n\n * Tracking follows' }),
+    const shown = z
+      .object({ items: z.array(z.object({ content: z.string() })) })
+      .parse((await get(`/conversations/${id}/messages`, token)).body);
+
+    expect(shown.items.map((message) => message.content)).toContain(
+      'It ships today.\n\n * Tracking follows',
     );
 
     // Formatting with no words in it is no message.

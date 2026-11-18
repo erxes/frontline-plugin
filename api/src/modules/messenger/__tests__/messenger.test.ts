@@ -270,14 +270,33 @@ describe('messenger', () => {
     // Asking twice tells the visitor once.
     await messenger.post(`/conversations/${id}/person`, {}, token);
 
-    const seen = z
-      .array(z.object({ content: z.string(), fromVisitor: z.boolean() }))
-      .parse((await messenger.get(`/conversations/${id}/messages`, token)).body);
+    const Page = z.object({
+      items: z.array(z.object({ content: z.string(), fromVisitor: z.boolean() })),
+      nextCursor: z.string().nullable(),
+    });
 
-    expect(seen).toEqual([
-      { content: 'I want a human', fromVisitor: true },
+    // Newest first, a page at a time.
+    const latest = Page.parse(
+      (await messenger.get(`/conversations/${id}/messages?limit=1`, token)).body,
+    );
+
+    expect(latest.items).toEqual([
       { content: 'A person from the team will answer you here.', fromVisitor: false },
     ]);
+
+    const earlier = Page.parse(
+      (
+        await messenger.get(
+          `/conversations/${id}/messages?limit=1&cursor=${latest.nextCursor ?? ''}`,
+          token,
+        )
+      ).body,
+    );
+
+    expect(earlier).toEqual({
+      items: [{ content: 'I want a human', fromVisitor: true }],
+      nextCursor: null,
+    });
 
     await teammate.conversations.setOperator({ ids: [id], operator: 'bot' });
     expect(await teammate.conversations.get({ id })).toMatchObject({ operator: 'bot' });
