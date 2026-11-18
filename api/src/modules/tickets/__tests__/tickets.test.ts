@@ -171,6 +171,10 @@ describe('tickets', () => {
       totalCount: 2,
       tickets: [{ name: 'Invoice copy' }, { name: 'Login fails' }],
     });
+    await owner.tickets.update({ id: refund?.id ?? '', statusId: stage(4) });
+    await expect(
+      names({ filter: rule('resolvedAt', 'within_last', { amount: 1, unit: 'days' }) }),
+    ).resolves.toEqual(['Refund']);
     await expect(names({ filter: rule('number', 'exists') })).resolves.toEqual([]);
     await expect(names({ filter: rule('firstResponseSla', 'eq', 'due') })).resolves.toEqual([]);
     await expect(

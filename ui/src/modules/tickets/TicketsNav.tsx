@@ -2,10 +2,8 @@ import { IconTicket } from '@tabler/icons-react';
 import { Sidebar } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
-import { PLUGIN } from '~/plugin.ts';
-import { PIPELINE_PARAM, useChoices, useTicketPipeline } from './queries.ts';
-
-const TICKETS = `/${PLUGIN}/tickets`;
+import { TICKETS_PATH, ticketsPath } from '~/shared/listPath.ts';
+import { useChoices, useTicketPipeline } from './queries.ts';
 
 /**
  * Tickets in the sidebar, and under it the member's pipelines when there are several, as the old
@@ -16,11 +14,14 @@ export const TicketsNav = () => {
   const { pathname } = useLocation();
   const { pipelines } = useChoices();
   const shown = useTicketPipeline();
-  const here = pathname === TICKETS || pathname.startsWith(`${TICKETS}/`);
+  const here = pathname === TICKETS_PATH || pathname.startsWith(`${TICKETS_PATH}/`);
 
   return (
     <Sidebar.MenuItem>
-      <Sidebar.MenuButton isActive={here && pipelines.length < 2} render={<Link to={TICKETS} />}>
+      <Sidebar.MenuButton
+        isActive={here && pipelines.length < 2}
+        render={<Link to={TICKETS_PATH} />}
+      >
         <IconTicket />
         <span>{t('tickets', 'Tickets')}</span>
       </Sidebar.MenuButton>
@@ -30,9 +31,7 @@ export const TicketsNav = () => {
             <Sidebar.SubItem key={pipeline.id}>
               <Sidebar.SubButton
                 isActive={here && shown?.id === pipeline.id}
-                render={
-                  <Link to={`${TICKETS}?${PIPELINE_PARAM}=${encodeURIComponent(pipeline.id)}`} />
-                }
+                render={<Link to={ticketsPath(pipeline.id)} />}
               >
                 <span>{pipeline.name}</span>
               </Sidebar.SubButton>

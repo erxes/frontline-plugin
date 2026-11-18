@@ -1,4 +1,15 @@
-import { addTiles, callProLine, expect, test, tileOf, unique } from './fixtures.ts';
+import { z } from 'zod';
+import {
+  addTiles,
+  callProLine,
+  expect,
+  Id,
+  pick,
+  pluginApi,
+  test,
+  tileOf,
+  unique,
+} from './fixtures.ts';
 
 test('call, ticket and conversation tiles on the home dashboard count the period, and keep their place', async ({
   page,
@@ -44,6 +55,55 @@ test('call, ticket and conversation tiles on the home dashboard count the period
     tileOf(page, 'Top numbers').getByRole('row').filter({ hasText: caller }),
   ).toBeVisible();
   await expect(tileOf(page, 'Ticket summary')).toBeVisible();
+});
+
+test('a ticket tile number opens the tickets it counts', async ({ page, api, request }) => {
+  const rpc = await pluginApi(api, request);
+  const channel = await rpc('channels/create', { name: `Counted ${unique()}` }, Id);
+  const pipeline = `Counted ${unique()}`;
+
+  const { id: pipelineId } = await rpc(
+    'pipelines/create',
+    { channelId: channel.id, name: pipeline },
+    Id,
+  );
+
+  const { statuses } = await rpc(
+    'pipelines/choices',
+    {},
+    z.object({
+      statuses: z.array(z.object({ id: z.string(), pipelineId: z.string(), type: z.number() })),
+    }),
+  );
+
+  const [first, done] = [1, 4].map(
+    (type) =>
+      statuses.find((status) => status.pipelineId === pipelineId && status.type === type)?.id ?? '',
+  );
+
+  const [open, resolved] = [`Open ${unique()}`, `Resolved ${unique()}`];
+
+  await rpc('tickets/create', { pipelineId, statusId: first, name: open }, Id);
+  await rpc('tickets/create', { pipelineId, statusId: done, name: resolved }, Id);
+
+  await addTiles(page, ['Ticket summary']);
+
+  const tile = tileOf(page, 'Ticket summary');
+
+  await pick(page, tile.getByRole('combobox', { name: 'Pipeline' }), pipeline);
+  await expect(tile.getByRole('link', { name: 'Created: 2' })).toBeVisible();
+
+  // Open now leads to the pipeline's tickets in an open status: only the first.
+  await tile.getByRole('link', { name: 'Open now: 1' }).click();
+  await expect(page).toHaveURL(/\/frontline\/tickets\?/);
+  await expect(page.getByText(open)).toBeVisible();
+  await expect(page.getByText(resolved)).toHaveCount(0);
+
+  // Created leads to both.
+  await page.goBack();
+  await tileOf(page, 'Ticket summary').getByRole('link', { name: 'Created: 2' }).click();
+  await expect(page.getByText(open)).toBeVisible();
+  await expect(page.getByText(resolved)).toBeVisible();
 });
 
 test('a member without the call permission sees the refusal in the call tile', async ({
