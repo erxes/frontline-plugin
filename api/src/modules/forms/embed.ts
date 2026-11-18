@@ -1,6 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { and, asc, eq, sql } from 'drizzle-orm';
-import express, { type Request, type Response, Router } from 'express';
+import express, { type Request, type RequestHandler, type Response, Router } from 'express';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { FORM_EVENTS, PERMISSIONS } from '#/core.ts';
@@ -14,6 +14,7 @@ import {
 } from '#/db/forms.ts';
 import { writes } from '#/orpc.ts';
 import { fail } from '../fail.ts';
+import { leadIpLimit, underKeyLimit } from '../limits.ts';
 import {
   fileIdOf,
   filesOf,
@@ -349,9 +350,16 @@ const upload = async (req: Request, res: Response) => {
   }
 };
 
+/** A submission or an upload counts against the organisation's form key too; a bad key 404s. */
+const perFormKey: RequestHandler = async (req, res, next) => {
+  const key = Params.shape.key.safeParse(req.params.key);
+
+  if (!key.success || (await underKeyLimit(res, `form:${key.data}`, 'write'))) next();
+};
+
 /** The signed-out routes embeds call, at `/api/public/:key/forms/:code`. */
 export const formsPublicRouter = Router({ mergeParams: true })
   .get('/forms/:code', show)
-  .post('/forms/:code', express.json({ limit: '1mb' }), submit)
-  .post('/forms/:code/files', rawUpload, upload)
+  .post('/forms/:code', leadIpLimit, perFormKey, express.json({ limit: '1mb' }), submit)
+  .post('/forms/:code/files', perFormKey, rawUpload, upload)
   .get('/forms/:code/images/:which', image);

@@ -1,11 +1,11 @@
 import { ORPCError } from '@orpc/server';
-import cors from 'cors';
 import express, { type Request, type Response } from 'express';
 import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 import { BrowserInfo } from '#/db/messenger.ts';
 import { logger } from '#/logger.ts';
 import { fail } from '../fail.ts';
+import { leadIpLimit, sendIpLimit, underKeyLimit } from '../limits.ts';
 import { shownKeyOf, shownUrl } from '../shownFiles.ts';
 import { voteRoutes } from '../surveys/votes.ts';
 import { integrationChanges, isOnlineAt } from './adapter.ts';
@@ -109,6 +109,9 @@ export type Connected = {
 const connect = async (req: Request, res: Response) => {
   try {
     const input = Connect.parse(req.body);
+
+    if (!(await underKeyLimit(res, input.key, 'connect'))) return;
+
     const shown = await opened(input.key);
     const found = { orgId: shown.orgId, integrationId: shown.integrationId };
     const signed = input.identity && (await signedCustomer(found, input.identity));
@@ -248,16 +251,14 @@ const stream = async (req: Request, res: Response) => {
 export const messengerRoutes = () => {
   const router = express.Router();
 
-  // Websites embed the messenger, so any origin calls it; the token, not a cookie, is the visitor.
-  router.use(cors({ origin: '*', maxAge: 600 }));
   router.use('/files', fileRoutes());
   router.use(express.json({ limit: '64kb' }));
   router.get('/settings', settings);
-  router.post('/connect', connect);
+  router.post('/connect', leadIpLimit, connect);
   router.post('/browser', browserInfo);
   router.get('/conversations', threadRoutes.conversations);
   router.get('/conversations/:id/messages', threadRoutes.conversationMessages);
-  router.post('/messages', threadRoutes.send);
+  router.post('/messages', sendIpLimit, threadRoutes.send);
   router.post('/conversations/:id/read', threadRoutes.markRead);
   router.post('/conversations/:id/typing', threadRoutes.typing);
   router.post('/conversations/:id/person', threadRoutes.askForPerson);

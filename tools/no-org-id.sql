@@ -2,4 +2,5 @@
 -- reads them. A tenant_key names the column the table's tenant policy keys on
 -- (core_enable_tenant_rls's second argument).
 insert into no_org_id (table_name, tenant_key, reason) values
-  ('frontline_public_keys', null, 'Finds the organisation of a signed-out request by the key or domain frontline issued.');
+  ('frontline_public_keys', null, 'Finds the organisation of a signed-out request by the key or domain frontline issued.'),
+  ('frontline_rate_limits', null, 'Counts signed-out requests by visitor IP, messenger key or form key, before the organisation is known.');
