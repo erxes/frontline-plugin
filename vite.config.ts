@@ -22,7 +22,7 @@ export default defineConfig({
         command: `erxes-check-escapes && ${tsrs} vp check && ${reactDoctor} && knip && erxes-check-docs && pnpm check:generated`,
         cache: tracked,
       },
-      fix: { command: `${tsrs} vp check --fix`, cache: false },
+      fix: { command: `pnpm check:generated --fix && ${tsrs} vp check --fix`, cache: false },
       test: { command: 'vp test run', cache: { ...tracked, env: ['DATA_TEST_URL'] } },
     },
   },

@@ -1,4 +1,6 @@
-// Regenerate into .scratch, so a failed check never changes a committed artifact.
+// Committed files in the form their tools give: mn.json's keys sorted, and the migrations as
+// drizzle generates them, regenerated into .scratch so a failed check never changes one.
+// `--fix` sorts mn.json.
 import { execFileSync } from 'node:child_process';
 import {
   cpSync,
@@ -10,8 +12,30 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { z } from 'zod';
 
 const root = resolve(import.meta.dirname, '..');
+
+// Sorted, a new key lands among its neighbours instead of where every branch appends, at the end.
+const mnFile = join(root, 'ui/src/i18n/mn.json');
+const mn = z.record(z.string(), z.string()).parse(JSON.parse(readFileSync(mnFile, 'utf8')));
+const keys = Object.keys(mn);
+const sorted = keys.toSorted();
+
+if (process.argv.includes('--fix')) {
+  const entries = sorted.map((key) => [key, mn[key]]);
+
+  writeFileSync(mnFile, `${JSON.stringify(Object.fromEntries(entries), null, 2)}\n`);
+  process.exit(0);
+}
+
+const moved = keys.findIndex((key, index) => key !== sorted[index]);
+
+if (moved !== -1)
+  throw new Error(
+    `ui/src/i18n/mn.json's keys are out of order from "${keys[moved]}". Run vp run fix.`,
+  );
+
 const scratch = join(root, '.scratch');
 
 mkdirSync(scratch, { recursive: true });
