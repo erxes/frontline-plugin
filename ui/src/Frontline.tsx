@@ -64,12 +64,6 @@ const TagsPage = lazy(
   withText(async () => ({ default: (await import('@/settings/TagsPage.tsx')).TagsPage })),
 );
 
-const PropertiesPage = lazy(
-  withText(async () => ({
-    default: (await import('@/settings/PropertiesPage.tsx')).PropertiesPage,
-  })),
-);
-
 // Help centers route their own list, record and appearance pages, so the page module holds one.
 const HelpCenterRoutes = lazy(
   withText(async () => ({
@@ -181,12 +175,12 @@ const settingsRoutes = (
     />
     <Route path="tags" element={<TagsPage />} />
     {/*
-      Branches and departments are core's. Old links stay in settings: leaving the plugin
+      Branches, departments and ticket properties are core's. Old links stay in settings: leaving the plugin
       would keep the old page as the tab's last place, so every return would leave again.
     */}
     <Route path="departments" element={<Navigate to="../channels" replace />} />
     <Route path="branches" element={<Navigate to="../channels" replace />} />
-    <Route path="ticket-properties" element={<PropertiesPage />} />
+    <Route path="ticket-properties" element={<Navigate to="../channels" replace />} />
     {/* Help centers moved out of settings. */}
     <Route path="help-centers/*" element={<Redirect path="help-centers" param="*" />} />
     <Route path="integrations" element={<IntegrationsPage />} />

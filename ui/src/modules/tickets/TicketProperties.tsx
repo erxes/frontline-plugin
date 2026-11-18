@@ -1,38 +1,51 @@
-import type { InferClientOutputs } from '@orpc/client';
+import { type CustomValue, type Field, groupApplies } from '@erxes/core-contract';
+import { orpc as core } from '@erxes/core-contract/client';
 import {
   IconAlignLeft,
   IconCalendar,
   IconLetterCase,
   IconListCheck,
   IconNumber,
-  IconPlus,
   IconSelect,
   IconToggleLeft,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import type { Client } from '@frontline/api';
 import {
-  Button,
   DatePicker,
   NumberField,
-  PanelField,
   PanelFormRow,
-  PanelSection,
   Switch,
   TextField,
-  useFormat,
+  type TListFilterField,
   textOf,
+  useFormat,
 } from 'erxes-ui';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { orpc } from '~/orpc.ts';
+import { TICKET_FIELDS } from '~/plugin.ts';
 import { Badges, PickerField } from '~/shared/Pickers.tsx';
-import { dayOf } from './TicketFields.tsx';
-import { type Ticket, useEditTicket } from './queries.ts';
+import type { Ticket } from './queries.ts';
 
-type Property = InferClientOutputs<Client>['tickets']['properties']['list'][number];
+/** How the ticket screens draw each type of core's fields; they draw no other. */
+const KINDS = {
+  text: 'text',
+  phone: 'text',
+  textarea: 'textarea',
+  number: 'number',
+  date: 'date',
+  boolean: 'boolean',
+  select: 'select',
+  radio: 'select',
+  multiselect: 'multiselect',
+  check: 'multiselect',
+} as const;
 
-const PROPERTY_ICONS = {
+type Kind = (typeof KINDS)[keyof typeof KINDS];
+
+const known = (type: string): type is keyof typeof KINDS => Object.hasOwn(KINDS, type);
+
+const kindOf = (field: Field): Kind | null => (known(field.type) ? KINDS[field.type] : null);
+
+const ICONS = {
   text: IconLetterCase,
   textarea: IconAlignLeft,
   number: IconNumber,
@@ -40,70 +53,75 @@ const PROPERTY_ICONS = {
   select: IconSelect,
   multiselect: IconListCheck,
   boolean: IconToggleLeft,
-} satisfies Record<Property['type'], unknown>;
+} satisfies Record<Kind, unknown>;
 
-/** The properties a pipeline's tickets show, in order. */
-const useProperties = (pipelineId: string) =>
-  useQuery({
-    ...orpc.tickets.properties.list.queryOptions({ input: { pipelineId } }),
-    enabled: pipelineId !== '',
-  }).data ?? [];
+const iconOf = (field: Field) => ICONS[kindOf(field) ?? 'text'];
+
+/** The visible ticket fields core keeps, in order, with the pipelines each one's group shows on. */
+const useTicketFields = () => {
+  const input = { contentType: TICKET_FIELDS };
+  const fields = useQuery(core.fields.list.queryOptions({ input })).data?.data ?? [];
+  const groups = useQuery(core.fieldGroups.list.queryOptions({ input })).data?.data ?? [];
+  const appliesTo = new Map(groups.map((group) => [group.id, group.appliesTo]));
+
+  return fields
+    .filter((field) => field.isVisible && kindOf(field))
+    .map((field) => ({ field, appliesTo: appliesTo.get(field.groupId ?? '') ?? {} }));
+};
+
+/** The fields a ticket of `pipelineId` shows. */
+const usePipelineFields = (pipelineId: string) =>
+  useTicketFields()
+    .filter(({ appliesTo }) => groupApplies(appliesTo, { pipeline: [pipelineId] }))
+    .map(({ field }) => field);
 
 const textsOf = (value: unknown) =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
 
-/**
- * One property's value, edited in place by the input its type takes. `onChange` gets the new
- * value, or null when it is cleared.
- */
-const PropertyInput = ({
-  property,
+/** A day as core stores a date value, `YYYY-MM-DD`. */
+const dayText = (day: Date) =>
+  [day.getFullYear(), day.getMonth() + 1, day.getDate()]
+    .map((part) => String(part).padStart(2, '0'))
+    .join('-');
+
+/** One field's value in the new ticket's form, by the input its type takes; null clears it. */
+const FieldInput = ({
+  field,
   value,
-  scope,
   onChange,
 }: {
-  property: Property;
-  value: unknown;
-  scope: string;
-  onChange: (value: unknown) => void;
+  field: Field;
+  value: CustomValue | undefined;
+  onChange: (value: CustomValue | null) => void;
 }) => {
   const { t } = useTranslation('frontline');
-  const options = property.options.map((option) => ({ value: option, label: option }));
+  const options = field.options.map((option) => ({ value: option, label: option }));
   const empty = t('empty', 'Empty');
+  const scope = `frontline-ticket-new.fields.${field.id}`;
 
-  switch (property.type) {
-    case 'text':
-    case 'textarea':
-      return (
-        <TextField
-          scope={`${scope}.${property.id}`}
-          value={textOf(value)}
-          placeholder={property.label}
-          onSave={(next) => onChange(next.trim() || null)}
-        />
-      );
+  switch (kindOf(field)) {
     case 'number':
       return (
         <NumberField
-          scope={`${scope}.${property.id}`}
+          scope={scope}
           value={typeof value === 'number' ? value : 0}
-          placeholder={property.label}
+          placeholder={field.label}
           onSave={onChange}
         />
       );
     case 'date':
       return (
         <DatePicker
-          value={typeof value === 'string' ? new Date(value) : undefined}
-          onChange={(day) => onChange(dayOf(day)?.toISOString() ?? null)}
-          placeholder={property.label}
+          value={typeof value === 'string' ? new Date(`${value}T00:00`) : undefined}
+          onChange={(day) => onChange(day instanceof Date ? dayText(day) : null)}
+          placeholder={field.label}
           clearable
         />
       );
     case 'select':
       return (
         <PickerField
-          label={property.label}
+          label={field.label}
           placeholder={empty}
           display={<span className="truncate">{textOf(value)}</span>}
           options={options}
@@ -115,7 +133,7 @@ const PropertyInput = ({
     case 'multiselect':
       return (
         <PickerField
-          label={property.label}
+          label={field.label}
           placeholder={empty}
           display={<Badges labels={textsOf(value)} />}
           options={options}
@@ -127,26 +145,35 @@ const PropertyInput = ({
     case 'boolean':
       return (
         <Switch
-          aria-label={property.label}
+          aria-label={field.label}
           checked={value === true}
           onCheckedChange={onChange}
           className="mx-2"
         />
       );
+    default:
+      return (
+        <TextField
+          scope={scope}
+          value={textOf(value)}
+          placeholder={field.label}
+          onSave={(next) => onChange(next.trim() || null)}
+        />
+      );
   }
 };
 
-/** A property's value as one line of text, or '' while it has none. */
+/** A field's value as one line of text, or '' while it has none. */
 const useValueText = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
 
-  return (property: Property, value: unknown) => {
-    switch (property.type) {
+  return (field: Field, value: CustomValue | undefined) => {
+    switch (kindOf(field)) {
       case 'number':
         return typeof value === 'number' ? String(value) : '';
       case 'date':
-        return typeof value === 'string' ? format.date(new Date(value)) : '';
+        return typeof value === 'string' ? format.date(new Date(`${value}T00:00`)) : '';
       case 'multiselect':
         return textsOf(value).join(', ');
       case 'boolean':
@@ -157,93 +184,62 @@ const useValueText = () => {
   };
 };
 
-/** The ticket's property values on its board card, three at most and the rest on hover. */
+/** The ticket's field values on its board card, three at most and the rest on hover. */
 export const TicketPropertyBadges = ({ ticket }: { ticket: Ticket }) => {
-  const properties = useProperties(ticket.pipelineId);
+  const fields = usePipelineFields(ticket.pipelineId);
   const valueText = useValueText();
 
-  const labels = properties.flatMap((property) => {
-    const text = valueText(property, ticket.propertiesData[property.id]);
+  const labels = fields.flatMap((field) => {
+    const text = valueText(field, ticket.propertiesData[field.id]);
 
-    return text ? [`${property.label}: ${text}`] : [];
+    return text ? [`${field.label}: ${text}`] : [];
   });
 
   return labels.length > 0 ? <Badges labels={labels} max={3} /> : null;
 };
 
-/**
- * The ticket's properties from settings, each saved as it changes; nothing when there are none.
- * The ones with a value show, and a button opens the empty ones, so a pipeline with many
- * properties doesn't fill the panel with "Empty".
- */
-export const TicketPropertiesSection = ({ ticket }: { ticket: Ticket }) => {
-  const { t } = useTranslation('frontline');
-  const properties = useProperties(ticket.pipelineId);
-  const valueText = useValueText();
-  const edit = useEditTicket(ticket.id);
-  const [all, setAll] = useState(false);
-
-  if (properties.length === 0) return null;
-
-  const filled = properties.filter(
-    (property) => valueText(property, ticket.propertiesData[property.id]) !== '',
-  );
-
-  const empty = properties.length - filled.length;
-
-  return (
-    <PanelSection title={t('properties', 'Properties')}>
-      {(all ? properties : filled).map((property) => (
-        <PanelField
-          key={property.id}
-          icon={PROPERTY_ICONS[property.type]}
-          label={property.label}
-          cell={false}
-        >
-          <PropertyInput
-            property={property}
-            value={ticket.propertiesData[property.id]}
-            scope={`frontline-ticket.${ticket.id}.properties`}
-            onChange={(value) => edit({ propertiesData: { [property.id]: value } })}
-          />
-        </PanelField>
-      ))}
-      {!all && empty > 0 && (
-        <Button variant="ghost" size="sm" className="self-start" onClick={() => setAll(true)}>
-          <IconPlus />
-          {t('show-empty-properties', {
-            defaultValue_one: 'Show {{count}} empty property',
-            defaultValue_other: 'Show {{count}} empty properties',
-            count: empty,
-          })}
-        </Button>
-      )}
-    </PanelSection>
-  );
-};
-
-/** A new ticket's property rows, the required ones marked. */
+/** A new ticket's rows for the fields its pipeline shows. */
 export const PropertyRows = ({
   pipelineId,
   values,
   onChange,
 }: {
   pipelineId: string;
-  values: Record<string, unknown>;
-  onChange: (id: string, value: unknown) => void;
+  values: Record<string, CustomValue | null>;
+  onChange: (id: string, value: CustomValue | null) => void;
 }) =>
-  useProperties(pipelineId).map((property) => (
-    <PanelFormRow
-      key={property.id}
-      label={property.label}
-      icon={PROPERTY_ICONS[property.type]}
-      required={property.isRequired}
-    >
-      <PropertyInput
-        property={property}
-        value={values[property.id]}
-        scope="frontline-ticket-new.properties"
-        onChange={(value) => onChange(property.id, value)}
+  usePipelineFields(pipelineId).map((field) => (
+    <PanelFormRow key={field.id} label={field.label} icon={iconOf(field)}>
+      <FieldInput
+        field={field}
+        value={values[field.id] ?? undefined}
+        onChange={(value) => onChange(field.id, value)}
       />
     </PanelFormRow>
   ));
+
+const FILTER_TYPES = {
+  text: 'text',
+  textarea: 'text',
+  number: 'number',
+  date: 'date',
+  boolean: 'boolean',
+  select: 'select',
+  multiselect: 'select',
+} as const satisfies Record<Kind, TListFilterField['type']>;
+
+/** The filter bar's field for each ticket field, on the path the API compares it by. */
+export const usePropertyFilterFields = (): TListFilterField[] =>
+  useTicketFields().map(({ field }) => {
+    const kind = kindOf(field) ?? 'text';
+
+    return {
+      path: `subject.customFields.${field.id}`,
+      label: field.label,
+      type: FILTER_TYPES[kind],
+      icon: ICONS[kind],
+      ...(FILTER_TYPES[kind] === 'select'
+        ? { options: field.options.map((option) => ({ value: option, label: option })) }
+        : {}),
+    };
+  });

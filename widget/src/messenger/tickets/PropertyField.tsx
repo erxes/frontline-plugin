@@ -13,7 +13,6 @@ const Choices = ({ property, value, onChange }: FieldProps) => {
   if (property.type === 'select')
     return (
       <select
-        required={property.isRequired}
         value={textOf(value)}
         onChange={(event) => onChange(event.currentTarget.value || null)}
       >
@@ -44,13 +43,12 @@ const Choices = ({ property, value, onChange }: FieldProps) => {
   );
 };
 
-/** The input a property of `type` takes; an empty one sends null. */
+/** The input a property of `type` takes; an empty one sends null, a date `YYYY-MM-DD`. */
 const Input = ({ property, value, onChange }: FieldProps) => {
   switch (property.type) {
     case 'textarea':
       return (
         <textarea
-          required={property.isRequired}
           value={textOf(value)}
           onInput={(event) => onChange(event.currentTarget.value || null)}
         />
@@ -59,7 +57,6 @@ const Input = ({ property, value, onChange }: FieldProps) => {
       return (
         <input
           type="number"
-          required={property.isRequired}
           value={typeof value === 'number' ? value : ''}
           onInput={(event) =>
             onChange(event.currentTarget.value ? event.currentTarget.valueAsNumber : null)
@@ -70,13 +67,8 @@ const Input = ({ property, value, onChange }: FieldProps) => {
       return (
         <input
           type="date"
-          required={property.isRequired}
-          value={textOf(value).slice(0, 10)}
-          onInput={(event) => {
-            const day = event.currentTarget.value;
-
-            onChange(day ? new Date(`${day}T00:00:00Z`).toISOString() : null);
-          }}
+          value={textOf(value)}
+          onInput={(event) => onChange(event.currentTarget.value || null)}
         />
       );
     case 'boolean':
@@ -93,7 +85,6 @@ const Input = ({ property, value, onChange }: FieldProps) => {
     case 'text':
       return (
         <input
-          required={property.isRequired}
           value={textOf(value)}
           onInput={(event) => onChange(event.currentTarget.value || null)}
         />
@@ -104,10 +95,7 @@ const Input = ({ property, value, onChange }: FieldProps) => {
 /** One of the pipeline's properties, labelled, with its description under it. */
 export const PropertyField = (props: FieldProps) => (
   <label class={props.property.type === 'boolean' ? 'fl-field fl-check' : 'fl-field'}>
-    <span>
-      {props.property.label}
-      {props.property.isRequired && ' *'}
-    </span>
+    <span>{props.property.label}</span>
     <Input {...props} />
     {props.property.description && <small>{props.property.description}</small>}
   </label>

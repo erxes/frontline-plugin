@@ -7,18 +7,17 @@ import { withText } from '~/i18n/withText.ts';
 // says what it counts, the preview how it draws, so three icons, which `./config` has anyway.
 const reports = withText(() => import('@/reports/tiles.ts'));
 
-/** A report tile whose body is the `TILES` entry `body`; core draws its frame and title. */
+/** A report tile whose body is the `TILES` entry of its name; core draws its frame and title. */
 const tile = ({
-  body,
   wide,
   ...widget
 }: Omit<TDashboardWidget, 'component' | 'size'> & {
-  body: keyof Awaited<ReturnType<typeof reports>>['TILES'];
+  name: keyof Awaited<ReturnType<typeof reports>>['TILES'];
   wide?: boolean;
 }): TDashboardWidget => ({
   ...widget,
   size: wide ? { w: 12, h: 4 } : { w: 6, h: 7 },
-  component: lazy(async () => ({ default: (await reports()).TILES[body] })),
+  component: lazy(async () => ({ default: (await reports()).TILES[widget.name] })),
 });
 
 /**
@@ -34,7 +33,6 @@ export const DASHBOARD_WIDGETS = [
     icon: IconTicket,
     preview: 'kpi',
     wide: true,
-    body: 'TicketSummary',
   }),
   tile({
     name: 'tickets-over-time',
@@ -42,7 +40,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'Tickets created and resolved each day',
     icon: IconTicket,
     preview: 'area',
-    body: 'TicketsOverTime',
   }),
   tile({
     name: 'tickets-by-stage',
@@ -50,7 +47,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'New tickets by the stage they are in now',
     icon: IconTicket,
     preview: 'bar',
-    body: 'TicketsByStage',
   }),
   tile({
     name: 'tickets-by-priority',
@@ -58,7 +54,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'New tickets by priority',
     icon: IconTicket,
     preview: 'bar',
-    body: 'TicketsByPriority',
   }),
   tile({
     name: 'tickets-by-tag',
@@ -66,7 +61,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'The tags on new tickets',
     icon: IconTicket,
     preview: 'bar',
-    body: 'TicketsByTag',
   }),
   tile({
     name: 'conversation-summary',
@@ -75,7 +69,6 @@ export const DASHBOARD_WIDGETS = [
     icon: IconMessageCircle,
     preview: 'kpi',
     wide: true,
-    body: 'ConversationSummary',
   }),
   tile({
     name: 'conversations-over-time',
@@ -83,7 +76,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'Conversations started and resolved each day',
     icon: IconMessageCircle,
     preview: 'area',
-    body: 'ConversationsOverTime',
   }),
   tile({
     name: 'conversations-by-source',
@@ -91,7 +83,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'Conversations by the integration they came through',
     icon: IconMessageCircle,
     preview: 'bar',
-    body: 'ConversationsBySource',
   }),
   tile({
     name: 'conversations-by-tag',
@@ -99,7 +90,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'The tags on new conversations',
     icon: IconMessageCircle,
     preview: 'bar',
-    body: 'ConversationsByTag',
   }),
   tile({
     name: 'conversation-responders',
@@ -107,7 +97,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'Members who replied to customers the most',
     icon: IconMessageCircle,
     preview: 'table',
-    body: 'ConversationResponders',
   }),
   tile({
     name: 'call-summary',
@@ -116,7 +105,6 @@ export const DASHBOARD_WIDGETS = [
     icon: IconPhone,
     preview: 'kpi',
     wide: true,
-    body: 'CallSummary',
   }),
   tile({
     name: 'call-volume',
@@ -124,7 +112,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'Incoming, outgoing and missed calls each day',
     icon: IconPhone,
     preview: 'area',
-    body: 'CallVolume',
   }),
   tile({
     name: 'call-heatmap',
@@ -132,7 +119,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'When calls come, by weekday and hour',
     icon: IconPhone,
     preview: 'heatmap',
-    body: 'CallHeatmap',
   }),
   tile({
     name: 'call-agents',
@@ -140,7 +126,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'Members who answered the most calls',
     icon: IconPhone,
     preview: 'table',
-    body: 'CallAgents',
   }),
   tile({
     name: 'call-queues',
@@ -148,7 +133,6 @@ export const DASHBOARD_WIDGETS = [
     description: 'Each queue’s calls, answers, misses and wait',
     icon: IconPhone,
     preview: 'table',
-    body: 'CallQueues',
   }),
   tile({
     name: 'call-numbers',
@@ -156,6 +140,5 @@ export const DASHBOARD_WIDGETS = [
     description: 'The numbers that called or were called the most',
     icon: IconPhone,
     preview: 'table',
-    body: 'CallNumbers',
   }),
 ];

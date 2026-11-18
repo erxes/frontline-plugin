@@ -15,7 +15,6 @@ import { pipelineFor } from '../pipelines/pipelines.ts';
 import { statusRights } from '../pipelines/rights.ts';
 import { assertTags } from '../tags/tags.ts';
 import { assertTeam } from '../teams/teams.ts';
-import { mergeProperties, parseProperties, PropertiesPatch } from './properties.ts';
 import { auditRemoved, changeEvents, publish, snapshot } from './events.ts';
 import {
   firstStatusOf,
@@ -53,8 +52,8 @@ const Changes = createUpdateSchema(tickets, refine).pick({
 });
 
 type Change = z.infer<typeof Changes> & {
-  /** Parsed values of the ticket's properties, null to clear one. */
-  properties?: Record<string, unknown>;
+  /** The ticket's custom field values as core checked them, in place of the old ones. */
+  properties?: (typeof tickets.$inferSelect)['propertiesData'];
 };
 
 /** Refuses tags, branches and departments that don't exist, so a ticket names only real ones. */
@@ -192,7 +191,7 @@ const onMove = (
  * Applies one change to tickets the caller may change, in their transaction: the fields, a
  * status move, a pipeline move, the SLA they imply, then each ticket's timeline events.
  */
-const changeTickets = async (
+export const changeTickets = async (
   tx: Tx,
   member: PluginMember,
   rows: TicketRow[],
@@ -229,7 +228,7 @@ const changeTickets = async (
       .set({
         ...fields,
         ...moved,
-        ...(properties ? { propertiesData: mergeProperties(properties) } : {}),
+        ...(properties ? { propertiesData: properties } : {}),
       })
       .where(inArray(tickets.id, ids));
 
@@ -240,27 +239,14 @@ const changeTickets = async (
 };
 
 /**
- * Changes what is given on one ticket, or moves it to another status of its pipeline.
- * `propertiesData` sets the values it names, null clearing one, and keeps the rest.
+ * Changes what is given on one ticket, or moves it to another status of its pipeline. Its
+ * custom fields change through `tickets.properties.save`, which core checks.
  */
 const update = writes(PERMISSIONS.channelView)
-  .input(
-    Changes.omit({ pipelineId: true }).extend({
-      id: z.string(),
-      propertiesData: PropertiesPatch.optional(),
-    }),
-  )
+  .input(Changes.omit({ pipelineId: true }).extend({ id: z.string() }))
   .output(Ticket)
-  .handler(async ({ input: { id, propertiesData, ...change }, context: { tx, member } }) => {
-    const rows = await ticketsFor(tx, member, [id]);
-    const [row] = rows;
-
-    const properties =
-      row && propertiesData
-        ? await parseProperties(tx, row.pipelineId, propertiesData, { create: false })
-        : undefined;
-
-    await changeTickets(tx, member, rows, { ...change, properties });
+  .handler(async ({ input: { id, ...change }, context: { tx, member } }) => {
+    await changeTickets(tx, member, await ticketsFor(tx, member, [id]), change);
 
     return ticketById(tx, member, id);
   });

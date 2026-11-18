@@ -1,3 +1,4 @@
+import { CustomFields } from '@erxes/core-contract';
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import {
@@ -48,7 +49,7 @@ const SlaState = z.enum(SLA_STATES).nullable();
 /** The row, what the caller may do with it and its SLA, which the query selects. */
 export const Ticket = createSelectSchema(tickets, {
   attachments: () => z.array(Attachment),
-  propertiesData: () => z.record(z.string(), z.unknown()),
+  propertiesData: () => CustomFields,
 })
   .omit({ orgId: true })
   .extend({

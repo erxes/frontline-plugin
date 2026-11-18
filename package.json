@@ -18,11 +18,12 @@
     "e2e": "playwright test -c e2e/playwright.config.ts",
     "e2e:stack": "bash e2e/stack.sh",
     "image": "pnpm build && rm -rf .runtime && pnpm --filter @frontline/api deploy --prod .runtime && docker build --build-arg VERSION=${VERSION:-dev} -t frontline-plugin:ci .",
-    "migrate:import": "node --env-file-if-exists=.env scripts/import-mongo.ts"
+    "migrate:import": "node --env-file-if-exists=.env scripts/import-mongo.ts",
+    "migrate:ticket-properties": "node --env-file-if-exists=.env scripts/move-ticket-properties.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
-    "@erxes/core-contract": "0.1.0-v2.26",
+    "@erxes/core-contract": "0.1.0-v2.28",
     "@erxes/lint": "0.1.3",
     "@orpc/client": "1.16.2",
     "@orpc/contract": "1.16.2",

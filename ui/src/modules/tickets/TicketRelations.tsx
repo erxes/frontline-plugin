@@ -18,6 +18,18 @@ export const ticketContacts = async (id: string) => {
   };
 };
 
+/** The ticket's pipeline, which says what its field groups apply to (`properties` in config). */
+export const ticketAppliesTo = async (id: string) => ({
+  pipeline: [(await orpc.tickets.get.call({ id })).pipelineId],
+});
+
+/** The pipelines a ticket field group can be limited to, as core's Properties settings list them. */
+export const pipelineLimits = async () =>
+  (await orpc.pipelines.choices.call()).pipelines.map(({ id, name }) => ({
+    value: id,
+    label: name,
+  }));
+
 const anyOf = (path: string, ids: string[]) =>
   ids.length > 0 ? [{ path, op: 'in' as const, value: ids }] : [];
 
