@@ -27,7 +27,7 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
 
   const visitor = await visitorOf(request, await addMessenger(page, channel));
 
-  await visitor.write(refund);
+  const refundId = await visitor.write(refund);
 
   const member = teammate.page;
 
@@ -44,7 +44,7 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   await expect(channelLink.getByLabel('1 unread')).toBeVisible();
 
   // Another conversation in the channel raises its count without a reload.
-  await visitor.write(`Where is my parcel ${unique()}`);
+  const parcelId = await visitor.write(`Where is my parcel ${unique()}`);
   await expect(channelLink.getByLabel('2 unread')).toBeVisible();
 
   // The channel's link narrows the inbox to it, as the filter bar's channel rule does.
@@ -75,6 +75,23 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   await queues.getByRole('link', { name: /^Assigned to me/ }).click();
   await expect(member).toHaveURL(/assigneeId/);
   await expect(row).toBeVisible();
+
+  // A message into the open conversation is read as it arrives.
+  await row.click();
+
+  const followUp = `Any news ${unique()}`;
+  const updated = conversations.getByRole('button', { name: new RegExp(followUp) });
+
+  await visitor.write(followUp, refundId);
+  await expect(updated).toBeVisible();
+  await expect(updated).not.toContainText('Unread');
+
+  // A link straight to a conversation reads it too, and the channel has nothing left unread.
+  await member.goto(`${INBOX}?conversationId=${parcelId}`);
+  await expect(member.getByRole('region', { name: 'Conversation' })).toContainText(
+    'Where is my parcel',
+  );
+  await expect(channelLink.getByLabel(/unread/)).toBeHidden();
 });
 
 test('My inbox and Team inbox split the member’s channels; quiet ones fold, a filter finds any, and a folded group stays folded', async ({
