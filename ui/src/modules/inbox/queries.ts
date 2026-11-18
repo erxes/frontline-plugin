@@ -255,10 +255,13 @@ export const useLinkPreviews = (message: Message) =>
 
 /**
  * How many conversations wait unread by the member: in all, in each sidebar queue and in each of
- * their channels, kept live by the layout's signal.
+ * their channels, kept live by the layout's signal. A refusal isn't asked again, so a member
+ * without the inbox sees no outline wait on it.
  */
 export const useInboxCounts = () =>
-  useQuery(orpc.conversations.counts.queryOptions({ input: {}, staleTime: FRESH_MS }));
+  useQuery(
+    orpc.conversations.counts.queryOptions({ input: {}, staleTime: FRESH_MS, retry: false }),
+  );
 
 export type InboxCounts = NonNullable<ReturnType<typeof useInboxCounts>['data']>;
 
