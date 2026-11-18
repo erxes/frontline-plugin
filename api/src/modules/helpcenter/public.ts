@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import express, { type Response, type Router } from 'express';
 import sanitizeHtml from 'sanitize-html';
 import { withOrg } from '#/db/client.ts';
@@ -6,6 +6,7 @@ import { HELP_CENTER_DOMAIN, HELP_CENTER_KEY, helpCenters } from '#/db/helpcente
 import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
 import { logger } from '#/logger.ts';
 import { openedBy } from '../public.ts';
+import { countView } from '../views.ts';
 
 /**
  * The help center's organisation and id from the address a signed-out visitor came by: its key,
@@ -106,27 +107,14 @@ const siteOf = async ({ orgId, center }: Center) => ({
   ...(await topicOf(orgId, center.kbTopicId ?? '')),
 });
 
-/** One published public article of the topic, its body sanitized, counted as viewed. */
-export const articleOf = (orgId: string, topicId: string, id: string) =>
-  withOrg(orgId, async (tx) => {
-    const [article] = await tx
-      .update(kbArticles)
-      .set({ viewCount: sql`${kbArticles.viewCount} + 1` })
-      .where(
-        and(
-          eq(kbArticles.id, id),
-          eq(kbArticles.status, 'publish'),
-          eq(kbArticles.isPrivate, false),
-          inArray(
-            kbArticles.categoryId,
-            tx
-              .select({ id: kbCategories.id })
-              .from(kbCategories)
-              .where(eq(kbCategories.topicId, topicId)),
-          ),
-        ),
-      )
-      .returning({
+/**
+ * One published public article of the topic, its body sanitized, counted as viewed. The view is
+ * written later with others (`flushViews`), so `viewCount` is what was written so far.
+ */
+export const articleOf = async (orgId: string, topicId: string, id: string) => {
+  const [article] = await withOrg(orgId, (tx) =>
+    tx
+      .select({
         id: kbArticles.id,
         categoryId: kbArticles.categoryId,
         title: kbArticles.title,
@@ -136,10 +124,25 @@ export const articleOf = (orgId: string, topicId: string, id: string) =>
         attachments: kbArticles.attachments,
         viewCount: kbArticles.viewCount,
         publishedAt: kbArticles.publishedAt,
-      });
+      })
+      .from(kbArticles)
+      .innerJoin(kbCategories, eq(kbCategories.id, kbArticles.categoryId))
+      .where(
+        and(
+          eq(kbArticles.id, id),
+          eq(kbArticles.status, 'publish'),
+          eq(kbArticles.isPrivate, false),
+          eq(kbCategories.topicId, topicId),
+        ),
+      ),
+  );
 
-    return article ? { ...article, content: visitorHtml(article.content) } : null;
-  });
+  if (!article) return null;
+
+  countView(orgId, 'article', article.id);
+
+  return { ...article, content: visitorHtml(article.content) };
+};
 
 /** What a topic gives a visitor, for the embeds to type their replies. */
 export type VisitorTopic = Awaited<ReturnType<typeof topicOf>>;

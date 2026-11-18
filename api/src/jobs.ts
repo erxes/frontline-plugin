@@ -2,6 +2,7 @@ import type { PluginJobDelivery } from '@erxes/core-contract';
 import { JOBS } from '#/core.ts';
 import { checkDomains } from '#/modules/helpcenter/domains.ts';
 import { sendReply } from '#/modules/inbox/send.ts';
+import { publishScheduled } from '#/modules/knowledgebase/articles.ts';
 import { checkAccounts, syncMail } from '#/modules/integrations/jobs.ts';
 import { copyRecording } from '#/modules/integrations/providers/call/recording.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';
@@ -11,6 +12,7 @@ import { checkSla } from '#/modules/tickets/sla.ts';
 export const JOB_RUNS: Record<string, (job: PluginJobDelivery) => Promise<unknown>> = {
   [JOBS.sla.name]: (job) => checkSla(job.orgId),
   [JOBS.domains.name]: (job) => checkDomains(job.orgId),
+  [JOBS.kbPublish.name]: (job) => publishScheduled(job.orgId),
   [JOBS.send.name]: sendReply,
   [JOBS.mailSync.name]: syncMail,
   [JOBS.check.name]: checkAccounts,

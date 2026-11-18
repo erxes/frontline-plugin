@@ -3,7 +3,7 @@ import { and, count, eq, getTableColumns, ilike, inArray, lte, or, sql } from 'd
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
-import type { Tx } from '#/db/client.ts';
+import { type Tx, withOrg } from '#/db/client.ts';
 import { KB_ARTICLE_STATUSES, kbArticles, kbCategories } from '#/db/schema.ts';
 import { Attachment } from '#/db/table.ts';
 import { reads, writes } from '#/orpc.ts';
@@ -97,18 +97,21 @@ const ARTICLE_FILTER: FilterFields = {
 };
 
 /**
- * Publishes the scheduled articles whose time has come, as of that time.
- * Every read runs it first, so no job or queue has to.
+ * Publishes the organisation's scheduled articles whose time has come, as of that time. Core runs
+ * it every minute as the `knowledgebase.publish` job.
  */
-const publishDue = (tx: Tx) =>
-  tx
-    .update(kbArticles)
-    .set({ status: 'publish', publishedAt: sql`${kbArticles.scheduledAt}`, scheduledAt: null })
-    .where(and(eq(kbArticles.status, 'scheduled'), lte(kbArticles.scheduledAt, sql`now()`)));
+export const publishScheduled = (organizationId: string) =>
+  withOrg(organizationId, async (tx) => {
+    const published = await tx
+      .update(kbArticles)
+      .set({ status: 'publish', publishedAt: sql`${kbArticles.scheduledAt}`, scheduledAt: null })
+      .where(and(eq(kbArticles.status, 'scheduled'), lte(kbArticles.scheduledAt, sql`now()`)))
+      .returning({ id: kbArticles.id });
+
+    return { published: published.length };
+  });
 
 const articleFor = async (tx: Tx, id: string) => {
-  await publishDue(tx);
-
   const [article] = await tx
     .select({ ...detailColumns, topicId: kbCategories.topicId })
     .from(kbArticles)
@@ -161,7 +164,6 @@ const list = reads(PERMISSIONS.kbView)
     }),
   )
   .handler(async ({ input, context: { tx, member } }) => {
-    await publishDue(tx);
     await topicFor(tx, input.topicId);
 
     const inTopic = tx
