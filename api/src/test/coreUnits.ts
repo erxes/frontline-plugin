@@ -142,6 +142,7 @@ const ticketField = (id: string, label: string, type: string, groupId: string) =
   type,
   groupId,
   isVisible: true,
+  isVisibleToCreate: true,
   description: null,
   options: type === 'number' ? [] : ['S', 'M', 'vip'],
 });

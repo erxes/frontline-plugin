@@ -9,7 +9,7 @@
 // by. A property limited to pipelines lands in a group limited to them, the rest in their old
 // group or "Tickets". A field core already has by that label is reused, so running it again
 // moves nothing twice. Moved rows leave `frontline_ticket_properties`.
-import { CORE_API_PREFIX, coreContract, FieldType } from '@erxes/core-contract';
+import { CORE_API_PREFIX, coreContract, type FieldLogic, FieldType } from '@erxes/core-contract';
 import { createORPCClient } from '@orpc/client';
 import type { ContractRouterClient } from '@orpc/contract';
 import { OpenAPILink } from '@orpc/openapi-client/fetch';
@@ -43,8 +43,9 @@ type Old = {
   isVisible: boolean;
   isRequired: boolean;
   isVisibleToCreate: boolean;
-  /** Old erxes's rules by old field id: the first one's action, every rule must match. */
-  logics: { field: string; operator: string; value: string; action: string }[];
+  /** Old erxes's rules by old field id, every one to match, and what they do to the field. */
+  logics: { fieldId: string; logicOperator?: string; logicValue?: unknown }[];
+  logicAction: 'show' | 'hide';
   group: string;
   pipelineIds: string[];
 };
@@ -103,6 +104,7 @@ const pluginProperties = (client: PoolClient) =>
         // The plugin's new ticket form asked for every property.
         isVisibleToCreate: true,
         logics: [],
+        logicAction: 'show',
         group: row.pipelines ? `Tickets: ${row.pipelines}` : 'Tickets',
         pipelineIds: row.pipeline_ids,
       })),
@@ -117,7 +119,8 @@ type MongoField = {
   isVisible?: boolean;
   isRequired?: boolean;
   isVisibleToCreate?: boolean;
-  logics?: { field?: string; operator?: string; value?: string; action?: string }[];
+  logics?: { fieldId?: string; logicOperator?: string; logicValue?: unknown }[];
+  logicAction?: string;
   options?: { label?: string; value?: string }[];
 };
 
@@ -153,11 +156,10 @@ const mongoProperties = async (url: string) => {
       isVisible: field.isVisible ?? true,
       isRequired: field.isRequired ?? false,
       isVisibleToCreate: field.isVisibleToCreate ?? false,
-      logics: (field.logics ?? []).flatMap(({ field: id, operator, value, action }) =>
-        id
-          ? [{ field: id, operator: operator ?? 'is', value: value ?? '', action: action ?? '' }]
-          : [],
+      logics: (field.logics ?? []).flatMap(({ fieldId, ...rule }) =>
+        fieldId ? [{ fieldId, ...rule }] : [],
       ),
+      logicAction: field.logicAction === 'hide' ? 'hide' : 'show',
       group: groupName.get(field.groupId ?? '') ?? 'Tickets',
       pipelineIds: [],
     }));
@@ -172,7 +174,6 @@ const makeInCore = async (properties: Old[]) => {
   const groups = (await core.fieldGroups.list(input)).data;
   const fields = (await core.fields.list(input)).data;
   const made = new Map<string, string>();
-  const created = new Set<string>();
 
   for (const property of properties) {
     const groupKey = property.group.toLowerCase();
@@ -199,57 +200,97 @@ const makeInCore = async (properties: Old[]) => {
         type: property.type,
         options: [...new Set(property.options.map((option) => option.label))],
         isVisible: property.isVisible,
-        isRequired: property.isRequired,
-        isVisibleToCreate: property.isVisibleToCreate,
       });
       fields.push(field);
-      created.add(property.id);
     }
 
     made.set(property.id, field.id);
   }
 
-  return { made, created };
+  return made;
+};
+
+/** Old erxes's operators by core's; one core lacks, such as `startsWith`, has no entry. */
+const OPERATORS = new Map<string, FieldLogic['rules'][number]['operator']>([
+  ['is', 'is'],
+  ['isNot', 'isNot'],
+  ['isUnknown', 'isEmpty'],
+  ['hasAnyValue', 'hasValue'],
+  ['contains', 'contains'],
+  ['greaterThan', 'greaterThan'],
+  ['lessThan', 'lessThan'],
+]);
+
+/** Core keeps up to this many rules on a field. */
+const MOST_RULES = 10;
+
+/** An old rule's value as core's text: a day as `YYYY-MM-DD`, none as null; undefined for a list. */
+const ruleText = (value: unknown) => {
+  if (value === null || value === undefined) return null;
+
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : undefined;
 };
 
 /**
  * Old erxes's logic as core's, on the new field ids: a rule's value names a choice by its stored
- * value, core by its label. Null for none, or a rule on a field that didn't move.
+ * value, core by its label. Null for none; a reason when a rule can't move.
  */
 const logicOf = (property: Old, byId: Map<string, Old>, made: Map<string, string>) => {
-  const rules = property.logics.flatMap(({ field, operator, value }) => {
-    const fieldId = made.get(field);
-    const source = byId.get(field);
-    const label = source?.options.find((option) => option.value === value)?.label ?? value;
+  if (property.logics.length === 0) return null;
 
-    const kind: 'is' | 'isNot' = operator === 'isNot' ? 'isNot' : 'is';
+  if (property.logics.length > MOST_RULES) return `core keeps up to ${MOST_RULES} rules`;
 
-    return fieldId ? [{ fieldId, operator: kind, value: label }] : [];
-  });
+  const rules = [];
 
-  if (rules.length === 0 || rules.length < property.logics.length) return null;
+  for (const { fieldId: oldId, logicOperator = 'is', logicValue } of property.logics) {
+    const fieldId = made.get(oldId);
+    const operator = OPERATORS.get(logicOperator);
 
-  return { action: property.logics[0]?.action === 'hide' ? 'hide' : 'show', rules } as const;
+    if (!fieldId) return "a rule reads a field that didn't move";
+
+    if (!operator) return `core has no ${logicOperator} rule`;
+
+    const text = operator === 'isEmpty' || operator === 'hasValue' ? null : ruleText(logicValue);
+
+    if (text === undefined) return 'a rule compares a list';
+
+    const option = byId.get(oldId)?.options.find((one) => one.value === text);
+
+    rules.push({ fieldId, operator, value: option?.label ?? text });
+  }
+
+  return { action: property.logicAction, rules };
 };
 
-/** Sets each created field's logic once every field it reads has its new id. */
-const setLogic = async (properties: Old[], made: Map<string, string>, created: Set<string>) => {
+/**
+ * Sets each moved field's Required, Visible to create and logic as old erxes had them, once
+ * every field has its new id, on fields found by label too, so a rerun finishes the job.
+ */
+const setRules = async (properties: Old[], made: Map<string, string>) => {
   const byId = new Map(properties.map((property) => [property.id, property]));
-  let set = 0;
+  let withLogic = 0;
 
   for (const property of properties) {
     const id = made.get(property.id);
-    const logic = created.has(property.id) ? logicOf(property, byId, made) : null;
+    const logic = logicOf(property, byId, made);
 
-    if (id && logic) {
-      await core.fields.update({ id, logic });
-      set += 1;
-    } else if (id && created.has(property.id) && property.logics.length > 0) {
-      console.warn(`${property.label}: its logic reads a field that didn't move; set it in core`);
-    }
+    if (!id) continue;
+
+    if (typeof logic === 'string')
+      console.warn(`${property.label}: logic not moved, as ${logic}; set it in core`);
+    else if (logic) withLogic += 1;
+
+    await core.fields.update({
+      id,
+      isRequired: property.isRequired,
+      isVisibleToCreate: property.isVisibleToCreate,
+      ...(logic && typeof logic !== 'string' ? { logic } : {}),
+    });
   }
 
-  return set;
+  return withLogic;
 };
 
 /** A stored value as core keeps it: a choice by its label, a day as `YYYY-MM-DD`. */
@@ -306,8 +347,8 @@ try {
     ...(MONGO_URL ? await mongoProperties(MONGO_URL) : []),
   ];
 
-  const { made, created } = await makeInCore(properties);
-  const withLogic = await setLogic(properties, made, created);
+  const made = await makeInCore(properties);
+  const withLogic = await setRules(properties, made);
   const tickets = await inOrg(pool, (client) => rewriteTickets(client, properties, made));
 
   console.info(

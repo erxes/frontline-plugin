@@ -200,9 +200,18 @@ export const TicketPropertyBadges = ({ ticket }: { ticket: Ticket }) => {
   return labels.length > 0 ? <Badges labels={labels} max={3} /> : null;
 };
 
+type Values = Record<string, CustomValue | null>;
+
+const filledOf = (values: Values) =>
+  Object.fromEntries(
+    Object.entries(values).flatMap(([id, value]) => (value === null ? [] : [[id, value]])),
+  );
+
 /**
  * A new ticket's rows for the fields its pipeline shows and the create form asks for, each while
- * its logic shows it by the values filled in so far. Core refuses a required one left empty.
+ * its logic shows it by the values filled in so far. A change that hides a field drops its value,
+ * and so on down the fields that read it, so a ticket keeps only what its form showed. Core
+ * refuses a required one left empty.
  */
 export const PropertyRows = ({
   pipelineId,
@@ -210,29 +219,47 @@ export const PropertyRows = ({
   onChange,
 }: {
   pipelineId: string;
-  values: Record<string, CustomValue | null>;
-  onChange: (id: string, value: CustomValue | null) => void;
+  values: Values;
+  onChange: (values: Values) => void;
 }) => {
-  const filled = Object.fromEntries(
-    Object.entries(values).flatMap(([id, value]) => (value === null ? [] : [[id, value]])),
-  );
+  const asked = usePipelineFields(pipelineId).filter((field) => field.isVisibleToCreate);
 
-  return usePipelineFields(pipelineId)
-    .filter((field) => field.isVisibleToCreate && logicShows(field.logic, filled))
-    .map((field) => (
-      <PanelFormRow
-        key={field.id}
-        label={field.label}
-        icon={iconOf(field)}
-        required={field.isRequired}
-      >
-        <FieldInput
-          field={field}
-          value={values[field.id] ?? undefined}
-          onChange={(value) => onChange(field.id, value)}
-        />
-      </PanelFormRow>
-    ));
+  const shownBy = (next: Values) =>
+    asked.filter((field) => logicShows(field.logic, filledOf(next)));
+
+  const keptOf = (next: Values) => {
+    const shown = new Set(shownBy(next).map((field) => field.id));
+
+    return Object.fromEntries(Object.entries(next).filter(([key]) => shown.has(key)));
+  };
+
+  const set = (id: string, value: CustomValue | null) => {
+    let next: Values = { ...values, [id]: value };
+    let kept = keptOf(next);
+
+    // Each pass drops at least one value, so this ends.
+    while (Object.keys(kept).length < Object.keys(next).length) {
+      next = kept;
+      kept = keptOf(next);
+    }
+
+    onChange(kept);
+  };
+
+  return shownBy(values).map((field) => (
+    <PanelFormRow
+      key={field.id}
+      label={field.label}
+      icon={iconOf(field)}
+      required={field.isRequired}
+    >
+      <FieldInput
+        field={field}
+        value={values[field.id] ?? undefined}
+        onChange={(value) => set(field.id, value)}
+      />
+    </PanelFormRow>
+  ));
 };
 
 const FILTER_TYPES = {

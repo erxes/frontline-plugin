@@ -53,7 +53,8 @@ const WIDGET_TYPES = {
 const isWidgetType = (type: string): type is keyof typeof WIDGET_TYPES => type in WIDGET_TYPES;
 
 /**
- * The visible ticket fields core keeps, each with the groups that say which pipelines show it.
+ * The ticket fields core shows on a new ticket, each with the groups that say which pipelines
+ * show it. The widget doesn't follow their Logic, which would outgrow its size budget.
  * A visitor can still file a ticket while core can't answer, with no fields to fill in.
  */
 const ticketFields = async (orgId: string) => {
@@ -67,19 +68,20 @@ const ticketFields = async (orgId: string) => {
 
     const appliesTo = new Map(groups.data.map((group) => [group.id, group.appliesTo]));
 
-    return fields.data.flatMap(({ id, label, description, type, options, isVisible, groupId }) =>
-      isVisible && isWidgetType(type)
-        ? [
-            {
-              id,
-              label,
-              description,
-              type: WIDGET_TYPES[type],
-              options,
-              appliesTo: appliesTo.get(groupId ?? '') ?? {},
-            },
-          ]
-        : [],
+    return fields.data.flatMap(
+      ({ id, label, description, type, options, isVisible, isVisibleToCreate, groupId }) =>
+        isVisible && isVisibleToCreate && isWidgetType(type)
+          ? [
+              {
+                id,
+                label,
+                description,
+                type: WIDGET_TYPES[type],
+                options,
+                appliesTo: appliesTo.get(groupId ?? '') ?? {},
+              },
+            ]
+          : [],
     );
   } catch (error) {
     logger.warn({ err: error, orgId }, 'ticket fields unavailable for the messenger');
