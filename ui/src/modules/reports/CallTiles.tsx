@@ -11,7 +11,7 @@ export const CallSummary = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
-  const { period, query } = useCallReport();
+  const { period, query } = useCallReport('call-summary');
 
   return (
     <Tile period={period} query={query}>
@@ -58,7 +58,7 @@ export const CallSummary = () => {
 /** Incoming, outgoing and missed calls each day. */
 export const CallVolume = () => {
   const { t } = useTranslation('frontline');
-  const { period, query } = useCallReport();
+  const { period, query } = useCallReport('call-volume');
 
   return (
     <Tile period={period} query={query}>
@@ -80,7 +80,7 @@ export const CallVolume = () => {
 /** When calls come: by weekday and hour in the member's time zone. */
 export const CallHeatmap = () => {
   const { t } = useTranslation('frontline');
-  const { period, query } = useCallReport();
+  const { period, query } = useCallReport('call-heatmap');
 
   return (
     <Tile period={period} query={query}>
@@ -95,7 +95,7 @@ export const CallHeatmap = () => {
 export const CallAgents = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
-  const { period, query } = useCallReport();
+  const { period, query } = useCallReport('call-agents');
 
   return (
     <Tile period={period} query={query}>
@@ -123,7 +123,7 @@ export const CallQueues = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
-  const { period, query } = useCallReport();
+  const { period, query } = useCallReport('call-queues');
 
   return (
     <Tile period={period} query={query}>
@@ -157,7 +157,7 @@ export const CallQueues = () => {
 export const CallNumbers = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
-  const { period, query } = useCallReport();
+  const { period, query } = useCallReport('call-numbers');
 
   return (
     <Tile period={period} query={query}>

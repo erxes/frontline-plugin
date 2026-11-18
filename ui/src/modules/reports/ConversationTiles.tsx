@@ -11,7 +11,7 @@ export const ConversationSummary = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
-  const { period, query } = useConversationReport();
+  const { period, query } = useConversationReport('conversation-summary');
 
   return (
     <Tile period={period} query={query}>
@@ -46,7 +46,7 @@ export const ConversationSummary = () => {
 /** Conversations started and resolved each day. */
 export const ConversationsOverTime = () => {
   const { t } = useTranslation('frontline');
-  const { period, query } = useConversationReport();
+  const { period, query } = useConversationReport('conversations-over-time');
 
   return (
     <Tile period={period} query={query}>
@@ -68,7 +68,7 @@ export const ConversationsOverTime = () => {
 export const ConversationsBySource = () => {
   const { t } = useTranslation('frontline');
   const kinds = useKindNames();
-  const { period, query } = useConversationReport();
+  const { period, query } = useConversationReport('conversations-by-source');
 
   return (
     <Tile period={period} query={query}>
@@ -89,7 +89,7 @@ export const ConversationsBySource = () => {
 /** The tags on the period's conversations, the most used first. */
 export const ConversationsByTag = () => {
   const { t } = useTranslation('frontline');
-  const { period, query } = useConversationReport();
+  const { period, query } = useConversationReport('conversations-by-tag');
 
   return (
     <Tile period={period} query={query}>
@@ -113,7 +113,7 @@ export const ConversationsByTag = () => {
 export const ConversationResponders = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
-  const { period, query } = useConversationReport();
+  const { period, query } = useConversationReport('conversation-responders');
 
   return (
     <Tile period={period} query={query}>

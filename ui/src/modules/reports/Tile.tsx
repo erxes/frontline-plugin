@@ -3,13 +3,16 @@ import {
   addPluginStyles,
   localTimeZone,
   Skeleton,
+  storedFamily,
   Table,
   ToggleGroup,
   Tooltip,
   useFormat,
 } from 'erxes-ui';
+import { useAtom } from 'jotai';
 import { type ReactNode, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
 import css from './styles.css?inline';
 
@@ -34,12 +37,19 @@ const minuteEnd = () => {
   return end.getTime();
 };
 
+/** Each tile's period, by its widget name, kept in this browser. */
+const tilePeriod = storedFamily({
+  key: `${PLUGIN}:tile-period`,
+  schema: z.enum(PERIODS),
+  initial: '30',
+});
+
 /**
  * The last 30, 7 or 90 days to the end of the minute the tile mounted, in the browser's time
- * zone. Tiles on the same period share one request.
+ * zone; the tile named `tile` keeps its pick. Tiles on the same period share one request.
  */
-export const usePeriod = () => {
-  const [days, setDays] = useState<Period>('30');
+export const usePeriod = (tile: string) => {
+  const [days, setDays] = useAtom(tilePeriod(tile));
   const [to] = useState(minuteEnd);
 
   const range = useMemo(
@@ -90,15 +100,20 @@ const PeriodToggle = ({ days, setDays }: PeriodState) => {
 export const Tile = <Report,>({
   period,
   query,
+  controls,
   children,
 }: {
-  period: PeriodState;
+  /** None for a tile that counts what holds now. */
+  period?: PeriodState;
   query: UseQueryResult<Report>;
+  /** Pickers before the period, such as the pipeline a ticket tile counts. */
+  controls?: ReactNode;
   children: (report: Report) => ReactNode;
 }) => (
   <div className="flex h-full flex-col gap-3 p-3">
-    <div className="flex justify-end">
-      <PeriodToggle {...period} />
+    <div className="flex items-center justify-end gap-2 empty:hidden">
+      {controls}
+      {period && <PeriodToggle {...period} />}
     </div>
     {query.error ? (
       <p role="alert" className="text-sm text-destructive">
