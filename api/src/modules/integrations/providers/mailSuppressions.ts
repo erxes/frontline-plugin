@@ -4,7 +4,7 @@ import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { conversations, customerLinks, integrations, messages } from '#/db/inbox.ts';
+import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { emailSuppressions } from '#/db/mail.ts';
 import { reads, writes } from '#/orpc.ts';
 
@@ -31,15 +31,12 @@ export const suppress = async (tx: Tx, orgId: string, accountId: string, reporte
   const sent = await tx
     .select({
       messageId: messages.externalId,
-      address: sql<string>`lower(${customerLinks.externalId})`,
+      // A mail thread's id starts with the address it is with, which its mails go to.
+      address: sql<string>`split_part(${conversations.externalId}, ' ', 1)`,
     })
     .from(messages)
     .innerJoin(conversations, eq(conversations.id, messages.conversationId))
     .innerJoin(integrations, eq(integrations.id, conversations.integrationId))
-    .innerJoin(
-      customerLinks,
-      and(eq(customerLinks.source, 'mail'), eq(customerLinks.customerId, conversations.customerId)),
-    )
     .where(
       and(
         inArray(messages.externalId, about),

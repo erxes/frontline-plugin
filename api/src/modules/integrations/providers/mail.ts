@@ -123,11 +123,17 @@ export const newMessageId = (address: string) =>
 /** The Message-ID a mail goes out with, and the header that keeps it through a relay. */
 const sentId = (messageId: string) => ({ messageId, headers: { [SENT_ID_HEADER]: messageId } });
 
-/** The first id a header line named `header` gives in `parts`. */
+/** The first id a header line named `header` gives in `parts`, folded onto the next line or not. */
 const headerIn = (parts: string[], header: string) =>
   parts
-    .map((part) => new RegExp(`^${header}:[ \\t]*(<[^>\\s]+>)`, 'im').exec(part)?.[1])
+    .map(
+      (part) =>
+        new RegExp(`^${header}:[ \\t]*(?:\\r?\\n[ \\t]+)?(<[^>\\s]+>)`, 'im').exec(part)?.[1],
+    )
     .find((id) => id !== undefined);
+
+/** The address a mail thread is with: its id starts with it. */
+const threadAddress = (threadId: string) => threadId.split(' ')[0] ?? threadId;
 
 /** The Message-ID of the mail a report is about, as frontline sent it. */
 const reportedMessageId = (parts: string[]) =>
@@ -344,8 +350,11 @@ export const mail = defineProvider({
   Config,
   Secret,
   check: async ({ config, secret }) => checkMail(config, secret),
+  // A mail goes to the address its thread is with, which a customer with two addresses needs.
   send: async ({ config, secret, row }, message) => {
-    await checkSuppressed(row.orgId, message.to);
+    const to = threadAddress(message.threadId);
+
+    await checkSuppressed(row.orgId, to);
 
     // A mail that starts a thread brings its own subject and Message-ID.
     const started = message.replyTo
@@ -373,7 +382,7 @@ export const mail = defineProvider({
 
     await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
       from: { name: row.name, address: row.externalId },
-      to: message.to,
+      to,
       subject: started ? (started.subject ?? '') : replySubject(subject),
       ...sentId(messageId),
       text: message.text,
@@ -387,7 +396,9 @@ export const mail = defineProvider({
   },
   // RFC 9078: a reply whose one part, marked `reaction`, holds the team's emojis now; none
   // takes them all back.
-  react: async ({ config, secret, row }, { to, message, emojis }) => {
+  react: async ({ config, secret, row }, { threadId, message, emojis }) => {
+    const to = threadAddress(threadId);
+
     await checkSuppressed(row.orgId, to);
 
     const { subject = '', root } = MailData.safeParse(message.providerData ?? {}).data ?? {};

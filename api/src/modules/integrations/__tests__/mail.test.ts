@@ -49,6 +49,7 @@ describe('mail', () => {
   });
 
   it('reads the id frontline sent from an inline copy whose Message-ID a relay replaced', async () => {
+    // A long domain folds the header onto a second line.
     const relayed = fixture('mail-bounce.eml')
       .toString()
       .replace(
@@ -57,7 +58,7 @@ describe('mail', () => {
       )
       .replace(
         'Message-ID: <sent-5@shop.mn>',
-        'Message-ID: <0100abc@email.amazonses.com>\nX-Frontline-Message-ID: <sent-5@shop.mn>',
+        'Message-ID: <0100abc@email.amazonses.com>\nX-Frontline-Message-ID:\n <sent-5@shop.mn>',
       );
 
     await expect(readMail(relayed, 'support@shop.mn')).resolves.toMatchObject({
