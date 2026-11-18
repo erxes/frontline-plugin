@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlertTriangle,
   IconCalendarCheck,
@@ -11,11 +10,8 @@ import {
   IconPlugConnected,
   IconRefresh,
   IconTrash,
-  IconUsers,
 } from '@tabler/icons-react';
-import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
-import { useMutation, useQuery } from '@tanstack/react-query';
-import type { Client } from '@frontline/api';
+import { useQuery } from '@tanstack/react-query';
 import {
   Button,
   PanelSection,
@@ -23,20 +19,15 @@ import {
   Spinner,
   type TRecordSlotProps,
   useFormat,
-  useMembersById,
-  memberName,
   useOpenRecord,
 } from 'erxes-ui';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
-import { useIntegrationChange } from '@/inbox/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { INTEGRATION_TYPE } from '~/plugin.ts';
-import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { InfoRow } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
-import { AddRow, ItemRow, StatusBadge } from './parts.tsx';
+import { StatusBadge } from './parts.tsx';
+import { PbxSettings } from './PbxSettings.tsx';
 import {
   type Account,
   useAccount,
@@ -128,163 +119,9 @@ const TelegramWebhook = ({ account }: { account: Account }) => {
   );
 };
 
-/** A PBX's own settings, which `saveSettings` takes again with each change. */
-const PbxConfig = z.object({
-  phone: z.string(),
-  srcTrunk: z.string().default(''),
-  dstTrunk: z.string().default(''),
-  timeZone: z.string(),
-  turnUrl: z.string().default(''),
-  turnUsername: z.string().default(''),
-  turnPassword: z.string().default(''),
-});
-
-type Settings = InferClientOutputs<Client>['integrations']['call']['settings'];
-
-type OperatorInput =
-  InferClientInputs<Client>['integrations']['call']['saveSettings']['operators'][number];
-
 /**
- * A phone account's queues and operators as `saveSettings` takes them, and `change`, which saves
- * them with one list replaced.
- */
-const usePbxLists = (account: Account, settings: Settings) => {
-  const save = useMutation(
-    orpc.integrations.call.saveSettings.mutationOptions(useIntegrationChange()),
-  );
-
-  const config = PbxConfig.safeParse(account.config);
-  const queues = settings.queues.map(({ queue, name }) => ({ queue, name }));
-
-  // A kept operator keeps its SIP password: the API only takes a new one.
-  const operators: OperatorInput[] = settings.operators.map(({ userId, extension }) => ({
-    userId,
-    extension,
-  }));
-
-  const softphones = new Set(
-    settings.operators.flatMap((operator) => (operator.hasSipPassword ? [operator.extension] : [])),
-  );
-
-  const change = (lists: Partial<{ queues: typeof queues; operators: typeof operators }>) => {
-    if (config.success)
-      save.mutate({ accountId: account.id, ...config.data, queues, operators, ...lists });
-  };
-
-  return { queues, operators, softphones, change };
-};
-
-type Lists = ReturnType<typeof usePbxLists>;
-
-/** The PBX queues frontline follows, by number. */
-const QueuesSection = ({ lists: { queues, change } }: { lists: Lists }) => {
-  const { t } = useTranslation('frontline');
-
-  return (
-    <PanelSection title={t('queues', 'Queues')} icon={IconListNumbers}>
-      <ul aria-label={t('queues', 'Queues')}>
-        {queues.map((queue) => (
-          <ItemRow
-            key={queue.queue}
-            label={queue.queue}
-            hint={queue.name}
-            onRemove={() => change({ queues: queues.filter((each) => each.queue !== queue.queue) })}
-          />
-        ))}
-      </ul>
-      <AddRow
-        fields={[
-          { name: 'queue', label: t('queue-number', 'Queue number'), required: true },
-          { name: 'name', label: t('name', 'Name') },
-        ]}
-        onAdd={({ queue = '', name = '' }) => change({ queues: [...queues, { queue, name }] })}
-      />
-    </PanelSection>
-  );
-};
-
-/**
- * The members who answer the PBX, each by an extension; a member is picked before the extension.
- * An extension's SIP password gives its member the softphone on every page.
- */
-const OperatorsSection = ({ lists: { operators, softphones, change } }: { lists: Lists }) => {
-  const { t } = useTranslation('frontline');
-  const [userId, setUserId] = useState<string | null>(null);
-
-  const members = useMembersById(
-    operators.map((operator) => operator.userId),
-    memberQueries,
-  );
-
-  return (
-    <PanelSection title={t('operators', 'Operators')} icon={IconUsers}>
-      <ul aria-label={t('operators', 'Operators')}>
-        {operators.map((operator) => {
-          const member = members.get(operator.userId);
-
-          return (
-            <ItemRow
-              key={operator.extension}
-              label={operator.extension}
-              hint={[
-                member && memberName(member),
-                softphones.has(operator.extension) && t('with-softphone', 'softphone'),
-              ]
-                .filter(Boolean)
-                .join(', ')}
-              onRemove={() =>
-                change({
-                  operators: operators.filter((each) => each.extension !== operator.extension),
-                })
-              }
-            />
-          );
-        })}
-      </ul>
-      <div className="px-2 py-1">
-        <MemberSelect
-          value={userId}
-          onValueChange={setUserId}
-          placeholder={t('operator-member', 'Member who answers')}
-          aria-label={t('operator-member', 'Member who answers')}
-        />
-      </div>
-      {userId && (
-        <AddRow
-          fields={[
-            { name: 'extension', label: t('extension', 'Extension'), required: true },
-            { name: 'sipPassword', label: t('sip-password', 'SIP password'), type: 'password' },
-          ]}
-          onAdd={({ extension = '', sipPassword }) => {
-            change({
-              operators: [
-                ...operators,
-                { userId, extension, sipPassword: sipPassword || undefined },
-              ],
-            });
-            setUserId(null);
-          }}
-        />
-      )}
-    </PanelSection>
-  );
-};
-
-/** A Grandstream PBX's queues and operators. */
-const PbxLists = ({ account, settings }: { account: Account; settings: Settings }) => {
-  const lists = usePbxLists(account, settings);
-
-  return (
-    <>
-      <QueuesSection lists={lists} />
-      <OperatorsSection lists={lists} />
-    </>
-  );
-};
-
-/**
- * A phone account's webhook, where its bridge posts calls, and for a Grandstream PBX the queues
- * frontline follows and the members who answer it by extension.
+ * A phone account's webhook, where its bridge posts calls, and for a Grandstream PBX its settings,
+ * the queues frontline follows and the members who answer it by extension.
  */
 const PhoneSettings = ({ account }: { account: Account }) => {
   const { t } = useTranslation('frontline');
@@ -307,7 +144,7 @@ const PhoneSettings = ({ account }: { account: Account }) => {
           </InfoRow>
         )}
       </PanelSection>
-      {account.provider === 'call' && <PbxLists account={account} settings={settings} />}
+      {account.provider === 'call' && <PbxSettings account={account} settings={settings} />}
     </>
   );
 };

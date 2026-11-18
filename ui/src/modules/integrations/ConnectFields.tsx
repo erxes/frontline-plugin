@@ -65,22 +65,37 @@ const ZONES = Intl.supportedValuesOf('timeZone').map((zone) => ({
   label: `${zone} (${zoneOffset(zone)})`,
 }));
 
+/** An IANA time zone picked by name, each shown with its offset. */
+export const ZonePicker = ({
+  value,
+  onValueChange,
+}: {
+  value: string;
+  onValueChange: (zone: string) => void;
+}) => {
+  const { t } = useTranslation('frontline');
+  const label = t('time-zone', 'Time zone');
+
+  return (
+    <PickerField
+      label={label}
+      display={ZONES.find((option) => option.value === value)?.label ?? value}
+      placeholder={label}
+      options={ZONES}
+      value={[value]}
+      onValueChange={([picked]) => picked && onValueChange(picked)}
+    />
+  );
+};
+
 /** The time zone the PBX writes call times in, the browser's to start with. */
 const ZoneRow = () => {
   const { t } = useTranslation('frontline');
   const [zone, setZone] = useState(() => localTimeZone() ?? 'UTC');
-  const label = t('time-zone', 'Time zone');
 
   return (
-    <PanelFormRow label={label} icon={IconClock} required>
-      <PickerField
-        label={label}
-        display={ZONES.find((option) => option.value === zone)?.label ?? zone}
-        placeholder={label}
-        options={ZONES}
-        value={[zone]}
-        onValueChange={([picked]) => picked && setZone(picked)}
-      />
+    <PanelFormRow label={t('time-zone', 'Time zone')} icon={IconClock} required>
+      <ZonePicker value={zone} onValueChange={setZone} />
       <input type="hidden" name="timeZone" value={zone} />
     </PanelFormRow>
   );
