@@ -131,7 +131,11 @@ const withFile = async (
   return form;
 };
 
-/** Sends the text, then each attachment as a message of its own, as Messenger takes them. */
+/**
+ * Sends the text, then each attachment as a message of its own, as Messenger takes them. Each
+ * part is recorded as it goes, so an attempt after a failed attachment sends only what is left
+ * and the customer never gets the text twice.
+ */
 const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessage) => {
   const late =
     message.replyTo !== null && Date.now() - message.replyTo.createdAt.getTime() > REPLY_WINDOW_MS;
@@ -145,6 +149,7 @@ const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessag
 
   // Messenger shows the messages in the order they reach it; null is the text.
   const [first] = await sendInParts(
+    message.parts,
     [...(message.text ? [null] : []), ...message.attachments],
     async (file) =>
       Sent.parse(

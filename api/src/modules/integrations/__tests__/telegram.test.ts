@@ -1,10 +1,13 @@
 import { describe, expect, it, vi } from 'vite-plus/test';
+import { JOBS } from '#/core.ts';
 import { clientAs } from '#/test/member.ts';
+import { asked } from './standIns.ts';
 import {
   channelFor,
   FILE_BYTES,
   fakeProviders,
   fixture,
+  runJob,
   runQueued,
   serve,
   telegramApi,
@@ -199,23 +202,24 @@ describe('telegram', () => {
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
 
-    // Text too long for a caption goes first; Telegram refuses the file after it. The reply fails
-    // at once, without a retry, so the customer doesn't get the text again.
+    // Text too long for a caption goes first; Telegram refuses the file after it. The next attempt
+    // sends only the file, so the customer doesn't get the text again.
     const partly = await owner.conversations.messages.create({
       conversationId,
       content: 'Long instructions. '.repeat(60),
       attachments: [{ url: '/core/v1/files/file-refused/download', name: 'refused.txt' }],
     });
 
-    await runQueued();
-    expect(calls.at(-2)?.url.pathname).toBe('/bot777:good-token-abc/sendMessage');
-    expect(calls.at(-1)?.url.pathname).toBe('/bot777:good-token-abc/sendDocument');
+    const job = { orgId: 'org-tg-files', name: JOBS.send.name, payload: { messageId: partly.id } };
 
-    const after = (await owner.conversations.messages.list({ conversationId })).messages;
-
-    expect(after.find((message) => message.id === partly.id)).toMatchObject({
-      deliveryStatus: 'failed',
-    });
+    asked.jobs.length = 0;
+    await expect(runJob(job, 1)).rejects.toThrow('wrong file type');
+    await expect(runJob(job, 2)).rejects.toThrow('wrong file type');
+    expect(calls.slice(-3).map(({ url }) => url.pathname.split('/').at(-1))).toEqual([
+      'sendMessage',
+      'sendDocument',
+      'sendDocument',
+    ]);
   });
 
   it('reads a sticker as its emoji and keeps its picture', async () => {

@@ -7,6 +7,10 @@ import type { Adapter, Outgoing } from '../inbox/adapters.ts';
 import { markRefused } from './accounts.ts';
 import type { AccountRow, ProviderName } from './provider.ts';
 import { providerOf } from './providers/index.ts';
+
+/** The provider's ids of the parts of a reply an earlier attempt sent, kept in `providerData`. */
+const Parts = z.array(z.string()).default([]);
+
 import { accountRow } from './store.ts';
 
 /** An integration of a provider's kind names the connected account its conversations go through. */
@@ -94,7 +98,7 @@ const adapterOf = (provider: ProviderName, label: string): Adapter => ({
     const { row, account, threadId, context } = await threadOf(tx, provider, outgoing);
     const { message } = outgoing;
 
-    return async () => ({
+    return async (record) => ({
       externalId: await through(row, () =>
         account.send({
           threadId,
@@ -102,6 +106,7 @@ const adapterOf = (provider: ProviderName, label: string): Adapter => ({
           html: message.html,
           attachments: message.attachments,
           providerData: message.providerData,
+          parts: { sent: Parts.parse(message.providerData?.parts), record },
           ...context,
         }),
       ),

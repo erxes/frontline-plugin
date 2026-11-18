@@ -135,7 +135,7 @@ export const telegram = defineProvider({
   check: async ({ secret }) => call(secret.token, 'getMe', User).then(() => null, why),
   // Each file goes as a message of its own, the text as the first one's caption when it fits.
   // Every file is read before anything goes out, so one core can't give fails the whole reply,
-  // and a reply Telegram took part of fails as it stands rather than send those parts again.
+  // and a retry sends only the parts Telegram didn't take.
   send: async ({ row, secret }, message) => {
     const files = await Promise.all(
       message.attachments.map((file) => attachedFile(row.orgId, file)),
@@ -166,11 +166,15 @@ export const telegram = defineProvider({
       }),
     ];
 
-    const [first] = await sendInParts(sends, (send) => send());
+    const [first] = await sendInParts(message.parts, sends, async (send) => {
+      const sent = await send();
+
+      return `${sent.chat.id}:${sent.message_id}`;
+    });
 
     if (!first) throw new Error('A reply needs text or a file');
 
-    return `${first.chat.id}:${first.message_id}`;
+    return first;
   },
   // A bot keeps one reaction on a message: the team's latest. Telegram's emoji carry no U+FE0F.
   react: async ({ secret }, { threadId, message, emojis }) => {
