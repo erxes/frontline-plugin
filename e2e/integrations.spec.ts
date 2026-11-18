@@ -1,4 +1,4 @@
-import { expect, recordPanel, test } from './fixtures.ts';
+import { expect, expectAccessible, recordPanel, test } from './fixtures.ts';
 
 const INTEGRATIONS = '/frontline/settings/integrations';
 
@@ -42,6 +42,31 @@ test('the owner sees the accounts page, what Meta’s login reported, and a prov
 
   await page.goto('/frontline/settings/channels/details/channel-1/telegram');
   await expect(page).toHaveURL(new RegExp(`${INTEGRATIONS}$`));
+});
+
+const META_TILE = '/settings/integrations/frontline.meta';
+
+// Saving an app would send every later Connect to Meta's real login, so this stops at the check.
+test("the Meta tile on core's Integrations asks for the organisation's app", async ({ page }) => {
+  await page.goto(META_TILE);
+
+  await expect(page.getByText('Set a Meta app before you connect')).toBeVisible();
+  await expect(page.getByText('/api/public/webhooks/meta')).toBeVisible();
+
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByText('Enter the app id')).toBeVisible();
+  await expect(page.getByText('Enter the app secret')).toBeVisible();
+  await expectAccessible(page, page.getByLabel('Verify token'));
+});
+
+test('a member without integration management never reaches the Meta tile', async ({
+  newMember,
+}) => {
+  const { page } = await newMember(['integrations.manage', 'frontline.integration.view']);
+
+  await page.goto(META_TILE);
+  await expect(page).toHaveURL(/\/settings\/integrations$/);
+  await expect(page.getByText('Set a Meta app before you connect')).toBeHidden();
 });
 
 test('a member without the integrations permission is refused', async ({ newMember }) => {

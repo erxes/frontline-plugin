@@ -38,6 +38,9 @@ export const addConfigText = () =>
       'Ticket summary': 'Тикетийн тойм',
       'Created, resolved, open and overdue tickets':
         'Үүсгэсэн, шийдвэрлэсэн, нээлттэй, хугацаа хэтэрсэн тикет',
+      'Your own Meta app for Facebook pages and Instagram accounts':
+        'Facebook хуудас, Instagram бүртгэлд зориулсан өөрийн Meta апп',
+      App: 'Апп',
       'Tickets over time': 'Тикет хугацаагаар',
       'Tickets created and resolved each day': 'Өдөр бүр үүсгэсэн ба шийдвэрлэсэн тикет',
       'Tickets by status': 'Тикет төлөвөөр',
