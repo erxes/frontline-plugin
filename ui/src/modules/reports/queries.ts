@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
-import { channelsQuery, choicesQuery } from '~/shared/reference.ts';
+import { channelsQuery, choicesQuery, integrationsQuery } from '~/shared/reference.ts';
 import { usePeriod } from './Tile.tsx';
 import { usePick } from './TilePick.tsx';
 
@@ -62,17 +62,29 @@ export const useTicketReport = (tile: string) => {
   };
 };
 
-/** The tile's period and channel, and the input of a report over them. */
-const useChannelScope = (tile: string) => {
+/**
+ * The tile's period and channel, and the input of a report over them. With `kinds`, it offers
+ * only the channels with an integration of one of them, such as a phone line. A member who may
+ * not list channels picks none.
+ */
+const useChannelScope = (tile: string, kinds?: string[]) => {
   const { t } = useTranslation('frontline');
   const period = usePeriod(tile);
+  const channels = useQuery(channelsQuery);
+  const integrations = useQuery(integrationsQuery).data;
+  const listed = channels.isError ? [] : channels.data?.channels;
 
-  const pick = usePick(
-    tile,
-    useQuery(channelsQuery).data?.channels,
-    t('channel', 'Channel'),
-    t('all-channels', 'All channels'),
-  );
+  const options =
+    kinds && integrations
+      ? listed?.filter((channel) =>
+          integrations.some(
+            (integration) =>
+              integration.channelId === channel.id && kinds.includes(integration.kind),
+          ),
+        )
+      : listed;
+
+  const pick = usePick(tile, options, t('channel', 'Channel'), t('all-channels', 'All channels'));
 
   return { period, pick, input: live({ ...period.range, channelId: pick.id ?? undefined }) };
 };
@@ -84,16 +96,16 @@ export const useConversationReport = (tile: string) => {
   return { ...scope, query: useQuery(orpc.reports.conversations.queryOptions(input)) };
 };
 
-/** The tile's period and channel, and the Facebook and Instagram report over them. */
+/** The tile's period and Facebook or Instagram channel, and the Meta report over them. */
 export const useMetaReport = (tile: string) => {
-  const { input, ...scope } = useChannelScope(tile);
+  const { input, ...scope } = useChannelScope(tile, ['facebook', 'instagram']);
 
   return { ...scope, query: useQuery(orpc.reports.meta.queryOptions(input)) };
 };
 
-/** The tile's period and channel, and the call report over them. */
+/** The tile's period and phone channel, and the call report over them. */
 export const useCallReport = (tile: string) => {
-  const { input, ...scope } = useChannelScope(tile);
+  const { input, ...scope } = useChannelScope(tile, ['call', 'callpro']);
 
   return { ...scope, query: useQuery(orpc.reports.calls.queryOptions(input)) };
 };

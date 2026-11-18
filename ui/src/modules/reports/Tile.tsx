@@ -17,7 +17,7 @@ import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
 import { RetryButton } from '~/shared/List.tsx';
 import css from './styles.css?inline';
-import { type Pick, TilePick } from './TilePick.tsx';
+import { type PickState, TilePick } from './TilePick.tsx';
 
 addPluginStyles(`${PLUGIN}:reports`, css);
 
@@ -125,7 +125,7 @@ export const Tile = <Report,>({
 }: {
   /** None for a tile that counts what holds now. */
   period?: PeriodState;
-  pick?: Pick;
+  pick?: PickState;
   query: UseQueryResult<Report>;
   children: (report: Report) => ReactNode;
 }) => (

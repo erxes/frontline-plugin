@@ -30,10 +30,10 @@ export const usePick = (
   return { id, setId, options: options ?? [], label, all };
 };
 
-export type Pick = ReturnType<typeof usePick>;
+export type PickState = ReturnType<typeof usePick>;
 
 /** The tile's pick as a select, once there are two or more to pick from. */
-export const TilePick = ({ pick }: { pick: Pick }) => {
+export const TilePick = ({ pick }: { pick: PickState }) => {
   if (pick.options.length < 2) return null;
 
   return (

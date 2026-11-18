@@ -162,6 +162,9 @@ test('a conversation tile counts the one channel a member picks, keeps the pick 
   const { id } = await rpc('channels/create', { name }, Id);
   const hello = `Hello ${unique()}`;
 
+  // The pick shows once there are two channels to pick from.
+  await rpc('channels/create', { name: `Other ${unique()}` }, Id);
+
   await (await visitorOf(request, await messengerIn(rpc, { welcome: 'Hi' }, id))).write(hello);
 
   await addTiles(page, ['Conversation summary']);
