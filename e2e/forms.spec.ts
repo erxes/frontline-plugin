@@ -20,6 +20,8 @@ const Shown = z.object({ fields: z.array(z.object({ id: z.string(), label: z.str
 const pick = async (page: Page, select: Locator, option: string) => {
   await select.click();
   await page.getByRole('option', { name: option, exact: true }).click();
+  // A click while the menu still closes would only dismiss it.
+  await expect(page.getByRole('option', { name: option, exact: true })).toBeHidden();
 };
 
 /** Opens the in-place text `name`, types `value` and saves it with Enter. */
@@ -61,9 +63,12 @@ const buildFields = async (page: Page) => {
   await page.getByRole('button', { name: 'Settings of Seats' }).click();
   await pick(page, page.getByRole('combobox', { name: 'Shows' }), 'Only when every rule holds');
   await page.getByRole('button', { name: 'Add rule' }).click();
-  await pick(page, page.getByRole('combobox', { name: 'Comparison' }), 'is');
-  await page.getByRole('textbox', { name: 'Value' }).fill('Team');
-  await page.keyboard.press('Tab');
+  // A rule on a dropdown compares a picked option, so it offers is and is not, and Plan's options.
+  await page.getByRole('combobox', { name: 'Comparison' }).click();
+  await expect(page.getByRole('option', { name: 'is not', exact: true })).toBeVisible();
+  await expect(page.getByRole('option', { name: 'contains', exact: true })).toBeHidden();
+  await page.getByRole('option', { name: 'is', exact: true }).click();
+  await pick(page, page.getByRole('combobox', { name: 'Value' }), 'Team');
 
   const preview = page.getByRole('region', { name: 'Preview' });
 
@@ -78,6 +83,30 @@ const buildFields = async (page: Page) => {
     'true',
   );
   await expect(preview.getByLabel('Seats')).toBeVisible();
+
+  // Fields drag into a new order, and the keyboard drags them too: Seats goes above Plan and back.
+  const first = page.getByRole('button', { name: /^Settings of/ }).first();
+
+  // Each key waits for the screen reader announcement, since dnd-kit listens for the next key
+  // only after it.
+  const announcement = page.getByText(/was moved over droppable area/);
+
+  const moveSeats = async (key: 'ArrowUp' | 'ArrowDown') => {
+    const handle = page.getByRole('button', { name: 'Move Seats', exact: true });
+
+    await handle.press('Space');
+    await expect(handle).toHaveAttribute('aria-pressed', 'true');
+    const overItself = await announcement.textContent();
+
+    await page.keyboard.press(key);
+    await expect(announcement).not.toHaveText(overItself ?? '');
+    await page.keyboard.press('Space');
+  };
+
+  await moveSeats('ArrowUp');
+  await expect(first).toHaveAccessibleName('Settings of Seats');
+  await moveSeats('ArrowDown');
+  await expect(first).toHaveAccessibleName('Settings of Plan');
 };
 
 /**

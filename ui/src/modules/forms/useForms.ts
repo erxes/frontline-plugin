@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { PLUGIN } from '~/plugin.ts';
-import { useChange } from '~/shared/hooks.ts';
+import { useChange, useOptimistic } from '~/shared/hooks.ts';
 import { tagsOf } from '~/shared/reference.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 
@@ -86,6 +86,34 @@ export const useForm = (id: string) =>
 /** The form's fields, step by step, in order. */
 export const useFormFields = (formId: string) =>
   useQuery(orpc.forms.fields.list.queryOptions({ input: { formId }, enabled: Boolean(formId) }));
+
+/**
+ * Puts a step's fields in a new order at once, those dragged in from another step included, then
+ * saves it in one call; a refusal shows and the saved order comes back.
+ */
+export const useArrangeFields = (formId: string) => {
+  const queryKey = orpc.forms.fields.list.queryKey({ input: { formId } });
+
+  const arrange = useMutation(
+    orpc.forms.fields.arrange.mutationOptions(
+      useOptimistic(
+        [queryKey, orpc.forms.key()],
+        (queryClient, { pageNumber, ids }: { formId: string; pageNumber: number; ids: string[] }) =>
+          queryClient.setQueryData(queryKey, (fields) =>
+            fields
+              ?.map((field) =>
+                ids.includes(field.id)
+                  ? { ...field, pageNumber, order: ids.indexOf(field.id) }
+                  : field,
+              )
+              .toSorted((a, b) => a.pageNumber - b.pageNumber || a.order - b.order),
+          ),
+      ),
+    ),
+  );
+
+  return (pageNumber: number, ids: string[]) => arrange.mutate({ formId, pageNumber, ids });
+};
 
 /** The form's submissions, newest first, a page at a time, narrowed by the filter bar. */
 export const useSubmissions = (formId: string) => {

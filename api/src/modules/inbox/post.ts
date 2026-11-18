@@ -4,7 +4,7 @@ import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { JOBS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
-import type { Attachment } from '#/db/table.ts';
+import type { StoredFile } from '#/db/table.ts';
 import { ADAPTERS } from './adapters.ts';
 import { signalConversations, signalMembers } from './shared.ts';
 
@@ -20,7 +20,7 @@ export type Written = {
   content: string;
   /** Rich text, sanitized (`html.ts`); null for plain text. */
   html?: string | null;
-  attachments: Attachment[];
+  attachments: StoredFile[];
   internal: boolean;
   mentionedUserIds: string[];
   replyToId: string | null;

@@ -7,7 +7,7 @@ import { tags } from '#/db/tags.ts';
 import { pipelineStatuses, STATUS_TYPES, tickets } from '#/db/tickets.ts';
 import { reads } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
-import { firstResponseSla, resolutionSla, seenBy } from '../tickets/shared.ts';
+import { firstResponseSla, resolutionSla, SLA_STATES, seenBy } from '../tickets/shared.ts';
 import {
   averageSeconds,
   Count,
@@ -40,9 +40,41 @@ const TicketReport = z.object({
   priorities: z.array(z.object({ priority: z.number().int(), count: Count })),
   /** The period's new tickets by tag. */
   tags: z.array(TagCount),
+  /** The period's new tickets by the status they are in now. */
+  statuses: z.array(z.object({ statusId: z.string(), count: Count })),
+  /** The period's new tickets by the state of each SLA clock they have. */
+  sla: z.array(
+    z.object({
+      clock: z.enum(['firstResponse', 'resolution']),
+      state: z.enum(SLA_STATES),
+      count: Count,
+    }),
+  ),
+  /** Unresolved tickets now by assignee, null for nobody, the most first. */
+  assignees: z.array(z.object({ userId: z.string().nullable(), count: Count })),
 });
 
-/** The tickets `created` picks by the stage they are in now, by priority and by tag. */
+/** How many of the tickets `where` picks are in each state of `clock`'s SLA. */
+const slaStates = async (
+  tx: Tx,
+  where: SQL | undefined,
+  clock: 'firstResponse' | 'resolution',
+  sla: typeof firstResponseSla,
+) => {
+  const rows = await tx
+    .select({ state: sla, count: count() })
+    .from(tickets)
+    .where(where)
+    .groupBy(sql`1`)
+    .orderBy(sql`1`);
+
+  return rows.flatMap((row) => (row.state ? [{ clock, state: row.state, count: row.count }] : []));
+};
+
+/**
+ * The tickets `created` picks by the stage and the status they are in now, by priority, by tag
+ * and by their SLA clocks' states.
+ */
 const breakdowns = async (tx: Tx, created: SQL | undefined) => {
   const stages = await tx
     .select({ type: pipelineStatuses.type, count: count() })
@@ -51,6 +83,18 @@ const breakdowns = async (tx: Tx, created: SQL | undefined) => {
     .where(created)
     .groupBy(pipelineStatuses.type)
     .orderBy(pipelineStatuses.type);
+
+  const statuses = await tx
+    .select({ statusId: tickets.statusId, count: count() })
+    .from(tickets)
+    .where(created)
+    .groupBy(tickets.statusId)
+    .orderBy(tickets.statusId);
+
+  const sla = [
+    ...(await slaStates(tx, created, 'firstResponse', firstResponseSla)),
+    ...(await slaStates(tx, created, 'resolution', resolutionSla)),
+  ];
 
   const priorities = await tx
     .select({ priority: tickets.priority, count: count() })
@@ -68,15 +112,16 @@ const breakdowns = async (tx: Tx, created: SQL | undefined) => {
     .orderBy(desc(count()), tags.name)
     .limit(TOP);
 
-  return { stages, priorities, tags: tagged };
+  return { stages, statuses, priorities, tags: tagged, sla };
 };
 
 /**
- * The tickets of the member's channels over a period, as their pipelines let them see them:
- * how many came and were resolved, by day, stage, priority and tag, and what is overdue now.
+ * The tickets of the member's channels over a period, in `pipelineId` when given, as their
+ * pipelines let them see them: how many came and were resolved, by day, stage, status, priority,
+ * tag and SLA state, and what is unresolved and overdue now, and whose it is.
  */
 export const ticketReport = reads(PERMISSIONS.channelView)
-  .input(RangeInput)
+  .input(RangeInput.and(z.object({ pipelineId: z.string().optional() })))
   .output(TicketReport)
   .handler(async ({ input: range, context: { tx, member } }) => {
     const mine = inArray(
@@ -85,7 +130,12 @@ export const ticketReport = reads(PERMISSIONS.channelView)
         .select({ id: tickets.id })
         .from(tickets)
         .leftJoin(channelMembers, membership(member, tickets.channelId))
-        .where(seenBy(member)),
+        .where(
+          and(
+            seenBy(member),
+            range.pipelineId ? eq(tickets.pipelineId, range.pipelineId) : undefined,
+          ),
+        ),
     );
 
     const created = and(mine, within(tickets.createdAt, range));
@@ -116,6 +166,15 @@ export const ticketReport = reads(PERMISSIONS.channelView)
       .innerJoin(pipelineStatuses, eq(pipelineStatuses.id, tickets.statusId))
       .where(mine);
 
+    const assignees = await tx
+      .select({ userId: tickets.assigneeId, count: count() })
+      .from(tickets)
+      .innerJoin(pipelineStatuses, eq(pipelineStatuses.id, tickets.statusId))
+      .where(and(mine, unresolved))
+      .groupBy(tickets.assigneeId)
+      .orderBy(desc(count()), tickets.assigneeId)
+      .limit(TOP);
+
     const createdOn = countOn(await perDay(tickets.createdAt));
     const resolvedOn = countOn(await perDay(tickets.resolvedAt));
 
@@ -131,5 +190,6 @@ export const ticketReport = reads(PERMISSIONS.channelView)
         resolved: resolvedOn(day),
       })),
       ...(await breakdowns(tx, created)),
+      assignees,
     };
   });

@@ -1,10 +1,22 @@
-import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
+import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { createApp } from '#/server.ts';
 import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
+import type * as FilesModule from '../../files.ts';
 import { tokenOf } from '../../messenger/session.ts';
 import { flushViews } from '../../views.ts';
+
+// Core's storage: any file it is asked for, as an image.
+vi.mock('#/modules/files.ts', async (importOriginal) => ({
+  ...(await importOriginal<typeof FilesModule>()),
+  readFile: async () => {
+    const body = new Blob(['png']);
+
+    return { name: 'a.png', contentType: 'image/png', size: body.size, body: body.stream() };
+  },
+}));
 
 const messenger = serve('/api/public/messenger');
 
@@ -30,6 +42,9 @@ afterAll(() => {
 /** The published article's body as visitors get it: no handlers, scripts or script links. */
 const SANITIZED =
   '<p>Money back</p><a target="_blank" rel="noreferrer">Terms</a><a href="https://acme.test/refunds" target="_blank" rel="noreferrer">Policy</a>';
+
+/** A file on core's storage, at the address core gives it. */
+const file = (id: string) => ({ url: `/core/v1/files/${id}/download`, name: `${id}.png` });
 
 /** A help center over a topic with one published article, one draft and one private. */
 const publishedSite = async (orgId: string) => {
@@ -157,6 +172,104 @@ describe('help centers', () => {
       helpCenters: [{ id: center.id, formIds: [demo.id, old.id] }],
       totalCount: 1,
     });
+  });
+
+  const Site = z.object({ helpCenter: z.object({ styles: z.object({ mainLogo: z.string() }) }) });
+
+  it('serves the files it shows visitors through its own address, and no other file', async () => {
+    const { owner, center, article } = await publishedSite('org-hc-files');
+
+    await owner.knowledgebase.articles.update({
+      id: article.id,
+      content: `<p>Steps</p><img src="${file('shot').url}"><a href="https://cloud.acme.test/files/report/download">Report</a>`,
+      image: file('cover'),
+      attachments: [file('guide')],
+    });
+    await owner.knowledgebase.articles.create({
+      categoryId: article.categoryId,
+      title: 'Internal',
+      status: 'publish',
+      isPrivate: true,
+      image: file('secret'),
+    });
+    await owner.knowledgebase.articles.create({
+      categoryId: article.categoryId,
+      title: 'Soon',
+      image: file('draft'),
+    });
+    await owner.helpCenters.update({
+      id: center.id,
+      backgroundImage: file('hero').url,
+      styles: { mainLogo: file('logo').url, favicon: file('icon').url },
+      footer: { logo: file('foot').url },
+    });
+
+    const channel = await owner.channels.create({ name: 'Web' });
+
+    const integration = await owner.integrations.create({
+      channelId: channel.id,
+      kind: 'messenger',
+      name: 'Website',
+      config: { logo: file('badge').url },
+    });
+
+    const site: unknown = await (await fetch(`${base}/help-centers/${center.publicKey}`)).json();
+    const shown = Site.parse(site).helpCenter.styles.mainLogo.replace(/logo$/, '');
+
+    expect(shown).toMatch(/^http:\/\/localhost:3399\/api\/public\/files\/[\w-]+\/$/);
+    expect(site).toMatchObject({
+      helpCenter: {
+        backgroundImage: `${shown}hero`,
+        styles: { favicon: `${shown}icon` },
+        footer: { logo: `${shown}foot` },
+      },
+    });
+
+    const read = await fetch(`${base}/help-centers/${center.publicKey}/articles/${article.id}`);
+
+    await expect(read.json()).resolves.toMatchObject({
+      content: `<p>Steps</p><img src="${shown}shot" /><a href="https://cloud.acme.test/files/report/download" target="_blank" rel="noreferrer">Report</a>`,
+      image: { url: `${shown}cover`, name: 'cover.png' },
+      attachments: [{ url: `${shown}guide`, name: 'guide.png' }],
+    });
+
+    const opened = await messenger.get(`/settings?key=${integration.publicKey}`);
+
+    expect(opened.body).toMatchObject({ messenger: { logo: `${shown}badge` } });
+
+    const statusOf = async (prefix: string, id: string) =>
+      (await fetch(`${prefix.replace('http://localhost:3399/api/public', base)}${id}`)).status;
+
+    const ids = ['logo', 'icon', 'foot', 'hero', 'shot', 'cover', 'guide', 'badge'];
+    const refused = ['secret', 'draft', 'report', 'elsewhere'];
+
+    const statuses = await Promise.all(
+      [...ids, ...refused].map(async (id) => [id, await statusOf(shown, id)]),
+    );
+
+    expect(Object.fromEntries(statuses)).toEqual({
+      ...Object.fromEntries(ids.map((id) => [id, 200])),
+      ...Object.fromEntries(refused.map((id) => [id, 404])),
+    });
+
+    // Another organisation's key opens its own files, never these.
+    const other = await publishedSite('org-hc-files-b');
+
+    await other.owner.helpCenters.update({
+      id: other.center.id,
+      styles: { mainLogo: file('theirs').url },
+    });
+
+    const theirSite = await fetch(`${base}/help-centers/${other.center.publicKey}`);
+
+    const theirs = Site.parse(await theirSite.json()).helpCenter.styles.mainLogo.replace(
+      /theirs$/,
+      '',
+    );
+
+    expect(theirs).not.toBe(shown);
+    expect(await statusOf(theirs, 'theirs')).toBe(200);
+    expect(await statusOf(theirs, 'logo')).toBe(404);
   });
 
   it("gives a messenger's visitors the topic it offers, and nothing when it offers none", async () => {

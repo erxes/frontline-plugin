@@ -125,10 +125,9 @@ test('a messenger and its settings', async ({ page }) => {
 
   const key = await addMessenger(page, channel);
 
-  await expectAccessible(page, panel.getByText(key, { exact: true }));
-  await panel.getByRole('button', { name: 'Integration actions' }).click();
-  await page.getByRole('option', { name: 'Messenger settings' }).click();
   await expectAccessible(page, page.getByRole('textbox', { name: 'Welcome message' }));
+  await page.goto(`${INBOX}?panel=/detail/frontline:integration/${page.url().split('/').pop()}`);
+  await expectAccessible(page, panel.getByText(key, { exact: true }));
 });
 
 test('a conversation in the inbox', async ({ page, api, request }) => {

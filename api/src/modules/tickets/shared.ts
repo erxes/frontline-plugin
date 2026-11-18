@@ -17,7 +17,7 @@ import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
-import { Attachment } from '#/db/table.ts';
+import { Attachment, StoredFile } from '#/db/table.ts';
 import { pipelineStatuses, pipelines, STATUS_TYPES, tickets } from '#/db/tickets.ts';
 import { canChangeSql, heldInChannels, managesAll, membership } from '../channels/access.ts';
 import { Title } from '../fields.ts';
@@ -48,7 +48,7 @@ const SlaState = z.enum(SLA_STATES).nullable();
 
 /** The row, what the caller may do with it and its SLA, which the query selects. */
 export const Ticket = createSelectSchema(tickets, {
-  attachments: () => z.array(Attachment),
+  attachments: () => z.array(StoredFile),
   propertiesData: () => CustomFields,
 })
   .omit({ orgId: true })

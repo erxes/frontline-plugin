@@ -79,7 +79,7 @@ const setUp = async (orgId: string) => {
   });
 
   const { id } = integration;
-  const key = integration.publicKey ?? '';
+  const key = integration.publicKey;
   const { identitySecret } = await owner.integrations.messenger.rotateSecret({ id });
 
   /** Ann as her website signs her in, or with a signature of `value`. */

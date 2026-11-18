@@ -105,6 +105,32 @@ export const OPERATORS = [
 /** The operators that compare against no value. */
 export const VALUELESS: readonly string[] = ['isUnknown', 'hasAnyValue'];
 
+type Operator = (typeof OPERATORS)[number];
+
+const CHOICE_TYPES: readonly string[] = [
+  'select',
+  'select:countries',
+  'radio',
+  'check',
+  'boolean',
+  'core:customer:sex',
+];
+
+const ORDERED_TYPES: readonly string[] = ['number', 'date', 'core:customer:birthDate'];
+
+/**
+ * The comparisons a rule on a field of `type` makes sense with: a picked option is or isn't
+ * one, a number or date is also above or below one, and text also contains or starts with one.
+ */
+export const operatorsFor = (type: string): readonly Operator[] => {
+  if (CHOICE_TYPES.includes(type)) return ['is', 'isNot', 'isUnknown', 'hasAnyValue'];
+
+  if (ORDERED_TYPES.includes(type))
+    return ['is', 'isNot', 'greaterThan', 'lessThan', 'isUnknown', 'hasAnyValue'];
+
+  return OPERATORS.filter((operator) => operator !== 'greaterThan' && operator !== 'lessThan');
+};
+
 /** A field type as members read it. */
 export const useFieldTypeNames = (): Record<FieldType, string> => {
   const { t } = useTranslation('frontline');

@@ -45,7 +45,7 @@ export const MessengerPreview = () => {
   return (
     <Card
       aria-label={t('messenger-preview', 'Preview')}
-      className="sticky top-6 overflow-hidden"
+      className="sticky top-6 self-start overflow-hidden"
       style={{
         '--messenger-color': values.color,
         '--messenger-text': values.textColor,

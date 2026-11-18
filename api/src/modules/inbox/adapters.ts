@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
-import type { Attachment } from '#/db/table.ts';
+import type { StoredFile } from '#/db/table.ts';
 import { PROVIDER_ADAPTERS } from '../integrations/adapters.ts';
 import { CALL_ADAPTERS } from '../integrations/providers/call/record.ts';
 import { messenger } from '../messenger/adapter.ts';
@@ -14,7 +14,7 @@ export type Outgoing = {
     content: string;
     /** The member's rich text, or null for plain text. */
     html: string | null;
-    attachments: Attachment[];
+    attachments: StoredFile[];
     userId: string | null;
     /** What the adapter keeps on its own messages, such as a new mail's subject. */
     providerData: Record<string, unknown> | null;

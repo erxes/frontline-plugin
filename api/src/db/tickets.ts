@@ -15,7 +15,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { channels } from './schema.ts';
-import { type Attachment, id, stamps, table } from './table.ts';
+import { type StoredFile, id, stamps, table } from './table.ts';
 
 /** A span in working minutes, up to a year; left out, the clock isn't kept. */
 const Minutes = z.number().int().positive().max(525_600).optional();
@@ -230,7 +230,7 @@ export const tickets = table(
     startDate: timestamp({ withTimezone: true }),
     targetDate: timestamp({ withTimezone: true }),
     state: text({ enum: TICKET_STATES }).notNull().default('active'),
-    attachments: jsonb().$type<Attachment[]>().notNull().default([]),
+    attachments: jsonb().$type<StoredFile[]>().notNull().default([]),
     statusChangedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     statusChangedBy: text(),
     /** When the pipeline's SLA wants a first response and a resolution, counted from creation. */

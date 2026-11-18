@@ -1,5 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm';
-import type { AnyPgColumn } from 'drizzle-orm/pg-core';
+import { and, eq } from 'drizzle-orm';
 import express, { type Request, type Response } from 'express';
 import { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
@@ -7,6 +6,7 @@ import { conversations, messages } from '#/db/inbox.ts';
 import { tickets } from '#/db/tickets.ts';
 import { fail } from '../fail.ts';
 import {
+  carries,
   rawUpload,
   readFile,
   receiptOf,
@@ -28,16 +28,6 @@ const upload = asVisitor(async (visitor, req, res) => {
 
   res.status(201).json(reply);
 });
-
-/** Whether the attachments in `column` name the core file `id`, at the address core gives it. */
-const carries = (column: AnyPgColumn, id: string) => {
-  const ending = `/files/${id}/download`;
-
-  return sql`exists (
-    select 1 from jsonb_array_elements(${column}) file
-    where right(file->>'url', ${ending.length}) = ${ending}
-  )`;
-};
 
 /** Whether a message the visitor can read, or a ticket they filed, carries the core file `id`. */
 const seesFile = (visitor: Visitor, id: string) =>

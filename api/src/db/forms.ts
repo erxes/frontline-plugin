@@ -13,7 +13,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { channels } from './schema.ts';
-import { type Attachment, id, stamps, table } from './table.ts';
+import { type StoredFile, id, stamps, table } from './table.ts';
 
 export const FORM_STATUSES = ['active', 'archived'] as const;
 
@@ -67,12 +67,12 @@ export const forms = table(
     calloutTitle: text(),
     calloutBody: text(),
     calloutButtonText: text(),
-    calloutImage: jsonb().$type<Attachment>(),
+    calloutImage: jsonb().$type<StoredFile>(),
     calloutSkip: boolean().notNull().default(false),
     /** What a visitor reads once they submit. */
     thankTitle: text(),
     thankContent: text(),
-    thankImage: jsonb().$type<Attachment>(),
+    thankImage: jsonb().$type<StoredFile>(),
     steps: jsonb().$type<z.infer<typeof FormStep>[]>().notNull().default([]),
     viewCount: integer().notNull().default(0),
     /** Customers and leads the form created. */

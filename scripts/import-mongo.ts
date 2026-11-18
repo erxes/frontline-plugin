@@ -88,6 +88,14 @@ const AFTER_COPY: Record<string, string> = {
   )`,
   // A pipeline counts on from its last number; without one, from its tickets' highest.
   frontline_tickets: 'UPDATE frontline_pipelines SET last_number_prefix = NULL',
+  // Every integration has the public key its embed or webhook carries, as migration 0025 gave
+  // the ones before it.
+  frontline_integrations: `INSERT INTO frontline_public_keys (key, org_of, kind, target_id)
+    SELECT replace(gen_random_uuid()::text || gen_random_uuid()::text, '-', ''), i.org_id, 'integration', i.id
+    FROM frontline_integrations i
+    WHERE NOT EXISTS (
+      SELECT 1 FROM frontline_public_keys k WHERE k.kind = 'integration' AND k.target_id = i.id
+    )`,
 };
 
 const stale = new Set<string>();
