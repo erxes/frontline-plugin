@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { MessengerApi } from './api.ts';
 import { Home } from './Home.tsx';
 import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
@@ -79,10 +79,19 @@ export const Messenger = ({ api }: { api: MessengerApi }) => {
   const open = shown === true;
   const [view, setView] = useState<View>({ name: 'home' });
   const { settings, session, conversations, connect } = messenger;
+  const panel = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (open && !session) void connect().catch(() => setOpen(false));
   }, [open, session, connect]);
+
+  // Focus follows the panel: into it as it opens, back to the launcher once it closes. On a phone
+  // the launcher hides while the panel is open, so focus would otherwise drop to the page.
+  useEffect(() => {
+    if (shown) panel.current?.focus();
+    else if (shown === false) toggle.current?.focus();
+  }, [shown]);
 
   useEffect(() => {
     const show = () => setOpen(true);
@@ -108,7 +117,14 @@ export const Messenger = ({ api }: { api: MessengerApi }) => {
       }}
     >
       {shown !== null && (
-        <section class="fl-panel" role="dialog" aria-label={settings.name} hidden={!open}>
+        <section
+          ref={panel}
+          class="fl-panel"
+          role="dialog"
+          aria-label={settings.name}
+          tabIndex={-1}
+          hidden={!open}
+        >
           <button
             type="button"
             class="fl-icon-button fl-close"
@@ -122,6 +138,7 @@ export const Messenger = ({ api }: { api: MessengerApi }) => {
       )}
       {launcher && (
         <button
+          ref={toggle}
           type="button"
           class="fl-launcher"
           aria-label={open ? 'Close the messenger' : 'Open the messenger'}

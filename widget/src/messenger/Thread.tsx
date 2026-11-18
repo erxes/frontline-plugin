@@ -1,5 +1,4 @@
 import type { ComponentChildren } from 'preact';
-import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Uploaded } from '../shared/http.ts';
 import type { Attachment, Message, MessengerApi, Settings } from './api.ts';
 import { Composer, Identify } from './Composer.tsx';
@@ -7,6 +6,7 @@ import { statusOf, timeOf } from './hours.ts';
 import { BackIcon, FileIcon } from '../shared/icons.tsx';
 import type { MessengerState } from './useMessenger.ts';
 import { useLazy } from './lazy.ts';
+import { useNewestInView, useThread } from './useThread.ts';
 
 const loadSurvey = async () => (await import('./survey/SurveyCard.tsx')).SurveyCard;
 
@@ -112,119 +112,6 @@ export const Loading = () => (
   </p>
 );
 
-/** What the thread has loaded of one conversation, oldest first, and the cursor for earlier ones. */
-type Loaded = { id: string | null; messages: Message[]; earlier: string | null };
-
-/**
- * A conversation's latest messages, refetched when the stream says it changed, with earlier ones
- * on request, and marked read while the visitor has the panel open on it. `send` starts the
- * conversation when there is none yet.
- */
-const useThread = (
-  api: MessengerApi,
-  { session, conversations, changed, refresh }: MessengerState,
-  conversationId: string | null,
-  open: boolean,
-  onStarted: (id: string) => void,
-) => {
-  const [loaded, setLoaded] = useState<Loaded>({ id: null, messages: [], earlier: null });
-  const shown = loaded.id === conversationId ? loaded : { messages: [], earlier: null };
-
-  /**
-   * Merges messages into conversation `id`, each once. Another conversation's start over with
-   * `cursor`; the same one keeps its cursor unless these are its `earlier` messages.
-   */
-  const put = (id: string, items: Message[], cursor: string | null, earlier = false) =>
-    setLoaded((was) => {
-      const same = was.id === id;
-
-      const byId = new Map(
-        [...(same ? was.messages : []), ...items].map((each) => [each.id, each]),
-      );
-
-      return {
-        id,
-        messages: [...byId.values()].toSorted((a, b) => a.createdAt.localeCompare(b.createdAt)),
-        earlier: same && !earlier ? was.earlier : cursor,
-      };
-    });
-
-  const token = session?.token;
-  const conversation = conversations.find((item) => item.id === conversationId);
-  const unread = conversation?.unreadCount ?? 0;
-  const version = changed?.id === conversationId ? changed.at : 0;
-
-  useEffect(() => {
-    if (!token || !conversationId) return;
-
-    let live = true;
-
-    const load = async () => {
-      const page = await api.messages(token, conversationId);
-
-      if (live) put(conversationId, page.items, page.nextCursor);
-    };
-
-    void load();
-
-    return () => {
-      live = false;
-    };
-  }, [api, token, conversationId, version]);
-
-  useEffect(() => {
-    if (open && token && conversationId && unread > 0)
-      void api.read(token, conversationId).then(refresh);
-  }, [api, open, token, conversationId, unread, refresh]);
-
-  const send = async (content: string, files: Uploaded[]) => {
-    if (!token) return;
-
-    const sent = await api.send(token, {
-      conversationId: conversationId ?? undefined,
-      content,
-      files: files.map((file) => file.receipt),
-    });
-
-    put(sent.conversationId, [sent], null);
-
-    if (!conversationId) onStarted(sent.conversationId);
-
-    await refresh();
-  };
-
-  const loadEarlier = async () => {
-    if (!token || !conversationId || !shown.earlier) return;
-
-    const page = await api.messages(token, conversationId, shown.earlier);
-
-    put(conversationId, page.items, page.nextCursor, true);
-  };
-
-  return {
-    token,
-    conversation,
-    messages: shown.messages,
-    hasEarlier: shown.earlier !== null,
-    loadEarlier,
-    send,
-  };
-};
-
-/**
- * The message list's element, scrolled to its end when the panel opens, the newest message
- * changes or someone starts typing. Earlier messages load above and leave the scroll alone.
- */
-const useNewestInView = (newest: string | undefined, open: boolean, typing: boolean) => {
-  const list = useRef<HTMLDivElement>(null);
-
-  useLayoutEffect(() => {
-    if (open && list.current) list.current.scrollTop = list.current.scrollHeight;
-  }, [newest, open, typing]);
-
-  return list;
-};
-
 /** The bot's menu: a link opens, anything else is sent as the visitor's message. */
 const BotMenu = ({ settings, onPick }: { settings: Settings; onPick: (text: string) => void }) => (
   <div class="fl-menu">
@@ -262,7 +149,7 @@ export const Thread = ({
   onStarted: (id: string) => void;
   onBack: () => void;
 }) => {
-  const { settings, session, typing, connect, refresh, signOut } = messenger;
+  const { settings, typing, refresh } = messenger;
 
   const { token, conversation, messages, hasEarlier, loadEarlier, send } = useThread(
     api,
@@ -272,8 +159,7 @@ export const Thread = ({
     onStarted,
   );
 
-  const typingHere = Boolean(conversationId) && typing === conversationId;
-  const list = useNewestInView(messages.at(-1)?.id, open, typingHere);
+  const { list, content } = useNewestInView(messages.at(-1)?.id, open, Boolean(settings && token));
 
   if (!settings || !token) return null;
 
@@ -284,60 +170,94 @@ export const Thread = ({
   return (
     <div class="fl-thread">
       <Bar settings={settings} onBack={onBack} />
-      <div ref={list} class="fl-scroll fl-messages" aria-live="polite">
-        {hasEarlier && (
-          <button type="button" class="fl-link" onClick={() => void loadEarlier()}>
-            Earlier messages
-          </button>
-        )}
-        {settings.welcome && !hasEarlier && <TeamNote>{settings.welcome}</TeamNote>}
-        {withBot && settings.botGreeting && <TeamNote>{settings.botGreeting}</TeamNote>}
-        <Messages api={api} token={token} messages={messages} language={settings.language} />
-        {withBot && <BotMenu settings={settings} onPick={(text) => void send(text, [])} />}
-        {withBot && conversationId && (
-          <button
-            type="button"
-            class="fl-link"
-            onClick={() => void api.askForPerson(token, conversationId).then(refresh)}
-          >
-            Talk to a person
-          </button>
-        )}
-        {!settings.isOnline && settings.away && <TeamNote>{settings.away}</TeamNote>}
-        {resolved && settings.thank && <TeamNote>{settings.thank}</TeamNote>}
-        {typingHere && (
-          <p class="fl-typing" role="status">
-            Typing…
-          </p>
-        )}
+      <div ref={list} class="fl-scroll">
+        <div ref={content} class="fl-messages" aria-live="polite">
+          {hasEarlier && (
+            <button type="button" class="fl-link" onClick={() => void loadEarlier()}>
+              Earlier messages
+            </button>
+          )}
+          {settings.welcome && !hasEarlier && <TeamNote>{settings.welcome}</TeamNote>}
+          {withBot && settings.botGreeting && <TeamNote>{settings.botGreeting}</TeamNote>}
+          <Messages api={api} token={token} messages={messages} language={settings.language} />
+          {withBot && <BotMenu settings={settings} onPick={(text) => void send(text, [])} />}
+          {withBot && conversationId && (
+            <button
+              type="button"
+              class="fl-link"
+              onClick={() => void api.askForPerson(token, conversationId).then(refresh)}
+            >
+              Talk to a person
+            </button>
+          )}
+          {!settings.isOnline && settings.away && <TeamNote>{settings.away}</TeamNote>}
+          {resolved && settings.thank && <TeamNote>{settings.thank}</TeamNote>}
+          {conversationId && typing === conversationId && (
+            <p class="fl-typing" role="status">
+              Typing…
+            </p>
+          )}
+        </div>
       </div>
-      {settings.requireAuth && !session?.identified ? (
-        <Identify onSubmit={connect} />
-      ) : resolved && settings.forceLogoutWhenResolve ? (
-        <StartOver
-          onClick={() => {
-            signOut();
-            onBack();
-          }}
-        />
-      ) : (
-        <Composer
-          onSend={send}
-          onUpload={(file) => api.upload(token, file)}
-          onTyping={() => {
-            if (conversationId) void api.typing(token, conversationId);
-          }}
-        />
-      )}
+      <Footer
+        api={api}
+        messenger={messenger}
+        token={token}
+        conversationId={conversationId}
+        resolved={resolved}
+        onSend={send}
+        onBack={onBack}
+      />
     </div>
   );
 };
 
-/** In place of the composer once a messenger that signs visitors out resolved the conversation. */
-const StartOver = ({ onClick }: { onClick: () => void }) => (
-  <div class="fl-composer">
-    <button type="button" class="fl-primary" onClick={onClick}>
-      Start a new conversation
-    </button>
-  </div>
-);
+/**
+ * Under the messages: the email or phone a messenger asks for first, a fresh start once a
+ * messenger that signs visitors out resolved the conversation, or the composer.
+ */
+const Footer = ({
+  api,
+  messenger: { settings, session, connect, signOut },
+  token,
+  conversationId,
+  resolved,
+  onSend,
+  onBack,
+}: {
+  api: MessengerApi;
+  messenger: MessengerState;
+  token: string;
+  conversationId: string | null;
+  resolved: boolean;
+  onSend: (content: string, files: Uploaded[]) => Promise<void>;
+  onBack: () => void;
+}) => {
+  if (settings?.requireAuth && !session?.identified) return <Identify onSubmit={connect} />;
+
+  if (resolved && settings?.forceLogoutWhenResolve)
+    return (
+      <div class="fl-composer">
+        <button
+          type="button"
+          class="fl-primary"
+          onClick={() => {
+            signOut();
+            onBack();
+          }}
+        >
+          Start a new conversation
+        </button>
+      </div>
+    );
+
+  return (
+    <Composer
+      onSend={onSend}
+      onUpload={(file) => api.upload(token, file)}
+      onTyping={() => {
+        if (conversationId) void api.typing(token, conversationId);
+      }}
+    />
+  );
+};
