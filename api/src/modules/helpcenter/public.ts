@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, or } from 'drizzle-orm';
 import express, { type Response, type Router } from 'express';
 import sanitizeHtml from 'sanitize-html';
 import { z } from 'zod';
@@ -11,7 +11,8 @@ import { fail } from '../fail.ts';
 import { urlOf } from '../forms/embed.ts';
 import { keyOfOrganization, openedBy, widgetScript } from '../public.ts';
 import { countView } from '../views.ts';
-import { shownFile, shownKeyOf, shownUrl } from '../shownFiles.ts';
+import { likeText } from '../filter.ts';
+import { published, shownFile, shownKeyOf, shownUrl } from '../shownFiles.ts';
 
 /**
  * The help center's organisation and id from the address a signed-out visitor came by: its key,
@@ -78,9 +79,6 @@ const listed = {
   publishedAt: kbArticles.publishedAt,
 };
 
-/** What a visitor may read: published and public. */
-const published = and(eq(kbArticles.status, 'publish'), eq(kbArticles.isPrivate, false));
-
 /** What a visitor searches a topic with: a few words, matched as written. */
 export const SearchQuery = z.object({ q: z.string().trim().min(1).max(100) });
 
@@ -89,7 +87,7 @@ export const SearchQuery = z.object({ q: z.string().trim().min(1).max(100) });
  * case and the body's tags, newest first.
  */
 export const searchOf = (orgId: string, topicId: string, term: string) => {
-  const pattern = `%${term.replaceAll(/[\\%_]/g, String.raw`\$&`)}%`;
+  const pattern = likeText(term);
 
   return withOrg(orgId, (tx) =>
     tx
@@ -103,7 +101,7 @@ export const searchOf = (orgId: string, topicId: string, term: string) => {
           or(
             ilike(kbArticles.title, pattern),
             ilike(kbArticles.summary, pattern),
-            sql`regexp_replace(${kbArticles.content}, '<[^>]*>', ' ', 'g') ilike ${pattern}`,
+            ilike(kbArticles.plainText, pattern),
           ),
         ),
       )

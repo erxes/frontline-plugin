@@ -26,6 +26,9 @@ export const shownKeyOf = (orgId: string) => withOrg(orgId, (tx) => keyOfOrganiz
 
 const found = async (query: Promise<unknown[]>) => (await query).length > 0;
 
+/** The articles anyone may read: published and public. */
+export const published = and(eq(kbArticles.status, 'publish'), eq(kbArticles.isPrivate, false));
+
 /**
  * Whether the organisation shows core file `id` to anyone: a help center's logo, favicon or
  * background, a messenger's logos, or a published public article's image, attachment or body.
@@ -36,7 +39,6 @@ const isShown = (orgId: string, id: string) =>
   withOrg(orgId, async (tx) => {
     const ending = downloadPath(id);
     const field = (column: SQL) => endsWith(column, ending);
-    const published = and(eq(kbArticles.status, 'publish'), eq(kbArticles.isPrivate, false));
 
     return (
       (await found(

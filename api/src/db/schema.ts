@@ -182,6 +182,12 @@ export const kbArticles = table(
     summary: text(),
     /** HTML, from erxes-ui's Editor. */
     content: text().notNull().default(''),
+    /** The content's words, as searches match them: no tags, and the Editor's entities decoded. */
+    plainText: text()
+      .notNull()
+      .generatedAlwaysAs(
+        sql`replace(replace(replace(replace(replace(replace(regexp_replace("content", '<[^>]*>', ' ', 'g'), '&nbsp;', ' '), '&lt;', '<'), '&gt;', '>'), '&quot;', '"'), '&#39;', ''''), '&amp;', '&')`,
+      ),
     status: text({ enum: KB_ARTICLE_STATUSES }).notNull().default('draft'),
     /** When a scheduled article goes live. */
     scheduledAt: timestamp({ withTimezone: true }),
@@ -213,12 +219,17 @@ export const kbArticles = table(
     index('frontline_knowledgebase_articles_org_scheduled_idx')
       .on(t.orgId, t.scheduledAt)
       .where(sql`${t.status} = 'scheduled'`),
-    // The list's search matches the title, summary or content anywhere in them.
+    // Searches match the title, summary or text anywhere in them; a body's file addresses are
+    // found through its content.
     index('frontline_knowledgebase_articles_search_trgm_idx').using(
       'gin',
       t.title.op('gin_trgm_ops'),
       t.summary.op('gin_trgm_ops'),
       t.content.op('gin_trgm_ops'),
+    ),
+    index('frontline_knowledgebase_articles_text_trgm_idx').using(
+      'gin',
+      t.plainText.op('gin_trgm_ops'),
     ),
     check(
       'frontline_knowledgebase_articles_status_check',

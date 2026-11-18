@@ -62,11 +62,13 @@ const CategoryRows = ({
  * The articles whose title, summary or text holds `term`, asked for once the visitor pauses
  * typing; the last answer stays up while the next is on its way.
  */
-const Found = ({ term, search, open }: { term: string; search: SearchArticles; open: Open }) => {
+const useSearch = (term: string, search: SearchArticles) => {
   const [articles, setArticles] = useState<ArticleSummary[] | null>(null);
   const [failure, setFailure] = useState('');
 
   useEffect(() => {
+    if (!term) return;
+
     let live = true;
 
     const ask = async () => {
@@ -90,6 +92,11 @@ const Found = ({ term, search, open }: { term: string; search: SearchArticles; o
     };
   }, [term, search]);
 
+  return { articles, failure };
+};
+
+/** What the search found, that it found nothing, or why it failed. */
+const Found = ({ articles, failure, open }: ReturnType<typeof useSearch> & { open: Open }) => {
   if (failure)
     return (
       <p class="fl-error" role="alert">
@@ -203,6 +210,8 @@ export const Articles = ({
   views: ArticleViews;
 }) => {
   const [term, setTerm] = useState('');
+  // The search lives here, so stepping back from an article it found shows its results again.
+  const found = useSearch(term.trim(), search);
   const searching = term.trim() !== '' && view.name !== 'article';
 
   return (
@@ -212,12 +221,13 @@ export const Articles = ({
           type="search"
           aria-label="Search articles"
           placeholder="Search articles"
+          maxLength={100}
           value={term}
           onInput={(event) => setTerm(event.currentTarget.value)}
         />
       )}
       {searching ? (
-        <Found term={term.trim()} search={search} open={open} />
+        <Found {...found} open={open} />
       ) : (
         <Page topic={topic} view={view} open={open} read={read} />
       )}
