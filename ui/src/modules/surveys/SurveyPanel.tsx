@@ -24,10 +24,10 @@ import {
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChannelSelect } from '~/shared/ChannelSelect.tsx';
-import { InfoRow, PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
+import { InfoRow, PageLink, PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { StatusBadge, useSurveyActions } from './SurveyCells.tsx';
-import { type Survey, useEditSurvey, useSurvey } from './useSurveys.ts';
+import { type Survey, surveyBuilderPath, useEditSurvey, useSurvey } from './useSurveys.ts';
 import { MemberChip } from '~/shared/Person.tsx';
 
 /** The panel header's title: the survey's title. */
@@ -107,6 +107,11 @@ const Overview = ({ survey }: { survey: Survey }) => {
 
   return (
     <PanelSection title={t('survey-overview', 'Overview')}>
+      <PageLink
+        to={surveyBuilderPath(survey.id)}
+        label={t('survey-questions', 'Questions')}
+        count={survey.steps.length}
+      />
       <InfoRow icon={IconProgressCheck} label={t('status', 'Status')}>
         <StatusBadge status={survey.status} />
       </InfoRow>

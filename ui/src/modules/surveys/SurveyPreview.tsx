@@ -58,6 +58,7 @@ export const SurveyPreview = ({ survey }: { survey: Survey }) => {
         <h2 className="text-base font-semibold">{survey.title}</h2>
         {survey.steps.map((step) => (
           <div key={step.id} className="flex flex-col gap-2">
+            {step.name && <p className="text-xs text-muted-foreground">{step.name}</p>}
             <p className="text-sm font-medium">{step.question}</p>
             {step.description && (
               <p className="text-xs text-muted-foreground">{step.description}</p>

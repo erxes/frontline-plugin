@@ -250,12 +250,6 @@ export const CONFIG: IUIConfig = {
       ...slots(async () => (await surveys()).SurveySlots),
       tabs: [
         {
-          value: 'questions',
-          label: 'Questions',
-          icon: IconChecklist,
-          component: lazy(async () => ({ default: (await surveys()).SurveyQuestions })),
-        },
-        {
           value: 'results',
           label: 'Results',
           icon: IconChartBar,

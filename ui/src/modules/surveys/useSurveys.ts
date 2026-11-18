@@ -1,11 +1,12 @@
-import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
+import type { InferClientOutputs } from '@orpc/client';
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
 import { useListFilterParams } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { PLUGIN } from '~/plugin.ts';
 import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
-import { useChange } from '~/shared/hooks.ts';
+import { useChange, useOptimistic } from '~/shared/hooks.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 
 type Outputs = InferClientOutputs<Client>['surveys'];
@@ -15,11 +16,6 @@ export type Survey = Outputs['get'];
 export type SurveyStatus = Survey['status'];
 
 export type SurveyStep = Survey['steps'][number];
-
-/** A question as an edit sends it: a new option or question has no id until the API gives one. */
-export type StepInput = NonNullable<
-  InferClientInputs<Client>['surveys']['update']['steps']
->[number];
 
 /** The statuses in the order the list groups them: what waits for review first. */
 export const SURVEY_STATUSES = [
@@ -76,6 +72,27 @@ export const useEditSurvey = (id: string) => {
   return (fields: Omit<Parameters<typeof update.mutate>[0], 'id'>) =>
     update.mutate({ id, ...fields });
 };
+
+/**
+ * Saves the survey's questions as a whole, shown at once so a drag or a typed option doesn't wait
+ * for the API. A new question or option carries an id made here, which the API keeps.
+ */
+export const useSaveSteps = (id: string) => {
+  const queryKey = orpc.surveys.get.queryKey({ input: { id } });
+
+  const update = useMutation({
+    mutationFn: (steps: SurveyStep[]) => orpc.surveys.update.call({ id, steps }),
+    ...useOptimistic([orpc.surveys.key()], (queryClient, steps: SurveyStep[]) =>
+      queryClient.setQueryData(queryKey, (survey) => survey && { ...survey, steps }),
+    ),
+  });
+
+  return update.mutate;
+};
+
+/** Where a survey's questions are built, beside their preview. */
+export const surveyBuilderPath = (id: string) =>
+  `/${PLUGIN}/surveys/${encodeURIComponent(id)}/builder`;
 
 /** Moves surveys to a status, all of them or none. */
 export const useSetSurveyStatus = () =>

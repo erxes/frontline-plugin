@@ -246,10 +246,11 @@ test("a survey's draft, panel, questions and results", async ({ page }) => {
   await expectAccessible(page, question);
   await panel.getByRole('button', { name: 'Create survey' }).click();
   await expectAccessible(page, active.getByRole('button', { name: title, exact: true }));
-  await panel.getByRole('tab', { name: 'Questions' }).click();
-  await expectAccessible(page, panel.getByRole('button', { name: 'How did we do?', exact: true }));
   await panel.getByRole('tab', { name: 'Results' }).click();
   await expectAccessible(page, panel.getByRole('tabpanel').getByText('0 voters'));
+  await panel.getByRole('tab', { name: 'Detail' }).click();
+  await panel.getByRole('link', { name: /^Questions/ }).click();
+  await expectAccessible(page, page.getByRole('region', { name: 'How did we do?', exact: true }));
 });
 
 test("a form's draft, panel, builder, embed and submissions", async ({ page, api, request }) => {
