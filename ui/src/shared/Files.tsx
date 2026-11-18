@@ -138,9 +138,52 @@ export const FilePicker = ({
 };
 
 /**
- * Files as links that open them in a new tab: an image as its thumbnail, the rest by name. Given
- * `onRemove`, each has a button that takes it off the list.
+ * A file as the browser shows it: a video or a recording as its player, an image as its thumbnail
+ * and the rest by name, both linked to open in a new tab. A Meta photo's type is the bare `image`.
  */
+const FilePreview = ({ file }: { file: Attachment }) => {
+  const kind = file.type?.split('/')[0];
+
+  if (kind === 'video')
+    return (
+      <video
+        controls
+        preload="metadata"
+        src={file.url}
+        aria-label={file.name}
+        className="max-h-40 rounded-md"
+      >
+        <track kind="captions" />
+      </video>
+    );
+
+  if (kind === 'audio')
+    return (
+      <audio controls preload="metadata" src={file.url} aria-label={file.name}>
+        <track kind="captions" />
+      </audio>
+    );
+
+  return (
+    <a
+      href={file.url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 hover:bg-accent"
+    >
+      {kind === 'image' ? (
+        <img src={file.url} alt={file.name} loading="lazy" className="max-h-40 rounded-sm" />
+      ) : (
+        <>
+          <IconFile className="size-4 shrink-0" aria-hidden />
+          <span className="truncate">{file.name}</span>
+        </>
+      )}
+    </a>
+  );
+};
+
+/** Files as `FilePreview` shows them. Given `onRemove`, each has a button that takes it off the list. */
 export const FileList = ({
   files,
   onRemove,
@@ -159,21 +202,7 @@ export const FileList = ({
           key={file.url}
           className="flex max-w-60 items-center gap-0.5 rounded-md border bg-background text-xs"
         >
-          <a
-            href={file.url}
-            target="_blank"
-            rel="noreferrer"
-            className="flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 hover:bg-accent"
-          >
-            {file.type?.startsWith('image/') ? (
-              <img src={file.url} alt={file.name} className="max-h-40 rounded-sm" />
-            ) : (
-              <>
-                <IconFile className="size-4 shrink-0" aria-hidden />
-                <span className="truncate">{file.name}</span>
-              </>
-            )}
-          </a>
+          <FilePreview file={file} />
           {onRemove && (
             <Button
               type="button"
