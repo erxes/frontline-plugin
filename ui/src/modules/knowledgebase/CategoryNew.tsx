@@ -1,4 +1,5 @@
 import { isDefinedError } from '@orpc/client';
+import { CATEGORY_ICON } from '~/shared/icons.ts';
 import {
   IconAlignLeft,
   IconBook,
@@ -68,7 +69,7 @@ const PlacementRows = ({
 export const CategoryNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
   const [placement, setPlacement] = useState(() => placementOf(defaults));
-  const [icon, setIcon] = useState<string | null>('IconFolder');
+  const [icon, setIcon] = useState<string | null>(CATEGORY_ICON);
   const { onSuccess } = useKbChange();
 
   const create = useMutation(
@@ -106,7 +107,7 @@ export const CategoryNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps
         <PanelFormRow label={t('icon', 'Icon')} icon={IconIcons}>
           <IconPicker
             aria-label={t('icon', 'Icon')}
-            value={icon ?? 'IconFolder'}
+            value={icon ?? CATEGORY_ICON}
             onValueChange={setIcon}
             className="w-min"
           />
