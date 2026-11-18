@@ -13,19 +13,10 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
+# Each job waits for one of the org's shared runners, so the checks and the tests share one:
+# together they still end before the build and the e2e shards do.
 jobs:
   check:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-      - uses: ./.github/actions/setup
-      - run: pnpm exec vp run check
-
-  test:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -45,44 +36,60 @@ jobs:
         with:
           persist-credentials: false
       - uses: ./.github/actions/setup
+      - run: pnpm exec vp run check
       - run: pnpm exec vp run test
       # What lets queries rely on withOrg() instead of org filters (tools/check-rls.sql).
       - run: pnpm check:rls
 
-  # One image build feeds the budgets, the scan, the e2e shards and the push.
+  # One image build feeds the budgets, the scan, the e2e shards and the push. A pull request
+  # that changes only Markdown builds no image and runs no e2e; one that changes no dependency
+  # skips the scan, which main still runs on every push.
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
+    outputs:
+      app: ${{ steps.changes.outputs.app }}
+      deps: ${{ steps.changes.outputs.deps }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          # A pull request checks out its merge commit; the first parent is the base branch.
+          fetch-depth: 2
+      - name: What the pull request changes
+        id: changes
+        run: |
+          app=true deps=true
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            files=$(git diff --name-only HEAD^1 HEAD)
+            grep -qv '\.md$' <<< "$files" || app=false
+            grep -qE '(^|/)(Dockerfile|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.node-version)$' <<< "$files" || deps=false
+            mkdir -p .scratch
+            git show HEAD^1:budgets.json > .scratch/base-budgets.json || rm -f .scratch/base-budgets.json
+          fi
+          echo "app=$app" >> "$GITHUB_OUTPUT"
+          echo "deps=$deps" >> "$GITHUB_OUTPUT"
       - uses: ./.github/actions/setup
-      - run: pnpm image
+      - run: pnpm ${{ steps.changes.outputs.app == 'true' && 'image' || 'build' }}
         env:
           VERSION: ${{ github.sha }}
       # gzip -1 and no zip on top: the upload and the shards' download wait on it.
-      - run: docker save frontline-plugin:ci | gzip -1 > frontline-plugin.tar.gz
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - if: steps.changes.outputs.app == 'true'
+        run: docker save frontline-plugin:ci | gzip -1 > frontline-plugin.tar.gz
+      - if: steps.changes.outputs.app == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: frontline-image
           path: frontline-plugin.tar.gz
           compression-level: 0
           retention-days: 3
-      - name: Base branch budgets
-        if: github.event_name == 'pull_request'
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          mkdir -p .scratch
-          git fetch --depth=1 origin "$BASE_REF"
-          git show FETCH_HEAD:budgets.json > .scratch/base-budgets.json || rm -f .scratch/base-budgets.json
       - run: pnpm budgets --base .scratch/base-budgets.json ${{ contains(github.event.pull_request.labels.*.name, 'budget-increase') && '--allow-increase' || '' }}
 
   scan:
     needs: build
+    if: needs.build.outputs.deps == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions: {}
@@ -102,6 +109,7 @@ jobs:
   # Chromium with axe, split across three runners that each start their own stack.
   e2e:
     needs: build
+    if: needs.build.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -154,11 +162,12 @@ jobs:
         if: failure()
         run: pnpm e2e:stack logs
 
-  # The one status branch protection requires: green only when every job above is.
+  # The one status branch protection requires: green only when every job above passed or
+  # was skipped. A job skips only when the build said it needn't run or the build failed.
   required:
     name: Check
     if: always()
-    needs: [check, test, build, scan, e2e]
+    needs: [check, build, scan, e2e]
     runs-on: ubuntu-latest
     permissions: {}
     steps:
@@ -166,7 +175,10 @@ jobs:
           RESULTS: ${{ join(needs.*.result, ' ') }}
         run: |
           for result in $RESULTS; do
-            [ "$result" = success ] || { echo "A required job ended $result."; exit 1; }
+            case "$result" in
+              success | skipped) ;;
+              *) echo "A required job ended $result."; exit 1 ;;
+            esac
           done
 
   # The image the build job made, once the scan and every e2e shard passed on it, as
