@@ -161,6 +161,8 @@ export const useJump = (thread: ReturnType<typeof useMessages>) => {
     return () => clearTimeout(unmark);
   }, [index]);
 
+  const gone = () => toast({ title: t('message-gone', 'That message is no longer in the thread') });
+
   const jump = async (target: Pick<Message, 'id' | 'createdAt'>) => {
     let state: Pick<typeof thread, 'data' | 'hasNextPage' | 'hasPreviousPage'> = thread;
 
@@ -175,15 +177,11 @@ export const useJump = (thread: ReturnType<typeof useMessages>) => {
         ? state.hasNextPage && (await thread.fetchNextPage())
         : state.hasPreviousPage && (await thread.fetchPreviousPage());
 
-      if (!next || next.isError) {
-        toast({ title: t('message-gone', 'That message is no longer in the thread') });
-
-        return;
-      }
+      if (!next || next.isError) return gone();
 
       state = next;
     }
   };
 
-  return { marked, markedAt: index, jump };
+  return { marked, markedAt: index, jump, gone };
 };

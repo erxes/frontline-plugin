@@ -282,6 +282,8 @@ export const Bubble = ({
     <article
       aria-label={message.internal ? t('internal-note', 'Internal note') : t('message', 'Message')}
       title={first ? undefined : format.dateTime(message.createdAt)}
+      // The message a jump went to, for a screen reader as for the eye.
+      aria-current={marked || undefined}
       className={cn(
         'group flex gap-2 rounded-md pb-1',
         !fromCustomer && 'flex-row-reverse',

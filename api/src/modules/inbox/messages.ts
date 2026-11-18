@@ -114,7 +114,8 @@ const notifyMentioned = async (member: PluginMember, conversationId: string, use
 
 /**
  * A member's reply to the customer, or an internal note with `internal`, posted as `postMessage`
- * says: plain `content`, or rich text as `html`. Members it mentions hear of it.
+ * says: plain `content`, or rich text as `html`. Members it mentions hear of it. It answers
+ * `replyToId`, whose text comes back as `quotedContent`.
  */
 const create = writes(PERMISSIONS.inboxView)
   .input(
@@ -128,7 +129,7 @@ const create = writes(PERMISSIONS.inboxView)
       replyToId: z.string().nullable().default(null),
     }),
   )
-  .output(Message)
+  .output(Message.extend({ quotedContent: z.string().nullable() }))
   .handler(async ({ input, context: { tx, member, afterCommit } }) => {
     const text = writtenText(input);
 
@@ -139,15 +140,17 @@ const create = writes(PERMISSIONS.inboxView)
 
     if (!conversation) throw new ORPCError('NOT_FOUND', { message: 'No such conversation' });
 
-    if (input.replyToId) {
-      const [answered] = await tx
-        .select({ id: messages.id })
-        .from(messages)
-        .where(and(eq(messages.id, input.replyToId), eq(messages.conversationId, conversation.id)));
+    const [answered] = input.replyToId
+      ? await tx
+          .select({ content: messages.content })
+          .from(messages)
+          .where(
+            and(eq(messages.id, input.replyToId), eq(messages.conversationId, conversation.id)),
+          )
+      : [];
 
-      if (!answered)
-        throw new ORPCError('BAD_REQUEST', { message: 'Reply to a message of this conversation' });
-    }
+    if (input.replyToId && !answered)
+      throw new ORPCError('BAD_REQUEST', { message: 'Reply to a message of this conversation' });
 
     const mentionedUserIds = [...new Set([...input.mentionedUserIds, ...text.mentionedUserIds])];
 
@@ -162,7 +165,7 @@ const create = writes(PERMISSIONS.inboxView)
 
     afterCommit(() => notifyMentioned(member, conversation.id, mentionedUserIds));
 
-    return message;
+    return { ...message, quotedContent: answered?.content ?? null };
   });
 
 /** Changes the text of the caller's own message: plain `content`, or rich text as `html`. */

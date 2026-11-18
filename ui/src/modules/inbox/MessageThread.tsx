@@ -129,7 +129,7 @@ const EarlierMessages = ({ thread }: { thread: ReturnType<typeof useMessages> })
 const useQuotes = (
   conversation: Conversation,
   messages: Message[],
-  jump: ReturnType<typeof useJump>['jump'],
+  { jump, gone }: Pick<ReturnType<typeof useJump>, 'jump' | 'gone'>,
 ) => {
   const { t } = useTranslation('frontline');
   const quote = useQuote(conversation.id);
@@ -143,12 +143,12 @@ const useQuotes = (
 
     const loaded = messages.find((other) => other.id === replyToId);
 
+    // The API found no quoted message, so there is none to load.
+    if (!loaded && quotedContent === null)
+      return { text: t('earlier-message', 'An earlier message'), onJump: gone };
+
     return {
-      text: loaded
-        ? textOf(quoteText(loaded))
-        : quotedContent === null
-          ? t('earlier-message', 'An earlier message')
-          : textOf(quotedContent),
+      text: textOf(loaded ? quoteText(loaded) : (quotedContent ?? '')),
       // It came before the reply, so it is among the messages loaded or before them.
       onJump: () => void jump({ id: replyToId, createdAt: new Date(0) }),
     };
@@ -181,8 +181,9 @@ export const MessageThread = ({ conversation, sending }: ThreadProps) => {
   const { messages, isPending } = thread;
   const customer = useCustomer(conversation.customerId);
   const shift = usePrepended(messages);
-  const { marked, markedAt, jump } = useJump(thread);
-  const { quoteOf, replyOf } = useQuotes(conversation, messages, jump);
+  const jumps = useJump(thread);
+  const { marked, markedAt, jump } = jumps;
+  const { quoteOf, replyOf } = useQuotes(conversation, messages, jumps);
 
   const { rows, viewport, onScroll, onResize, atEnd, unseen, toEnd } = useReader(
     thread,

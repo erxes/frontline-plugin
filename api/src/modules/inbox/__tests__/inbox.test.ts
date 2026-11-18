@@ -140,7 +140,11 @@ describe('inbox', () => {
     });
 
     expect(reply).toMatchObject({ userId: 'teammate', deliveryStatus: 'sent', internal: false });
-    expect(note).toMatchObject({ deliveryStatus: null, internal: true });
+    expect(note).toMatchObject({
+      deliveryStatus: null,
+      internal: true,
+      quotedContent: 'Hi, how can we help?',
+    });
     expect(await teammate.conversations.get({ id })).toMatchObject({
       status: 'open',
       content: 'Hi, how can we help?',

@@ -230,5 +230,5 @@ test('a reply answers one message, quoted over the composer and over the reply i
   const answer = thread.getByRole('article').filter({ hasText: 'Yes, in two days' });
 
   await answer.getByRole('button', { name: `Go to the message it answers: ${question}` }).click();
-  await expect(asked).toBeVisible();
+  await expect(asked).toHaveAttribute('aria-current', 'true');
 });

@@ -188,11 +188,7 @@ export const useSendMessage = () => {
                 index === 0 && !page.messages.some((other) => other.id === message.id)
                   ? {
                       ...page,
-                      // The thread finds the quoted message among those loaded.
-                      messages: [
-                        { ...message, canEdit: true, reactions: [], quotedContent: null },
-                        ...page.messages,
-                      ],
+                      messages: [{ ...message, canEdit: true, reactions: [] }, ...page.messages],
                     }
                   : page,
               ),
