@@ -1,5 +1,6 @@
 import {
   addMessenger,
+  ARTICLE,
   addTiles,
   callProLine,
   createChannel,
@@ -8,6 +9,7 @@ import {
   expectAccessible,
   Id,
   INBOX,
+  knowledgeBase,
   messengerIn,
   newRecordPath,
   openChannelPipelines,
@@ -38,22 +40,6 @@ const HELP_CENTERS = '/frontline/help-centers';
 const FORMS = '/frontline/forms';
 const SURVEYS = '/frontline/surveys';
 const HISTORY = '/frontline/calls/history';
-const ARTICLE = 'Write to us within 30 days.';
-
-type Rpc = Awaited<ReturnType<typeof pluginApi>>;
-
-/** A topic with a category, a subcategory and a published article, made through the API. */
-const knowledgeBase = async (rpc: Rpc, title: string) => {
-  const create = (kind: string, input: unknown) => rpc(`knowledgebase/${kind}/create`, input, Id);
-  const { id: topicId } = await create('topics', { title });
-  const { id: parentId } = await create('categories', { topicId, title: 'Billing' });
-  const article = { title: 'Refunds', summary: 'Money back', content: `<p>${ARTICLE}</p>` };
-
-  await create('categories', { topicId, title: 'Cards', parentId });
-  await create('articles', { ...article, categoryId: parentId, status: 'publish' });
-
-  return topicId;
-};
 
 test('a channel, its members and its response templates', async ({ page }) => {
   const panel = recordPanel(page);
@@ -128,14 +114,9 @@ test('tickets in the list, the board and the table, and one in the panel', async
   }
 });
 
-test('a messenger, the inbox, a conversation and the widget', async ({ page, request }) => {
+test('a messenger and its settings', async ({ page }) => {
   const channel = await createChannel(page);
   const panel = recordPanel(page);
-  const name = `Ada ${unique()}`;
-  const thread = page.getByRole('list', { name: 'Messages' });
-  const first = thread.getByRole('article', { name: 'Message' }).first();
-  const sidebar = page.getByRole('complementary', { name: 'Customer details' });
-  const rail = page.getByRole('toolbar', { name: 'Customer panels' });
 
   await page.goto(INBOX);
   await page.getByRole('button', { name: 'Add messenger' }).first().click();
@@ -148,7 +129,15 @@ test('a messenger, the inbox, a conversation and the widget', async ({ page, req
   await panel.getByRole('button', { name: 'Integration actions' }).click();
   await page.getByRole('option', { name: 'Messenger settings' }).click();
   await expectAccessible(page, page.getByRole('textbox', { name: 'Welcome message' }));
+});
 
+test('a conversation in the inbox', async ({ page, api, request }) => {
+  const key = await messengerIn(await pluginApi(api, request), { welcome: 'Hi' });
+  const name = `Ada ${unique()}`;
+  const thread = page.getByRole('list', { name: 'Messages' });
+  const first = thread.getByRole('article', { name: 'Message' }).first();
+  const sidebar = page.getByRole('complementary', { name: 'Customer details' });
+  const rail = page.getByRole('toolbar', { name: 'Customer panels' });
   const visitor = await visitorOf(request, key, { email: `${unique()}@e2e.test`, firstName: name });
   const conversationId = await visitor.write(`Where is my order ${unique()}`);
 
@@ -163,6 +152,10 @@ test('a messenger, the inbox, a conversation and the widget', async ({ page, req
   await expectAccessible(page, page.getByRole('textbox', { name: 'Internal note' }));
   await page.goto(`${INBOX}/conversations/${conversationId}`);
   await expectAccessible(page, page.getByText('New', { exact: true }));
+});
+
+test('the messenger on a website', async ({ page, api, request }) => {
+  const key = await messengerIn(await pluginApi(api, request), { welcome: 'Hi' });
 
   await using site = await openMessenger(page.context(), key);
 
@@ -204,8 +197,7 @@ test('a help center, and its articles on a website', async ({ page, api, request
   await page.goto(`${HELP_CENTERS}/${center.id}/appearance`);
   await expectAccessible(page, page.getByRole('textbox', { name: 'Wordmark' }));
 
-  const channel = await rpc('channels/create', { name: `Site ${unique()}` }, Id);
-  const key = await messengerIn(rpc, channel.id, { knowledgeBaseTopicId: kbTopicId });
+  const key = await messengerIn(rpc, { knowledgeBaseTopicId: kbTopicId });
 
   await using site = await openMessenger(page.context(), key);
 
