@@ -138,7 +138,9 @@ test('a member changes tickets in one go, sees them on the board and deletes the
     .locator('[aria-roledescription="movable card"]', { hasText: refund })
     .focus();
   await page.keyboard.press('Space');
-  await expect(page.getByText(`Picked up ${refund}.`)).toBeAttached();
+  await expect(page.getByText(`${refund} is in New.`)).toBeAttached();
+  // dnd-kit listens for the arrow keys from the next timer tick after the pick-up.
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve)));
   await page.keyboard.press('ArrowRight');
   await expect(page.getByText(`${refund} is in Open.`)).toBeAttached();
   await page.keyboard.press('Space');
