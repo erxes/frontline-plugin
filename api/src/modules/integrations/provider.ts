@@ -157,6 +157,35 @@ export const inOrder = <T, R>(items: T[], step: (item: T) => Promise<R>) =>
     Promise.resolve([]),
   );
 
+/** A reply the provider took part of: a retry would send those parts again, so it fails as it is. */
+export class PartlySent extends Error {}
+
+/**
+ * Sends a reply's `parts` one at a time, in order, and resolves to what each gave. A failure on
+ * the first part throws as it is, so the reply is tried again; one after it is `PartlySent`.
+ */
+export const sendInParts = <T, R>(parts: T[], send: (part: T) => Promise<R>) => {
+  let sent = 0;
+
+  return inOrder(parts, (part) =>
+    send(part).then(
+      (result) => {
+        sent += 1;
+
+        return result;
+      },
+      (error: unknown) => {
+        if (sent === 0) throw error;
+
+        throw new PartlySent(
+          `${sent} of ${parts.length} parts went out before one failed: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
+        );
+      },
+    ),
+  );
+};
+
 /** A POST to `/api/public/webhooks/<source>/<key>`, before anything in it is trusted. */
 export interface WebhookRequest {
   /** The key in the address, for providers that post to one per account. */

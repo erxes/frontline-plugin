@@ -25,6 +25,21 @@ const Secret = z.object({ imapPassword: z.string(), smtpPassword: z.string() });
 /** Where the last pull left off in INBOX. A new `uidValidity` means the uids started over. */
 export const SyncState = z.object({ uidValidity: z.string(), lastUid: z.number().int() });
 
+/** How many runs in a row a mailbox may fail to sync before it shows as broken. */
+const FAILED_RUNS = 5;
+
+/** The failed runs a sync state counts since the last good one, and the last one's error. */
+const SyncFailures = z.object({ failedRuns: z.number().int(), failure: z.string() });
+
+/** Why the mailbox counts as broken for its sync, or null while it syncs or failed too few times. */
+export const syncFailure = (syncState: unknown) => {
+  const failures = SyncFailures.safeParse(syncState).data;
+
+  return failures && failures.failedRuns >= FAILED_RUNS
+    ? `The last ${failures.failedRuns} mail syncs failed: ${failures.failure}`
+    : null;
+};
+
 const imapClient = (imap: z.infer<typeof Server>, password: string) =>
   new ImapFlow({
     host: imap.host,
@@ -365,7 +380,9 @@ export const mail = defineProvider({
   name: 'mail',
   Config,
   Secret,
-  check: async ({ config, secret }) => checkMail(config, secret),
+  // A mailbox that logs in but keeps failing to sync stays broken until a sync gets through.
+  check: async ({ config, secret, row }) =>
+    (await checkMail(config, secret)) ?? syncFailure(row.syncState),
   // A mail goes to the address its thread is with, which a customer with two addresses needs.
   send: async ({ config, secret, row }, message) => {
     const to = threadAddress(message.threadId);

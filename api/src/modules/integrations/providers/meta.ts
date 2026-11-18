@@ -8,7 +8,7 @@ import { openSecret } from '../secrets.ts';
 import { accountRow } from '../store.ts';
 import {
   defineProvider,
-  inOrder,
+  sendInParts,
   type OpenAccount,
   type OutboundMessage,
   type OutboundReaction,
@@ -139,7 +139,7 @@ const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessag
   };
 
   // Messenger shows the messages in the order they reach it; null is the text.
-  const [first] = await inOrder(
+  const [first] = await sendInParts(
     [...(message.text ? [null] : []), ...message.attachments],
     async (file) =>
       Sent.parse(

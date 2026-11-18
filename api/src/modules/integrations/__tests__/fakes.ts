@@ -192,12 +192,21 @@ export const channelFor = async (orgId: string, kind: string, accountId: string)
   });
 };
 
-/** The Bot API's answers for the bot `777`; a token with `bad-token` in it is refused. */
+/**
+ * The Bot API's answers for the bot `777`; a token with `bad-token` in it is refused, and so is a
+ * file named `refused`.
+ */
 export const telegramApi = (call: ProviderCall) => {
   const method = call.url.pathname.split('/').at(-1);
 
   if (call.url.pathname.includes('bad-token'))
     return Response.json({ ok: false, description: 'Unauthorized' }, { status: 401 });
+
+  if (JSON.stringify(call.body).includes('refused'))
+    return Response.json(
+      { ok: false, description: 'Bad Request: wrong file type' },
+      { status: 400 },
+    );
 
   if (method === 'getMe')
     return {

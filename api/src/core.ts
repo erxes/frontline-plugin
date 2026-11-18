@@ -1,5 +1,13 @@
+import { ORPCError } from '@orpc/server';
 import { createCoreClient } from '@erxes/plugin-sdk';
 import { config, PLUGIN } from '#/config.ts';
+
+/**
+ * Whether core answered a call with a refusal of the request itself (a 4xx other than its token's
+ * 401): the same call fails the same way again, where a 5xx or no answer may pass later.
+ */
+export const refusedByCore = (error: unknown) =>
+  error instanceof ORPCError && error.status >= 400 && error.status < 500 && error.status !== 401;
 
 /**
  * Core, called as this plugin: `core.forOrg(orgId).customers.get({ id })`.
