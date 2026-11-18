@@ -9,7 +9,7 @@ import { channelMembers, responseTemplates } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { channelFor, managesAll } from '../channels/access.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
-import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
+import { orderOf, PageInput } from '../paging.ts';
 
 /** The row without `org_id`, which the caller already knows. */
 const { orgId, ...templateColumns } = getTableColumns(responseTemplates);
@@ -94,9 +94,11 @@ const TEMPLATE_FILTER: FilterFields = {
   'subject.updatedAt': { kind: 'date', expr: responseTemplates.updatedAt },
 };
 
+const order = orderOf(responseTemplates);
+
 /**
- * A channel's templates, newest first, `limit` at a time, narrowed by the filter bar: pass the
- * last `id` as `cursor` for the next page. `search` matches the name or the content's text,
+ * A channel's templates, newest first, `limit` at a time, narrowed by the filter bar: pass
+ * `nextCursor` as `cursor` for the next page. `search` matches the name or the content's text,
  * ignoring case.
  */
 const list = reads(PERMISSIONS.channelView)
@@ -123,12 +125,12 @@ const list = reads(PERMISSIONS.channelView)
     );
 
     const rows = await templateRows(tx, member)
-      .where(and(matches, after(responseTemplates, input.cursor)))
-      .orderBy(...newestFirst(responseTemplates))
+      .where(and(matches, order.after(input.cursor)))
+      .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
     const [total] = await tx.select({ value: count() }).from(responseTemplates).where(matches);
-    const { items, nextCursor } = pageOf(rows, input.limit);
+    const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return { templates: items, nextCursor, totalCount: total?.value ?? 0 };
   });

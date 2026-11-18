@@ -15,7 +15,7 @@ import { membership } from '../channels/access.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
 import { seenBy } from '../inbox/shared.ts';
 import { queueRecording } from '../integrations/providers/call/record.ts';
-import { orderOf, PageInput, pageOf } from '../paging.ts';
+import { orderOf, PageInput } from '../paging.ts';
 
 const { orgId: _orgId, ...callColumns } = getTableColumns(calls);
 
@@ -90,7 +90,7 @@ const list = reads(PERMISSIONS.callView)
       .leftJoin(channelMembers, membership(member, conversations.channelId))
       .where(matches);
 
-    const { items, nextCursor } = pageOf(rows, input.limit);
+    const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return { calls: items, nextCursor, totalCount: total?.value ?? 0 };
   });

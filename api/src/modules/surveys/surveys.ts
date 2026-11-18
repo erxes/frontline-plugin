@@ -10,7 +10,7 @@ import { changedEvent } from '../events.ts';
 import { Ids, Title } from '../fields.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
 import { newCode } from '../forms/shared.ts';
-import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
+import { orderOf, PageInput } from '../paging.ts';
 import {
   checkTickets,
   publishSurveyEvents,
@@ -38,6 +38,8 @@ const SURVEY_FILTER: FilterFields = {
   'subject.updatedAt': { kind: 'date', expr: surveys.updatedAt },
 };
 
+const order = orderOf(surveys);
+
 /** The surveys of the member's channels, newest first, narrowed by the filter bar. */
 const list = reads(PERMISSIONS.channelView)
   .input(z.object({ ...FilterInput, ...PageInput }))
@@ -58,8 +60,8 @@ const list = reads(PERMISSIONS.channelView)
     );
 
     const rows = await surveyRows(tx, member)
-      .where(and(matches, after(surveys, input.cursor)))
-      .orderBy(...newestFirst(surveys))
+      .where(and(matches, order.after(input.cursor)))
+      .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
     const [total] = await tx
@@ -68,7 +70,7 @@ const list = reads(PERMISSIONS.channelView)
       .leftJoin(channelMembers, membership(member, surveys.channelId))
       .where(matches);
 
-    const { items, nextCursor } = pageOf(rows, input.limit);
+    const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return { surveys: items, nextCursor, totalCount: total?.value ?? 0 };
   });

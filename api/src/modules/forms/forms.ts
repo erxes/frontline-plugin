@@ -12,7 +12,7 @@ import { assertTags } from '../tags/tags.ts';
 import { changedEvent } from '../events.ts';
 import { Blank, Color, Title } from '../fields.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
-import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
+import { orderOf, PageInput } from '../paging.ts';
 import { Form, formById, formFor, formRows, newCode, publishFormEvents, seenBy } from './shared.ts';
 
 /** What the forms list's filter bar narrows by (`ui/src/modules/forms`). */
@@ -29,6 +29,8 @@ const FORM_FILTER: FilterFields = {
   'subject.createdAt': { kind: 'date', expr: forms.createdAt },
   'subject.updatedAt': { kind: 'date', expr: forms.updatedAt },
 };
+
+const order = orderOf(forms);
 
 /**
  * The forms of the member's channels, newest first, `limit` at a time, narrowed by the filter
@@ -49,8 +51,8 @@ const list = reads(PERMISSIONS.channelView)
     );
 
     const rows = await formRows(tx, member)
-      .where(and(matches, after(forms, input.cursor)))
-      .orderBy(...newestFirst(forms))
+      .where(and(matches, order.after(input.cursor)))
+      .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
     const [total] = await tx
@@ -59,7 +61,7 @@ const list = reads(PERMISSIONS.channelView)
       .leftJoin(channelMembers, membership(member, forms.channelId))
       .where(matches);
 
-    const { items, nextCursor } = pageOf(rows, input.limit);
+    const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return { forms: items, nextCursor, totalCount: total?.value ?? 0 };
   });

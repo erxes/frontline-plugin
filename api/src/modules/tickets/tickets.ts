@@ -9,7 +9,7 @@ import { pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
 import { FilterInput, type FilterFields, filtersBy, filterSql, likeText } from '../filter.ts';
-import { orderOf, PageInput, pageOf } from '../paging.ts';
+import { orderOf, PageInput } from '../paging.ts';
 import { pipelineFor } from '../pipelines/pipelines.ts';
 import { assertLinks } from './changes.ts';
 import { createdEvent, publish, snapshot } from './events.ts';
@@ -100,7 +100,7 @@ const list = reads(PERMISSIONS.channelView)
       .leftJoin(channelMembers, membership(member, tickets.channelId))
       .where(matches);
 
-    const { items, nextCursor } = pageOf(rows, input.limit);
+    const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return { tickets: items, nextCursor, totalCount: total?.value ?? 0 };
   });

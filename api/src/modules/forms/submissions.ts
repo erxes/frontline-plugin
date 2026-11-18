@@ -8,7 +8,7 @@ import type { Tx } from '#/db/client.ts';
 import { formAnswers, formFields, formSubmissions } from '#/db/forms.ts';
 import { reads, writes } from '#/orpc.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
-import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
+import { orderOf, PageInput } from '../paging.ts';
 import { Answer, typeError } from './answers.ts';
 import { Ids } from '../fields.ts';
 import { formFor, formsFor } from './shared.ts';
@@ -80,6 +80,8 @@ const submissionFor = async (tx: Tx, member: PluginMember, id: string, change: b
   return row;
 };
 
+const order = orderOf(formSubmissions);
+
 /**
  * A form's submissions, newest first, `limit` at a time, narrowed by the filter bar; `search`
  * matches any answer's text, ignoring case.
@@ -111,12 +113,12 @@ const list = reads(PERMISSIONS.channelView)
     );
 
     const rows = await submissionRows(tx)
-      .where(and(matches, after(formSubmissions, input.cursor)))
-      .orderBy(...newestFirst(formSubmissions))
+      .where(and(matches, order.after(input.cursor)))
+      .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
     const [total] = await tx.select({ value: count() }).from(formSubmissions).where(matches);
-    const { items, nextCursor } = pageOf(rows, input.limit);
+    const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return { submissions: items, nextCursor, totalCount: total?.value ?? 0 };
   });
