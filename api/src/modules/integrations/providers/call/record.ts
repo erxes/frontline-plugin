@@ -67,8 +67,13 @@ const CallIntegrationConfig = z.object({
 
 /** The inbox's adapters for phone integrations. A call takes no written reply, so none sends. */
 export const CALL_ADAPTERS: Adapter[] = [
-  { kind: 'call', label: 'Phone (Grandstream PBX)', config: CallIntegrationConfig },
-  { kind: 'callpro', label: 'CallPro', config: CallIntegrationConfig },
+  {
+    kind: 'call',
+    label: 'Phone (Grandstream PBX)',
+    config: CallIntegrationConfig,
+    notesOnly: true,
+  },
+  { kind: 'callpro', label: 'CallPro', config: CallIntegrationConfig, notesOnly: true },
 ];
 
 /**

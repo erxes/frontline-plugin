@@ -53,6 +53,8 @@ export type Adapter = {
   ) => Promise<() => Promise<void>>;
   /** Whether its customers see a survey message and vote on it, as the messenger's visitors do. */
   surveys?: boolean;
+  /** Its conversations take internal notes only: a phone call has no thread to answer in. */
+  notesOnly?: boolean;
 };
 
 /** Every adapter, by kind. */

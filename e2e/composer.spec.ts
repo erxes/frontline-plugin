@@ -91,6 +91,16 @@ test('a member answers with a response template, formats it, attaches a file and
     `@${teammate.fullName}`,
   );
 
+  // What is written and not sent stays as the conversation's draft, in the note tab it was in.
+  await note.click();
+  await page.keyboard.type('Half a thought');
+  await page.goto(INBOX);
+  await expect(page.getByText('Pick a conversation')).toBeVisible();
+  await page.goto(`${INBOX}?conversationId=${conversationId}`);
+  await expect(page.getByRole('textbox', { name: 'Internal note' })).toContainText(
+    'Half a thought',
+  );
+
   // The teammate finds it under Mentions, and gets no templates without the channel permission.
   const mentions = teammate.page
     .getByRole('list', { name: 'Work queue' })
