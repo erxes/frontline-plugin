@@ -27,8 +27,7 @@ import {
   usePinnedMessages,
 } from './queries.ts';
 import { SentSurvey } from '~/modules/surveys/SurveyMessage.tsx';
-import { MemberLine } from '~/shared/MemberLine.tsx';
-import { PersonAvatar, useCustomer } from '~/shared/PersonAvatar.tsx';
+import { MemberLine, PersonAvatar, useCustomer } from '~/shared/Person.tsx';
 import { Attachments, LinkPreviews, MessageBody } from './MessageContent.tsx';
 import { Reactions } from './Reactions.tsx';
 import { useSendShortcut } from './useSendShortcut.ts';

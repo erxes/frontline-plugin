@@ -5,7 +5,6 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   EntityPicker,
   IconPicker,
-  MemberInline,
   memberName,
   PanelFormLayout,
   PanelFormRow,
@@ -13,6 +12,7 @@ import {
 } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MemberLine } from '~/shared/Person.tsx';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
@@ -37,7 +37,7 @@ export const MemberPicker = ({
       multiple
       items={items}
       itemKey={(member) => ({ id: member.id, label: memberName(member) })}
-      renderItem={(member) => <MemberInline memberId={member.id} members={memberQueries} />}
+      renderItem={(member) => <MemberLine id={member.id} />}
       value={value}
       onValueChange={onValueChange}
       loading={team.isPending}

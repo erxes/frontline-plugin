@@ -1,7 +1,7 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import { IconCheck } from '@tabler/icons-react';
-import { Button, SelectMember } from 'erxes-ui';
+import { Button } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { ListSelectionBar } from '~/shared/Records.tsx';
 import { TagEditor } from './ConversationHeader.tsx';
 import { type Conversation, useAssign, useSetStatus } from './queries.ts';
@@ -27,12 +27,11 @@ export const BulkBar = ({ conversations }: { conversations: Conversation[] }) =>
     <ListSelectionBar shown={conversations.map((conversation) => conversation.id)}>
       {(selected, clear) => (
         <>
-          <SelectMember.Field
+          <MemberSelect
             value={null}
             onValueChange={(assigneeId) =>
               assign.mutate({ ids: selected, assigneeId }, { onSuccess: clear })
             }
-            members={memberQueries}
             noneLabel={t('unassigned', 'Unassigned')}
             placeholder={t('assign', 'Assign')}
             className="w-40"

@@ -3,21 +3,24 @@ import { IconInbox, IconMail, IconMessages } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
-  cn,
   Empty,
   ListFilter,
   PageContainer,
   PageHeader,
   RecordList,
+  Resizable,
   Skeleton,
+  stored,
   useOpenRecord,
   usePageHotkey,
   ViewBar,
 } from 'erxes-ui';
-import { useAtomValue } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
+import { type ReactNode, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
-import { CONVERSATION_TYPE, INTEGRATION_TYPE } from '~/plugin.ts';
+import { CONVERSATION_TYPE, INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { BulkBar } from './BulkBar.tsx';
 import { Composer } from './Composer.tsx';
@@ -117,6 +120,62 @@ const InboxEmpty = ({ onConnect }: { onConnect?: () => void }) => {
   );
 };
 
+/** The narrowest the list goes: a row still shows the name, a few letters of the channel and the time. */
+const LIST_MIN = 300;
+
+/** The list's width in pixels, as the member last dragged it. */
+const listWidth = stored({
+  key: `${PLUGIN}:inbox-list-width`,
+  schema: z.number().min(LIST_MIN),
+  initial: 400,
+});
+
+/**
+ * The list on the left and the open conversation on the right, with a handle between them that
+ * drags the list wider or narrower; the width stays for the next visit. Pixels, not a share of
+ * the page, so the list keeps its width when the window grows.
+ */
+const InboxColumns = ({ list, showList }: { list: ReactNode; showList: boolean }) => {
+  const { t } = useTranslation('frontline');
+  const [width, setWidth] = useAtom(listWidth);
+  const dragged = useRef(width);
+
+  return (
+    <div className="flex min-h-0 flex-1">
+      <Resizable.PanelGroup
+        onLayoutChanged={(_, { isUserInteraction }) => {
+          if (isUserInteraction) setWidth(dragged.current);
+        }}
+      >
+        {showList && (
+          <>
+            <Resizable.Panel
+              id="list"
+              defaultSize={width}
+              minSize={LIST_MIN}
+              maxSize="50%"
+              onResize={({ inPixels }) => {
+                dragged.current = Math.round(inPixels);
+              }}
+            >
+              <aside className="flex h-full flex-col">{list}</aside>
+            </Resizable.Panel>
+            <Resizable.Handle aria-label={t('resize-list', 'Resize the conversation list')} />
+          </>
+        )}
+        <Resizable.Panel id="conversation" minSize={360}>
+          <section
+            aria-label={t('conversation', 'Conversation')}
+            className="flex h-full min-w-0 flex-col"
+          >
+            <ConversationPane />
+          </section>
+        </Resizable.Panel>
+      </Resizable.PanelGroup>
+    </div>
+  );
+};
+
 /**
  * The inbox: every conversation of the member's channels under core's list bar, on the left,
  * filtered by channel, integration, status, assignee, tags and more, and the open one on the
@@ -181,9 +240,10 @@ export const InboxPage = () => {
       ) : empty && !openId ? (
         <InboxEmpty onConnect={canConnect ? connect : undefined} />
       ) : (
-        <div className="flex min-h-0 flex-1">
-          <aside className={cn('w-80 shrink-0', !shown && openId && 'hidden')}>
-            {empty ? (
+        <InboxColumns
+          showList={shown || !openId}
+          list={
+            empty ? (
               <InboxEmpty onConnect={canConnect ? connect : undefined} />
             ) : (
               <RecordList.Provider listId={LIST}>
@@ -196,15 +256,9 @@ export const InboxPage = () => {
                 />
                 <BulkBar conversations={conversations} />
               </RecordList.Provider>
-            )}
-          </aside>
-          <section
-            aria-label={t('conversation', 'Conversation')}
-            className="flex min-w-0 flex-1 flex-col border-l"
-          >
-            <ConversationPane />
-          </section>
-        </div>
+            )
+          }
+        />
       )}
     </PageContainer>
   );

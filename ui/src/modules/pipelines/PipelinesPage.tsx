@@ -10,7 +10,6 @@ import {
 import {
   Button,
   ListFilter,
-  MemberInline,
   PageContainer,
   RecordTable,
   type RecordTableColumnDef,
@@ -20,6 +19,7 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { MemberLine } from '~/shared/Person.tsx';
 import { useParams } from 'react-router-dom';
 import { ChannelsHeader } from '@/channels/ChannelsHeader.tsx';
 import { useChannel } from '@/channels/useChannels.ts';
@@ -89,7 +89,7 @@ const useColumns = (canManage: boolean): RecordTableColumnDef<Pipeline>[] => {
     )),
     column('createdBy', t('created-by', 'Created by'), IconUser, 180, (pipeline) => (
       <RecordTableInlineCell>
-        <MemberInline memberId={pipeline.createdBy} members={memberQueries} />
+        <MemberLine id={pipeline.createdBy} />
       </RecordTableInlineCell>
     )),
     column('createdAt', t('created-at', 'Created at'), IconCalendarPlus, 130, (pipeline) => (

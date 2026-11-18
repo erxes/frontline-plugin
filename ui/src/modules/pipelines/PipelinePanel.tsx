@@ -35,7 +35,7 @@ import {
   usePipelineChange,
 } from './queries.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/Person.tsx';
 
 /**
  * The pipeline's menu, behind `trigger`: move it to another channel the member is an admin of,

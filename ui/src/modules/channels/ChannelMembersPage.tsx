@@ -10,7 +10,6 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Button,
   ListFilter,
-  MemberInline,
   memberName,
   PageContainer,
   Popover,
@@ -26,6 +25,7 @@ import {
 } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MemberLine } from '~/shared/Person.tsx';
 import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { DeleteButton, RowActions, SelectionBar } from '~/shared/Records.tsx';
@@ -153,7 +153,7 @@ const useColumns = (channel: Channel): RecordTableColumnDef<MemberRow>[] => {
       header: () => <RecordTable.InlineHead label={t('member', 'Member')} icon={IconUser} />,
       cell: ({ row }) => (
         <RecordTableInlineCell>
-          <MemberInline memberId={row.original.userId} members={memberQueries} />
+          <MemberLine id={row.original.userId} />
         </RecordTableInlineCell>
       ),
       size: 280,

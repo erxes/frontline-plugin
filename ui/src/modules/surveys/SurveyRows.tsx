@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconCalendarUp,
   IconCircles,
@@ -12,7 +11,6 @@ import {
 } from '@tabler/icons-react';
 import {
   Button,
-  MemberInline,
   RecordList,
   type RecordListGroup,
   RecordTable,
@@ -27,7 +25,7 @@ import { ActionsMenu, RowActions, TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import { StatusBadge, SurveyTitle, useSurveyActions } from './SurveyCells.tsx';
 import { SURVEY_STATUSES, type Survey, useStatusNames } from './useSurveys.ts';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberLine } from '~/shared/Person.tsx';
 
 const RowMenu = ({ survey }: { survey: Survey }) => {
   const { t } = useTranslation('frontline');
@@ -158,7 +156,7 @@ const useColumns = (manage: boolean): RecordTableColumnDef<Survey>[] => {
     )),
     column('createdBy', t('created-by', 'Created by'), IconUser, 200, (survey) => (
       <RecordTableInlineCell>
-        <MemberInline memberId={survey.createdBy} members={memberQueries} />
+        <MemberLine id={survey.createdBy} />
       </RecordTableInlineCell>
     )),
     column('updatedAt', t('updated-at', 'Updated at'), IconCalendarUp, 140, (survey) => (

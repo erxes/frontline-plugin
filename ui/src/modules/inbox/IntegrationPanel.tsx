@@ -30,7 +30,7 @@ import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { useKindNames } from './InboxFilter.tsx';
 import { type Integration, useIntegration, useIntegrationChange } from './queries.ts';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/Person.tsx';
 
 /** The panel header's title: the integration's name. */
 export const IntegrationTitle = ({ contentId }: TRecordSlotProps) => {

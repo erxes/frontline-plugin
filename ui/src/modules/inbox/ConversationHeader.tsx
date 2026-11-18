@@ -1,4 +1,3 @@
-import { contactQueries, memberQueries } from '@erxes/core-contract/client';
 import {
   IconCheck,
   IconLayoutSidebarLeftCollapse,
@@ -9,21 +8,14 @@ import {
   IconTag,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Button,
-  ContactLink,
-  EntityPicker,
-  IconTip,
-  Popover,
-  SelectMember,
-  stored,
-  useOpenRecord,
-} from 'erxes-ui';
+import { Button, EntityPicker, IconTip, Popover, stored, useOpenRecord } from 'erxes-ui';
 import { useAtom } from 'jotai';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { CONVERSATION_TYPE, PLUGIN } from '~/plugin.ts';
+import { MemberCell } from '~/shared/MemberPicker.tsx';
+import { ContactChip } from '~/shared/Person.tsx';
 import { ConversationMenu, VisitorTyping } from './ConversationPresence.tsx';
 import { KindIcon } from './InboxFilter.tsx';
 import {
@@ -188,12 +180,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
     <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
       <ListToggle />
       <span className="flex min-w-0">
-        <ContactLink
-          contentType="core:customer"
-          contentId={conversation.customerId}
-          contacts={contactQueries}
-          placeholder={t('visitor', 'Visitor')}
-        />
+        <ContactChip contentId={conversation.customerId} placeholder={t('visitor', 'Visitor')} />
       </span>
       <IconTip label={`${conversation.channelName} · ${conversation.integrationName}`}>
         <span className="grid size-6 shrink-0 place-items-center">
@@ -202,11 +189,10 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         </span>
       </IconTip>
       <VisitorTyping conversation={conversation} />
-      <SelectMember.InlineCell
+      <MemberCell
         variant="field"
         value={conversation.assigneeId}
         onValueChange={(assigneeId) => assign.mutate({ ids: [conversation.id], assigneeId })}
-        members={memberQueries}
         noneLabel={t('unassigned', 'Unassigned')}
         placeholder={t('assign', 'Assign')}
         aria-label={conversation.assigneeId ? undefined : t('assign', 'Assign')}

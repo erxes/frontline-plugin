@@ -28,7 +28,7 @@ import { useArticleActions } from './ArticleCells.tsx';
 import { type ArticleEdit, Media, Publishing } from './ArticleOptions.tsx';
 import { CategorySelect } from './CategoryTree.tsx';
 import { type ArticleDetail, useArticle, useKbAccess, useKbChange } from './useKnowledgeBase.ts';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/Person.tsx';
 
 /** Saves one change to the article at a time, refetching the lists after it. */
 const useEditArticle = (article: ArticleDetail) => {

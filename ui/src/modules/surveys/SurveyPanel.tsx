@@ -28,7 +28,7 @@ import { InfoRow, PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { StatusBadge, useSurveyActions } from './SurveyCells.tsx';
 import { type Survey, useEditSurvey, useSurvey } from './useSurveys.ts';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/Person.tsx';
 
 /** The panel header's title: the survey's title. */
 export const SurveyTitleSlot = ({ contentId }: TRecordSlotProps) => {

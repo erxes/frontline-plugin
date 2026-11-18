@@ -55,9 +55,21 @@ describe('knowledge base topics and categories', () => {
       title: 'Refunds',
     });
 
+    const returns = await owner.knowledgebase.articles.create({
+      categoryId: category.id,
+      title: 'Returns',
+    });
+
     await expect(owner.knowledgebase.topics.get({ id: topic.id })).resolves.toMatchObject({
       categoryCount: 1,
-      articleCount: 1,
+      articleCount: 2,
+      latestArticles: [
+        { id: returns.id, title: 'Returns' },
+        { id: article.id, title: 'Refunds' },
+      ],
+    });
+    await expect(owner.knowledgebase.topics.list({ search: 'about' })).resolves.toMatchObject({
+      topics: [{ title: 'about us', latestArticles: [] }],
     });
     await expect(owner.knowledgebase.topics.remove({ ids: [topic.id] })).resolves.toEqual({
       ids: [topic.id],

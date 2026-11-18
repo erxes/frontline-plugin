@@ -11,9 +11,8 @@ import { Button, PanelSection, Skeleton, type TRecordSlotProps } from 'erxes-ui'
 import { useTranslation } from 'react-i18next';
 import { PLUGIN } from '~/plugin.ts';
 import { useChannelNames } from '~/shared/ChannelSelect.tsx';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { MemberChip, useCustomer } from '~/shared/Person.tsx';
 import { InfoRow, PageLink, PanelSkeleton } from '~/shared/Panel.tsx';
-import { useCustomer } from '~/shared/PersonAvatar.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { Customer } from './CustomerSidebar.tsx';
 import { KindIcon, useStatusNames } from './InboxFilter.tsx';

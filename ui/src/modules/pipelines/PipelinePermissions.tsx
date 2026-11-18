@@ -13,7 +13,7 @@ import { PanelField, PanelSection, Spinner, Switch, type TRecordSlotProps } from
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { ReadOnly } from '~/shared/Panel.tsx';
-import { MembersField } from '~/shared/Pickers.tsx';
+import { MembersField } from '~/shared/MemberPicker.tsx';
 import { WithPipeline } from './PipelinePanel.tsx';
 import {
   type Pipeline,

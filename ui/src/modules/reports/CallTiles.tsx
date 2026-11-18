@@ -1,6 +1,6 @@
-import { memberQueries } from '@erxes/core-contract/client';
-import { MemberInline, useFormat } from 'erxes-ui';
+import { useFormat } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { MemberLine } from '~/shared/Person.tsx';
 import { durationText } from '@/calls/queries.ts';
 import { DayChart, Heatmap } from './Charts.tsx';
 import { useCallReport } from './queries.ts';
@@ -108,7 +108,7 @@ export const CallAgents = () => {
           ]}
           rows={report.agents.map((row) => ({
             key: row.userId,
-            lead: <MemberInline memberId={row.userId} members={memberQueries} />,
+            lead: <MemberLine id={row.userId} />,
             numbers: [format.number(row.answered), durationText(row.talkSeconds)],
           }))}
           empty={t('no-answered-calls', 'No member answered a call in this period.')}

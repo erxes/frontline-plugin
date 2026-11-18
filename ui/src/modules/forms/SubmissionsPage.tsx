@@ -1,8 +1,6 @@
-import { contactQueries } from '@erxes/core-contract/client';
 import { IconCalendarPlus, IconMessage, IconSend, IconTrash, IconUser } from '@tabler/icons-react';
 import {
   Button,
-  ContactLink,
   ListFilter,
   PageContainer,
   RecordTable,
@@ -17,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { FORM_SUBMISSION_TYPE } from '~/plugin.ts';
 import { ListEmpty, ListError } from '~/shared/List.tsx';
+import { ContactChip } from '~/shared/Person.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, PagedRows } from '~/shared/Table.tsx';
 import { useAnswerText } from './answers.ts';
@@ -100,13 +99,7 @@ const useColumns = (fields: FormField[], manage: boolean): RecordTableColumnDef<
     )),
     column('customer', t('customer', 'Customer'), IconUser, 200, (submission) => (
       <RecordTableInlineCell>
-        {submission.customerId && (
-          <ContactLink
-            contentType="core:customer"
-            contentId={submission.customerId}
-            contacts={contactQueries}
-          />
-        )}
+        {submission.customerId && <ContactChip contentId={submission.customerId} />}
       </RecordTableInlineCell>
     )),
     ...fields.map((field) =>

@@ -24,10 +24,22 @@ const Fields = z
   })
   .partial();
 
-/** The row, with how many categories and articles it holds, which the query selects. */
+/** How many recently changed articles a topic shows on its card. */
+const LATEST = 3;
+
+const LatestArticle = z.object({ id: z.string(), title: z.string() });
+
+/**
+ * The row, with how many categories and articles it holds and its last changed articles, newest
+ * first, which the query selects.
+ */
 const Topic = createSelectSchema(kbTopics)
   .omit({ orgId: true })
-  .extend({ categoryCount: z.number(), articleCount: z.number() });
+  .extend({
+    categoryCount: z.number(),
+    articleCount: z.number(),
+    latestArticles: z.array(LatestArticle),
+  });
 
 /** Topics with their counts. A one-table select leaves columns bare, so the outer id is named. */
 const topicRows = (tx: Tx) =>
@@ -42,6 +54,17 @@ const topicRows = (tx: Tx) =>
         join ${kbCategories} filed on filed.id = written.category_id
         where filed.topic_id = ${kbTopics}.id
       )`,
+      latestArticles: sql<z.output<typeof LatestArticle>[]>`coalesce((
+        select jsonb_agg(jsonb_build_object('id', recent.id, 'title', recent.title)
+          order by recent.updated_at desc, recent.id)
+        from (
+          select written.id, written.title, written.updated_at from ${kbArticles} written
+          join ${kbCategories} filed on filed.id = written.category_id
+          where filed.topic_id = ${kbTopics}.id
+          order by written.updated_at desc, written.id
+          limit ${LATEST}
+        ) recent
+      ), '[]'::jsonb)`,
     })
     .from(kbTopics)
     .$dynamic();

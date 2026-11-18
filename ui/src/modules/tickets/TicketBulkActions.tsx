@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlertSquareRounded,
   IconArchive,
@@ -6,10 +5,11 @@ import {
   IconProgressCheck,
   IconRestore,
 } from '@tabler/icons-react';
-import { Button, SelectMember } from 'erxes-ui';
+import { Button } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRIORITIES, usePriorityNames } from '@/pipelines/queries.ts';
+import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { ActionsMenu, DeleteButton } from '~/shared/Records.tsx';
 import {
   type BulkChange,
@@ -79,10 +79,9 @@ export const TicketBulkActions = ({ tickets, clear }: { tickets: Ticket[]; clear
 
   return (
     <>
-      <SelectMember.Field
+      <MemberSelect
         value={null}
         onValueChange={(assigneeId) => change({ assigneeId })}
-        members={memberQueries}
         noneLabel={t('no-assignee', 'No assignee')}
         placeholder={t('assign-to', 'Assign to')}
         aria-label={t('assign-to', 'Assign to')}

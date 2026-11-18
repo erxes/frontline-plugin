@@ -32,7 +32,7 @@ import {
   useTemplateChange,
 } from './useResponseTemplates.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/Person.tsx';
 
 /** The panel header's title: the template's name. */
 export const ResponseTemplateTitle = ({ contentId }: TRecordSlotProps) => {

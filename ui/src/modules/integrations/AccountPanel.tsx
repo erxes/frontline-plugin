@@ -19,7 +19,6 @@ import type { Client } from '@frontline/api';
 import {
   Button,
   PanelSection,
-  SelectMember,
   Skeleton,
   Spinner,
   type TRecordSlotProps,
@@ -34,6 +33,7 @@ import { z } from 'zod';
 import { useIntegrationChange } from '@/inbox/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { INTEGRATION_TYPE } from '~/plugin.ts';
+import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { InfoRow } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { AddRow, ItemRow, StatusBadge } from './parts.tsx';
@@ -242,10 +242,9 @@ const OperatorsSection = ({ lists: { operators, softphones, change } }: { lists:
         })}
       </ul>
       <div className="px-2 py-1">
-        <SelectMember.Field
+        <MemberSelect
           value={userId}
           onValueChange={setUserId}
-          members={memberQueries}
           placeholder={t('operator-member', 'Member who answers')}
           aria-label={t('operator-member', 'Member who answers')}
         />

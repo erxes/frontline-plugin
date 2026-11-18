@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next';
 import { usePriorityNames } from '@/pipelines/queries.ts';
 import { StageIcon } from '@/pipelines/StatusRow.tsx';
 import { TICKET_TYPE } from '~/plugin.ts';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberLine } from '~/shared/Person.tsx';
 import { SlaBadge } from './SlaBadge.tsx';
 import { PriorityIcon, TicketMenu, TicketName } from './TicketCells.tsx';
 import { TicketTags } from './TicketLinks.tsx';

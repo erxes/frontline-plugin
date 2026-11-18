@@ -12,7 +12,7 @@ import {
 } from 'erxes-ui';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PersonAvatar, useCustomer } from '~/shared/PersonAvatar.tsx';
+import { PersonAvatar, useCustomer } from '~/shared/Person.tsx';
 import { KindIcon } from './InboxFilter.tsx';
 import {
   type Conversation,
@@ -122,12 +122,13 @@ const Row = ({
           </span>
           <KindIcon kind={conversation.kind} className="size-3.5 shrink-0" />
           <span className="sr-only">{conversation.integrationName}</span>
-          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+          {/* A list dragged narrow leaves the name and the time, not two names cut to a letter. */}
+          <span className="hidden min-w-0 flex-1 truncate text-xs text-muted-foreground @sm:block">
             {conversation.channelName}
           </span>
           <span
             className={cn(
-              'shrink-0 text-xs',
+              'ml-auto shrink-0 text-xs',
               unread ? 'font-medium text-primary-text' : 'text-muted-foreground',
             )}
           >
@@ -262,9 +263,14 @@ export const ConversationList = ({
         {isPending ? (
           <RowSkeletons />
         ) : (
-          // As wide as the inbox's column: erxes-ui's ScrollArea lets its content grow to the widest
-          // row, which would push the time and the ends of the previews out of sight.
-          <ul aria-label={t('conversations', 'Conversations')} className="flex w-80 flex-col">
+          // As wide as the inbox's column, however it is dragged: erxes-ui's ScrollArea lets its
+          // content grow to the widest row, which would push the time and the ends of the previews
+          // out of sight, so the rows' text takes no part in measuring it. The same query box lets
+          // a row drop its channel when the list is dragged narrow.
+          <ul
+            aria-label={t('conversations', 'Conversations')}
+            className="@container flex w-full flex-col"
+          >
             {conversations.map((conversation) => (
               <Row key={conversation.id} conversation={conversation} onKeyDown={onKeyDown} />
             ))}

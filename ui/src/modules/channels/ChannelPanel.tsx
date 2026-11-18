@@ -35,7 +35,7 @@ import {
   useChannelChange,
   useDeleteChannels,
 } from './useChannels.ts';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/Person.tsx';
 
 /** The panel header's title: the channel's name. */
 export const ChannelTitle = ({ contentId }: TRecordSlotProps) => {
