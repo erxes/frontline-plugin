@@ -330,9 +330,11 @@ describe('messenger', () => {
     );
     // A retried step sends nothing twice.
     await action('frontline.conversation.reply', { content: 'On its way' });
+    // The bot's answer ends the customer's wait.
     expect(await teammate.conversations.get({ id })).toMatchObject({
       messageCount: 2,
       content: 'On its way',
+      customerRespondedLast: false,
     });
 
     /** The ids of the conversations the inbox's filter bar finds with `path` set to `value`. */

@@ -859,6 +859,7 @@
   "other-conversations": "Бусад харилцан яриа",
   "outgoing": "Гарсан",
   "page": "Хуудас",
+  "page-failed": "Энэ хуудас ачаалагдсангүй. Дахин оролдоно уу",
   "pages-connected": "{{count}} пэйж холбогдлоо",
   "pages-connected_one": "{{count}} пэйж холбогдлоо",
   "pages-connected_other": "{{count}} пэйж холбогдлоо",

@@ -193,7 +193,10 @@ export const ConversationList = ({
               onScroll={(offset) => {
                 const handle = rows.current;
 
-                if (!handle || !paging.hasNextPage || paging.isFetchingNextPage) return;
+                // A page that failed loads again from its button, not on every scroll.
+                if (!handle || !paging.hasNextPage) return;
+
+                if (paging.isFetchingNextPage || paging.isFetchNextPageError) return;
 
                 if (offset + handle.viewportSize > handle.scrollSize - NEXT_PX)
                   void paging.fetchNextPage();
