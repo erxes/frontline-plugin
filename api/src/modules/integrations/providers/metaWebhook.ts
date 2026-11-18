@@ -1,12 +1,12 @@
 import { createHmac } from 'node:crypto';
 import { z } from 'zod';
-import { config } from '#/config.ts';
 import { COMMENT_RECEIVED } from '#/core.ts';
 import type { StoredFile } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import type { InboundMessage, InboundReaction, ProviderName, WebhookSource } from '../provider.ts';
 import { sameText } from '../secrets.ts';
 import { metaKey } from '../store.ts';
+import { knownVerifyToken, metaAppOf } from './metaApp.ts';
 
 /** The conversation of one person's comments on one post: `comment:<post id>:<their id>`. */
 const commentThread = (postId: string, authorId: string) => `comment:${postId}:${authorId}`;
@@ -87,12 +87,17 @@ const Delivery = z.object({
   ),
 });
 
-/** Meta signs the body it sent with the app secret (`X-Hub-Signature-256`). */
-const signedByMeta = (raw: string, signature: unknown) => {
-  if (!config.meta.appSecret) return false;
+/**
+ * Meta signs the body it sent with the secret of the app the account connected through
+ * (`X-Hub-Signature-256`): the organisation's own, or the install's.
+ */
+const signedByMeta = async (orgId: string, raw: string, signature: unknown) => {
+  const app = await metaAppOf(orgId);
+
+  if (!app) return false;
 
   return sameText(
-    `sha256=${createHmac('sha256', config.meta.appSecret).update(raw).digest('hex')}`,
+    `sha256=${createHmac('sha256', app.appSecret).update(raw).digest('hex')}`,
     signature,
   );
 };
@@ -197,20 +202,18 @@ const MetaEvent = z.union([Messaging, z.object({ change: Change })]);
 
 /**
  * Meta posts every page's and Instagram account's events to one address, signed with the app
- * secret, and names each account in its entries. A change frontline doesn't read, such as a
- * like, is left out.
+ * secret, and names each account in its entries: each account's organisation's app checks the
+ * signature. A change frontline doesn't read, such as a like, is left out.
  */
 export const metaWebhook: WebhookSource = {
-  confirm: (query) =>
+  confirm: async (query) =>
     query['hub.mode'] === 'subscribe' &&
-    config.meta.verifyToken &&
-    query['hub.verify_token'] === config.meta.verifyToken &&
-    typeof query['hub.challenge'] === 'string'
+    typeof query['hub.verify_token'] === 'string' &&
+    typeof query['hub.challenge'] === 'string' &&
+    (await knownVerifyToken(query['hub.verify_token']))
       ? query['hub.challenge']
       : null,
-  route: ({ raw, body, headers }) => {
-    if (!signedByMeta(raw, headers['x-hub-signature-256'])) return null;
-
+  route: ({ body }) => {
     const delivery = Delivery.parse(body);
 
     const provider = delivery.object === 'page' ? 'facebook' : 'instagram';
@@ -228,13 +231,15 @@ export const metaWebhook: WebhookSource = {
   },
   // An event that isn't the shape frontline reads is logged and left out, so the messages Meta
   // batched with it are still kept.
-  receive: (row, events) => {
-    const parsed = events.flatMap((raw) => {
-      const event = MetaEvent.safeParse(raw);
+  receive: async (row, events, { raw, headers }) => {
+    if (!(await signedByMeta(row.orgId, raw, headers['x-hub-signature-256']))) return null;
 
-      if (event.success) return [event.data];
+    const parsed = events.flatMap((event) => {
+      const read = MetaEvent.safeParse(event);
 
-      logger.warn({ accountId: row.id, issues: event.error.issues }, 'Meta event left out');
+      if (read.success) return [read.data];
+
+      logger.warn({ accountId: row.id, issues: read.error.issues }, 'Meta event left out');
 
       return [];
     });

@@ -215,9 +215,16 @@ export interface Routed {
 /** A provider's webhook, at `/api/public/webhooks/<name>`: it names the accounts, then reads them. */
 export interface WebhookSource {
   /** The answer to the address check some providers send first, or null to refuse it. */
-  confirm?: (query: Record<string, unknown>) => string | null;
+  confirm?: (query: Record<string, unknown>) => Promise<string | null>;
   /** The accounts a delivery addresses with their events, or null when it isn't the provider's. */
   route: (request: WebhookRequest) => Routed[] | null;
-  /** The messages and reactions in one account's events, or null when the delivery isn't that account's. */
-  receive: (row: AccountRow, events: unknown[], request: WebhookRequest) => Inbound | null;
+  /**
+   * The messages and reactions in one account's events, or null when the delivery isn't that
+   * account's: its signature fails the account's secret.
+   */
+  receive: (
+    row: AccountRow,
+    events: unknown[],
+    request: WebhookRequest,
+  ) => Inbound | null | Promise<Inbound | null>;
 }

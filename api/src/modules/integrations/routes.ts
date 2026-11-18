@@ -28,7 +28,7 @@ const receiveAll = async (webhook: WebhookSource, request: WebhookRequest, route
       }
 
       try {
-        const inbound = webhook.receive(row, routed.events, request);
+        const inbound = await webhook.receive(row, routed.events, request);
 
         return inbound ? [{ row, inbound }] : null;
       } catch (error) {
@@ -80,8 +80,8 @@ export const webhookRoutes = () => {
     res.redirect(back.toString());
   });
 
-  router.get('/:source', (req, res) => {
-    const answer = WEBHOOKS[req.params.source]?.confirm?.(req.query);
+  router.get('/:source', async (req, res) => {
+    const answer = await WEBHOOKS[req.params.source]?.confirm?.(req.query);
 
     if (answer) res.type('text/plain').send(answer);
     else res.sendStatus(403);
