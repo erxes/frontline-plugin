@@ -123,6 +123,12 @@ const SurveysPage = lazy(
   withText(async () => ({ default: (await import('@/surveys/SurveysPage.tsx')).SurveysPage })),
 );
 
+const SurveyBuilderPage = lazy(
+  withText(async () => ({
+    default: (await import('@/surveys/SurveyBuilderPage.tsx')).SurveyBuilderPage,
+  })),
+);
+
 /** An old link's new place: `/frontline/<path>/<the link's param>`, then `rest`. */
 const Redirect = ({
   path,
@@ -230,6 +236,7 @@ export const Frontline = () => (
         <Route path="surveys">
           <Route index element={<SurveysPage />} />
           <Route path=":id" element={<RecordRoute contentType={SURVEY_TYPE} />} />
+          <Route path=":id/builder" element={<SurveyBuilderPage />} />
         </Route>
         <Route path="personal-channel" element={<PersonalChannel />} />
         <Route path="calls">

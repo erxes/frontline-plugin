@@ -64,7 +64,7 @@ const QuestionRows = ({
 
 /**
  * A new survey in core's side panel: its channel, title, and its first question with the options
- * visitors pick from. Nothing saves until Save; more questions are added on its Questions tab.
+ * visitors pick from. Nothing saves until Save; more questions are added on its builder page.
  */
 export const SurveyNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');

@@ -48,28 +48,46 @@ test('an admin writes a survey, edits its questions and reads its results, which
     page.getByRole('region', { name: 'Active' }).getByRole('button', { name: title, exact: true }),
   ).toBeVisible();
 
-  // Its Questions tab adds and edits questions in place.
-  await panel.getByRole('tab', { name: 'Questions' }).click();
-  await expect(panel.getByRole('button', { name: 'How did we do?', exact: true })).toBeVisible();
-  await panel.getByRole('button', { name: 'Add question' }).click();
-  await panel.getByRole('button', { name: 'New question', exact: true }).click();
-  await page.getByPlaceholder('Question', { exact: true }).fill('Would you call again?');
+  // Its builder adds and edits questions in place, beside the survey as a voter reads it.
+  await panel.getByRole('link', { name: /^Questions/ }).click();
+  await expect(page).toHaveURL(/\/builder$/);
+
+  const first = page.getByRole('region', { name: 'How did we do?', exact: true });
+  const added = page.getByRole('region', { name: 'Would you call again?', exact: true });
+  const preview = page.getByRole('region', { name: 'Preview' });
+
+  await page.getByRole('button', { name: 'Add question' }).click();
+  await page
+    .getByRole('region', { name: 'New question', exact: true })
+    .getByRole('textbox', { name: 'Question', exact: true })
+    .fill('Would you call again?');
   await page.keyboard.press('Enter');
-  await expect(
-    panel.getByRole('button', { name: 'Would you call again?', exact: true }),
-  ).toBeVisible();
-
-  // Under the questions, the survey as a voter reads it, on a desktop, tablet or phone.
-  const preview = panel.getByRole('region', { name: 'Preview' });
-
   await expect(preview.getByText('Would you call again?')).toBeVisible();
-  await panel.getByRole('button', { name: 'Tablet', exact: true }).click();
-  await expect(panel.getByRole('button', { name: 'Tablet', exact: true })).toHaveAttribute(
+
+  // Three voters picking Great open a ticket in the channel's pipeline.
+  await first.getByRole('button', { name: 'Open a ticket from Great' }).click();
+  await page.getByRole('spinbutton', { name: 'Voters' }).fill('3');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(first.getByRole('button', { name: 'Ticket for Great at 3 voters' })).toBeVisible();
+
+  // The keyboard moves the new question above the first, in the preview too.
+  await added.getByRole('button', { name: 'Move Would you call again?' }).focus();
+  await page.keyboard.press('Space');
+  await page.keyboard.press('ArrowUp');
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('textbox', { name: 'Question', exact: true }).first()).toHaveValue(
+    'Would you call again?',
+  );
+
+  await page.getByRole('button', { name: 'Tablet', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Tablet', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
   await expect(preview.getByRole('radio', { name: 'Great' })).toBeVisible();
 
+  await page.goto(SURVEYS);
+  await page.getByRole('button', { name: title, exact: true }).click();
   await panel.getByRole('tab', { name: 'Results' }).click();
   const results = panel.getByRole('tabpanel', { name: 'Results' });
 
@@ -78,8 +96,8 @@ test('an admin writes a survey, edits its questions and reads its results, which
 
   await panel.getByRole('tab', { name: 'Activity' }).click();
   await expect(panel.getByText(`Created ${title}`)).toBeVisible();
-  // One entry for the added question, one for its new wording.
-  await expect(panel.getByText('Changed questions')).toHaveCount(2);
+  // One entry each for the added question, its wording, the ticket rule and the move.
+  await expect(panel.getByText('Changed questions')).toHaveCount(4);
 
   // The filter bar narrows by question, and the filter lives in the address.
   await page.getByRole('button', { name: 'Filter', exact: true }).click();
