@@ -29,7 +29,13 @@ export const ConversationTitle = ({ contentId }: TRecordSlotProps) => {
 
   return (
     <span className="flex min-w-0 items-center gap-2">
-      {conversation.data && <KindIcon kind={conversation.data.kind} className="size-4" />}
+      {conversation.data && (
+        <KindIcon
+          kind={conversation.data.kind}
+          thread={conversation.data.externalId}
+          className="size-4"
+        />
+      )}
       <span className="truncate">{conversation.error?.message ?? name}</span>
     </span>
   );

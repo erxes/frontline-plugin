@@ -1,6 +1,7 @@
 import {
   type IconType,
   SiDiscord,
+  SiFacebook,
   SiInstagram,
   SiMessenger,
   SiTelegram,
@@ -8,6 +9,7 @@ import {
 import {
   type Icon,
   IconBrandDiscord,
+  IconBrandFacebook,
   IconBrandInstagram,
   IconBrandMessenger,
   IconBrandTelegram,
@@ -40,18 +42,28 @@ export const useKindNames = (): Record<string, string> => {
  * shows where a conversation came from at a glance: a provider's own mark in its brand colour, as
  * the old inbox drew them, or the outline in a theme tint for frontline's own kinds.
  */
-type KindLook = { icon: Icon; tint: string; mark?: IconType };
+type KindLook = { icon: Icon } & (
+  | { tint: string }
+  | {
+      mark: IconType;
+      /** A shade of the brand that clears 3:1 on white, where its own doesn't. */
+      color?: string;
+    }
+);
 
 const KIND_ICONS: Record<string, KindLook> = {
   messenger: { icon: IconMessageCircle, tint: 'text-primary-text' },
-  facebook: { icon: IconBrandMessenger, tint: 'text-info-text', mark: SiMessenger },
-  instagram: { icon: IconBrandInstagram, tint: 'text-destructive-text', mark: SiInstagram },
-  telegram: { icon: IconBrandTelegram, tint: 'text-info-text', mark: SiTelegram },
-  discord: { icon: IconBrandDiscord, tint: 'text-primary-text', mark: SiDiscord },
+  facebook: { icon: IconBrandMessenger, mark: SiMessenger },
+  instagram: { icon: IconBrandInstagram, mark: SiInstagram },
+  telegram: { icon: IconBrandTelegram, mark: SiTelegram, color: '#0088CC' },
+  discord: { icon: IconBrandDiscord, mark: SiDiscord },
   mail: { icon: IconMail, tint: 'text-warning-text' },
   call: { icon: IconPhone, tint: 'text-success-text' },
   callpro: { icon: IconPhone, tint: 'text-success-text' },
 };
+
+/** A person's comments under a page's post, which the Facebook kind also carries. */
+const FACEBOOK_POST: KindLook = { icon: IconBrandFacebook, mark: SiFacebook };
 
 const UNKNOWN: KindLook = { icon: IconPlug, tint: 'text-muted-foreground' };
 
@@ -64,12 +76,27 @@ export const takesNotesOnly = (kind: string) => kind === 'call' || kind === 'cal
 /** The outline icon of an integration kind, for a panel row's label; a plug for one the UI doesn't know. */
 export const kindIconOf = (kind: string) => (KIND_ICONS[kind] ?? UNKNOWN).icon;
 
-/** The mark of the integration kind a conversation came through. */
-export const KindIcon = ({ kind, className }: { kind: string; className?: string }) => {
-  const { icon: KindGlyph, tint, mark: Mark } = KIND_ICONS[kind] ?? UNKNOWN;
+/**
+ * The mark of the integration kind a conversation came through. Its `thread`, the provider's id
+ * for it, tells a Facebook comment thread (`comment:<post>:<author>`) from a Messenger chat.
+ */
+export const KindIcon = ({
+  kind,
+  thread,
+  className,
+}: {
+  kind: string;
+  thread?: string | null;
+  className?: string;
+}) => {
+  const look =
+    kind === 'facebook' && thread?.startsWith('comment:')
+      ? FACEBOOK_POST
+      : (KIND_ICONS[kind] ?? UNKNOWN);
 
   // An empty title, so the mark adds no tooltip of its own over the label beside it.
-  if (Mark) return <Mark color="default" title="" className={className} aria-hidden />;
+  if ('mark' in look)
+    return <look.mark color={look.color ?? 'default'} title="" className={className} aria-hidden />;
 
-  return <KindGlyph className={cn(tint, className)} aria-hidden />;
+  return <look.icon className={cn(look.tint, className)} aria-hidden />;
 };

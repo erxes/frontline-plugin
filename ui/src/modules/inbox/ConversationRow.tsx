@@ -72,7 +72,11 @@ const Summary = ({ conversation, name }: { conversation: Conversation; name: str
         >
           {name}
         </span>
-        <KindIcon kind={conversation.kind} className="size-3.5 shrink-0" />
+        <KindIcon
+          kind={conversation.kind}
+          thread={conversation.externalId}
+          className="size-3.5 shrink-0"
+        />
         <span className="sr-only">{conversation.integrationName}</span>
         {/* A list dragged narrow leaves the name and the time, not two names cut to a letter. */}
         <span className="hidden min-w-0 flex-1 truncate text-xs text-muted-foreground @sm:block">
