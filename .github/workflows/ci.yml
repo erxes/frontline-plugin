@@ -19,8 +19,11 @@ concurrency:
 
 # Each job waits for one of the org's shared runners, so the checks and the tests share one:
 # together they still end before the build and the e2e shards do.
+# The merge queue fast-forwards main to the commit it tested, so a push to main runs only the
+# push job, which publishes the image the queue built and tested.
 jobs:
   check:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -61,10 +64,11 @@ jobs:
           [ "$LABELED" = true ] && args+=(--allow-increase)
           pnpm budgets "${args[@]}"
 
-  # One image build feeds the scan, the e2e shards and the push. A pull request that changes
-  # only Markdown builds no image and runs no e2e; one that changes no dependency, Dockerfile or
-  # workflow skips the scan, which main still runs on every push.
+  # One image build feeds the scan, the e2e shards and, from the merge queue, the push. A pull
+  # request that changes only Markdown builds no image and runs no e2e; one that changes no
+  # dependency, Dockerfile or workflow skips the scan, which the merge queue still runs.
   build:
+    if: github.event_name != 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -87,6 +91,8 @@ jobs:
             grep -qv '\.md$' <<< "$files" || app=false
             grep -qE '^\.github/|(^|/)(Dockerfile|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.node-version)$' <<< "$files" || deps=false
           fi
+          # No image, nothing to scan.
+          [ "$app" = true ] || deps=false
           echo "app=$app" >> "$GITHUB_OUTPUT"
           echo "deps=$deps" >> "$GITHUB_OUTPUT"
       - if: steps.changes.outputs.app == 'true'
@@ -182,10 +188,11 @@ jobs:
         run: pnpm e2e:stack logs
 
   # The one status branch protection requires: green only when every job above passed or
-  # was skipped. A job skips only when the build said it needn't run or the build failed.
+  # was skipped. A job skips only when the build said it needn't run or the build failed. A
+  # push to main gates nothing, so it runs none of them.
   required:
     name: Check
-    if: always()
+    if: always() && github.event_name != 'push'
     needs: [check, build, scan, e2e]
     runs-on: ubuntu-latest
     permissions: {}
@@ -200,19 +207,35 @@ jobs:
             esac
           done
 
-  # The image the build job made, once the scan and every e2e shard passed on it, as
-  # docker.io/erxes/frontline-plugin.
+  # The image the merge queue built, scanned and ran e2e on for this commit, as
+  # docker.io/erxes/frontline-plugin. A commit that skipped the queue or failed in it has no
+  # green queue run, so nothing is pushed.
   push:
     name: Push the image to Docker Hub
-    needs: required
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    permissions: {}
+    permissions:
+      actions: read
     steps:
+      - name: The merge queue's green run of this commit
+        id: queue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # The queue merges once Check is green, which can be a few seconds before its run ends.
+        run: |
+          for _ in $(seq 20); do
+            id=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=merge_group&status=success" --jq '.workflow_runs[0].id // empty')
+            [ -n "$id" ] && break
+            sleep 15
+          done
+          [ -n "$id" ] || { echo "No green merge queue run of $GITHUB_SHA, so no image to push."; exit 1; }
+          echo "id=$id" >> "$GITHUB_OUTPUT"
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: frontline-image
+          run-id: ${{ steps.queue.outputs.id }}
+          github-token: ${{ github.token }}
       - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
