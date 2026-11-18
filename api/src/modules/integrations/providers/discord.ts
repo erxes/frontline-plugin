@@ -1,6 +1,7 @@
 import { ORPCError } from '@orpc/server';
 import { RouteBases, Routes } from 'discord-api-types/v10';
 import { z } from 'zod';
+import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { writes } from '#/orpc.ts';
 import { defineProvider } from '../provider.ts';
@@ -30,6 +31,7 @@ const rest = async (
       ...(body ? { 'content-type': 'application/json' } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout(config.outboundMs),
   });
 
   const answer: unknown = response.status === 204 ? null : await response.json();

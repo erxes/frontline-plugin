@@ -4,12 +4,21 @@ import { config, PLUGIN } from '#/config.ts';
 /**
  * Core, called as this plugin: `core.forOrg(orgId).customers.get({ id })`.
  * Tokens last 15 minutes and carry the scopes the organisation granted.
- * Call core from the API only, outside request transactions.
+ * Call core from the API only, outside request transactions. A call core doesn't answer in
+ * `config.outboundMs` fails.
  */
 export const core = createCoreClient({
   coreUrl: config.coreUrl,
   plugin: PLUGIN,
   clientSecret: config.pluginSecret,
+  fetch: (input, init) =>
+    fetch(input, {
+      ...init,
+      signal: AbortSignal.any([
+        AbortSignal.timeout(config.outboundMs),
+        ...(init?.signal ? [init.signal] : []),
+      ]),
+    }),
 });
 
 /** The actions members can be granted in core's roles. */

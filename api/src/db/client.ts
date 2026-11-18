@@ -15,7 +15,13 @@ import * as tagSchema from './tags.ts';
 import * as teamSchema from './teams.ts';
 import * as ticketSchema from './tickets.ts';
 
-export const pool = new Pool({ connectionString: config.dataUrl, application_name: PLUGIN });
+export const pool = new Pool({
+  connectionString: config.dataUrl,
+  application_name: PLUGIN,
+  max: config.pool.max,
+  connectionTimeoutMillis: config.pool.connectMs,
+  idle_in_transaction_session_timeout: config.pool.idleInTransactionMs,
+});
 
 export const db = drizzle({
   client: pool,
@@ -48,11 +54,14 @@ export const uniqueViolation = (error: unknown) => {
 /**
  * Runs `fn` in a transaction scoped to one organisation. Row-level security
  * shows and accepts only that organisation's rows, so queries carry no org
- * filter, and every query that touches a table goes through here.
+ * filter, and every query that touches a table goes through here. Its statements get the pool's
+ * time limit; migrations run outside it, so a long index build isn't cut short.
  */
 export const withOrg = <T>(orgId: string, fn: (tx: Tx) => Promise<T>) =>
   db.transaction(async (tx) => {
-    await tx.execute(sql`select set_config('app.org_id', ${orgId}, true)`);
+    await tx.execute(
+      sql`select set_config('app.org_id', ${orgId}, true), set_config('statement_timeout', ${String(config.pool.statementMs)}, true)`,
+    );
 
     return fn(tx);
   });

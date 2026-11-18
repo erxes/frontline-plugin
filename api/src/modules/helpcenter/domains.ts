@@ -26,7 +26,9 @@ const CHECK_DAYS = 7;
 /** Cloudflare's "Duplicate custom hostname found." */
 const DUPLICATE_HOSTNAME = 1406;
 
-const cloudflare = config.cloudflare && new Cloudflare({ apiToken: config.cloudflare.apiToken });
+const cloudflare =
+  config.cloudflare &&
+  new Cloudflare({ apiToken: config.cloudflare.apiToken, timeout: config.outboundMs });
 
 /** Where a help center's domain points: `<its key>.<HELPCENTER_DOMAIN_SUFFIX>`. */
 export const cnameTarget = (publicKey: string) => `${publicKey}.${config.helpCenterDomainSuffix}`;

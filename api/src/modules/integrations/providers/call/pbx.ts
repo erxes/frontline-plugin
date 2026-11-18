@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { z } from 'zod';
+import { config } from '#/config.ts';
 
 /** Where a Grandstream UCM's HTTPS API answers, and the API user frontline signs in as. */
 export interface Pbx {
@@ -43,7 +44,7 @@ const post = (pbx: Pbx, request: Record<string, unknown>) =>
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ request }),
-    signal: AbortSignal.timeout(15_000),
+    signal: AbortSignal.timeout(config.outboundMs),
   });
 
 const ask = async (pbx: Pbx, request: Record<string, unknown>) => {
