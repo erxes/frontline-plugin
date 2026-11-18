@@ -69,6 +69,32 @@ export const FIELD_ICONS: Record<FieldType, Icon> = {
   'core:customer:avatar': IconPhoto,
 };
 
+/** Types whose answers read alike: text, a date, or one of the field's options. */
+const KINDS: readonly (readonly string[])[] = [
+  [
+    'text',
+    'textarea',
+    'core:customer:firstName',
+    'core:customer:middleName',
+    'core:customer:lastName',
+    'core:customer:email',
+    'core:customer:phone',
+    'core:customer:description',
+  ],
+  ['date', 'core:customer:birthDate'],
+  ['select', 'radio'],
+];
+
+/**
+ * The types a field of `type` changes to in place, its own among them. Its answers and the rules
+ * other fields hold on it read the same in each; any other type is a new field.
+ */
+export const convertibleTo = (type: string) => {
+  const kind = KINDS.find((each) => each.includes(type)) ?? [type];
+
+  return FIELD_TYPES.filter((each) => kind.includes(each));
+};
+
 /** The types whose answers pick from the field's options. */
 export const PICK_TYPES: readonly string[] = ['select', 'radio', 'check'];
 

@@ -92,9 +92,13 @@ const TextInput = ({ field, value, onChange }: InputProps) => {
   }
 };
 
+/** Whether the visitor types the field's answer into a list's search input. */
+export const searches = (field: Field) =>
+  field.allowSearch && ['select', 'select:countries', 'core:customer:sex'].includes(field.type);
+
 /**
  * A long list's input: the visitor types and the browser offers the options that match. Text
- * that isn't one of them can't be sent.
+ * that matches one but for case becomes it; the step refuses any other text (`FormView.tsx`).
  */
 const SearchSelect = ({ field, value, onChange }: InputProps) => (
   <>
@@ -106,12 +110,11 @@ const SearchSelect = ({ field, value, onChange }: InputProps) => (
       placeholder={field.placeholder || 'Type to search'}
       value={textOf(value)}
       onInput={(event) => {
-        const input = event.currentTarget;
+        const typed = event.currentTarget.value;
 
-        input.setCustomValidity(
-          input.value && !field.options.includes(input.value) ? 'Pick one of the options' : '',
+        onChange(
+          field.options.find((option) => option.toLowerCase() === typed.toLowerCase()) ?? typed,
         );
-        onChange(input.value);
       }}
     />
     <datalist id={`${field.id}-options`}>
@@ -202,7 +205,7 @@ export const FieldRow = ({
   const Wrapper = group ? 'fieldset' : 'div';
 
   return (
-    <Wrapper class={field.column === 2 ? 'fl-field fl-half' : 'fl-field'}>
+    <Wrapper class={field.column === 1 ? 'fl-field fl-half' : 'fl-field'}>
       {group ? (
         <legend>
           {field.label}

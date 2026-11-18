@@ -190,8 +190,8 @@ export const formFields = table(
     allowSearch: boolean().notNull().default(false),
     pageNumber: integer().notNull().default(1),
     order: integer().notNull().default(0),
-    /** How many fields share its row: 1 takes the full width, 2 half. */
-    column: integer().notNull().default(1),
+    /** How many of the form's two columns it spans, as old erxes stored it: 2 full width, 1 half. */
+    column: integer().notNull().default(2),
     validator: jsonb().$type<z.infer<typeof FieldValidator>>(),
     logicAction: text({ enum: LOGIC_ACTIONS }),
     /** All must hold for `logicAction` to apply. */

@@ -7,22 +7,33 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { FieldSettings } from './FieldSettings.tsx';
-import { FIELD_ICONS, FIELD_TYPES, useFieldTypeNames } from './fieldTypes.ts';
+import { convertibleTo, FIELD_ICONS, takesValidator, useFieldTypeNames } from './fieldTypes.ts';
 import { type FormField, useFormChange } from './useForms.ts';
 
-/** The field's type, changed in place; its label, settings and answers stay. */
+/**
+ * The field's type, changed in place to one whose answers read alike; its label, settings and
+ * answers stay. A validator goes when the new type takes none.
+ */
 const TypeSelect = ({ field }: { field: FormField }) => {
   const { t } = useTranslation('frontline');
   const names = useFieldTypeNames();
   const update = useMutation(orpc.forms.fields.update.mutationOptions(useFormChange()));
+  const types = convertibleTo(field.type);
 
   return (
     <Select
       value={field.type}
-      onValueChange={(type) => {
-        const known = FIELD_TYPES.find((each) => each === type);
+      disabled={types.length < 2}
+      onValueChange={(next) => {
+        const type = types.find((each) => each === next);
 
-        if (known && known !== field.type) update.mutate({ id: field.id, type: known });
+        if (!type || type === field.type) return;
+
+        update.mutate({
+          id: field.id,
+          type,
+          ...(takesValidator({ type }) ? {} : { validator: null }),
+        });
       }}
     >
       <Select.Trigger
@@ -32,7 +43,7 @@ const TypeSelect = ({ field }: { field: FormField }) => {
         <Select.Value />
       </Select.Trigger>
       <Select.Content>
-        {FIELD_TYPES.map((type) => {
+        {types.map((type) => {
           const TypeIcon = FIELD_ICONS[type];
 
           return (

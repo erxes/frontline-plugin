@@ -118,7 +118,12 @@ const sendAsVisitor = async (page: Page, request: APIRequestContext, name: strin
     const form = site.shop.getByRole('form', { name: 'Book a demo' });
 
     await expect(form.getByLabel('Seats')).toBeHidden();
-    await form.getByLabel('Plan').fill('Team');
+    // Plan searches its options: text that is none is refused, and one but for case becomes it.
+    await form.getByLabel('Plan').fill('Tea');
+    await form.getByRole('button', { name: 'Ask' }).click();
+    await expect(form.getByText('Pick one of the options')).toBeVisible();
+    await form.getByLabel('Plan').fill('team');
+    await expect(form.getByLabel('Plan')).toHaveValue('Team');
     await form.getByLabel('Seats').fill('5');
 
     await form.getByRole('button', { name: 'Ask' }).click();

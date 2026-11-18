@@ -87,14 +87,14 @@ const WidthSetting = ({ field, save }: { field: FormField; save: Save }) => {
       <Label>{t('field-width', 'Width')}</Label>
       <Select
         value={String(field.column)}
-        onValueChange={(next) => save({ column: next === '2' ? 2 : 1 })}
+        onValueChange={(next) => save({ column: next === '1' ? 1 : 2 })}
       >
         <Select.Trigger aria-label={t('field-width', 'Width')}>
           <Select.Value />
         </Select.Trigger>
         <Select.Content>
-          <Select.Item value="1">{t('field-width-full', 'Full width')}</Select.Item>
-          <Select.Item value="2">{t('field-width-half', 'Half width')}</Select.Item>
+          <Select.Item value="2">{t('field-width-full', 'Full width')}</Select.Item>
+          <Select.Item value="1">{t('field-width-half', 'Half width')}</Select.Item>
         </Select.Content>
       </Select>
     </div>
@@ -119,7 +119,7 @@ const OptionsSetting = ({ field, save }: { field: FormField; save: Save }) => {
         }}
         placeholder={t('field-add-option', 'Type an option and press Enter')}
       />
-      {field.type === 'select' && (
+      {(field.type === 'select' || field.type === 'select:countries') && (
         <div className="flex items-center gap-2">
           <Switch
             id={searchId}

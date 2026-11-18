@@ -197,6 +197,13 @@
       "when": 1795029947991,
       "tag": "0029_rate_limits",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1795035570530,
+      "tag": "0030_field_span",
+      "breakpoints": true
     }
   ]
 }

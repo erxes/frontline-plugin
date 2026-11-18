@@ -109,7 +109,7 @@ const PreviewField = ({
   const { t } = useTranslation('frontline');
 
   return (
-    <div className={cn('flex flex-col gap-1.5', field.column === 2 ? 'col-span-1' : 'col-span-2')}>
+    <div className={cn('flex flex-col gap-1.5', field.column === 1 ? 'col-span-1' : 'col-span-2')}>
       <Label>
         {field.label || t('field-untitled', 'Untitled field')}
         {field.isRequired && ' *'}
