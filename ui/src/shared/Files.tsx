@@ -137,32 +137,54 @@ export const FilePicker = ({
   );
 };
 
-/** Uploaded files by name, each with a button that takes it off the list. */
+/**
+ * Files as links that open them in a new tab: an image as its thumbnail, the rest by name. Given
+ * `onRemove`, each has a button that takes it off the list.
+ */
 export const FileList = ({
   files,
   onRemove,
 }: {
   files: Attachment[];
-  onRemove: (file: Attachment) => void;
+  onRemove?: (file: Attachment) => void;
 }) => {
   const { t } = useTranslation('frontline');
 
+  if (files.length === 0) return null;
+
   return (
-    <ul className="flex flex-col gap-1">
+    <ul className="flex flex-wrap gap-2">
       {files.map((file) => (
-        <li key={file.url} className="flex items-center gap-2 text-sm">
-          <IconFile className="text-muted-foreground size-4 shrink-0" />
-          <span className="truncate">{file.name}</span>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="ml-auto"
-            aria-label={t('remove-file', 'Remove {{name}}', { name: file.name })}
-            onClick={() => onRemove(file)}
+        <li
+          key={file.url}
+          className="flex max-w-60 items-center gap-0.5 rounded-md border bg-background text-xs"
+        >
+          <a
+            href={file.url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex min-w-0 items-center gap-1.5 rounded-md px-2 py-1.5 hover:bg-accent"
           >
-            <IconX />
-          </Button>
+            {file.type?.startsWith('image/') ? (
+              <img src={file.url} alt={file.name} className="max-h-40 rounded-sm" />
+            ) : (
+              <>
+                <IconFile className="size-4 shrink-0" aria-hidden />
+                <span className="truncate">{file.name}</span>
+              </>
+            )}
+          </a>
+          {onRemove && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              aria-label={t('remove-file', 'Remove {{name}}', { name: file.name })}
+              onClick={() => onRemove(file)}
+            >
+              <IconX />
+            </Button>
+          )}
         </li>
       ))}
     </ul>
