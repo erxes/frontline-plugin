@@ -197,6 +197,24 @@ export const signalMembers = async (tx: Tx, orgId: string, ids: string[]) => {
   await send(tx, memberSignals(orgId, ids));
 };
 
+/**
+ * Tells the members of the conversation's channel that its customer wrote, once the message
+ * commits, for the inbox's new-message sound. The topic names the conversation, so a member
+ * who has it open on screen hears nothing. A channel with no members tells no one.
+ */
+export const signalArrival = async (
+  tx: Tx,
+  orgId: string,
+  conversation: { id: string; channelId: string },
+) => {
+  const topic = `arrived.${conversation.id.toLowerCase()}`;
+
+  await tx.execute(sql`select core_live_signal(${orgId}, ${PLUGIN}, ${topic}, members.ids)
+    from (select array_agg(${channelMembers.userId}) as ids from ${channelMembers}
+      where ${channelMembers.channelId} = ${conversation.channelId}) members
+    where members.ids is not null`);
+};
+
 /** Signals the members as `signalMembers` does, and tells each conversation's visitor. */
 export const signalConversations = async (tx: Tx, orgId: string, changed: Notified[]) => {
   await send(tx, [

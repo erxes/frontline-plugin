@@ -73,8 +73,12 @@ const Connected = z.looseObject({ token: z.string(), conversations: z.array(z.un
 /** One read of the event stream. */
 const Chunk = z.instanceof(Uint8Array);
 
-/** What `core_live_signal()` sends on `core_live`: the organisation and the topic. */
-const LiveSignal = z.looseObject({ o: z.string(), t: z.string() });
+/** What `core_live_signal()` sends on `core_live`: the organisation, the topic and its members. */
+const LiveSignal = z.looseObject({
+  o: z.string(),
+  t: z.string(),
+  u: z.array(z.string()).nullish(),
+});
 
 /** The filter bar's one rule, as `useListFilterParams()` sends it. */
 const rule = (path: string, op: string, value?: unknown) =>
@@ -349,33 +353,42 @@ describe('inbox', () => {
     controller.abort();
   });
 
-  it('signals the inbox and the conversation once each on a change, and no one on a read', async () => {
+  it('signals the inbox and the conversation on a change, no one on a read, and the channel when the customer writes', async () => {
     const { teammate, token } = await setUp('org-ib-live');
 
     await post('/messages', { content: 'Ping' }, token);
 
     const [conversation] = (await teammate.conversations.list({})).conversations;
     const id = conversation?.id ?? '';
-    const topics: string[] = [];
+    const signals: z.infer<typeof LiveSignal>[] = [];
     const listener = await pool.connect();
 
     listener.on('notification', ({ payload }) => {
       const signal = LiveSignal.parse(JSON.parse(payload ?? '{}'));
 
-      if (signal.o === 'org-ib-live') topics.push(signal.t);
+      if (signal.o === 'org-ib-live') signals.push(signal);
     });
     await listener.query('LISTEN core_live');
 
     const own = 'conversation.' + id.toLowerCase();
 
     await teammate.conversations.messages.create({ conversationId: id, content: 'Pong' });
-    await vi.waitFor(() => expect(topics.toSorted()).toEqual([own, 'conversations']));
+    const topics = () => signals.map(({ t }) => t);
+
+    await vi.waitFor(() => expect(topics().toSorted()).toEqual([own, 'conversations']));
 
     // The visitor reading the reply tells no member: typing, signalled after, arrives alone.
-    topics.length = 0;
+    signals.length = 0;
     await post(`/conversations/${id}/read`, {}, token);
     await post(`/conversations/${id}/typing`, {}, token);
-    await vi.waitFor(() => expect(topics).toEqual(['typing.' + id.toLowerCase()]));
+    await vi.waitFor(() => expect(topics()).toEqual(['typing.' + id.toLowerCase()]));
+
+    // The customer's next message also tells the channel's members alone, for the inbox's sound.
+    await post('/messages', { conversationId: id, content: 'Thanks' }, token);
+    await vi.waitFor(() =>
+      expect(signals.find(({ t }) => t === `arrived.${id.toLowerCase()}`)?.u).toContain('teammate'),
+    );
+    expect(signals.flatMap(({ u }) => u ?? [])).not.toContain('outsider');
 
     await listener.query('UNLISTEN core_live');
     listener.removeAllListeners('notification');
