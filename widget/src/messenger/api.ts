@@ -5,6 +5,7 @@ import type {
   VisitorConversation,
   VisitorMessage,
   VisitorMessages,
+  VisitorSurvey,
   VisitorTicket,
 } from '@frontline/api/messenger';
 import type { Jsonify } from 'type-fest';
@@ -44,6 +45,9 @@ export type TicketForms = Jsonify<TicketFormsReply>;
 export type Property = TicketForms['pipelines'][number]['properties'][number];
 
 export type Ticket = Jsonify<VisitorTicket>;
+
+/** A survey sent in a message, as the visitor votes on it. */
+export type Survey = Jsonify<VisitorSurvey>;
 
 /** The address of the core file an attachment names, as core's own pages link it. */
 const FILE = /\/files\/([\w-]+)\/download$/;
@@ -108,6 +112,8 @@ export const messengerApi = (base: URL, key: string) => {
     ticketForms: (token: string) => as(token).get('tickets/forms').json<TicketForms>(),
     tickets: (token: string) => as(token).get('tickets').json<Ticket[]>(),
     fileTicket: (token: string, body: NewTicket) => as(token).post(body, 'tickets').json<Ticket>(),
+    /** The API as the visitor with `token`, for the calls a lazy chunk makes itself. */
+    as,
     knowledgeBase: (token: string) => as(token).get('knowledge-base').json<Topic>(),
     article: (token: string, id: string) =>
       as(token)
