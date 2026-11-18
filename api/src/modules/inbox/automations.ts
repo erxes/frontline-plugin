@@ -14,7 +14,7 @@ import {
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
-import { fail } from '../fail.ts';
+import { fail, verifiedBy } from '../fail.ts';
 import { createFormLink } from '../forms/links.ts';
 import { sendKindOf, sendMessage } from '../integrations/actions.ts';
 import { addBotMessage, setOperatorOf } from './operator.ts';
@@ -131,16 +131,14 @@ const handOff = async (call: CoreCall, body: Body) => {
  * The JSON answer is the step's output; anything but 2xx fails the step.
  */
 export const runAction = async (req: Request, res: Response) => {
-  const call = await verifyCoreCall(bearerOf(req.headers.authorization) ?? '', {
-    coreUrl: config.coreUrl,
-    plugin: PLUGIN,
-  }).catch(() => null);
+  const call = await verifiedBy(res, 'automation call token', 'Not a call from core', () =>
+    verifyCoreCall(bearerOf(req.headers.authorization) ?? '', {
+      coreUrl: config.coreUrl,
+      plugin: PLUGIN,
+    }),
+  );
 
-  if (!call) {
-    res.status(401).json({ message: 'Not a call from core' });
-
-    return;
-  }
+  if (!call) return;
 
   try {
     const body = Body.parse(req.body);

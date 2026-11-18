@@ -1,7 +1,7 @@
 import type { PluginJobDelivery } from '@erxes/core-contract';
 import { eq, sql } from 'drizzle-orm';
 import pLimit from 'p-limit';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { logger } from '#/logger.ts';
@@ -18,6 +18,9 @@ const accountsOf = (orgId: string, provider?: 'mail') =>
       .from(integrationAccounts)
       .where(provider ? eq(integrationAccounts.provider, provider) : undefined),
   );
+
+/** imapflow's mark on an error for a login the server refused. */
+const LoginRefused = z.object({ authenticationFailed: z.literal(true) });
 
 /** How many of an organisation's accounts are read or checked at once. */
 const ACCOUNTS_AT_ONCE = 4;
@@ -40,8 +43,9 @@ const saveSyncState = (tx: Tx, accountId: string, state: z.infer<typeof SyncStat
  * Reads up to a run's worth of what reached each of the organisation's mailboxes since the last
  * run and hands it to the inbox, and notes the addresses its reports said to stop mailing. Each
  * message is kept with the mailbox's place after it, so a failure leaves the messages before it
- * in place and the next run starts at it. A mailbox that refuses the login is marked broken, and
- * one that fails is logged, while the rest go on.
+ * in place and the next run starts at it. Only a mailbox that refuses the login is marked broken.
+ * Any other failure, such as a server that doesn't answer or mail the inbox can't take, is logged
+ * and read again next run, while the rest go on.
  */
 export const syncMail = async (job: PluginJobDelivery) => {
   const sync = async (row: AccountRow) => {
@@ -53,7 +57,9 @@ export const syncMail = async (job: PluginJobDelivery) => {
       row.externalId,
       SyncState.safeParse(row.syncState).data ?? null,
     ).catch((error: unknown) => {
-      logger.warn({ err: error, accountId: row.id }, 'mailbox refused the sync');
+      if (!LoginRefused.safeParse(error).success) throw error;
+
+      logger.warn({ err: error, accountId: row.id }, 'mailbox refused the login');
 
       return null;
     });

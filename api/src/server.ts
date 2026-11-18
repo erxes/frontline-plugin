@@ -10,7 +10,7 @@ import { config, PLUGIN } from '#/config.ts';
 import { JOB_RUNS } from '#/jobs.ts';
 import { logger, requestLogger } from '#/logger.ts';
 import { manifest } from '#/manifest.ts';
-import { fail } from '#/modules/fail.ts';
+import { fail, verifiedBy } from '#/modules/fail.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
 import { formChoices } from '#/modules/forms/links.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
@@ -41,26 +41,28 @@ const memberDoc = pluginOpenApi(router, {
 
 const anyOrigin = cors({ origin: true, credentials: false, maxAge: 600 });
 
-/** The member behind a request from the plugin UI, or null without a valid session token. */
-const memberOf = async (authorization: string | undefined) => {
-  const token = bearerOf(authorization);
+const signedByCore = { coreUrl: config.coreUrl, plugin: PLUGIN };
 
-  if (!token) return null;
+/**
+ * The member behind a request from the plugin UI, or null once it is answered: 401 with `refused`
+ * without a valid session token, 503 while core is out of reach.
+ */
+const memberOf = (req: express.Request, res: express.Response, refused: string) =>
+  verifiedBy(res, 'session token', refused, async () => {
+    const token = bearerOf(req.headers.authorization);
 
-  return verifyPluginSession(token, { coreUrl: config.coreUrl, plugin: PLUGIN }).catch(() => null);
-};
+    if (!token) throw new Error('no session token');
+
+    return verifyPluginSession(token, signedByCore);
+  });
 
 /** Runs `handler`'s procedures at `prefix` for the member a session token signs in. */
 const signedIn =
   (prefix: `/${string}`, handler: typeof rpc | typeof rest): express.RequestHandler =>
   async (req, res, next) => {
-    const member = await memberOf(req.headers.authorization);
+    const member = await memberOf(req, res, 'Send a session token for this plugin from core');
 
-    if (!member) {
-      res.status(401).json({ message: 'Send a session token for this plugin from core' });
-
-      return;
-    }
+    if (!member) return;
 
     const { matched } = await handler.handle(req, res, { prefix, context: { member } });
 
@@ -76,13 +78,9 @@ const automationRoutes = () =>
     .Router()
     .post('/actions/:type', express.json({ limit: '256kb' }), runAction)
     .get('/records/form', async (req, res) => {
-      const member = await memberOf(req.headers.authorization);
+      const member = await memberOf(req, res, 'Open this plugin inside erxes to sign in');
 
-      if (!member) {
-        res.status(401).json({ message: 'Open this plugin inside erxes to sign in' });
-
-        return;
-      }
+      if (!member) return;
 
       try {
         res.json(await formChoices(member));
@@ -144,17 +142,19 @@ export const createApp = () => {
   app.post('/api/jobs/:name', express.text({ type: '*/*' }), async (req, res) => {
     const body: unknown = req.body;
 
-    const job = await verifyCoreJob(
-      req.headers.authorization,
-      typeof body === 'string' ? body : '',
-      { coreUrl: config.coreUrl, plugin: PLUGIN },
-    ).catch(() => null);
+    const job = await verifiedBy(res, 'job token', 'Only core runs jobs', async () => {
+      const verified = await verifyCoreJob(
+        req.headers.authorization,
+        typeof body === 'string' ? body : '',
+        signedByCore,
+      );
 
-    if (!job || job.name !== req.params.name) {
-      res.status(401).json({ message: 'Only core runs jobs' });
+      if (verified.name !== req.params.name) throw new Error('the job is not the one at this path');
 
-      return;
-    }
+      return verified;
+    });
+
+    if (!job) return;
 
     const run = JOB_RUNS[job.name];
 
@@ -175,17 +175,15 @@ export const createApp = () => {
   app.post('/api/events', express.text({ type: '*/*', limit: '1mb' }), async (req, res) => {
     const body: unknown = req.body;
 
-    const event = await verifyCoreEvent(
-      req.headers.authorization,
-      typeof body === 'string' ? body : '',
-      { coreUrl: config.coreUrl, plugin: PLUGIN },
-    ).catch(() => null);
+    const event = await verifiedBy(res, 'event token', 'Only core delivers events', () =>
+      verifyCoreEvent(
+        req.headers.authorization,
+        typeof body === 'string' ? body : '',
+        signedByCore,
+      ),
+    );
 
-    if (!event) {
-      res.status(401).json({ message: 'Only core delivers events' });
-
-      return;
-    }
+    if (!event) return;
 
     if (event.type.startsWith('core.unit.')) {
       const result = await syncUnits(event.organizationId);
