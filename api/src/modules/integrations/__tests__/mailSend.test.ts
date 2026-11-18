@@ -1,10 +1,10 @@
 import { sql } from 'drizzle-orm';
-import { describe, expect, it, vi } from 'vite-plus/test';
+import { describe, expect, it, onTestFinished, vi } from 'vite-plus/test';
 import { JOBS, SEND_ATTEMPTS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { JOB_RUNS } from '#/jobs.ts';
 import { clientAs } from '#/test/member.ts';
-import { channelFor, fixture, runJob, runQueued } from './fakes.ts';
+import { channelFor, fakeProviders, fixture, runJob, runQueued } from './fakes.ts';
 import { asked } from './standIns.ts';
 
 vi.mock('#/core.ts', async (importOriginal) =>
@@ -15,9 +15,10 @@ vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
   (await import('./standIns.ts')).sdkStandIn(await importOriginal()),
 );
 
-/** The mailbox's INBOX, which IMAP reads, and what went out over SMTP. */
+/** The mailbox's INBOX, which IMAP reads, what went out over SMTP, and whether the server is down. */
 const mailbox = vi.hoisted(() => ({
   inbox: [] as string[],
+  down: false,
   sent: [] as {
     to: string;
     subject: string;
@@ -34,7 +35,9 @@ vi.mock('imapflow', () => ({
       return { uidValidity: 1n, uidNext: mailbox.inbox.length + 1 };
     }
 
-    async connect() {}
+    async connect() {
+      if (mailbox.down) throw new Error('Connection timed out');
+    }
 
     async logout() {}
 
@@ -273,5 +276,100 @@ describe('mail', () => {
     await runQueued();
 
     expect(mailbox.sent.splice(0)).toMatchObject([{ to: 'gone@example.mn', subject: 'Order' }]);
+  });
+
+  it('skips a mail the inbox cannot store, keeps files, and shows a mailbox that keeps failing', async () => {
+    mailbox.inbox.length = 0;
+    // Core's storage takes the mail's file.
+    fakeProviders(() => ({}));
+    onTestFinished(() => {
+      vi.restoreAllMocks();
+    });
+
+    const owner = clientAs('org-mail-d');
+
+    await mailChannel('org-mail-d');
+
+    // Postgres refuses text with a NUL byte, every time.
+    mailbox.inbox.push(
+      [
+        'From: Bat <bat@example.mn>',
+        'To: support@shop.mn',
+        'Subject: Broken',
+        'Message-ID: <bat-nul@example.mn>',
+        '',
+        'Half\u0000a mail',
+      ].join('\r\n'),
+    );
+    // HTML beside a file, with no plain text part.
+    mailbox.inbox.push(
+      [
+        'From: Saraa <saraa@example.mn>',
+        'To: support@shop.mn',
+        'Subject: Receipt',
+        'Message-ID: <saraa-receipt@example.mn>',
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/mixed; boundary="b1"',
+        '',
+        '--b1',
+        'Content-Type: text/html; charset=utf-8',
+        '',
+        '<p>My <b>receipt</b> is attached.</p>',
+        '--b1',
+        'Content-Type: application/pdf; name="receipt.pdf"',
+        'Content-Disposition: attachment; filename="receipt.pdf"',
+        'Content-Transfer-Encoding: base64',
+        '',
+        Buffer.from('%PDF').toString('base64'),
+        '--b1--',
+      ].join('\r\n'),
+    );
+
+    await sync('org-mail-d');
+
+    const { conversations } = await owner.conversations.list({});
+
+    expect(conversations).toHaveLength(1);
+
+    const [received] = (
+      await owner.conversations.messages.list({ conversationId: conversations[0]?.id ?? '' })
+    ).messages;
+
+    expect(received).toMatchObject({
+      content: 'My receipt is attached.',
+      attachments: [
+        {
+          url: '/core/v1/files/file-receipt-pdf/download',
+          name: 'receipt.pdf',
+          type: 'application/pdf',
+          size: 4,
+        },
+      ],
+    });
+
+    // The sync moved past both: the next run finds nothing new.
+    await sync('org-mail-d');
+    expect((await owner.conversations.list({})).conversations[0]?.messageCount).toBe(1);
+
+    const health = async () =>
+      (await owner.integrations.accounts.list({ provider: 'mail' })).accounts.map(
+        ({ status, error }) => ({ status, error }),
+      );
+
+    // A server that stops answering is retried; the fifth failed run in a row shows it broken.
+    mailbox.down = true;
+
+    for (let run = 1; run <= 4; run += 1) await sync('org-mail-d');
+
+    expect(await health()).toEqual([{ status: 'healthy', error: null }]);
+    await sync('org-mail-d');
+    expect(await health()).toEqual([
+      { status: 'broken', error: 'The last 5 mail syncs failed: Connection timed out' },
+    ]);
+    expect(asked.notifications.at(-1)).toMatchObject({ title: 'Shop support stopped working' });
+
+    mailbox.down = false;
+    await sync('org-mail-d');
+    expect(await health()).toEqual([{ status: 'healthy', error: null }]);
   });
 });

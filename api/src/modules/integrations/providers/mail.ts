@@ -1,3 +1,4 @@
+import { convert } from 'html-to-text';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { createTransport } from 'nodemailer';
@@ -147,9 +148,15 @@ export const readMail = async (
       threadId: `${sender} ${root}`,
       messageId: mail.messageId,
       author: { externalId: sender, name: from?.name || sender, email: sender },
-      text: mail.text || '',
+      // mailparser leaves the text empty for an HTML part beside files, with no plain text part.
+      text: mail.text || (mail.html ? convert(mail.html, { wordwrap: false }) : ''),
       providerData: { subject: mail.subject, root } satisfies z.infer<typeof MailData>,
       attachments: [],
+      files: mail.attachments.map((part) => ({
+        name: part.filename ?? 'attachment',
+        contentType: part.contentType,
+        bytes: async () => part.content,
+      })),
     },
   };
 };
@@ -248,10 +255,19 @@ export const pullMail = async (
           { uid: true, source: true },
           { uid: true },
         )) {
-          const read = fetched.source ? await readMail(fetched.source, address) : null;
+          const read = fetched.source
+            ? await readMail(fetched.source, address).catch((error: unknown) => {
+                logger.error({ err: error, address, uid: fetched.uid }, 'mail that does not parse');
+
+                return null;
+              })
+            : null;
 
           if (!read)
-            logger.warn({ address, uid: fetched.uid }, 'mail without a sender or Message-ID');
+            logger.warn(
+              { address, uid: fetched.uid },
+              'mail skipped: no sender or Message-ID, or the mailbox sent it',
+            );
           else if ('message' in read) messages.push({ uid: fetched.uid, message: read.message });
           else suppressed.push(...read.suppressed);
         }
@@ -319,9 +335,9 @@ export const mail = defineProvider({
         const read = await attachedFile(row.orgId, file);
 
         return {
-          filename: file.name,
-          contentType: read.contentType,
-          content: Buffer.from(read.bytes),
+          filename: read.name,
+          contentType: read.type,
+          content: Buffer.from(await read.arrayBuffer()),
         };
       }),
     );

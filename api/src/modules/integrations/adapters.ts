@@ -3,7 +3,7 @@ import { and, desc, eq, isNotNull, or, sql } from 'drizzle-orm';
 import pLimit from 'p-limit';
 import { z } from 'zod';
 import { MESSAGE_RECEIVED } from '#/core.ts';
-import { type Tx, withOrg } from '#/db/client.ts';
+import { refusedData, type Tx, withOrg } from '#/db/client.ts';
 import {
   conversations,
   customerLinks,
@@ -23,6 +23,7 @@ import {
   type ProviderName,
 } from './provider.ts';
 import { providerOf } from './providers/index.ts';
+import { storeFile } from '../files.ts';
 import { accountRow } from './store.ts';
 
 /** The event a provider's new message publishes, for the providers that have one. */
@@ -187,12 +188,71 @@ const customersOf = async (row: AccountRow, inbound: InboundMessage[]) => {
   );
 };
 
+/** Whether the inbox already has `message`, so a repeated delivery doesn't fetch its files again. */
+const alreadyKept = (orgId: string, integrationId: string, message: InboundMessage) =>
+  withOrg(orgId, async (tx) => {
+    const [kept] = await tx
+      .select({ id: messages.id })
+      .from(messages)
+      .innerJoin(conversations, eq(conversations.id, messages.conversationId))
+      .where(
+        and(
+          eq(conversations.integrationId, integrationId),
+          eq(conversations.externalId, message.threadId),
+          eq(messages.externalId, message.messageId),
+        ),
+      )
+      .limit(1);
+
+    return kept !== undefined;
+  });
+
+/**
+ * The text and attachments of `message` with the files the provider holds kept in core's storage.
+ * A file core won't keep is logged and named in the text, so the message still reaches the inbox
+ * and the member knows something is missing.
+ */
+const withFiles = async (row: AccountRow, integrationId: string, message: InboundMessage) => {
+  const files = message.files ?? [];
+
+  if (files.length === 0 || (await alreadyKept(row.orgId, integrationId, message)))
+    return { content: message.text, attachments: message.attachments };
+
+  const kept = await Promise.all(
+    files.map(async (file) =>
+      file
+        .bytes()
+        .then((bytes) =>
+          storeFile(row.orgId, { name: file.name, contentType: file.contentType, bytes }),
+        )
+        .catch((error: unknown) => {
+          logger.warn(
+            { err: error, accountId: row.id, messageId: message.messageId, file: file.name },
+            'inbound file not kept',
+          );
+
+          return file.name;
+        }),
+    ),
+  );
+
+  const lost = kept.filter((file) => typeof file === 'string');
+
+  return {
+    content: [message.text, ...lost.map((name) => `[${name} could not be saved]`)]
+      .filter(Boolean)
+      .join('\n\n'),
+    attachments: [...message.attachments, ...kept.filter((file) => typeof file !== 'string')],
+  };
+};
+
 /**
  * Hands what reached an account to the inbox: each author is found or made a core customer once,
  * and each message joins its thread's conversation in order, in a transaction of its own that
  * also runs `saved`, so a caller can note how far it got. The inbox hears once, at the end. A
  * failure throws after the messages before it are kept, so the provider or the job delivers the
- * rest again; a message delivered twice adds nothing. An account no channel uses keeps nothing.
+ * rest again; a message delivered twice adds nothing. A message Postgres refuses, which would
+ * fail every time, is logged and skipped. An account no channel uses keeps nothing.
  */
 export const deliverInbound = async <T extends InboundMessage>(
   row: AccountRow,
@@ -216,8 +276,11 @@ export const deliverInbound = async <T extends InboundMessage>(
   const changed: { id: string; customerId: string }[] = [];
 
   try {
-    await inOrder(inbound, (message) =>
-      withOrg(row.orgId, async (tx) => {
+    await inOrder(inbound, async (message) => {
+      // Core's storage is asked before the transaction opens.
+      const { content, attachments } = await withFiles(row, integrationId, message);
+
+      await withOrg(row.orgId, async (tx) => {
         const customerId = customers.get(message.author.externalId);
 
         if (!customerId) throw new ORPCError('INTERNAL_SERVER_ERROR');
@@ -227,8 +290,8 @@ export const deliverInbound = async <T extends InboundMessage>(
           customerId,
           externalConversationId: message.threadId,
           externalId: message.messageId,
-          content: message.text,
-          attachments: message.attachments,
+          content,
+          attachments,
           providerData: message.providerData,
           event: message.event ?? RECEIVED[row.provider]?.type,
         });
@@ -236,8 +299,17 @@ export const deliverInbound = async <T extends InboundMessage>(
         await saved?.(tx, message);
 
         if (received.changed) changed.push(received.changed);
-      }),
-    );
+      }).catch(async (error: unknown) => {
+        if (!refusedData(error)) throw error;
+
+        // It would fail the same way every time, so it would hold back every message after it.
+        logger.error(
+          { err: error, accountId: row.id, messageId: message.messageId },
+          'inbound message the inbox cannot store, skipped',
+        );
+        await withOrg(row.orgId, async (tx) => saved?.(tx, message));
+      });
+    });
   } finally {
     if (changed.length > 0)
       await withOrg(row.orgId, (tx) => signalConversations(tx, row.orgId, changed));

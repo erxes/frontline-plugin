@@ -8,10 +8,13 @@ import { readsWithCore, writesWithCore } from '#/orpc.ts';
 import { Account, accountRow, saveAccount } from '../store.ts';
 import {
   defineProvider,
+  type InboundFile,
   type InboundMessage,
   type InboundReaction,
+  inOrder,
   type WebhookSource,
 } from '../provider.ts';
+import { attachedFile } from '#/modules/files.ts';
 import { sameText } from '../secrets.ts';
 
 const Config = z.object({ username: z.string() });
@@ -31,6 +34,13 @@ const User = z.object({
   username: z.string().optional(),
 });
 
+/** A file in a message, by the id the bot fetches it with. */
+const TelegramFile = z.object({
+  file_id: z.string(),
+  file_name: z.string().optional(),
+  mime_type: z.string().optional(),
+});
+
 const Message = z.object({
   message_id: z.number(),
   date: z.number(),
@@ -38,25 +48,44 @@ const Message = z.object({
   from: User.optional(),
   text: z.string().optional(),
   caption: z.string().optional(),
+  /** One photo in sizes, smallest first. */
+  photo: z.array(TelegramFile).optional(),
+  document: TelegramFile.optional(),
+  video: TelegramFile.optional(),
+  audio: TelegramFile.optional(),
+  voice: TelegramFile.optional(),
+  video_note: TelegramFile.optional(),
 });
+
+/** The photo types Telegram shows as a photo; it sends any other file as a document. */
+const PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+/** The most text Telegram takes as a file's caption. */
+const CAPTION_CHARS = 1024;
 
 const Answer = z.discriminatedUnion('ok', [
   z.object({ ok: z.literal(true), result: z.unknown() }),
   z.object({ ok: z.literal(false), description: z.string() }),
 ]);
 
-/** One Bot API method as the bot, its result read through `Result`, or Telegram's refusal. */
+/**
+ * One Bot API method as the bot, its result read through `Result`, or Telegram's refusal. A form
+ * carries files; it gets longer, since its bytes go up in the one request.
+ */
 const call = async <T>(
   token: string,
   method: string,
   Result: z.ZodType<T>,
-  params: Record<string, unknown> = {},
+  params: Record<string, unknown> | FormData = {},
 ) => {
+  const form = params instanceof FormData;
+
   const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(params),
-    signal: AbortSignal.timeout(config.outboundMs),
+    ...(form
+      ? { body: params }
+      : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(params) }),
+    signal: AbortSignal.timeout((form ? 4 : 1) * config.outboundMs),
   });
 
   const answer = Answer.parse(await response.json());
@@ -81,13 +110,43 @@ export const telegram = defineProvider({
   Config,
   Secret,
   check: async ({ secret }) => call(secret.token, 'getMe', User).then(() => null, why),
-  send: async ({ secret }, message) => {
-    const sent = await call(secret.token, 'sendMessage', Message, {
-      chat_id: message.threadId,
-      text: message.text,
-    });
+  // Each file goes as a message of its own, the text as the first one's caption when it fits.
+  // Every file is read before anything goes out, so one core can't give fails the whole reply.
+  send: async ({ row, secret }, message) => {
+    const files = await Promise.all(
+      message.attachments.map((file) => attachedFile(row.orgId, file)),
+    );
 
-    return `${sent.chat.id}:${sent.message_id}`;
+    const captioned = files.length > 0 && message.text.length <= CAPTION_CHARS;
+
+    const sends = [
+      ...(message.text && !captioned
+        ? [
+            () =>
+              call(secret.token, 'sendMessage', Message, {
+                chat_id: message.threadId,
+                text: message.text,
+              }),
+          ]
+        : []),
+      ...files.map((file, index) => () => {
+        const photo = PHOTO_TYPES.has(file.type);
+        const form = new FormData();
+
+        form.set('chat_id', message.threadId);
+        form.set(photo ? 'photo' : 'document', file);
+
+        if (captioned && index === 0 && message.text) form.set('caption', message.text);
+
+        return call(secret.token, photo ? 'sendPhoto' : 'sendDocument', Message, form);
+      }),
+    ];
+
+    const [first] = await inOrder(sends, (send) => send());
+
+    if (!first) throw new Error('A reply needs text or a file');
+
+    return `${first.chat.id}:${first.message_id}`;
   },
   // A bot keeps one reaction on a message: the team's latest. Telegram's emoji carry no U+FE0F.
   react: async ({ secret }, { threadId, message, emojis }) => {
@@ -139,11 +198,49 @@ const reactionOf = (changed: z.infer<typeof MessageReaction>): InboundReaction[]
         },
       ];
 
+const FilePath = z.object({ file_path: z.string() });
+
+/** A file's bytes, through the address Telegram gives the bot for it. Its link holds the token. */
+const download = async (token: string, fileId: string) => {
+  const { file_path: path } = await call(token, 'getFile', FilePath, { file_id: fileId });
+
+  const response = await fetch(`https://api.telegram.org/file/bot${token}/${path}`, {
+    signal: AbortSignal.timeout(4 * config.outboundMs),
+  });
+
+  if (!response.ok) throw new Error(`Telegram did not send the file: ${response.status}`);
+
+  return new Uint8Array(await response.arrayBuffer());
+};
+
+/** The files in `message`, the photo at its largest, each named and typed when Telegram doesn't. */
+const filesOf = (token: string, message: z.infer<typeof Message>): InboundFile[] =>
+  (
+    [
+      [message.photo?.at(-1), 'photo.jpg', 'image/jpeg'],
+      [message.document, 'file', 'application/octet-stream'],
+      [message.video, 'video.mp4', 'video/mp4'],
+      [message.audio, 'audio.mp3', 'audio/mpeg'],
+      [message.voice, 'voice.ogg', 'audio/ogg'],
+      [message.video_note, 'video.mp4', 'video/mp4'],
+    ] as const
+  ).flatMap(([file, name, contentType]) =>
+    file
+      ? [
+          {
+            name: file.file_name ?? name,
+            contentType: file.mime_type ?? contentType,
+            bytes: () => download(token, file.file_id),
+          },
+        ]
+      : [],
+  );
+
 /**
  * A chat's message as the inbox reads it, or none from a bot. The customer is the chat: a person
  * in a private chat, the group in a group, so a group is one conversation.
  */
-const inboundOf = (message: z.infer<typeof Message>): InboundMessage[] => {
+const inboundOf = (token: string, message: z.infer<typeof Message>): InboundMessage[] => {
   const author = message.from;
 
   if (author?.is_bot) return [];
@@ -160,6 +257,7 @@ const inboundOf = (message: z.infer<typeof Message>): InboundMessage[] => {
       },
       text: message.text ?? message.caption ?? '',
       attachments: [],
+      files: filesOf(token, message),
     },
   ];
 };
@@ -176,7 +274,9 @@ export const telegramWebhook: WebhookSource = {
     const updates = events.map((event) => Update.parse(event));
 
     return {
-      messages: updates.flatMap(({ message }) => (message ? inboundOf(message) : [])),
+      messages: updates.flatMap(({ message }) =>
+        message ? inboundOf(account.secret.token, message) : [],
+      ),
       reactions: updates.flatMap(({ message_reaction: changed }) =>
         changed ? reactionOf(changed) : [],
       ),
