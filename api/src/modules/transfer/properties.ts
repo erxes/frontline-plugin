@@ -1,13 +1,31 @@
-import type { CustomValue, Field } from '@erxes/core-contract';
+import { type CustomValue, type Field, groupApplies } from '@erxes/core-contract';
 import { core, TICKET_TIMELINE } from '#/core.ts';
 import { labelledOf, refuse, tickOf } from './shared.ts';
 
 /**
- * Core's ticket fields, in their order, asked for only when the file has a Properties column.
- * Fields are each organisation's own, so they share one column, as a form's answers do.
+ * Core's ticket fields, in their order, each with the pipelines its group applies to, asked for
+ * only when the file has a Properties column. Fields are each organisation's own, so they share
+ * one column, as a form's answers do.
  */
-export const ticketFieldsFor = async (orgId: string, wanted: boolean) =>
-  wanted ? (await core.forOrg(orgId).fields.list({ contentType: TICKET_TIMELINE })).data : [];
+export const ticketFieldsFor = async (orgId: string, wanted: boolean) => {
+  if (!wanted) return [];
+
+  const client = core.forOrg(orgId);
+
+  const [fields, groups] = await Promise.all([
+    client.fields.list({ contentType: TICKET_TIMELINE }),
+    client.fieldGroups.list({ contentType: TICKET_TIMELINE }),
+  ]);
+
+  const appliesTo = new Map(groups.data.map((group) => [group.id, group.appliesTo]));
+
+  return fields.data.map((field) => ({
+    ...field,
+    appliesTo: appliesTo.get(field.groupId ?? '') ?? {},
+  }));
+};
+
+type TicketField = Awaited<ReturnType<typeof ticketFieldsFor>>[number];
 
 const textOf = (value: CustomValue) => {
   if (Array.isArray(value)) return value.join(', ');
@@ -44,8 +62,14 @@ const valueOf = (field: Field, text: string): CustomValue | null => {
   return LIST_TYPES.has(field.type) ? text.split(/,\s*/).filter(Boolean) : text;
 };
 
-/** A Properties cell as a patch of the ticket's field values, for core's `fields.check`. */
-export const propertyPatchOf = (cell: string, fields: Field[]) =>
+/**
+ * A Properties cell as a patch of the values of the fields `pipelineId` shows, for core's
+ * `fields.check`, so two pipelines' fields with one label don't mix.
+ */
+export const propertyPatchOf = (cell: string, fields: TicketField[], pipelineId: string) =>
   Object.fromEntries(
-    labelledOf(cell, fields).map(({ item, text }) => [item.id, valueOf(item, text)]),
+    labelledOf(
+      cell,
+      fields.filter((field) => groupApplies(field.appliesTo, { pipeline: [pipelineId] })),
+    ).map(({ item, text }) => [item.id, valueOf(item, text)]),
   );

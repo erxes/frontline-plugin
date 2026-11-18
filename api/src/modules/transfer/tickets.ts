@@ -22,7 +22,14 @@ import {
   runImport,
   transferMember,
 } from './shared.ts';
-import { pipelineOfRow, priorityOf, statusOfRow, tagIdsOf, ticketOfRow } from './ticketRows.ts';
+import {
+  pipelineOfRow,
+  priorityOf,
+  stateOf,
+  statusOfRow,
+  tagIdsOf,
+  ticketOfRow,
+} from './ticketRows.ts';
 
 /** Tickets' columns in core's import and export; `id` finds the ticket an import updates. */
 export const TICKET_COLUMNS = [
@@ -42,7 +49,7 @@ export const TICKET_COLUMNS = [
   { key: 'properties', label: 'Properties', aliases: ['Custom fields'] },
   { key: 'startDate', label: 'Start date' },
   { key: 'targetDate', label: 'Due date', aliases: ['Target date', 'Close date'] },
-  { key: 'state', label: 'State', importable: false, default: false },
+  { key: 'state', label: 'State', default: false },
   { key: 'createdAt', label: 'Created', importable: false },
   { key: 'updatedAt', label: 'Updated', importable: false, default: false },
 ];
@@ -152,8 +159,9 @@ export const exportTickets = async (request: z.infer<typeof PluginExportRequest>
 /**
  * Files or updates a ticket for each row, as the member would in frontline. `id` names the
  * ticket to update; a new one needs a name and a pipeline, by name or id, and takes its first
- * status unless the row names one. People are named by email: a member must exist, a customer
- * is made in core when it has none (not in a check). Properties go through core's check, and a
+ * status unless the row names one. A member is named by email and must exist; a customer by
+ * email or phone, made in core when it has none (not in a check). Properties go through core's
+ * check, inside the row's transaction with the ticket locked, so a save meanwhile waits. A
  * description stays as it is unless its text changed, so its formatting survives a round trip.
  */
 export const importTickets = async (request: ImportRequest) => {
@@ -200,11 +208,12 @@ export const importTickets = async (request: ImportRequest) => {
           request.orgId,
           pipelineId,
           current,
-          propertyPatchOf(row.properties, fields),
+          propertyPatchOf(row.properties, fields, pipelineId),
         )
       : undefined;
 
     const described = row.description && row.description !== textOf(found?.description ?? '');
+    const customerId = row.customer ? customerOf(row.customer, Boolean(found)) : undefined;
 
     const values = {
       ...(row.name ? { name: row.name } : {}),
@@ -213,7 +222,8 @@ export const importTickets = async (request: ImportRequest) => {
       ...(row.assignee ? { assigneeId: personOf(row.assignee) } : {}),
       ...(row.members ? { assignedMemberIds: listOf(row.members).map(personOf) } : {}),
       ...(tagIds ? { tagIds } : {}),
-      ...(row.customer ? { customerId: customerOf(row.customer) } : {}),
+      ...(customerId ? { customerId } : {}),
+      ...(row.state ? { state: stateOf(row.state) } : {}),
       ...(row.startDate ? { startDate: dateOf(row.startDate, 'Start date') } : {}),
       ...(row.targetDate ? { targetDate: dateOf(row.targetDate, 'Due date') } : {}),
     };

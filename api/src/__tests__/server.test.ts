@@ -127,7 +127,7 @@ describe('server', () => {
       rows: [
         { rowNumber: 2, action: 'create' },
         { rowNumber: 3, action: 'error', error: 'No pipeline Nowhere in your channels' },
-        { rowNumber: 4, action: 'error', error: 'Customer is an email address, not Bob' },
+        { rowNumber: 4, action: 'error', error: 'Customer is an email or a phone, not Bob' },
       ],
     });
     expect((await owner.tickets.list({ pipelineId: pipeline.id })).tickets).toEqual([]);

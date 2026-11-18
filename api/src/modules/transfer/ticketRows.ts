@@ -2,7 +2,13 @@ import { and, eq, inArray, or, sql } from 'drizzle-orm';
 import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { tags } from '#/db/tags.ts';
-import { pipelines, pipelineStatuses, PRIORITY_NAMES, tickets } from '#/db/tickets.ts';
+import {
+  pipelines,
+  pipelineStatuses,
+  PRIORITY_NAMES,
+  TICKET_STATES,
+  tickets,
+} from '#/db/tickets.ts';
 import { membership } from '../channels/access.ts';
 import { seenBy } from '../tickets/shared.ts';
 import { listOf, refuse, type transferMember } from './shared.ts';
@@ -21,7 +27,16 @@ export const priorityOf = (cell: string) => {
   return priority;
 };
 
-/** The ticket the row's ID names, among those the member sees. */
+/** A state cell, active or archived in any case. */
+export const stateOf = (cell: string) => {
+  const state = TICKET_STATES.find((one) => one === cell.toLowerCase());
+
+  if (!state) throw refuse(`State is one of ${TICKET_STATES.join(', ')}`);
+
+  return state;
+};
+
+/** The ticket the row's ID names, among those the member sees, locked until the row is done. */
 export const ticketOfRow = async (tx: Tx, member: Member, row: Row) => {
   if (!row.id) return undefined;
 
@@ -36,7 +51,8 @@ export const ticketOfRow = async (tx: Tx, member: Member, row: Row) => {
     .from(tickets)
     .innerJoin(pipelines, eq(pipelines.id, tickets.pipelineId))
     .leftJoin(channelMembers, membership(member, tickets.channelId))
-    .where(and(eq(tickets.id, row.id), seenBy(member)));
+    .where(and(eq(tickets.id, row.id), seenBy(member)))
+    .for('update', { of: tickets });
 
   return found;
 };

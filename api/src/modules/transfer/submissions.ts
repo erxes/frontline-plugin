@@ -122,8 +122,6 @@ type Field = Awaited<ReturnType<typeof formsWithFields>>[number]['fields'][numbe
 
 /** One answer from its text, by its field's type, as the form's own checks take it. */
 const answerOf = (field: Field, text: string) => {
-  if (FILE_FIELDS.has(field.type)) throw refuse(`${field.label}: files don't import`);
-
   if (field.type === 'boolean') return tickOf(text, field.label);
 
   if (field.type === 'number' && text && !Number.isNaN(Number(text))) return Number(text);
@@ -133,12 +131,13 @@ const answerOf = (field: Field, text: string) => {
 
 /**
  * A row's answers by field id, from `Question: answer` parts, each fitting its field as the
- * widget's would. A part starts at a question the form asks, so an answer may hold `; `.
+ * widget's would. A part starts at a question the form asks, so an answer may hold `; `. A
+ * file's answer is left out, as a cell holds only its name, and the row's other answers stay.
  */
 const answersOf = (cell: string, fields: Field[]) =>
   Object.fromEntries(
     labelledOf(cell, fields).flatMap(({ item, text }) => {
-      if (!text) return [];
+      if (!text || FILE_FIELDS.has(item.type)) return [];
 
       const answer = answerOf(item, text);
       const error = typeError(item, answer);

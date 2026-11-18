@@ -77,37 +77,55 @@ export const membersByEmail = async (orgId: string, emails: Iterable<string>) =>
   return new Map(found.filter((pair) => pair !== null));
 };
 
-const isEmail = (cell: string) => z.email().safeParse(cell).success;
+/** How core finds a customer by a cell: its email, its phone, or neither. */
+const contactOf = (cell: string) => {
+  if (z.email().safeParse(cell).success) return { primaryEmail: cell.toLowerCase() };
+
+  if (/^\+?[\d\s().-]{6,}$/.test(cell)) return { primaryPhone: cell.replace(/[\s().-]/g, '') };
+
+  return null;
+};
+
+const keyOf = (cell: string) => JSON.stringify(contactOf(cell));
 
 /**
- * A batch's customers by their cells' emails, made in core when it has none, except in a
- * check: a row whose cell isn't an email, or whose customer core refused, fails on its own.
- * Returns the row's customer id for a cell.
+ * A batch's customers by their cells' emails or phones, made in core when it has none, except
+ * in a check. Returns the row's customer id for a cell. A cell with neither, such as the name an
+ * export writes for a customer with no contact, leaves a ticket's customer as it is when the
+ * row `keeps` one, and fails the row otherwise, as does a customer core refused.
  */
 export const customersOf = async (orgId: string, cells: string[], dryRun: boolean) => {
   const client = core.forOrg(orgId);
 
-  const wanted = dryRun
-    ? []
-    : [...new Set(cells.filter(isEmail).map((cell) => cell.toLowerCase()))];
+  const wanted = new Map(
+    (dryRun ? [] : cells).flatMap((cell) => {
+      const contact = contactOf(cell);
+
+      return contact ? [[keyOf(cell), contact] as const] : [];
+    }),
+  );
 
   const found = new Map(
     await Promise.all(
-      wanted.map(async (email) => {
-        const made = await client.customers.findOrCreate({ primaryEmail: email }).then(
+      [...wanted].map(async ([key, contact]) => {
+        const made = await client.customers.findOrCreate(contact).then(
           ({ customer }) => customer.id,
           (error: unknown) => (error instanceof Error ? error : new Error('Core failed')),
         );
 
-        return [email, made] as const;
+        return [key, made] as const;
       }),
     ),
   );
 
-  return (cell: string) => {
-    if (!isEmail(cell)) throw refuse(`Customer is an email address, not ${cell}`);
+  return (cell: string, keeps = false) => {
+    if (!contactOf(cell)) {
+      if (keeps) return undefined;
 
-    const id = found.get(cell.toLowerCase());
+      throw refuse(`Customer is an email or a phone, not ${cell}`);
+    }
+
+    const id = found.get(keyOf(cell));
 
     if (id instanceof Error) throw refuse(`Customer ${cell}: ${id.message}`);
 
