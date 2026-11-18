@@ -8,8 +8,10 @@ import {
   IconMessageQuestion,
   IconPlug,
   IconProgressCheck,
+  IconRobot,
   IconTag,
   IconUser,
+  IconUserShare,
   IconUsers,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
@@ -56,9 +58,36 @@ const useDateFields = (): TListFilterField[] => {
   ];
 };
 
+/** What a conversation is or isn't: read, awaiting a reply, answered by the bot, handed off. */
+const useYesNoFields = (): TListFilterField[] => {
+  const { t } = useTranslation('frontline');
+
+  return [
+    { path: 'subject.isRead', label: t('read', 'Read'), type: 'boolean', icon: IconEye },
+    {
+      path: 'subject.customerRespondedLast',
+      label: t('awaiting-reply', 'Awaiting reply'),
+      type: 'boolean',
+      icon: IconMessageQuestion,
+    },
+    {
+      path: 'subject.botReplied',
+      label: t('automation-responded', 'Automation responded'),
+      type: 'boolean',
+      icon: IconRobot,
+    },
+    {
+      path: 'subject.handedOff',
+      label: t('handed-off', 'Handed off to a person'),
+      type: 'boolean',
+      icon: IconUserShare,
+    },
+  ];
+};
+
 /**
  * Every field the inbox narrows by, as the old inbox's filters had them: channel, integration,
- * status, assignee, participant, tags, unread and awaiting reply, and its dates. The API applies
+ * status, assignee, participant, tags, unread, awaiting reply and automation state, and its dates. The API applies
  * them (`api/src/modules/inbox/conversations.ts`).
  */
 export const useInboxFields = (): TListFilterField[] => {
@@ -122,13 +151,7 @@ export const useInboxFields = (): TListFilterField[] => {
       icon: IconAt,
     },
     { path: 'subject.tagIds', label: t('tags', 'Tags'), type: 'tags', icon: IconTag },
-    { path: 'subject.isRead', label: t('read', 'Read'), type: 'boolean', icon: IconEye },
-    {
-      path: 'subject.customerRespondedLast',
-      label: t('awaiting-reply', 'Awaiting reply'),
-      type: 'boolean',
-      icon: IconMessageQuestion,
-    },
+    ...useYesNoFields(),
     ...useDateFields(),
   ];
 };
