@@ -22,7 +22,7 @@ const Failure = z.object({ message: z.string() });
  * fails with Discord's message. A form carries files; it gets longer, since its bytes go up in
  * the one request.
  */
-const rest = async (
+export const rest = async (
   token: string,
   route: `/${string}`,
   { method = 'GET', body }: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {},

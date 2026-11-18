@@ -219,7 +219,7 @@
   "disconnect": "Салгах",
   "disconnect-account-confirm": "{{name}}-г салгах уу?",
   "discord-bot": "Discord бот",
-  "discord-token-hint": "Discord-ийн developer portal дээр апп-аа нээж Bot хуудсанд токеноо шинэчлэн хуулаад ботоо сервертээ нэмнэ. Ботод ирсэн шууд мессеж, серверт ботыг дурдсан эсвэл түүнд хариулсан мессеж inbox-д ирнэ.",
+  "discord-token-hint": "Discord-ийн developer portal дээр апп-аа нээж Bot хуудсанд токеноо шинэчлэн хуулаад ботоо сервертээ нэмнэ. Ботод ирсэн шууд мессеж, серверт ботыг дурдсан мессеж inbox-д ирнэ.",
   "divider-color": "Гарчгийн зураас ба талбарын тодруулга",
   "domain": "Домэйн",
   "domain-points-to": "{{target}} руу чиглүүлнэ үү",
