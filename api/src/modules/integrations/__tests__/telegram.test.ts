@@ -215,7 +215,9 @@ describe('telegram', () => {
     asked.jobs.length = 0;
     await expect(runJob(job, 1)).rejects.toThrow('wrong file type');
     await expect(runJob(job, 2)).rejects.toThrow('wrong file type');
-    expect(calls.slice(-3).map(({ url }) => url.pathname.split('/').at(-1))).toEqual([
+    const botCalls = calls.filter(({ url }) => url.hostname === 'api.telegram.org');
+
+    expect(botCalls.slice(-3).map(({ url }) => url.pathname.split('/').at(-1))).toEqual([
       'sendMessage',
       'sendDocument',
       'sendDocument',
