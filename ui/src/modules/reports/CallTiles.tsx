@@ -11,10 +11,10 @@ export const CallSummary = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
-  const { period, query } = useCallReport('call-summary');
+  const { period, pick, query } = useCallReport('call-summary');
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <Stats>
           <Stat
@@ -58,10 +58,10 @@ export const CallSummary = () => {
 /** Incoming, outgoing and missed calls each day. */
 export const CallVolume = () => {
   const { t } = useTranslation('frontline');
-  const { period, query } = useCallReport('call-volume');
+  const { period, pick, query } = useCallReport('call-volume');
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <DayChart
           days={report.days}
@@ -80,10 +80,10 @@ export const CallVolume = () => {
 /** When calls come: by weekday and hour in the member's time zone. */
 export const CallHeatmap = () => {
   const { t } = useTranslation('frontline');
-  const { period, query } = useCallReport('call-heatmap');
+  const { period, pick, query } = useCallReport('call-heatmap');
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <Heatmap cells={report.hours} empty={t('no-calls-in-period', 'No calls in this period.')} />
       )}
@@ -95,10 +95,10 @@ export const CallHeatmap = () => {
 export const CallAgents = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
-  const { period, query } = useCallReport('call-agents');
+  const { period, pick, query } = useCallReport('call-agents');
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <MiniTable
           heads={[
@@ -123,10 +123,10 @@ export const CallQueues = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
-  const { period, query } = useCallReport('call-queues');
+  const { period, pick, query } = useCallReport('call-queues');
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <MiniTable
           heads={[
@@ -157,10 +157,10 @@ export const CallQueues = () => {
 export const CallNumbers = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
-  const { period, query } = useCallReport('call-numbers');
+  const { period, pick, query } = useCallReport('call-numbers');
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <MiniTable
           heads={[

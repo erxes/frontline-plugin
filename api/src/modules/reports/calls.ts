@@ -11,12 +11,13 @@ import { membership } from '../channels/access.ts';
 import { seenBy } from '../inbox/shared.ts';
 import {
   averageSeconds,
+  ChannelRangeInput,
   Count,
   countWhere,
   dayOf,
   everyDay,
+  inChannel,
   type Range,
-  RangeInput,
   secondsBetween,
   TOP,
   within,
@@ -187,11 +188,11 @@ const breakdowns = async (tx: Tx, theirs: SQL, range: Range) => {
 };
 
 /**
- * The calls of the member's channels over a period: volume, answers, waits and talk time, by
- * day and by hour of the week, and the busiest agents and numbers.
+ * The calls of the member's channels, or of one of them, over a period: volume, answers, waits
+ * and talk time, by day and by hour of the week, and the busiest agents and numbers.
  */
 export const callReport = reads(PERMISSIONS.callView)
-  .input(RangeInput)
+  .input(ChannelRangeInput)
   .output(CallReport)
   .handler(async ({ input: range, context: { tx, member } }) => {
     /** The member's calls in the period. */
@@ -202,7 +203,7 @@ export const callReport = reads(PERMISSIONS.callView)
         .from(calls)
         .innerJoin(conversations, eq(conversations.id, calls.conversationId))
         .leftJoin(channelMembers, membership(member, conversations.channelId))
-        .where(and(seenBy(member), within(calls.startedAt, range))),
+        .where(and(seenBy(member), inChannel(range), within(calls.startedAt, range))),
     );
 
     const [totals] = await tx

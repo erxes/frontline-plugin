@@ -3,8 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { MemberLine } from '~/shared/Person.tsx';
 import { useTicketReport } from './queries.ts';
 import { useTicketLinks } from './ticketLinks.ts';
-import { TicketTile } from './TicketTiles.tsx';
-import { Count, MiniTable, shareOf } from './Tile.tsx';
+import { Count, MiniTable, shareOf, Tile } from './Tile.tsx';
 
 /**
  * How the period's new tickets keep their SLA, per clock: met and missed in time, overdue now,
@@ -22,7 +21,7 @@ export const TicketSla = () => {
   ] as const;
 
   return (
-    <TicketTile report={report}>
+    <Tile {...report}>
       {(data) => {
         const count = (clock: string, state: string) =>
           data.sla.find((row) => row.clock === clock && row.state === state)?.count ?? 0;
@@ -66,7 +65,7 @@ export const TicketSla = () => {
           />
         );
       }}
-    </TicketTile>
+    </Tile>
   );
 };
 
@@ -78,7 +77,7 @@ export const TicketsByAssignee = () => {
   const links = useTicketLinks(report);
 
   return (
-    <TicketTile report={report} now>
+    <Tile query={report.query} pick={report.pick}>
       {(data) => (
         <MiniTable
           heads={[t('assignee', 'Assignee'), t('tickets-unresolved', 'Open now')]}
@@ -104,6 +103,6 @@ export const TicketsByAssignee = () => {
           empty={t('no-open-tickets', 'No unresolved tickets.')}
         />
       )}
-    </TicketTile>
+    </Tile>
   );
 };

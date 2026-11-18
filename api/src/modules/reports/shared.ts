@@ -1,5 +1,6 @@
-import { and, type Column, gte, lt, type SQL, sql } from 'drizzle-orm';
+import { and, type Column, eq, gte, lt, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import { conversations } from '#/db/inbox.ts';
 
 const MAX_DAYS = 366;
 
@@ -42,6 +43,13 @@ export const RangeInput = z
   );
 
 export type Range = z.output<typeof RangeInput>;
+
+/** A period, and the one channel a report counts when `channelId` names it. */
+export const ChannelRangeInput = RangeInput.and(z.object({ channelId: z.string().optional() }));
+
+/** Whether a conversation is in the channel the report counts, or any when it names none. */
+export const inChannel = ({ channelId }: { channelId?: string }) =>
+  channelId ? eq(conversations.channelId, channelId) : undefined;
 
 /** Whether `column` falls in the period. */
 export const within = (column: Column, { from, to }: Range) =>

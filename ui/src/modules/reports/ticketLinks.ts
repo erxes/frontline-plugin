@@ -17,10 +17,10 @@ const ANY_STATE: Entry = { path: 'subject.state', op: 'in', value: ['active', 'a
  * the number counts, by whole days. Nothing links while a tile counts several pipelines, since
  * the list shows one at a time.
  */
-export const useTicketLinks = ({ period, pipeline }: ReturnType<typeof useTicketReport>) => {
+export const useTicketLinks = ({ period, pick }: ReturnType<typeof useTicketReport>) => {
   const choices = useQuery(choicesQuery).data;
   const pipelines = choices?.pipelines ?? [];
-  const pipelineId = pipeline.pipelineId ?? (pipelines.length === 1 ? pipelines[0]?.id : null);
+  const pipelineId = pick.id ?? (pipelines.length === 1 ? pipelines[0]?.id : null);
 
   const openIds = (choices?.statuses ?? [])
     .filter((status) => status.pipelineId === pipelineId && status.type < RESOLVED)

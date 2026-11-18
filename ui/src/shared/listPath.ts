@@ -17,6 +17,13 @@ export const between = (path: string, { from, to }: { from: Date; to: Date }): T
   { path, op: 'lte', value: toIsoDay(to) },
 ];
 
+/** A list narrowed to the channel `id`. */
+export const channelRule = (id: string): TConditionRule => ({
+  path: 'subject.channelId',
+  op: 'in',
+  value: [id],
+});
+
 /** The list at `path` narrowed to `rules`, as its filter bar keeps them in the address. */
 export const listPath = (path: string, ...rules: TConditionRule[]) =>
   serialize(path, { advanced: { match: 'all', rules } });

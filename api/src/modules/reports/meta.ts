@@ -7,7 +7,15 @@ import { reads } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
 import { seenBy } from '../inbox/shared.ts';
 import { COMMENT_THREAD } from '../integrations/providers/metaWebhook.ts';
-import { Count, countWhere, dayOf, everyDay, RangeInput, within } from './shared.ts';
+import {
+  ChannelRangeInput,
+  Count,
+  countWhere,
+  dayOf,
+  everyDay,
+  inChannel,
+  within,
+} from './shared.ts';
 
 const MetaReport = z.object({
   /** Messenger and Instagram direct conversations that started in the period. */
@@ -45,7 +53,7 @@ const sum = <Row>(rows: Row[], pick: (row: Row) => number) =>
  * comments under posts, in total and by day.
  */
 export const metaReport = reads(PERMISSIONS.inboxView)
-  .input(RangeInput)
+  .input(ChannelRangeInput)
   .output(MetaReport)
   .handler(async ({ input: range, context: { tx, member } }) => {
     const theirs = tx
@@ -53,7 +61,13 @@ export const metaReport = reads(PERMISSIONS.inboxView)
       .from(conversations)
       .innerJoin(integrations, eq(integrations.id, conversations.integrationId))
       .leftJoin(channelMembers, membership(member, conversations.channelId))
-      .where(and(seenBy(member), inArray(integrations.kind, ['facebook', 'instagram'])));
+      .where(
+        and(
+          seenBy(member),
+          inChannel(range),
+          inArray(integrations.kind, ['facebook', 'instagram']),
+        ),
+      );
 
     const written = and(
       inArray(messages.conversationId, theirs),

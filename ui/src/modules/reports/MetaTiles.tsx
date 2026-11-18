@@ -11,10 +11,10 @@ import { shareOf, Stat, Stats, Tile } from './Tile.tsx';
 export const MetaSummary = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
-  const { period, query } = useMetaReport('meta-summary');
+  const { period, pick, query } = useMetaReport('meta-summary');
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => {
         const messages = report.incoming + report.staff + report.bot;
 
@@ -57,10 +57,10 @@ export const MetaSummary = () => {
 /** Direct conversations started, messages and comments each day. */
 export const MetaOverTime = () => {
   const { t } = useTranslation('frontline');
-  const { period, query } = useMetaReport('meta-over-time');
+  const { period, pick, query } = useMetaReport('meta-over-time');
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <DayChart
           days={report.days}

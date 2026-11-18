@@ -7,6 +7,7 @@ import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
 import { KindIcon, useKindNames } from '~/shared/kinds.tsx';
+import { channelRule } from '~/shared/listPath.ts';
 import {
   Count,
   FilterLink,
@@ -24,13 +25,6 @@ const SHOWN = 8;
 const FILTER_FROM = 8;
 
 type Channel = InboxCounts['channels'][number];
-
-/** The inbox narrowed to the channel `id`. */
-const channelRule = (id: string): TConditionRule => ({
-  path: 'subject.channelId',
-  op: 'in',
-  value: [id],
-});
 
 /** The inbox narrowed to one kind of integration, such as `messenger`. */
 const kindRule = (kind: string): TConditionRule => ({

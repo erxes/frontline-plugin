@@ -12,11 +12,11 @@ export const ConversationSummary = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
-  const { period, query } = useConversationReport('conversation-summary');
-  const links = conversationLinks(period.range);
+  const { period, pick, query } = useConversationReport('conversation-summary');
+  const links = conversationLinks(period.range, pick.id);
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <Stats>
           <Stat
@@ -51,10 +51,10 @@ export const ConversationSummary = () => {
 /** Conversations started and resolved each day. */
 export const ConversationsOverTime = () => {
   const { t } = useTranslation('frontline');
-  const { period, query } = useConversationReport('conversations-over-time');
+  const { period, pick, query } = useConversationReport('conversations-over-time');
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <DayChart
           days={report.days}
@@ -73,11 +73,11 @@ export const ConversationsOverTime = () => {
 export const ConversationsBySource = () => {
   const { t } = useTranslation('frontline');
   const kinds = useKindNames();
-  const { period, query } = useConversationReport('conversations-by-source');
-  const links = conversationLinks(period.range);
+  const { period, pick, query } = useConversationReport('conversations-by-source');
+  const links = conversationLinks(period.range, pick.id);
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <BarList
           rows={report.sources.map(({ kind, count }) => {
@@ -101,11 +101,11 @@ export const ConversationsBySource = () => {
 /** The tags on the period's conversations, the most used first. */
 export const ConversationsByTag = () => {
   const { t } = useTranslation('frontline');
-  const { period, query } = useConversationReport('conversations-by-tag');
-  const links = conversationLinks(period.range);
+  const { period, pick, query } = useConversationReport('conversations-by-tag');
+  const links = conversationLinks(period.range, pick.id);
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <BarList
           rows={report.tags.map((tag) => ({
@@ -127,10 +127,10 @@ export const ConversationsByTag = () => {
 export const ConversationResponders = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
-  const { period, query } = useConversationReport('conversation-responders');
+  const { period, pick, query } = useConversationReport('conversation-responders');
 
   return (
-    <Tile period={period} query={query}>
+    <Tile period={period} pick={pick} query={query}>
       {(report) => (
         <MiniTable
           heads={[

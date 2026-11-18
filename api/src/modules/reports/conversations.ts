@@ -21,12 +21,13 @@ import { membership } from '../channels/access.ts';
 import { seenBy } from '../inbox/shared.ts';
 import {
   averageSeconds,
+  ChannelRangeInput,
   Count,
   countOn,
   countWhere,
   dayOf,
   everyDay,
-  RangeInput,
+  inChannel,
   secondsBetween,
   TOP,
   TagCount,
@@ -93,18 +94,18 @@ const breakdowns = async (tx: Tx, started: SQL | undefined, replied: SQL | undef
 };
 
 /**
- * The conversations of the member's channels over a period: how many started and were
- * resolved, how fast, by day, by source and tag, and who answered.
+ * The conversations of the member's channels, or of one of them, over a period: how many started
+ * and were resolved, how fast, by day, by source and tag, and who answered.
  */
 export const conversationReport = reads(PERMISSIONS.inboxView)
-  .input(RangeInput)
+  .input(ChannelRangeInput)
   .output(ConversationReport)
   .handler(async ({ input: range, context: { tx, member } }) => {
     const theirs = tx
       .select({ id: conversations.id })
       .from(conversations)
       .leftJoin(channelMembers, membership(member, conversations.channelId))
-      .where(seenBy(member));
+      .where(and(seenBy(member), inChannel(range)));
 
     const mine = inArray(conversations.id, theirs);
     const started = and(mine, within(conversations.createdAt, range));
