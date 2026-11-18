@@ -81,6 +81,25 @@ describe('facebook comments and postbacks', () => {
       body: { message: '@[asid-7] It is 120,000₮' },
     });
 
+    // A picked comment the customer deleted is answered at their latest instead.
+    const retried = fakeProviders((call) =>
+      call.url.pathname.endsWith('post-9_c1/comments')
+        ? Response.json({ error: { message: 'Object does not exist' } }, { status: 400 })
+        : { id: 'reply-sold-out' },
+    );
+
+    await owner.conversations.messages.create({
+      conversationId: threadId,
+      content: 'Blue is sold out',
+      replyToId: messages[1]?.id ?? null,
+    });
+    await runQueued();
+
+    expect(retried.map(({ url }) => url.pathname)).toEqual([
+      '/v23.0/post-9_c1/comments',
+      '/v23.0/post-9_c2/comments',
+    ]);
+
     const chatId = await conversationWith('org-fb-a', 'psid-2');
     const chat = await owner.conversations.messages.list({ conversationId: chatId });
 

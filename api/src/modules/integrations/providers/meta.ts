@@ -132,6 +132,25 @@ const withFile = async (
 };
 
 /**
+ * `send` to `target`, and again to `fallback` when Meta refuses it. A quoted message or comment
+ * may be gone, or be a button tap Meta never gave an id, and Meta, unlike Telegram and Discord,
+ * then refuses the whole reply.
+ */
+const orElse = async <Target, T>(
+  target: Target,
+  fallback: Target,
+  send: (to: Target) => Promise<T>,
+) => {
+  try {
+    return await send(target);
+  } catch (error) {
+    if (!(error instanceof MetaError) || target === fallback) throw error;
+
+    return send(fallback);
+  }
+};
+
+/**
  * Sends the text, then each attachment as a message of its own, as Messenger takes them. Each
  * part is recorded as it goes, so an attempt after a failed attachment sends only what is left
  * and the customer never gets the text twice.
@@ -150,31 +169,31 @@ const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessag
   // Messenger shows the messages in the order they reach it; null is the text.
   const parts = [...(message.text ? [null] : []), ...message.attachments];
 
-  // The first one quotes the message the member answers.
-  const quote = (part: (typeof parts)[number]) =>
-    part === parts[0] && message.quotedId ? { reply_to: { mid: message.quotedId } } : {};
+  const send = async (file: (typeof parts)[number], mid: string | null) => {
+    const quote = mid ? { reply_to: { mid } } : {};
 
-  const [first] = await sendInParts(
-    message.parts,
-    parts,
-    async (file) =>
-      Sent.parse(
-        await graph('me/messages', secret.pageToken, {
-          method: 'POST',
-          body: file
-            ? await withFile(row.orgId, file, 'filedata', {
-                ...fields,
-                message: {
-                  ...quote(file),
-                  attachment: {
-                    type: file.type?.startsWith('image/') ? 'image' : 'file',
-                    payload: { is_reusable: false },
-                  },
+    return Sent.parse(
+      await graph('me/messages', secret.pageToken, {
+        method: 'POST',
+        body: file
+          ? await withFile(row.orgId, file, 'filedata', {
+              ...fields,
+              message: {
+                ...quote,
+                attachment: {
+                  type: file.type?.startsWith('image/') ? 'image' : 'file',
+                  payload: { is_reusable: false },
                 },
-              })
-            : { ...fields, message: { ...quote(null), text: message.text } },
-        }),
-      ).message_id,
+              },
+            })
+          : { ...fields, message: { ...quote, text: message.text } },
+      }),
+    ).message_id;
+  };
+
+  // The first one quotes the message the member answers.
+  const [first] = await sendInParts(message.parts, parts, (file) =>
+    file === parts[0] ? orElse(message.quotedId, null, (mid) => send(file, mid)) : send(file, null),
   );
 
   if (!first) throw new MetaError('Nothing to send');
@@ -183,39 +202,42 @@ const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessag
 };
 
 /**
- * Answers the comment the member picked, or else the customer's latest in the thread, under it on
- * the post. Facebook mentions
- * them and takes one attachment; Instagram takes text only.
+ * Answers the comment the member picked under it on the post, or the customer's latest in the
+ * thread when none is picked or the picked one is gone. Facebook mentions them and takes one
+ * attachment; Instagram takes text only.
  */
 const replyToComment = async (
   provider: ProviderName,
   { row, secret }: MetaAccount,
   message: OutboundMessage,
 ) => {
-  const commentId = message.quotedId ?? message.replyTo?.externalId;
+  const latest = message.replyTo?.externalId;
+  const picked = message.quotedId ?? latest;
 
-  if (!commentId) throw new MetaError('No comment to answer');
+  if (!picked) throw new MetaError('No comment to answer');
 
-  if (provider === 'instagram') {
-    if (message.attachments.length) throw new MetaError('Instagram comment replies take text only');
-
-    return Created.parse(
-      await graph(`${commentId}/replies`, secret.pageToken, {
-        method: 'POST',
-        body: { message: message.text },
-      }),
-    ).id;
-  }
+  if (provider === 'instagram' && message.attachments.length)
+    throw new MetaError('Instagram comment replies take text only');
 
   const [file] = message.attachments;
   const fields = { message: `@[${message.to}] ${message.text}` };
 
-  return Created.parse(
-    await graph(`${commentId}/comments`, secret.pageToken, {
-      method: 'POST',
-      body: file ? await withFile(row.orgId, file, 'source', fields) : fields,
-    }),
-  ).id;
+  return orElse(
+    picked,
+    latest ?? picked,
+    async (commentId) =>
+      Created.parse(
+        provider === 'instagram'
+          ? await graph(`${commentId}/replies`, secret.pageToken, {
+              method: 'POST',
+              body: { message: message.text },
+            })
+          : await graph(`${commentId}/comments`, secret.pageToken, {
+              method: 'POST',
+              body: file ? await withFile(row.orgId, file, 'source', fields) : fields,
+            }),
+      ).id,
+  );
 };
 
 const sendThrough = (provider: ProviderName) => (account: MetaAccount, message: OutboundMessage) =>

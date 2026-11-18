@@ -120,10 +120,10 @@ export class TelegramRefused extends Error {}
 
 const why = (error: unknown) => (error instanceof Error ? error.message : 'Telegram failed');
 
-/** Has Telegram post the bot's updates to its address under `key`, signed with `secret`. */
 /** A message's id in its chat, from the `chat:message` id the inbox keeps. */
 const messageIdOf = (externalId: string) => Number(externalId.split(':').at(-1));
 
+/** Has Telegram post the bot's updates to its address under `key`, signed with `secret`. */
 const setWebhook = (token: string, key: string, secret: string) =>
   call(token, 'setWebhook', z.boolean(), {
     url: `${config.publicUrl}/api/public/webhooks/telegram/${key}`,
@@ -175,6 +175,7 @@ export const telegram = defineProvider({
       form.set(field, file);
 
       if (captioned && file === files[0] && message.text) form.set('caption', message.text);
+
       if (quote) form.set('reply_parameters', JSON.stringify(quote));
 
       const sent = await call(secret.token, method, Message, form);
