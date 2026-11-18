@@ -41,8 +41,28 @@ describe('mail', () => {
           address: 'gone@example.mn',
           reason: 'bounce',
           detail: 'smtp; 550 5.1.1 <gone@example.mn>: Recipient address rejected: User unknown',
+          // The copy it returns names the mail it is about.
+          about: '<sent-5@shop.mn>',
         },
       ],
+    });
+  });
+
+  it('reads the id frontline sent from an inline copy whose Message-ID a relay replaced', async () => {
+    // A long domain folds the header onto a second line.
+    const relayed = fixture('mail-bounce.eml')
+      .toString()
+      .replace(
+        'Content-Type: message/rfc822\n',
+        'Content-Type: message/rfc822\nContent-Disposition: inline\n',
+      )
+      .replace(
+        'Message-ID: <sent-5@shop.mn>',
+        'Message-ID: <0100abc@email.amazonses.com>\nX-Frontline-Message-ID:\n <sent-5@shop.mn>',
+      );
+
+    await expect(readMail(relayed, 'support@shop.mn')).resolves.toMatchObject({
+      suppressed: [{ address: 'gone@example.mn', about: '<sent-5@shop.mn>' }],
     });
   });
 
@@ -76,7 +96,14 @@ describe('mail', () => {
 
   it('reads a spam report as the recipient who sent it', async () => {
     await expect(readMail(fixture('mail-complaint.eml'), 'support@shop.mn')).resolves.toEqual({
-      suppressed: [{ address: 'annoyed@example.mn', reason: 'complaint', detail: 'abuse' }],
+      suppressed: [
+        {
+          address: 'annoyed@example.mn',
+          reason: 'complaint',
+          detail: 'abuse',
+          about: '<offer-9@shop.mn>',
+        },
+      ],
     });
   });
 });

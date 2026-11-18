@@ -1,0 +1,1 @@
+CREATE INDEX "frontline_messages_org_external_idx" ON "frontline_messages" USING btree ("org_id","external_id") WHERE "frontline_messages"."external_id" is not null;

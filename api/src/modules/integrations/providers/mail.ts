@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { createTransport } from 'nodemailer';
@@ -6,7 +7,7 @@ import { withOrg } from '#/db/client.ts';
 import { logger } from '#/logger.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { defineProvider, type InboundMessage } from '../provider.ts';
-import { type Suppressed, suppressedAmong } from './mailSuppressions.ts';
+import { type Reported, type Suppressed, suppressedAmong } from './mailSuppressions.ts';
 
 export const Server = z.object({
   host: z.string().trim().min(1).max(255),
@@ -78,15 +79,23 @@ const suppressedBy = (reportType: unknown, text: string): Suppressed[] =>
     const recipient = fields.get('final-recipient');
     const reported = fields.get('original-rcpt-to');
 
+    // A mail to a forwarding address reports where it ended up as the final recipient, and the
+    // address it was sent to as the original one; `suppress` keeps the one the team mailed.
+    const recipients = [
+      ...new Set(
+        [recipient, fields.get('original-recipient')].flatMap((value) =>
+          value ? [reportAddress(value)] : [],
+        ),
+      ),
+    ];
+
     if (reportType === 'delivery-status' && recipient)
       return fields.get('action') === 'failed' && fields.get('status')?.startsWith('5')
-        ? [
-            {
-              address: reportAddress(recipient),
-              reason: 'bounce',
-              detail: fields.get('diagnostic-code') ?? fields.get('status') ?? null,
-            },
-          ]
+        ? recipients.map((address) => ({
+            address,
+            reason: 'bounce',
+            detail: fields.get('diagnostic-code') ?? fields.get('status') ?? null,
+          }))
         : [];
 
     if (reportType === 'feedback-report' && reported)
@@ -101,11 +110,43 @@ const suppressedBy = (reportType: unknown, text: string): Suppressed[] =>
     return [];
   });
 
+/**
+ * The header every mail frontline sends carries its Message-ID in, since a relay such as SES
+ * replaces the Message-ID itself and a report then returns the relay's.
+ */
+const SENT_ID_HEADER = 'X-Frontline-Message-ID';
+
+/** A new Message-ID for a mail `address` sends, on its domain. */
+export const newMessageId = (address: string) =>
+  `<${randomUUID()}@${address.split('@').at(-1) ?? 'localhost'}>`;
+
+/** The Message-ID a mail goes out with, and the header that keeps it through a relay. */
+const sentId = (messageId: string) => ({ messageId, headers: { [SENT_ID_HEADER]: messageId } });
+
+/** The first id a header line named `header` gives in `parts`, folded onto the next line or not. */
+const headerIn = (parts: string[], header: string) =>
+  parts
+    .map(
+      (part) =>
+        new RegExp(`^${header}:[ \\t]*(?:\\r?\\n[ \\t]+)?(<[^>\\s]+>)`, 'im').exec(part)?.[1],
+    )
+    .find((id) => id !== undefined);
+
+/** The address a mail thread is with: its id starts with it. */
+const threadAddress = (threadId: string) => threadId.split(' ')[0] ?? threadId;
+
+/** The Message-ID of the mail a report is about, as frontline sent it. */
+const reportedMessageId = (parts: string[]) =>
+  headerIn(parts, SENT_ID_HEADER) ?? headerIn(parts, 'message-id') ?? null;
+
+/** Whether a report's part is the copy of the mail it is about. */
+const isCopy = (part: { contentType: string }) => part.contentType === 'message/rfc822';
+
 /** A parsed `Content-Type` header. */
 const ContentType = z.object({ value: z.string(), params: z.record(z.string(), z.string()) });
 
 /** What one fetched mail is to frontline: a customer's message, or a report on what it sent. */
-type ReadMail = { message: InboundMessage } | { suppressed: Suppressed[] };
+type ReadMail = { message: InboundMessage } | { suppressed: Reported[] };
 
 /**
  * One mail as frontline reads it, or null for one without a sender or id, or one the mailbox sent
@@ -121,19 +162,27 @@ export const readMail = async (
   const mail = await simpleParser(source);
   const type = ContentType.safeParse(mail.headers.get('content-type')).data;
 
-  // mailparser folds some report parts into the text and keeps others as attachments.
-  if (type?.value === 'multipart/report')
+  // mailparser folds some report parts into the text and keeps others as attachments. The copy of
+  // the mail a report returns names the Message-ID it is about, which `suppress` checks. Read
+  // whole, an inline copy would fold into the text without its headers.
+  if (type?.value === 'multipart/report') {
+    const report = await simpleParser(source, { ignoreEmbedded: true });
+    const copies = report.attachments.filter(isCopy).map((part) => part.content.toString());
+
+    const fields = [
+      report.text ?? '',
+      ...report.attachments.filter((part) => !isCopy(part)).map((part) => part.content.toString()),
+    ];
+
+    const about = reportedMessageId([...copies, ...fields]);
+
     return {
-      suppressed: suppressedBy(
-        type.params['report-type'],
-        [
-          mail.text ?? '',
-          ...mail.attachments
-            .filter((part) => part.contentType !== 'message/rfc822')
-            .map((part) => part.content.toString()),
-        ].join('\n\n'),
-      ),
+      suppressed: suppressedBy(type.params['report-type'], fields.join('\n\n')).map((row) => ({
+        ...row,
+        about,
+      })),
     };
+  }
 
   const from = mail.from?.value[0];
   const sender = from?.address?.toLowerCase();
@@ -217,7 +266,7 @@ export const pullMail = async (
         };
 
       const messages: { uid: number; message: InboundMessage }[] = [];
-      const suppressed: Suppressed[] = [];
+      const suppressed: Reported[] = [];
       // `n:*` names the newest mail even when its uid is below n, so only higher uids count.
       const found = await client.search({ uid: `${state.lastUid + 1}:*` }, { uid: true });
 
@@ -301,8 +350,11 @@ export const mail = defineProvider({
   Config,
   Secret,
   check: async ({ config, secret }) => checkMail(config, secret),
+  // A mail goes to the address its thread is with, which a customer with two addresses needs.
   send: async ({ config, secret, row }, message) => {
-    await checkSuppressed(row.orgId, message.to);
+    const to = threadAddress(message.threadId);
+
+    await checkSuppressed(row.orgId, to);
 
     // A mail that starts a thread brings its own subject and Message-ID.
     const started = message.replyTo
@@ -326,11 +378,13 @@ export const mail = defineProvider({
       }),
     );
 
-    const sent = await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
+    const messageId = started?.root ?? newMessageId(row.externalId);
+
+    await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
       from: { name: row.name, address: row.externalId },
-      to: message.to,
+      to,
       subject: started ? (started.subject ?? '') : replySubject(subject),
-      messageId: started?.root,
+      ...sentId(messageId),
       text: message.text,
       html: message.html ?? undefined,
       inReplyTo: answered,
@@ -338,11 +392,13 @@ export const mail = defineProvider({
       attachments,
     });
 
-    return sent.messageId;
+    return messageId;
   },
   // RFC 9078: a reply whose one part, marked `reaction`, holds the team's emojis now; none
   // takes them all back.
-  react: async ({ config, secret, row }, { to, message, emojis }) => {
+  react: async ({ config, secret, row }, { threadId, message, emojis }) => {
+    const to = threadAddress(threadId);
+
     await checkSuppressed(row.orgId, to);
 
     const { subject = '', root } = MailData.safeParse(message.providerData ?? {}).data ?? {};

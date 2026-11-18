@@ -214,16 +214,44 @@ describe('mail', () => {
     const integration = await mailChannel('org-mail-b');
     const mail = { integrationId: integration.id, subject: 'Order', content: 'Shipped.' };
 
-    const { messageId, conversationId } = await owner.integrations.mail.compose({
+    const { conversationId } = await owner.integrations.mail.compose({
       ...mail,
       to: 'gone@example.mn',
     });
 
-    // The report arrives before the queued mail goes out: it is held, and fails on its last try.
-    mailbox.inbox.push(fixture('mail-bounce.eml'));
-    await sync('org-mail-b');
+    await runQueued();
+
+    const [delivered] = mailbox.sent.splice(0);
+
+    const sentId = delivered?.messageId ?? '';
+
+    expect(delivered?.to).toBe('gone@example.mn');
+    expect(sentId).toMatch(/^<.+@shop\.mn>$/);
+    // A relay such as SES rewrites the Message-ID, so a header keeps it.
+    expect(delivered?.headers).toEqual({ 'X-Frontline-Message-ID': sentId });
+
+    // A reply queued before the report arrives.
+    const { id: messageId } = await owner.conversations.messages.create({
+      conversationId,
+      content: 'Did it arrive?',
+    });
 
     const [queued] = asked.jobs.splice(0);
+
+    // Anyone can mail the mailbox a report: one about a mail the team never sent, or about a sent
+    // mail but naming another recipient, changes nothing.
+    mailbox.inbox.push(
+      fixture('mail-bounce.eml'),
+      fixture('mail-bounce.eml')
+        .replace('<sent-5@shop.mn>', sentId)
+        .replaceAll(/gone@example\.mn/gi, 'saraa@example.mn'),
+    );
+    await sync('org-mail-b');
+    expect((await owner.integrations.mail.suppressions.list({})).suppressions).toEqual([]);
+
+    // The report about the mail that went out holds the reply, which fails on its last try.
+    mailbox.inbox.push(fixture('mail-bounce.eml').replace('<sent-5@shop.mn>', sentId));
+    await sync('org-mail-b');
 
     const job = {
       orgId: 'org-mail-b',
@@ -261,9 +289,11 @@ describe('mail', () => {
     await owner.integrations.mail.suppressions.remove({ ids: suppressions.map(({ id }) => id) });
 
     // A failed mail is sent again on request.
-    const [failed] = (await owner.conversations.messages.list({ conversationId })).messages;
+    const { messages: thread } = await owner.conversations.messages.list({ conversationId });
 
-    expect(failed).toMatchObject({ id: messageId, deliveryStatus: 'failed' });
+    expect(thread.find((message) => message.id === messageId)).toMatchObject({
+      deliveryStatus: 'failed',
+    });
     await expect(owner.conversations.messages.retry({ id: messageId })).resolves.toMatchObject({
       deliveryStatus: 'queued',
     });
@@ -272,6 +302,8 @@ describe('mail', () => {
     });
     await runQueued();
 
-    expect(mailbox.sent.splice(0)).toMatchObject([{ to: 'gone@example.mn', subject: 'Order' }]);
+    expect(mailbox.sent.splice(0)).toMatchObject([
+      { to: 'gone@example.mn', subject: 'Re: Order', text: 'Did it arrive?' },
+    ]);
   });
 });
