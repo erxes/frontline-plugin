@@ -1,4 +1,4 @@
-import { confirmDelete, expect, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
+import { confirmDelete, expect, recordPath, recordPanel, test, unique } from './fixtures.ts';
 
 const CHANNELS = '/frontline/settings/channels';
 
@@ -10,7 +10,7 @@ test("a channel admin writes, edits and deletes the channel's response templates
   const teammate = await newMember(['frontline.channel.view']);
   const panel = recordPanel(page);
 
-  await page.goto(newRecordPath(CHANNELS, 'frontline:channel'));
+  await page.goto(recordPath(CHANNELS, 'frontline:channel'));
   await panel.getByLabel('Name').fill(channel);
   await panel.getByPlaceholder('Search members').fill(teammate.fullName);
   await panel.getByRole('option', { name: teammate.fullName }).click();

@@ -33,9 +33,9 @@ export const unique = () => randomBytes(3).toString('hex');
 /** Core's side panel, where records open and new ones are drafted. */
 export const recordPanel = (page: Page) => page.locator('aside[data-record-side-panel]');
 
-/** A list page with a new record of `contentType` drafted in core's side panel. */
-export const newRecordPath = (list: string, contentType: string) =>
-  `${list}?${new URLSearchParams({ panel: `/detail/${contentType}/new` }).toString()}`;
+/** A list page with record `id` of `contentType` open in core's side panel, or a new one drafted. */
+export const recordPath = (list: string, contentType: string, id = 'new') =>
+  `${list}?${new URLSearchParams({ panel: `/detail/${contentType}/${id}` }).toString()}`;
 
 /** Types `delete` into the confirm dialog and confirms. */
 export const confirmDelete = async (page: Page) => {
@@ -50,7 +50,7 @@ export const createChannel = async (page: Page, memberName?: string) => {
   const channel = `Support ${unique()}`;
   const panel = recordPanel(page);
 
-  await page.goto(newRecordPath('/frontline/settings/channels', 'frontline:channel'));
+  await page.goto(recordPath('/frontline/settings/channels', 'frontline:channel'));
   await panel.getByLabel('Name').fill(channel);
 
   if (memberName) {
@@ -240,6 +240,16 @@ export const knowledgeBase = async (rpc: Rpc, title: string) => {
   await create('articles', { ...article, categoryId: parentId, status: 'publish' });
 
   return topicId;
+};
+
+/** A channel with one pipeline, made through the API, by name and id. */
+export const pipelineIn = async (rpc: Rpc) => {
+  const channel = { name: `Support ${unique()}` };
+  const { id: channelId } = await rpc('channels/create', channel, Id);
+  const pipeline = { channelId, name: `Returns ${unique()}` };
+  const { id } = await rpc('pipelines/create', pipeline, Id);
+
+  return { channel: channel.name, channelId, name: pipeline.name, id };
 };
 
 const Messenger = z.object({ publicKey: z.string() });
