@@ -34,7 +34,11 @@ describe('channels', () => {
     });
     await expect(
       owner.channels.update({ id: support.id, name: 'Help', description: 'Customer help' }),
-    ).resolves.toMatchObject({ name: 'Help', description: 'Customer help', icon: 'IconHeadphones' });
+    ).resolves.toMatchObject({
+      name: 'Help',
+      description: 'Customer help',
+      icon: 'IconHeadphones',
+    });
     await expect(owner.channels.remove({ ids: [support.id] })).resolves.toEqual({
       ids: [support.id],
     });
