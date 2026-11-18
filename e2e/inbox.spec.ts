@@ -10,6 +10,7 @@ import {
   openMessenger,
   OWNER,
   pick,
+  recordPanel,
   test,
   unique,
   visitorOf,
@@ -135,6 +136,12 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   const settingsUrl = page.url();
   const panel = recordPanel(page);
 
+  // The channel's panel lists the messenger with a link to its settings.
+  await page.goto('/frontline/settings/channels');
+  await page.getByText(channel, { exact: true }).click();
+  await panel.getByRole('link', { name: /^Settings of Website / }).click();
+  await expect(page).toHaveURL(settingsUrl);
+
   // Archived, it takes no visitors until an admin unarchives it.
   await page.goto(`${INBOX}?panel=/detail/frontline:integration/${settingsUrl.split('/').pop()}`);
   await panel.getByRole('button', { name: 'Integration actions' }).click();
@@ -144,7 +151,7 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await page.getByRole('option', { name: 'Unarchive' }).click();
   await expect(panel.getByText('Active', { exact: true })).toBeVisible();
 
-  // The panel's Settings row leads back to the settings page.
+  // The messenger's own panel leads back to the settings page too.
   await panel.getByRole('link', { name: 'Look, hours and install code' }).click();
   await expect(page).toHaveURL(settingsUrl);
   await expect(page.getByRole('textbox', { name: 'Welcome message' })).toHaveValue(

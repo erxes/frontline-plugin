@@ -16,11 +16,14 @@ export const useMessengerSettings = (id: string) =>
 export const messengerPath = (id: string) =>
   `/${PLUGIN}/inbox/messengers/${encodeURIComponent(id)}`;
 
-/** Ready-made colour pairs for the launcher and header, as the old messenger offered them. */
+/**
+ * Ready-made colour pairs for the launcher and header, as the old messenger offered them. Each
+ * reads at 4.5:1 or more, the contrast small text needs.
+ */
 export const COLOR_THEMES = [
   { name: 'Indigo', color: '#4F46E5', textColor: '#FFFFFF' },
-  { name: 'Blue', color: '#3B82F6', textColor: '#FFFFFF' },
-  { name: 'Teal', color: '#0D9488', textColor: '#FFFFFF' },
+  { name: 'Blue', color: '#2563EB', textColor: '#FFFFFF' },
+  { name: 'Teal', color: '#0F766E', textColor: '#FFFFFF' },
   { name: 'Rose', color: '#E11D48', textColor: '#FFFFFF' },
   { name: 'Amber', color: '#F59E0B', textColor: '#111827' },
   { name: 'Slate', color: '#1E293B', textColor: '#FFFFFF' },

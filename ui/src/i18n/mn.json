@@ -608,6 +608,7 @@
   "messenger-bot-menu": "Цэс",
   "messenger-channel-first": "Мессенжер нэмэхийн тулд сувгийн админ байх хэрэгтэй.",
   "messenger-color": "Өнгө",
+  "messenger-contrast-low": "Энэ өнгөн дээрх текстийн ялгарал {{ratio}}:1 байна. Зочид амархан уншихад {{needed}}:1 хэрэгтэй.",
   "messenger-day": "Өдөр",
   "messenger-days": "Нэг өдөр",
   "messenger-from": "Эхлэх",

@@ -156,7 +156,7 @@ describe('surveys', () => {
       config: {},
     });
 
-    const token = await visitorOf(publicKey ?? '');
+    const token = await visitorOf(publicKey);
 
     const { conversationId } = z
       .object({ conversationId: z.string() })
@@ -230,7 +230,7 @@ describe('surveys', () => {
     });
 
     // Another visitor can't read this one's survey.
-    const stranger = await visitorOf(publicKey ?? '');
+    const stranger = await visitorOf(publicKey);
 
     expect((await messenger.get(`/surveys/${sent.id}`, stranger)).status).toBe(404);
   });

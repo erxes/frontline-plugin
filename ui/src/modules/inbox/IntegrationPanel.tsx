@@ -28,7 +28,7 @@ import {
 } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { messengerPath } from '@/messenger/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { CHANNEL_TYPE } from '~/plugin.ts';
@@ -51,13 +51,12 @@ export const IntegrationTitle = ({ contentId }: TRecordSlotProps) => {
 };
 
 /**
- * The header's menu: a messenger's settings page, and for its channel's admins, archiving it,
- * moving it to another channel, or deleting it with its conversations. An archived integration
- * takes no new messages and leaves the inbox's pickers, as the old plugin's did.
+ * The header's menu, for its channel's admins: archiving it, moving it to another channel, or
+ * deleting it with its conversations. An archived integration takes no new messages and leaves
+ * the inbox's pickers, as the old plugin's did.
  */
 export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
-  const navigate = useNavigate();
   const integration = useIntegration(contentId).data;
   const { confirm } = useConfirm();
   const [moving, setMoving] = useState(false);
@@ -65,50 +64,34 @@ export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
   const remove = useMutation(orpc.integrations.remove.mutationOptions(change));
   const update = useMutation(orpc.integrations.update.mutationOptions(change));
 
-  if (!integration) return null;
+  if (!integration?.canManage) return null;
 
-  const settings =
-    integration.kind === 'messenger'
-      ? [
-          {
-            value: 'settings',
-            icon: <IconSettings />,
-            label: t('messenger-settings', 'Messenger settings'),
-            onSelect: () => void navigate(messengerPath(integration.id)),
-          },
-        ]
-      : [];
-
-  const manage = integration.canManage
-    ? [
-        {
-          value: 'archive',
-          icon: integration.isActive ? <IconArchive /> : <IconRestore />,
-          label: integration.isActive ? t('archive', 'Archive') : t('unarchive', 'Unarchive'),
-          onSelect: () => update.mutate({ id: integration.id, isActive: !integration.isActive }),
-        },
-        {
-          value: 'move',
-          icon: <IconArrowsExchange />,
-          label: t('move-to-channel', 'Move to channel'),
-          onSelect: () => setMoving(true),
-        },
-        {
-          value: 'delete',
-          icon: <IconTrash />,
-          label: t('delete', 'Delete'),
-          onSelect: () =>
-            void confirm({
-              message: t(
-                'delete-integration-confirm',
-                'Delete this integration and its conversations?',
-              ),
-            }).then(() => remove.mutate({ id: contentId })),
-        },
-      ]
-    : [];
-
-  if (settings.length + manage.length === 0) return null;
+  const actions = [
+    {
+      value: 'archive',
+      icon: integration.isActive ? <IconArchive /> : <IconRestore />,
+      label: integration.isActive ? t('archive', 'Archive') : t('unarchive', 'Unarchive'),
+      onSelect: () => update.mutate({ id: integration.id, isActive: !integration.isActive }),
+    },
+    {
+      value: 'move',
+      icon: <IconArrowsExchange />,
+      label: t('move-to-channel', 'Move to channel'),
+      onSelect: () => setMoving(true),
+    },
+    {
+      value: 'delete',
+      icon: <IconTrash />,
+      label: t('delete', 'Delete'),
+      onSelect: () =>
+        void confirm({
+          message: t(
+            'delete-integration-confirm',
+            'Delete this integration and its conversations?',
+          ),
+        }).then(() => remove.mutate({ id: contentId })),
+    },
+  ];
 
   return (
     <>
@@ -122,7 +105,7 @@ export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
             <IconDots />
           </Button>
         }
-        actions={[...settings, ...manage]}
+        actions={actions}
       />
       {moving && (
         <MoveToChannelDialog
@@ -196,7 +179,7 @@ const Fields = ({ integration }: { integration: Integration }) => {
           </Button>
         </PanelField>
       )}
-      {messenger && integration.publicKey && (
+      {messenger && (
         <PanelField icon={IconKey} label={t('messenger-key', 'Messenger key')} cell={false}>
           <div className="min-w-0 px-2">
             <CopyText value={integration.publicKey}>
