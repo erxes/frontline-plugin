@@ -76,7 +76,10 @@ export const FormScreens = ({ form, fields }: { form: Form; fields: FormField[] 
           <FormButton form={form} label={form.calloutButtonText || t('form-start', 'Start')} />
         </Message>
       )}
-      {screen === 'form' && <FormPreview form={form} fields={fields} />}
+      {/* Hidden rather than gone, so the answers tried in it are there on the way back. */}
+      <div hidden={screen !== 'form'}>
+        <FormPreview form={form} fields={fields} />
+      </div>
       {screen === 'thanks' && (
         <Message
           image={form.thankImage}
