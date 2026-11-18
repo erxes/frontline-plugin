@@ -1,4 +1,6 @@
-// Regenerate into .scratch, so a failed check never changes a committed artifact.
+// Committed files in the form their tools give: mn.json's keys sorted, and the migrations as
+// drizzle generates them, regenerated into .scratch so a failed check never changes one.
+// `--fix` sorts mn.json.
 import { execFileSync } from 'node:child_process';
 import {
   cpSync,
@@ -10,8 +12,34 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
+import { z } from 'zod';
 
 const root = resolve(import.meta.dirname, '..');
+
+// Sorted, a new key lands among its neighbours instead of where every branch appends, at the end.
+const mnFile = join(root, 'ui/src/i18n/mn.json');
+const text = readFileSync(mnFile, 'utf8');
+const mn = z.record(z.string(), z.string()).parse(JSON.parse(text));
+const keys = Object.keys(mn).toSorted();
+
+// JSON.parse keeps a repeated key's last value, so count the file's own entries.
+if (text.match(/^ {2}"/gm)?.length !== keys.length)
+  throw new Error('ui/src/i18n/mn.json repeats a key. Keep one of its values.');
+
+// Written as text: an object would put integer-like keys first.
+const sorted = `{\n${keys.map((key) => `  ${JSON.stringify(key)}: ${JSON.stringify(mn[key])}`).join(',\n')}\n}\n`;
+
+if (process.argv.includes('--fix')) {
+  writeFileSync(mnFile, sorted);
+  process.exit(0);
+}
+
+const lines = sorted.split('\n');
+const moved = text.split('\n').findIndex((line, index) => line !== lines[index]);
+
+if (moved !== -1)
+  throw new Error(`ui/src/i18n/mn.json is out of order at line ${moved + 1}. Run vp run fix.`);
+
 const scratch = join(root, '.scratch');
 
 mkdirSync(scratch, { recursive: true });

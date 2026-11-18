@@ -11,6 +11,7 @@ import { JOB_RUNS } from '#/jobs.ts';
 import { logger, requestLogger } from '#/logger.ts';
 import { manifest } from '#/manifest.ts';
 import { fail, verifiedBy } from '#/modules/fail.ts';
+import { visitorIpLimit } from '#/modules/limits.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
 import { formChoices } from '#/modules/forms/links.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
@@ -92,15 +93,19 @@ export const createApp = () => {
   const app = express();
 
   app.disable('x-powered-by');
+  app.set('trust proxy', config.trustProxy);
   app.use(requestLogger);
   // Providers post webhooks signed out, from their own servers.
   app.use('/api/public/webhooks', webhookRoutes());
-  // What websites load and call signed out answers any origin: the messenger, forms (found by
-  // the key frontline gave the organisation), a help center and its knowledge base embed (by the
-  // key or domain frontline issued), and at `/widget` the embeds' scripts.
+  // What websites load and call signed out answers any origin, and counts against the visitor's
+  // IP: the messenger, forms (found by the key frontline gave the organisation), a help center
+  // and its knowledge base embed (by the key or domain frontline issued). Websites embed them
+  // anywhere, and a token in a header, never a cookie, is the visitor. At `/widget`, the embeds'
+  // scripts.
+  app.use('/api/public', cors({ maxAge: 600 }), visitorIpLimit);
   app.use('/api/public/messenger', messengerRoutes());
-  app.use('/api/public', cors({ maxAge: 600 }), publicRouter());
-  app.use('/api/public/:key', cors({ maxAge: 600 }), formsPublicRouter);
+  app.use('/api/public', publicRouter());
+  app.use('/api/public/:key', formsPublicRouter);
 
   if (config.widgetDir)
     app.use(

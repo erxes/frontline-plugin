@@ -89,14 +89,16 @@ export const useFormFields = (formId: string) =>
 
 /**
  * Puts a step's fields in a new order at once, those dragged in from another step included, then
- * saves it in one call; a refusal shows and the saved order comes back.
+ * saves it in one call; a refusal shows and the saved order comes back. A form's saves run one at
+ * a time in drop order, so a quick move back reaches the server last.
  */
 export const useArrangeFields = (formId: string) => {
   const queryKey = orpc.forms.fields.list.queryKey({ input: { formId } });
 
   const arrange = useMutation(
-    orpc.forms.fields.arrange.mutationOptions(
-      useOptimistic(
+    orpc.forms.fields.arrange.mutationOptions({
+      scope: { id: `frontline-arrange-${formId}` },
+      ...useOptimistic(
         [queryKey, orpc.forms.key()],
         (queryClient, { pageNumber, ids }: { formId: string; pageNumber: number; ids: string[] }) =>
           queryClient.setQueryData(queryKey, (fields) =>
@@ -109,7 +111,7 @@ export const useArrangeFields = (formId: string) => {
               .toSorted((a, b) => a.pageNumber - b.pageNumber || a.order - b.order),
           ),
       ),
-    ),
+    }),
   );
 
   return (pageNumber: number, ids: string[]) => arrange.mutate({ formId, pageNumber, ids });

@@ -52,6 +52,16 @@ export const uniqueViolation = (error: unknown) => {
 };
 
 /**
+ * Whether a failed write is Postgres refusing the data itself (class 22), such as text with a NUL
+ * byte: the same write fails every time.
+ */
+export const refusedData = (error: unknown) => {
+  const cause = error instanceof DrizzleQueryError ? error.cause : error;
+
+  return cause instanceof DatabaseError && cause.code?.startsWith('22') === true;
+};
+
+/**
  * Runs `fn` in a transaction scoped to one organisation. Row-level security
  * shows and accepts only that organisation's rows, so queries carry no org
  * filter, and every query that touches a table goes through here. Its statements get the pool's

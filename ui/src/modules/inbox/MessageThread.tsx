@@ -120,7 +120,11 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
       <Pinned conversationId={conversation.id} />
       <ScrollArea.Root className="min-h-0 flex-1">
         <ScrollArea.Viewport ref={viewport}>
-          {isPending ? (
+          {thread.error && messages.length === 0 ? (
+            <p role="alert" className="p-6 text-center text-sm text-destructive-text">
+              {thread.error.message}
+            </p>
+          ) : isPending ? (
             <ThreadSkeleton />
           ) : messages.length === 0 ? (
             <p className="p-6 text-center text-sm text-muted-foreground">

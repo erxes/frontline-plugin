@@ -15,7 +15,7 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useAtom, useAtomValue } from 'jotai';
-import { type ReactNode, useRef } from 'react';
+import { Fragment, type ReactNode, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { channelsQuery } from '~/shared/reference.ts';
@@ -23,6 +23,7 @@ import { CONVERSATION_TYPE, INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { BulkBar } from './BulkBar.tsx';
+import { useMarkRead } from './changes.ts';
 import { Composer } from './Composer.tsx';
 import { ConversationHeader, listShown } from './ConversationHeader.tsx';
 import { ConversationList } from './ConversationList.tsx';
@@ -30,6 +31,7 @@ import { CustomerSidebar } from './CustomerSidebar.tsx';
 import { useInboxFields } from './InboxFilter.tsx';
 import { MessageThread } from './MessageThread.tsx';
 import {
+  type Conversation,
   conversationTags,
   useConversation,
   useConversationSignal,
@@ -59,6 +61,37 @@ const PaneSkeleton = () => (
   </div>
 );
 
+const onVisibility = (change: () => void) => {
+  document.addEventListener('visibilitychange', change);
+
+  return () => document.removeEventListener('visibilitychange', change);
+};
+
+/**
+ * Reads the open conversation while the member can see it: once it opens, from the list, the
+ * keys or a link, and again as each new message arrives in it. In a tab left in the background
+ * it stays unread until the member comes back. Each message is read once while the conversation
+ * stays open, so a refused read doesn't retry in a loop; closing it and opening it again does.
+ */
+const useReadWhileOpen = (conversation: Conversation | undefined) => {
+  const { mutate } = useMarkRead();
+  const visible = useSyncExternalStore(onVisibility, () => document.visibilityState === 'visible');
+  const read = useRef('');
+  const id = conversation && !conversation.isRead ? conversation.id : '';
+  const lastAt = conversation?.lastMessageAt.getTime();
+
+  useEffect(() => {
+    const message = `${id}@${lastAt}`;
+
+    if (!id) read.current = '';
+
+    if (!id || !visible || read.current === message) return;
+
+    read.current = message;
+    mutate({ id });
+  }, [id, lastAt, visible, mutate]);
+};
+
 /**
  * The open conversation on the right, or a hint to pick one. Its messages load beside it, not
  * after it, and Escape closes it.
@@ -70,6 +103,7 @@ const ConversationPane = () => {
 
   useMessages(id);
   useConversationSignal(id);
+  useReadWhileOpen(conversation);
   usePageHotkey('escape', () => void setId(null), { when: () => Boolean(id) });
 
   if (error) return <p className="m-4 text-sm text-destructive-text">{error.message}</p>;
@@ -95,8 +129,11 @@ const ConversationPane = () => {
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
         <ConversationHeader conversation={conversation} />
-        <MessageThread conversation={conversation} />
-        <Composer key={conversation.id} conversation={conversation} />
+        {/* Another conversation gets a new thread and composer, with nothing carried over. */}
+        <Fragment key={conversation.id}>
+          <MessageThread conversation={conversation} />
+          <Composer conversation={conversation} />
+        </Fragment>
       </div>
       <CustomerSidebar conversation={conversation} />
     </div>

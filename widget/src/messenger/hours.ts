@@ -25,12 +25,15 @@ const REPLIES: Record<Settings['responseRate'], string> = {
 export const statusOf = (settings: Settings) =>
   settings.isOnline ? REPLIES[settings.responseRate] : 'We are away right now';
 
-/** The online hours as rows to read, with the zone when the messenger shows it. */
+/**
+ * The online hours as rows to read, with the zone when the messenger shows it. Hours that end at
+ * or before they start run into the next day.
+ */
 export const hoursOf = (settings: Settings) =>
   settings.availability === 'auto'
     ? settings.onlineHours.map((hours) => ({
         day: DAYS[hours.day],
-        time: `${hours.from}–${hours.to}${settings.showTimezone && settings.timezone ? ` (${settings.timezone})` : ''}`,
+        time: `${hours.from}–${hours.to}${hours.to <= hours.from ? ' the next day' : ''}${settings.showTimezone && settings.timezone ? ` (${settings.timezone})` : ''}`,
       }))
     : [];
 

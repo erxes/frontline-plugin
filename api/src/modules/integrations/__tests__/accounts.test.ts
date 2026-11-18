@@ -44,18 +44,29 @@ describe('integration accounts', () => {
   it('marks an account broken when the provider stops taking it, and tells who connected it', async () => {
     let revoked = false;
 
-    const calls = fakeProviders(() =>
-      revoked
-        ? Response.json({ message: '401: Unauthorized', code: 0 }, { status: 401 })
-        : { id: 'bot-9', username: 'shop-bot' },
-    );
+    const calls = fakeProviders(({ url }) => {
+      if (revoked) return Response.json({ message: '401: Unauthorized', code: 0 }, { status: 401 });
+
+      return url.pathname.endsWith('/applications/@me')
+        ? { id: 'app-9' }
+        : { id: 'bot-9', username: 'shop-bot' };
+    });
 
     const owner = clientAs('org-acc-c');
     const account = await owner.integrations.discord.connect({ token: 'good-token-abcdefghijklm' });
 
-    expect(account).toMatchObject({ provider: 'discord', status: 'healthy', name: 'shop-bot' });
-    expect(calls.at(-1)?.url.href).toBe('https://discord.com/api/v10/users/%40me');
-    expect(calls.at(-1)?.authorization).toBe('Bot good-token-abcdefghijklm');
+    // An older bot's application has an id of its own, which the add-to-server link names.
+    expect(account).toMatchObject({
+      provider: 'discord',
+      status: 'healthy',
+      name: 'shop-bot',
+      externalId: 'bot-9',
+      config: { applicationId: 'app-9' },
+    });
+    expect(calls.map(({ url, authorization }) => [url.pathname, authorization])).toEqual([
+      ['/api/v10/users/%40me', 'Bot good-token-abcdefghijklm'],
+      ['/api/v10/applications/@me', 'Bot good-token-abcdefghijklm'],
+    ]);
 
     revoked = true;
 

@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { writesWithCore } from '#/orpc.ts';
+import { attachedFile } from '#/modules/files.ts';
 import { defineProvider } from '../provider.ts';
 import { Account, saveAccount } from '../store.ts';
 
@@ -11,27 +12,32 @@ const Secret = z.object({ token: z.string() });
 
 const User = z.object({ id: z.string(), username: z.string() });
 
+const Application = z.object({ id: z.string() });
+
 const Sent = z.object({ id: z.string(), channel_id: z.string() });
 
 const Failure = z.object({ message: z.string() });
 
 /**
  * One Discord REST call as the bot. Resolves to the parsed body, null for 204 No Content, or
- * fails with Discord's message.
+ * fails with Discord's message. A form carries files; it gets longer, since its bytes go up in
+ * the one request.
  */
 const rest = async (
   token: string,
   route: `/${string}`,
   { method = 'GET', body }: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {},
 ) => {
+  const form = body instanceof FormData;
+
   const response = await fetch(`${RouteBases.api}${route}`, {
     method,
     headers: {
       authorization: `Bot ${token}`,
-      ...(body ? { 'content-type': 'application/json' } : {}),
+      ...(body && !form ? { 'content-type': 'application/json' } : {}),
     },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(config.outboundMs),
+    body: form ? body : body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout((form ? 4 : 1) * config.outboundMs),
   });
 
   const answer: unknown = response.status === 204 ? null : await response.json();
@@ -54,12 +60,26 @@ export const discord = defineProvider({
   Config: z.object({}),
   Secret,
   check: async ({ secret }) => botOf(secret.token).then(() => null, why),
-  send: async ({ secret }, message) => {
-    const sent = Sent.parse(
-      await rest(secret.token, Routes.channelMessages(message.threadId), {
-        method: 'POST',
-        body: { content: message.text },
+  // The text and every file go as one message. Discord refuses more than it takes, and then the
+  // reply fails rather than goes without them.
+  send: async ({ row, secret }, message) => {
+    const files = await Promise.all(
+      message.attachments.map((file) => attachedFile(row.orgId, file)),
+    );
+
+    const body = new FormData();
+
+    body.set(
+      'payload_json',
+      JSON.stringify({
+        content: message.text,
+        attachments: files.map((file, id) => ({ id, filename: file.name })),
       }),
+    );
+    files.forEach((file, id) => body.set(`files[${id}]`, file));
+
+    const sent = Sent.parse(
+      await rest(secret.token, Routes.channelMessages(message.threadId), { method: 'POST', body }),
     );
 
     return sent.id;
@@ -75,26 +95,38 @@ export const discord = defineProvider({
 });
 
 /**
- * Connects a bot by its token from Discord's developer portal, once Discord accepts it. Discord
- * is asked before the transaction opens.
+ * Connects a bot by its token from Discord's developer portal, once Discord accepts it, with its
+ * application's id, which the link that adds the bot to a server names. Discord is asked before
+ * the transaction opens.
  */
 const connect = writesWithCore(
   PERMISSIONS.integrationManage,
   z.object({ token: z.string().trim().min(20).max(200) }),
   (_member, input) =>
-    botOf(input.token).catch((error: unknown) => {
+    Promise.all([
+      botOf(input.token),
+      rest(input.token, Routes.currentApplication()).then((answer) => Application.parse(answer)),
+    ]).catch((error: unknown) => {
       throw new ORPCError('BAD_REQUEST', { message: `Discord refused the token: ${why(error)}` });
     }),
 )
   .output(Account)
-  .handler(({ input, context: { tx, member, fromCore: bot } }) =>
-    saveAccount(tx, member, {
-      provider: 'discord',
-      externalId: bot.id,
-      name: bot.username,
-      config: {},
-      secret: { token: input.token },
-    }),
+  .handler(
+    ({
+      input,
+      context: {
+        tx,
+        member,
+        fromCore: [bot, application],
+      },
+    }) =>
+      saveAccount(tx, member, {
+        provider: 'discord',
+        externalId: bot.id,
+        name: bot.username,
+        config: { applicationId: application.id },
+        secret: { token: input.token },
+      }),
   );
 
 export const discordProcedures = { connect };

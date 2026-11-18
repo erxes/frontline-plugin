@@ -26,8 +26,17 @@ export interface InboundMessage {
   /** What only the provider's own code reads back, such as a mail's subject. */
   providerData?: Record<string, unknown>;
   attachments: StoredFile[];
+  /** Files the provider holds, kept in core's storage as attachments when the message is new. */
+  files?: InboundFile[];
   /** The manifest event automations start from, published with the message when it is new. */
   event?: string;
+}
+
+/** A file in a message the provider holds: read only to keep it. */
+export interface InboundFile {
+  name: string;
+  contentType: string;
+  bytes: () => Promise<Uint8Array>;
 }
 
 /** A customer's reactions on one message, as they stand now after a change at the provider. */
@@ -147,6 +156,35 @@ export const inOrder = <T, R>(items: T[], step: (item: T) => Promise<R>) =>
     async (done, item) => [...(await done), await step(item)],
     Promise.resolve([]),
   );
+
+/** A reply the provider took part of: a retry would send those parts again, so it fails as it is. */
+export class PartlySent extends Error {}
+
+/**
+ * Sends a reply's `parts` one at a time, in order, and resolves to what each gave. A failure on
+ * the first part throws as it is, so the reply is tried again; one after it is `PartlySent`.
+ */
+export const sendInParts = <T, R>(parts: T[], send: (part: T) => Promise<R>) => {
+  let sent = 0;
+
+  return inOrder(parts, (part) =>
+    send(part).then(
+      (result) => {
+        sent += 1;
+
+        return result;
+      },
+      (error: unknown) => {
+        if (sent === 0) throw error;
+
+        throw new PartlySent(
+          `${sent} of ${parts.length} parts went out before one failed: ${error instanceof Error ? error.message : String(error)}`,
+          { cause: error },
+        );
+      },
+    ),
+  );
+};
 
 /** A POST to `/api/public/webhooks/<source>/<key>`, before anything in it is trusted. */
 export interface WebhookRequest {

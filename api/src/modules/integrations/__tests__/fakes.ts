@@ -19,10 +19,42 @@ const Json = z.json();
 
 const realFetch = globalThis.fetch;
 
+/** The bytes core's storage holds for every file in a test. */
+export const FILE_BYTES = 'file';
+
+/**
+ * What a request sent: the fields of the form frontline gave fetch, a file as its name, type and
+ * size; JSON as its value; anything else, such as a file's bytes, as text.
+ */
+const bodyOf = async (request: Request, sent: RequestInit['body']) => {
+  if (sent instanceof FormData)
+    return Object.fromEntries(
+      [...sent].map(([key, value]) => [
+        key,
+        typeof value === 'string'
+          ? value
+          : { name: value.name, type: value.type, size: value.size },
+      ]),
+    );
+
+  const text = await request.text();
+
+  if (!text) return null;
+
+  try {
+    const value: unknown = JSON.parse(text);
+
+    return Json.parse(value);
+  } catch {
+    return text;
+  }
+};
+
 /**
  * Answers the providers' APIs with `answer`'s recorded payloads and returns the calls, newest
- * last. A `Response` answers as it is; anything else answers as a 200 JSON body. Requests to the
- * test's own server still go through.
+ * last. A `Response` answers as it is; anything else answers as a 200 JSON body. Core's storage
+ * takes every upload and gives `FILE_BYTES` for every download. Requests to the test's own
+ * server still go through.
  */
 export const fakeProviders = (answer: (call: ProviderCall) => unknown) => {
   const calls: ProviderCall[] = [];
@@ -33,16 +65,17 @@ export const fakeProviders = (answer: (call: ProviderCall) => unknown) => {
 
     if (url.hostname === '127.0.0.1') return realFetch(request);
 
-    const text = await request.text();
-
     const call = {
       url,
       method: request.method,
       authorization: request.headers.get('authorization'),
-      body: text ? Json.parse(JSON.parse(text)) : null,
+      body: await bodyOf(request, init?.body),
     };
 
     calls.push(call);
+
+    if (url.hostname === 'files.core.test')
+      return new Response(request.method === 'GET' ? FILE_BYTES : null);
 
     const answered = answer(call);
 
@@ -132,18 +165,18 @@ const Queued = z.object({
   payload: z.record(z.string(), z.unknown()),
 });
 
-/** Runs a job as core would deliver it. */
-export const runJob = async (job: z.infer<typeof Queued>) => {
+/** Runs a job as core would deliver it, on its first attempt or `attempt`. */
+export const runJob = async (job: z.infer<typeof Queued>, attempt = 1) => {
   const run = JOB_RUNS[job.name];
 
   if (!run) throw new Error(`No job ${job.name}`);
 
-  await run({ ...job, jobId: `job-${job.name}`, attempt: 1 });
+  await run({ ...job, jobId: `job-${job.name}`, attempt });
 };
 
-/** Runs the jobs frontline queued since the last run. */
-export const runQueued = async () => {
-  await Promise.all(asked.jobs.splice(0).map(async (job) => runJob(Queued.parse(job))));
+/** Runs the jobs frontline queued since the last run, on their first attempt or `attempt`. */
+export const runQueued = async (attempt = 1) => {
+  await Promise.all(asked.jobs.splice(0).map(async (job) => runJob(Queued.parse(job), attempt)));
 };
 
 /** A channel in `orgId` with an integration that takes `accountId`'s conversations. */
@@ -159,12 +192,21 @@ export const channelFor = async (orgId: string, kind: string, accountId: string)
   });
 };
 
-/** The Bot API's answers for the bot `777`; a token with `bad-token` in it is refused. */
+/**
+ * The Bot API's answers for the bot `777`; a token with `bad-token` in it is refused, and so is a
+ * file named `refused`.
+ */
 export const telegramApi = (call: ProviderCall) => {
   const method = call.url.pathname.split('/').at(-1);
 
   if (call.url.pathname.includes('bad-token'))
     return Response.json({ ok: false, description: 'Unauthorized' }, { status: 401 });
+
+  if (JSON.stringify(call.body).includes('refused'))
+    return Response.json(
+      { ok: false, description: 'Bad Request: wrong file type' },
+      { status: 400 },
+    );
 
   if (method === 'getMe')
     return {
@@ -186,11 +228,25 @@ export const telegramApi = (call: ProviderCall) => {
       },
     };
 
-  if (method === 'sendMessage')
+  if (method === 'sendMessage' || method === 'sendPhoto' || method === 'sendDocument')
     return {
       ok: true,
       result: { message_id: 42, date: 1763180100, chat: { id: 4242, type: 'private' } },
     };
+
+  if (method === 'getFile')
+    return {
+      ok: true,
+      result: {
+        file_id: 'photo-big',
+        file_unique_id: 'AQADbig',
+        file_size: 4,
+        file_path: 'photos/file_7.jpg',
+      },
+    };
+
+  // A file's bytes, from the address getFile gave.
+  if (call.url.pathname.startsWith('/file/')) return new Response(FILE_BYTES);
 
   return { ok: true, result: true };
 };

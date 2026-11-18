@@ -17,6 +17,24 @@ const Env = z.object({
   /** Where core and browsers reach this API. */
   PUBLIC_URL: z.url().default('http://localhost:3399'),
   /**
+   * The proxies in front of the API, as Express's `trust proxy` takes them: a hop count such as
+   * `1`, or addresses and subnets such as `loopback, 10.0.0.0/8`. A visitor's IP, which the
+   * rate limits count by, comes from X-Forwarded-For past them. Unset, empty or `false` trusts
+   * none; `true` trusts every hop.
+   */
+  TRUST_PROXY: z
+    .string()
+    .optional()
+    .transform((value = '') => {
+      const trimmed = value.trim();
+
+      if (trimmed === '' || trimmed === 'false') return false;
+
+      if (trimmed === 'true') return true;
+
+      return /^\d+$/.test(trimmed) ? Number(trimmed) : trimmed;
+    }),
+  /**
    * The widgets app that draws forms for visitors. A form link opens
    * `<WIDGETS_DOMAIN>/forms/<key>/<code>?link=<token>`; without it, automations make no links.
    */
@@ -82,6 +100,7 @@ export const config = {
   coreUrl: env.CORE_URL,
   pluginSecret: env.PLUGIN_SECRET,
   publicUrl: env.PUBLIC_URL.replace(/\/+$/, ''),
+  trustProxy: env.TRUST_PROXY,
   uiEntryUrl: env.UI_ENTRY_URL ?? `${env.PUBLIC_URL.replace(/\/+$/, '')}/ui/remoteEntry.js`,
   uiDir: env.UI_DIR,
   widgetDir: env.WIDGET_DIR,

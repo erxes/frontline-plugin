@@ -99,8 +99,6 @@ export const pbxServer = () => {
     await owner.integrations.call.saveSettings({
       accountId: account.id,
       ...PBX,
-      srcTrunk: 'mobicom',
-      dstTrunk: '',
       queues: [{ queue: '6500', name: 'Sales' }],
       operators: [
         { userId: 'user-bold', extension: '1001' },
