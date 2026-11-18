@@ -18,12 +18,9 @@
     "e2e": "playwright test -c e2e/playwright.config.ts",
     "e2e:stack": "bash e2e/stack.sh",
     "image": "pnpm build && rm -rf .runtime && pnpm --filter @frontline/api deploy --prod .runtime && docker build --build-arg VERSION=${VERSION:-dev} -t frontline-plugin:ci .",
-    "migrate:inventory": "node migration/inventory.ts",
-    "migrate:checklist": "node migration/checklist.ts && vp fmt MIGRATION.md migration",
     "migrate:import": "node --env-file-if-exists=.env scripts/import-mongo.ts"
   },
   "devDependencies": {
-    "@ast-grep/napi": "^0.51.2",
     "@axe-core/playwright": "^4.14.0",
     "@erxes/core-contract": "0.1.0-v2.26",
     "@erxes/lint": "0.1.3",
@@ -33,7 +30,6 @@
     "@playwright/test": "^1.65.0",
     "@types/node": "^26.6.6",
     "@types/pg": "^8.23.1",
-    "drizzle-orm": "0.45.4",
     "knip": "^6.45.1",
     "mongodb": "^7.8.0",
     "pg": "^8.23.1",

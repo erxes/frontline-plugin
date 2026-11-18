@@ -16,17 +16,9 @@ Read `PORTING.md` first. It holds the rules every port follows: what done
 means, which old shapes never carry over, what core owns, and how much
 verification is enough.
 
-If scaffolding skipped installation, first run `pnpm migrate:inventory -- --from <old-checkout> --plugin <old-plugin> --ref <ref>`
-and `pnpm migrate:checklist`. These commands generate the port's working files:
-
-```text
-MIGRATION.md                Checklist, one section per old module
-migration/inventory.json   Code inventory behind the checklist
-migration/schema-draft.ts  Draft tables to port
-```
-
-`migration/core-map.ts` says what each old core call becomes. Use synthetic
-data only. The inventory reads code, never a database.
+`MIGRATION.md` is the checklist, one section per old module. The tool that
+generated it is gone now that the port is nearly done, so edit it by hand.
+Use synthetic data only.
 
 ## Never carry these over
 
@@ -45,7 +37,7 @@ data only. The inventory reads code, never a database.
 
 ## When core lacks something
 
-Don't build around it. Check `migration/core-map.ts` and `@erxes/core-contract`
+Don't build around it. Check `@erxes/core-contract` and `@erxes/plugin-sdk`
 first. If core doesn't have it, file an issue in the plugin's repo that says
 what the old plugin did and what core would need, and add a `DECISIONS.md`
 row. Port the rest of the module. A workaround is never the answer, because
@@ -61,13 +53,12 @@ The row goes in the module's commit.
 
 1. Read the checklist. Port the module with the fewest unticked items first;
    `Plugin-wide` goes last.
-2. Tables. Move the module's draft tables into
-   `api/src/db/schema.ts`, then follow the `schema-change` skill. Fix the draft
-   types while moving: whole numbers become `integer()`, fixed string sets
-   become `text({ enum })`, required ids stay `text().notNull()`, and a value
-   the old code kept unique by checking first gets a unique index. Drop
-   columns nothing reads. Update the table's entry in
-   `migration/import-map.ts` to match.
+2. Tables. Write the module's tables in `api/src/db/`, then follow the
+   `schema-change` skill. Fix the old types: whole numbers become
+   `integer()`, fixed string sets become `text({ enum })`, required ids stay
+   `text().notNull()`, and a value the old code kept unique by checking first
+   gets a unique index. Drop fields nothing reads. Update the table's entry in
+   `scripts/import-map.ts` to match.
 3. Procedures. One per GraphQL operation listed, following the `endpoint`
    skill and shaped like `api/src/modules/channels`. Name it after what it does
    (`tasks.list`, not `getTasks`), and fold operations that only differ by
@@ -109,7 +100,7 @@ The row goes in the module's commit.
    drafts and toasts. Read those files and keep every behavior; drop one only
    with a decision on the page's line. Tick a Shared UI row with what replaces
    that symbol, so the next page reuses it. An item left open on purpose gets
-   a `  - note: <why>` line under it, which reruns keep.
+   a `  - note: <why>` line under it.
 6. Check feature parity, not layout parity, with the `verify` skill: the
    module's e2e spec walks every old action, field and filter on the new
    page. Don't run old erxes beside it. Wording, spacing, order and colour go
@@ -124,9 +115,6 @@ The row goes in the module's commit.
    `DECISIONS.md` rows together.
 9. Copy data once all modules are in: `pnpm migrate:import` with `MONGO_URL`,
    `DATA_URL` and `ORG_ID` set. Its `Skipped` list must be empty or explained.
-
-Rerun `pnpm migrate:inventory` and `pnpm migrate:checklist` only to pick up
-new old-side code; ticks survive the rerun.
 
 Done when every checklist item is ticked, each gap with its issue link and
 decision row, and `vp run check`, `vp run test`, `pnpm check:rls` and

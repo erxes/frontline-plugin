@@ -3,20 +3,6 @@
   "dialect": "postgresql",
   "entries": [
     {
-      "idx": 0,
-      "version": "7",
-      "when": 1794580159751,
-      "tag": "0000_items",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1794665339831,
-      "tag": "0001_drop_items",
-      "breakpoints": true
-    },
-    {
       "idx": 2,
       "version": "7",
       "when": 1794665340243,

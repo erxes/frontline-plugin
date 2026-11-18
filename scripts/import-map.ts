@@ -1,5 +1,5 @@
 // Which Mongo field goes to which column, per collection, for scripts/import-mongo.ts.
-// Written by migration/checklist.ts; edit it as the tables in api/src/db/schema.ts change.
+// Edit it as the tables in api/src/db/*.ts change.
 // `values` are columns every row gets; `unwind` makes one row per item of that array field.
 // A dotted field (`sla.resolvedAt`) reads inside an embedded document.
 export const IMPORT_MAP: {
