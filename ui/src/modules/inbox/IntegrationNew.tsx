@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { messengerPath } from '@/messenger/queries.ts';
 import { orpc } from '~/orpc.ts';
-import { ChannelRow, useManagedChannels } from '~/shared/ChannelSelect.tsx';
+import { ChannelRow, useNewRecordChannel } from '~/shared/ChannelSelect.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { useIntegrationChange } from './queries.ts';
 
@@ -24,9 +24,8 @@ export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftPr
   const accountId = textOf(defaults.accountId);
 
   // A channel's page opens it with that channel picked.
-  const first = useManagedChannels()[0]?.id ?? '';
   const [picked, setChannelId] = useState(() => textOf(defaults.channelId));
-  const channelId = picked || first;
+  const channelId = useNewRecordChannel(picked);
   const { onSuccess } = useIntegrationChange();
   const navigate = useNavigate();
 

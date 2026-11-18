@@ -24,6 +24,16 @@ export const useManagedChannels = () =>
   (useChannels().data?.channels ?? []).filter((channel) => channel.canManage);
 
 /**
+ * The channel a new record goes to: `picked` while the member is still its admin, else their
+ * first. A draft can hold a channel deleted or taken from them since.
+ */
+export const useNewRecordChannel = (picked: string) => {
+  const managed = useManagedChannels();
+
+  return (managed.find((channel) => channel.id === picked) ?? managed[0])?.id ?? '';
+};
+
+/**
  * A pick of one channel the member is an admin of. The record's own channel is listed too, so a
  * member who only reads the record sees its name.
  */
