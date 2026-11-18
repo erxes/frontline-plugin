@@ -12,7 +12,7 @@ bugs and debt onto the new stack wasted the rewrite.
 - Same features, core's screens. Every old feature, action, field and filter
   works, unless `DECISIONS.md` records why not, on screens built the way the
   `ui-patterns` skill says. Never copy the old layout. A record with a status
-  gets a list grouped by status. [`pnpm e2e`, review]
+  gets a list grouped by status. [`pnpm e2e`, the PR's screenshots, review]
 - Every old bug the code shows is fixed, with its row in `DECISIONS.md` in the
   same commit. [review]
 - The gates pass: `vp run check`, `vp run test`, `pnpm check:rls`,
@@ -104,16 +104,19 @@ Frontline builds these in its own tables, with no core change:
 - Integrations get API tests that feed recorded webhook payloads into the
   routes. They get no e2e, because that would need real Meta, Telegram and
   Discord accounts.
-- A screen's parity check is its e2e spec, run as the `verify` skill says:
-  your spec in light while you work, the whole suite once before filing. No
-  side-by-side runs against old erxes and no walks by hand that a spec covers.
-  Wording, spacing, order and colour go in the PR body as a list for the user,
-  never into another fix round.
+- A screen's parity check is its e2e spec plus a look at the old screen
+  beside the new one, as the `verify` skill says. The spec proves each action
+  works; only the look catches a header that scrolls away or a dialog that
+  never opens. A bug you see gets fixed or filed as an issue, never left as a
+  note in the PR body.
 - A failure in erxes-ui or core gets an issue and a decision row, not a fix
   in the plugin.
 - If the same failure happens twice, stop and report it with the output.
   Don't try a third time, and don't hand the retry to a subagent.
 - No review subagents for nits. Lint and the gates catch what a tool can.
+  Before a module's PR merges, one agent that didn't write it opens its
+  screenshots next to the old screens and checks MIGRATION.md's ticks against
+  the code.
 - A lint rule that is wrong changes in core's `@erxes/lint`, in its own PR.
 
 ## Shipping fast
