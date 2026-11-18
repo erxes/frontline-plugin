@@ -7,6 +7,7 @@ import { PLUGIN } from '#/config.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { fail } from '../fail.ts';
+import { underKeyLimit } from '../limits.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import { setOperatorOf } from '../inbox/operator.ts';
 import { receive } from '../inbox/receive.ts';
@@ -121,6 +122,12 @@ export const asVisitor =
 
         return;
       }
+
+      if (
+        req.method !== 'GET' &&
+        !(await underKeyLimit(res, `messenger:${visitor.integrationId}`, 'write'))
+      )
+        return;
 
       await handler(visitor, req, res);
     } catch (error) {

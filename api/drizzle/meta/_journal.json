@@ -155,6 +155,13 @@
       "when": 1794980148248,
       "tag": "0023_perf_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794988335160,
+      "tag": "0024_rate_limits",
+      "breakpoints": true
     }
   ]
 }
