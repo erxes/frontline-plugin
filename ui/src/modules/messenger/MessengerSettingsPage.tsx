@@ -1,22 +1,13 @@
 import { IconInbox } from '@tabler/icons-react';
 import { useIntegrationChange } from '@/inbox/queries.ts';
 import { useMutation } from '@tanstack/react-query';
-import {
-  Button,
-  buttonVariants,
-  Form,
-  PageContainer,
-  PageHeader,
-  ScrollArea,
-  Separator,
-  Skeleton,
-  toast,
-} from 'erxes-ui';
+import { Button, Form, PageContainer, ScrollArea, Skeleton, toast } from 'erxes-ui';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Link, useParams } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
+import { AppHeader } from '~/shared/Header.tsx';
 import { AppearanceCard } from './AppearanceCard.tsx';
 import { AvailabilityCard } from './AvailabilityCard.tsx';
 import { BehaviourCard } from './BehaviourCard.tsx';
@@ -94,18 +85,11 @@ export const MessengerSettingsPage = () => {
 
   return (
     <PageContainer>
-      <PageHeader>
-        <PageHeader.Start>
-          <Link to={`/${PLUGIN}/inbox`} className={buttonVariants({ variant: 'ghost' })}>
-            <IconInbox />
-            {t('inbox', 'Inbox')}
-          </Link>
-          <Separator.Inline />
-          <span className="flex h-8 items-center px-3 text-sm font-medium">
-            {data?.name ?? t('messenger', 'Messenger')}
-          </span>
-        </PageHeader.Start>
-      </PageHeader>
+      <AppHeader
+        icon={IconInbox}
+        app={{ label: t('inbox', 'Inbox'), to: `/${PLUGIN}/inbox` }}
+        levels={[{ label: data?.name ?? t('messenger', 'Messenger') }]}
+      />
       <ScrollArea>
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-6">
           {error ? (

@@ -15,7 +15,8 @@ import { MemberChip, useCustomer } from '~/shared/Person.tsx';
 import { InfoRow, PageLink, PanelSkeleton } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { Customer } from './CustomerSidebar.tsx';
-import { KindIcon, useStatusNames } from './InboxFilter.tsx';
+import { KindIcon } from '~/shared/kinds.tsx';
+import { useStatusNames } from './InboxFilter.tsx';
 import { useConversation, useConversationSignal } from './queries.ts';
 import { useSetStatus } from './changes.ts';
 

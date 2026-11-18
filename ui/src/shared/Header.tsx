@@ -5,14 +5,17 @@ import { Link } from 'react-router-dom';
 
 export type Crumb = { label: string; to?: string };
 
-/** One level of the breadcrumb: a ghost link, or the page itself when it has no `to`. */
+/**
+ * One level of the breadcrumb: a ghost link, or the page itself when it has no `to`, its icon
+ * sized as a ghost button sizes it.
+ */
 const Level = ({ to, children }: { to?: string; children: ReactNode }) =>
   to ? (
     <Link to={to} className={buttonVariants({ variant: 'ghost' })}>
       {children}
     </Link>
   ) : (
-    <span className="flex h-8 min-w-0 items-center gap-1.5 px-3 text-sm font-medium">
+    <span className="flex h-8 min-w-0 items-center gap-1.5 px-3 text-sm font-medium [&_svg]:size-4 [&_svg]:shrink-0">
       {children}
     </span>
   );

@@ -139,7 +139,10 @@ export const integrationFor = async (tx: Tx, member: PluginMember, id: string) =
   return row;
 };
 
-/** Renames, pauses or reconfigures an integration. A paused one takes no new messages. */
+/**
+ * Renames, pauses or reconfigures an integration, or moves it with its conversations to another
+ * channel the caller is an admin of. A paused one takes no new messages.
+ */
 const update = writes(PERMISSIONS.channelView)
   .input(
     z.object({
@@ -147,12 +150,17 @@ const update = writes(PERMISSIONS.channelView)
       name: Title.optional(),
       isActive: z.boolean().optional(),
       config: z.record(z.string(), z.unknown()).optional(),
+      channelId: z.string().optional(),
     }),
   )
   .output(Integration)
   .handler(async ({ input: { id, config, ...change }, context: { tx, member, afterCommit } }) => {
     const row = await integrationFor(tx, member, id);
 
+    if (change.channelId && change.channelId !== row.channelId)
+      await channelFor(tx, member, change.channelId, { change: true });
+
+    // Its conversations follow it: their key to it cascades on update.
     await tx
       .update(integrations)
       .set({ ...change, ...(config ? { config: configOf(row.kind, config) } : {}) })

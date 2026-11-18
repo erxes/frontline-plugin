@@ -1,30 +1,10 @@
 import { IconCircles } from '@tabler/icons-react';
-import { buttonVariants, PageHeader, Separator } from 'erxes-ui';
+import { useQuery } from '@tanstack/react-query';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
-import { CHANNELS_PATH, useChannel } from './useChannels.ts';
-
-/** One level of the breadcrumb: a link, or the page itself when it's last. */
-const Crumb = ({ to, children }: { to?: string; children: ReactNode }) =>
-  to ? (
-    <Link to={to} className={buttonVariants({ variant: 'ghost' })}>
-      {children}
-    </Link>
-  ) : (
-    <span className="flex h-8 items-center gap-1.5 px-3 text-sm font-medium">{children}</span>
-  );
-
-const ChannelCrumb = ({ id, last }: { id: string; last: boolean }) => {
-  const { data } = useChannel(id);
-
-  return (
-    <>
-      <Separator.Inline />
-      <Crumb to={last ? undefined : `${CHANNELS_PATH}/${id}`}>{data?.name ?? '…'}</Crumb>
-    </>
-  );
-};
+import { orpc } from '~/orpc.ts';
+import { AppHeader } from '~/shared/Header.tsx';
+import { CHANNELS_PATH } from './useChannels.ts';
 
 /**
  * The header of the channel settings pages, as core's breadcrumb draws it: Channels, then the
@@ -41,22 +21,23 @@ export const ChannelsHeader = ({
 }) => {
   const { t } = useTranslation('frontline');
 
+  const { data } = useQuery({
+    ...orpc.channels.get.queryOptions({ input: { id: channelId ?? '' } }),
+    enabled: Boolean(channelId),
+  });
+
+  const levels = [
+    ...(channelId ? [{ label: data?.name ?? '…', to: `${CHANNELS_PATH}/${channelId}` }] : []),
+    ...(label ? [{ label }] : []),
+  ];
+
   return (
-    <PageHeader>
-      <PageHeader.Start>
-        <Crumb to={channelId ? CHANNELS_PATH : undefined}>
-          <IconCircles />
-          {t('channels', 'Channels')}
-        </Crumb>
-        {channelId && <ChannelCrumb id={channelId} last={!label} />}
-        {label && (
-          <>
-            <Separator.Inline />
-            <Crumb>{label}</Crumb>
-          </>
-        )}
-      </PageHeader.Start>
-      {children && <PageHeader.End>{children}</PageHeader.End>}
-    </PageHeader>
+    <AppHeader
+      icon={IconCircles}
+      app={{ label: t('channels', 'Channels'), to: CHANNELS_PATH }}
+      levels={levels}
+    >
+      {children}
+    </AppHeader>
   );
 };

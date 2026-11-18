@@ -13,7 +13,6 @@ import {
   Button,
   DropdownMenu,
   PageContainer,
-  PageHeader,
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
@@ -22,6 +21,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { ACCOUNT_TYPE, INTEGRATION_TYPE, META_BOT_TYPE } from '~/plugin.ts';
+import { AppHeader } from '~/shared/Header.tsx';
 import { ListEmpty } from '~/shared/List.tsx';
 import { RowActions, TextCell } from '~/shared/Records.tsx';
 import { DateCell, Rows } from '~/shared/Table.tsx';
@@ -270,17 +270,9 @@ export const IntegrationsPage = () => {
 
   return (
     <PageContainer>
-      <PageHeader>
-        <PageHeader.Start>
-          <span className="flex h-8 items-center gap-1.5 px-3 text-sm font-medium">
-            <IconPlugConnected />
-            {t('integrations', 'Integrations')}
-          </span>
-        </PageHeader.Start>
-        <PageHeader.End>
-          <ConnectMenu />
-        </PageHeader.End>
-      </PageHeader>
+      <AppHeader icon={IconPlugConnected} app={{ label: t('integrations', 'Integrations') }}>
+        <ConnectMenu />
+      </AppHeader>
       <LoginResult />
       {accounts.error ? (
         <p role="alert" className="m-3 text-sm text-destructive-text">

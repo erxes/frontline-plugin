@@ -1,4 +1,5 @@
 import {
+  IconArrowsExchange,
   IconCircles,
   IconDots,
   IconKey,
@@ -22,14 +23,16 @@ import {
   type TRecordSlotProps,
   useConfirm,
 } from 'erxes-ui';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { messengerPath } from '@/messenger/queries.ts';
 import { orpc } from '~/orpc.ts';
+import { MoveToChannelDialog } from '~/shared/MoveToChannel.tsx';
 import { channelsQuery } from '~/shared/reference.ts';
 import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
-import { useKindNames } from './InboxFilter.tsx';
+import { useKindNames } from '~/shared/kinds.tsx';
 import { type Integration, useIntegration, useIntegrationChange } from './queries.ts';
 import { MemberChip } from '~/shared/Person.tsx';
 
@@ -51,7 +54,10 @@ export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
   const navigate = useNavigate();
   const integration = useIntegration(contentId).data;
   const { confirm } = useConfirm();
-  const remove = useMutation(orpc.integrations.remove.mutationOptions(useIntegrationChange()));
+  const [moving, setMoving] = useState(false);
+  const change = useIntegrationChange();
+  const remove = useMutation(orpc.integrations.remove.mutationOptions(change));
+  const update = useMutation(orpc.integrations.update.mutationOptions(change));
 
   if (!integration) return null;
 
@@ -70,6 +76,12 @@ export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
   const manage = integration.canManage
     ? [
         {
+          value: 'move',
+          icon: <IconArrowsExchange />,
+          label: t('move-to-channel', 'Move to channel'),
+          onSelect: () => setMoving(true),
+        },
+        {
           value: 'delete',
           icon: <IconTrash />,
           label: t('delete', 'Delete'),
@@ -87,18 +99,28 @@ export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
   if (settings.length + manage.length === 0) return null;
 
   return (
-    <ActionsMenu
-      trigger={
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t('integration-menu', 'Integration actions')}
-        >
-          <IconDots />
-        </Button>
-      }
-      actions={[...settings, ...manage]}
-    />
+    <>
+      <ActionsMenu
+        trigger={
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('integration-menu', 'Integration actions')}
+          >
+            <IconDots />
+          </Button>
+        }
+        actions={[...settings, ...manage]}
+      />
+      {moving && (
+        <MoveToChannelDialog
+          name={integration.name}
+          channelId={integration.channelId}
+          onMove={(channelId) => update.mutateAsync({ id: integration.id, channelId })}
+          onClose={() => setMoving(false)}
+        />
+      )}
+    </>
   );
 };
 

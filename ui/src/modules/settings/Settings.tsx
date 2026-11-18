@@ -4,10 +4,8 @@ import {
   Label,
   ListFilter,
   PageContainer,
-  PageHeader,
   RecordTable,
   type RecordTableColumnDef,
-  Separator,
   type TListFilterField,
   ViewBar,
 } from 'erxes-ui';
@@ -15,6 +13,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { memberQueries } from '@erxes/core-contract/client';
 import { orpc } from '~/orpc.ts';
+import { AppHeader } from '~/shared/Header.tsx';
 import { useChange } from '~/shared/hooks.ts';
 import { ReadOnly } from '~/shared/Panel.tsx';
 import { ListEmpty } from '~/shared/List.tsx';
@@ -68,17 +67,9 @@ const SettingsHeader = ({ label, children }: { label: string; children?: ReactNo
   const { t } = useTranslation('frontline');
 
   return (
-    <PageHeader>
-      <PageHeader.Start>
-        <span className="flex h-8 items-center gap-1.5 px-3 text-sm font-medium">
-          <IconSettings />
-          {t('settings', 'Settings')}
-        </span>
-        <Separator.Inline />
-        <span className="flex h-8 items-center gap-1.5 px-3 text-sm font-medium">{label}</span>
-      </PageHeader.Start>
-      {children && <PageHeader.End>{children}</PageHeader.End>}
-    </PageHeader>
+    <AppHeader icon={IconSettings} app={{ label: t('settings', 'Settings') }} levels={[{ label }]}>
+      {children}
+    </AppHeader>
   );
 };
 

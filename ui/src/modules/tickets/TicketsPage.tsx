@@ -1,11 +1,10 @@
 import { memberQueries } from '@erxes/core-contract/client';
-import { IconChevronRight, IconTicket } from '@tabler/icons-react';
+import { IconTicket } from '@tabler/icons-react';
 import {
   Button,
   DisplayMenu,
   ListFilter,
   PageContainer,
-  PageHeader,
   RecordList,
   useListDisplay,
   useOpenRecord,
@@ -13,6 +12,7 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { TICKET_TYPE } from '~/plugin.ts';
+import { AppHeader } from '~/shared/Header.tsx';
 import { CreateButton, ListEmpty, LoadPage } from '~/shared/List.tsx';
 import { ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
 import { TicketBulkActions } from './TicketBulkActions.tsx';
@@ -49,27 +49,17 @@ const TicketsHeader = ({
   const { t } = useTranslation('frontline');
 
   return (
-    <PageHeader>
-      <PageHeader.Start>
-        <span className="flex h-8 items-center gap-1.5 px-3 text-sm font-medium">
-          <IconTicket />
-          {t('tickets', 'Tickets')}
-          {pipeline && (
-            <>
-              <IconChevronRight className="text-muted-foreground" />
-              {pipeline}
-            </>
-          )}
-        </span>
-      </PageHeader.Start>
-      <PageHeader.End>
-        <CreateButton
-          allowed={canCreate}
-          label={t('create-ticket', 'Create ticket')}
-          onClick={create}
-        />
-      </PageHeader.End>
-    </PageHeader>
+    <AppHeader
+      icon={IconTicket}
+      app={{ label: t('tickets', 'Tickets') }}
+      levels={pipeline ? [{ label: pipeline }] : []}
+    >
+      <CreateButton
+        allowed={canCreate}
+        label={t('create-ticket', 'Create ticket')}
+        onClick={create}
+      />
+    </AppHeader>
   );
 };
 

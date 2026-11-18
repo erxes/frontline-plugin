@@ -1,18 +1,11 @@
 import {
   IconAt,
-  IconBrandDiscord,
-  IconBrandInstagram,
-  IconBrandMessenger,
-  IconBrandTelegram,
   IconCalendarCheck,
   IconCalendarPlus,
   IconCalendarUp,
   IconCircles,
   IconEye,
-  IconMail,
-  IconMessageCircle,
   IconMessageQuestion,
-  IconPhone,
   IconPlug,
   IconProgressCheck,
   IconTag,
@@ -20,9 +13,9 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { cn, type TListFilterField } from 'erxes-ui';
-import type { ComponentType } from 'react';
+import type { TListFilterField } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { useKindNames } from '~/shared/kinds.tsx';
 import { channelsQuery } from '~/shared/reference.ts';
 import { type Conversation, useIntegrations } from './queries.ts';
 
@@ -35,47 +28,6 @@ export const useStatusNames = (): Record<Conversation['status'], string> => {
     open: t('status-open', 'Open'),
     resolved: t('status-resolved', 'Resolved'),
   };
-};
-
-/** What each integration kind reads as; a kind the UI doesn't know shows its name. */
-export const useKindNames = (): Record<string, string> => {
-  const { t } = useTranslation('frontline');
-
-  return {
-    messenger: t('kind-messenger', 'Messenger'),
-    facebook: t('kind-facebook', 'Facebook Messenger'),
-    instagram: t('kind-instagram', 'Instagram'),
-    telegram: t('kind-telegram', 'Telegram'),
-    discord: t('kind-discord', 'Discord'),
-    mail: t('kind-mail', 'Email'),
-    call: t('kind-call', 'Phone'),
-    callpro: t('kind-callpro', 'CallPro'),
-  };
-};
-
-/**
- * Each kind's icon, tinted as near its brand as the theme's tokens get, so a row says where a
- * conversation came from at a glance, as the old inbox's coloured icons did.
- */
-const KIND_ICONS: Record<string, { icon: ComponentType<{ className?: string }>; tint: string }> = {
-  messenger: { icon: IconMessageCircle, tint: 'text-primary-text' },
-  facebook: { icon: IconBrandMessenger, tint: 'text-info-text' },
-  instagram: { icon: IconBrandInstagram, tint: 'text-destructive-text' },
-  telegram: { icon: IconBrandTelegram, tint: 'text-info-text' },
-  discord: { icon: IconBrandDiscord, tint: 'text-primary-text' },
-  mail: { icon: IconMail, tint: 'text-warning-text' },
-  call: { icon: IconPhone, tint: 'text-success-text' },
-  callpro: { icon: IconPhone, tint: 'text-success-text' },
-};
-
-/** The icon of the integration kind a conversation came through, a plug for one the UI doesn't know. */
-export const KindIcon = ({ kind, className }: { kind: string; className?: string }) => {
-  const { icon: Icon, tint } = KIND_ICONS[kind] ?? {
-    icon: IconPlug,
-    tint: 'text-muted-foreground',
-  };
-
-  return <Icon className={cn(tint, className)} aria-hidden />;
 };
 
 /** The dates a conversation carries. */
