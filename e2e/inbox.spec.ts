@@ -120,6 +120,27 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await expect(row).toBeVisible();
   await page.getByRole('button', { name: 'Reopen', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Resolve', exact: true })).toBeVisible();
+
+  // The thread follows new messages while the reader is at its end. A reader up in the history
+  // stays there, and a button counts what came below and takes them down to it.
+  await Promise.all(
+    Array.from({ length: 20 }, (_, line) => visitor.write(`Line ${line}`, conversationId)),
+  );
+
+  const filler = `Last line ${unique()}`;
+
+  await visitor.write(filler, conversationId);
+  await expect(thread.getByText(filler)).toBeInViewport();
+  await thread.hover();
+  await page.mouse.wheel(0, -10_000);
+
+  const below = `Below ${unique()}`;
+  const newer = page.getByRole('button', { name: '1 new message' });
+
+  await visitor.write(below, conversationId);
+  await newer.click();
+  await expect(thread.getByText(below)).toBeInViewport();
+  await expect(newer).toHaveCount(0);
 });
 
 test('an admin sets up the messenger on its settings page and visitors get it', async ({
