@@ -45,7 +45,8 @@ export type Paging = {
 
 /**
  * A paged list's rows, and how many match. Only the first page counts them, so the count holds
- * while the first page is dropped and comes back.
+ * while the first page is dropped and comes back. A list the API refused counts none, so its
+ * count stops loading.
  */
 export const usePaged = <TPage extends { totalCount?: number | null }, TRow>(
   query: UseInfiniteQueryResult<InfiniteData<TPage, PageParam>>,
@@ -57,9 +58,11 @@ export const usePaged = <TPage extends { totalCount?: number | null }, TRow>(
 
   if (counted != null && counted !== totalCount) setTotalCount(counted);
 
+  const refused = query.isError && totalCount === undefined;
+
   return {
     ...query,
     rows: pages.flatMap(rowsOf),
-    totalCount: query.isPending ? undefined : totalCount,
+    totalCount: refused ? 0 : query.isPending ? undefined : totalCount,
   };
 };
