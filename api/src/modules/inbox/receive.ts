@@ -5,10 +5,35 @@ import { CONVERSATION_EVENTS, core, MESSAGE_RECEIVED_EVENT } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations, customerLinks, integrations, messages } from '#/db/inbox.ts';
 import type { Attachment } from '#/db/table.ts';
+import { logger } from '#/logger.ts';
+import type { Person } from '../integrations/provider.ts';
 import { publishConversationEvents, signalConversations } from './shared.ts';
 
-/** The provider's user, as an adapter knows them; `email` when the provider gives one. */
-type Sender = { source: string; externalId: string; firstName: string; email?: string };
+/**
+ * The provider's user, as an adapter knows them; `email` when the provider gives one. `whoIs`
+ * asks the provider for their name, once, when they become a customer.
+ */
+type Sender = {
+  source: string;
+  externalId: string;
+  firstName: string;
+  email?: string;
+  whoIs?: () => Promise<Person | null>;
+};
+
+/** The sender's name at the provider; a refusal keeps the name the message gave and is logged. */
+const nameOf = async (sender: Sender) => {
+  const found = await sender.whoIs?.().catch((error: unknown) => {
+    logger.warn(
+      { err: error, source: sender.source, externalId: sender.externalId },
+      'provider did not name a new customer',
+    );
+
+    return null;
+  });
+
+  return found ?? { firstName: sender.firstName };
+};
 
 const linkedCustomer = (orgId: string, { source, externalId }: Sender) =>
   withOrg(orgId, async (tx) => {
@@ -30,7 +55,7 @@ export const customerFor = async (orgId: string, sender: Sender) => {
 
   if (linked) return linked;
 
-  const lead = { firstName: sender.firstName, state: 'lead' as const, source: sender.source };
+  const lead = { ...(await nameOf(sender)), state: 'lead' as const, source: sender.source };
   const customers = core.forOrg(orgId).customers;
 
   const created = sender.email

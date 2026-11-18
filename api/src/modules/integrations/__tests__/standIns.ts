@@ -6,7 +6,12 @@ import type * as CoreModule from '#/core.ts';
  * members get and the jobs it queued. `vi.mock` loads this module before the app, so it imports
  * nothing of the app's.
  */
-export const asked = { customers: 0, notifications: [] as unknown[], jobs: [] as unknown[] };
+export const asked = {
+  customers: 0,
+  created: [] as unknown[],
+  notifications: [] as unknown[],
+  jobs: [] as unknown[],
+};
 
 /** `#/core.ts` with core's calls answered here: `vi.mock('#/core.ts', …coreStandIn)`. */
 export const coreStandIn = (actual: typeof CoreModule) => ({
@@ -15,8 +20,9 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
     ...actual.core,
     forOrg: () => ({
       customers: {
-        create: async () => {
+        create: async (input: unknown) => {
           asked.customers += 1;
+          asked.created.push(input);
 
           return { id: `customer-${asked.customers}` };
         },
