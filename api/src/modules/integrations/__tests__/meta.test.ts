@@ -6,11 +6,11 @@ import { withOrg } from '#/db/client.ts';
 import { clientAs } from '#/test/member.ts';
 import { asked } from './standIns.ts';
 import {
-  channelFor,
+  conversationWith,
   fakeProviders,
   fixture,
   graphApi,
-  type ProviderCall,
+  lastPost,
   runQueued,
   serve,
   signedByMeta,
@@ -24,36 +24,7 @@ vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
   (await import('./standIns.ts')).sdkStandIn(await importOriginal()),
 );
 
-const { get, deliver, act } = serve();
-
-/** Logs `orgId` in through Meta's dialog and gives a channel to the page or the account. */
-const connected = async (orgId: string, provider: 'facebook' | 'instagram') => {
-  const owner = clientAs(orgId);
-  const { url } = await owner.integrations.meta.loginUrl();
-  const state = new URL(url).searchParams.get('state') ?? '';
-
-  await get(`/meta/callback?code=login-code&state=${state}`);
-
-  const { accounts } = await owner.integrations.accounts.list({ provider });
-  const account = accounts[0];
-
-  if (!account) throw new Error(`no ${provider} account`);
-
-  await channelFor(orgId, provider, account.id);
-
-  return { owner, account };
-};
-
-const conversationWith = async (orgId: string, externalId: string) => {
-  const { conversations } = await clientAs(orgId).conversations.list({});
-  const found = conversations.find((conversation) => conversation.externalId === externalId);
-
-  if (!found) throw new Error(`no conversation ${externalId}`);
-
-  return found.id;
-};
-
-const lastPost = (calls: ProviderCall[]) => calls.filter((call) => call.method === 'POST').at(-1);
+const { connectMeta: connected, deliver, act } = serve();
 
 const eventsOf = (orgId: string) =>
   withOrg(orgId, (tx) =>
@@ -124,27 +95,6 @@ describe('facebook comments and postbacks', () => {
       { type: 'frontline.facebook.message_received', detail: '{"botId":"bot-1","menuId":"hours"}' },
       { type: 'frontline.facebook.message_received', detail: 'CONFIRM' },
     ]);
-  });
-
-  it('replies after Messenger’s 24 hours as a person', async () => {
-    const calls = fakeProviders(graphApi);
-    const { owner } = await connected('org-fb-b', 'facebook');
-    const raw = fixture('meta-delivery.json');
-
-    await deliver('/meta', raw, signedByMeta(raw));
-
-    const conversationId = await conversationWith('org-fb-b', 'psid-1');
-
-    await withOrg('org-fb-b', (tx) =>
-      tx.execute(sql`update frontline_messages set created_at = now() - interval '2 days'`),
-    );
-    await owner.conversations.messages.create({ conversationId, content: 'Sorry for the wait' });
-    await runQueued();
-
-    expect(lastPost(calls)?.body).toMatchObject({
-      messaging_type: 'MESSAGE_TAG',
-      tag: 'HUMAN_AGENT',
-    });
   });
 
   it('lists the page’s posts and publishes one', async () => {

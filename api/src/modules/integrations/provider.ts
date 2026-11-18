@@ -81,6 +81,11 @@ export interface OutboundMessage {
   attachments: StoredFile[];
   /** What the provider's own code stored on this message, such as a new mail's subject. */
   providerData: Record<string, unknown> | null;
+  /**
+   * For a provider that sends a reply in parts, such as text then each file: the provider's ids of
+   * the parts an earlier attempt sent, which it skips, and where it records each part it sends.
+   */
+  parts: { sent: string[]; record: (sent: string[]) => Promise<void> };
   /** The last message the reply answers: the customer's, or a new mail the thread began with. */
   replyTo: {
     externalId: string;
@@ -157,9 +162,6 @@ export const inOrder = <T, R>(items: T[], step: (item: T) => Promise<R>) =>
     Promise.resolve([]),
   );
 
-/** A reply the provider took part of: a retry would send those parts again, so it fails as it is. */
-export class PartlySent extends Error {}
-
 /**
  * The provider no longer takes the account's token, as when a page's admin revokes it. The
  * account is broken until a repair or a new connect, so a reply fails at once rather than retry.
@@ -167,29 +169,23 @@ export class PartlySent extends Error {}
 export class AccountRefused extends Error {}
 
 /**
- * Sends a reply's `parts` one at a time, in order, and resolves to what each gave. A failure on
- * the first part throws as it is, so the reply is tried again; one after it is `PartlySent`.
+ * Sends a reply's `parts` one at a time, in order, and resolves to the provider's id of each. It
+ * skips the parts an earlier attempt sent and records each one as it goes, so a retry after a
+ * failed part sends the rest and never one twice.
  */
-export const sendInParts = <T, R>(parts: T[], send: (part: T) => Promise<R>) => {
-  let sent = 0;
+export const sendInParts = async <T>(
+  { sent, record }: OutboundMessage['parts'],
+  parts: T[],
+  send: (part: T) => Promise<string>,
+) => {
+  const ids = [...sent];
 
-  return inOrder(parts, (part) =>
-    send(part).then(
-      (result) => {
-        sent += 1;
+  await inOrder(parts.slice(ids.length), async (part) => {
+    ids.push(await send(part));
+    await record(ids);
+  });
 
-        return result;
-      },
-      (error: unknown) => {
-        if (sent === 0) throw error;
-
-        throw new PartlySent(
-          `${sent} of ${parts.length} parts went out before one failed: ${error instanceof Error ? error.message : String(error)}`,
-          { cause: error },
-        );
-      },
-    ),
-  );
+  return ids;
 };
 
 /** A POST to `/api/public/webhooks/<source>/<key>`, before anything in it is trusted. */

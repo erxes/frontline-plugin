@@ -34,10 +34,16 @@ export type Adapter = {
   /**
    * Sends a reply once it commits, retried by core as the `messages.send` job. It reads what the
    * provider needs in `tx` and returns the call to the provider, which the caller makes once `tx`
-   * ends and which gives the provider's message id. Without it a reply is delivered when it
-   * commits: the messenger's visitors read theirs from the inbox.
+   * ends and which gives the provider's message id. `record` keeps the ids of the parts of a reply
+   * sent in parts, which come back in `providerData.parts`. Without it a reply is delivered when
+   * it commits: the messenger's visitors read theirs from the inbox.
    */
-  send?: (tx: Tx, outgoing: Outgoing) => Promise<() => Promise<{ externalId: string | null }>>;
+  send?: (
+    tx: Tx,
+    outgoing: Outgoing,
+  ) => Promise<
+    (record: (sent: string[]) => Promise<void>) => Promise<{ externalId: string | null }>
+  >;
   /**
    * Puts the team's reaction on a message at the provider: `emoji` is the one a member added or
    * took back, `emojis` the team's on the message after it. Like `send`, it reads in `tx` and

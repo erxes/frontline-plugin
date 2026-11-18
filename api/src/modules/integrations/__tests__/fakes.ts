@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, vi } from 'vite-plus/test';
 import { z } from 'zod';
@@ -128,8 +128,27 @@ export const serve = () => {
       body: raw,
     });
 
+  const get = (path: string) => fetch(`${base}/public/webhooks${path}`, { redirect: 'manual' });
+
   return {
-    get: (path: string) => fetch(`${base}/public/webhooks${path}`, { redirect: 'manual' }),
+    get,
+    /** Logs `orgId` in through Meta's dialog and gives a channel to the page or the account. */
+    connectMeta: async (orgId: string, provider: 'facebook' | 'instagram') => {
+      const owner = clientAs(orgId);
+      const { url } = await owner.integrations.meta.loginUrl();
+      const state = new URL(url).searchParams.get('state') ?? '';
+
+      await get(`/meta/callback?code=login-code&state=${state}`);
+
+      const { accounts } = await owner.integrations.accounts.list({ provider });
+      const account = accounts[0];
+
+      if (!account) throw new Error(`no ${provider} account`);
+
+      await channelFor(orgId, provider, account.id);
+
+      return { owner, account };
+    },
     deliver: async (path: string, raw: string, headers: Record<string, string> = {}) =>
       (await post(`/public/webhooks${path}`, raw, headers)).status,
     /** POSTs `body` as JSON to `path` under `/api`, and answers its status. */
@@ -191,6 +210,19 @@ export const channelFor = async (orgId: string, kind: string, accountId: string)
     config: { accountId },
   });
 };
+
+/** The id of `orgId`'s conversation with the provider's id `externalId`. */
+export const conversationWith = async (orgId: string, externalId: string) => {
+  const { conversations } = await clientAs(orgId).conversations.list({});
+  const found = conversations.find((conversation) => conversation.externalId === externalId);
+
+  if (!found) throw new Error(`no conversation ${externalId}`);
+
+  return found.id;
+};
+
+export const lastPost = (calls: ProviderCall[]) =>
+  calls.filter((call) => call.method === 'POST').at(-1);
 
 /**
  * The Bot API's answers for the bot `777`; a token with `bad-token` in it is refused, and so is a
@@ -294,7 +326,8 @@ export const graphApi = (call: ProviderCall) => {
       ],
     };
 
-  if (path === 'me/messages') return { recipient_id: 'psid-1', message_id: 'm_sent' };
+  // Each message Messenger takes gets an id of its own, as Meta gives one.
+  if (path === 'me/messages') return { recipient_id: 'psid-1', message_id: `m_${randomUUID()}` };
 
   // The profile of the person behind psid-1, which Messenger's events leave out.
   if (path === 'psid-1') return { id: 'psid-1', first_name: 'Bat', last_name: 'Erdene' };

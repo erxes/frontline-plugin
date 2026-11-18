@@ -1,0 +1,2 @@
+ALTER TABLE "frontline_messages" DROP CONSTRAINT "frontline_messages_delivery_status_check";--> statement-breakpoint
+ALTER TABLE "frontline_messages" ADD CONSTRAINT "frontline_messages_delivery_status_check" CHECK ("frontline_messages"."delivery_status" in ('queued', 'sending', 'sent', 'failed'));

@@ -143,12 +143,13 @@ export const conversations = table(
   ],
 );
 
-export const DELIVERY_STATUSES = ['queued', 'sent', 'failed'] as const;
+export const DELIVERY_STATUSES = ['queued', 'sending', 'sent', 'failed'] as const;
 
 /**
  * A message of a conversation: from the customer (`customerId`), a member (`userId`) or neither
  * (a bot or the system). An internal note stays in the inbox and never goes out. A member's
- * message to the customer is `queued` until its adapter sends it. `externalId` is the provider's
+ * message to the customer is `queued` until a send job claims it as `sending`, so only that job
+ * calls the provider, and then `sent` or `failed`. `externalId` is the provider's
  * message id, so a retried webhook adds nothing; `providerData` is what only its adapter reads.
  */
 export const messages = table(
@@ -215,7 +216,7 @@ export const messages = table(
     check('frontline_messages_author_check', sql`${t.customerId} is null or ${t.userId} is null`),
     check(
       'frontline_messages_delivery_status_check',
-      sql`${t.deliveryStatus} in ('queued', 'sent', 'failed')`,
+      sql`${t.deliveryStatus} in ('queued', 'sending', 'sent', 'failed')`,
     ),
   ],
 );

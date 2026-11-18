@@ -1,11 +1,11 @@
 import type { PluginJobDelivery } from '@erxes/core-contract';
-import { eq } from 'drizzle-orm';
+import { and, eq, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { SEND_ATTEMPTS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
-import { AccountRefused, PartlySent } from '../integrations/provider.ts';
+import { AccountRefused } from '../integrations/provider.ts';
 import { ADAPTERS } from './adapters.ts';
 import { signalConversations } from './shared.ts';
 
@@ -39,49 +39,117 @@ const outgoingOf = (orgId: string, messageId: string) =>
     return row;
   });
 
+/**
+ * Takes the queued reply for this attempt as `sending`, and returns what its provider stored on
+ * it as of the claim, or nothing when another attempt has it. An attempt sends from this, not
+ * from a read before the claim, which another attempt may have outdated since.
+ */
+const claim = (orgId: string, messageId: string) =>
+  withOrg(orgId, async (tx) => {
+    const [claimed] = await tx
+      .update(messages)
+      .set({ deliveryStatus: 'sending' })
+      .where(and(eq(messages.id, messageId), eq(messages.deliveryStatus, 'queued')))
+      .returning({ providerData: messages.providerData });
+
+    return claimed;
+  });
+
+/** Changes the reply's delivery, only while it is `from` when that is given, and says so. */
 const settle = (
   orgId: string,
   messageId: string,
   conversation: { id: string; customerId: string },
-  change: { deliveryStatus: 'sent' | 'failed'; externalId?: string | null },
+  change: {
+    deliveryStatus: 'queued' | 'sent' | 'failed';
+    externalId?: string | null;
+    providerData?: SQL;
+  },
+  from?: 'sending',
 ) =>
   withOrg(orgId, async (tx) => {
-    await tx.update(messages).set(change).where(eq(messages.id, messageId));
+    await tx
+      .update(messages)
+      .set(change)
+      .where(and(eq(messages.id, messageId), from ? eq(messages.deliveryStatus, from) : undefined));
     await signalConversations(tx, orgId, [conversation]);
   });
 
 /**
+ * The reply's provider data without the parts sent so far, and null when nothing else is left.
+ * A sent reply drops them, so the next reply never takes it for the message it answers, and an
+ * edited one drops them, so Send again sends the edited text too.
+ */
+export const withoutParts = sql`nullif(${messages.providerData} - 'parts', '{}'::jsonb)`;
+
+/** Keeps the provider's ids of the parts of the reply sent so far, for an attempt after this. */
+const recordParts = (orgId: string, messageId: string) => (sent: string[]) =>
+  withOrg(orgId, async (tx) => {
+    await tx
+      .update(messages)
+      .set({
+        providerData: sql`coalesce(${messages.providerData}, '{}'::jsonb) || ${JSON.stringify({ parts: sent })}::jsonb`,
+      })
+      .where(eq(messages.id, messageId));
+  });
+
+/**
  * Sends one queued reply through its integration's adapter, outside any transaction, and marks it
- * sent with the provider's id. A failed send throws, so core tries again; after the last attempt,
- * once the provider took part of it, or once it refused the account's token, the reply is marked
- * failed. A reply that is no longer
- * queued is left alone, so a repeat is safe.
+ * sent with the provider's id. Each attempt first claims the reply, so two attempts at once never
+ * both send it. A send the provider refused goes back to the queue and throws, so core tries
+ * again, sending only the parts the provider didn't take; after the last attempt, or once the
+ * provider refused the account's token, the reply is marked failed.
+ *
+ * An attempt that finds the reply claimed and unsettled can't know whether it reached the
+ * customer: the earlier attempt died, or saved nothing after the provider took it. It marks the
+ * reply failed, so a member sees Not delivered and decides, rather than the customer getting it
+ * twice. An attempt still running when that happens marks it sent once the provider answers.
  */
 export const sendReply = async (job: PluginJobDelivery) => {
   const { messageId } = Payload.parse(job.payload);
   const row = await outgoingOf(job.orgId, messageId);
 
-  if (row?.message.deliveryStatus !== 'queued') return;
+  if (row?.message.deliveryStatus === 'sending')
+    return settle(job.orgId, messageId, row.conversation, { deliveryStatus: 'failed' }, 'sending');
+
+  const claimed = row?.message.deliveryStatus === 'queued' && (await claim(job.orgId, messageId));
+
+  if (!row || !claimed) return;
 
   const send = ADAPTERS.get(row.integration.kind)?.send;
 
   if (!send) return settle(job.orgId, messageId, row.conversation, { deliveryStatus: 'sent' });
 
-  try {
-    const deliver = await withOrg(job.orgId, (tx) => send(tx, row));
-    const { externalId } = await deliver();
+  const outgoing = { ...row, message: { ...row.message, providerData: claimed.providerData } };
+  let externalId: string | null;
 
-    await settle(job.orgId, messageId, row.conversation, { deliveryStatus: 'sent', externalId });
+  try {
+    const deliver = await withOrg(job.orgId, (tx) => send(tx, outgoing));
+
+    ({ externalId } = await deliver(recordParts(job.orgId, messageId)));
   } catch (error) {
     logger.error({ err: error, messageId, attempt: job.attempt }, 'reply send failed');
 
-    // Part of it reached the customer, so another try would send that part again; or the account
-    // is broken until a member repairs it, so another try fails the same way.
-    const final = error instanceof PartlySent || error instanceof AccountRefused;
+    // The account is broken until a member repairs it, so another try would fail the same way.
+    const refused = error instanceof AccountRefused;
+    const last = refused || job.attempt >= SEND_ATTEMPTS;
 
-    if (final || job.attempt >= SEND_ATTEMPTS)
-      await settle(job.orgId, messageId, row.conversation, { deliveryStatus: 'failed' });
+    await settle(
+      job.orgId,
+      messageId,
+      row.conversation,
+      { deliveryStatus: last ? 'failed' : 'queued' },
+      'sending',
+    );
 
-    if (!final) throw error;
+    if (refused) return;
+
+    throw error;
   }
+
+  await settle(job.orgId, messageId, row.conversation, {
+    deliveryStatus: 'sent',
+    externalId,
+    providerData: withoutParts,
+  });
 };
