@@ -4,7 +4,10 @@ import {
   IconCalendarPlus,
   IconCircles,
   IconFileDescription,
+  IconForms,
+  IconMessageReply,
   IconPlugConnected,
+  IconSitemap,
   IconTrash,
   IconUser,
   IconUsers,
@@ -24,14 +27,16 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { FORMS_PATH } from '@/forms/useForms.ts';
 import { MemberLine, PersonAvatar } from '~/shared/Person.tsx';
 import { CHANNEL_TYPE } from '~/plugin.ts';
+import { listPath } from '~/shared/listPath.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
-import { column as columnOf, DateCell, Rows } from '~/shared/Table.tsx';
+import { column as columnOf, CountCell, DateCell, Rows } from '~/shared/Table.tsx';
 import { IntegrationBadges } from './ChannelIntegrations.tsx';
 import { ChannelsHeader } from './ChannelsHeader.tsx';
-import { type Channel, useChannels, useDeleteChannels } from './useChannels.ts';
+import { type Channel, CHANNELS_PATH, useChannels, useDeleteChannels } from './useChannels.ts';
 
 const column = columnOf<Channel>;
 
@@ -126,6 +131,31 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
     column('integrations', t('integrations', 'Integrations'), IconPlugConnected, 220, (channel) => (
       <IntegrationBadges channelId={channel.id} />
     )),
+    // Each count leads to the list of what it counts, as the knowledge base's topics do.
+    column('pipelineCount', t('pipelines', 'Pipelines'), IconSitemap, 110, (channel) => (
+      <CountCell
+        to={`${CHANNELS_PATH}/${encodeURIComponent(channel.id)}/pipelines`}
+        count={channel.pipelineCount}
+      />
+    )),
+    column('formCount', t('forms', 'Forms'), IconForms, 100, (channel) => (
+      <CountCell
+        to={listPath(FORMS_PATH, { path: 'subject.channelId', op: 'in', value: [channel.id] })}
+        count={channel.formCount}
+      />
+    )),
+    column(
+      'templateCount',
+      t('response-templates', 'Response templates'),
+      IconMessageReply,
+      110,
+      (channel) => (
+        <CountCell
+          to={`${CHANNELS_PATH}/${encodeURIComponent(channel.id)}/response`}
+          count={channel.templateCount}
+        />
+      ),
+    ),
     column('createdBy', t('created-by', 'Created by'), IconUser, 180, (channel) => (
       <RecordTableInlineCell>
         <MemberLine id={channel.createdBy} />
@@ -172,6 +202,19 @@ export const ChannelsPage = () => {
     },
     { path: 'subject.memberIds', label: t('members', 'Members'), type: 'member', icon: IconUsers },
     { path: 'subject.createdBy', label: t('created-by', 'Created by'), type: 'member' },
+    {
+      path: 'subject.pipelineCount',
+      label: t('pipelines', 'Pipelines'),
+      type: 'number',
+      icon: IconSitemap,
+    },
+    { path: 'subject.formCount', label: t('forms', 'Forms'), type: 'number', icon: IconForms },
+    {
+      path: 'subject.templateCount',
+      label: t('response-templates', 'Response templates'),
+      type: 'number',
+      icon: IconMessageReply,
+    },
     {
       path: 'subject.createdAt',
       label: t('created-at', 'Created at'),

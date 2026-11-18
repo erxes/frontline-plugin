@@ -45,6 +45,7 @@ and this file explains each place the port doesn't copy the old plugin.
 | `channelMembersChange` sent a notification from the resolver                        | Adding members publishes `frontline.channel.members_added` with `notify`, in the change's transaction, to everyone added but the one adding                                                                                  | Core's notifications ride on the event             |
 | `channelMoveResources` moved a channel's forms, pipelines and templates in one call | Each pipeline and template moves on its own panel; forms come back with the forms module                                                                                                                                     | No screen of the new UI moves them in bulk         |
 | Forms and surveys pages under each channel, `/frontline/:id/forms` and `/surveys`   | `/frontline/forms` and `/frontline/surveys`, filtered by their Channel field                                                                                                                                                 | One list per record, narrowed like any field       |
+| The channel list's Pipelines, Forms, Templates and Status columns                   | Pipelines, Forms and Response templates counts, each a link to its list and a filter field. No Status column                                                                                                                 | A channel has no status                            |
 
 ## Response templates
 

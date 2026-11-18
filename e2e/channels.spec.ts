@@ -22,7 +22,11 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   // The draft becomes the channel, its name edited in place; its members are the creator, as
   // admin, and the teammate.
   await expect(panel.getByRole('button', { name })).toBeEnabled();
-  await expect(page.getByRole('row', { name: new RegExp(name) })).toBeVisible();
+  const row = page.getByRole('row', { name: new RegExp(name) });
+
+  await expect(row).toBeVisible();
+  // It has no pipelines, forms or response templates yet; each count opens that list.
+  await expect(row.getByRole('link', { name: '0' })).toHaveCount(3);
   await panel.getByRole('link', { name: /Manage channel members/ }).click();
   await expect(page).toHaveURL(/\/members$/);
   await expect(page.getByRole('row', { name: new RegExp(teammate.fullName) })).toBeVisible();

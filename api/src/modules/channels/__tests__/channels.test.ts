@@ -83,6 +83,35 @@ describe('channels', () => {
     ).rejects.toMatchObject({ code: 'INVALID_FILTER', status: 400 });
   });
 
+  it('counts the pipelines, forms and response templates of each channel', async () => {
+    const owner = clientAs('org-counts');
+    const billing = await owner.channels.create({ name: 'Billing' });
+
+    await owner.channels.create({ name: 'Sales' });
+    await owner.pipelines.create({ channelId: billing.id, name: 'Refunds' });
+    await owner.forms.create({ channelId: billing.id, name: 'Contact', title: 'Contact us' });
+    await owner.forms.create({ channelId: billing.id, name: 'Rating', title: 'Rate us' });
+    await owner.responseTemplates.create({ channelId: billing.id, name: 'Greeting' });
+
+    const counted = async (rules: unknown[] = []) =>
+      (await owner.channels.list({ filter: JSON.stringify({ match: 'all', rules }) })).channels.map(
+        ({ name, pipelineCount, formCount, templateCount }) => ({
+          name,
+          pipelineCount,
+          formCount,
+          templateCount,
+        }),
+      );
+
+    await expect(counted()).resolves.toEqual([
+      { name: 'Billing', pipelineCount: 1, formCount: 2, templateCount: 1 },
+      { name: 'Sales', pipelineCount: 0, formCount: 0, templateCount: 0 },
+    ]);
+    await expect(
+      counted([{ path: 'subject.formCount', op: 'gt', value: 1 }]),
+    ).resolves.toMatchObject([{ name: 'Billing' }]);
+  });
+
   it('refuses a name the organisation already uses, ignoring case', async () => {
     const owner = clientAs('org-b');
 
