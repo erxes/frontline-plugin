@@ -7,6 +7,7 @@ import { clientAs } from '#/test/member.ts';
 import type * as FilesModule from '../../files.ts';
 import { tokenOf } from '../../messenger/session.ts';
 import { flushViews } from '../../views.ts';
+import { publishedSite, SANITIZED } from './published.ts';
 
 // Core's storage: any file it is asked for, as an image.
 vi.mock('#/modules/files.ts', async (importOriginal) => ({
@@ -39,55 +40,8 @@ afterAll(() => {
   server.close();
 });
 
-/** The published article's body as visitors get it: no handlers, scripts or script links. */
-const SANITIZED =
-  '<p>Money back</p><p>Fees &amp; refunds</p><a target="_blank" rel="noreferrer">Terms</a><a href="https://acme.test/refunds" target="_blank" rel="noreferrer">Policy</a>';
-
-/** A page of a help center's site at `url`. */
-const pageAt = async (url: string) => {
-  const reply = await fetch(url);
-
-  return {
-    status: reply.status,
-    type: reply.headers.get('content-type') ?? '',
-    body: await reply.text(),
-  };
-};
-
 /** A file on core's storage, at the address core gives it. */
 const file = (id: string) => ({ url: `/core/v1/files/${id}/download`, name: `${id}.png` });
-
-/** A help center over a topic with one published article, one draft and one private. */
-const publishedSite = async (orgId: string) => {
-  const owner = clientAs(orgId);
-  const topic = await owner.knowledgebase.topics.create({ title: 'Help' });
-
-  const category = await owner.knowledgebase.categories.create({
-    topicId: topic.id,
-    title: 'Billing',
-  });
-
-  const article = await owner.knowledgebase.articles.create({
-    categoryId: category.id,
-    title: 'Refunds',
-    content:
-      '<p onclick="steal()">Money back</p><p>Fees &amp; refunds</p><script>steal()</script><a href="javascript:steal()">Terms</a><a href="https://acme.test/refunds">Policy</a>',
-    status: 'publish',
-  });
-
-  await owner.knowledgebase.articles.create({ categoryId: category.id, title: 'Draft' });
-
-  await owner.knowledgebase.articles.create({
-    categoryId: category.id,
-    title: 'Internal',
-    status: 'publish',
-    isPrivate: true,
-  });
-
-  const center = await owner.helpCenters.create({ title: 'Acme help', kbTopicId: topic.id });
-
-  return { owner, topic, center, article };
-};
 
 describe('help centers', () => {
   it('serves its published public articles to any website by its key, their HTML sanitized', async () => {
@@ -331,44 +285,6 @@ describe('help centers', () => {
       { id: article.id },
     ]);
     expect((await messenger.get('/knowledge-base', await visitorOf({}))).status).toBe(404);
-  });
-
-  it('serves its site at its key: home, article, search, 404, in its language', async () => {
-    const { owner, center, article } = await publishedSite('org-hc-site');
-    const origin = base.replace(/\/api\/public$/, '');
-    const site = `${origin}/help/${center.publicKey}`;
-    const home = await pageAt(site);
-
-    expect(home).toMatchObject({ status: 200, type: 'text/html; charset=utf-8' });
-    expect(home.body).toContain('<title>Acme help</title>');
-    expect(home.body).toContain(`href="/help/${center.publicKey}/articles/${article.id}"`);
-    expect(home.body).not.toContain('>Draft<');
-    expect(home.body).not.toContain('Internal');
-
-    const read = await pageAt(`${site}/articles/${article.id}`);
-
-    expect(read.body).toContain('<title>Refunds · Acme help</title>');
-    expect(read.body).toContain(SANITIZED);
-    expect(read.body).not.toContain('steal()');
-
-    expect((await pageAt(`${site}/search?q=refunds`)).body).toContain(`/articles/${article.id}"`);
-    expect((await pageAt(`${site}/search?q=shipping`)).body).toContain('No articles match');
-    const missing = await pageAt(`${site}/articles/no-such-article`);
-
-    expect(missing.status).toBe(404);
-    expect(missing.body).toContain('This page does not exist.');
-    expect((await pageAt(`${origin}/help/no-such-key`)).status).toBe(404);
-
-    // A language is a two-letter code, which the site's words, dates and `lang` follow.
-    await expect(
-      owner.helpCenters.update({ id: center.id, languageCode: 'en_US' }),
-    ).rejects.toThrow('Input validation failed');
-    await owner.helpCenters.update({ id: center.id, languageCode: 'mn' });
-
-    const mongolian = await pageAt(`${site}/articles/${article.id}`);
-
-    expect(mongolian.status).toBe(200);
-    expect(mongolian.body).toContain('<html lang="mn">');
   });
 
   it('resolves only domains Cloudflare serves, and refuses one where Cloudflare is off', async () => {
