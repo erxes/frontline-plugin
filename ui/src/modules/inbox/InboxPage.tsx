@@ -70,8 +70,8 @@ const onVisibility = (change: () => void) => {
 /**
  * Reads the open conversation while the member can see it: once it opens, from the list, the
  * keys or a link, and again as each new message arrives in it. In a tab left in the background
- * it stays unread until the member comes back. Each message is read once, so a refused read
- * doesn't retry in a loop.
+ * it stays unread until the member comes back. Each message is read once while the conversation
+ * stays open, so a refused read doesn't retry in a loop; closing it and opening it again does.
  */
 const useReadWhileOpen = (conversation: Conversation | undefined) => {
   const { mutate } = useMarkRead();
@@ -82,6 +82,8 @@ const useReadWhileOpen = (conversation: Conversation | undefined) => {
 
   useEffect(() => {
     const message = `${id}@${lastAt}`;
+
+    if (!id) read.current = '';
 
     if (!id || !visible || read.current === message) return;
 
