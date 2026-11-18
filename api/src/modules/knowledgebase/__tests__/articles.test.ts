@@ -181,7 +181,7 @@ describe('knowledge base articles', () => {
     expect(moved.articles.every((row) => row.status === 'publish' && row.publishedAt)).toBe(true);
   });
 
-  it('pages newest first by cursor and counts every match', async () => {
+  it('pages newest first by cursor, past a deleted last row, and counts every match', async () => {
     const { owner, topic, category } = await topicWithCategory('org-kba-d');
 
     for (let index = 0; index < 52; index++)
@@ -195,6 +195,9 @@ describe('knowledge base articles', () => {
     expect(first.totalCount).toBe(52);
     expect(first.articles).toHaveLength(50);
     expect(first.articles[0]?.title).toBe('Article 51');
+
+    // The page's last row goes before the next page is read.
+    await owner.knowledgebase.articles.remove({ ids: [first.articles.at(-1)?.id ?? ''] });
 
     const rest = await owner.knowledgebase.articles.list({
       topicId: topic.id,

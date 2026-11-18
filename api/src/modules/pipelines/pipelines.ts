@@ -21,7 +21,7 @@ import { reads, writes } from '#/orpc.ts';
 import { canChangeSql, channelFor, managesAll, membership } from '../channels/access.ts';
 import { Blank, Title } from '../fields.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
-import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
+import { orderOf, PageInput } from '../paging.ts';
 import { statusRights } from './rights.ts';
 
 /** Core user ids a setting lists. */
@@ -110,6 +110,8 @@ const PIPELINE_FILTER: FilterFields = {
   'subject.updatedAt': { kind: 'date', expr: pipelines.updatedAt },
 };
 
+const order = orderOf(pipelines);
+
 /**
  * A channel's pipelines, newest first, `limit` at a time, narrowed by the filter bar, and how
  * many match: `search` matches the name or description, ignoring case.
@@ -138,11 +140,11 @@ const list = reads(PERMISSIONS.channelView)
     );
 
     const rows = await pipelineRows(tx, member)
-      .where(and(matches, after(pipelines, input.cursor)))
-      .orderBy(...newestFirst(pipelines))
+      .where(and(matches, order.after(input.cursor)))
+      .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
-    const { items, nextCursor } = pageOf(rows, input.limit);
+    const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return { pipelines: items, nextCursor, totalCount: await tx.$count(pipelines, matches) };
   });

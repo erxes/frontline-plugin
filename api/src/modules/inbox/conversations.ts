@@ -15,7 +15,7 @@ import { logger } from '#/logger.ts';
 import { reads, readsWithCore, writes } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
 import { FilterInput, type FilterFields, filtersBy, filterSql, likeText } from '../filter.ts';
-import { orderOf, PageInput, pageOf } from '../paging.ts';
+import { orderOf, PageInput } from '../paging.ts';
 import {
   Conversation,
   conversationById,
@@ -102,7 +102,7 @@ const list = readsWithCore(
       .leftJoin(channelMembers, membership(member, conversations.channelId))
       .where(matches);
 
-    const { items, nextCursor } = pageOf(rows, input.limit);
+    const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return { conversations: items, nextCursor, totalCount: total?.value ?? 0 };
   });

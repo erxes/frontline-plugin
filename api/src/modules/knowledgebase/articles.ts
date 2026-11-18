@@ -9,7 +9,7 @@ import { Attachment } from '#/db/table.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Title } from '../fields.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
-import { after, newestFirst, PageInput, pageOf } from '../paging.ts';
+import { orderOf, PageInput } from '../paging.ts';
 import { categoryFor, topicFor } from './shared.ts';
 
 const { orgId, content, reactionChoices, image, attachments, pdfAttachment, ...rowColumns } =
@@ -144,6 +144,8 @@ const statusColumns = (
   };
 };
 
+const order = orderOf(kbArticles);
+
 /**
  * A topic's articles, newest first, `limit` at a time: pass `nextCursor` as
  * `cursor` for the next page. The filter bar narrows them; `search` matches
@@ -182,12 +184,12 @@ const list = reads(PERMISSIONS.kbView)
     const rows = await tx
       .select(rowColumns)
       .from(kbArticles)
-      .where(and(matches, after(kbArticles, input.cursor)))
-      .orderBy(...newestFirst(kbArticles))
+      .where(and(matches, order.after(input.cursor)))
+      .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
     const [total] = await tx.select({ value: count() }).from(kbArticles).where(matches);
-    const { items, nextCursor } = pageOf(rows, input.limit);
+    const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return {
       articles: items,

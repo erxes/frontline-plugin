@@ -10,7 +10,7 @@ import { messages } from '#/db/inbox.ts';
 import { Attachment } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import { reads, writes } from '#/orpc.ts';
-import { orderOf, PageInput, pageOf } from '../paging.ts';
+import { orderOf, PageInput } from '../paging.ts';
 import { Content, Html, writtenText } from './html.ts';
 import { messageColumns, postMessage, queueSend } from './post.ts';
 import { Reaction, reactionsOf } from './reactions.ts';
@@ -69,7 +69,7 @@ const list = reads(PERMISSIONS.inboxView)
       .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
-    const { items, nextCursor } = pageOf(rows, input.limit);
+    const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return { messages: items, nextCursor };
   });
