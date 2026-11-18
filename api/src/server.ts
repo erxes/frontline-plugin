@@ -1,7 +1,7 @@
 import { bearerOf, verifyCoreEvent, verifyCoreJob, verifyPluginSession } from '@erxes/plugin-sdk';
 import { pluginOpenApi } from '@erxes/plugin-sdk/openapi';
 import { OpenAPIHandler } from '@orpc/openapi/node';
-import { onError, ORPCError } from '@orpc/server';
+import { onError, ORPCError, ValidationError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/node';
 import cors from 'cors';
 import express from 'express';
@@ -25,9 +25,36 @@ const logFailure = (error: unknown) => {
   if (!(error instanceof ORPCError) || error.status >= 500) logger.error(error);
 };
 
+/**
+ * Refused input says what is wrong, such as "A question needs at least 2 options", where oRPC
+ * says "Input validation failed". The panels show the message as it comes.
+ */
+const explainInput = (error: unknown) => {
+  if (
+    error instanceof ORPCError &&
+    error.code === 'BAD_REQUEST' &&
+    error.cause instanceof ValidationError
+  ) {
+    const [first] = error.cause.issues;
+
+    throw new ORPCError('BAD_REQUEST', {
+      message: first?.message ?? error.message,
+      data: error.data,
+      cause: error.cause,
+    });
+  }
+};
+
 // The same procedures twice: RPC for the plugin UI, REST (documented below) for scripts.
-const rpc = new RPCHandler(router, { interceptors: [onError(logFailure)] });
-const rest = new OpenAPIHandler(router, { interceptors: [onError(logFailure)] });
+const rpc = new RPCHandler(router, {
+  interceptors: [onError(logFailure)],
+  clientInterceptors: [onError(explainInput)],
+});
+
+const rest = new OpenAPIHandler(router, {
+  interceptors: [onError(logFailure)],
+  clientInterceptors: [onError(explainInput)],
+});
 
 /** Settings › Developer › API reference in core shows it (the manifest's `api.docs`). */
 const memberDoc = pluginOpenApi(router, {
