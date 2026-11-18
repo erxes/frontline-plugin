@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 import { convert } from 'html-to-text';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
@@ -7,12 +8,18 @@ import { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
 import { logger } from '#/logger.ts';
 import { attachedFile } from '#/modules/files.ts';
+import { isBlockedIp, reachableAddress, reachableLookup } from '#/modules/outbound.ts';
 import { defineProvider, type InboundMessage } from '../provider.ts';
 import { type Reported, type Suppressed, suppressedAmong } from './mailSuppressions.ts';
 import { type SyncState, syncFailure } from './mailSync.ts';
 
 export const Server = z.object({
-  host: z.string().trim().min(1).max(255),
+  host: z
+    .string()
+    .trim()
+    .min(1)
+    .max(255)
+    .refine((host) => !isBlockedIp(host), 'A public address, not a private one'),
   port: z.number().int().min(1).max(65535),
   /** TLS from the first byte (993, 465); otherwise STARTTLS when the server offers it. */
   secure: z.boolean(),
@@ -30,11 +37,19 @@ const imapClient = (imap: z.infer<typeof Server>, password: string) =>
     secure: imap.secure,
     auth: { user: imap.user, pass: password },
     logger: false,
+    // A member names the host, so it may only resolve to a public address; imapflow hands these
+    // options to the socket it opens.
+    tls: { lookup: reachableLookup },
   });
 
-const smtpTransport = (smtp: z.infer<typeof Server>, password: string) =>
+/**
+ * nodemailer resolves names itself and takes no lookup, so it dials the checked address and
+ * checks TLS against the host's name.
+ */
+const smtpTransport = async (smtp: z.infer<typeof Server>, password: string) =>
   createTransport({
-    host: smtp.host,
+    host: await reachableAddress(smtp.host),
+    servername: isIP(smtp.host) ? undefined : smtp.host,
     port: smtp.port,
     secure: smtp.secure,
     auth: { user: smtp.user, pass: password },
@@ -339,7 +354,7 @@ export const checkMail = async (config: z.infer<typeof Config>, secret: z.infer<
 
     await client.connect();
     await client.logout();
-    await smtpTransport(config.smtp, secret.smtpPassword).verify();
+    await (await smtpTransport(config.smtp, secret.smtpPassword)).verify();
 
     return null;
   } catch (error) {
@@ -396,7 +411,7 @@ export const mail = defineProvider({
 
     const messageId = started?.root ?? newMessageId(row.externalId);
 
-    await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
+    await (await smtpTransport(config.smtp, secret.smtpPassword)).sendMail({
       from: { name: row.name, address: row.externalId },
       to,
       subject: started ? (started.subject ?? '') : replySubject(subject),
@@ -419,7 +434,9 @@ export const mail = defineProvider({
 
     const { subject = '', root } = MailData.safeParse(message.providerData ?? {}).data ?? {};
 
-    await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
+    await (
+      await smtpTransport(config.smtp, secret.smtpPassword)
+    ).sendMail({
       from: { name: row.name, address: row.externalId },
       to,
       subject: replySubject(subject),

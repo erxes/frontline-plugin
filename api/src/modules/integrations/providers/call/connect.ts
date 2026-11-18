@@ -9,6 +9,7 @@ import type { Tx } from '#/db/client.ts';
 import { callOperators, callQueues } from '#/db/calls.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { publicKeys } from '#/db/public.ts';
+import { isBlockedIp } from '#/modules/outbound.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
 import { sealSecret } from '../../secrets.ts';
 import { Account, accountColumns, accountRow, saveAccount } from '../../store.ts';
@@ -18,7 +19,8 @@ import { checkPbx } from './pbx.ts';
 const Host = z
   .string()
   .trim()
-  .regex(/^[a-z0-9.-]+(:\d{1,5})?$/i, 'A host name, with a port if not 443');
+  .regex(/^[a-z0-9.-]+(:\d{1,5})?$/i, 'A host name, with a port if not 443')
+  .refine((host) => !isBlockedIp(host.replace(/:\d+$/, '')), 'A public address, not a private one');
 
 const TimeZone = z.string().refine((zone) => Intl.supportedValuesOf('timeZone').includes(zone), {
   message: 'An IANA time zone, such as Asia/Ulaanbaatar',

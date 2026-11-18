@@ -10,6 +10,12 @@ const Env = z.object({
   DATA_URL: z.url(),
   /** Connections each API process holds open at most. */
   DATA_POOL_MAX: z.coerce.number().int().positive().default(10),
+  /**
+   * Whether hosts a member names (a PBX, a mailbox's IMAP and SMTP, a link to preview) may be
+   * private, loopback or link-local addresses, as core's setting of the same name allows: for a
+   * stack whose mail server or PBX runs beside it, such as e2e. Off, they must be public.
+   */
+  OUTBOUND_ALLOW_PRIVATE: z.stringbool().default(false),
   /** Core's address, without `/core/v1`. */
   CORE_URL: z.url(),
   /** This plugin's secret from core's `CORE_PLUGIN_KEYS`. */
@@ -97,6 +103,7 @@ export const config = {
   },
   /** How long frontline waits for core or a provider's API to answer. */
   outboundMs: 15_000,
+  outboundAllowPrivate: env.OUTBOUND_ALLOW_PRIVATE,
   coreUrl: env.CORE_URL,
   pluginSecret: env.PLUGIN_SECRET,
   publicUrl: env.PUBLIC_URL.replace(/\/+$/, ''),
