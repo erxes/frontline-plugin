@@ -3,7 +3,8 @@ import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
-import { reads, writes } from '#/orpc.ts';
+import { withOrg } from '#/db/client.ts';
+import { readsWithCore, writesWithCore } from '#/orpc.ts';
 import { Account, accountRow, saveAccount } from '../store.ts';
 import {
   defineProvider,
@@ -172,12 +173,13 @@ export const telegramWebhook: WebhookSource = {
 
 /**
  * Connects a bot by its token from BotFather: Telegram checks the token, then posts the bot's
- * updates to a webhook address only frontline knows, signed with a secret of its own.
+ * updates to a webhook address only frontline knows, signed with a secret of its own. Telegram
+ * is asked before the transaction opens.
  */
-const connect = writes(PERMISSIONS.integrationManage)
-  .input(z.object({ token: z.string().trim().min(10).max(200) }))
-  .output(Account)
-  .handler(async ({ input, context: { tx, member } }) => {
+const connect = writesWithCore(
+  PERMISSIONS.integrationManage,
+  z.object({ token: z.string().trim().min(10).max(200) }),
+  async (_member, input) => {
     const bot = await call(input.token, 'getMe', User).catch((error: unknown) => {
       throw new ORPCError('BAD_REQUEST', { message: `Telegram refused the token: ${why(error)}` });
     });
@@ -191,15 +193,28 @@ const connect = writes(PERMISSIONS.integrationManage)
       allowed_updates: ['message', 'message_reaction'],
     });
 
-    return saveAccount(tx, member, {
-      provider: 'telegram',
-      externalId: String(bot.id),
-      name: bot.username ? `@${bot.username}` : bot.first_name,
-      config: { username: bot.username },
-      secret: { token: input.token, webhookSecret },
-      webhookKey: key,
-    });
-  });
+    return { bot, key, webhookSecret };
+  },
+)
+  .output(Account)
+  .handler(
+    ({
+      input,
+      context: {
+        tx,
+        member,
+        fromCore: { bot, key, webhookSecret },
+      },
+    }) =>
+      saveAccount(tx, member, {
+        provider: 'telegram',
+        externalId: String(bot.id),
+        name: bot.username ? `@${bot.username}` : bot.first_name,
+        config: { username: bot.username },
+        secret: { token: input.token, webhookSecret },
+        webhookKey: key,
+      }),
+  );
 
 /** A bot's webhook: where updates go, how many wait, and its last failure. */
 const Webhook = z.object({
@@ -237,11 +252,11 @@ const WebhookInfo = z
   }));
 
 /** The bot's webhook as Telegram sees it, to tell why updates stopped arriving. */
-const webhookInfo = reads(PERMISSIONS.integrationView)
-  .input(z.object({ id: z.string() }))
-  .output(Webhook)
-  .handler(async ({ input, context: { tx } }) => {
-    const row = await accountRow(tx, input.id);
+const webhookInfo = readsWithCore(
+  PERMISSIONS.integrationView,
+  z.object({ id: z.string() }),
+  async (member, input) => {
+    const row = await withOrg(member.orgId, (tx) => accountRow(tx, input.id));
 
     if (row.provider !== 'telegram')
       throw new ORPCError('NOT_FOUND', { message: 'No such Telegram bot' });
@@ -251,6 +266,9 @@ const webhookInfo = reads(PERMISSIONS.integrationView)
     return call(account.secret.token, 'getWebhookInfo', WebhookInfo).catch((error: unknown) => {
       throw new ORPCError('BAD_GATEWAY', { message: `Telegram refused: ${why(error)}` });
     });
-  });
+  },
+)
+  .output(Webhook)
+  .handler(({ context: { fromCore } }) => fromCore);
 
 export const telegramProcedures = { connect, webhookInfo };

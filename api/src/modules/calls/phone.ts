@@ -3,12 +3,12 @@ import { ORPCError } from '@orpc/server';
 import { and, desc, eq, inArray, isNotNull, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
-import type { Tx } from '#/db/client.ts';
+import { type Tx, withOrg } from '#/db/client.ts';
 import { callOperators, calls } from '#/db/calls.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
-import { reads, writes } from '#/orpc.ts';
+import { reads, readsWithCore, writesWithCore } from '#/orpc.ts';
 import { call, pbxOf } from '../integrations/providers/call/call.ts';
-import { pbxAction } from '../integrations/providers/call/pbx.ts';
+import { pbxAction, pbxFailed } from '../integrations/providers/call/pbx.ts';
 import { openSecret } from '../integrations/secrets.ts';
 
 /**
@@ -37,11 +37,9 @@ const lineOf = async (tx: Tx, member: PluginMember, accountId: string) => {
   return { extension: found.operator.extension, pbx: pbxOf(call.open(found.account).account) };
 };
 
-const pbxFailed = (error: unknown) => {
-  throw new ORPCError('BAD_GATEWAY', {
-    message: error instanceof Error ? error.message : 'The PBX did not answer',
-  });
-};
+/** The caller's line on the PBX, read in a transaction that ends before the PBX is asked. */
+const lineFor = (member: PluginMember, accountId: string) =>
+  withOrg(member.orgId, (tx) => lineOf(tx, member, accountId));
 
 /**
  * The lines the caller's softphone signs in to: each extension with a SIP password, on the PBX's
@@ -108,11 +106,11 @@ const PbxAccounts = z.object({
 });
 
 /** The PBX's other extensions, the ones the caller can transfer a call to. */
-const extensions = reads(PERMISSIONS.callView)
-  .input(z.object({ accountId: z.string() }))
-  .output(z.array(z.object({ extension: z.string(), name: z.string(), status: z.string() })))
-  .handler(async ({ input, context: { tx, member } }) => {
-    const line = await lineOf(tx, member, input.accountId);
+const extensions = readsWithCore(
+  PERMISSIONS.callView,
+  z.object({ accountId: z.string() }),
+  async (member, input) => {
+    const line = await lineFor(member, input.accountId);
 
     const { account } = await pbxAction(line.pbx, 'listAccount', PbxAccounts, {
       item_num: '500',
@@ -129,7 +127,10 @@ const extensions = reads(PERMISSIONS.callView)
         name: row.fullname ?? '',
         status: row.status ?? '',
       }));
-  });
+  },
+)
+  .output(z.array(z.object({ extension: z.string(), name: z.string(), status: z.string() })))
+  .handler(({ context: { fromCore } }) => fromCore);
 
 const Bridged = z.object({
   channel: z
@@ -145,11 +146,11 @@ const Bridged = z.object({
 });
 
 /** Hands the caller's call on to another extension: the PBX moves the caller's side of it. */
-const transfer = writes(PERMISSIONS.callView)
-  .input(z.object({ accountId: z.string(), extension: z.string().trim().min(1).max(30) }))
-  .output(z.object({ extension: z.string() }))
-  .handler(async ({ input, context: { tx, member } }) => {
-    const line = await lineOf(tx, member, input.accountId);
+const transfer = writesWithCore(
+  PERMISSIONS.callView,
+  z.object({ accountId: z.string(), extension: z.string().trim().min(1).max(30) }),
+  async (member, input) => {
+    const line = await lineFor(member, input.accountId);
 
     const bridged = await pbxAction(line.pbx, 'listBridgedChannels', Bridged).catch(pbxFailed);
 
@@ -171,7 +172,10 @@ const transfer = writes(PERMISSIONS.callView)
     }).catch(pbxFailed);
 
     return { extension: input.extension };
-  });
+  },
+)
+  .output(z.object({ extension: z.string() }))
+  .handler(({ context: { fromCore } }) => fromCore);
 
 /**
  * The caller's latest call that is ringing or on, by the member or their extension, with the

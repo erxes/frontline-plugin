@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { core, CONVERSATION_EVENTS, PERMISSIONS } from '#/core.ts';
 import { conversations, integrations } from '#/db/inbox.ts';
 import { Attachment } from '#/db/table.ts';
-import { reads, writes } from '#/orpc.ts';
+import { readsWithCore, writes } from '#/orpc.ts';
 import { channelFor } from '#/modules/channels/access.ts';
 import { postMessage } from '#/modules/inbox/post.ts';
 import { customerFor } from '#/modules/inbox/receive.ts';
@@ -109,8 +109,16 @@ const compose = writes(PERMISSIONS.inboxView)
  * Who a new mail may go to: core's customers the search finds, one row for each of their
  * addresses, less those that bounced or reported spam.
  */
-const recipients = reads(PERMISSIONS.inboxView)
-  .input(z.object({ search: z.string().trim().max(200).default('') }))
+const recipients = readsWithCore(
+  PERMISSIONS.inboxView,
+  z.object({ search: z.string().trim().max(200).default('') }),
+  async (member, input) =>
+    (
+      await core
+        .forOrg(member.orgId)
+        .customers.list({ search: input.search || undefined, limit: 20 })
+    ).data,
+)
   .output(
     z.array(
       z.object({
@@ -121,11 +129,7 @@ const recipients = reads(PERMISSIONS.inboxView)
       }),
     ),
   )
-  .handler(async ({ input, context: { tx, member } }) => {
-    const { data } = await core
-      .forOrg(member.orgId)
-      .customers.list({ search: input.search || undefined, limit: 20 });
-
+  .handler(async ({ context: { tx, fromCore: data } }) => {
     const rows = data.flatMap(({ id, firstName, lastName, primaryEmail, emails }) =>
       [...new Set([primaryEmail, ...emails].flatMap((email) => email?.toLowerCase() ?? []))].map(
         (email) => ({ customerId: id, firstName, lastName, email }),

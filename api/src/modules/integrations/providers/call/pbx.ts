@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 
@@ -95,6 +96,13 @@ export const pbxAction = <T>(
   params: Record<string, unknown> = {},
 ) =>
   withSession(pbx, async (cookie) => Result.parse(await ask(pbx, { action, cookie, ...params })));
+
+/** A failed `pbxAction`, as the member sees it: 502 with the PBX's reason. */
+export const pbxFailed = (error: unknown): never => {
+  throw new ORPCError('BAD_GATEWAY', {
+    message: error instanceof Error ? error.message : 'The PBX did not answer',
+  });
+};
 
 /** Resolves to why the PBX refuses frontline's API user, or null while it signs in. */
 export const checkPbx = async (pbx: Pbx) => {

@@ -3,7 +3,7 @@ import { RouteBases, Routes } from 'discord-api-types/v10';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
-import { writes } from '#/orpc.ts';
+import { writesWithCore } from '#/orpc.ts';
 import { defineProvider } from '../provider.ts';
 import { Account, saveAccount } from '../store.ts';
 
@@ -74,22 +74,27 @@ export const discord = defineProvider({
   },
 });
 
-/** Connects a bot by its token from Discord's developer portal, once Discord accepts it. */
-const connect = writes(PERMISSIONS.integrationManage)
-  .input(z.object({ token: z.string().trim().min(20).max(200) }))
-  .output(Account)
-  .handler(async ({ input, context: { tx, member } }) => {
-    const bot = await botOf(input.token).catch((error: unknown) => {
+/**
+ * Connects a bot by its token from Discord's developer portal, once Discord accepts it. Discord
+ * is asked before the transaction opens.
+ */
+const connect = writesWithCore(
+  PERMISSIONS.integrationManage,
+  z.object({ token: z.string().trim().min(20).max(200) }),
+  (_member, input) =>
+    botOf(input.token).catch((error: unknown) => {
       throw new ORPCError('BAD_REQUEST', { message: `Discord refused the token: ${why(error)}` });
-    });
-
-    return saveAccount(tx, member, {
+    }),
+)
+  .output(Account)
+  .handler(({ input, context: { tx, member, fromCore: bot } }) =>
+    saveAccount(tx, member, {
       provider: 'discord',
       externalId: bot.id,
       name: bot.username,
       config: {},
       secret: { token: input.token },
-    });
-  });
+    }),
+  );
 
 export const discordProcedures = { connect };
