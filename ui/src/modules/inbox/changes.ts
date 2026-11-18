@@ -160,9 +160,13 @@ export const useMarkRead = () =>
     ),
   );
 
+/** A reply or a note on its way, as the composer sends it. */
+export type Sending = Inputs['messages']['create'];
+
 /**
- * Sends a reply or a note. It shows in the thread as soon as the API saves it; the rest of the
- * inbox follows with the refresh.
+ * Sends a reply or a note. The thread shows it faded while it goes, from the mutation's
+ * variables, then in its place once the API saves it; the rest of the inbox follows with the
+ * refresh.
  */
 export const useSendMessage = () => {
   const queryClient = useQueryClient();

@@ -8,7 +8,7 @@ import { draftsOf, useDraft as useSavedDraft } from '~/shared/drafts.ts';
 import { takesNotesOnly } from '~/shared/kinds.tsx';
 import type { Attachment } from '~/shared/Files.tsx';
 import { type Conversation, useSendTyping } from './queries.ts';
-import { useSendMessage } from './changes.ts';
+import type { useSendMessage } from './changes.ts';
 import { AttachButton, AttachedFiles, useComposerFiles } from './ComposerFiles.tsx';
 import { useSlashItems } from './slashItems.tsx';
 import { TemplatePicker } from './TemplatePicker.tsx';
@@ -53,6 +53,9 @@ const withPart = (draft: Draft, note: boolean, part: Part): Draft =>
   note ? { ...draft, internal: part } : { ...draft, reply: part };
 
 const isEmpty = (part: Part) => !editorText(part.html) && part.attachments.length === 0;
+
+/** The pane's send, which its thread shows while it goes. */
+type Send = ReturnType<typeof useSendMessage>;
 
 /** The send shortcut, as the member's keyboard labels it. */
 const SHORTCUT = navigator.userAgent.includes('Mac') ? '⌘↵' : 'Ctrl↵';
@@ -267,14 +270,13 @@ const useDraft = (conversation: Conversation) => {
  * the paperclip, a paste or a drop, and Send waits for them. Ctrl or ⌘ with Enter sends it, and the cursor stays in the box. What
  * is written stays as the conversation's draft until it goes.
  */
-export const Composer = ({ conversation }: { conversation: Conversation }) => {
+export const Composer = ({ conversation, send }: { conversation: Conversation; send: Send }) => {
   const draft = useDraft(conversation);
   const { html, attachments, note, setHtml } = draft;
   const mode: Mode = note ? 'note' : 'reply';
   // Each change from outside the editor (a send, a template) starts a new one with the content.
   const [version, setVersion] = useState(0);
   const { attach, focus: focusEditor } = useEditorFocus();
-  const send = useSendMessage();
   const sendTyping = useSendTyping(conversation.id);
   const empty = !editorText(html) && attachments.length === 0;
   const files = useComposerFiles(note, draft.attach);

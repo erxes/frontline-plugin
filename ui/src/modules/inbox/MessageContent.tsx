@@ -1,14 +1,19 @@
-import { IconExternalLink, IconFile } from '@tabler/icons-react';
-import { Button, cn, Dialog } from 'erxes-ui';
+import { IconClock, IconExternalLink, IconFile } from '@tabler/icons-react';
+import { Button, cn, Dialog, editorText } from 'erxes-ui';
 import parse from 'html-react-parser';
 import { useTranslation } from 'react-i18next';
+import type { Sending } from './changes.ts';
 import { type Message, useLinkPreviews } from './queries.ts';
 
 /**
  * What the message says: a member's rich text as the API sanitized it (`api/src/modules/inbox/html.ts`),
  * else its plain text.
  */
-export const MessageBody = ({ message }: { message: Message }) => {
+export const MessageBody = ({
+  message,
+}: {
+  message: Pick<Message, 'customerId' | 'userId' | 'internal' | 'html' | 'content'>;
+}) => {
   const fromCustomer = Boolean(message.customerId);
 
   const bot = !fromCustomer && !message.userId;
@@ -150,5 +155,40 @@ export const LinkPreviews = ({ message }: { message: Message }) => {
         </li>
       ))}
     </ul>
+  );
+};
+
+/**
+ * The member's message while the API saves it, on the right as it will show, faded, its text
+ * plain until the saved one replaces it. A refused one goes, and the composer gets it back.
+ */
+export const SendingMessage = ({ sending }: { sending: Sending }) => {
+  const { t } = useTranslation('frontline');
+  const internal = sending.internal ?? false;
+
+  return (
+    <article
+      aria-label={t('message-sending', 'Message on its way')}
+      aria-busy
+      className="flex flex-col items-end gap-1 pb-6 opacity-60"
+    >
+      <MessageBody
+        message={{
+          customerId: null,
+          // Any member's id draws the team's bubble; whose it is shows once it is saved.
+          userId: 'sending',
+          internal,
+          html: null,
+          content: editorText(sending.html ?? '') || sending.content || '',
+        }}
+      />
+      <Attachments files={sending.attachments ?? []} />
+      {!internal && (
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <IconClock className="size-3" aria-hidden />
+          {t('sending', 'Sending')}
+        </span>
+      )}
+    </article>
   );
 };
