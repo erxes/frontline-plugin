@@ -26,7 +26,8 @@ import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { MembersField } from '~/shared/MemberPicker.tsx';
 import { ContactChip } from '~/shared/Person.tsx';
-import { PickerField, TagBadges, TagsField } from '~/shared/Pickers.tsx';
+import { useDebounce } from 'use-debounce';
+import { PickerField, SEARCH_PAUSE_MS, TagBadges, TagsField } from '~/shared/Pickers.tsx';
 import { tagsOf } from '~/shared/reference.ts';
 import { type Ticket, useEditTicket } from './queries.ts';
 
@@ -71,16 +72,19 @@ export const TicketPeople = ({ ticket }: { ticket: Ticket }) => {
   );
 };
 
-/** Core's customers or companies matching a search, as picker options. */
+/** Core's customers or companies matching a search, asked for once typing pauses, as picker options. */
 const useContactOptions = (contentType: TContactContentType, search: string) => {
+  const [asked] = useDebounce(search, SEARCH_PAUSE_MS);
+  const input = { search: asked || undefined, limit: 20 };
+
   const customers = useQuery({
-    ...core.customers.list.queryOptions({ input: { search: search || undefined, limit: 20 } }),
+    ...core.customers.list.queryOptions({ input }),
     enabled: contentType === 'core:customer',
     placeholderData: keepPreviousData,
   });
 
   const companies = useQuery({
-    ...core.companies.list.queryOptions({ input: { search: search || undefined, limit: 20 } }),
+    ...core.companies.list.queryOptions({ input }),
     enabled: contentType === 'core:company',
     placeholderData: keepPreviousData,
   });

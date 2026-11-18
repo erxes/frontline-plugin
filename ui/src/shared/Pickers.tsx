@@ -6,6 +6,9 @@ import type { tagsOf } from '~/shared/reference.ts';
 
 type Option = { value: string; label: string };
 
+/** How long typing in a picker's search pauses before the search goes to the API. */
+export const SEARCH_PAUSE_MS = 250;
+
 /**
  * A side panel value picked in place from `options`: one, or several with `multiple`. Its
  * trigger shows `display`, or `placeholder` while nothing is picked.

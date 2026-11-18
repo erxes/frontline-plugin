@@ -5,17 +5,23 @@ import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
-import { PickerField } from '~/shared/Pickers.tsx';
+import { useDebounce } from 'use-debounce';
+import { PickerField, SEARCH_PAUSE_MS } from '~/shared/Pickers.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { useIntegrations } from './queries.ts';
 import { useInboxChange } from './changes.ts';
 
 const Email = z.email();
 
-/** Core's customers with an address the search finds, and the search itself once it is one. */
+/**
+ * Core's customers with an address the search finds, asked for once typing pauses, and the
+ * search itself once it is one.
+ */
 const useRecipients = (search: string) => {
+  const [asked] = useDebounce(search, SEARCH_PAUSE_MS);
+
   const found = useQuery({
-    ...orpc.integrations.mail.recipients.queryOptions({ input: { search } }),
+    ...orpc.integrations.mail.recipients.queryOptions({ input: { search: asked } }),
     placeholderData: keepPreviousData,
   });
 
