@@ -65,12 +65,8 @@ export const sendReply = async (job: PluginJobDelivery) => {
   if (!send) return settle(job.orgId, messageId, row.conversation, { deliveryStatus: 'sent' });
 
   try {
-    const { externalId } = await send({
-      orgId: job.orgId,
-      integration: row.integration,
-      conversation: row.conversation,
-      message: row.message,
-    });
+    const deliver = await withOrg(job.orgId, (tx) => send(tx, row));
+    const { externalId } = await deliver();
 
     await settle(job.orgId, messageId, row.conversation, { deliveryStatus: 'sent', externalId });
   } catch (error) {

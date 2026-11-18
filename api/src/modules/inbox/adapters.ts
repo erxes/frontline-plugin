@@ -1,12 +1,12 @@
 import type { z } from 'zod';
+import type { Tx } from '#/db/client.ts';
 import type { Attachment } from '#/db/table.ts';
 import { PROVIDER_ADAPTERS } from '../integrations/adapters.ts';
 import { CALL_ADAPTERS } from '../integrations/providers/call/record.ts';
 import { messenger } from '../messenger/adapter.ts';
 
 /** A member's reply on its way to the customer, as its adapter gets it. */
-type Outgoing = {
-  orgId: string;
+export type Outgoing = {
   integration: { id: string; config: Record<string, unknown> };
   conversation: { id: string; externalId: string | null; customerId: string };
   message: {
@@ -32,22 +32,25 @@ export type Adapter = {
   /** The integration's `config`, as the adapter reads and writes it. */
   config: z.ZodType<Record<string, unknown>>;
   /**
-   * Sends a reply once it commits, retried by core as the `messages.send` job, and returns the
-   * provider's message id. Without it a reply is delivered when it commits: the messenger's
-   * visitors read theirs from the inbox.
+   * Sends a reply once it commits, retried by core as the `messages.send` job. It reads what the
+   * provider needs in `tx` and returns the call to the provider, which the caller makes once `tx`
+   * ends and which gives the provider's message id. Without it a reply is delivered when it
+   * commits: the messenger's visitors read theirs from the inbox.
    */
-  send?: (outgoing: Outgoing) => Promise<{ externalId: string | null }>;
+  send?: (tx: Tx, outgoing: Outgoing) => Promise<() => Promise<{ externalId: string | null }>>;
   /**
    * Puts the team's reaction on a message at the provider: `emoji` is the one a member added or
-   * took back, `emojis` the team's on the message after it. Without it members don't react.
+   * took back, `emojis` the team's on the message after it. Like `send`, it reads in `tx` and
+   * returns the provider's call. Without it members don't react.
    */
   react?: (
+    tx: Tx,
     reaction: Omit<Outgoing, 'message'> & {
       message: { externalId: string | null; providerData: Record<string, unknown> | null };
       emoji: string;
       emojis: string[];
     },
-  ) => Promise<void>;
+  ) => Promise<() => Promise<void>>;
   /** Whether its customers see a survey message and vote on it, as the messenger's visitors do. */
   surveys?: boolean;
 };

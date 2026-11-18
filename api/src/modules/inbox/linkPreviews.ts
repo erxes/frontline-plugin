@@ -1,5 +1,6 @@
 import { lookup } from 'node:dns';
 import type { LookupFunction } from 'node:net';
+import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { eq } from 'drizzle-orm';
 import { Parser } from 'htmlparser2';
@@ -9,9 +10,10 @@ import { LRUCache } from 'lru-cache';
 import { Agent, fetch } from 'undici';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
+import { withOrg } from '#/db/client.ts';
 import { messages } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
-import { reads } from '#/orpc.ts';
+import { readsWithCore } from '#/orpc.ts';
 import { conversationById } from './shared.ts';
 
 /** Links a message previews, the bytes read of each page, and how long it may take. */
@@ -189,28 +191,40 @@ const linksOf = (content: string) =>
     .filter((url) => url !== null)
     .slice(0, MAX_LINKS);
 
-/**
- * A card for each link in the message: the page's title, description, site and image, as its
- * Open Graph tags give them. A page that can't be read gets none.
- */
-const list = reads(PERMISSIONS.inboxView)
-  .input(z.object({ id: z.string() }))
-  .output(z.object({ previews: z.array(LinkPreview) }))
-  .handler(async ({ input, context: { tx, member } }) => {
+/** The message's text, if the member may read its conversation. */
+const contentOf = (member: PluginMember, id: string) =>
+  withOrg(member.orgId, async (tx) => {
     const [message] = await tx
       .select({ conversationId: messages.conversationId, content: messages.content })
       .from(messages)
-      .where(eq(messages.id, input.id));
+      .where(eq(messages.id, id));
 
     if (!message) throw new ORPCError('NOT_FOUND', { message: 'No such message' });
 
     await conversationById(tx, member, message.conversationId);
 
+    return message.content;
+  });
+
+/**
+ * A card for each link in the message: the page's title, description, site and image, as its
+ * Open Graph tags give them. A page that can't be read gets none. The pages are read once the
+ * message's transaction ends, so a slow site holds no connection.
+ */
+const list = readsWithCore(
+  PERMISSIONS.inboxView,
+  z.object({ id: z.string() }),
+  async (member, input) => {
     const previews = await Promise.all(
-      linksOf(message.content).map(async (link) => (await cached.fetch(link.href))?.preview),
+      linksOf(await contentOf(member, input.id)).map(
+        async (link) => (await cached.fetch(link.href))?.preview,
+      ),
     );
 
     return { previews: previews.filter((preview) => preview != null) };
-  });
+  },
+)
+  .output(z.object({ previews: z.array(LinkPreview) }))
+  .handler(({ context: { fromCore } }) => fromCore);
 
 export const linkPreviewProcedures = { linkPreviews: list };
