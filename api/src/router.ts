@@ -14,6 +14,7 @@ import { pipelineProcedures } from '#/modules/pipelines/pipelines.ts';
 import { statusProcedures } from '#/modules/pipelines/statuses.ts';
 import { callReport } from '#/modules/reports/calls.ts';
 import { conversationReport } from '#/modules/reports/conversations.ts';
+import { metaReport } from '#/modules/reports/meta.ts';
 import { ticketReport } from '#/modules/reports/tickets.ts';
 import { responseTemplateProcedures } from '#/modules/responseTemplates/responseTemplates.ts';
 import { conversationProcedures } from '#/modules/inbox/conversations.ts';
@@ -110,7 +111,12 @@ export const router = {
     categories: categoryProcedures,
     articles: articleProcedures,
   },
-  reports: { tickets: ticketReport, conversations: conversationReport, calls: callReport },
+  reports: {
+    tickets: ticketReport,
+    conversations: conversationReport,
+    calls: callReport,
+    meta: metaReport,
+  },
 };
 
 /** The typed client the UI builds (`ui/src/orpc.ts`). */

@@ -15,6 +15,7 @@ import {
   ConversationsOverTime,
   ConversationSummary,
 } from './ConversationTiles.tsx';
+import { MetaOverTime, MetaSummary } from './MetaTiles.tsx';
 import { TicketsByAssignee, TicketSla } from './TicketTables.tsx';
 import {
   TicketsByPriority,
@@ -38,6 +39,8 @@ export const TILES = {
   'conversations-by-source': ConversationsBySource,
   'conversations-by-tag': ConversationsByTag,
   'conversation-responders': ConversationResponders,
+  'meta-summary': MetaSummary,
+  'meta-over-time': MetaOverTime,
   'call-summary': CallSummary,
   'call-volume': CallVolume,
   'call-heatmap': CallHeatmap,

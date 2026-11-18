@@ -114,6 +114,22 @@ export const DASHBOARD_WIDGETS = [
     preview: 'table',
   }),
   tile({
+    name: 'meta-summary',
+    title: 'Facebook and Instagram',
+    description:
+      'Direct conversations, who wrote the messages, the bot’s share, comments and posts',
+    icon: IconMessageCircle,
+    preview: 'kpi',
+    wide: true,
+  }),
+  tile({
+    name: 'meta-over-time',
+    title: 'Facebook and Instagram over time',
+    description: 'Conversations, messages and comments each day',
+    icon: IconMessageCircle,
+    preview: 'area',
+  }),
+  tile({
     name: 'call-summary',
     title: 'Call summary',
     description: 'Calls answered and missed, service level, wait and talk time',
