@@ -247,10 +247,12 @@ export const useEditTicket = (id: string) => {
  */
 export const useTicketRowActions = () => {
   const update = useUpdateTicket();
+  const follow = useMutation(orpc.tickets.follow.mutationOptions(useTicketChange()));
   const { deleteTickets } = useDeleteTickets();
 
   return {
     edit: (id: string, change: TicketChange) => update.mutate({ id, ...change }),
+    follow: (id: string, following: boolean) => follow.mutate({ id, following }),
     deleteTickets,
   };
 };

@@ -220,12 +220,7 @@ export const useTicketActions = (ticket: Ticket, act: TicketRowActions): RowActi
             value: 'follow',
             icon: following ? <IconEyeOff /> : <IconEye />,
             label: following ? t('unfollow', 'Unfollow') : t('follow', 'Follow'),
-            onSelect: () =>
-              act.edit(ticket.id, {
-                subscribedUserIds: following
-                  ? ticket.subscribedUserIds.filter((id) => id !== me)
-                  : [...ticket.subscribedUserIds, me],
-              }),
+            onSelect: () => act.follow(ticket.id, !following),
           },
         ]
       : []),
@@ -233,10 +228,22 @@ export const useTicketActions = (ticket: Ticket, act: TicketRowActions): RowActi
       value: 'copy-link',
       icon: <IconLink />,
       label: t('copy-link', 'Copy link'),
+      // A page served over plain http has no clipboard, so that says so instead of nothing.
       onSelect: () =>
-        void navigator.clipboard
-          .writeText(new URL(pageOf('tickets')(ticket.id), location.origin).href)
-          .then(() => toast({ title: t('link-copied', 'Link copied') })),
+        void Promise.resolve()
+          .then(() =>
+            navigator.clipboard.writeText(
+              new URL(pageOf('tickets')(ticket.id), location.origin).href,
+            ),
+          )
+          .then(
+            () => toast({ title: t('link-copied', 'Link copied') }),
+            () =>
+              toast({
+                variant: 'destructive',
+                title: t('link-not-copied', 'The browser blocked copying the link'),
+              }),
+          ),
     },
     {
       value: 'archive',

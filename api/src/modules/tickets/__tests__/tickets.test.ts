@@ -258,6 +258,25 @@ describe('tickets', () => {
     });
   });
 
+  it('lets anyone who sees a ticket follow it, keeping the others who follow', async () => {
+    const { owner, teammate, pipeline, stage } = await setUp('org-tk-f');
+    const { id } = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Follow me' });
+    const followers = async () => (await owner.tickets.get({ id })).subscribedUserIds.toSorted();
+
+    // Only the owner may edit the status's tickets; following needs only seeing them.
+    await owner.pipelines.statuses.update({ id: stage(1), canEditMemberIds: ['user-org-tk-f'] });
+    await Promise.all([
+      owner.tickets.follow({ id, following: true }),
+      teammate.tickets.follow({ id, following: true }),
+    ]);
+
+    expect(await followers()).toEqual(['teammate', 'user-org-tk-f']);
+
+    await teammate.tickets.follow({ id, following: false });
+
+    expect(await followers()).toEqual(['user-org-tk-f']);
+  });
+
   it('takes tickets along when their pipeline moves to another channel', async () => {
     const { owner, pipeline } = await setUp('org-tk-e');
     const billing = await owner.channels.create({ name: 'Billing' });
