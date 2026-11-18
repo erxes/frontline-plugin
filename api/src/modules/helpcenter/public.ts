@@ -257,8 +257,8 @@ const notFound = (res: Response, message: string) => {
 };
 
 /**
- * The signed-out routes under `/api/public`: a help center's site and articles by its key or
- * domain, and which key a domain serves, for the help center app in front of it.
+ * The signed-out routes under `/api/public`: a help center's site data and articles by its key or
+ * domain, for its knowledge base embed, and the files those show.
  */
 export const publicRouter = (): Router => {
   const router = express.Router();
@@ -294,17 +294,6 @@ export const publicRouter = (): Router => {
   });
 
   router.get('/files/:key/:id', shownFile);
-
-  router.get('/custom-domains/resolve', async (req, res) => {
-    const host = typeof req.query.host === 'string' ? req.query.host : '';
-    const found = host ? await centerAt(host) : null;
-
-    if (!found || found.center.publicKey === host.toLowerCase())
-      return notFound(res, 'Unknown domain');
-
-    res.set('cache-control', 'private, max-age=60');
-    res.json({ key: found.center.publicKey });
-  });
 
   router.use((error: unknown, req: express.Request, res: Response, _next: express.NextFunction) => {
     fail(res, error, `Public route ${req.path}`);
