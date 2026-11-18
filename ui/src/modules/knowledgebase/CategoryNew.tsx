@@ -8,11 +8,16 @@ import {
   IconLetterCase,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { IconPicker, PanelFormLayout, PanelFormRow, type TRecordDraftProps } from 'erxes-ui';
+import {
+  IconPicker,
+  PanelFormLayout,
+  PanelFormRow,
+  type TRecordDraftProps,
+  textOf,
+} from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { textOf } from '~/shared/hooks.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { ParentSelect, TopicSelect } from './CategoryTree.tsx';
 import { useTakenCode } from './TopicNew.tsx';

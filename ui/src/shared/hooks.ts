@@ -2,9 +2,6 @@ import { type QueryClient, type QueryKey, useQueryClient } from '@tanstack/react
 import { toast } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 
-/** A form field's or draft default's text, or '' when it's missing, a file or not text. */
-export const textOf = (value: unknown) => (typeof value === 'string' ? value : '');
-
 /** Marks the queries under each key stale, refetching the ones on screen, without waiting. */
 const refetch = (queryClient: QueryClient, keys: QueryKey[]) => {
   for (const queryKey of keys) void queryClient.invalidateQueries({ queryKey });

@@ -1,11 +1,10 @@
 import { IconLetterCase, IconMessage } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { PanelFormLayout, type TRecordDraftProps } from 'erxes-ui';
+import { PanelFormLayout, type TRecordDraftProps, textOf } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { ChannelRow, useManagedChannels } from '~/shared/ChannelSelect.tsx';
-import { textOf } from '~/shared/hooks.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { useIntegrationChange } from './queries.ts';
 

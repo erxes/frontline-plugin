@@ -6,12 +6,12 @@ import {
   StringArrayInput,
   Switch,
   type TRecordDraftProps,
+  textOf,
 } from 'erxes-ui';
 import { type SubmitEvent, useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { ChannelRow, useManagedChannels } from '~/shared/ChannelSelect.tsx';
-import { textOf } from '~/shared/hooks.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { useSurveyChange } from './useSurveys.ts';
 

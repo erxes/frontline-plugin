@@ -15,7 +15,7 @@ import { IconCalendarX, IconPlus } from '@tabler/icons-react';
 import { Button, cn, DragHandle, useFormat, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { usePriorityNames } from '@/pipelines/queries.ts';
-import { StageIcon } from '@/pipelines/StatusRow.tsx';
+import { StageIcon } from '@/pipelines/StageIcon.tsx';
 import { TICKET_TYPE } from '~/plugin.ts';
 import { MemberLine } from '~/shared/Person.tsx';
 import { SlaBadge } from './SlaBadge.tsx';

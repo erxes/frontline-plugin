@@ -1,8 +1,7 @@
 import { IconPlus, IconX } from '@tabler/icons-react';
-import { Badge, Button, Input } from 'erxes-ui';
+import { Badge, Button, Input, textOf } from 'erxes-ui';
 import type { SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { textOf } from '~/shared/hooks.ts';
 
 // What the integrations page and the account and bot panels share.
 

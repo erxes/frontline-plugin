@@ -13,7 +13,7 @@ import { Button, cn, Select, useOpenRecord } from 'erxes-ui';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRIORITIES, usePriorityNames } from '@/pipelines/queries.ts';
-import { StageIcon } from '@/pipelines/StatusRow.tsx';
+import { StageIcon } from '@/pipelines/StageIcon.tsx';
 import { TICKET_TYPE } from '~/plugin.ts';
 import { MemberCell } from '~/shared/MemberPicker.tsx';
 import { ActionsMenu, type RowAction } from '~/shared/Records.tsx';

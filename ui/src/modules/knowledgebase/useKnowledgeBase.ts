@@ -8,6 +8,7 @@ import { orpc } from '~/orpc.ts';
 import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
+import { REFERENCE_MS } from '~/shared/reference.ts';
 import css from './styles.css?inline';
 
 // Every knowledge base page and panel slot imports this module, so its utilities load with the
@@ -97,9 +98,18 @@ const topicsQuery = (input: { filter?: string; search?: string }) =>
 /** The topics the filter bar leaves. */
 export const useTopics = () => useQuery(topicsQuery(useListFilterParams()));
 
+/**
+ * Every topic with what the member may change, read by each article row and topic pick. The
+ * knowledge base's own changes refetch it, so a mounting row doesn't.
+ */
+const everyTopic = orpc.knowledgebase.topics.list.queryOptions({
+  input: {},
+  staleTime: REFERENCE_MS,
+});
+
 /** What the member may change; nothing until the topics load. */
 export const useKbAccess = () =>
-  useQuery({ ...topicsQuery({}), select: (data) => data.can }).data ?? {
+  useQuery({ ...everyTopic, select: (data) => data.can }).data ?? {
     topics: false,
     categories: false,
     articles: false,
@@ -107,7 +117,7 @@ export const useKbAccess = () =>
 
 /** Every topic, for a pick of one. */
 export const useAllTopics = () =>
-  useQuery({ ...topicsQuery({}), select: (data) => data.topics }).data ?? [];
+  useQuery({ ...everyTopic, select: (data) => data.topics }).data ?? [];
 
 export const useTopic = (id: string) =>
   useQuery(orpc.knowledgebase.topics.get.queryOptions({ input: { id }, enabled: Boolean(id) }));

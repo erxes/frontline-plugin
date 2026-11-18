@@ -19,12 +19,12 @@ import {
   Select,
   TextField,
   useListFilterParams,
+  textOf,
 } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { FormSheet } from '~/shared/FormSheet.tsx';
-import { textOf } from '~/shared/hooks.ts';
 import { TextCell } from '~/shared/Records.tsx';
 import { column, DateCell } from '~/shared/Table.tsx';
 import {
@@ -33,7 +33,7 @@ import {
   SheetField,
   useCanManageSettings,
   useDeleteRow,
-  useSettingsChange,
+  useTagChange,
 } from './Settings.tsx';
 
 type Tag = InferClientOutputs<Client>['tags']['get'];
@@ -55,7 +55,7 @@ const useTagTypeNames = (): Record<TagType, string> => {
 
 const DEFAULT_COLOR = '#6366F1';
 
-const useUpdateTag = () => useMutation(orpc.tags.update.mutationOptions(useSettingsChange()));
+const useUpdateTag = () => useMutation(orpc.tags.update.mutationOptions(useTagChange()));
 
 const NameCell = ({ tag }: { tag: Tag }) => {
   const { t } = useTranslation('frontline');
@@ -93,7 +93,7 @@ const ColorCell = ({ tag }: { tag: Tag }) => {
 
 const MoreCell = ({ tag }: { tag: Tag }) => {
   const { t } = useTranslation('frontline');
-  const remove = useMutation(orpc.tags.remove.mutationOptions(useSettingsChange()));
+  const remove = useMutation(orpc.tags.remove.mutationOptions(useTagChange()));
   const deleteRow = useDeleteRow(remove.mutate);
 
   return (
@@ -112,7 +112,7 @@ const AddTag = () => {
   const [open, setOpen] = useState(false);
   const [type, setType] = useState<TagType>('ticket');
   const [colorCode, setColorCode] = useState(DEFAULT_COLOR);
-  const { onSuccess, onError } = useSettingsChange();
+  const { onSuccess, onError } = useTagChange();
 
   const create = useMutation(
     orpc.tags.create.mutationOptions({

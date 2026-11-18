@@ -29,12 +29,12 @@ import {
   SettingsList,
   useCanManageSettings,
   useDeleteRow,
-  useSettingsChange,
+  usePropertyChange,
 } from './Settings.tsx';
 import { AddProperty, hasChoices, type Property, TYPES, useTypeNames } from './AddProperty.tsx';
 
 const useUpdateProperty = () =>
-  useMutation(orpc.tickets.properties.update.mutationOptions(useSettingsChange()));
+  useMutation(orpc.tickets.properties.update.mutationOptions(usePropertyChange()));
 
 const LabelCell = ({ property }: { property: Property }) => {
   const { t } = useTranslation('frontline');
@@ -122,7 +122,7 @@ const PipelinesCell = ({ property }: { property: Property }) => {
 
 const MoreCell = ({ property }: { property: Property }) => {
   const { t } = useTranslation('frontline');
-  const remove = useMutation(orpc.tickets.properties.remove.mutationOptions(useSettingsChange()));
+  const remove = useMutation(orpc.tickets.properties.remove.mutationOptions(usePropertyChange()));
   const deleteRow = useDeleteRow(remove.mutate);
 
   return (

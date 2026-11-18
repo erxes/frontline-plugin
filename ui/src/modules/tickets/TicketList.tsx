@@ -7,7 +7,7 @@ import {
   useOpenRecord,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { StageIcon } from '@/pipelines/StatusRow.tsx';
+import { StageIcon } from '@/pipelines/StageIcon.tsx';
 import { TICKET_TYPE } from '~/plugin.ts';
 import { AssigneeCell, PriorityCell, TicketMenu, TicketName } from './TicketCells.tsx';
 import { SlaBadge } from './SlaBadge.tsx';

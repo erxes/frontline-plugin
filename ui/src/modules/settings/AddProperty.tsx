@@ -2,13 +2,12 @@ import type { InferClientOutputs } from '@orpc/client';
 import { IconPlus } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
-import { Button, Input, Select, StringArrayInput, Switch } from 'erxes-ui';
+import { Button, Input, Select, StringArrayInput, Switch, textOf } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { FormSheet } from '~/shared/FormSheet.tsx';
-import { textOf } from '~/shared/hooks.ts';
-import { SheetField, useSettingsChange } from './Settings.tsx';
+import { SheetField, usePropertyChange } from './Settings.tsx';
 
 export type Property = InferClientOutputs<Client>['tickets']['properties']['get'];
 
@@ -48,7 +47,7 @@ export const AddProperty = () => {
   const [type, setType] = useState<PropertyType>('text');
   const [options, setOptions] = useState<string[]>([]);
   const [isRequired, setRequired] = useState(false);
-  const { onSuccess, onError } = useSettingsChange();
+  const { onSuccess, onError } = usePropertyChange();
 
   const create = useMutation(
     orpc.tickets.properties.create.mutationOptions({

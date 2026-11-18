@@ -8,11 +8,11 @@ import {
   PanelSection,
   Table,
   type TRecordSlotProps,
+  textOf,
 } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { textOf } from '~/shared/hooks.ts';
 import { type HelpCenter, useCanManageHelpCenters, useHelpCenterChange } from './queries.ts';
 import { WithHelpCenter } from './HelpCenterPanel.tsx';
 
