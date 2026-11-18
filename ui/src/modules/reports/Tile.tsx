@@ -127,7 +127,7 @@ export const Tile = <Report,>({
     {query.error ? (
       <div role="alert" className="flex flex-col items-start gap-2">
         <p className="text-sm text-destructive">{query.error.message}</p>
-        <RetryButton />
+        <RetryButton error={query.error} />
       </div>
     ) : query.data === undefined ? (
       <Skeleton className="h-24" />
