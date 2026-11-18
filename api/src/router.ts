@@ -47,6 +47,7 @@ import { surveyProcedures } from '#/modules/surveys/surveys.ts';
 import { tagProcedures } from '#/modules/tags/tags.ts';
 import { teamProcedures } from '#/modules/teams/teams.ts';
 import { changeProcedures } from '#/modules/tickets/changes.ts';
+import { followProcedures } from '#/modules/tickets/follow.ts';
 import { propertyProcedures } from '#/modules/tickets/properties.ts';
 import { ticketProcedures } from '#/modules/tickets/tickets.ts';
 
@@ -55,7 +56,12 @@ export const router = {
   channels: { ...channelProcedures, ...memberProcedures },
   responseTemplates: responseTemplateProcedures,
   pipelines: { ...pipelineProcedures, statuses: statusProcedures },
-  tickets: { ...ticketProcedures, ...changeProcedures, properties: propertyProcedures },
+  tickets: {
+    ...ticketProcedures,
+    ...changeProcedures,
+    ...followProcedures,
+    properties: propertyProcedures,
+  },
   settings: settingsProcedures,
   tags: tagProcedures,
   teams: teamProcedures,

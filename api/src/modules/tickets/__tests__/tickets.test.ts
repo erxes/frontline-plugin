@@ -253,20 +253,20 @@ describe('tickets', () => {
     });
   });
 
-  it('takes tickets along when their pipeline moves to another channel', async () => {
-    const { owner, pipeline } = await setUp('org-tk-e');
-    const billing = await owner.channels.create({ name: 'Billing' });
-    const ticket = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Moves' });
+  it('lets anyone who sees a ticket follow it, keeping the others who follow', async () => {
+    const { owner, teammate, pipeline, stage } = await setUp('org-tk-h');
+    const { id } = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Follow me' });
+    const followers = async () => (await owner.tickets.get({ id })).subscribedUserIds.toSorted();
 
-    await owner.pipelines.update({ id: pipeline.id, channelId: billing.id });
+    // Only the owner may edit the status's tickets; following needs only seeing them.
+    await owner.pipelines.statuses.update({ id: stage(1), canEditMemberIds: ['user-org-tk-h'] });
+    await Promise.all([owner, teammate].map((who) => who.tickets.follow({ id, following: true })));
 
-    await expect(owner.tickets.get({ id: ticket.id })).resolves.toMatchObject({
-      channelId: billing.id,
-    });
-    await owner.channels.remove({ ids: [billing.id] });
-    await expect(owner.tickets.get({ id: ticket.id })).rejects.toMatchObject({
-      code: 'NOT_FOUND',
-    });
+    expect(await followers()).toEqual(['teammate', 'user-org-tk-h']);
+
+    await teammate.tickets.follow({ id, following: false });
+
+    expect(await followers()).toEqual(['user-org-tk-h']);
   });
 
   it("publishes each change to the ticket's timeline, only when it commits", async () => {
