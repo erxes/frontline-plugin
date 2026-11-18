@@ -1,8 +1,9 @@
+import { enqueueJob } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { RouteBases, Routes } from 'discord-api-types/v10';
 import { z } from 'zod';
 import { config } from '#/config.ts';
-import { PERMISSIONS } from '#/core.ts';
+import { JOBS, PERMISSIONS } from '#/core.ts';
 import { writesWithCore } from '#/orpc.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { AccountRefused, defineProvider } from '../provider.ts';
@@ -114,21 +115,27 @@ const connect = writesWithCore(
 )
   .output(Account)
   .handler(
-    ({
+    async ({
       input,
       context: {
         tx,
         member,
         fromCore: [bot, application],
       },
-    }) =>
-      saveAccount(tx, member, {
+    }) => {
+      const account = await saveAccount(tx, member, {
         provider: 'discord',
         externalId: bot.id,
         name: bot.username,
         config: { applicationId: application.id },
         secret: { token: input.token },
-      }),
+      });
+
+      // Its gateway opens now rather than on the next minute's run.
+      await enqueueJob(tx, { orgId: member.orgId, name: JOBS.discordGateway.name, payload: {} });
+
+      return account;
+    },
   );
 
 export const discordProcedures = { connect };
