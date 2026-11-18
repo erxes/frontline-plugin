@@ -20,7 +20,14 @@ import { CHANNEL_NAME_INDEX, CHANNEL_ROLES, channelMembers, channels } from '#/d
 import { reads, writes } from '#/orpc.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
-import { canChangeSql, channelFor, insertMembers, managesAll, membership } from './access.ts';
+import {
+  canChangeSql,
+  channelFor,
+  channelsFor,
+  insertMembers,
+  managesAll,
+  membership,
+} from './access.ts';
 
 const Name = z.string().trim().min(1).max(100);
 const Description = z.string().trim().max(1000);
@@ -187,7 +194,7 @@ const remove = writes(PERMISSIONS.channelView)
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
-    await Promise.all(input.ids.map((id) => channelFor(tx, member, id, { change: true })));
+    await channelsFor(tx, member, input.ids, { change: true });
 
     const removed = await tx
       .delete(channels)

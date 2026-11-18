@@ -194,14 +194,13 @@ const arrange = writes(PERMISSIONS.channelView)
     if (input.ids.some((id) => !known.has(id)))
       throw new ORPCError('NOT_FOUND', { message: 'No such field' });
 
-    await Promise.all(
-      input.ids.map((id, order) =>
-        tx
-          .update(formFields)
-          .set({ pageNumber: input.pageNumber, order })
-          .where(eq(formFields.id, id)),
-      ),
-    );
+    await tx
+      .update(formFields)
+      .set({
+        pageNumber: input.pageNumber,
+        order: sql`array_position(${sql.param(input.ids)}::text[], ${formFields.id}) - 1`,
+      })
+      .where(inArray(formFields.id, input.ids));
 
     return fieldsOf(tx, input.formId);
   });

@@ -1,6 +1,6 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, type Column, eq, sql } from 'drizzle-orm';
+import { and, asc, type Column, eq, inArray, sql } from 'drizzle-orm';
 import { PLUGIN } from '#/config.ts';
 import { CHANNEL_EVENTS, PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
@@ -22,30 +22,75 @@ export const canChangeSql = (member: PluginMember) =>
   sql<boolean>`(${channelMembers.role} = 'admin') is true or ${managesAll(member)}`;
 
 /**
- * The channel `member` may act on, locked for the rest of the transaction so
- * concurrent member changes see each other. NOT_FOUND unless they see it;
- * with `change`, FORBIDDEN unless they are its admin or manage every channel.
+ * The channels of `ids` `member` may act on, locked in one statement, in id order, for the rest
+ * of the transaction, so concurrent member changes see each other and two changes to the same
+ * channels can't deadlock. NOT_FOUND unless they see every one; with `change`, FORBIDDEN unless
+ * they are the admin of every one or manage every channel.
  */
+export const channelsFor = async (
+  tx: Tx,
+  member: PluginMember,
+  ids: string[],
+  { change }: { change: boolean },
+) => {
+  const distinct = [...new Set(ids)];
+
+  const rows = await tx
+    .select({ id: channels.id, role: channelMembers.role, ownerId: channels.ownerId })
+    .from(channels)
+    .leftJoin(channelMembers, membership(member, channels.id))
+    .where(inArray(channels.id, distinct))
+    .orderBy(asc(channels.id))
+    .for('update', { of: channels });
+
+  if (
+    rows.length !== distinct.length ||
+    rows.some((row) => (!row.role && !managesAll(member)) || !ownsOrShared(row.ownerId, member))
+  )
+    throw new ORPCError('NOT_FOUND', { message: 'No such channel' });
+
+  if (change && !managesAll(member) && rows.some((row) => row.role !== 'admin'))
+    throw new ORPCError('FORBIDDEN', { message: 'Only a channel admin can change this channel' });
+
+  return rows;
+};
+
+/** The one channel of `id` as `channelsFor` holds it. */
 export const channelFor = async (
   tx: Tx,
   member: PluginMember,
   id: string,
-  { change }: { change: boolean },
+  options: { change: boolean },
 ) => {
-  const [row] = await tx
-    .select({ role: channelMembers.role, ownerId: channels.ownerId })
-    .from(channels)
-    .leftJoin(channelMembers, membership(member, channels.id))
-    .where(eq(channels.id, id))
-    .for('update', { of: channels });
+  const [row] = await channelsFor(tx, member, [id], options);
 
-  if (!row || (!row.role && !managesAll(member)) || !ownsOrShared(row.ownerId, member))
-    throw new ORPCError('NOT_FOUND', { message: 'No such channel' });
-
-  if (change && row.role !== 'admin' && !managesAll(member))
-    throw new ORPCError('FORBIDDEN', { message: 'Only a channel admin can change this channel' });
+  if (!row) throw new ORPCError('NOT_FOUND', { message: 'No such channel' });
 
   return row;
+};
+
+/**
+ * `rows`, the records of `ids` a caller read, once their channels are held as `channelsFor`
+ * holds them. NOT_FOUND, as no such `noun`, unless `rows` has every one of `ids`.
+ */
+export const heldInChannels = async <T extends { channelId: string }>(
+  tx: Tx,
+  member: PluginMember,
+  ids: string[],
+  rows: T[],
+  { change, noun }: { change: boolean; noun: string },
+) => {
+  if (rows.length !== new Set(ids).size)
+    throw new ORPCError('NOT_FOUND', { message: `No such ${noun}` });
+
+  await channelsFor(
+    tx,
+    member,
+    rows.map((row) => row.channelId),
+    { change },
+  );
+
+  return rows;
 };
 
 /** Adds core users to a channel with `role`; a user already in it keeps their role. */

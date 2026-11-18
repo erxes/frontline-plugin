@@ -10,7 +10,7 @@ import type { Tx } from '#/db/client.ts';
 import { FormStep, formSubmissions, forms } from '#/db/forms.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { Attachment } from '#/db/table.ts';
-import { canChangeSql, channelFor, managesAll, membership } from '../channels/access.ts';
+import { canChangeSql, heldInChannels, managesAll, membership } from '../channels/access.ts';
 import { publishEvents, type RecordEvent } from '../events.ts';
 
 /** The row without `org_id`, which the caller already knows. */
@@ -56,27 +56,22 @@ export const formById = async (tx: Tx, member: PluginMember, id: string) => {
 };
 
 /**
- * The forms of `ids`, all of them or NOT_FOUND, oldest first. Their channels' members read them;
- * with `change`, only the channels' admins and members who manage every channel change them.
- * Each channel is held once, in id order, so two changes to the same channels can't deadlock.
+ * The forms of `ids`, all of them or NOT_FOUND, oldest first, with their channels held
+ * (`heldInChannels`). Their channels' members read them; with `change`, only the channels'
+ * admins and members who manage every channel change them.
  */
-export const formsFor = async (tx: Tx, member: PluginMember, ids: string[], change: boolean) => {
-  const rows = await tx
-    .select(formColumns)
-    .from(forms)
-    .where(inArray(forms.id, ids))
-    .orderBy(asc(forms.createdAt), asc(forms.id));
-
-  if (rows.length !== new Set(ids).size)
-    throw new ORPCError('NOT_FOUND', { message: 'No such form' });
-
-  const channelIds = [...new Set(rows.map((row) => row.channelId))].toSorted();
-
-  // One connection runs the locks in the order they are sent.
-  await Promise.all(channelIds.map((channelId) => channelFor(tx, member, channelId, { change })));
-
-  return rows;
-};
+export const formsFor = async (tx: Tx, member: PluginMember, ids: string[], change: boolean) =>
+  heldInChannels(
+    tx,
+    member,
+    ids,
+    await tx
+      .select(formColumns)
+      .from(forms)
+      .where(inArray(forms.id, ids))
+      .orderBy(asc(forms.createdAt), asc(forms.id)),
+    { change, noun: 'form' },
+  );
 
 /** The one form of `id`, read or changed as `formsFor` allows. */
 export const formFor = async (tx: Tx, member: PluginMember, id: string, change: boolean) => {

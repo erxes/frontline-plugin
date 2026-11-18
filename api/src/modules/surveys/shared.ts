@@ -9,7 +9,7 @@ import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { SurveyStep, surveys, surveyVotes } from '#/db/surveys.ts';
 import { pipelineStatuses, pipelines } from '#/db/tickets.ts';
-import { canChangeSql, channelFor, managesAll, membership } from '../channels/access.ts';
+import { canChangeSql, heldInChannels, managesAll, membership } from '../channels/access.ts';
 import { publishEvents, type RecordEvent } from '../events.ts';
 
 const { orgId, ...surveyColumns } = getTableColumns(surveys);
@@ -45,25 +45,21 @@ export const surveyById = async (tx: Tx, member: PluginMember, id: string) => {
 };
 
 /**
- * The surveys of `ids`, all of them or NOT_FOUND, oldest first: their channels' members read
- * them, with `change` only their admins. Each channel is held once, in id order.
+ * The surveys of `ids`, all of them or NOT_FOUND, oldest first, with their channels held
+ * (`heldInChannels`): their channels' members read them, with `change` only their admins.
  */
-export const surveysFor = async (tx: Tx, member: PluginMember, ids: string[], change: boolean) => {
-  const rows = await tx
-    .select(surveyColumns)
-    .from(surveys)
-    .where(inArray(surveys.id, ids))
-    .orderBy(asc(surveys.createdAt), asc(surveys.id));
-
-  if (rows.length !== new Set(ids).size)
-    throw new ORPCError('NOT_FOUND', { message: 'No such survey' });
-
-  const channelIds = [...new Set(rows.map((row) => row.channelId))].toSorted();
-
-  await Promise.all(channelIds.map((channelId) => channelFor(tx, member, channelId, { change })));
-
-  return rows;
-};
+export const surveysFor = async (tx: Tx, member: PluginMember, ids: string[], change: boolean) =>
+  heldInChannels(
+    tx,
+    member,
+    ids,
+    await tx
+      .select(surveyColumns)
+      .from(surveys)
+      .where(inArray(surveys.id, ids))
+      .orderBy(asc(surveys.createdAt), asc(surveys.id)),
+    { change, noun: 'survey' },
+  );
 
 /** Refuses an option's ticket rule unless its status is of its pipeline, in the survey's channel. */
 export const checkTickets = async (

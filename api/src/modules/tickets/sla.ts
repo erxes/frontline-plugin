@@ -2,6 +2,7 @@ import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { TICKET_EVENTS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { pipelines, tickets } from '#/db/tickets.ts';
+import { inOrder } from '../integrations/provider.ts';
 import { publish, type TicketEvent } from './events.ts';
 
 const now = sql`now()`;
@@ -97,12 +98,11 @@ const notice = async (tx: Tx, clock: Clock, stage: Stage): Promise<TicketEvent[]
  */
 export const checkSla = (orgId: string) =>
   withOrg(orgId, async (tx) => {
-    // One connection runs the statements in the order they are sent.
-    const events = (
-      await Promise.all(
-        CLOCKS.flatMap((clock) => [notice(tx, clock, 'warning'), notice(tx, clock, 'breach')]),
-      )
-    ).flat();
+    const stages = CLOCKS.flatMap((clock) =>
+      (['warning', 'breach'] as const).map((stage) => ({ clock, stage })),
+    );
+
+    const events = (await inOrder(stages, ({ clock, stage }) => notice(tx, clock, stage))).flat();
 
     await publish(tx, { orgId, userId: null }, events);
 
