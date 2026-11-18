@@ -15,12 +15,11 @@ import {
   ConversationsOverTime,
   ConversationSummary,
 } from './ConversationTiles.tsx';
+import { TicketsByAssignee, TicketSla } from './TicketTables.tsx';
 import {
-  TicketsByAssignee,
   TicketsByPriority,
   TicketsByStatus,
   TicketsByTag,
-  TicketSla,
   TicketsOverTime,
   TicketSummary,
 } from './TicketTiles.tsx';

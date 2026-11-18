@@ -54,6 +54,7 @@ const TICKET_FILTER: FilterFields = {
   'subject.startDate': { type: 'date', expr: tickets.startDate },
   'subject.targetDate': { type: 'date', expr: tickets.targetDate },
   'subject.statusChangedAt': { type: 'date', expr: tickets.statusChangedAt },
+  'subject.resolvedAt': { type: 'date', expr: tickets.resolvedAt },
 };
 
 /**

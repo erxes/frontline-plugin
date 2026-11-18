@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange, useOptimistic } from '~/shared/hooks.ts';
+import { PIPELINE_PARAM } from '~/shared/listPath.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { choicesQuery } from '~/shared/reference.ts';
@@ -34,9 +35,6 @@ export const useTicketSort = () =>
     sort: parseAsStringLiteral(['updatedAt', 'createdAt'] as const).withDefault('updatedAt'),
     direction: parseAsStringLiteral(['desc', 'asc'] as const).withDefault('desc'),
   });
-
-/** The address's key for the pipeline the tickets page shows. */
-export const PIPELINE_PARAM = 'pipeline';
 
 /** The pipelines and statuses of the member's channels: what a ticket is filed under. */
 export const useChoices = () => {

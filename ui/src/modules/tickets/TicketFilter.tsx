@@ -3,6 +3,7 @@ import {
   IconAlertSquareRounded,
   IconArchive,
   IconCalendarBolt,
+  IconCalendarCheck,
   IconCalendarClock,
   IconCalendarPlus,
   IconCalendarUp,
@@ -101,6 +102,7 @@ const useDateFields = () => {
     dateField('startDate', t('start-date', 'Start date'), IconCalendarBolt),
     dateField('targetDate', t('target-date', 'Target date'), IconCalendarX),
     dateField('statusChangedAt', t('status-changed-at', 'Status changed'), IconCalendarClock),
+    dateField('resolvedAt', t('resolved-at', 'Resolved at'), IconCalendarCheck),
   ];
 };
 

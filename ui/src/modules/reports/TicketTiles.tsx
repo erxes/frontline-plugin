@@ -4,10 +4,10 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { usePriorityNames, useStages } from '@/pipelines/queries.ts';
 import { choicesQuery } from '~/shared/reference.ts';
-import { MemberLine } from '~/shared/Person.tsx';
 import { DayChart } from './Charts.tsx';
 import { useTicketReport } from './queries.ts';
-import { BarList, MiniTable, percentText, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
+import { useTicketLinks } from './ticketLinks.ts';
+import { BarList, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
 
 /** A select item can't hold null, so "all pipelines" is this. */
 const ALL = 'all';
@@ -18,7 +18,7 @@ type Report = ReturnType<typeof useTicketReport>;
  * The tile's period and query, and its pipeline pick, laid out by `Tile`; `now` for a tile that
  * counts what holds now, with no period.
  */
-const TicketTile = ({
+export const TicketTile = ({
   report: { period, query, pipeline },
   now = false,
   children,
@@ -65,26 +65,44 @@ const TicketTile = ({
   );
 };
 
-/** Created, resolved, open and overdue tickets, and how long resolving took. */
+/** Created, resolved, open and overdue tickets, each opening its tickets, and how long resolving took. */
 export const TicketSummary = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
+  const ticketReport = useTicketReport('ticket-summary');
+  const links = useTicketLinks(ticketReport);
 
   return (
-    <TicketTile report={useTicketReport('ticket-summary')}>
+    <TicketTile report={ticketReport}>
       {(report) => (
         <Stats>
-          <Stat label={t('tickets-created', 'Created')} value={format.number(report.created)} />
-          <Stat label={t('tickets-resolved', 'Resolved')} value={format.number(report.resolved)} />
+          <Stat
+            label={t('tickets-created', 'Created')}
+            value={format.number(report.created)}
+            to={links.created()}
+          />
+          <Stat
+            label={t('tickets-resolved', 'Resolved')}
+            value={format.number(report.resolved)}
+            to={links.resolved()}
+          />
           <Stat
             label={t('tickets-unresolved', 'Open now')}
             value={format.number(report.unresolved)}
+            to={links.open()}
           />
           <Stat
             label={t('tickets-overdue', 'Overdue now')}
             value={format.number(report.overdue)}
             hint={t('past-sla', 'Past an SLA due time')}
+            to={links.open({
+              match: 'any',
+              rules: [
+                { path: 'subject.firstResponseSla', op: 'in', value: ['overdue'] },
+                { path: 'subject.resolutionSla', op: 'in', value: ['overdue'] },
+              ],
+            })}
           />
           <Stat
             label={t('average-resolution', 'Average resolution')}
@@ -125,7 +143,11 @@ export const TicketsByStatus = () => {
   const stages = useStages();
   const statuses = useQuery(choicesQuery).data?.statuses ?? [];
   const report = useTicketReport('tickets-by-stage');
+  const links = useTicketLinks(report);
   const { pipelineId } = report.pipeline;
+
+  const inStatuses = (ids: string[]) =>
+    ids.length ? links.created({ path: 'subject.statusId', op: 'in', value: ids }) : undefined;
 
   return (
     <TicketTile report={report}>
@@ -141,11 +163,13 @@ export const TicketsByStatus = () => {
                 name: status.name,
                 value: counts.get(status.id) ?? 0,
                 color: status.color,
+                to: inStatuses([status.id]),
               }))
           : data.stages.map(({ type, count }) => {
               const name = stages.find((stage) => stage.type === type)?.label ?? String(type);
+              const ids = statuses.filter((status) => status.type === type).map(({ id }) => id);
 
-              return { key: String(type), label: name, name, value: count };
+              return { key: String(type), label: name, name, value: count, to: inStatuses(ids) };
             });
 
         return (
@@ -163,15 +187,23 @@ export const TicketsByStatus = () => {
 export const TicketsByPriority = () => {
   const { t } = useTranslation('frontline');
   const priorities = usePriorityNames();
+  const ticketReport = useTicketReport('tickets-by-priority');
+  const links = useTicketLinks(ticketReport);
 
   return (
-    <TicketTile report={useTicketReport('tickets-by-priority')}>
+    <TicketTile report={ticketReport}>
       {(report) => (
         <BarList
           rows={report.priorities.map(({ priority, count }) => {
             const name = priorities[priority] ?? String(priority);
 
-            return { key: String(priority), label: name, name, value: count };
+            const to = links.created({
+              path: 'subject.priority',
+              op: 'in',
+              value: [`${priority}`],
+            });
+
+            return { key: String(priority), label: name, name, value: count, to };
           })}
           empty={t('no-tickets-in-period', 'No tickets in this period.')}
         />
@@ -183,9 +215,11 @@ export const TicketsByPriority = () => {
 /** The tags on the period's new tickets, the most used first. */
 export const TicketsByTag = () => {
   const { t } = useTranslation('frontline');
+  const ticketReport = useTicketReport('tickets-by-tag');
+  const links = useTicketLinks(ticketReport);
 
   return (
-    <TicketTile report={useTicketReport('tickets-by-tag')}>
+    <TicketTile report={ticketReport}>
       {(report) => (
         <BarList
           rows={report.tags.map((tag) => ({
@@ -194,89 +228,9 @@ export const TicketsByTag = () => {
             name: tag.name,
             value: tag.count,
             color: tag.colorCode,
+            to: links.created({ path: 'subject.tagIds', op: 'in', value: [tag.tagId] }),
           }))}
           empty={t('no-tagged-tickets', 'No tagged tickets in this period.')}
-        />
-      )}
-    </TicketTile>
-  );
-};
-
-/**
- * How the period's new tickets keep their SLA, per clock: met and missed in time, overdue now,
- * and the share met of those that stopped.
- */
-export const TicketSla = () => {
-  const { t } = useTranslation('frontline');
-  const format = useFormat();
-
-  const clocks = [
-    { clock: 'firstResponse', label: t('first-response', 'First response') },
-    { clock: 'resolution', label: t('resolution', 'Resolution') },
-  ] as const;
-
-  return (
-    <TicketTile report={useTicketReport('ticket-sla')}>
-      {(report) => {
-        const count = (clock: string, state: string) =>
-          report.sla.find((row) => row.clock === clock && row.state === state)?.count ?? 0;
-
-        return (
-          <MiniTable
-            heads={[
-              t('sla', 'SLA'),
-              t('sla-met', 'Met'),
-              t('sla-missed', 'Missed'),
-              t('sla-overdue', 'Overdue'),
-              t('met-share', 'Met share'),
-            ]}
-            rows={
-              report.sla.length === 0
-                ? []
-                : clocks.map(({ clock, label }) => {
-                    const met = count(clock, 'met');
-                    const missed = count(clock, 'missed');
-
-                    return {
-                      key: clock,
-                      lead: label,
-                      numbers: [
-                        format.number(met),
-                        format.number(missed),
-                        format.number(count(clock, 'overdue')),
-                        percentText(met + missed ? met / (met + missed) : null),
-                      ],
-                    };
-                  })
-            }
-            empty={t('no-sla-tickets', 'No ticket in this period had an SLA.')}
-          />
-        );
-      }}
-    </TicketTile>
-  );
-};
-
-/** Who holds the unresolved tickets now, the most first, and how many nobody holds. */
-export const TicketsByAssignee = () => {
-  const { t } = useTranslation('frontline');
-  const format = useFormat();
-
-  return (
-    <TicketTile report={useTicketReport('tickets-by-assignee')} now>
-      {(report) => (
-        <MiniTable
-          heads={[t('assignee', 'Assignee'), t('tickets-unresolved', 'Open now')]}
-          rows={report.assignees.map((row) => ({
-            key: row.userId ?? 'nobody',
-            lead: row.userId ? (
-              <MemberLine id={row.userId} />
-            ) : (
-              <span className="text-muted-foreground">{t('no-assignee', 'No assignee')}</span>
-            ),
-            numbers: [format.number(row.count)],
-          }))}
-          empty={t('no-open-tickets', 'No unresolved tickets.')}
         />
       )}
     </TicketTile>

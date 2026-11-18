@@ -12,6 +12,7 @@ import {
 import { useAtom } from 'jotai';
 import { type ReactNode, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
 import { RetryButton } from '~/shared/List.tsx';
@@ -137,11 +138,33 @@ export const Tile = <Report,>({
   </div>
 );
 
+/** A number that opens the list of what it counts, when `to` names one; `label` names what. */
+export const Count = ({ value, to, label }: { value: string; to?: string; label?: string }) =>
+  to ? (
+    <Link to={to} aria-label={label && `${label}: ${value}`} className="hover:underline">
+      {value}
+    </Link>
+  ) : (
+    value
+  );
+
 /** A headline number with what it counts, and an optional note under it. */
-export const Stat = ({ label, value, hint }: { label: string; value: string; hint?: string }) => (
+export const Stat = ({
+  label,
+  value,
+  hint,
+  to,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  to?: string;
+}) => (
   <div className="flex min-w-32 flex-1 flex-col gap-1">
     <span className="truncate text-xs font-medium text-muted-foreground">{label}</span>
-    <span className="text-xl font-semibold tabular-nums">{value}</span>
+    <span className="text-xl font-semibold tabular-nums">
+      <Count value={value} to={to} label={label} />
+    </span>
     {hint && <span className="truncate text-xs text-muted-foreground">{hint}</span>}
   </div>
 );
@@ -162,6 +185,8 @@ export type BarRow = {
   name: string;
   value: number;
   color?: string | null;
+  /** The list of what the row counts. */
+  to?: string;
 };
 
 /**
@@ -191,6 +216,7 @@ export const BarList = ({ rows, empty }: { rows: BarRow[]; empty: string }) => {
             <Tooltip>
               <Tooltip.Trigger
                 delay={100}
+                render={row.to ? <Link to={row.to} /> : undefined}
                 aria-label={`${row.name}: ${format.number(row.value)}`}
                 className="flex h-5 min-w-0 flex-1"
               >
@@ -243,7 +269,7 @@ export const MiniTable = ({
   empty,
 }: {
   heads: [string, ...string[]];
-  rows: { key: string; lead: ReactNode; numbers: string[] }[];
+  rows: { key: string; lead: ReactNode; numbers: ReactNode[] }[];
   empty: string;
 }) => {
   if (rows.length === 0) return <Nothing>{empty}</Nothing>;
