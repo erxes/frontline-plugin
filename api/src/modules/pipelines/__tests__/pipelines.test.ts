@@ -51,6 +51,9 @@ describe('pipelines', () => {
       code: 'BAD_REQUEST',
     });
 
+    // A pipeline takes its tickets to the channel it moves to, and goes with that channel.
+    const ticket = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Moves' });
+
     await expect(
       owner.pipelines.update({ id: pipeline.id, channelId: billing.id }),
     ).resolves.toMatchObject({ channelId: billing.id, numberConfig: 'C{year}-' });
@@ -58,16 +61,18 @@ describe('pipelines', () => {
       pipelines: [],
       totalCount: 0,
     });
+    await expect(owner.tickets.get({ id: ticket.id })).resolves.toMatchObject({
+      channelId: billing.id,
+    });
 
-    await expect(owner.pipelines.remove({ ids: [pipeline.id] })).resolves.toEqual({
-      ids: [pipeline.id],
-    });
-    await expect(owner.pipelines.get({ id: pipeline.id })).rejects.toMatchObject({
-      code: 'NOT_FOUND',
-    });
-    await expect(
-      owner.pipelines.statuses.update({ id: statuses[0]?.id ?? '', name: 'Gone' }),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await owner.channels.remove({ ids: [billing.id] });
+
+    for (const gone of [
+      () => owner.pipelines.get({ id: pipeline.id }),
+      () => owner.tickets.get({ id: ticket.id }),
+      () => owner.pipelines.statuses.update({ id: statuses[0]?.id ?? '', name: 'Gone' }),
+    ])
+      await expect(gone()).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it('keeps one SLA rule per priority and drops rules without a clock', async () => {
@@ -329,11 +334,9 @@ describe('pipelines', () => {
       tickets: ['Everyone'],
       count: 1,
     });
-    await expect(other.pipelines.get({ id: secret.id })).rejects.toMatchObject({
-      code: 'NOT_FOUND',
-    });
 
     for (const call of [
+      () => other.pipelines.get({ id: secret.id }),
       () => other.tickets.get({ id: kept.id }),
       () => other.tickets.properties.values({ id: kept.id }),
       () => other.tickets.update({ id: kept.id, name: 'Renamed' }),
