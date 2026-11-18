@@ -1,3 +1,4 @@
+import type { Locator, Page } from '@playwright/test';
 import {
   addMessenger,
   createChannel,
@@ -18,6 +19,40 @@ const PARCEL = {
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
     'base64',
   ),
+};
+
+/**
+ * Attaches four files to the reply: two from the paperclip, which takes several at once, one
+ * pasted into the editor and one dropped on it.
+ */
+const attachFiles = async (page: Page, reply: Locator) => {
+  // The paperclip opens the file input behind it.
+  await page
+    .locator('input[type="file"]')
+    .setInputFiles([
+      { name: 'receipt.txt', mimeType: 'text/plain', buffer: Buffer.from('paid') },
+      PARCEL,
+    ]);
+  await reply.evaluate((editor) => {
+    const data = new DataTransfer();
+
+    data.items.add(new File(['pasted'], 'pasted.txt', { type: 'text/plain' }));
+    editor.dispatchEvent(
+      new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }),
+    );
+  });
+  await reply.dispatchEvent('drop', {
+    dataTransfer: await page.evaluateHandle(() => {
+      const data = new DataTransfer();
+
+      data.items.add(new File(['dropped'], 'dropped.txt', { type: 'text/plain' }));
+
+      return data;
+    }),
+  });
+
+  for (const name of ['receipt.txt', 'parcel.png', 'pasted.txt', 'dropped.txt'])
+    await expect(page.getByRole('button', { name: `Remove ${name}` })).toBeVisible();
 };
 
 test('a member answers with a response template, formats it, attaches a file and mentions a teammate in a note', async ({
@@ -56,15 +91,7 @@ test('a member answers with a response template, formats it, attaches a file and
   await expect(reply).toContainText('Refunds take five days.');
   await page.keyboard.press('ControlOrMeta+b');
   await page.keyboard.type(' Sorry for the wait.');
-  // The paperclip opens the file input behind it, which takes several files at once.
-  await page
-    .locator('input[type="file"]')
-    .setInputFiles([
-      { name: 'receipt.txt', mimeType: 'text/plain', buffer: Buffer.from('paid') },
-      PARCEL,
-    ]);
-  await expect(page.getByRole('button', { name: 'Remove receipt.txt' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Remove parcel.png' })).toBeVisible();
+  await attachFiles(page, reply);
   await page.getByRole('button', { name: 'Send', exact: true }).click();
 
   const sent = thread.getByRole('article', { name: 'Message' }).last();

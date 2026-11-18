@@ -235,6 +235,13 @@ const useDraft = (conversation: Conversation) => {
     setNote: (next: boolean) => save((current) => ({ ...current, note: next })),
     setAttachments: (update: (files: Attachment[]) => Attachment[]) =>
       edit((current) => ({ ...current, attachments: update(current.attachments) })),
+    // A file lands in the tab it was added in, which may no longer be open.
+    attach: (tab: boolean, file: Attachment) =>
+      save((current) => {
+        const landing = tab ? current.internal : current.reply;
+
+        return withPart(current, tab, { ...landing, attachments: [...landing.attachments, file] });
+      }),
     // A member writing notes stays in the note tab for the next one.
     clear: () => {
       if (!value.note && isEmpty(note ? value.reply : value.internal)) clear();
@@ -270,7 +277,7 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
   const send = useSendMessage();
   const sendTyping = useSendTyping(conversation.id);
   const empty = !editorText(html) && attachments.length === 0;
-  const files = useComposerFiles((file) => draft.setAttachments((current) => [...current, file]));
+  const files = useComposerFiles(note, draft.attach);
   // A message waits for its files, so none is sent without one still uploading.
   const held = empty || files.uploading || send.isPending;
 
