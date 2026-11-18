@@ -12,7 +12,7 @@ import {
   messages,
 } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
-import type { Adapter } from '../inbox/adapters.ts';
+import type { Adapter, Outgoing } from '../inbox/adapters.ts';
 import { customerFor, receiveIn } from '../inbox/receive.ts';
 import { signalConversations, signalMembers } from '../inbox/shared.ts';
 import {
@@ -76,12 +76,9 @@ const replyContext = async (
 
 /** The integration's account, opened, with the thread and what a reply answers at the provider. */
 const threadOf = async (
+  tx: Tx,
   provider: ProviderName,
-  {
-    orgId,
-    integration,
-    conversation,
-  }: Pick<Parameters<NonNullable<Adapter['send']>>[0], 'orgId' | 'integration' | 'conversation'>,
+  { integration, conversation }: Pick<Outgoing, 'integration' | 'conversation'>,
 ) => {
   const { accountId } = AccountConfig.parse(integration.config);
 
@@ -90,51 +87,46 @@ const threadOf = async (
       message: 'The conversation has no thread at the provider',
     });
 
-  const threadId = conversation.externalId;
+  const row = await accountRow(tx, accountId);
 
-  const { row, context } = await withOrg(orgId, async (tx) => ({
-    row: await accountRow(tx, accountId),
+  return {
+    account: providerOf(row.provider).open(row),
+    threadId: conversation.externalId,
     context: await replyContext(tx, provider, conversation.id, conversation.customerId),
-  }));
-
-  return { account: providerOf(row.provider).open(row), threadId, context };
+  };
 };
 
 const adapterOf = (provider: ProviderName, label: string): Adapter => ({
   kind: provider,
   label,
   config: AccountConfig,
-  send: async (outgoing) => {
-    const { account, threadId, context } = await threadOf(provider, outgoing);
+  send: async (tx, outgoing) => {
+    const { account, threadId, context } = await threadOf(tx, provider, outgoing);
     const { message } = outgoing;
 
-    const externalId = await account.send({
-      threadId,
-      text: message.content,
-      html: message.html,
-      attachments: message.attachments,
-      providerData: message.providerData,
-      ...context,
+    return async () => ({
+      externalId: await account.send({
+        threadId,
+        text: message.content,
+        html: message.html,
+        attachments: message.attachments,
+        providerData: message.providerData,
+        ...context,
+      }),
     });
-
-    return { externalId };
   },
-  react: async ({ emoji, emojis, ...outgoing }) => {
-    const { account, threadId, context } = await threadOf(provider, outgoing);
+  react: async (tx, { emoji, emojis, ...outgoing }) => {
+    const { account, threadId, context } = await threadOf(tx, provider, outgoing);
     const { externalId, providerData } = outgoing.message;
+    const { react } = account;
 
-    if (!account.react || !externalId)
+    if (!react || !externalId)
       throw new ORPCError('BAD_REQUEST', {
         message: `${label} takes no reactions on this message`,
       });
 
-    await account.react({
-      threadId,
-      to: context.to,
-      message: { externalId, providerData },
-      emoji,
-      emojis,
-    });
+    return () =>
+      react({ threadId, to: context.to, message: { externalId, providerData }, emoji, emojis });
   },
 });
 
