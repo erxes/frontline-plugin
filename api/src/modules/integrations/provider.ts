@@ -26,8 +26,17 @@ export interface InboundMessage {
   /** What only the provider's own code reads back, such as a mail's subject. */
   providerData?: Record<string, unknown>;
   attachments: StoredFile[];
+  /** Files the provider holds, kept in core's storage as attachments when the message is new. */
+  files?: InboundFile[];
   /** The manifest event automations start from, published with the message when it is new. */
   event?: string;
+}
+
+/** A file in a message the provider holds: read only to keep it. */
+export interface InboundFile {
+  name: string;
+  contentType: string;
+  bytes: () => Promise<Uint8Array>;
 }
 
 /** A customer's reactions on one message, as they stand now after a change at the provider. */

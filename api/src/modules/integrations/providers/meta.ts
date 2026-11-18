@@ -121,7 +121,7 @@ const withFile = async (
   for (const [name, value] of Object.entries(fields))
     form.set(name, typeof value === 'string' ? value : JSON.stringify(value));
 
-  form.set(fileField, new Blob([read.bytes], { type: read.contentType }), file.name);
+  form.set(fileField, read);
 
   return form;
 };

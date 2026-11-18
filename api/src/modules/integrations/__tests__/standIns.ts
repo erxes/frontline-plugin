@@ -13,6 +13,18 @@ export const asked = {
   jobs: [] as unknown[],
 };
 
+/** What was uploaded to core's storage, by file id. */
+const uploads = new Map<string, { name: string; contentType: string; size: number }>();
+
+/** A file in core's storage as core describes it; one the test didn't upload is a 4-byte text file. */
+const fileOf = (id: string) => ({
+  id,
+  name: 'notes.txt',
+  contentType: 'text/plain',
+  size: 4,
+  ...uploads.get(id),
+});
+
 /** `#/core.ts` with core's calls answered here: `vi.mock('#/core.ts', …coreStandIn)`. */
 export const coreStandIn = (actual: typeof CoreModule) => ({
   ...actual,
@@ -45,23 +57,31 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
           ],
         }),
       },
-      // Core's storage, as `files.createUpload`, a PUT to its address, then `files.complete`.
+      // Core's storage, as `files.createUpload`, a PUT to its address, then `files.complete`, and
+      // `files.get` for a file to read back. A file's id is its name, as an id spells it.
       files: {
-        createUpload: async (input: { name: string }) => ({
-          file: { id: `file-${input.name}` },
-          upload: {
-            method: 'PUT',
-            url: `https://files.core.test/${input.name}`,
-            headers: {},
-            expiresAt: '2026-11-15T12:00:00Z',
-          },
-        }),
+        createUpload: async (input: { name: string; contentType: string; size: number }) => {
+          const id = `file-${input.name.replaceAll(/[^\w-]/g, '-')}`;
+
+          uploads.set(id, input);
+
+          return {
+            file: { id },
+            upload: {
+              method: 'PUT',
+              url: `https://files.core.test/${input.name}`,
+              headers: {},
+              expiresAt: '2026-11-15T12:00:00Z',
+            },
+          };
+        },
         complete: async ({ id }: { id: string }) => ({
-          id,
-          name: id.replace('file-', ''),
-          contentType: 'audio/wav',
-          size: 4,
-          url: `https://files.core.test/${id}`,
+          ...fileOf(id),
+          url: `/core/v1/files/${id}/download`,
+        }),
+        get: async ({ id }: { id: string }) => ({
+          ...fileOf(id),
+          downloadUrl: `https://files.core.test/${id}`,
         }),
       },
       notifications: {
