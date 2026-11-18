@@ -1,4 +1,12 @@
-import { confirmDelete, expect, recordPath, recordPanel, test, unique } from './fixtures.ts';
+import {
+  confirmDelete,
+  expect,
+  expectPage,
+  recordPath,
+  recordPanel,
+  test,
+  unique,
+} from './fixtures.ts';
 
 const CHANNELS = '/frontline/settings/channels';
 
@@ -17,6 +25,7 @@ test("a channel admin writes, edits and deletes the channel's response templates
   await panel.getByRole('button', { name: 'Create channel' }).click();
   await panel.getByRole('link', { name: /Manage channel response templates/ }).click();
 
+  await expectPage(page, 'Response templates');
   await expect(page.getByText('No responses yet')).toBeVisible();
   await page.getByRole('button', { name: 'Create response template' }).first().click();
 

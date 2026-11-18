@@ -1,4 +1,4 @@
-import { expect, recordPath, recordPanel, test, unique } from './fixtures.ts';
+import { expect, expectPage, recordPath, recordPanel, test, unique } from './fixtures.ts';
 
 const CHANNELS = '/frontline/settings/channels';
 
@@ -34,7 +34,7 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await expect(panel.getByText('Added a member')).toBeVisible();
   await panel.getByRole('tab', { name: 'Detail' }).click();
   await panel.getByRole('link', { name: /Manage channel members/ }).click();
-  await expect(page).toHaveURL(/\/members$/);
+  await expectPage(page, 'Members');
   await expect(page.getByRole('row', { name: new RegExp(teammate.fullName) })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Role: Admin' })).toBeVisible();
 
