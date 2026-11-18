@@ -68,7 +68,7 @@ test('an admin writes a survey, edits its questions and reads its results, which
     'aria-pressed',
     'true',
   );
-  await expect(preview.getByLabel('Great')).toBeVisible();
+  await expect(preview.getByRole('radio', { name: 'Great' })).toBeVisible();
 
   await panel.getByRole('tab', { name: 'Results' }).click();
   const results = panel.getByRole('tabpanel', { name: 'Results' });
