@@ -790,7 +790,7 @@
   "report-period": "Хугацаа",
   "required": "Заавал",
   "required-of": "{{label}} заавал шаардлагатай",
-  "resize-composer": "Хариултын талбарын хэмжээг өөрчлөх",
+  "resize-list": "Харилцааны жагсаалтын өргөнийг өөрчлөх",
   "resolution": "Шийдвэрлэлт",
   "resolution-sla": "Шийдвэрлэлтийн SLA",
   "resolve": "Шийдвэрлэх",

@@ -122,7 +122,8 @@ const Row = ({
           </span>
           <KindIcon kind={conversation.kind} className="size-3.5 shrink-0" />
           <span className="sr-only">{conversation.integrationName}</span>
-          <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
+          {/* The channel keeps a few letters when a long name crowds the row. */}
+          <span className="min-w-16 flex-1 truncate text-xs text-muted-foreground">
             {conversation.channelName}
           </span>
           <span
@@ -264,7 +265,7 @@ export const ConversationList = ({
         ) : (
           // As wide as the inbox's column: erxes-ui's ScrollArea lets its content grow to the widest
           // row, which would push the time and the ends of the previews out of sight.
-          <ul aria-label={t('conversations', 'Conversations')} className="flex w-80 flex-col">
+          <ul aria-label={t('conversations', 'Conversations')} className="flex w-full flex-col">
             {conversations.map((conversation) => (
               <Row key={conversation.id} conversation={conversation} onKeyDown={onKeyDown} />
             ))}
