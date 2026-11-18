@@ -2,7 +2,7 @@ import { IconPin } from '@tabler/icons-react';
 import { Button, ScrollArea, Skeleton, toIsoDay, useFormat } from 'erxes-ui';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type CustomContainerComponentProps, Virtualizer } from 'virtua';
+import { type CustomContainerComponentProps, Virtualizer, type VirtualizerHandle } from 'virtua';
 import { type Conversation, type Message, useMessages, usePinnedMessages } from './queries.ts';
 import { LoadPage } from '~/shared/List.tsx';
 import { useCustomer } from '~/shared/Person.tsx';
@@ -105,13 +105,14 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
   const { messages, isPending, hasNextPage, fetchNextPage } = thread;
   const customer = useCustomer(conversation.customerId);
   const viewport = useRef<HTMLDivElement>(null);
-  const end = useRef<HTMLDivElement>(null);
+  const rows = useRef<VirtualizerHandle>(null);
   const shift = usePrepended(messages);
   // While the newest messages are dropped for older ones, the last shown is no new arrival.
   const lastId = thread.hasPreviousPage ? undefined : messages.at(-1)?.id;
 
+  // virtua clamps the index to the last message and scrolls again once it measured the rows.
   useEffect(() => {
-    if (lastId) end.current?.scrollIntoView({ block: 'end' });
+    if (lastId) rows.current?.scrollToIndex(Infinity, { align: 'end' });
   }, [lastId]);
 
   return (
@@ -119,11 +120,6 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
       <Pinned conversationId={conversation.id} />
       <ScrollArea.Root className="min-h-0 flex-1">
         <ScrollArea.Viewport ref={viewport}>
-          {hasNextPage && (
-            <Button variant="ghost" className="m-3" onClick={() => void fetchNextPage()}>
-              {t('earlier-messages', 'Earlier messages')}
-            </Button>
-          )}
           {isPending ? (
             <ThreadSkeleton />
           ) : messages.length === 0 ? (
@@ -131,8 +127,9 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
               {t('no-messages-yet', 'No messages yet. Write the first one below.')}
             </p>
           ) : (
-            <div className="mx-auto w-full max-w-2xl px-3 py-6">
+            <div className="mx-auto w-full max-w-2xl px-3">
               <Virtualizer
+                ref={rows}
                 scrollRef={viewport}
                 data={messages}
                 shift={shift}
@@ -141,6 +138,20 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
               >
                 {(message, index) => (
                   <Fragment key={message.id}>
+                    {/* The thread's edges sit inside its first and last rows, so virtua's offsets count them. */}
+                    {index === 0 && (
+                      <div className="pt-6">
+                        {hasNextPage && (
+                          <Button
+                            variant="ghost"
+                            className="mb-3"
+                            onClick={() => void fetchNextPage()}
+                          >
+                            {t('earlier-messages', 'Earlier messages')}
+                          </Button>
+                        )}
+                      </div>
+                    )}
                     {toIsoDay(message.createdAt) !==
                       toIsoDay(messages[index - 1]?.createdAt ?? new Date(0)) && (
                       <DayDivider date={message.createdAt} />
@@ -151,13 +162,13 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
                       kind={conversation.kind}
                       first={!continues(message, messages[index - 1])}
                     />
+                    {index === messages.length - 1 && <div aria-hidden className="h-6" />}
                   </Fragment>
                 )}
               </Virtualizer>
             </div>
           )}
           <LoadPage paging={thread} newer />
-          <div ref={end} />
         </ScrollArea.Viewport>
         <ScrollArea.Bar />
       </ScrollArea.Root>
