@@ -10,6 +10,7 @@ import {
   telegramApi,
   webhookOf,
 } from './fakes.ts';
+import { asked } from './standIns.ts';
 
 vi.mock('#/core.ts', async (importOriginal) =>
   (await import('./standIns.ts')).coreStandIn(await importOriginal()),
@@ -116,10 +117,14 @@ describe('telegram', () => {
       { content: 'Hello, is my order on its way?', deliveryStatus: null, externalId: '4242:41' },
     ]);
 
-    // The token was revoked in BotFather: the reply fails at once and the bot shows broken.
+    // The token was revoked in BotFather. A photo still arrives, without its file; the reply after
+    // it fails at once; the bot shows broken, and whoever connected it hears so once.
+    const told = asked.notifications.length;
+
     fakeProviders(() =>
       Response.json({ ok: false, error_code: 401, description: 'Unauthorized' }, { status: 401 }),
     );
+    expect(await deliver(path, photoSent, signed)).toBe(200);
 
     const refused = await owner.conversations.messages.create({ conversationId, content: 'Hi?' });
 
@@ -128,8 +133,12 @@ describe('telegram', () => {
     const after = (await owner.conversations.messages.list({ conversationId })).messages;
 
     expect(after.find((message) => message.id === refused.id)?.deliveryStatus).toBe('failed');
+    expect(after.some((message) => message.content.startsWith('The box came torn'))).toBe(true);
     expect((await owner.integrations.accounts.list({})).accounts).toMatchObject([
       { status: 'broken', error: 'Unauthorized' },
+    ]);
+    expect(asked.notifications.slice(told)).toMatchObject([
+      { title: '@shop_help_bot stopped working', body: 'Unauthorized' },
     ]);
   });
 

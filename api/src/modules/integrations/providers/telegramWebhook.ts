@@ -1,7 +1,13 @@
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { FileRefused } from '#/modules/files.ts';
-import type { InboundFile, InboundMessage, InboundReaction, WebhookSource } from '../provider.ts';
+import {
+  AccountRefused,
+  type InboundFile,
+  type InboundMessage,
+  type InboundReaction,
+  type WebhookSource,
+} from '../provider.ts';
 import { sameText } from '../secrets.ts';
 import { call, Message, telegram, TelegramRefused, User } from './telegram.ts';
 
@@ -44,7 +50,10 @@ const FilePath = z.object({ file_path: z.string() });
 const download = async (token: string, fileId: string) => {
   const { file_path: path } = await call(token, 'getFile', FilePath, { file_id: fileId }).catch(
     (error: unknown) => {
-      throw error instanceof TelegramRefused ? new FileRefused(error.message) : error;
+      // A revoked token keeps the message too; the inbox marks the bot broken from the cause.
+      throw error instanceof TelegramRefused || error instanceof AccountRefused
+        ? new FileRefused(error.message, { cause: error })
+        : error;
     },
   );
 

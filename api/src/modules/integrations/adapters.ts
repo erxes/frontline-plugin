@@ -4,8 +4,8 @@ import { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
 import { customerLinks, messages } from '#/db/inbox.ts';
 import type { Adapter, Outgoing } from '../inbox/adapters.ts';
-import { recordCheck } from './accounts.ts';
-import { AccountRefused, type AccountRow, type ProviderName } from './provider.ts';
+import { markRefused } from './accounts.ts';
+import type { AccountRow, ProviderName } from './provider.ts';
 import { providerOf } from './providers/index.ts';
 import { accountRow } from './store.ts';
 
@@ -81,7 +81,7 @@ const threadOf = async (
 /** `call` through `row`; a token the provider refused marks the account broken at once. */
 const through = <T>(row: AccountRow, call: () => Promise<T>) =>
   call().catch(async (error: unknown) => {
-    if (error instanceof AccountRefused) await recordCheck(row, error.message);
+    await markRefused(row, error);
 
     throw error;
   });
