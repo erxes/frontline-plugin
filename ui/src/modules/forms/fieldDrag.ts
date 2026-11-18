@@ -53,7 +53,7 @@ export const useFieldDrag = (formId: string, fields: FormField[], steps: number)
     const zone = layout.findIndex((_, index) => stepZone(index + 1) === id);
 
     return zone === -1
-      ? (fields.find((field) => field.id === id)?.label ?? '')
+      ? fields.find((field) => field.id === id)?.label || t('field-untitled', 'Untitled field')
       : t('form-step-n', 'Step {{n}}', { n: zone + 1 });
   }, closestCorners);
 

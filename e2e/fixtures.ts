@@ -369,7 +369,7 @@ export const moveByKeys = async (handle: Locator, key: string, item: string, to:
   const page = handle.page();
 
   await handle.press('Space');
-  await expect(page.getByText(`${item} is in its place.`, { exact: true })).toBeAttached();
+  await expect(page.getByText(`${item} is held.`, { exact: true })).toBeAttached();
   await page.keyboard.press(key);
   await expect(page.getByText(`${item} is over ${to}.`, { exact: true })).toBeAttached();
   await page.keyboard.press('Space');

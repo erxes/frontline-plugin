@@ -62,8 +62,8 @@ export const useListDrag = (
 
       if (!over) return t('drag-over-none', '{{item}} is over no place to drop.', { item });
 
-      if (over.id === active.id)
-        return t('drag-over-itself', '{{item}} is in its place.', { item });
+      // Over itself: where it started, or a row that moved it to another list on the way.
+      if (over.id === active.id) return t('drag-over-itself', '{{item}} is held.', { item });
 
       return t('drag-over', '{{item}} is over {{target}}.', { item, target: nameOf(over.id) });
     },
@@ -72,7 +72,7 @@ export const useListDrag = (
 
       return over && over.id !== active.id
         ? t('drag-end', '{{item}} dropped on {{target}}.', { item, target: nameOf(over.id) })
-        : t('drag-end-none', '{{item}} dropped where it was.', { item });
+        : t('drag-end-none', '{{item}} dropped.', { item });
     },
     onDragCancel: ({ active }) =>
       t('drag-cancel', '{{item}} put back.', { item: nameOf(active.id) }),
