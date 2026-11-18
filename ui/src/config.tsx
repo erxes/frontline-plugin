@@ -186,7 +186,7 @@ export const CONFIG: IUIConfig = {
       contentType: HELP_CENTER_TYPE,
       title: 'Help center',
       icon: IconHelpCircle,
-      detailPath: pageOf('settings/help-centers'),
+      detailPath: pageOf('help-centers'),
       ...slots(helpCenter),
       tabs: [
         {

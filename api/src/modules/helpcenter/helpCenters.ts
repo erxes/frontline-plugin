@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
-import { and, asc, eq, getTableColumns, ilike, inArray } from 'drizzle-orm';
+import { and, count, eq, getTableColumns, ilike, inArray, sql } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
@@ -14,12 +14,14 @@ import {
   HelpCenterStyles,
   helpCenters,
 } from '#/db/helpcenter.ts';
+import { forms } from '#/db/forms.ts';
 import { publicKeys } from '#/db/public.ts';
 import { kbTopics } from '#/db/schema.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
 import { Blank, Color, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
+import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 import { removeKeys, widgetScript } from '../public.ts';
 import {
   clearDomain,
@@ -31,13 +33,22 @@ import {
   recordDomain,
 } from './domains.ts';
 
-const { orgId, ...centerColumns } = getTableColumns(helpCenters);
+const { orgId, formIds, ...columns } = getTableColumns(helpCenters);
+
+/** A help center's columns, its forms narrowed to those not deleted since, in order. */
+const centerColumns = {
+  ...columns,
+  formIds: sql<
+    string[]
+  >`array(select f.id from unnest(${formIds}) with ordinality as f(id, n) join ${forms} as live on live.id = f.id order by f.n)`,
+};
 
 const refine = {
   title: () => Title,
   description: () => Blank(2000),
   languageCode: () => z.string().max(10).nullable(),
   kbLabel: () => Blank(100),
+  formIds: () => z.array(z.string()).max(50),
   color: () => Color.nullable(),
   backgroundImage: () => Blank(2000),
   styles: () => HelpCenterStyles,
@@ -81,31 +92,60 @@ const assertTopic = async (tx: Tx, topicId: string | null | undefined) => {
   if (!topic) throw new ORPCError('BAD_REQUEST', { message: 'Pick a knowledge base topic' });
 };
 
+/** The forms picked, each once, after checking each is a form. */
+const pickedForms = async (tx: Tx, ids: string[] | undefined) => {
+  if (!ids?.length) return ids;
+
+  const picked = [...new Set(ids)];
+  const [found] = await tx.select({ value: count() }).from(forms).where(inArray(forms.id, picked));
+
+  if (found?.value !== picked.length)
+    throw new ORPCError('BAD_REQUEST', { message: 'Pick forms that still exist' });
+
+  return picked;
+};
+
 const CENTER_FILTER: FilterFields = {
   'subject.title': { type: 'text', expr: helpCenters.title },
   'subject.kbTopicId': { type: 'select', expr: helpCenters.kbTopicId },
+  'subject.hostname': { type: 'text', expr: helpCenters.hostname },
   'subject.createdBy': { type: 'member', expr: helpCenters.createdBy },
   'subject.createdAt': { type: 'date', expr: helpCenters.createdAt },
+  'subject.updatedAt': { type: 'date', expr: helpCenters.updatedAt },
 };
 
-/** Every help center, by title, narrowed by the filter bar, and whether the caller manages them. */
+const order = orderOf(helpCenters);
+
+/**
+ * The help centers, newest first and a page at a time, narrowed by the filter bar, and whether the
+ * caller manages them.
+ */
 const list = reads(PERMISSIONS.helpCenterView)
-  .input(z.object(FilterInput))
-  .output(z.object({ helpCenters: z.array(HelpCenter), canManage: z.boolean() }))
+  .input(z.object({ ...FilterInput, ...PageInput }))
+  .output(z.object({ helpCenters: z.array(HelpCenter), ...PageOutput, canManage: z.boolean() }))
   .handler(async ({ input, context: { tx, member } }) => {
+    const matches = and(
+      input.search ? ilike(helpCenters.title, likeText(input.search)) : undefined,
+      compileFilter(CENTER_FILTER, input.filter, { me: member.userId }),
+    );
+
     const rows = await tx
       .select(centerColumns)
       .from(helpCenters)
-      .where(
-        and(
-          input.search ? ilike(helpCenters.title, likeText(input.search)) : undefined,
-          compileFilter(CENTER_FILTER, input.filter, { me: member.userId }),
-        ),
-      )
-      .orderBy(asc(helpCenters.title));
+      .where(and(matches, order.after(input.cursor)))
+      .orderBy(...order.orderBy)
+      .limit(input.limit + 1);
+
+    const totalCount = await firstPageCount(input.cursor, () =>
+      tx.select({ value: count() }).from(helpCenters).where(matches),
+    );
+
+    const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
     return {
-      helpCenters: rows.map(withTarget),
+      helpCenters: items.map(withTarget),
+      nextCursor,
+      totalCount,
       canManage: member.can(PERMISSIONS.helpCenterManage),
     };
   });
@@ -121,6 +161,7 @@ const FIELDS = {
   languageCode: true,
   kbTopicId: true,
   kbLabel: true,
+  formIds: true,
   color: true,
   backgroundImage: true,
   styles: true,
@@ -135,6 +176,7 @@ const create = writes(PERMISSIONS.helpCenterManage)
       description: true,
       languageCode: true,
       kbLabel: true,
+      formIds: true,
       color: true,
       backgroundImage: true,
       styles: true,
@@ -150,8 +192,14 @@ const create = writes(PERMISSIONS.helpCenterManage)
 
     const [row] = await tx
       .insert(helpCenters)
-      .values({ ...input, publicKey, orgId: member.orgId, createdBy: member.userId })
-      .returning(centerColumns);
+      .values({
+        ...input,
+        formIds: await pickedForms(tx, input.formIds),
+        publicKey,
+        orgId: member.orgId,
+        createdBy: member.userId,
+      })
+      .returning({ id: helpCenters.id });
 
     if (!row) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
@@ -159,7 +207,7 @@ const create = writes(PERMISSIONS.helpCenterManage)
       .insert(publicKeys)
       .values({ key: publicKey, orgOf: member.orgId, kind: HELP_CENTER_KEY, targetId: row.id });
 
-    return withTarget(row);
+    return withTarget(await centerById(tx, row.id));
   });
 
 const update = writes(PERMISSIONS.helpCenterManage)
@@ -168,7 +216,10 @@ const update = writes(PERMISSIONS.helpCenterManage)
   .handler(async ({ input: { id, ...fields }, context: { tx } }) => {
     await centerById(tx, id);
     await assertTopic(tx, fields.kbTopicId);
-    await tx.update(helpCenters).set(fields).where(eq(helpCenters.id, id));
+    await tx
+      .update(helpCenters)
+      .set({ ...fields, formIds: await pickedForms(tx, fields.formIds) })
+      .where(eq(helpCenters.id, id));
 
     return withTarget(await centerById(tx, id));
   });

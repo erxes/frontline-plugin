@@ -34,6 +34,7 @@ import {
 
 const SETTINGS = '/frontline/settings';
 const KB = '/frontline/knowledgebase';
+const HELP_CENTERS = '/frontline/help-centers';
 const FORMS = '/frontline/forms';
 const SURVEYS = '/frontline/surveys';
 const HISTORY = '/frontline/calls/history';
@@ -177,11 +178,12 @@ test('a help center, and its articles on a website', async ({ page, api, request
   const kbTopicId = await knowledgeBase(rpc, answers);
   const code = panel.getByLabel('Knowledge base install code');
 
-  await page.goto(`${SETTINGS}/help-centers`);
-  await page.getByRole('button', { name: 'Add help center' }).click();
+  await page.goto(HELP_CENTERS);
+  // The header's button; an empty list offers a second.
+  await page.getByRole('button', { name: 'Add help center' }).first().click();
   await expectAccessible(page, panel.getByLabel('Title'));
-  await rpc('helpCenters/create', { title, kbTopicId }, Id);
-  await page.goto(`${SETTINGS}/help-centers`);
+  const center = await rpc('helpCenters/create', { title, kbTopicId }, Id);
+  await page.goto(HELP_CENTERS);
   await page.getByRole('button', { name: title, exact: true }).click();
   await expectAccessible(page, code);
   const installCode = (await code.textContent()) ?? '';
@@ -198,6 +200,9 @@ test('a help center, and its articles on a website', async ({ page, api, request
     await kb.getByRole('button', { name: /^Refunds/ }).click();
     await expectAccessible(site.shop, kb.getByText(ARTICLE));
   }
+
+  await page.goto(`${HELP_CENTERS}/${center.id}/appearance`);
+  await expectAccessible(page, page.getByRole('textbox', { name: 'Wordmark' }));
 
   const channel = await rpc('channels/create', { name: `Site ${unique()}` }, Id);
   const key = await messengerIn(rpc, channel.id, { knowledgeBaseTopicId: kbTopicId });
@@ -355,9 +360,9 @@ test("the home dashboard's tiles, and one refused", async ({ newMember }) => {
   await expectAccessible(stranger.page, tileOf(stranger.page, 'Call summary').getByRole('alert'));
 });
 
-const settings = ['channels', 'help-centers'].map((it) => `${SETTINGS}/${it}`);
+const refused = [INBOX, '/frontline/tickets', FORMS, SURVEYS, KB, HELP_CENTERS, HISTORY];
 
-for (const path of [INBOX, '/frontline/tickets', FORMS, SURVEYS, KB, HISTORY, ...settings]) {
+for (const path of [...refused, `${SETTINGS}/channels`]) {
   test(`a member without the permission is refused ${path}`, async ({ newMember }) => {
     const { page } = await newMember(['team.view']);
 

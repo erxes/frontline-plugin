@@ -1,0 +1,2 @@
+ALTER TABLE "frontline_help_centers" ADD COLUMN "form_ids" text[] DEFAULT '{}' NOT NULL;--> statement-breakpoint
+CREATE INDEX "frontline_help_centers_org_created_idx" ON "frontline_help_centers" USING btree ("org_id","created_at" DESC NULLS LAST,"id" DESC NULLS LAST);

@@ -16,6 +16,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { ImageField } from '~/shared/Files.tsx';
 import { ListError } from '~/shared/List.tsx';
+import { SaveBar } from '~/shared/Settings.tsx';
 import { KbHeader } from './KbHeader.tsx';
 import { LanguageSelect } from './LanguageSelect.tsx';
 import { useDeleteTopics } from './useKbDeletes.ts';
@@ -64,19 +65,11 @@ const HelpCenterForm = ({ topic, editable }: { topic: Topic; editable: boolean }
           <HelpCenterCard />
         </fieldset>
         {editable && (
-          <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-background/95 py-3 backdrop-blur">
-            <Button
-              type="button"
-              variant="ghost"
-              disabled={!form.formState.isDirty}
-              onClick={() => form.reset()}
-            >
-              {t('discard', 'Discard')}
-            </Button>
-            <Button type="submit" disabled={update.isPending}>
-              {update.isPending ? t('saving', 'Saving…') : t('save', 'Save')}
-            </Button>
-          </div>
+          <SaveBar
+            dirty={form.formState.isDirty}
+            saving={update.isPending}
+            onDiscard={() => form.reset()}
+          />
         )}
       </form>
     </Form>

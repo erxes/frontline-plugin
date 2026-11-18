@@ -108,7 +108,55 @@ describe('help centers', () => {
     await owner.helpCenters.remove({ ids: [center.id] });
 
     expect((await fetch(`${base}/help-centers/${center.publicKey}`)).status).toBe(404);
-    await expect(owner.helpCenters.list({})).resolves.toEqual({ helpCenters: [], canManage: true });
+    await expect(owner.helpCenters.list({})).resolves.toEqual({
+      helpCenters: [],
+      nextCursor: null,
+      totalCount: 0,
+      canManage: true,
+    });
+  });
+
+  it('offers the active forms it picks, in order, and forgets a deleted one', async () => {
+    const { owner, center } = await publishedSite('org-hc-f');
+    const channel = await owner.channels.create({ name: 'Leads' });
+    const quote = await owner.forms.create({ channelId: channel.id, name: 'Quote', title: 'Ask' });
+    const demo = await owner.forms.create({ channelId: channel.id, name: 'Demo' });
+    const old = await owner.forms.create({ channelId: channel.id, name: 'Old' });
+
+    await expect(
+      owner.helpCenters.update({ id: center.id, formIds: [demo.id, 'no-such-form'] }),
+    ).rejects.toThrow('Pick forms that still exist');
+
+    const saved = await owner.helpCenters.update({
+      id: center.id,
+      formIds: [demo.id, quote.id, old.id, demo.id],
+    });
+
+    expect(saved.formIds).toEqual([demo.id, quote.id, old.id]);
+
+    await owner.forms.setStatus({ ids: [old.id], status: 'archived' });
+
+    const embed = await owner.forms.embed({ id: demo.id });
+
+    // An array matches only with as many items, so the archived form is left out.
+    await expect(
+      (await fetch(`${base}/help-centers/${center.publicKey}`)).json(),
+    ).resolves.toMatchObject({
+      forms: [
+        { id: demo.id, name: 'Demo', url: embed.url, scriptUrl: embed.scriptUrl },
+        { id: quote.id, title: 'Ask', code: quote.code },
+      ],
+    });
+
+    await owner.forms.remove({ ids: [quote.id] });
+
+    await expect(owner.helpCenters.get({ id: center.id })).resolves.toMatchObject({
+      formIds: [demo.id, old.id],
+    });
+    await expect(owner.helpCenters.list({ limit: 1 })).resolves.toMatchObject({
+      helpCenters: [{ id: center.id, formIds: [demo.id, old.id] }],
+      totalCount: 1,
+    });
   });
 
   it("gives a messenger's visitors the topic it offers, and nothing when it offers none", async () => {

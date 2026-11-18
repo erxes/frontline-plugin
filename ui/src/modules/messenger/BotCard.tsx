@@ -2,7 +2,8 @@ import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { Button, Input } from 'erxes-ui';
 import { useFieldArray, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { SettingsCard, TextRow } from './fields.tsx';
+import { SettingsCard } from '~/shared/Settings.tsx';
+import { TextRow } from './fields.tsx';
 import type { MessengerForm } from './queries.ts';
 
 /** The bot's menu: buttons that send their text, or open a link when they have one. */

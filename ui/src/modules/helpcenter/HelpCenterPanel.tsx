@@ -2,19 +2,16 @@ import {
   IconAlignLeft,
   IconBook,
   IconBrush,
-  IconCopyright,
   IconDots,
+  IconForms,
   IconKey,
   IconLanguage,
   IconLetterCase,
-  IconPalette,
-  IconSearch,
   IconTag,
   IconTrash,
 } from '@tabler/icons-react';
 import {
   Button,
-  ColorPicker,
   CopyText,
   PanelField,
   PanelSection,
@@ -22,17 +19,20 @@ import {
   TextField,
   type TRecordSlotProps,
 } from 'erxes-ui';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { InstallCode, scriptTag } from '~/shared/InstallCode.tsx';
-import { InfoRow, PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
-import { PickerField } from '~/shared/Pickers.tsx';
+import { InfoRow, PageLink, PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
+import { Badges, PickerField } from '~/shared/Pickers.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import {
   type HelpCenter,
+  helpCenterPath,
   useCanManageHelpCenters,
   useDeleteHelpCenters,
   useEditHelpCenter,
+  useFormNames,
+  useFormOptions,
   useHelpCenter,
   useTopicOptions,
 } from './queries.ts';
@@ -71,7 +71,7 @@ export const HelpCenterTitle = ({ contentId }: TRecordSlotProps) => {
 /** The header's menu, for help center managers: delete it. */
 export const HelpCenterActions = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
-  const deleteCenters = useDeleteHelpCenters();
+  const { deleteCenters } = useDeleteHelpCenters();
 
   if (!useCanManageHelpCenters()) return null;
 
@@ -196,80 +196,60 @@ const Content = ({ center }: { center: HelpCenter }) => {
   );
 };
 
-const COLORS = [
-  'headerColor',
-  'footerColor',
-  'bodyColor',
-  'linkColor',
-  'primaryButtonColor',
-] as const;
-
-/** The help center's colours and the labels of its header and footer. */
-const Look = ({ center }: { center: HelpCenter }) => {
+/** The forms its site offers, in order. */
+const Forms = ({ center }: { center: HelpCenter }) => {
   const { t } = useTranslation('frontline');
   const edit = useEditHelpCenter(center.id);
-  const scope = `frontline-help-center.${center.id}`;
+  const [search, setSearch] = useState('');
+  const options = useFormOptions(search);
+  const names = useFormNames(center.formIds);
+  const hidden = center.formIds.filter((id) => !names.has(id)).length;
 
-  const names: Record<(typeof COLORS)[number], string> = {
-    headerColor: t('header-color', 'Header colour'),
-    footerColor: t('footer-color', 'Footer colour'),
-    bodyColor: t('body-color', 'Body colour'),
-    linkColor: t('link-color', 'Link colour'),
-    primaryButtonColor: t('button-color', 'Button colour'),
-  };
+  const labels = [
+    ...center.formIds.flatMap((id) => names.get(id) ?? []),
+    ...(hidden > 0
+      ? [t('forms-elsewhere', { defaultValue: '{{count}} in other channels', count: hidden })]
+      : []),
+  ];
 
   return (
-    <PanelSection title={t('look', 'Look')}>
-      <PanelField icon={IconPalette} label={t('color', 'Colour')}>
-        <ColorPicker
-          aria-label={t('color', 'Colour')}
-          value={center.color ?? undefined}
-          onValueChange={(color) => edit({ color })}
-          className="mx-2 w-12"
+    <PanelSection title={t('forms', 'Forms')}>
+      <PanelField icon={IconForms} label={t('forms', 'Forms')} cell={false}>
+        <PickerField
+          label={t('forms', 'Forms')}
+          placeholder={t('no-forms', 'No forms')}
+          display={<Badges labels={labels} max={3} />}
+          options={options.data ?? []}
+          loading={options.isPending}
+          error={options.error}
+          onSearchChange={setSearch}
+          value={center.formIds}
+          onValueChange={(formIds) => edit({ formIds })}
+          multiple
         />
       </PanelField>
-      {COLORS.map((key) => (
-        <PanelField key={key} icon={IconBrush} label={names[key]}>
-          <ColorPicker
-            aria-label={names[key]}
-            value={center.styles[key]}
-            onValueChange={(color) => edit({ styles: { ...center.styles, [key]: color } })}
-            className="mx-2 w-12"
-          />
-        </PanelField>
-      ))}
-      <Text
-        scope={`${scope}.wordmark`}
-        label={t('wordmark', 'Wordmark')}
-        icon={IconLetterCase}
-        value={center.header.wordmark}
-        onSave={(wordmark) =>
-          edit({ header: { ...center.header, wordmark: wordmark ?? undefined } })
-        }
-      />
-      <Text
-        scope={`${scope}.searchPlaceholder`}
-        label={t('search-placeholder', 'Search placeholder')}
-        icon={IconSearch}
-        value={center.header.searchPlaceholder}
-        onSave={(searchPlaceholder) =>
-          edit({ header: { ...center.header, searchPlaceholder: searchPlaceholder ?? undefined } })
-        }
-      />
-      <Text
-        scope={`${scope}.copyright`}
-        label={t('copyright', 'Copyright')}
-        icon={IconCopyright}
-        value={center.footer.copyright}
-        onSave={(copyright) =>
-          edit({ footer: { ...center.footer, copyright: copyright ?? undefined } })
-        }
-      />
     </PanelSection>
   );
 };
 
-/** The Detail tab: what the help center shows and how it looks, saved as it changes. */
+/** Its logo, colours, fonts, header and footer, on a page of their own. */
+const Look = ({ center }: { center: HelpCenter }) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <PanelSection title={t('look', 'Look')}>
+      <PanelField icon={IconBrush} label={t('appearance', 'Appearance')} cell={false}>
+        <PageLink
+          to={helpCenterPath(center.id, true)}
+          label={t('edit-appearance', 'Edit appearance')}
+          count=""
+        />
+      </PanelField>
+    </PanelSection>
+  );
+};
+
+/** The Detail tab: what the help center shows, saved as it changes, and a link to its look. */
 export const HelpCenterDetail = ({ contentId }: TRecordSlotProps) => {
   const canManage = useCanManageHelpCenters();
 
@@ -278,6 +258,7 @@ export const HelpCenterDetail = ({ contentId }: TRecordSlotProps) => {
       {(center) => (
         <ReadOnly when={!canManage}>
           <Content center={center} />
+          <Forms center={center} />
           <Look center={center} />
         </ReadOnly>
       )}

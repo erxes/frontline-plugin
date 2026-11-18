@@ -33,6 +33,7 @@ export const HelpCenterHeader = z
   .object({
     wordmark: z.string().max(200),
     homeLabel: z.string().max(100),
+    formsLabel: z.string().max(100),
     searchPlaceholder: z.string().max(200),
   })
   .partial();
@@ -79,6 +80,11 @@ export const helpCenters = table(
     publicKey: text().notNull(),
     kbTopicId: text(),
     kbLabel: text(),
+    /** The `frontline_forms` its site offers, in order. */
+    formIds: text()
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
     color: text(),
     backgroundImage: text(),
     styles: jsonb().$type<z.infer<typeof HelpCenterStyles>>().notNull().default({}),
@@ -107,6 +113,7 @@ export const helpCenters = table(
     // (`frontline_public_keys`), so one organisation can't hold another's while it is pending.
     unique('frontline_help_centers_org_hostname_key').on(t.orgId, t.hostname),
     index('frontline_help_centers_org_title_idx').on(t.orgId, t.title),
+    index('frontline_help_centers_org_created_idx').on(t.orgId, t.createdAt.desc(), t.id.desc()),
     check(
       'frontline_help_centers_status_check',
       sql`${t.domainStatus} in ('pending', 'active') and ${t.sslStatus} in ('pending', 'active') and ${t.dnsStatus} in ('pending', 'active')`,

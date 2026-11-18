@@ -7,7 +7,6 @@ import {
   ACCOUNT_TYPE,
   FORM_SUBMISSION_TYPE,
   FORM_TYPE,
-  HELP_CENTER_TYPE,
   CONVERSATION_TYPE,
   INTEGRATION_TYPE,
   KB_ARTICLE_TYPE,
@@ -71,9 +70,10 @@ const PropertiesPage = lazy(
   })),
 );
 
-const HelpCentersPage = lazy(
+// Help centers route their own list, record and appearance pages, so the page module holds one.
+const HelpCenterRoutes = lazy(
   withText(async () => ({
-    default: (await import('@/helpcenter/HelpCentersPage.tsx')).HelpCentersPage,
+    default: (await import('@/helpcenter/HelpCenterRoutes.tsx')).HelpCenterRoutes,
   })),
 );
 
@@ -129,10 +129,18 @@ const SurveysPage = lazy(
   withText(async () => ({ default: (await import('@/surveys/SurveysPage.tsx')).SurveysPage })),
 );
 
-/** The old `/forms/submissions/:formId` link opens that form's submissions. */
-const SubmissionsRedirect = () => (
+/** An old link's new place: `/frontline/<path>/<the link's param>`, then `rest`. */
+const Redirect = ({
+  path,
+  param = 'id',
+  rest = '',
+}: {
+  path: string;
+  param?: string;
+  rest?: string;
+}) => (
   <Navigate
-    to={`/${PLUGIN}/forms/${encodeURIComponent(useParams().formId ?? '')}/submissions`}
+    to={`/${PLUGIN}/${path}/${encodeURIComponent(useParams()[param] ?? '')}${rest}`}
     replace
   />
 );
@@ -149,19 +157,6 @@ const QueuePage = lazy(
   withText(async () => ({ default: (await import('@/calls/pages.ts')).QueuePage })),
 );
 
-/** The old calls dashboard's queue links open that queue's board. */
-const QueueRedirect = () => (
-  <Navigate to={`/${PLUGIN}/calls/queues/${encodeURIComponent(useParams().id ?? '')}`} replace />
-);
-
-/** The old `/:id/response/:responseId` link opens that template on its own page. */
-const ResponseTemplateRedirect = () => (
-  <Navigate
-    to={`/${PLUGIN}/settings/response-templates/${encodeURIComponent(useParams().responseId ?? '')}`}
-    replace
-  />
-);
-
 /** The page module web renders under `/frontline/*` (loaded as `frontline_ui/frontline`). */
 /** Frontline's settings, under `/frontline/settings`, in their own sidebar. */
 const settingsRoutes = (
@@ -172,7 +167,11 @@ const settingsRoutes = (
       <Route path=":id" element={<RecordRoute contentType={CHANNEL_TYPE} />} />
       <Route path=":id/members" element={<ChannelMembersPage />} />
       <Route path=":id/response" element={<ResponseTemplatesPage />} />
-      <Route path=":id/response/:responseId" element={<ResponseTemplateRedirect />} />
+      {/* The old link opens that template on its own page. */}
+      <Route
+        path=":id/response/:responseId"
+        element={<Redirect path="settings/response-templates" param="responseId" />}
+      />
       <Route path=":id/pipelines" element={<PipelinesPage />} />
     </Route>
     <Route path="pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
@@ -188,8 +187,8 @@ const settingsRoutes = (
     <Route path="departments" element={<Navigate to="../channels" replace />} />
     <Route path="branches" element={<Navigate to="../channels" replace />} />
     <Route path="ticket-properties" element={<PropertiesPage />} />
-    <Route path="help-centers" element={<HelpCentersPage />} />
-    <Route path="help-centers/:id" element={<RecordRoute contentType={HELP_CENTER_TYPE} />} />
+    {/* Help centers moved out of settings. */}
+    <Route path="help-centers/*" element={<Redirect path="help-centers" param="*" />} />
     <Route path="integrations" element={<IntegrationsPage />} />
     <Route path="integrations/:id" element={<RecordRoute contentType={ACCOUNT_TYPE} />} />
     <Route path="meta" element={<Navigate to="../integrations" replace />} />
@@ -221,7 +220,11 @@ export const Frontline = () => (
         </Route>
         <Route path="forms">
           <Route index element={<FormsPage />} />
-          <Route path="submissions/:formId" element={<SubmissionsRedirect />} />
+          {/* The old link opens that form's submissions. */}
+          <Route
+            path="submissions/:formId"
+            element={<Redirect path="forms" param="formId" rest="/submissions" />}
+          />
           <Route
             path="submission/:id"
             element={<RecordRoute contentType={FORM_SUBMISSION_TYPE} />}
@@ -243,9 +246,10 @@ export const Frontline = () => (
           <Route path="queues/:id" element={<QueuePage />} />
           <Route path="dashboard" element={<Navigate to="../queues" replace />} />
           <Route path="statistics" element={<Navigate to="../queues" replace />} />
-          <Route path="dashboard/:id" element={<QueueRedirect />} />
-          <Route path="statistics/:id" element={<QueueRedirect />} />
-          <Route path=":id" element={<QueueRedirect />} />
+          {/* The old dashboard's queue links open that queue's board. */}
+          <Route path="dashboard/:id" element={<Redirect path="calls/queues" />} />
+          <Route path="statistics/:id" element={<Redirect path="calls/queues" />} />
+          <Route path=":id" element={<Redirect path="calls/queues" />} />
         </Route>
         <Route path="knowledgebase">
           <Route index element={<TopicsPage />} />
@@ -256,9 +260,10 @@ export const Frontline = () => (
           <Route path=":topicId/categories" element={<CategoriesPage />} />
           <Route path=":topicId/kbsettings" element={<TopicSettingsPage />} />
         </Route>
+        <Route path="help-centers/*" element={<HelpCenterRoutes />} />
       </Route>
       {settingsRoutes}
-      <Route path="helpcenter" element={<Navigate to="../settings/help-centers" replace />} />
+      <Route path="helpcenter" element={<Navigate to="../help-centers" replace />} />
       {/* The old integration detail page, one per channel and kind, is now the accounts list. */}
       <Route
         path="details/:id/:integrationType"

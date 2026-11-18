@@ -2,7 +2,8 @@ import { Button, ColorPicker, Form } from 'erxes-ui';
 import { type FieldPathByValue, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { ImageField } from '~/shared/Files.tsx';
-import { ChoiceRow, SettingsCard } from './fields.tsx';
+import { SettingsCard } from '~/shared/Settings.tsx';
+import { ChoiceRow } from './fields.tsx';
 import { COLOR_THEMES, type MessengerForm } from './queries.ts';
 
 const ColorRow = ({

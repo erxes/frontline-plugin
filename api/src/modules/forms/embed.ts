@@ -35,7 +35,7 @@ import { formFor, publishFormEvents } from './shared.ts';
 type Field = typeof formFields.$inferSelect;
 
 /** Where an embed reads a form and sends its answers. */
-const urlOf = (key: string, code: string) =>
+export const urlOf = (key: string, code: string) =>
   `${config.publicUrl}/api/public/${encodeURIComponent(key)}/forms/${encodeURIComponent(code)}`;
 
 /**
