@@ -12,10 +12,12 @@ const SENT_EVENT = 'frontline:form-submitted';
 /**
  * Whether the form is open: an embedded form always is, a pop-up or shoutbox opens on the
  * visitor's click, and a dropdown or slide-in opens with the page. Any element with
- * `data-frontline-form-open="<code>"`, or the open event, opens it.
+ * `data-frontline-form-open="<code>"`, or the open event, opens it. Null until it first opens.
  */
 const useOpen = (code: string, loadType: VisitorForm['form']['loadType']) => {
-  const [open, setOpen] = useState(loadType !== 'popup' && loadType !== 'shoutbox');
+  const [open, setOpen] = useState<boolean | null>(
+    loadType === 'popup' || loadType === 'shoutbox' ? null : true,
+  );
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -56,7 +58,8 @@ export const FormEmbed = ({
   visitorForm: VisitorForm;
 }) => {
   const { form } = visitorForm;
-  const [open, setOpen] = useOpen(code, form.loadType);
+  const [shown, setOpen] = useOpen(code, form.loadType);
+  const open = shown === true;
   const name = form.title || form.name;
 
   const view = (
@@ -80,10 +83,13 @@ export const FormEmbed = ({
 
   return (
     <div class={`fl fl-${form.loadType}`} style={style}>
-      {open && (
+      {/* Closing only hides the form, so the answers wait for the visitor's return. */}
+      {shown !== null && (
         <>
-          {form.loadType === 'popup' && <div class="fl-overlay" onClick={() => setOpen(false)} />}
-          <section class="fl-panel" role="dialog" aria-label={name}>
+          {open && form.loadType === 'popup' && (
+            <div class="fl-overlay" onClick={() => setOpen(false)} />
+          )}
+          <section class="fl-panel" role="dialog" aria-label={name} hidden={!open}>
             <button
               type="button"
               class="fl-icon-button fl-close"
