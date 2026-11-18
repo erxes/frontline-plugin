@@ -23,8 +23,7 @@ screen proves it looks and behaves right, so a UI change needs both.
    the old page shows too.
 4. Open each screen you changed next to the old app's same screen. Check the
    layout behaviour a spec can't see: what stays put on scroll, previews,
-   dialogs, empty states, tabs, every form field and filter. Old screens show
-   real customer data, so their shots stay on your machine.
+   dialogs, empty states, tabs, every form field and filter.
 5. When a failure traces to erxes-ui or core, such as an axe contrast hit on
    core's button or a label core draws, file it on erxes/erxes, add a
    `DECISIONS.md` row with the link, and assert only what the plugin draws.
@@ -38,12 +37,16 @@ screen proves it looks and behaves right, so a UI change needs both.
    with the same secret as `PLUGIN_SECRET`, then `pnpm dev:api` and
    `pnpm dev:ui`.
 7. If the same failure happens twice, stop and report it with the output.
-8. A PR that changes `ui/` or `widget/` screens shows a screenshot of each
-   changed screen at 1280×800, scrolled so its whole layout shows, empty and
-   with data. CI's `Screenshot` check fails without one; a change nobody can
-   see takes the `no-screen-change` label instead.
+8. A PR that changes `ui/` or `widget/` screens shows each changed screen old
+   and new at 1280×800, scrolled so its whole layout shows, empty and with
+   data. A shot that shows real customer data never goes in a PR, so take
+   the old one where the old app holds synthetic data. CI's `Screenshot`
+   check fails without a screenshot; a change nobody can see takes the
+   `no-screen-change` label instead.
 9. A bug you see on screen gets fixed in the PR or filed as an issue. A list
    of notes in the PR body is not a fix; nobody reads it.
+10. Merge only when CI on the PR's own last commit is green. A green rerun of
+    an older commit, or main's run, proves nothing about this one.
 
 Done when step 2 passes and step 4 matches the old app. The handoff names the
 gates that ran and any issue filed.
