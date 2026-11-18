@@ -1,4 +1,4 @@
-import { expect, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
+import { expect, recordPath, recordPanel, test, unique } from './fixtures.ts';
 
 const CHANNELS = '/frontline/settings/channels';
 
@@ -33,7 +33,7 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await expect(page.getByRole('combobox', { name: 'Role: Admin' })).toBeVisible();
 
   // A second channel with the same name is refused, and the form keeps what was typed.
-  await page.goto(newRecordPath(CHANNELS, 'frontline:channel'));
+  await page.goto(recordPath(CHANNELS, 'frontline:channel'));
   await panel.getByLabel('Name').fill(name);
   await panel.getByRole('button', { name: 'Create channel' }).click();
   await expect(panel.getByText(`Another channel is already called ${name}.`)).toBeVisible();
@@ -85,7 +85,7 @@ test('the owner renames a channel, adds a member, removes them, and cannot remov
   const teammate = await newMember(['frontline.channel.view']);
   const panel = recordPanel(page);
 
-  await page.goto(newRecordPath(CHANNELS, 'frontline:channel'));
+  await page.goto(recordPath(CHANNELS, 'frontline:channel'));
   await panel.getByLabel('Name').fill(name);
   await panel.getByRole('button', { name: 'Create channel' }).click();
 

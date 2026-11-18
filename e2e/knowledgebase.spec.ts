@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { confirmDelete, expect, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
+import { confirmDelete, expect, recordPath, recordPanel, test, unique } from './fixtures.ts';
 
 const KB = '/frontline/knowledgebase';
 
@@ -7,7 +7,7 @@ const KB = '/frontline/knowledgebase';
 const newTopic = async (page: Page, title: string) => {
   const panel = recordPanel(page);
 
-  await page.goto(newRecordPath(KB, 'frontline:kb-topic'));
+  await page.goto(recordPath(KB, 'frontline:kb-topic'));
   await panel.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
 
   await panel.getByRole('button', { name: 'Create topic' }).click();

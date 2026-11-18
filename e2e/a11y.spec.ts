@@ -1,23 +1,22 @@
+import { z } from 'zod';
 import {
   addMessenger,
   ARTICLE,
   addTiles,
   callProLine,
   createChannel,
-  createPipeline,
   expect,
   expectAccessible,
   Id,
   INBOX,
   knowledgeBase,
   messengerIn,
-  newRecordPath,
-  openChannelPipelines,
   openMessenger,
   openShop,
   pick,
   pluginApi,
   recordPanel,
+  recordPath,
   test,
   tileOf,
   unique,
@@ -25,9 +24,14 @@ import {
 } from './fixtures.ts';
 
 /*
- * Every screen a member reaches, once, with data on it, and the panels and sheets it opens. The
- * flow specs run in the light theme; this one runs in light and dark, so axe checks the contrast
- * of each screen in both. Each test makes its own records, so the tests run apart.
+ * Every screen a member reaches, once, with data on it, and the panels and sheets it opens;
+ * a11y-tickets.spec.ts has the channels, pipelines, tickets and settings. The flow specs run in
+ * the light theme; these run in light and dark, so axe checks the contrast of each screen in
+ * both. Each test makes its own records, so the tests run apart.
+ *
+ * An axe pass takes 3 to 4 s on a CI runner, so a test runs axe at most three times and makes
+ * its records through the API unless their screen is the one under test. Six passes after a
+ * channel and two pipelines made in the UI took the tickets test past its 30 s cap.
  *
  * axe stays clear of three states erxes-ui gets wrong: an open `/` menu leaves `aria-expanded` on
  * its editor (erxes/erxes#10611), the bulk bar's dialog has no name (erxes/erxes#10610), and the
@@ -41,78 +45,7 @@ const FORMS = '/frontline/forms';
 const SURVEYS = '/frontline/surveys';
 const HISTORY = '/frontline/calls/history';
 
-test('a channel, its members and its response templates', async ({ page }) => {
-  const panel = recordPanel(page);
-  const content = panel.getByRole('textbox', { name: 'Content' });
-
-  await page.goto(newRecordPath(`${SETTINGS}/channels`, 'frontline:channel'));
-  await expectAccessible(page, panel.getByLabel('Name'));
-  await createChannel(page);
-  await expectAccessible(page, panel.getByRole('link', { name: /Manage channel members/ }));
-  await panel.getByRole('link', { name: /Manage channel members/ }).click();
-  await expectAccessible(page, page.getByRole('combobox', { name: 'Role: Admin' }));
-
-  await page.goto(page.url().replace(/members$/, 'response'));
-  await page.getByRole('button', { name: 'Create response template' }).first().click();
-  await panel.getByLabel('Name').fill('Greeting');
-  await content.fill('Hello, thanks for writing to us.');
-  await expectAccessible(page, content);
-  await panel.getByRole('button', { name: 'Create response template' }).click();
-  await expectAccessible(page, page.getByRole('row', { name: /Greeting/ }));
-});
-
-test("a pipeline, its draft and its panel's tabs", async ({ page }) => {
-  const panel = recordPanel(page);
-
-  await openChannelPipelines(page);
-  await page.getByRole('button', { name: 'Create pipeline' }).click();
-  await panel.getByLabel('Name').fill(`Returns ${unique()}`);
-  await expectAccessible(page, panel.getByLabel('Name'));
-  await panel.getByRole('button', { name: 'Create pipeline' }).click();
-  await expectAccessible(page, panel.getByRole('button', { name: /^Ticket number/ }));
-
-  await panel.getByRole('tab', { name: 'Ticket statuses' }).click();
-  await expectAccessible(page, panel.getByRole('region', { name: 'Open' }));
-  await panel.getByRole('tab', { name: 'SLA' }).click();
-  await panel.getByRole('switch', { name: 'Keep an SLA' }).click();
-  await expectAccessible(page, panel.getByRole('button', { name: /^Warn before/ }));
-  await panel.getByRole('tab', { name: 'Permissions' }).click();
-  await panel.getByRole('switch', { name: 'New is private' }).click();
-  await expectAccessible(page, panel.getByText('Who sees it'));
-});
-
-test('tickets in the list, the board and the table, and one in the panel', async ({ page }) => {
-  const channel = await openChannelPipelines(page);
-  // The sidebar lists pipelines once there are two.
-  await createPipeline(page);
-  const pipeline = await createPipeline(page);
-  const panel = recordPanel(page);
-  const name = `Refund ${unique()}`;
-
-  await page.goto('/frontline/tickets');
-  await page.getByRole('link', { name: pipeline, exact: true }).click();
-  await expect(page).toHaveURL(/[?&]pipeline=/);
-  const ofPipeline = page.url();
-
-  await page.getByRole('button', { name: 'Create ticket' }).first().click();
-  await pick(page, panel.getByRole('combobox', { name: 'Pipeline' }), `${channel} › ${pipeline}`);
-  await panel.getByLabel('Name').fill(name);
-  await expectAccessible(page, panel.getByLabel('Name'));
-  await panel.getByRole('button', { name: 'Create ticket' }).click();
-  await expectAccessible(page, panel.getByRole('button', { name: `Name ${name}` }));
-  await panel.getByRole('tab', { name: 'Activity' }).click();
-  await expectAccessible(page, panel.getByText(`Created ${name} in New`));
-
-  await page.goto(ofPipeline);
-  await expectAccessible(page, page.getByRole('region', { name: 'New' }).getByText(name));
-
-  for (const display of ['Board', 'Table']) {
-    await page.getByRole('button', { name: 'Display' }).click();
-    await page.getByRole('button', { name: display, exact: true }).click();
-    await page.keyboard.press('Escape');
-    await expectAccessible(page, page.getByText(name));
-  }
-});
+const Embed = z.object({ code: z.string(), url: z.string(), scriptUrl: z.string() });
 
 test('a messenger and its settings', async ({ page }) => {
   const channel = await createChannel(page);
@@ -162,26 +95,34 @@ test('the messenger on a website', async ({ page, api, request }) => {
   await expectAccessible(site.shop, site.panel.getByRole('textbox', { name: 'Message' }));
 });
 
-test('a help center, and its articles on a website', async ({ page, api, request }) => {
+test("a help center's draft, its install code and its domain", async ({ page, api, request }) => {
   const rpc = await pluginApi(api, request);
   const panel = recordPanel(page);
-  const answers = `Answers ${unique()}`;
   const title = `Acme ${unique()}`;
-  const kbTopicId = await knowledgeBase(rpc, answers);
-  const code = panel.getByLabel('Knowledge base install code');
+  const kbTopicId = await knowledgeBase(rpc, `Answers ${unique()}`);
 
   await page.goto(HELP_CENTERS);
   // The header's button; an empty list offers a second.
   await page.getByRole('button', { name: 'Add help center' }).first().click();
   await expectAccessible(page, panel.getByLabel('Title'));
-  const center = await rpc('helpCenters/create', { title, kbTopicId }, Id);
+  await rpc('helpCenters/create', { title, kbTopicId }, Id);
   await page.goto(HELP_CENTERS);
   await page.getByRole('button', { name: title, exact: true }).click();
-  await expectAccessible(page, code);
-  const installCode = (await code.textContent()) ?? '';
-
+  await expectAccessible(page, panel.getByLabel('Knowledge base install code'));
   await panel.getByRole('tab', { name: 'Domain' }).click();
   await expectAccessible(page, panel.getByText('Custom domains are not available'));
+});
+
+test("a help center's look, and its articles on a website", async ({ page, api, request }) => {
+  const rpc = await pluginApi(api, request);
+  const answers = `Answers ${unique()}`;
+  const kbTopicId = await knowledgeBase(rpc, answers);
+  const center = await rpc('helpCenters/create', { title: `Acme ${unique()}`, kbTopicId }, Id);
+  const code = recordPanel(page).getByLabel('Knowledge base install code');
+
+  await page.goto(recordPath(HELP_CENTERS, 'frontline:help-center', center.id));
+  await expect(code).toBeVisible();
+  const installCode = (await code.textContent()) ?? '';
 
   {
     await using site = await openShop(page.context(), installCode);
@@ -206,31 +147,39 @@ test('a help center, and its articles on a website', async ({ page, api, request
   await expectAccessible(site.shop, site.panel.getByText(ARTICLE));
 });
 
-test('the topics, and a topic with its articles and categories', async ({ page, api, request }) => {
+test('the topics, and an article in a topic', async ({ page, api, request }) => {
   const title = `Help ${unique()}`;
   const topic = `${KB}/${await knowledgeBase(await pluginApi(api, request), title)}`;
   const panel = recordPanel(page);
 
   // The topics' cards, behind a new topic's draft.
-  await page.goto(newRecordPath(KB, 'frontline:kb-topic'));
+  await page.goto(recordPath(KB, 'frontline:kb-topic'));
   await expect(panel.getByRole('textbox', { name: 'Title', exact: true })).toBeVisible();
   await expectAccessible(page, page.getByRole('link', { name: title, exact: true }));
   await page.goto(`${topic}/articles`);
   await page.getByRole('button', { name: 'Refunds', exact: true }).click();
   await expectAccessible(page, panel.getByRole('button', { name: 'Title Refunds', exact: true }));
+});
+
+test("a topic's categories and settings", async ({ page, api, request }) => {
+  const topic = `${KB}/${await knowledgeBase(await pluginApi(api, request), `Help ${unique()}`)}`;
+
   await page.goto(`${topic}/categories`);
   await expectAccessible(page, page.getByRole('row', { name: /Cards/ }));
   await page.goto(`${topic}/kbsettings`);
   await expectAccessible(page, page.getByRole('combobox', { name: 'Language' }));
 });
 
-test("a survey's draft, panel, questions and results", async ({ page }) => {
-  const channel = await createChannel(page);
+test("a survey's draft and the survey it saves", async ({ page, api, request }) => {
+  const channel = `Support ${unique()}`;
   const panel = recordPanel(page);
   const title = `After the call ${unique()}`;
   const question = panel.getByRole('textbox', { name: 'Question', exact: true });
   const active = page.getByRole('region', { name: 'Active' });
 
+  await (
+    await pluginApi(api, request)
+  )('channels/create', { name: channel }, Id);
   await page.goto(SURVEYS);
   await page.getByRole('button', { name: 'New survey' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
@@ -245,6 +194,17 @@ test("a survey's draft, panel, questions and results", async ({ page }) => {
   await expectAccessible(page, question);
   await panel.getByRole('button', { name: 'Create survey' }).click();
   await expectAccessible(page, active.getByRole('button', { name: title, exact: true }));
+});
+
+test("a survey's results and questions", async ({ page, api, request }) => {
+  const rpc = await pluginApi(api, request);
+  const { id: channelId } = await rpc('channels/create', { name: `Support ${unique()}` }, Id);
+  const options = [{ text: 'Great' }, { text: 'Poor' }];
+  const steps = [{ question: 'How did we do?', options }];
+  const survey = await rpc('surveys/create', { channelId, title: unique(), steps }, Id);
+  const panel = recordPanel(page);
+
+  await page.goto(recordPath(SURVEYS, 'frontline:survey', survey.id));
   await panel.getByRole('tab', { name: 'Results' }).click();
   await expectAccessible(page, panel.getByRole('tabpanel').getByText('0 voters'));
   await panel.getByRole('tab', { name: 'Detail' }).click();
@@ -252,13 +212,14 @@ test("a survey's draft, panel, questions and results", async ({ page }) => {
   await expectAccessible(page, page.getByRole('region', { name: 'How did we do?', exact: true }));
 });
 
-test("a form's draft, panel, builder, embed and submissions", async ({ page, api, request }) => {
-  const rpc = await pluginApi(api, request);
-  const channel = await createChannel(page);
+test("a form's draft and the form it saves", async ({ page, api, request }) => {
+  const channel = `Support ${unique()}`;
   const panel = recordPanel(page);
   const name = `Demo request ${unique()}`;
-  const active = page.getByRole('region', { name: 'Active' });
 
+  await (
+    await pluginApi(api, request)
+  )('channels/create', { name: channel }, Id);
   await page.goto(FORMS);
   await page.getByRole('button', { name: 'New form' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
@@ -266,17 +227,23 @@ test("a form's draft, panel, builder, embed and submissions", async ({ page, api
   await panel.getByLabel('Form title').fill('Book a demo');
   await expectAccessible(page, panel.getByLabel('Form title'));
   await panel.getByRole('button', { name: 'Create form' }).click();
-  await expectAccessible(page, active.getByRole('button', { name, exact: true }));
-  await panel.getByRole('button', { name: 'Show install code' }).click();
-  const installCode = (await panel.getByLabel('Install code').textContent()) ?? '';
-  const url = (await panel.getByText(/\/api\/public\//).textContent()) ?? '';
+  await expectAccessible(
+    page,
+    page.getByRole('region', { name: 'Active' }).getByRole('button', { name, exact: true }),
+  );
+});
 
-  await panel.getByRole('link', { name: /^Fields/ }).click();
-  await expect(page).toHaveURL(/\/builder$/);
-  const formId = page.url().split('/').at(-2) ?? '';
+test("a form's builder, embed and submissions", async ({ page, api, request }) => {
+  const rpc = await pluginApi(api, request);
+  const channel = await rpc('channels/create', { name: `Support ${unique()}` }, Id);
+  const form = await rpc('forms/create', { channelId: channel.id, name: unique() }, Id);
+  const formId = form.id;
+  const { code, url, scriptUrl } = await rpc('forms/embed', { id: formId }, Embed);
   const field = await rpc('forms/fields/add', { formId, type: 'text', label: 'Company' }, Id);
+  // The install code the form's panel offers for an embedded form.
+  const installCode = `<div data-frontline-form="${code}"></div><script type="module" src="${scriptUrl}"></script>`;
 
-  await page.reload();
+  await page.goto(`${FORMS}/${formId}/builder`);
   await expectAccessible(page, page.getByRole('region', { name: 'Preview' }).getByLabel('Company'));
 
   {
@@ -290,24 +257,6 @@ test("a form's draft, panel, builder, embed and submissions", async ({ page, api
   expect(sent.status()).toBe(201);
   await page.goto(`${FORMS}/${formId}/submissions`);
   await expectAccessible(page, page.getByRole('row', { name: /Acme/ }));
-});
-
-test('tags and integrations, with their sheets', async ({ page }) => {
-  const sheet = page.getByRole('dialog');
-  const tag = `VIP ${unique()}`;
-
-  await page.goto(`${SETTINGS}/tags`);
-  await page.getByRole('button', { name: 'Add tag' }).click();
-  await sheet.getByLabel('Name', { exact: true }).fill(tag);
-  await expectAccessible(page, sheet.getByLabel('Name', { exact: true }));
-  await sheet.getByRole('button', { name: 'Create' }).click();
-  await expectAccessible(page, page.getByRole('row', { name: new RegExp(tag) }));
-
-  await page.goto(`${SETTINGS}/integrations`);
-  await expectAccessible(page, page.getByRole('button', { name: 'Connect' }));
-  await page.getByRole('button', { name: 'Connect' }).click();
-  await page.getByRole('menuitem', { name: 'Telegram bot' }).click();
-  await expectAccessible(page, recordPanel(page).getByLabel('Bot token'));
 });
 
 test('the call history, a call in the panel and the queues', async ({ page, api }) => {
