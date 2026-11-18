@@ -2,7 +2,7 @@ import { isShown } from '@frontline/api/logic';
 import { useCallback, useState } from 'preact/hooks';
 import { messageOf } from '../shared/uploads.tsx';
 import type { Answer, Field, FormApi, VisitorForm } from './api.ts';
-import { FieldRow } from './Field.tsx';
+import { FieldRow, searches } from './Field.tsx';
 
 const empty = (value: Answer | undefined) =>
   value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
@@ -71,12 +71,23 @@ const useAnswers = (api: FormApi, fields: Field[], onSent: (submissionId: string
     }
   };
 
-  /** Checks the step's required fields, then moves on, or sends on the last step. */
+  /**
+   * Checks the step's required fields and the text typed into searchable lists, then moves on,
+   * or sends on the last step.
+   */
   const next = async () => {
-    const missing = shown.filter((field) => field.isRequired && empty(answers[field.id]));
+    const refused = shown.flatMap((field): [string, string][] => {
+      const answer = answers[field.id];
 
-    if (missing.length > 0) {
-      setErrors(Object.fromEntries(missing.map((field) => [field.id, 'This field is required'])));
+      if (empty(answer)) return field.isRequired ? [[field.id, 'This field is required']] : [];
+
+      return searches(field) && typeof answer === 'string' && !field.options.includes(answer)
+        ? [[field.id, 'Pick one of the options']]
+        : [];
+    });
+
+    if (refused.length > 0) {
+      setErrors(Object.fromEntries(refused));
 
       return;
     }

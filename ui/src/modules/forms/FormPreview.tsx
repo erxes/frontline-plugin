@@ -1,5 +1,5 @@
 import { isShown } from '@frontline/api/logic';
-import { Button, Checkbox, Input, Label, RadioGroup, Select, Switch, Textarea } from 'erxes-ui';
+import { Button, Checkbox, cn, Input, Label, RadioGroup, Select, Switch, Textarea } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PICK_TYPES } from './fieldTypes.ts';
@@ -96,6 +96,33 @@ const PreviewInput = ({
   );
 };
 
+/** A field with its label and help text, across the form or, at half width, beside another. */
+const PreviewField = ({
+  field,
+  value,
+  onChange,
+}: {
+  field: FormField;
+  value: unknown;
+  onChange: (value: unknown) => void;
+}) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <div className={cn('flex flex-col gap-1.5', field.column === 1 ? 'col-span-1' : 'col-span-2')}>
+      <Label>
+        {field.label || t('field-untitled', 'Untitled field')}
+        {field.isRequired && ' *'}
+      </Label>
+      <PreviewInput field={field} value={value} onChange={onChange} />
+      {field.description && <p className="text-xs text-muted-foreground">{field.description}</p>}
+      {PICK_TYPES.includes(field.type) && field.options.length === 0 && (
+        <p className="text-xs text-muted-foreground">{t('field-no-options', 'No options yet')}</p>
+      )}
+    </div>
+  );
+};
+
 /**
  * The form as a visitor sees it, a step at a time, with the show and hide rules applied to what
  * is typed here: the same rules the API checks a submission by (`api/src/modules/forms/logic.ts`).
@@ -117,31 +144,21 @@ export const FormPreview = ({ form, fields }: { form: Form; fields: FormField[] 
         {form.description && <p className="text-sm text-muted-foreground">{form.description}</p>}
       </div>
       {steps > 1 && (
-        <p className="text-xs text-muted-foreground">
-          {form.steps[step - 1]?.name || t('form-step-n', 'Step {{n}}', { n: step })}
-        </p>
+        <div className="text-xs text-muted-foreground">
+          <p>{form.steps[step - 1]?.name || t('form-step-n', 'Step {{n}}', { n: step })}</p>
+          {form.steps[step - 1]?.description && <p>{form.steps[step - 1]?.description}</p>}
+        </div>
       )}
-      {shown.map((field) => (
-        <div key={field.id} className="flex flex-col gap-1.5">
-          <Label>
-            {field.label || t('field-untitled', 'Untitled field')}
-            {field.isRequired && ' *'}
-          </Label>
-          <PreviewInput
+      <div className="grid grid-cols-2 gap-4">
+        {shown.map((field) => (
+          <PreviewField
+            key={field.id}
             field={field}
             value={answers[field.id]}
             onChange={(value) => setAnswers((current) => ({ ...current, [field.id]: value }))}
           />
-          {field.description && (
-            <p className="text-xs text-muted-foreground">{field.description}</p>
-          )}
-          {PICK_TYPES.includes(field.type) && field.options.length === 0 && (
-            <p className="text-xs text-muted-foreground">
-              {t('field-no-options', 'No options yet')}
-            </p>
-          )}
-        </div>
-      ))}
+        ))}
+      </div>
       <div className="flex justify-between gap-2">
         <Button variant="ghost" disabled={step === 1} onClick={() => setStep(step - 1)}>
           {t('back', 'Back')}

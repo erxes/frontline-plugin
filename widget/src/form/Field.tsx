@@ -92,6 +92,39 @@ const TextInput = ({ field, value, onChange }: InputProps) => {
   }
 };
 
+/** Whether the visitor types the field's answer into a list's search input. */
+export const searches = (field: Field) =>
+  field.allowSearch && ['select', 'select:countries', 'core:customer:sex'].includes(field.type);
+
+/**
+ * A long list's input: the visitor types and the browser offers the options that match. Text
+ * that matches one but for case becomes it; the step refuses any other text (`FormView.tsx`).
+ */
+const SearchSelect = ({ field, value, onChange }: InputProps) => (
+  <>
+    <input
+      id={field.id}
+      list={`${field.id}-options`}
+      required={field.isRequired}
+      autocomplete="off"
+      placeholder={field.placeholder || 'Type to search'}
+      value={textOf(value)}
+      onInput={(event) => {
+        const typed = event.currentTarget.value;
+
+        onChange(
+          field.options.find((option) => option.toLowerCase() === typed.toLowerCase()) ?? typed,
+        );
+      }}
+    />
+    <datalist id={`${field.id}-options`}>
+      {field.options.map((option) => (
+        <option key={option} value={option} />
+      ))}
+    </datalist>
+  </>
+);
+
 /** The input a field of its type takes. */
 const Input = ({ field, value, onChange }: InputProps) => {
   const common = { id: field.id, required: field.isRequired, placeholder: field.placeholder ?? '' };
@@ -128,7 +161,9 @@ const Input = ({ field, value, onChange }: InputProps) => {
     case 'select':
     case 'select:countries':
     case 'core:customer:sex':
-      return (
+      return field.allowSearch ? (
+        <SearchSelect field={field} value={value} onChange={onChange} />
+      ) : (
         <select
           id={field.id}
           required={field.isRequired}
@@ -170,7 +205,7 @@ export const FieldRow = ({
   const Wrapper = group ? 'fieldset' : 'div';
 
   return (
-    <Wrapper class={field.column === 2 ? 'fl-field fl-half' : 'fl-field'}>
+    <Wrapper class={field.column === 1 ? 'fl-field fl-half' : 'fl-field'}>
       {group ? (
         <legend>
           {field.label}

@@ -68,6 +68,58 @@ const AddField = ({ formId, pageNumber }: { formId: string; pageNumber: number }
   );
 };
 
+/** A step's name and the line under it, each saved as typed, and removing the step. */
+const StepHeader = ({ form, pageNumber }: { form: Form; pageNumber: number }) => {
+  const { t } = useTranslation('frontline');
+  const edit = useEditForm(form.id);
+  const removeStep = useMutation(orpc.forms.fields.removeStep.mutationOptions(useFormChange()));
+  const step = form.steps[pageNumber - 1];
+  const scope = `frontline-form.${form.id}.step.${pageNumber}`;
+
+  // An old form may have no step saved yet; the first edit saves it.
+  const save = (change: { name?: string; description?: string }) =>
+    edit({
+      steps: Array.from({ length: Math.max(form.steps.length, pageNumber) }, (_, index) => {
+        const each = form.steps[index] ?? { name: '', description: '' };
+
+        return index === pageNumber - 1 ? { ...each, ...change } : each;
+      }),
+    });
+
+  return (
+    <div className="flex items-start gap-2">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="text-base font-semibold">
+          <TextField
+            scope={scope}
+            value={step?.name ?? ''}
+            placeholder={t('form-step-n', 'Step {{n}}', { n: pageNumber })}
+            onSave={(name) => save({ name: name.trim() })}
+          />
+        </span>
+        <span className="text-sm text-muted-foreground">
+          <TextField
+            scope={`${scope}.description`}
+            value={step?.description ?? ''}
+            placeholder={t('form-step-description', 'A line under the step name')}
+            onSave={(description) => save({ description: description.trim() })}
+          />
+        </span>
+      </div>
+      {form.canManage && form.steps.length > 1 && (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t('form-remove-step', 'Remove step {{n}}', { n: pageNumber })}
+          onClick={() => removeStep.mutate({ formId: form.id, pageNumber })}
+        >
+          <IconTrash />
+        </Button>
+      )}
+    </div>
+  );
+};
+
 /**
  * One step's card: its name, its fields in the order `ids` gives, and adding a field at its end.
  * Fields drop onto it from other steps. An empty step takes them on its own drop zone, which is
@@ -85,40 +137,12 @@ const StepCard = ({
   pageNumber: number;
 }) => {
   const { t } = useTranslation('frontline');
-  const edit = useEditForm(form.id);
-  const removeStep = useMutation(orpc.forms.fields.removeStep.mutationOptions(useFormChange()));
   const { setNodeRef } = useDroppable({ id: stepZone(pageNumber), disabled: ids.length > 0 });
   const own = ids.flatMap((id) => fields.find((field) => field.id === id) ?? []);
-  const step = form.steps[pageNumber - 1];
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border bg-background p-5">
-      <div className="flex items-center gap-2">
-        <span className="min-w-0 flex-1 text-base font-semibold">
-          <TextField
-            scope={`frontline-form.${form.id}.step.${pageNumber}`}
-            value={step?.name ?? ''}
-            placeholder={t('form-step-n', 'Step {{n}}', { n: pageNumber })}
-            onSave={(name) =>
-              edit({
-                steps: form.steps.map((each, index) =>
-                  index === pageNumber - 1 ? { ...each, name: name.trim() } : each,
-                ),
-              })
-            }
-          />
-        </span>
-        {form.canManage && form.steps.length > 1 && (
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t('form-remove-step', 'Remove step {{n}}', { n: pageNumber })}
-            onClick={() => removeStep.mutate({ formId: form.id, pageNumber })}
-          >
-            <IconTrash />
-          </Button>
-        )}
-      </div>
+      <StepHeader form={form} pageNumber={pageNumber} />
       <SortableContext items={ids} strategy={verticalListSortingStrategy}>
         <div ref={setNodeRef} className="flex min-h-10 flex-col gap-2">
           {own.length === 0 && (
