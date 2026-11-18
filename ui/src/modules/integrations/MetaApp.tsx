@@ -19,15 +19,14 @@ const valuesOf = (settings: Settings): Values => ({
   verifyToken: settings.verifyToken ?? '',
 });
 
-/** The saved settings, kept in the query once a change answers with them. */
-const useMetaAppChange = () => {
+/** The saved settings, kept in the query once a change answers with them, and `done` said. */
+const useMetaAppChange = (done: string) => {
   const client = useQueryClient();
-  const { t } = useTranslation('frontline');
 
   return {
     onSuccess: (saved: Settings) => {
       client.setQueryData(orpc.integrations.meta.app.get.queryKey(), saved);
-      toast({ title: t('meta-app-saved', 'Meta app saved') });
+      toast({ title: done });
     },
     onError: (error: Error) => toast({ title: error.message, variant: 'destructive' }),
   };
@@ -37,7 +36,12 @@ const useMetaAppChange = () => {
 const AppStatus = ({ settings }: { settings: Settings }) => {
   const { t } = useTranslation('frontline');
   const { confirm } = useConfirm();
-  const remove = useMutation(orpc.integrations.meta.app.remove.mutationOptions(useMetaAppChange()));
+
+  const remove = useMutation(
+    orpc.integrations.meta.app.remove.mutationOptions(
+      useMetaAppChange(t('meta-app-removed', 'Meta app removed')),
+    ),
+  );
 
   if (settings.own)
     return (
@@ -89,7 +93,13 @@ const AppFields = ({ own }: { own: boolean }) => {
       <Form.Field
         control={control}
         name="appId"
-        rules={{ required: t('meta-app-id-required', 'Enter the app id') }}
+        rules={{
+          required: t('meta-app-id-required', 'Enter the app id'),
+          pattern: {
+            value: /^\d{5,20}$/,
+            message: t('meta-app-id-digits', 'A Meta app id is digits'),
+          },
+        }}
         render={({ field }) => (
           <Form.Item>
             <Form.Label>{t('meta-app-id', 'App ID')}</Form.Label>
@@ -123,6 +133,7 @@ const AppFields = ({ own }: { own: boolean }) => {
         control={control}
         name="verifyToken"
         rules={{
+          required: t('meta-verify-token-required', 'Enter a verify token'),
           minLength: {
             value: 8,
             message: t('meta-verify-token-short', 'Use at least 8 characters'),
@@ -142,31 +153,51 @@ const AppFields = ({ own }: { own: boolean }) => {
   );
 };
 
-/** The callback address to paste in the app's Webhooks settings. */
-const WebhookCard = ({ url }: { url: string }) => {
+/** The two addresses the app lists in Meta for Developers: its webhook and its login's return. */
+const AddressCards = ({ settings }: { settings: Settings }) => {
   const { t } = useTranslation('frontline');
 
   return (
-    <Card>
-      <Card.Header>
-        <Card.Title>{t('meta-webhook', 'Webhook')}</Card.Title>
-        <Card.Description>
-          {t(
-            'meta-webhook-description',
-            'In your app’s Webhooks settings, subscribe Page and Instagram to this callback URL with the verify token above.',
-          )}
-        </Card.Description>
-      </Card.Header>
-      <Card.Content>
-        <InstallCode code={url} label={t('meta-callback-url', 'Callback URL')} />
-      </Card.Content>
-    </Card>
+    <>
+      <Card>
+        <Card.Header>
+          <Card.Title>{t('meta-webhook', 'Webhook')}</Card.Title>
+          <Card.Description>
+            {t(
+              'meta-webhook-description',
+              'In your app’s Webhooks settings, subscribe Page and Instagram to this callback URL with the verify token above.',
+            )}
+          </Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <InstallCode code={settings.webhookUrl} label={t('meta-callback-url', 'Callback URL')} />
+        </Card.Content>
+      </Card>
+      <Card>
+        <Card.Header>
+          <Card.Title>{t('meta-login', 'Facebook Login')}</Card.Title>
+          <Card.Description>
+            {t(
+              'meta-login-description',
+              'In your app’s Facebook Login settings, add this address to Valid OAuth Redirect URIs, or Connect stops at Meta.',
+            )}
+          </Card.Description>
+        </Card.Header>
+        <Card.Content>
+          <InstallCode
+            code={settings.callbackUrl}
+            label={t('meta-redirect-uri', 'Valid OAuth Redirect URI')}
+          />
+        </Card.Content>
+      </Card>
+    </>
   );
 };
 
 const MetaAppForm = ({ settings }: { settings: Settings }) => {
   const { t } = useTranslation('frontline');
-  const change = useMetaAppChange();
+  const { confirm } = useConfirm();
+  const change = useMetaAppChange(t('meta-app-saved', 'Meta app saved'));
   const form = useForm({ defaultValues: valuesOf(settings) });
 
   const save = useMutation(
@@ -179,13 +210,24 @@ const MetaAppForm = ({ settings }: { settings: Settings }) => {
     }),
   );
 
-  const submit = form.handleSubmit((values) =>
-    save.mutate({
-      appId: values.appId,
-      appSecret: values.appSecret || undefined,
-      verifyToken: values.verifyToken,
-    }),
-  );
+  const submit = form.handleSubmit((values) => {
+    const send = () =>
+      save.mutate({
+        appId: values.appId,
+        appSecret: values.appSecret || undefined,
+        verifyToken: values.verifyToken,
+      });
+
+    // Pages connected through the saved app sign with its secret, which the new one replaces.
+    if (settings.own && values.appId !== settings.appId)
+      void confirm({
+        message: t(
+          'meta-app-switch-confirm',
+          'Switch to another Meta app? Pages connected through the current one stop receiving messages until they connect again.',
+        ),
+      }).then(send);
+    else send();
+  });
 
   return (
     <Form {...form}>
@@ -207,7 +249,7 @@ const MetaAppForm = ({ settings }: { settings: Settings }) => {
             </div>
           </Card.Content>
         </Card>
-        <WebhookCard url={settings.webhookUrl} />
+        <AddressCards settings={settings} />
         <SaveBar
           dirty={form.formState.isDirty}
           saving={save.isPending}
@@ -226,5 +268,6 @@ export const MetaApp = () => {
 
   if (!settings.data) return <Skeleton className="h-64 w-full" />;
 
-  return <MetaAppForm settings={settings.data} />;
+  // A new app, or none, starts a new form, so a removed app's values don't linger.
+  return <MetaAppForm key={settings.data.appId ?? ''} settings={settings.data} />;
 };
