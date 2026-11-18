@@ -41,17 +41,15 @@ export const addConfigText = () =>
       'Tickets over time': 'Тикет хугацаагаар',
       'Tickets created and resolved each day': 'Өдөр бүр үүсгэсэн ба шийдвэрлэсэн тикет',
       'Tickets by status': 'Тикет төлөвөөр',
-      'New tickets by the status they are in now, or by stage across pipelines':
-        'Шинэ тикет одоогийн төлөвөөр, бүх урсгалаар бол үе шатаар',
+      'New tickets by status': 'Шинэ тикет төлөвөөр',
       'Tickets by priority': 'Тикет зэрэглэлээр',
       'New tickets by priority': 'Шинэ тикет зэрэглэлээр',
       'Tickets by tag': 'Тикет шошгоор',
       'The tags on new tickets': 'Шинэ тикетийн шошго',
       'Ticket SLA': 'Тикетийн SLA',
-      'First responses and resolutions met, missed and overdue':
-        'Анхны хариулт ба шийдвэрлэлт биелсэн, хэтэрсэн, хугацаа хэтэрсэн',
+      'SLAs met, missed and overdue': 'Биелсэн, алдсан, хэтэрсэн SLA',
       'Open tickets by assignee': 'Нээлттэй тикет хариуцагчаар',
-      'Who holds the unresolved tickets now': 'Шийдвэрлэгдээгүй тикетийг одоо хэн хариуцаж байна',
+      'Who holds open tickets': 'Нээлттэй тикетийн хариуцагч',
       'Conversation summary': 'Харилцан ярианы тойм',
       'Started, resolved and open conversations, and response times':
         'Эхэлсэн, шийдвэрлэсэн, нээлттэй харилцан яриа ба хариулах хугацаа',

@@ -45,7 +45,7 @@ export const DASHBOARD_WIDGETS = [
   tile({
     name: 'tickets-by-stage',
     title: 'Tickets by status',
-    description: 'New tickets by the status they are in now, or by stage across pipelines',
+    description: 'New tickets by status',
     icon: IconTicket,
     preview: 'bar',
   }),
@@ -66,14 +66,14 @@ export const DASHBOARD_WIDGETS = [
   tile({
     name: 'ticket-sla',
     title: 'Ticket SLA',
-    description: 'First responses and resolutions met, missed and overdue',
+    description: 'SLAs met, missed and overdue',
     icon: IconTicket,
     preview: 'table',
   }),
   tile({
     name: 'tickets-by-assignee',
     title: 'Open tickets by assignee',
-    description: 'Who holds the unresolved tickets now',
+    description: 'Who holds open tickets',
     icon: IconTicket,
     preview: 'table',
   }),
