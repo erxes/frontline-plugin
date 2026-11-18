@@ -13,7 +13,7 @@ import { ActionsMenu } from '~/shared/Records.tsx';
 import { FieldEditor } from './FieldEditor.tsx';
 import { stepZone, useFieldDrag } from './fieldDrag.ts';
 import { FIELD_ICONS, FIELD_TYPES, useFieldTypeNames } from './fieldTypes.ts';
-import { FormPreview } from './FormPreview.tsx';
+import { FormScreens } from './FormScreens.tsx';
 import {
   FORMS_PATH,
   type Form,
@@ -204,7 +204,7 @@ const Builder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
       </fieldset>
       <div className="min-w-0 flex-1 lg:sticky lg:top-0 lg:self-start">
         <DevicePreview>
-          <FormPreview form={form} fields={fields} />
+          <FormScreens form={form} fields={fields} />
         </DevicePreview>
       </div>
     </div>

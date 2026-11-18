@@ -5,6 +5,12 @@ import { useTranslation } from 'react-i18next';
 import { PICK_TYPES } from './fieldTypes.ts';
 import type { Form, FormField } from './useForms.ts';
 
+declare module 'react' {
+  interface CSSProperties {
+    '--form-color'?: string;
+  }
+}
+
 type Answers = Record<string, unknown>;
 
 /** One field as a visitor fills it in, keeping the answer in the preview only. */
@@ -127,6 +133,22 @@ const PreviewField = ({
  * The form as a visitor sees it, a step at a time, with the show and hide rules applied to what
  * is typed here: the same rules the API checks a submission by (`api/src/modules/forms/logic.ts`).
  */
+/**
+ * The button a visitor presses, in the form's colour with white text as the embed draws it, or
+ * the theme's primary when the form has none. It only shows, so it is no button here.
+ */
+export const FormButton = ({ form, label }: { form: Form; label: string }) => (
+  <span
+    style={form.primaryColor ? { '--form-color': form.primaryColor } : undefined}
+    className={cn(
+      'inline-flex h-8 items-center self-start rounded-md px-3 text-sm font-medium',
+      form.primaryColor ? 'bg-(--form-color) text-white' : 'bg-primary text-primary-foreground',
+    )}
+  >
+    {label}
+  </span>
+);
+
 export const FormPreview = ({ form, fields }: { form: Form; fields: FormField[] }) => {
   const { t } = useTranslation('frontline');
   const [answers, setAnswers] = useState<Answers>({});
@@ -168,7 +190,7 @@ export const FormPreview = ({ form, fields }: { form: Form; fields: FormField[] 
             {t('next', 'Next')}
           </Button>
         ) : (
-          <Button disabled>{form.buttonText ?? t('form-send', 'Send')}</Button>
+          <FormButton form={form} label={form.buttonText || t('form-send', 'Send')} />
         )}
       </div>
     </section>

@@ -8,12 +8,14 @@ import {
   IconLayoutBottombar,
   IconLetterCase,
   IconMessage,
+  IconPhoto,
   IconUserCheck,
 } from '@tabler/icons-react';
 import { ColorPicker, PanelField, PanelSection, Select, Switch, TextField } from 'erxes-ui';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChannelSelect } from '~/shared/ChannelSelect.tsx';
+import { ImageField } from '~/shared/Files.tsx';
 import { type Form, LOAD_TYPES, type LoadType, useEditForm, useLoadTypeNames } from './useForms.ts';
 
 type TextKey =
@@ -54,6 +56,27 @@ const TextSetting = ({
           if (next !== value && (next || name !== 'name')) edit({ [name]: next });
         }}
       />
+    </PanelField>
+  );
+};
+
+/** The picture above the callout or the thank-you, uploaded through core's files. */
+const ImageSetting = ({
+  form,
+  name,
+  label,
+}: {
+  form: Form;
+  name: 'calloutImage' | 'thankImage';
+  label: string;
+}) => {
+  const edit = useEditForm(form.id);
+
+  return (
+    <PanelField icon={IconPhoto} label={label} cell={false}>
+      <div className="p-2">
+        <ImageField value={form[name]?.url ?? ''} onChange={(file) => edit({ [name]: file })} />
+      </div>
     </PanelField>
   );
 };
@@ -200,6 +223,11 @@ export const Callout = ({ form }: { form: Form }) => {
             label={t('form-callout-button', 'Callout button')}
             icon={IconClick}
           />
+          <ImageSetting
+            form={form}
+            name="calloutImage"
+            label={t('form-callout-image', 'Callout image')}
+          />
         </>
       )}
     </PanelSection>
@@ -223,6 +251,11 @@ export const ThankYou = ({ form }: { form: Form }) => {
         name="thankContent"
         label={t('form-thank-content', 'Thank-you text')}
         icon={IconMessage}
+      />
+      <ImageSetting
+        form={form}
+        name="thankImage"
+        label={t('form-thank-image', 'Thank-you image')}
       />
     </PanelSection>
   );
