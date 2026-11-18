@@ -2,6 +2,7 @@ import type { Page } from '@playwright/test';
 import {
   addMessenger,
   confirmDelete,
+  createPipeline,
   expect,
   expectAccessible,
   INBOX,
@@ -42,6 +43,7 @@ test('an admin writes a survey, edits its questions and reads its results, which
   const channel = await openChannelPipelines(page, teammate.fullName);
   const panel = recordPanel(page);
   const title = `After the call ${unique()}`;
+  const pipeline = await createPipeline(page);
 
   await newSurvey(page, channel, title);
   await expect(
@@ -64,8 +66,9 @@ test('an admin writes a survey, edits its questions and reads its results, which
   await page.keyboard.press('Enter');
   await expect(preview.getByText('Would you call again?')).toBeVisible();
 
-  // Three voters picking Great open a ticket in the channel's pipeline.
+  // Three voters picking Great open a ticket in the channel's pipeline, at its first status.
   await first.getByRole('button', { name: 'Open a ticket from Great' }).click();
+  await expect(page.getByRole('combobox', { name: 'Pipeline' })).toHaveText(pipeline);
   await page.getByRole('spinbutton', { name: 'Voters' }).fill('3');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(first.getByRole('button', { name: 'Ticket for Great at 3 voters' })).toBeVisible();
