@@ -4,6 +4,7 @@ import { Button, PageContainer, ScrollArea, Skeleton, TextField } from 'erxes-ui
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
+import { DevicePreview } from '~/shared/DevicePreview.tsx';
 import { AppHeader } from '~/shared/Header.tsx';
 import { ListError } from '~/shared/List.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
@@ -148,9 +149,9 @@ const Builder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
   const steps = Math.max(form.steps.length, 1);
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:grid-cols-3">
+    <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:grid-cols-2">
       <fieldset disabled={!form.canManage} className="contents">
-        <div className="flex flex-col gap-4 lg:col-span-2">
+        <div className="flex flex-col gap-4">
           {Array.from({ length: steps }, (_, index) => (
             <StepCard key={index} form={form} fields={fields} pageNumber={index + 1} />
           ))}
@@ -177,7 +178,9 @@ const Builder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
         </div>
       </fieldset>
       <div className="lg:sticky lg:top-0 lg:self-start">
-        <FormPreview form={form} fields={fields} />
+        <DevicePreview>
+          <FormPreview form={form} fields={fields} />
+        </DevicePreview>
       </div>
     </div>
   );
@@ -204,8 +207,8 @@ export const FormBuilderPage = () => {
         ) : form.data && fields.data ? (
           <Builder form={form.data} fields={fields.data} />
         ) : (
-          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:grid-cols-3">
-            <Skeleton className="h-80 lg:col-span-2" />
+          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:grid-cols-2">
+            <Skeleton className="h-80" />
             <Skeleton className="h-80" />
           </div>
         )}

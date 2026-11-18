@@ -7,6 +7,7 @@ import {
   IconCircleDot,
   IconCircles,
   IconClockHour4,
+  IconEye,
   IconFolder,
   IconForms,
   IconSend,
@@ -254,6 +255,12 @@ export const CONFIG: IUIConfig = {
           label: 'Questions',
           icon: IconChecklist,
           component: lazy(async () => ({ default: (await surveys()).SurveyQuestions })),
+        },
+        {
+          value: 'preview',
+          label: 'Preview',
+          icon: IconEye,
+          component: lazy(async () => ({ default: (await surveys()).SurveyPreview })),
         },
         {
           value: 'results',

@@ -14,7 +14,8 @@ import { canChangeSql, heldInChannels, managesAll, membership } from '../channel
 import { publishEvents, type RecordEvent } from '../events.ts';
 
 /** The row without `org_id`, which the caller already knows. */
-const { orgId, ...formColumns } = getTableColumns(forms);
+// `appearance` is retired: the old plugin stored it and nothing read it.
+const { orgId, appearance, ...formColumns } = getTableColumns(forms);
 
 /** A form's submission count, selected beside its row. */
 const submissionCount = sql<number>`(
@@ -27,7 +28,7 @@ export const Form = createSelectSchema(forms, {
   calloutImage: () => Attachment.nullable(),
   thankImage: () => Attachment.nullable(),
 })
-  .omit({ orgId: true })
+  .omit({ orgId: true, appearance: true })
   .extend({
     /** Whether the caller is its channel's admin or manages every channel. */
     canManage: z.boolean(),

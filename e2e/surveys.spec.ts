@@ -59,6 +59,18 @@ test('an admin writes a survey, edits its questions and reads its results, which
     panel.getByRole('button', { name: 'Would you call again?', exact: true }),
   ).toBeVisible();
 
+  // Its Preview tab shows the survey as a voter reads it, on a desktop, tablet or phone.
+  await panel.getByRole('tab', { name: 'Preview' }).click();
+  const preview = panel.getByRole('region', { name: 'Preview' });
+
+  await expect(preview.getByText('Would you call again?')).toBeVisible();
+  await panel.getByRole('button', { name: 'Tablet', exact: true }).click();
+  await expect(panel.getByRole('button', { name: 'Tablet', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(preview.getByLabel('Great')).toBeVisible();
+
   await panel.getByRole('tab', { name: 'Results' }).click();
   const results = panel.getByRole('tabpanel', { name: 'Results' });
 

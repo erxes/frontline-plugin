@@ -2,6 +2,7 @@
 // together.
 import { SurveyActions, SurveyDetail, SurveyTitleSlot } from './SurveyPanel.tsx';
 import { SurveyNew } from './SurveyNew.tsx';
+import { SurveyPreview } from './SurveyPreview.tsx';
 import { SurveyQuestions, SurveyResults } from './SurveyQuestions.tsx';
 
 export const SurveySlots = {
@@ -11,4 +12,4 @@ export const SurveySlots = {
   New: SurveyNew,
 };
 
-export { SurveyQuestions, SurveyResults };
+export { SurveyPreview, SurveyQuestions, SurveyResults };
