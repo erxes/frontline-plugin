@@ -46,19 +46,27 @@ export const reads = (action: Action) => base.use(allowed(action, false)).use(in
 export const writes = (action: string) => base.use(allowed(action, true)).use(inOrg);
 
 /**
- * A read that asks core first: `ask` runs once the member holds `action`, before the
- * transaction opens, since core calls stay outside it; the handler gets its answer as
- * `context.fromCore`.
+ * A procedure that asks core or another service first: `ask` runs once the member holds
+ * `action`, before the transaction opens, since outside calls stay out of it and hold no
+ * connection or lock; the handler gets its answer as `context.fromCore`.
  */
-export const readsWithCore = <Schema extends z.ZodType, Answer>(
-  action: string,
-  input: Schema,
-  ask: (member: PluginMember, input: InferSchemaOutput<Schema>) => Promise<Answer>,
-) =>
-  base
-    .use(allowed(action, false))
-    .input(input)
-    .use(async ({ context: { member }, next }, parsed) =>
-      next({ context: { fromCore: await ask(member, parsed) } }),
-    )
-    .use(inOrg);
+const asksFirst =
+  (change: boolean) =>
+  <Schema extends z.ZodType, Answer>(
+    action: string,
+    input: Schema,
+    ask: (member: PluginMember, input: InferSchemaOutput<Schema>) => Promise<Answer>,
+  ) =>
+    base
+      .use(allowed(action, change))
+      .input(input)
+      .use(async ({ context: { member }, next }, parsed) =>
+        next({ context: { fromCore: await ask(member, parsed) } }),
+      )
+      .use(inOrg);
+
+/** A read that asks first: see `asksFirst`. */
+export const readsWithCore = asksFirst(false);
+
+/** A change that asks first, and is refused while the organisation is read-only. */
+export const writesWithCore = asksFirst(true);

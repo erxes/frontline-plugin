@@ -5,7 +5,7 @@ import { createSelectSchema } from 'drizzle-zod';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
 import { publicKeys } from '#/db/public.ts';
-import { openedBy } from '../public.ts';
+import { openedBy, removeKeys } from '../public.ts';
 import type { ProviderName, Routed } from './provider.ts';
 import { sealSecret } from './secrets.ts';
 
@@ -79,7 +79,7 @@ export const saveAccount = async (
   if (connected.webhookKey) {
     // A reconnect issues a new key, so the old one stops leading anywhere. A page another
     // organisation connected before moves here: Meta sends its events to one place.
-    await removeWebhookKeys(tx, [row.id]);
+    await removeWebhookKeys(tx, member.orgId, [row.id]);
     await tx
       .insert(publicKeys)
       .values({
@@ -97,11 +97,13 @@ export const saveAccount = async (
   return row;
 };
 
-/** Stops the webhook keys of the accounts leading anywhere. */
-export const removeWebhookKeys = (tx: Tx, accountIds: string[]) =>
-  tx
-    .delete(publicKeys)
-    .where(and(inArray(publicKeys.kind, PROVIDERS), inArray(publicKeys.targetId, accountIds)));
+/** Stops the webhook keys of the organisation's accounts leading anywhere. */
+export const removeWebhookKeys = (tx: Tx, organizationId: string, accountIds: string[]) =>
+  removeKeys(
+    tx,
+    organizationId,
+    and(inArray(publicKeys.kind, PROVIDERS), inArray(publicKeys.targetId, accountIds)),
+  );
 
 /** The account a delivery's key opens, with its secret. */
 export const accountOf = async ({ provider, key }: Pick<Routed, 'provider' | 'key'>) => {

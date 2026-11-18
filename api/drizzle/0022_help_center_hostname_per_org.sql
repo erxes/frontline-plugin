@@ -1,0 +1,2 @@
+ALTER TABLE "frontline_help_centers" DROP CONSTRAINT "frontline_help_centers_hostname_key";--> statement-breakpoint
+ALTER TABLE "frontline_help_centers" ADD CONSTRAINT "frontline_help_centers_org_hostname_key" UNIQUE("org_id","hostname");

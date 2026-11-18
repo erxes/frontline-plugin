@@ -5,7 +5,7 @@ import { core, INTEGRATION_BROKEN, PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
 import { logger } from '#/logger.ts';
-import { reads, writes } from '#/orpc.ts';
+import { reads, writes, writesWithCore } from '#/orpc.ts';
 import type { AccountRow } from './provider.ts';
 import { providerOf } from './providers/index.ts';
 import { Account, accountColumns, accountRow, removeWebhookKeys } from './store.ts';
@@ -62,20 +62,27 @@ const list = reads(PERMISSIONS.integrationView)
     return { accounts };
   });
 
-/** Asks the provider whether the account still works, and marks it healthy or broken. */
-const check = writes(PERMISSIONS.integrationManage)
-  .input(z.object({ id: z.string() }))
+/**
+ * Asks the provider whether the account still works, and marks it healthy or broken. The
+ * provider is asked before any transaction opens, so a slow one holds no connection.
+ */
+const check = writesWithCore(
+  PERMISSIONS.integrationManage,
+  z.object({ id: z.string() }),
+  async (member, input) =>
+    checkAccount(await withOrg(member.orgId, (tx) => accountRow(tx, input.id))),
+)
   .output(Account)
-  .handler(async ({ input, context: { tx } }) => checkAccount(await accountRow(tx, input.id)));
+  .handler(({ context: { fromCore } }) => fromCore);
 
 /**
- * Disconnects the accounts: the provider stops sending their events, and their keys go. A
+ * Disconnects the accounts: their keys go, then the provider stops sending their events. A
  * provider that can't be reached doesn't keep an account: it is removed anyway and logged.
  */
 const remove = writes(PERMISSIONS.integrationManage)
   .input(z.object({ ids: z.array(z.string()).min(1).max(100) }))
   .output(z.object({ ids: z.array(z.string()) }))
-  .handler(async ({ input, context: { tx } }) => {
+  .handler(async ({ input, context: { tx, member, afterCommit } }) => {
     const rows = await tx
       .select()
       .from(integrationAccounts)
@@ -84,8 +91,8 @@ const remove = writes(PERMISSIONS.integrationManage)
     if (rows.length !== new Set(input.ids).size)
       throw new ORPCError('NOT_FOUND', { message: 'No such integration account' });
 
-    await Promise.all(
-      rows.map((row) =>
+    for (const row of rows)
+      afterCommit(() =>
         providerOf(row.provider)
           .open(row)
           .disconnect()
@@ -95,10 +102,9 @@ const remove = writes(PERMISSIONS.integrationManage)
               'disconnect failed',
             );
           }),
-      ),
-    );
+      );
 
-    await removeWebhookKeys(tx, input.ids);
+    await removeWebhookKeys(tx, member.orgId, input.ids);
 
     const removed = await tx
       .delete(integrationAccounts)

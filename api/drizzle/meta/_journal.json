@@ -155,6 +155,13 @@
       "when": 1794974611726,
       "tag": "0021_messenger_secrets",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794979416434,
+      "tag": "0022_help_center_hostname_per_org",
+      "breakpoints": true
     }
   ]
 }
