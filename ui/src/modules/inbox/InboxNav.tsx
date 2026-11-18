@@ -15,13 +15,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { useChange } from '~/shared/hooks.ts';
 import { INBOX_PATH } from '~/shared/listPath.ts';
+import { NavSkeleton } from '~/shared/NavSkeleton.tsx';
 import { CHANNELS_PATH } from '@/channels/useChannels.ts';
 import { ChannelLink, TeamChannels } from './ChannelNav.tsx';
 import { Count, FilterLink, NavGroup } from './navLinks.tsx';
-import { useInboxCounts, useInboxSignal } from './queries.ts';
+import { type InboxCounts as Counts, useInboxCounts, useInboxSignal } from './queries.ts';
 import { useArrivalSound } from './useArrivalSound.ts';
-
-type Counts = NonNullable<ReturnType<typeof useInboxCounts>>;
 
 /** The work queues, as the old inbox's sidebar had them. */
 const Queues = ({ counts }: { counts: Counts }) => {
@@ -102,7 +101,7 @@ const CreatePersonal = () => {
 export const InboxNav = () => {
   const { t } = useTranslation('frontline');
   const { pathname } = useLocation();
-  const counts = useInboxCounts();
+  const counts = useInboxCounts().data;
 
   useInboxSignal();
   useArrivalSound();
@@ -125,11 +124,13 @@ export const InboxNav = () => {
  * The old inbox's groups under Frontline's pages: the work queues, My inbox (the member's
  * personal inbox) and Team inbox (their team channels). Each link sets the inbox's filter in the
  * address and shows how many conversations wait unread, kept live. A member who can't use the
- * inbox gets none of them.
+ * inbox gets none of them, once the API refuses; until the counts come, the groups' outline shows.
  */
 export const InboxGroups = () => {
   const { t } = useTranslation('frontline');
-  const counts = useInboxCounts();
+  const { data: counts, isPending } = useInboxCounts();
+
+  if (isPending) return <NavSkeleton />;
 
   if (!counts) return null;
 

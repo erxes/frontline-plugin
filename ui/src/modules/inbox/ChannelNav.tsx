@@ -15,7 +15,7 @@ import {
   useFilterLink,
   useOpenFilter,
 } from './navLinks.tsx';
-import type { useInboxCounts } from './queries.ts';
+import type { InboxCounts } from './queries.ts';
 
 /** Up to this many team channels all show; past it, the quiet ones fold behind one row. */
 const SHOWN = 8;
@@ -23,7 +23,7 @@ const SHOWN = 8;
 /** More team channels than this get a filter box above them. */
 const FILTER_FROM = 8;
 
-type Channel = NonNullable<ReturnType<typeof useInboxCounts>>['channels'][number];
+type Channel = InboxCounts['channels'][number];
 
 /** The inbox narrowed to the channel `id`. */
 const channelRule = (id: string): TConditionRule => ({
