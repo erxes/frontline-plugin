@@ -13,14 +13,14 @@ import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { ActionsMenu, DeleteButton } from '~/shared/Records.tsx';
 import {
   type BulkChange,
-  type Ticket,
+  type TicketRow,
   useBulkChange,
   useChoices,
   useDeleteTickets,
 } from './queries.ts';
 
 /** The one value every ticket shares, or '' when they differ. */
-const sharedOf = (tickets: Ticket[], key: 'channelId' | 'pipelineId') => {
+const sharedOf = (tickets: TicketRow[], key: 'channelId' | 'pipelineId') => {
   const values = new Set(tickets.map((ticket) => ticket[key]));
 
   return values.size === 1 ? (tickets[0]?.[key] ?? '') : '';
@@ -54,18 +54,16 @@ const ChangeMenu = ({
   />
 );
 
-/**
- * What the bar does to the selected tickets, each in one request: assign, set a priority, move to
- * a status when they share a pipeline or to another pipeline of their shared channel, archive or
- * unarchive, and delete when the member is an admin of all their channels.
- */
-export const TicketBulkActions = ({ tickets, clear }: { tickets: Ticket[]; clear: () => void }) => {
+/** Moves to a status when the tickets share a pipeline, or to another pipeline of their shared channel. */
+const MoveMenus = ({
+  tickets,
+  onPick,
+}: {
+  tickets: TicketRow[];
+  onPick: (change: BulkChange) => void;
+}) => {
   const { t } = useTranslation('frontline');
-  const priorities = usePriorityNames();
   const choices = useChoices();
-  const bulk = useBulkChange();
-  const { deleteTickets, isPending } = useDeleteTickets();
-  const ids = tickets.map((ticket) => ticket.id);
   const pipelineId = sharedOf(tickets, 'pipelineId');
   const channelId = sharedOf(tickets, 'channelId');
   const statuses = choices.statuses.filter((status) => status.pipelineId === pipelineId);
@@ -74,6 +72,53 @@ export const TicketBulkActions = ({ tickets, clear }: { tickets: Ticket[]; clear
     (pipeline) => pipeline.channelId === channelId && pipeline.id !== pipelineId,
   );
 
+  return (
+    <>
+      {statuses.length > 0 && (
+        <ChangeMenu
+          icon={<IconProgressCheck />}
+          label={t('status', 'Status')}
+          options={statuses.map((status) => ({
+            value: status.id,
+            label: status.name,
+            change: { statusId: status.id },
+          }))}
+          onPick={onPick}
+        />
+      )}
+      {others.length > 0 && (
+        <ChangeMenu
+          icon={<IconArrowBarToRight />}
+          label={t('move-to-pipeline', 'Move to pipeline')}
+          options={others.map((pipeline) => ({
+            value: pipeline.id,
+            label: pipeline.name,
+            change: { pipelineId: pipeline.id },
+          }))}
+          onPick={onPick}
+        />
+      )}
+    </>
+  );
+};
+
+/**
+ * What the bar does to the selected tickets, each in one request: assign, set a priority, move
+ * them (`MoveMenus`), archive or unarchive, and delete when the member is an admin of all their
+ * channels.
+ */
+export const TicketBulkActions = ({
+  tickets,
+  clear,
+}: {
+  tickets: TicketRow[];
+  clear: () => void;
+}) => {
+  const { t } = useTranslation('frontline');
+  const priorities = usePriorityNames();
+  const bulk = useBulkChange();
+  const { deleteTickets, isPending } = useDeleteTickets();
+  const ids = tickets.map((ticket) => ticket.id);
   const archived = tickets.length > 0 && tickets.every((ticket) => ticket.state === 'archived');
   const change = (picked: BulkChange) => bulk.change(ids, picked, clear);
 
@@ -96,30 +141,7 @@ export const TicketBulkActions = ({ tickets, clear }: { tickets: Ticket[]; clear
         }))}
         onPick={change}
       />
-      {statuses.length > 0 && (
-        <ChangeMenu
-          icon={<IconProgressCheck />}
-          label={t('status', 'Status')}
-          options={statuses.map((status) => ({
-            value: status.id,
-            label: status.name,
-            change: { statusId: status.id },
-          }))}
-          onPick={change}
-        />
-      )}
-      {others.length > 0 && (
-        <ChangeMenu
-          icon={<IconArrowBarToRight />}
-          label={t('move-to-pipeline', 'Move to pipeline')}
-          options={others.map((pipeline) => ({
-            value: pipeline.id,
-            label: pipeline.name,
-            change: { pipelineId: pipeline.id },
-          }))}
-          onPick={change}
-        />
-      )}
+      <MoveMenus tickets={tickets} onPick={change} />
       <Button
         variant="secondary"
         disabled={bulk.isPending}

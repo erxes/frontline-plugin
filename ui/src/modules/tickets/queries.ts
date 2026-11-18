@@ -21,7 +21,11 @@ import { choicesQuery } from '~/shared/reference.ts';
 
 type Outputs = InferClientOutputs<Client>['tickets'];
 
+/** A ticket in its panel, with the description and attachments. */
 export type Ticket = Outputs['get'];
+
+/** A ticket as the list, board and table show it, without what only its panel shows. */
+export type TicketRow = Outputs['list']['tickets'][number];
 
 export type TicketChange = Omit<InferClientInputs<Client>['tickets']['update'], 'id'>;
 
@@ -154,8 +158,8 @@ const withoutTicket = (data: TicketPages, id: string): TicketPages =>
  */
 const withTicket = (
   data: TicketPages,
-  moved: Ticket,
-  comesFirst: (a: Ticket, b: Ticket) => boolean,
+  moved: TicketRow,
+  comesFirst: (a: TicketRow, b: TicketRow) => boolean,
 ): TicketPages => {
   const pages = recount(data.pages, 1);
   const at = pages.findIndex((page) => page.tickets.some((row) => comesFirst(moved, row)));
@@ -187,7 +191,7 @@ const withTicket = (
 const useUpdateTicket = () => {
   const [{ sort, direction }] = useTicketSort();
 
-  const comesFirst = (a: Ticket, b: Ticket) =>
+  const comesFirst = (a: TicketRow, b: TicketRow) =>
     direction === 'asc'
       ? a[sort].getTime() < b[sort].getTime()
       : a[sort].getTime() > b[sort].getTime();
@@ -195,7 +199,7 @@ const useUpdateTicket = () => {
   return useMutation(
     orpc.tickets.update.mutationOptions(
       useOptimistic(TICKET_ROWS, (queryClient, change: TicketChange & { id: string }) => {
-        const apply = (ticket: Ticket) =>
+        const apply = <Row extends TicketRow>(ticket: Row): Row =>
           ticket.id === change.id
             ? { ...ticket, ...change, propertiesData: ticket.propertiesData }
             : ticket;

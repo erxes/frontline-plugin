@@ -19,6 +19,7 @@ import { createdEvent, publish, snapshot } from './events.ts';
 import { checkProperties, propertyFilter } from './properties.ts';
 import {
   firstResponseSla,
+  listRows,
   nextNumbers,
   refine,
   refreshSla,
@@ -28,7 +29,7 @@ import {
   signalTickets,
   Ticket,
   ticketById,
-  ticketRows,
+  TicketRow,
 } from './shared.ts';
 
 /** What the list's filter bar narrows tickets by (`ui/src/modules/tickets/TicketFilter.tsx`). */
@@ -63,7 +64,7 @@ const TICKET_FILTER: FilterFields = {
  * its status), narrowed by the filter bar. `search` matches the name or number; archived tickets
  * show only with `everyState` or when the filter asks for a state. `fromCore` types the rules on
  * custom fields (`propertyFilter`). The query joins `channelMembers` by `membership`, as
- * `ticketRows` does.
+ * `listRows` does.
  */
 export const ticketsMatching = (
   member: PluginMember,
@@ -112,7 +113,7 @@ const list = readsWithCore(
 )
   .output(
     z.object({
-      tickets: z.array(Ticket),
+      tickets: z.array(TicketRow),
       ...PageOutput,
     }),
   )
@@ -121,7 +122,7 @@ const list = readsWithCore(
 
     const order = orderOf(tickets, tickets[input.sort], input.ascending);
 
-    const rows = await ticketRows(tx, member)
+    const rows = await listRows(tx, member)
       .where(and(matches, order.after(input.cursor)))
       .orderBy(...order.orderBy)
       .limit(input.limit + 1);

@@ -22,12 +22,12 @@ import { StageIcon } from '@/pipelines/StageIcon.tsx';
 import { pageOf, TICKET_TYPE } from '~/plugin.ts';
 import { MemberCell } from '~/shared/MemberPicker.tsx';
 import { ActionsMenu, type RowAction } from '~/shared/Records.tsx';
-import { type Ticket, type TicketRowActions, useChoices } from './queries.ts';
+import { type TicketRow, type TicketRowActions, useChoices } from './queries.ts';
 
 type Variant = ComponentProps<typeof Select.Trigger>['variant'];
 
 /** The name opens the ticket in core's side panel, its number before it. */
-export const TicketName = ({ ticket }: { ticket: Ticket }) => {
+export const TicketName = ({ ticket }: { ticket: TicketRow }) => {
   const { open } = useOpenRecord();
 
   return (
@@ -154,7 +154,7 @@ export const PrioritySelect = ({
 };
 
 /** The ticket's status; picking another moves it. */
-export const StatusCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
+export const StatusCell = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions }) => {
   const { t } = useTranslation('frontline');
 
   return (
@@ -169,7 +169,7 @@ export const StatusCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowActi
   );
 };
 
-export const PriorityCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
+export const PriorityCell = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions }) => {
   const { t } = useTranslation('frontline');
 
   return (
@@ -183,7 +183,7 @@ export const PriorityCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowAc
   );
 };
 
-export const AssigneeCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
+export const AssigneeCell = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions }) => {
   const { t } = useTranslation('frontline');
 
   return (
@@ -207,7 +207,7 @@ export const AssigneeCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowAc
  * Follow or unfollow it as the signed-in member, copy its page's link, archive or unarchive, and
  * delete for its channel's admins.
  */
-export const useTicketActions = (ticket: Ticket, act: TicketRowActions): RowAction[] => {
+export const useTicketActions = (ticket: TicketRow, act: TicketRowActions): RowAction[] => {
   const { t } = useTranslation('frontline');
   const me = useQuery(core.auth.me.queryOptions()).data?.user.id;
   const archived = ticket.state === 'archived';
@@ -265,7 +265,7 @@ export const useTicketActions = (ticket: Ticket, act: TicketRowActions): RowActi
 };
 
 /** The ticket's actions behind a "more" button, on a list row or a board card. */
-export const TicketMenu = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
+export const TicketMenu = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions }) => {
   const { t } = useTranslation('frontline');
 
   return (

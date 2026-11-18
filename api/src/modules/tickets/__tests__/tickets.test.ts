@@ -124,14 +124,21 @@ describe('tickets', () => {
     expect(reopened.firstRespondedAt).toEqual(resolved.firstRespondedAt);
   });
 
-  it('lists by the filter bar, newest first a page at a time with the total, for the channel only', async () => {
+  it('lists by the filter bar, newest first a page at a time with the total, for the channel only, without descriptions', async () => {
     const { owner, teammate, channel, pipeline, stage } = await setUp('org-tk-c');
 
     for (const name of ['Login fails', 'Refund', 'Invoice copy']) {
-      await owner.tickets.create({ pipelineId: pipeline.id, name });
+      await owner.tickets.create({ pipelineId: pipeline.id, name, description: `About ${name}` });
     }
 
     const refund = (await owner.tickets.list({ search: 'refu' })).tickets[0];
+
+    expect(refund).not.toHaveProperty('description');
+    expect(refund).not.toHaveProperty('attachments');
+    await expect(owner.tickets.get({ id: refund?.id ?? '' })).resolves.toMatchObject({
+      description: 'About Refund',
+      attachments: [],
+    });
 
     await owner.tickets.update({ id: refund?.id ?? '', assigneeId: 'teammate', priority: 3 });
     await owner.tickets.update({ id: refund?.id ?? '', statusId: stage(3) });
