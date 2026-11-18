@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { JOBS } from '#/core.ts';
 import { clientAs } from '#/test/member.ts';
-import { asked } from './standIns.ts';
 import {
   channelFor,
   FILE_BYTES,
