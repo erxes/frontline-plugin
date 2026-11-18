@@ -154,22 +154,10 @@ test('an admin builds a form, a visitor sends it, and the admin corrects and del
   const name = `Demo request ${unique()}`;
 
   // New form drafts one in core's side panel; it then opens there, edited in place.
-  // What was typed stays when the member leaves; Cancel asks, then throws it away.
-  const nameBox = panel.getByRole('textbox', { name: 'Name', exact: true });
-
   await page.goto(FORMS);
   await page.getByRole('button', { name: 'New form' }).first().click();
-  await nameBox.fill('Half a form');
-  await page.goto(FORMS);
-  await page.getByRole('button', { name: 'New form' }).first().click();
-  await expect(nameBox).toHaveValue('Half a form');
-  await panel.getByRole('button', { name: 'Cancel' }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Discard' }).click();
-  await page.getByRole('button', { name: 'New form' }).first().click();
-  await expect(nameBox).toHaveValue('');
-
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await nameBox.fill(name);
+  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
   await panel.getByLabel('Form title').fill('Book a demo');
 
   await panel.getByRole('button', { name: 'Create form' }).click();
@@ -255,15 +243,26 @@ test('a channel member reads a form and its submissions but changes neither', as
   await expect(theirs.getByRole('combobox', { name: 'Channel' })).toHaveText(channel);
 });
 
-test('an admin duplicates, archives and deletes forms', async ({ page }) => {
+test('an admin drafts, duplicates, archives and deletes forms', async ({ page }) => {
   const channel = await openChannelPipelines(page);
   const panel = recordPanel(page);
   const name = `Feedback ${unique()}`;
+  const nameBox = panel.getByRole('textbox', { name: 'Name', exact: true });
 
+  // What was typed in New form stays when the member leaves; Cancel asks, then throws it away.
   await page.goto(FORMS);
   await page.getByRole('button', { name: 'New form' }).first().click();
+  await nameBox.fill('Half a form');
+  await page.goto(FORMS);
+  await page.getByRole('button', { name: 'New form' }).first().click();
+  await expect(nameBox).toHaveValue('Half a form');
+  await panel.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Discard' }).click();
+  await page.getByRole('button', { name: 'New form' }).first().click();
+  await expect(nameBox).toHaveValue('');
+
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
+  await nameBox.fill(name);
   await panel.getByRole('button', { name: 'Create form' }).click();
   await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
 
