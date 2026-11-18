@@ -190,6 +190,13 @@
       "when": 1795025584389,
       "tag": "0028_message_external_ids",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1795029947991,
+      "tag": "0029_rate_limits",
+      "breakpoints": true
     }
   ]
 }
