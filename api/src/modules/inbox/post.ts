@@ -73,14 +73,16 @@ export const postMessage = async (
   }
 
   const participants = sql`array(select distinct unnest(array_append(${conversations.participantIds}, ${author.userId})))`;
+  const mentioned = sql`array(select distinct unnest(${conversations.mentionedUserIds} || ${sql.param(written.mentionedUserIds)}::text[]))`;
 
   await tx
     .update(conversations)
     .set(
       written.internal
-        ? { participantIds: participants }
+        ? { participantIds: participants, mentionedUserIds: mentioned }
         : {
             participantIds: participants,
+            mentionedUserIds: mentioned,
             content: written.content,
             messageCount: sql`${conversations.messageCount} + 1`,
             lastMessageAt: message.createdAt,

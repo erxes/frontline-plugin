@@ -54,6 +54,8 @@ const reach = (tx: Tx, clock: Clock, stage: Stage) => {
         eq(tickets.state, 'active'),
         isNotNull(clock.due),
         isNull(clock.done),
+        // A clock past its breach warns no more; the partial index on its due time says so too.
+        isNull(clock.breach.stamp),
         isNull(clock[stage].stamp),
         reached,
       ),

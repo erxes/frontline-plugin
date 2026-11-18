@@ -5,7 +5,7 @@ import { conversations, integrations } from '#/db/inbox.ts';
 import { channelMembers, channels } from '#/db/schema.ts';
 import { reads } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
-import { mentionedIdsOf, readSql, seenBy } from './shared.ts';
+import { readSql, seenBy } from './shared.ts';
 
 /**
  * How many open conversations wait unread by the caller: all they see, and each queue of the
@@ -45,7 +45,9 @@ const counts = reads(PERMISSIONS.inboxView)
         assignedToMe: count(
           sql`case when ${conversations.assigneeId} = ${member.userId} then 1 end`,
         ),
-        mentioned: count(sql`case when ${member.userId} = any(${mentionedIdsOf}) then 1 end`),
+        mentioned: count(
+          sql`case when ${member.userId} = any(${conversations.mentionedUserIds}) then 1 end`,
+        ),
         unassigned: count(sql`case when ${conversations.assigneeId} is null then 1 end`),
         awaitingResponse: count(sql`case when ${conversations.customerRespondedLast} then 1 end`),
       })

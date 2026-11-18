@@ -76,8 +76,21 @@ const pool = new Pool({ connectionString: DATA_URL });
 const skipped: string[] = [];
 
 /** The copy of core's units: rows copied here must reach core before the next sync. */
-const TEAM_TABLES = new Set(['frontline_teams', 'frontline_team_members']);
-let teamsCopied = 0;
+const UNITS_TO_CORE = 'UPDATE frontline_unit_sync SET adopted_at = NULL';
+
+/** What rows copied into a table leave stale, and the statement that brings it up to date. */
+const AFTER_COPY: Record<string, string> = {
+  frontline_teams: UNITS_TO_CORE,
+  frontline_team_members: UNITS_TO_CORE,
+  // A conversation keeps the members its messages mention.
+  frontline_messages: `UPDATE frontline_conversations c SET mentioned_user_ids = array(
+    SELECT DISTINCT unnest(m.mentioned_user_ids) FROM frontline_messages m WHERE m.conversation_id = c.id
+  )`,
+  // A pipeline counts on from its last number; without one, from its tickets' highest.
+  frontline_tickets: 'UPDATE frontline_pipelines SET last_number_prefix = NULL',
+};
+
+const stale = new Set<string>();
 
 try {
   const { rows: references } = await pool.query<{ child: string; parent: string }>(
@@ -215,20 +228,23 @@ try {
 
     console.info(`${collection} → ${table}: ${copied} rows copied from ${seen} documents`);
 
-    if (TEAM_TABLES.has(table)) teamsCopied += copied;
+    const after = AFTER_COPY[table];
+
+    if (after && copied > 0) stale.add(after);
   }
 
-  if (teamsCopied > 0) {
+  if (stale.size > 0) {
     const client = await pool.connect();
 
     try {
       await client.query('BEGIN');
       await client.query("SELECT set_config('app.org_id', $1, true)", [ORG_ID]);
-      await client.query('UPDATE frontline_unit_sync SET adopted_at = NULL');
+
+      for (const statement of stale) await client.query(statement);
       await client.query('COMMIT');
-      console.info(
-        `${teamsCopied} team rows copied: the next units job (teams.units-sync) brings them to core`,
-      );
+
+      if (stale.has(UNITS_TO_CORE))
+        console.info('Team rows copied: the next units job (teams.units-sync) brings them to core');
     } catch (error) {
       await client.query('ROLLBACK');
       throw error;

@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import {
+  bigint,
   boolean,
   check,
   foreignKey,
@@ -63,6 +64,10 @@ export const pipelines = table(
     numberSize: integer(),
     /** A ticket's name, from `{customer.firstName}` and the like. */
     nameConfig: text(),
+    /** The last number given with `lastNumberPrefix`, so the next ticket takes the one after it. */
+    lastNumber: bigint({ mode: 'number' }),
+    /** The prefix `lastNumber` was given with; a new prefix, such as a new day's, starts over. */
+    lastNumberPrefix: text(),
     slaPolicy: jsonb().$type<z.output<typeof SlaPolicy>>(),
     /**
      * Narrow what members see of its tickets to their own (created or assigned), plus those they
@@ -257,6 +262,36 @@ export const tickets = table(
     index('frontline_tickets_org_pipeline_status_idx').on(t.orgId, t.pipelineId, t.statusId),
     // The list's default order, across the caller's channels.
     index('frontline_tickets_org_updated_idx').on(t.orgId, t.updatedAt.desc(), t.id.desc()),
+    // The list of one pipeline, in either of its orders.
+    index('frontline_tickets_org_pipeline_updated_idx').on(
+      t.orgId,
+      t.pipelineId,
+      t.updatedAt.desc(),
+      t.id.desc(),
+    ),
+    index('frontline_tickets_org_pipeline_created_idx').on(
+      t.orgId,
+      t.pipelineId,
+      t.createdAt.desc(),
+      t.id.desc(),
+    ),
+    // The SLA check's running clocks (`modules/tickets/sla.ts`), a few among every ticket.
+    index('frontline_tickets_org_first_response_due_idx')
+      .on(t.orgId, t.firstResponseDueAt)
+      .where(
+        sql`${t.state} = 'active' and ${t.firstRespondedAt} is null and ${t.firstResponseBreachedAt} is null`,
+      ),
+    index('frontline_tickets_org_resolution_due_idx')
+      .on(t.orgId, t.resolutionDueAt)
+      .where(
+        sql`${t.state} = 'active' and ${t.resolvedAt} is null and ${t.resolutionBreachedAt} is null`,
+      ),
+    // The list's search matches the name or number anywhere in it.
+    index('frontline_tickets_search_trgm_idx').using(
+      'gin',
+      t.name.op('gin_trgm_ops'),
+      t.number.op('gin_trgm_ops'),
+    ),
     index('frontline_tickets_org_channel_idx').on(t.orgId, t.channelId),
     index('frontline_tickets_org_assignee_idx').on(t.orgId, t.assigneeId),
     index('frontline_tickets_org_customer_idx').on(t.orgId, t.customerId),

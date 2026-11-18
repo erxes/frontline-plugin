@@ -212,6 +212,13 @@ export const kbArticles = table(
     index('frontline_knowledgebase_articles_org_scheduled_idx')
       .on(t.orgId, t.scheduledAt)
       .where(sql`${t.status} = 'scheduled'`),
+    // The list's search matches the title, summary or content anywhere in them.
+    index('frontline_knowledgebase_articles_search_trgm_idx').using(
+      'gin',
+      t.title.op('gin_trgm_ops'),
+      t.summary.op('gin_trgm_ops'),
+      t.content.op('gin_trgm_ops'),
+    ),
     check(
       'frontline_knowledgebase_articles_status_check',
       sql`${t.status} in ('draft', 'publish', 'scheduled', 'archived')`,

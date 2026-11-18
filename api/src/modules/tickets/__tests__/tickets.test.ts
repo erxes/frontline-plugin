@@ -59,6 +59,17 @@ describe('tickets', () => {
     expect(new Set(many.map((ticket) => ticket.number)).size).toBe(8);
     expect(many.map((ticket) => ticket.number)).toContain(`RT-${year}-008`);
 
+    // A new prefix starts over, and the old one goes on from its highest number.
+    await owner.pipelines.update({ id: pipeline.id, numberConfig: 'NEW-' });
+    await expect(
+      owner.tickets.create({ pipelineId: pipeline.id, name: 'Renamed' }),
+    ).resolves.toMatchObject({ number: 'NEW-000' });
+
+    await owner.pipelines.update({ id: pipeline.id, numberConfig: 'RT-{year}-' });
+    await expect(
+      owner.tickets.create({ pipelineId: pipeline.id, name: 'Back' }),
+    ).resolves.toMatchObject({ number: `RT-${year}-009` });
+
     const other = await owner.pipelines.create({ channelId: channel.id, name: 'Other' });
 
     await expect(

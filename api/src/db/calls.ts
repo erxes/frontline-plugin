@@ -183,6 +183,11 @@ export const calls = table(
     index('frontline_calls_org_started_idx').on(t.orgId, t.startedAt.desc(), t.id.desc()),
     index('frontline_calls_org_customer_idx').on(t.orgId, t.customerId),
     index('frontline_calls_org_conversation_idx').on(t.orgId, t.conversationId),
+    // The list's search matches the phone number anywhere in it.
+    index('frontline_calls_customer_phone_trgm_idx').using(
+      'gin',
+      t.customerPhone.op('gin_trgm_ops'),
+    ),
     check('frontline_calls_direction_check', sql`${t.direction} in ('incoming', 'outgoing')`),
     check(
       'frontline_calls_status_check',

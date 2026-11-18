@@ -148,6 +148,13 @@
       "when": 1794979416434,
       "tag": "0022_help_center_hostname_per_org",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794980148248,
+      "tag": "0023_perf_indexes",
+      "breakpoints": true
     }
   ]
 }
