@@ -199,10 +199,9 @@ const stream = async (req: Request, res: Response) => {
       return;
     }
 
-    const stop = await subscribe(visitor.orgId, visitor.customerId, ({ conversationId, event }) => {
+    const stop = await subscribe(visitor.orgId, visitor.customerId, ({ id, event }) => {
       // Until the stream opens, the messenger's first read covers what happens.
-      if (res.headersSent)
-        res.write(`event: ${event}\ndata: ${JSON.stringify({ conversationId })}\n\n`);
+      if (res.headersSent) res.write(`event: ${event}\ndata: ${JSON.stringify({ id })}\n\n`);
     });
 
     const online = setOnline(visitor, true);

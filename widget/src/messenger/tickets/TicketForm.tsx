@@ -52,21 +52,41 @@ const TopicSelect = ({
 
 type Draft = Omit<NewTicket, 'files'>;
 
-/** What the visitor has filled in so far, and sending it with their uploads' receipts. */
+/** Each messenger's half-written ticket, kept while the page lives so leaving the form loses none. */
+const drafts = new Map<string, Draft>();
+
+/**
+ * What the visitor has filled in so far, kept when they leave the form or close the panel, and
+ * sending it with their uploads' receipts.
+ */
 const useDraft = (api: MessengerApi, token: string, forms: TicketForms) => {
-  const [draft, setDraft] = useState<Draft>({
-    pipelineId: forms.pipelines[0]?.id ?? '',
-    name: '',
-    description: '',
-    tagIds: [],
-    propertiesData: {},
-  });
+  const kept = drafts.get(api.key);
+
+  const [draft, setDraft] = useState<Draft>(
+    kept && forms.pipelines.some((pipeline) => pipeline.id === kept.pipelineId)
+      ? kept
+      : {
+          pipelineId: forms.pipelines[0]?.id ?? '',
+          name: '',
+          description: '',
+          tagIds: [],
+          propertiesData: {},
+        },
+  );
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const uploads = useUploads((file) => api.upload(token, file));
   const form = forms.pipelines.find((pipeline) => pipeline.id === draft.pipelineId);
-  const patch = (change: Partial<Draft>) => setDraft((current) => ({ ...current, ...change }));
+
+  const patch = (change: Partial<Draft>) =>
+    setDraft((current) => {
+      const next = { ...current, ...change };
+
+      drafts.set(api.key, next);
+
+      return next;
+    });
 
   /** Files the draft; a property of another topic, or one left empty, stays out. */
   const send = async () => {
@@ -76,7 +96,7 @@ const useDraft = (api: MessengerApi, token: string, forms: TicketForms) => {
     try {
       const shown = new Set(form?.properties.map((property) => property.id));
 
-      return await api.fileTicket(token, {
+      const filed = await api.fileTicket(token, {
         ...draft,
         files: uploads.files.map((file) => file.receipt),
         propertiesData: Object.fromEntries(
@@ -85,6 +105,10 @@ const useDraft = (api: MessengerApi, token: string, forms: TicketForms) => {
           ),
         ),
       });
+
+      drafts.delete(api.key);
+
+      return filed;
     } catch (failure) {
       setError(messageOf(failure));
 

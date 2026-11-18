@@ -235,7 +235,7 @@ export const changeTickets = async (
   if (statusId || pipelineId || fields.priority !== undefined) await refreshSla(tx, ids);
 
   await publish(tx, member, changeEvents(before, await snapshot(tx, ids)));
-  await signalTickets(tx, member);
+  await signalTickets(tx, member, rows);
 };
 
 const TicketUpdate = Changes.omit({ pipelineId: true }).extend({ id: z.string() });
@@ -296,10 +296,10 @@ const bulkRemove = writes(PERMISSIONS.channelView)
     const removed = await tx
       .delete(tickets)
       .where(inArray(tickets.id, input.ids))
-      .returning({ id: tickets.id, name: tickets.name });
+      .returning({ id: tickets.id, name: tickets.name, customerId: tickets.customerId });
 
     await auditRemoved(tx, member, removed);
-    await signalTickets(tx, member);
+    await signalTickets(tx, member, removed);
 
     return { ids: input.ids };
   });

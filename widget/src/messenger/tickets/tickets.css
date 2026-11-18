@@ -9,6 +9,20 @@
   text-align: center;
 }
 
+.fl-filed {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  padding: 12px;
+  border-radius: 10px;
+  background: var(--fl-soft);
+}
+
+.fl-filed p {
+  margin: 0;
+}
+
 .fl-tickets {
   display: flex;
   flex-direction: column;

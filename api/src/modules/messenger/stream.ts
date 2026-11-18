@@ -4,18 +4,15 @@ import { config, PLUGIN } from '#/config.ts';
 import { logger } from '#/logger.ts';
 import { VISITOR_CHANNEL, VISITOR_EVENTS } from '../inbox/shared.ts';
 
-/** What `notifyVisitors` sends on the channel: what happened to which conversation of whose. */
+/** What `notifyVisitors` sends on the channel: what happened to which conversation or ticket of whose. */
 const Notice = z.object({
   orgId: z.string(),
-  conversationId: z.string(),
+  id: z.string(),
   customerId: z.string(),
   event: z.enum(VISITOR_EVENTS),
 });
 
-type Listener = (notice: {
-  conversationId: string;
-  event: (typeof VISITOR_EVENTS)[number];
-}) => void;
+type Listener = (notice: { id: string; event: (typeof VISITOR_EVENTS)[number] }) => void;
 
 /** The open visitor streams, by organisation and customer. */
 const listeners = new Map<string, Set<Listener>>();
@@ -30,10 +27,9 @@ const deliver = (payload: string | undefined) => {
 
   if (!notice.success) return;
 
-  const { orgId, customerId, conversationId, event } = notice.data;
+  const { orgId, customerId, id, event } = notice.data;
 
-  for (const listener of listeners.get(keyOf(orgId, customerId)) ?? [])
-    listener({ conversationId, event });
+  for (const listener of listeners.get(keyOf(orgId, customerId)) ?? []) listener({ id, event });
 };
 
 /** While any stream is open, opens the connection again in 2 s, and again until it holds. */

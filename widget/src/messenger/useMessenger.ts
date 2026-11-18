@@ -21,17 +21,14 @@ const storeToken = (key: string, token: string | null) => {
   }
 };
 
-/** The conversation a stream event names (`{ conversationId }`). */
+/** The conversation or ticket a stream event names (`{ id }`). */
 const idOf = (event: Event) => {
   if (!(event instanceof MessageEvent) || typeof event.data !== 'string') return undefined;
 
   const data: unknown = JSON.parse(event.data);
 
-  return data &&
-    typeof data === 'object' &&
-    'conversationId' in data &&
-    typeof data.conversationId === 'string'
-    ? data.conversationId
+  return data && typeof data === 'object' && 'id' in data && typeof data.id === 'string'
+    ? data.id
     : undefined;
 };
 
@@ -50,6 +47,8 @@ export const useMessenger = (api: MessengerApi) => {
   const [session, setSession] = useState<Session | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [changed, setChanged] = useState<{ id: string; at: number } | null>(null);
+  // When one of the visitor's tickets last changed, so the tickets tab refetches.
+  const [ticketsChanged, setTicketsChanged] = useState(0);
   const [typing, setTyping] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -101,6 +100,7 @@ export const useMessenger = (api: MessengerApi) => {
       setTyping(idOf(event) ?? null);
       quiet = setTimeout(() => setTyping(null), TYPING_MS);
     });
+    stream.addEventListener('ticket', () => setTicketsChanged(Date.now()));
 
     return () => {
       clearTimeout(quiet);
@@ -115,7 +115,18 @@ export const useMessenger = (api: MessengerApi) => {
     setConversations([]);
   }, [api]);
 
-  return { settings, session, conversations, changed, typing, error, connect, refresh, signOut };
+  return {
+    settings,
+    session,
+    conversations,
+    changed,
+    ticketsChanged,
+    typing,
+    error,
+    connect,
+    refresh,
+    signOut,
+  };
 };
 
 export type MessengerState = ReturnType<typeof useMessenger>;

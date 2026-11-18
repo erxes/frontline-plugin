@@ -6,6 +6,7 @@ import { serve } from '#/test/http.ts';
 import { coreTicketFields } from '#/test/coreUnits.ts';
 import { clientAs } from '#/test/member.ts';
 import { tokenOf } from '../../messenger/session.ts';
+import { subscribe } from '../../messenger/stream.ts';
 
 // Core checks a new ticket's fields.
 vi.mock('#/core.ts', async (importOriginal) =>
@@ -328,7 +329,7 @@ describe('tickets', () => {
   });
 
   it('lets a messenger visitor file tickets in the pipelines it offers and follow only theirs', async () => {
-    const { owner, channel, pipeline } = await setUp('org-tk-visitor');
+    const { owner, channel, pipeline, stage } = await setUp('org-tk-visitor');
     const elsewhere = await owner.channels.create({ name: 'Sales' });
     const foreign = await owner.pipelines.create({ channelId: elsewhere.id, name: 'Leads' });
     const tag = await owner.tags.create({ type: 'ticket', name: 'Shipping' });
@@ -374,5 +375,14 @@ describe('tickets', () => {
       expect.objectContaining({ name: 'Broken zip', pipeline: 'Main' }),
     ]);
     expect((await messenger.get('/tickets', anonymous)).body).toEqual([]);
+
+    // The team moving Ann's ticket tells her messenger's stream, so its ticket tab refetches.
+    const heard: unknown[] = [];
+    const stop = await subscribe('org-tk-visitor', 'customer-ann', (notice) => heard.push(notice));
+    const [ticket] = (await owner.tickets.list({})).tickets;
+
+    await owner.tickets.update({ id: ticket?.id ?? '', statusId: stage(4) });
+    await vi.waitFor(() => expect(heard).toEqual([{ id: ticket?.id, event: 'ticket' }]));
+    stop();
   });
 });
