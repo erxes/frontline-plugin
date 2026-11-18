@@ -107,7 +107,6 @@
   border: 1px solid var(--fl-line);
   border-radius: 10px;
   background: var(--fl-page);
-  font-size: 14px;
 }
 
 .fl-field textarea {

@@ -1,5 +1,5 @@
 import type { ComponentChildren } from 'preact';
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks';
 import type { Uploaded } from '../shared/http.ts';
 import type { Attachment, Message, MessengerApi, Settings } from './api.ts';
 import { Composer, Identify } from './Composer.tsx';
@@ -117,13 +117,14 @@ type Loaded = { id: string | null; messages: Message[]; earlier: string | null }
 
 /**
  * A conversation's latest messages, refetched when the stream says it changed, with earlier ones
- * on request, and marked read while the visitor has it open. `send` starts the conversation when
- * there is none yet.
+ * on request, and marked read while the visitor has the panel open on it. `send` starts the
+ * conversation when there is none yet.
  */
 const useThread = (
   api: MessengerApi,
   { session, conversations, changed, refresh }: MessengerState,
   conversationId: string | null,
+  open: boolean,
   onStarted: (id: string) => void,
 ) => {
   const [loaded, setLoaded] = useState<Loaded>({ id: null, messages: [], earlier: null });
@@ -172,8 +173,9 @@ const useThread = (
   }, [api, token, conversationId, version]);
 
   useEffect(() => {
-    if (token && conversationId && unread > 0) void api.read(token, conversationId).then(refresh);
-  }, [api, token, conversationId, unread, refresh]);
+    if (open && token && conversationId && unread > 0)
+      void api.read(token, conversationId).then(refresh);
+  }, [api, open, token, conversationId, unread, refresh]);
 
   const send = async (content: string, files: Uploaded[]) => {
     if (!token) return;
@@ -209,6 +211,20 @@ const useThread = (
   };
 };
 
+/**
+ * The message list's element, scrolled to its end when the panel opens, the newest message
+ * changes or someone starts typing. Earlier messages load above and leave the scroll alone.
+ */
+const useNewestInView = (newest: string | undefined, open: boolean, typing: boolean) => {
+  const list = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    if (open && list.current) list.current.scrollTop = list.current.scrollHeight;
+  }, [newest, open, typing]);
+
+  return list;
+};
+
 /** The bot's menu: a link opens, anything else is sent as the visitor's message. */
 const BotMenu = ({ settings, onPick }: { settings: Settings; onPick: (text: string) => void }) => (
   <div class="fl-menu">
@@ -235,12 +251,14 @@ export const Thread = ({
   api,
   messenger,
   conversationId,
+  open,
   onStarted,
   onBack,
 }: {
   api: MessengerApi;
   messenger: MessengerState;
   conversationId: string | null;
+  open: boolean;
   onStarted: (id: string) => void;
   onBack: () => void;
 }) => {
@@ -250,8 +268,12 @@ export const Thread = ({
     api,
     messenger,
     conversationId,
+    open,
     onStarted,
   );
+
+  const typingHere = Boolean(conversationId) && typing === conversationId;
+  const list = useNewestInView(messages.at(-1)?.id, open, typingHere);
 
   if (!settings || !token) return null;
 
@@ -262,7 +284,7 @@ export const Thread = ({
   return (
     <div class="fl-thread">
       <Bar settings={settings} onBack={onBack} />
-      <div class="fl-scroll fl-messages" aria-live="polite">
+      <div ref={list} class="fl-scroll fl-messages" aria-live="polite">
         {hasEarlier && (
           <button type="button" class="fl-link" onClick={() => void loadEarlier()}>
             Earlier messages
@@ -283,7 +305,7 @@ export const Thread = ({
         )}
         {!settings.isOnline && settings.away && <TeamNote>{settings.away}</TeamNote>}
         {resolved && settings.thank && <TeamNote>{settings.thank}</TeamNote>}
-        {conversationId && typing === conversationId && (
+        {typingHere && (
           <p class="fl-typing" role="status">
             Typing…
           </p>

@@ -224,7 +224,7 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await expectAccessible(outsider.page, outsider.page.getByRole('alert'));
 });
 
-test('a visitor writes from the widget on a website and reads the reply without a reload', async ({
+test('a visitor writes from the widget on a phone, keeps a draft and reads the reply in view', async ({
   page,
 }) => {
   const channel = await createChannel(page);
@@ -235,11 +235,30 @@ test('a visitor writes from the widget on a website and reads the reply without 
   await using site = await openMessenger(page.context(), await addMessenger(page, channel));
   const { panel } = site;
 
+  const message = panel.getByRole('textbox', { name: 'Message' });
+
+  // On a phone the panel fills the screen. The launcher steps aside so Send takes the tap, and
+  // each message the visitor sends lands in view.
+  await site.shop.setViewportSize({ width: 390, height: 844 });
   await panel.getByRole('button', { name: 'Send us a message' }).click();
   await expect(panel).toContainText('Hi, how can we help?');
-  await panel.getByRole('textbox', { name: 'Message' }).fill(question);
+
+  for (const line of Array.from({ length: 14 }, (_, n) => `Line ${n + 1} of my question`)) {
+    await message.fill(line);
+    await panel.getByRole('button', { name: 'Send' }).click();
+    await expect(panel.getByText(line, { exact: true })).toBeInViewport();
+  }
+
+  await message.fill(question);
   await panel.getByRole('button', { name: 'Send' }).click();
-  await expect(panel).toContainText(question);
+  await expect(panel.getByText(question)).toBeInViewport();
+
+  // Closing the panel keeps what the visitor was writing.
+  await message.fill('Half a thought');
+  await panel.getByRole('button', { name: 'Close', exact: true }).click();
+  await expect(panel).toBeHidden();
+  await site.shop.getByRole('button', { name: 'Open the messenger' }).click();
+  await expect(message).toHaveValue('Half a thought');
 
   await page.goto(INBOX);
   await page
@@ -249,8 +268,8 @@ test('a visitor writes from the widget on a website and reads the reply without 
   await page.getByRole('textbox', { name: 'Reply' }).fill('Yes, to 40 countries.');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
 
-  // The stream tells the widget; it refetches the open conversation.
-  await expect(panel).toContainText('Yes, to 40 countries.');
+  // The stream tells the widget; it refetches the open conversation and shows the reply.
+  await expect(panel.getByText('Yes, to 40 countries.')).toBeInViewport();
 });
 
 test('a member takes over from the bot, sees the visitor typing and edits a reply', async ({
