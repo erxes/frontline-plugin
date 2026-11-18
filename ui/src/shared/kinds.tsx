@@ -1,4 +1,11 @@
 import {
+  type IconType,
+  SiDiscord,
+  SiInstagram,
+  SiMessenger,
+  SiTelegram,
+} from '@icons-pack/react-simple-icons';
+import {
   type Icon,
   IconBrandDiscord,
   IconBrandInstagram,
@@ -29,21 +36,24 @@ export const useKindNames = (): Record<string, string> => {
 };
 
 /**
- * Each kind's icon, tinted as near its brand as the theme's tokens get, so a row says where a
- * conversation came from at a glance, as the old inbox's coloured icons did.
+ * Each kind's outline icon, for a panel row's label beside the other rows' outlines, and how it
+ * shows where a conversation came from at a glance: a provider's own mark in its brand colour, as
+ * the old inbox drew them, or the outline in a theme tint for frontline's own kinds.
  */
-const KIND_ICONS: Record<string, { icon: Icon; tint: string }> = {
+type KindLook = { icon: Icon; tint: string; mark?: IconType };
+
+const KIND_ICONS: Record<string, KindLook> = {
   messenger: { icon: IconMessageCircle, tint: 'text-primary-text' },
-  facebook: { icon: IconBrandMessenger, tint: 'text-info-text' },
-  instagram: { icon: IconBrandInstagram, tint: 'text-destructive-text' },
-  telegram: { icon: IconBrandTelegram, tint: 'text-info-text' },
-  discord: { icon: IconBrandDiscord, tint: 'text-primary-text' },
+  facebook: { icon: IconBrandMessenger, tint: 'text-info-text', mark: SiMessenger },
+  instagram: { icon: IconBrandInstagram, tint: 'text-destructive-text', mark: SiInstagram },
+  telegram: { icon: IconBrandTelegram, tint: 'text-info-text', mark: SiTelegram },
+  discord: { icon: IconBrandDiscord, tint: 'text-primary-text', mark: SiDiscord },
   mail: { icon: IconMail, tint: 'text-warning-text' },
   call: { icon: IconPhone, tint: 'text-success-text' },
   callpro: { icon: IconPhone, tint: 'text-success-text' },
 };
 
-const UNKNOWN = { icon: IconPlug, tint: 'text-muted-foreground' };
+const UNKNOWN: KindLook = { icon: IconPlug, tint: 'text-muted-foreground' };
 
 /**
  * Whether a kind's conversations take internal notes only, as the API's adapter says
@@ -51,12 +61,15 @@ const UNKNOWN = { icon: IconPlug, tint: 'text-muted-foreground' };
  */
 export const takesNotesOnly = (kind: string) => kind === 'call' || kind === 'callpro';
 
-/** The untinted icon of an integration kind, for a panel row's label; a plug for one the UI doesn't know. */
+/** The outline icon of an integration kind, for a panel row's label; a plug for one the UI doesn't know. */
 export const kindIconOf = (kind: string) => (KIND_ICONS[kind] ?? UNKNOWN).icon;
 
-/** The tinted icon of the integration kind a conversation came through. */
+/** The mark of the integration kind a conversation came through. */
 export const KindIcon = ({ kind, className }: { kind: string; className?: string }) => {
-  const { icon: KindGlyph, tint } = KIND_ICONS[kind] ?? UNKNOWN;
+  const { icon: KindGlyph, tint, mark: Mark } = KIND_ICONS[kind] ?? UNKNOWN;
+
+  // An empty title, so the mark adds no tooltip of its own over the label beside it.
+  if (Mark) return <Mark color="default" title="" className={className} aria-hidden />;
 
   return <KindGlyph className={cn(tint, className)} aria-hidden />;
 };
