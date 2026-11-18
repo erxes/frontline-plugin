@@ -1,6 +1,7 @@
 import {
   IconArchive,
   IconArrowsExchange,
+  IconChevronRight,
   IconCircles,
   IconDots,
   IconKey,
@@ -174,7 +175,8 @@ const Fields = ({ integration }: { integration: Integration }) => {
                 className: 'justify-start',
               })}
             >
-              {t('messenger-settings-open', 'Greeting, look, hours and install code')}
+              {t('messenger-settings-open', 'Look, hours and install code')}
+              <IconChevronRight />
             </Link>
           </PanelField>
         )}
