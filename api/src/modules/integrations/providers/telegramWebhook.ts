@@ -138,6 +138,8 @@ const inboundOf = (token: string, message: z.infer<typeof Message>): InboundMess
       text: textOf(message),
       attachments: [],
       files: filesOf(token, message),
+      quotedId:
+        message.reply_to_message && `${message.chat.id}:${message.reply_to_message.message_id}`,
     },
   ];
 };

@@ -201,6 +201,7 @@ export const deliverInbound = async <T extends InboundMessage>(
           externalConversationId: message.threadId,
           externalId: message.messageId,
           content,
+          quotedExternalId: message.quotedId,
           attachments,
           providerData: message.providerData,
           event: message.event ?? RECEIVED[row.provider]?.type,
