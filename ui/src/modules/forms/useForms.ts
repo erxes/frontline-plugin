@@ -4,6 +4,7 @@ import type { Client } from '@frontline/api';
 import { useListFilterParams } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
 import { tagsOf } from '~/shared/reference.ts';
@@ -68,19 +69,15 @@ export const useLoadTypeNames = (): Record<LoadType, string> => {
 export const useForms = () => {
   const filter = useListFilterParams();
 
-  const query = useInfiniteQuery(
-    orpc.forms.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ ...filter, cursor }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-    }),
+  return usePaged(
+    useInfiniteQuery(
+      orpc.forms.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ ...filter, cursor }),
+        ...pageOptions,
+      }),
+    ),
+    (page) => page.forms,
   );
-
-  return {
-    ...query,
-    forms: query.data?.pages.flatMap((page) => page.forms) ?? [],
-    totalCount: query.data?.pages[0]?.totalCount,
-  };
 };
 
 export const useForm = (id: string) =>
@@ -94,19 +91,15 @@ export const useFormFields = (formId: string) =>
 export const useSubmissions = (formId: string) => {
   const filter = useListFilterParams();
 
-  const query = useInfiniteQuery(
-    orpc.forms.submissions.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ formId, ...filter, cursor }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-    }),
+  return usePaged(
+    useInfiniteQuery(
+      orpc.forms.submissions.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ formId, ...filter, cursor }),
+        ...pageOptions,
+      }),
+    ),
+    (page) => page.submissions,
   );
-
-  return {
-    ...query,
-    submissions: query.data?.pages.flatMap((page) => page.submissions) ?? [],
-    totalCount: query.data?.pages[0]?.totalCount,
-  };
 };
 
 /** Refetches every form query after a change, and shows a refusal. */

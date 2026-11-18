@@ -10,7 +10,6 @@ import {
   IconSend,
 } from '@tabler/icons-react';
 import {
-  Button,
   DisplayMenu,
   ListFilter,
   PageContainer,
@@ -26,7 +25,7 @@ import { SURVEY_TYPE } from '~/plugin.ts';
 import { useManagedChannels } from '~/shared/ChannelSelect.tsx';
 import { ArchiveButtons } from '~/shared/ArchiveButtons.tsx';
 import { AppHeader } from '~/shared/Header.tsx';
-import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
+import { CreateButton, ListEmpty, ListError, LoadPage } from '~/shared/List.tsx';
 import { DeleteButton, ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
 import { SurveyList, SurveysTable } from './SurveyRows.tsx';
 import {
@@ -118,8 +117,8 @@ export const SurveysPage = () => {
   const [display] = useListDisplay(LIST, DISPLAYS);
   const canCreate = useManagedChannels().length > 0;
 
-  const { surveys, totalCount, isPending, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
-    useSurveys();
+  const list = useSurveys();
+  const { rows: surveys, totalCount, isPending, error } = list;
 
   const manage = surveys.some((survey) => survey.canManage);
 
@@ -149,28 +148,13 @@ export const SurveysPage = () => {
           )}
         />
       ) : display === 'table' ? (
-        <SurveysTable
-          surveys={surveys}
-          manage={manage}
-          isPending={isPending}
-          hasNextPage={hasNextPage}
-          fetchNextPage={() => void fetchNextPage()}
-        >
+        <SurveysTable surveys={surveys} manage={manage} paging={list}>
           {manage && <SelectionBar>{bulk}</SelectionBar>}
         </SurveysTable>
       ) : (
         <RecordList.Provider listId={LIST}>
           {isPending ? <RecordList.Skeleton /> : <SurveyList surveys={surveys} />}
-          {hasNextPage && (
-            <Button
-              variant="ghost"
-              className="m-3 self-center"
-              disabled={isFetchingNextPage}
-              onClick={() => void fetchNextPage()}
-            >
-              {t('load-more', 'Load more')}
-            </Button>
-          )}
+          <LoadPage paging={list} />
           {manage && (
             <ListSelectionBar shown={surveys.map((survey) => survey.id)}>{bulk}</ListSelectionBar>
           )}

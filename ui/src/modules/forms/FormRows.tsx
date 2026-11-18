@@ -23,6 +23,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChannelNames } from '~/shared/ChannelSelect.tsx';
 import { ActionsMenu, RowActions, TextCell } from '~/shared/Records.tsx';
+import type { Paging } from '~/shared/paging.ts';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import { FormName, StatusBadge, useFormActions } from './FormCells.tsx';
 import { FORM_STATUSES, type Form, formTags, useEditForm, useStatusNames } from './useForms.ts';
@@ -179,17 +180,13 @@ const useColumns = (manage: boolean): RecordTableColumnDef<Form>[] => {
 export const FormsTable = ({
   forms,
   manage,
-  isPending,
-  hasNextPage,
-  fetchNextPage,
+  paging,
   children,
 }: {
   forms: Form[];
   /** Whether rows can be picked for the bulk bar (`children`). */
   manage: boolean;
-  isPending: boolean;
-  hasNextPage: boolean;
-  fetchNextPage: () => void;
+  paging: Paging;
   children: ReactNode;
 }) => (
   <RecordTable.Provider
@@ -199,12 +196,7 @@ export const FormsTable = ({
     stickyColumns={['more', 'checkbox', 'name']}
     className="m-3"
   >
-    <PagedRows
-      isPending={isPending}
-      hasNextPage={hasNextPage}
-      count={forms.length}
-      fetchNextPage={fetchNextPage}
-    />
+    <PagedRows paging={paging} count={forms.length} />
     {children}
   </RecordTable.Provider>
 );

@@ -13,7 +13,7 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { TICKET_TYPE } from '~/plugin.ts';
-import { CreateButton, ListEmpty } from '~/shared/List.tsx';
+import { CreateButton, ListEmpty, LoadPage } from '~/shared/List.tsx';
 import { ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
 import { TicketBulkActions } from './TicketBulkActions.tsx';
 import { ticketTags } from './TicketLinks.tsx';
@@ -87,19 +87,8 @@ export const TicketsPage = () => {
   const canCreate = Boolean(pipeline);
   const create = () => openNew(TICKET_TYPE, { pipelineId: pipeline?.id });
 
-  const { tickets, totalCount, isPending, error, hasNextPage, fetchNextPage, isFetchingNextPage } =
-    useTickets();
-
-  const loadMore = hasNextPage && display !== 'table' && (
-    <Button
-      variant="ghost"
-      className="m-3 self-center"
-      disabled={isFetchingNextPage}
-      onClick={() => void fetchNextPage()}
-    >
-      {t('load-more', 'Load more')}
-    </Button>
-  );
+  const list = useTickets();
+  const { rows: tickets, totalCount, isPending, error } = list;
 
   return (
     <PageContainer>
@@ -136,23 +125,20 @@ export const TicketsPage = () => {
           }
         />
       ) : display === 'table' ? (
-        <TicketsTable
-          tickets={tickets}
-          isPending={isPending}
-          hasNextPage={hasNextPage}
-          fetchNextPage={() => void fetchNextPage()}
-        >
+        <TicketsTable tickets={tickets} paging={list}>
           <SelectionBar>{bulkOf(tickets)}</SelectionBar>
         </TicketsTable>
       ) : display === 'board' ? (
         <>
+          <LoadPage paging={list} newer />
           <TicketsBoard tickets={tickets} />
-          {loadMore}
+          <LoadPage paging={list} />
         </>
       ) : (
         <RecordList.Provider listId={LIST}>
+          <LoadPage paging={list} newer />
           {isPending ? <RecordList.Skeleton /> : <TicketList tickets={tickets} />}
-          {loadMore}
+          <LoadPage paging={list} />
           <ListSelectionBar shown={tickets.map((ticket) => ticket.id)}>
             {bulkOf(tickets)}
           </ListSelectionBar>

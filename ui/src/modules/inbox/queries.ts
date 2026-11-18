@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
+import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { integrationsQuery, REFERENCE_MS, tagsOf } from '~/shared/reference.ts';
 
 type Outputs = InferClientOutputs<Client>;
@@ -30,10 +31,7 @@ export type Integration = Outputs['integrations']['get'];
 
 export type ListPage = Outputs['conversations']['list'];
 
-export type MessagePages = InfiniteData<
-  Outputs['conversations']['messages']['list'],
-  string | undefined
->;
+export type MessagePages = InfiniteData<Outputs['conversations']['messages']['list'], PageParam>;
 
 export type Counts = Outputs['conversations']['counts'];
 
@@ -151,23 +149,18 @@ const usePageCustomers = (pages: ListPage[]) => {
 export const useConversations = () => {
   const params = useListFilterParams();
 
-  const query = useInfiniteQuery(
-    orpc.conversations.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ ...params, cursor }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-      staleTime: FRESH_MS,
-    }),
+  const query = usePaged(
+    useInfiniteQuery(
+      orpc.conversations.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ ...params, cursor }),
+        ...pageOptions,
+        staleTime: FRESH_MS,
+      }),
+    ),
+    (page) => page.conversations,
   );
 
-  const pages = query.data?.pages ?? [];
-
-  return {
-    ...query,
-    conversations: pages.flatMap((page) => page.conversations),
-    customers: usePageCustomers(pages),
-    totalCount: pages[0]?.totalCount,
-  };
+  return { ...query, customers: usePageCustomers(query.data?.pages ?? []) };
 };
 
 export const LISTS = orpc.conversations.list.key({ type: 'infinite' });
@@ -209,9 +202,8 @@ export const useConversation = (id: string) => {
 export const messagesOptions = (conversationId: string) =>
   orpc.conversations.messages.list.infiniteOptions({
     enabled: Boolean(conversationId),
-    input: (cursor: string | undefined) => ({ conversationId, cursor }),
-    initialPageParam: undefined,
-    getNextPageParam: (page) => page.nextCursor ?? undefined,
+    input: ({ cursor }: PageParam) => ({ conversationId, cursor }),
+    ...pageOptions,
     staleTime: FRESH_MS,
   });
 
@@ -228,7 +220,10 @@ export const usePrefetchConversation = () => {
   };
 };
 
-/** A conversation's messages, oldest first for reading, the older ones a page at a time. */
+/**
+ * A conversation's messages, oldest first for reading. The older ones load a page at a time as
+ * next pages, the newer ones as previous pages once a long read back dropped them.
+ */
 export const useMessages = (conversationId: string) => {
   const query = useInfiniteQuery(messagesOptions(conversationId));
 

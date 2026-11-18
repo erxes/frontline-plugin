@@ -4,6 +4,7 @@ import type { Client } from '@frontline/api';
 import { useListFilterParams } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { channelsQuery } from '~/shared/reference.ts';
 import { useChange } from '~/shared/hooks.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
@@ -14,19 +15,15 @@ export type ResponseTemplate = InferClientOutputs<Client>['responseTemplates']['
 export const useResponseTemplates = (channelId: string) => {
   const { filter, search } = useListFilterParams();
 
-  const query = useInfiniteQuery(
-    orpc.responseTemplates.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ channelId, filter, search, cursor }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-    }),
+  return usePaged(
+    useInfiniteQuery(
+      orpc.responseTemplates.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ channelId, filter, search, cursor }),
+        ...pageOptions,
+      }),
+    ),
+    (page) => page.templates,
   );
-
-  return {
-    ...query,
-    templates: query.data?.pages.flatMap((page) => page.templates) ?? [],
-    totalCount: query.data?.pages[0]?.totalCount,
-  };
 };
 
 /** How many templates a channel has, read from a one-row page. */

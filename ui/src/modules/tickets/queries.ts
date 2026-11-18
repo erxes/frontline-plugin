@@ -14,6 +14,7 @@ import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange, useOptimistic } from '~/shared/hooks.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
+import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { choicesQuery } from '~/shared/reference.ts';
 
 type Outputs = InferClientOutputs<Client>['tickets'];
@@ -75,13 +76,15 @@ export const useTickets = () => {
     () => void queryClient.invalidateQueries({ queryKey: orpc.tickets.key() }),
   );
 
-  const query = useInfiniteQuery(
-    orpc.tickets.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ ...params, pipelineId, sort, ascending, cursor }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-      enabled: Boolean(pipelineId),
-    }),
+  const query = usePaged(
+    useInfiniteQuery(
+      orpc.tickets.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ ...params, pipelineId, sort, ascending, cursor }),
+        ...pageOptions,
+        enabled: Boolean(pipelineId),
+      }),
+    ),
+    (page) => page.tickets,
   );
 
   // The rows group by the choices' statuses, so the list waits for both. Without a pipeline it
@@ -90,8 +93,6 @@ export const useTickets = () => {
     ...query,
     isPending: choices.isPending || (Boolean(pipelineId) && query.isPending),
     error: choices.error ?? query.error,
-    tickets: query.data?.pages.flatMap((page) => page.tickets) ?? [],
-    totalCount: query.data?.pages[0]?.totalCount,
   };
 };
 
@@ -101,7 +102,7 @@ export const useTicket = (id: string) => useQuery(orpc.tickets.get.queryOptions(
 /** Refetches every ticket query after a change, and shows a refusal. */
 export const useTicketChange = () => useChange(orpc.tickets.key());
 
-type TicketPages = InfiniteData<Outputs['list'], string | undefined>;
+type TicketPages = InfiniteData<Outputs['list'], PageParam>;
 
 /** The queries a ticket's edit writes into before the API answers: the lists and each ticket. */
 const TICKET_ROWS = [orpc.tickets.list.key(), orpc.tickets.get.key()];

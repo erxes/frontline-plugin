@@ -3,6 +3,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import type { Client } from '@frontline/api';
 import { useListFilterParams, useLiveSignal } from 'erxes-ui';
 import { orpc } from '~/orpc.ts';
+import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
 
@@ -43,19 +44,15 @@ export const useCalls = () => {
 
   useCallsSignal();
 
-  const query = useInfiniteQuery(
-    orpc.calls.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ ...params, cursor }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-    }),
+  return usePaged(
+    useInfiniteQuery(
+      orpc.calls.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ ...params, cursor }),
+        ...pageOptions,
+      }),
+    ),
+    (page) => page.calls,
   );
-
-  return {
-    ...query,
-    calls: query.data?.pages.flatMap((page) => page.calls) ?? [],
-    totalCount: query.data?.pages[0]?.totalCount,
-  };
 };
 
 /** One call: every slot of its panel reads this query. */

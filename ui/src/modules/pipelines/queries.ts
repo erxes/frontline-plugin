@@ -4,6 +4,7 @@ import type { Client } from '@frontline/api';
 import { addPluginStyles, toast, useListFilterParams } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
@@ -25,19 +26,15 @@ export type PipelineFields = Omit<InferClientInputs<Client>['pipelines']['update
 export const usePipelines = (channelId: string) => {
   const params = useListFilterParams();
 
-  const query = useInfiniteQuery(
-    orpc.pipelines.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ channelId, cursor, ...params }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-    }),
+  return usePaged(
+    useInfiniteQuery(
+      orpc.pipelines.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ channelId, cursor, ...params }),
+        ...pageOptions,
+      }),
+    ),
+    (page) => page.pipelines,
   );
-
-  return {
-    ...query,
-    pipelines: query.data?.pages.flatMap((page) => page.pipelines) ?? [],
-    totalCount: query.data?.pages[0]?.totalCount,
-  };
 };
 
 /** One pipeline: every slot of its panel reads this query. */

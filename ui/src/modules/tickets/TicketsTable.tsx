@@ -16,6 +16,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MemberLine } from '~/shared/Person.tsx';
 import { RowActions } from '~/shared/Records.tsx';
+import type { Paging } from '~/shared/paging.ts';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import {
   AssigneeCell,
@@ -117,15 +118,11 @@ const useColumns = (): RecordTableColumnDef<Ticket>[] => {
 /** The tickets as a table a page at a time, edited in place; `children` is its selection bar. */
 export const TicketsTable = ({
   tickets,
-  isPending,
-  hasNextPage,
-  fetchNextPage,
+  paging,
   children,
 }: {
   tickets: Ticket[];
-  isPending: boolean;
-  hasNextPage: boolean;
-  fetchNextPage: () => void;
+  paging: Paging;
   children: ReactNode;
 }) => (
   <RecordTable.Provider
@@ -135,12 +132,7 @@ export const TicketsTable = ({
     stickyColumns={['more', 'checkbox', 'name']}
     className="m-3"
   >
-    <PagedRows
-      isPending={isPending}
-      hasNextPage={hasNextPage}
-      count={tickets.length}
-      fetchNextPage={fetchNextPage}
-    />
+    <PagedRows paging={paging} count={tickets.length} />
     {children}
   </RecordTable.Provider>
 );

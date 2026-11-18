@@ -153,8 +153,8 @@ export const PipelinesPage = () => {
   const { openNew } = useOpenRecord();
   const canManage = useChannel(channelId).data?.canManage ?? false;
 
-  const { pipelines, totalCount, isPending, error, hasNextPage, fetchNextPage } =
-    usePipelines(channelId);
+  const list = usePipelines(channelId);
+  const { rows: pipelines, totalCount, isPending, error } = list;
 
   const columns = useColumns(canManage);
   const create = () => openNew(PIPELINE_TYPE, { channelId });
@@ -195,12 +195,7 @@ export const PipelinesPage = () => {
           stickyColumns={['more', 'checkbox', 'name']}
           className="m-3"
         >
-          <PagedRows
-            isPending={isPending}
-            hasNextPage={hasNextPage}
-            count={pipelines.length}
-            fetchNextPage={() => void fetchNextPage()}
-          />
+          <PagedRows paging={list} count={pipelines.length} />
           <PipelinesCommandBar />
         </RecordTable.Provider>
       )}

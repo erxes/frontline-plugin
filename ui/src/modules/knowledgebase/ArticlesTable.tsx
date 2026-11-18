@@ -12,6 +12,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MemberLine } from '~/shared/Person.tsx';
 import { RowActions, TextCell } from '~/shared/Records.tsx';
+import type { Paging } from '~/shared/paging.ts';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import { ArticleTitle, CategoryPicker, StatusPicker, useArticleActions } from './ArticleCells.tsx';
 import type { Article } from './useKnowledgeBase.ts';
@@ -80,18 +81,14 @@ export const ArticlesTable = ({
   topicId,
   articles,
   manage,
-  isPending,
-  hasNextPage,
-  fetchNextPage,
+  paging,
   children,
 }: {
   topicId: string;
   articles: Article[];
   /** Whether rows can be picked for the bulk bar (`children`). */
   manage: boolean;
-  isPending: boolean;
-  hasNextPage: boolean;
-  fetchNextPage: () => void;
+  paging: Paging;
   children: ReactNode;
 }) => (
   <RecordTable.Provider
@@ -101,12 +98,7 @@ export const ArticlesTable = ({
     stickyColumns={['more', 'checkbox', 'title']}
     className="m-3"
   >
-    <PagedRows
-      isPending={isPending}
-      hasNextPage={hasNextPage}
-      count={articles.length}
-      fetchNextPage={fetchNextPage}
-    />
+    <PagedRows paging={paging} count={articles.length} />
     {children}
   </RecordTable.Provider>
 );

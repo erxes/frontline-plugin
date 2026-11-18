@@ -142,8 +142,8 @@ export const SubmissionsPage = () => {
   const manage = form?.canManage ?? false;
   const { deleteSubmissions, isPending: deleting } = useDeleteSubmissions();
 
-  const { submissions, totalCount, isPending, error, hasNextPage, fetchNextPage } =
-    useSubmissions(formId);
+  const list = useSubmissions(formId);
+  const { rows: submissions, totalCount, isPending, error } = list;
 
   const columns = useColumns(fields, manage);
 
@@ -172,12 +172,7 @@ export const SubmissionsPage = () => {
           stickyColumns={['more', 'checkbox', 'createdAt']}
           className="m-3"
         >
-          <PagedRows
-            isPending={isPending}
-            hasNextPage={hasNextPage}
-            count={submissions.length}
-            fetchNextPage={() => void fetchNextPage()}
-          />
+          <PagedRows paging={list} count={submissions.length} />
           {manage && (
             <SelectionBar>
               {(selected, clear) => (

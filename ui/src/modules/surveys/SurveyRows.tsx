@@ -22,6 +22,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChannelNames } from '~/shared/ChannelSelect.tsx';
 import { ActionsMenu, RowActions, TextCell } from '~/shared/Records.tsx';
+import type { Paging } from '~/shared/paging.ts';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import { StatusBadge, SurveyTitle, useSurveyActions } from './SurveyCells.tsx';
 import { SURVEY_STATUSES, type Survey, useStatusNames } from './useSurveys.ts';
@@ -169,17 +170,13 @@ const useColumns = (manage: boolean): RecordTableColumnDef<Survey>[] => {
 export const SurveysTable = ({
   surveys,
   manage,
-  isPending,
-  hasNextPage,
-  fetchNextPage,
+  paging,
   children,
 }: {
   surveys: Survey[];
   /** Whether rows can be picked for the bulk bar (`children`). */
   manage: boolean;
-  isPending: boolean;
-  hasNextPage: boolean;
-  fetchNextPage: () => void;
+  paging: Paging;
   children: ReactNode;
 }) => (
   <RecordTable.Provider
@@ -189,12 +186,7 @@ export const SurveysTable = ({
     stickyColumns={['more', 'checkbox', 'title']}
     className="m-3"
   >
-    <PagedRows
-      isPending={isPending}
-      hasNextPage={hasNextPage}
-      count={surveys.length}
-      fetchNextPage={fetchNextPage}
-    />
+    <PagedRows paging={paging} count={surveys.length} />
     {children}
   </RecordTable.Provider>
 );

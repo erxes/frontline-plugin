@@ -100,7 +100,8 @@ const useColumns = (): RecordTableColumnDef<Call>[] => {
  */
 export const CallHistoryPage = () => {
   const { t } = useTranslation('frontline');
-  const { calls, totalCount, isPending, error, hasNextPage, fetchNextPage } = useCalls();
+  const list = useCalls();
+  const { rows: calls, totalCount, isPending, error } = list;
   const fields = useCallFields();
   const columns = useColumns();
 
@@ -129,12 +130,7 @@ export const CallHistoryPage = () => {
           stickyColumns={['customerPhone']}
           className="m-3"
         >
-          <PagedRows
-            isPending={isPending}
-            hasNextPage={hasNextPage}
-            count={calls.length}
-            fetchNextPage={() => void fetchNextPage()}
-          />
+          <PagedRows paging={list} count={calls.length} />
         </RecordTable.Provider>
       )}
     </PageContainer>

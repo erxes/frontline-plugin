@@ -5,6 +5,7 @@ import { addPluginStyles, listFilterQuery, useListFilterParams } from 'erxes-ui'
 import { createSerializer } from 'nuqs';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
 import css from './styles.css?inline';
@@ -128,19 +129,15 @@ export const useCategory = (id: string) =>
 export const useArticles = (topicId: string) => {
   const filter = useListFilterParams();
 
-  const query = useInfiniteQuery(
-    orpc.knowledgebase.articles.list.infiniteOptions({
-      input: (cursor: string | undefined) => ({ topicId, ...filter, cursor }),
-      initialPageParam: undefined,
-      getNextPageParam: (page) => page.nextCursor ?? undefined,
-    }),
+  return usePaged(
+    useInfiniteQuery(
+      orpc.knowledgebase.articles.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ topicId, ...filter, cursor }),
+        ...pageOptions,
+      }),
+    ),
+    (page) => page.articles,
   );
-
-  return {
-    ...query,
-    articles: query.data?.pages.flatMap((page) => page.articles) ?? [],
-    totalCount: query.data?.pages[0]?.totalCount,
-  };
 };
 
 export const useArticle = (id: string) =>
