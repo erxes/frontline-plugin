@@ -93,7 +93,8 @@ const useYesNoFields = (): TListFilterField[] => {
 export const useInboxFields = (): TListFilterField[] => {
   const { t } = useTranslation('frontline');
   const channels = useQuery(channelsQuery).data?.channels ?? [];
-  const integrations = useIntegrations().data ?? [];
+  // Archived integrations leave the pickers, as the old inbox's did.
+  const integrations = (useIntegrations().data ?? []).filter(({ isActive }) => isActive);
   const statuses = useStatusNames();
   const kinds = useKindNames();
 

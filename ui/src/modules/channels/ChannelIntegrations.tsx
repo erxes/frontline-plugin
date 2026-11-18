@@ -70,7 +70,7 @@ const IntegrationButton = ({ integration }: { integration: Integration }) => {
       <KindIcon kind={integration.kind} />
       <span className="min-w-0 flex-1 truncate text-left">{integration.name}</span>
       {!integration.isActive && (
-        <span className="text-muted-foreground">{t('paused', 'Paused')}</span>
+        <span className="text-muted-foreground">{t('archived', 'Archived')}</span>
       )}
     </Button>
   );

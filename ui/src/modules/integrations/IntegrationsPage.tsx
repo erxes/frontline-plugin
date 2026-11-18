@@ -36,7 +36,7 @@ import {
   isMeta,
   useAccounts,
   useBots,
-  useCheckAccount,
+  useRepairAccount,
   useConnectMeta,
   useProviderNames,
   useRemoveAccount,
@@ -47,7 +47,7 @@ type Row = Account & { bot: Bot | undefined };
 const MoreCell = ({ row }: { row: Row }) => {
   const { t } = useTranslation('frontline');
   const { open, openNew } = useOpenRecord();
-  const check = useCheckAccount();
+  const repair = useRepairAccount();
   const remove = useRemoveAccount();
 
   const bot = isMeta(row)
@@ -83,10 +83,10 @@ const MoreCell = ({ row }: { row: Row }) => {
         },
         ...bot,
         {
-          value: 'check',
+          value: 'repair',
           icon: <IconRefresh />,
-          label: t('check-connection', 'Check connection'),
-          onSelect: () => check.mutate({ id: row.id }),
+          label: t('repair', 'Repair'),
+          onSelect: () => repair.mutate({ id: row.id }),
         },
         {
           value: 'remove',
@@ -271,7 +271,7 @@ const ConnectMenu = () => {
 /**
  * Every account the organisation connected: Facebook pages and Instagram accounts with the bot
  * each runs, Telegram and Discord bots, mailboxes and phone lines. A name opens the account; a
- * row's menu adds it to a channel, sets up a page's bot, checks it or disconnects it.
+ * row's menu adds it to a channel, sets up a page's bot, repairs it or disconnects it.
  */
 export const IntegrationsPage = () => {
   const { t } = useTranslation('frontline');

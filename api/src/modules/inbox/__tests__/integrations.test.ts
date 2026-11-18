@@ -60,9 +60,15 @@ describe('integrations', () => {
       expect.objectContaining({ id: integration.id, canManage: false }),
     ]);
 
-    // A paused messenger takes no visitors.
+    const kinds = async () =>
+      (await owner.conversations.counts({})).channels.find(({ id }) => id === channel.id)?.kinds;
+
+    expect(await kinds()).toEqual([{ kind: 'messenger', unread: 0 }]);
+
+    // An archived messenger takes no visitors and leaves the sidebar.
     await owner.integrations.update({ id: integration.id, isActive: false });
     expect((await post('/connect', { key: integration.publicKey })).status).toBe(404);
+    expect(await kinds()).toEqual([]);
 
     await owner.integrations.remove({ id: integration.id });
     expect(await owner.integrations.list({})).toEqual([]);

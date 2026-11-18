@@ -12,7 +12,7 @@ import {
   type OutboundReaction,
   type ProviderName,
 } from '../provider.ts';
-import { unrouteFromRelay } from './metaRelay.ts';
+import { routeThroughRelay, unrouteFromRelay } from './metaRelay.ts';
 import { postOfThread } from './metaWebhook.ts';
 
 /** The Graph API version frontline's calls and Meta's login dialog use. */
@@ -202,6 +202,48 @@ const reactThrough = async ({ secret }: MetaAccount, reaction: OutboundReaction)
   );
 };
 
+/**
+ * The events the app gets for a connected page: frontline's own (messages, postbacks,
+ * reactions, feed), and every field the older erxes installs that share the app subscribe. A
+ * page's `subscribed_apps` POST replaces the app's fields, so a shorter list would stop events
+ * those installs read. Fields frontline doesn't read are skipped when they arrive.
+ */
+const PAGE_FIELDS = [
+  'conversations',
+  'feed',
+  'message_deliveries',
+  'message_echoes',
+  'message_reactions',
+  'message_reads',
+  'messages',
+  'messaging_handovers',
+  'messaging_postbacks',
+  'messaging_referrals',
+  'standby',
+];
+
+/** Subscribes the app to the page's events, with the page's own token. */
+export const subscribeToPage = (pageId: string, pageToken: string) =>
+  graph(`${pageId}/subscribed_apps`, pageToken, {
+    method: 'POST',
+    query: { subscribed_fields: PAGE_FIELDS.join(',') },
+  });
+
+/**
+ * Repair, as the old plugin's did for a page or account whose events stopped: the app subscribes
+ * to its page again, and meta-relay, when set, routes it here again.
+ */
+const resubscribe = async (
+  provider: 'facebook' | 'instagram',
+  { row, secret }: MetaAccount,
+  pageId: string,
+) => {
+  await Promise.all([
+    subscribeToPage(pageId, secret.pageToken),
+    routeThroughRelay(provider, row.externalId),
+  ]);
+};
+
 const checkToken = async ({ secret }: MetaAccount) =>
   graph('me', secret.pageToken, { query: { fields: 'id' } }).then(
     () => null,
@@ -257,6 +299,7 @@ export const facebook = defineProvider({
   send: sendThrough('facebook'),
   react: reactThrough,
   disconnect: disconnectFrom('facebook'),
+  repair: (account) => resubscribe('facebook', account, account.row.externalId),
   whoIs: whoIsOn('facebook'),
 });
 
@@ -269,5 +312,6 @@ export const instagram = defineProvider({
   send: sendThrough('instagram'),
   react: reactThrough,
   disconnect: disconnectFrom('instagram'),
+  repair: (account) => resubscribe('instagram', account, account.config.pageId),
   whoIs: whoIsOn('instagram'),
 });

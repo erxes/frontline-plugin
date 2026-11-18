@@ -7,7 +7,7 @@ import { writes } from '#/orpc.ts';
 import { readToken, signToken } from '../../tokens.ts';
 import { inOrder } from '../provider.ts';
 import { metaKey, saveAccount } from '../store.ts';
-import { GRAPH_VERSION, graph } from './meta.ts';
+import { GRAPH_VERSION, graph, subscribeToPage } from './meta.ts';
 import { routeThroughRelay } from './metaRelay.ts';
 
 const STATE = 'meta login';
@@ -28,26 +28,6 @@ const SCOPES = [
   'instagram_basic',
   'instagram_manage_messages',
   'instagram_manage_comments',
-];
-
-/**
- * The events the app gets for a connected page: frontline's own (messages, postbacks,
- * reactions, feed), and every field the older erxes installs that share the app subscribe. A
- * page's `subscribed_apps` POST replaces the app's fields, so a shorter list would stop events
- * those installs read. Fields frontline doesn't read are skipped when they arrive.
- */
-const PAGE_FIELDS = [
-  'conversations',
-  'feed',
-  'message_deliveries',
-  'message_echoes',
-  'message_reactions',
-  'message_reads',
-  'messages',
-  'messaging_handovers',
-  'messaging_postbacks',
-  'messaging_referrals',
-  'standby',
 ];
 
 const State = z.object({ orgId: z.string(), userId: z.string() });
@@ -171,12 +151,7 @@ export const connectMetaPages = async (code: string, stateToken: string) => {
 
   // Meta and meta-relay first, so a refusal saves nothing and the member sees why.
   await Promise.all([
-    ...pages.map((page) =>
-      graph(`${page.id}/subscribed_apps`, page.access_token, {
-        method: 'POST',
-        query: { subscribed_fields: PAGE_FIELDS.join(',') },
-      }),
-    ),
+    ...pages.map((page) => subscribeToPage(page.id, page.access_token)),
     ...accounts.map((account) => routeThroughRelay(account.provider, account.externalId)),
   ]);
 

@@ -101,9 +101,9 @@ export const useConnectMeta = () => {
   );
 };
 
-/** Asks the provider whether the account still works, and records its answer. */
-export const useCheckAccount = () =>
-  useMutation(orpc.integrations.accounts.check.mutationOptions(useIntegrationChange()));
+/** Points the provider's events at frontline again, then records whether the account works. */
+export const useRepairAccount = () =>
+  useMutation(orpc.integrations.accounts.repair.mutationOptions(useIntegrationChange()));
 
 /** Asks for "delete" to be typed, then disconnects the account and its bot. */
 export const useRemoveAccount = () => {

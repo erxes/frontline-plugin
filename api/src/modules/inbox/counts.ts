@@ -10,7 +10,7 @@ import { readSql, seenBy } from './shared.ts';
 /**
  * How many open conversations wait unread by the caller: all they see, and each queue of the
  * inbox's sidebar (assigned to them, mentioning them, unassigned, awaiting a reply), and in each
- * channel they belong to, by name, and in each kind of integration the channel has. A queue's
+ * channel they belong to, by name, and in each kind of active integration the channel has. A queue's
  * link filters the inbox by the same rule.
  */
 const counts = reads(PERMISSIONS.inboxView)
@@ -79,6 +79,8 @@ const counts = reads(PERMISSIONS.inboxView)
       .from(integrations)
       .innerJoin(channelMembers, membership(member, integrations.channelId))
       .leftJoin(conversations, and(eq(conversations.integrationId, integrations.id), unread))
+      // An archived integration leaves the sidebar, as the old one did.
+      .where(eq(integrations.isActive, true))
       .groupBy(integrations.channelId, integrations.kind)
       .orderBy(asc(integrations.kind));
 

@@ -8,16 +8,18 @@ import { logger } from '#/logger.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
 import type { AccountRow } from './provider.ts';
 import { providerOf } from './providers/index.ts';
-import { Account, accountColumns, accountRow, removeWebhookKeys } from './store.ts';
+import { Account, accountColumns, accountRow, removeWebhookKeys, webhookKeyOf } from './store.ts';
 
 /**
- * Asks the provider whether `row` still works and records the answer in its own transaction.
+ * Asks the provider whether `row` still works and records the answer in its own transaction,
+ * after pointing its events at frontline again when `repair` names the account's webhook key.
  * Whoever connected an account that just broke hears of it.
  */
-export const checkAccount = async (row: AccountRow) => {
-  const error = await providerOf(row.provider)
-    .open(row)
-    .check()
+export const checkAccount = async (row: AccountRow, repair?: { webhookKey: string | null }) => {
+  const provider = providerOf(row.provider).open(row);
+
+  const error = await (repair ? provider.repair(repair.webhookKey) : Promise.resolve())
+    .then(() => provider.check())
     .catch((failure: unknown) => (failure instanceof Error ? failure.message : String(failure)));
 
   const [checked] = await withOrg(row.orgId, (tx) =>
@@ -63,14 +65,23 @@ const list = reads(PERMISSIONS.integrationView)
   });
 
 /**
- * Asks the provider whether the account still works, and marks it healthy or broken. The
- * provider is asked before any transaction opens, so a slow one holds no connection.
+ * Repair, as the old plugin had it: points the provider's events at frontline again (Meta's page
+ * subscription and relay route, Telegram's webhook), then asks whether the account works and
+ * marks it healthy or broken. The provider is asked before any transaction opens, so a slow one
+ * holds no connection.
  */
-const check = writesWithCore(
+const repair = writesWithCore(
   PERMISSIONS.integrationManage,
   z.object({ id: z.string() }),
-  async (member, input) =>
-    checkAccount(await withOrg(member.orgId, (tx) => accountRow(tx, input.id))),
+  async (member, input) => {
+    const [row, webhookKey] = await withOrg(member.orgId, async (tx) => {
+      const account = await accountRow(tx, input.id);
+
+      return [account, await webhookKeyOf(tx, account)] as const;
+    });
+
+    return checkAccount(row, { webhookKey });
+  },
 )
   .output(Account)
   .handler(({ context: { fromCore } }) => fromCore);
@@ -114,4 +125,4 @@ const remove = writes(PERMISSIONS.integrationManage)
     return { ids: removed.map((row) => row.id) };
   });
 
-export const accountProcedures = { list, check, remove };
+export const accountProcedures = { list, repair, remove };
