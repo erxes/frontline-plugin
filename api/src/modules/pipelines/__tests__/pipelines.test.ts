@@ -1,5 +1,7 @@
+import { sql } from 'drizzle-orm';
 import { describe, expect, it } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
+import { withOrg } from '#/db/client.ts';
 import { clientAs } from '#/test/member.ts';
 
 describe('pipelines', () => {
@@ -249,6 +251,30 @@ describe('pipelines', () => {
     await expect(agent.pipelines.get({ id: hidden.id })).resolves.toMatchObject({
       canManage: true,
     });
+  });
+
+  it('shows members only tickets created today where the pipeline checks the date', async () => {
+    const owner = clientAs('org-pl-i');
+    const agent = clientAs('org-pl-i', [PERMISSIONS.channelView], 'agent-pl-i');
+    const channel = await owner.channels.create({ name: 'Support', memberIds: ['agent-pl-i'] });
+    const pipeline = await owner.pipelines.create({ channelId: channel.id, name: 'Main' });
+    const today = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Today' });
+    const old = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Yesterday' });
+
+    const names = async (client: typeof owner) =>
+      (await client.tickets.list({})).tickets.map((ticket) => ticket.name).toSorted();
+
+    await withOrg('org-pl-i', (tx) =>
+      tx.execute(sql`update frontline_tickets set created_at = now() - interval '1 day'
+        where id = ${old.id}`),
+    );
+    await owner.pipelines.update({ id: pipeline.id, isCheckDate: true });
+
+    await expect(names(agent)).resolves.toEqual([today.name]);
+    // The channel's admins and the listed members see every ticket.
+    await expect(names(owner)).resolves.toEqual(['Today', 'Yesterday']);
+    await owner.pipelines.update({ id: pipeline.id, excludeCheckUserIds: ['agent-pl-i'] });
+    await expect(names(agent)).resolves.toEqual(['Today', 'Yesterday']);
   });
 
   it("doesn't show another organisation's pipelines", async () => {
