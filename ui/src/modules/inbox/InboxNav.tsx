@@ -2,14 +2,19 @@ import {
   IconAt,
   IconClockExclamation,
   IconInbox,
+  IconPlus,
   IconUser,
   IconUserCheck,
   IconUserOff,
 } from '@tabler/icons-react';
+import { useMutation } from '@tanstack/react-query';
 import { Sidebar, type TConditionRule } from 'erxes-ui';
 import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { orpc } from '~/orpc.ts';
+import { useChange } from '~/shared/hooks.ts';
+import { CHANNELS_PATH } from '@/channels/useChannels.ts';
 import { ChannelLink, TeamChannels } from './ChannelNav.tsx';
 import { Count, FilterLink, INBOX, NavGroup } from './navLinks.tsx';
 import { useInboxCounts, useInboxSignal } from './queries.ts';
@@ -57,6 +62,38 @@ const Queues = ({ counts }: { counts: Counts }) => {
 };
 
 /**
+ * Makes the member's personal inbox, as the old sidebar's Personal channel did, then opens it in
+ * its channel page to add the pages, bots and mailboxes that come into it.
+ */
+const CreatePersonal = () => {
+  const { t } = useTranslation('frontline');
+  const navigate = useNavigate();
+
+  const create = useMutation(
+    orpc.channels.personal.mutationOptions(
+      useChange(orpc.conversations.counts.key(), orpc.channels.key()),
+    ),
+  );
+
+  return (
+    <Sidebar.MenuItem>
+      <Sidebar.MenuButton
+        disabled={create.isPending}
+        onClick={() =>
+          create.mutate(undefined, {
+            onSuccess: (channel) =>
+              void navigate(`${CHANNELS_PATH}/${encodeURIComponent(channel.id)}`),
+          })
+        }
+      >
+        <IconPlus />
+        <span>{t('create-my-inbox', 'Create my inbox')}</span>
+      </Sidebar.MenuButton>
+    </Sidebar.MenuItem>
+  );
+};
+
+/**
  * Inbox in Frontline's sidebar, with the count of what waits unread for the member. It sits in
  * the layout on every page, so it keeps the inbox live for all of them.
  */
@@ -95,13 +132,12 @@ export const InboxGroups = () => {
   return (
     <>
       <Queues counts={counts} />
-      {personal.length > 0 && (
-        <NavGroup id="mine" label={t('my-inbox', 'My inbox')}>
-          {personal.map((channel) => (
-            <ChannelLink key={channel.id} channel={channel} icon={<IconUser />} />
-          ))}
-        </NavGroup>
-      )}
+      <NavGroup id="mine" label={t('my-inbox', 'My inbox')}>
+        {personal.map((channel) => (
+          <ChannelLink key={channel.id} channel={channel} icon={<IconUser />} />
+        ))}
+        {personal.length === 0 && <CreatePersonal />}
+      </NavGroup>
       <TeamChannels channels={counts.channels.filter((channel) => !channel.personal)} />
     </>
   );
