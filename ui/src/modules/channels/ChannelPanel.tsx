@@ -28,6 +28,7 @@ import { useTemplateCount } from '@/responseTemplates/useResponseTemplates.ts';
 import { orpc } from '~/orpc.ts';
 import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
+import { ChannelIntegrations } from './ChannelIntegrations.tsx';
 import {
   type Channel,
   CHANNELS_PATH,
@@ -186,7 +187,10 @@ const ChannelFields = ({ channel }: { channel: Channel }) => {
   );
 };
 
-/** The Detail tab: the channel's fields, then links to its members, templates and pipelines. */
+/**
+ * The Detail tab: the channel's fields, the integrations its conversations come through, then
+ * links to its members, templates and pipelines.
+ */
 export const ChannelDetail = ({ contentId }: TRecordSlotProps) => {
   const channel = useChannel(contentId);
 
@@ -203,6 +207,7 @@ export const ChannelDetail = ({ contentId }: TRecordSlotProps) => {
   return (
     <>
       <ChannelFields channel={channel.data} />
+      <ChannelIntegrations channel={channel.data} />
       <ChannelPages channel={channel.data} />
     </>
   );

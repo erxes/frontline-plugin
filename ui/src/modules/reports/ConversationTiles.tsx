@@ -1,7 +1,7 @@
 import { useFormat } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { MemberLine } from '~/shared/Person.tsx';
-import { useKindNames } from '@/inbox/InboxFilter.tsx';
+import { useKindNames } from '~/shared/kinds.tsx';
 import { DayChart } from './Charts.tsx';
 import { useConversationReport } from './queries.ts';
 import { BarList, MiniTable, Stat, Stats, Tile, useSpanText } from './Tile.tsx';

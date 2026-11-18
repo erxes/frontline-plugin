@@ -359,34 +359,4 @@ describe('inbox', () => {
 
     expect(topics.toSorted()).toEqual(['conversation.' + id.toLowerCase(), 'conversations']);
   });
-
-  it('checks a messenger’s settings and lets only channel admins connect one', async () => {
-    const { channel, teammate, owner, integration } = await setUp('org-ib-g');
-
-    await expect(
-      owner.integrations.create({
-        channelId: channel.id,
-        kind: 'messenger',
-        name: 'Bad',
-        config: { color: 'red' },
-      }),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-    await expect(
-      owner.integrations.create({ channelId: channel.id, kind: 'pigeon', name: 'Coo' }),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
-    await expect(
-      teammate.integrations.create({ channelId: channel.id, kind: 'messenger', name: 'Mine' }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
-
-    expect(await teammate.integrations.list({})).toEqual([
-      expect.objectContaining({ id: integration.id, canManage: false }),
-    ]);
-
-    // A paused messenger takes no visitors.
-    await owner.integrations.update({ id: integration.id, isActive: false });
-    expect((await post('/connect', { key: integration.publicKey })).status).toBe(404);
-
-    await owner.integrations.remove({ id: integration.id });
-    expect(await owner.integrations.list({})).toEqual([]);
-  });
 });

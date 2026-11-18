@@ -12,7 +12,7 @@ import { useIntegrationChange } from './queries.ts';
  * A new website messenger in core's side panel: the channel its conversations land in, its name
  * and the welcome its visitors see. Opened with a connected account's `kind` and `accountId`, it
  * adds that page, bot or mailbox to the channel instead. Only the channels the member is an
- * admin of are offered.
+ * admin of are offered; a `channelId` picks one.
  */
 export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
@@ -20,8 +20,9 @@ export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftPr
   const kind = textOf(defaults.kind) || 'messenger';
   const accountId = textOf(defaults.accountId);
 
+  // A channel's page opens it with that channel picked.
   const first = useManagedChannels()[0]?.id ?? '';
-  const [picked, setChannelId] = useState('');
+  const [picked, setChannelId] = useState(() => textOf(defaults.channelId));
   const channelId = picked || first;
   const { onSuccess } = useIntegrationChange();
 

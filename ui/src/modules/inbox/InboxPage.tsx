@@ -6,7 +6,6 @@ import {
   Empty,
   ListFilter,
   PageContainer,
-  PageHeader,
   RecordList,
   Resizable,
   Skeleton,
@@ -21,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { channelsQuery } from '~/shared/reference.ts';
 import { CONVERSATION_TYPE, INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
+import { AppHeader } from '~/shared/Header.tsx';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { BulkBar } from './BulkBar.tsx';
 import { Composer } from './Composer.tsx';
@@ -207,27 +207,19 @@ export const InboxPage = () => {
 
   return (
     <PageContainer>
-      <PageHeader>
-        <PageHeader.Start>
-          <span className="flex h-8 items-center gap-1.5 px-3 text-sm font-medium">
-            <IconInbox />
-            {t('inbox', 'Inbox')}
-          </span>
-        </PageHeader.Start>
-        <PageHeader.End>
-          {mails && (
-            <Button variant="outline" onClick={() => openNew(CONVERSATION_TYPE)}>
-              <IconMail />
-              {t('new-mail', 'New mail')}
-            </Button>
-          )}
-          <CreateButton
-            allowed={canConnect}
-            label={t('add-messenger', 'Add messenger')}
-            onClick={connect}
-          />
-        </PageHeader.End>
-      </PageHeader>
+      <AppHeader icon={IconInbox} app={{ label: t('inbox', 'Inbox') }}>
+        {mails && (
+          <Button variant="outline" onClick={() => openNew(CONVERSATION_TYPE)}>
+            <IconMail />
+            {t('new-mail', 'New mail')}
+          </Button>
+        )}
+        <CreateButton
+          allowed={canConnect}
+          label={t('add-messenger', 'Add messenger')}
+          onClick={connect}
+        />
+      </AppHeader>
       <ViewBar allLabel={t('all-conversations', 'All conversations')}>
         <ListFilter
           id={LIST}

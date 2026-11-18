@@ -4,12 +4,14 @@ import {
   IconCalendarPlus,
   IconCircles,
   IconFileDescription,
+  IconPlugConnected,
   IconTrash,
   IconUser,
   IconUsers,
 } from '@tabler/icons-react';
 import {
   Button,
+  IconComponent,
   ListFilter,
   memberName,
   PageContainer,
@@ -27,12 +29,16 @@ import { CHANNEL_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, DateCell, Rows } from '~/shared/Table.tsx';
+import { IntegrationBadges } from './ChannelIntegrations.tsx';
 import { ChannelsHeader } from './ChannelsHeader.tsx';
 import { type Channel, useChannels, useDeleteChannels } from './useChannels.ts';
 
 const column = columnOf<Channel>;
 
-/** The name opens the channel in core's side panel, as a customer's name does. */
+/**
+ * The channel's icon and name, opening it in core's side panel as a customer's name does. A
+ * channel without an icon of its own shows the channels icon, as the inbox's sidebar does.
+ */
 const NameCell = ({ channel }: { channel: Channel }) => {
   const { open } = useOpenRecord();
 
@@ -43,7 +49,8 @@ const NameCell = ({ channel }: { channel: Channel }) => {
         className="w-full justify-start"
         onClick={() => open({ contentType: CHANNEL_TYPE, contentId: channel.id })}
       >
-        {channel.name}
+        {channel.icon ? <IconComponent name={channel.icon} /> : <IconCircles />}
+        <span className="truncate">{channel.name}</span>
       </Button>
     </RecordTableInlineCell>
   );
@@ -115,6 +122,9 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
     )),
     column('members', t('members', 'Members'), IconUsers, 140, (channel) => (
       <MemberAvatars ids={channel.memberIds} />
+    )),
+    column('integrations', t('integrations', 'Integrations'), IconPlugConnected, 220, (channel) => (
+      <IntegrationBadges channelId={channel.id} />
     )),
     column('createdBy', t('created-by', 'Created by'), IconUser, 180, (channel) => (
       <RecordTableInlineCell>

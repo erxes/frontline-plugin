@@ -3,7 +3,7 @@ import { Button, IconComponent, Sidebar, type TConditionRule } from 'erxes-ui';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { KindIcon, useKindNames } from './InboxFilter.tsx';
+import { KindIcon, useKindNames } from '~/shared/kinds.tsx';
 import {
   Count,
   FilterLink,

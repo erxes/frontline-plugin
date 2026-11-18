@@ -9,7 +9,7 @@ import {
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PersonAvatar } from '~/shared/Person.tsx';
-import { KindIcon } from './InboxFilter.tsx';
+import { KindIcon } from '~/shared/kinds.tsx';
 import type { Conversation } from './queries.ts';
 
 /** The list's row buttons carry the conversation's id, so the keys can move the focus between them. */

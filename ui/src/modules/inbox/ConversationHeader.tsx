@@ -17,7 +17,7 @@ import { CONVERSATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { MemberCell } from '~/shared/MemberPicker.tsx';
 import { ContactChip } from '~/shared/Person.tsx';
 import { ConversationMenu, VisitorTyping } from './ConversationPresence.tsx';
-import { KindIcon } from './InboxFilter.tsx';
+import { KindIcon } from '~/shared/kinds.tsx';
 import { type Conversation, conversationTags, useCreateTag } from './queries.ts';
 import { useAssign, useSetStatus, useSetTags } from './changes.ts';
 
