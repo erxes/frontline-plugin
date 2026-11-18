@@ -1,0 +1,66 @@
+.fl-survey {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 260px;
+  min-height: 48px;
+  padding: 12px;
+  border: 1px solid var(--fl-line);
+  border-radius: 14px;
+}
+
+.fl-question {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.fl-question legend {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 2px;
+  padding: 0;
+  font-weight: 500;
+}
+
+.fl-question small,
+.fl-question p,
+.fl-note {
+  margin: 0;
+  color: var(--fl-muted);
+  font-size: 13px;
+}
+
+.fl-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--fl-line);
+  border-radius: 10px;
+  cursor: pointer;
+  transition:
+    border-color 120ms ease-out,
+    background-color 120ms ease-out;
+}
+
+.fl-option:hover {
+  background: var(--fl-soft);
+}
+
+.fl-option input {
+  margin: 0;
+  accent-color: var(--fl-color);
+}
+
+.fl-picked {
+  border-color: var(--fl-color);
+}
+
+.fl-question:disabled .fl-option {
+  cursor: default;
+}

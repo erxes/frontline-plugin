@@ -40,6 +40,8 @@ export type { VisitorConversation, VisitorMessage, VisitorMessages } from './thr
 
 export type { TicketForms, VisitorTicket } from './tickets.ts';
 
+export type { VisitorSurvey } from '../surveys/votes.ts';
+
 /** The active messenger a key opens, with its settings and its team from core, or NOT_FOUND. */
 const opened = async (key: string) => {
   const found = await messengerOf(key);

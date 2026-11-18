@@ -6,11 +6,11 @@ import {
   expectAccessible,
   INBOX,
   openChannelPipelines,
+  openMessenger,
   pick,
   recordPanel,
   test,
   unique,
-  visitorOf,
 } from './fixtures.ts';
 
 const SURVEYS = '/frontline/surveys';
@@ -136,9 +136,8 @@ test('an admin archives, reactivates and deletes surveys', async ({ page }) => {
   await page.getByRole('button', { name: 'List', exact: true }).click();
 });
 
-test('a member sends a survey into a messenger conversation and the visitor gets it', async ({
+test('a member sends a survey into a messenger conversation and the visitor votes in the widget', async ({
   page,
-  request,
 }) => {
   const channel = await openChannelPipelines(page);
   const title = `Rate us ${unique()}`;
@@ -147,8 +146,13 @@ test('a member sends a survey into a messenger conversation and the visitor gets
   await newSurvey(page, channel, title);
   await page.goto(INBOX);
 
-  const visitor = await visitorOf(request, await addMessenger(page, channel));
-  const conversationId = await visitor.write(hello);
+  await using site = await openMessenger(page.context(), await addMessenger(page, channel));
+  const widget = site.panel;
+
+  await widget.getByRole('button', { name: 'Send us a message' }).click();
+  await widget.getByRole('textbox', { name: 'Message' }).fill(hello);
+  await widget.getByRole('button', { name: 'Send' }).click();
+  await expect(widget).toContainText(hello);
 
   await page.goto(INBOX);
   await page
@@ -162,7 +166,21 @@ test('a member sends a survey into a messenger conversation and the visitor gets
 
   // A survey's card in the thread.
   await expectAccessible(page, thread.getByRole('button', { name: `${title} 0 votes` }));
-  await expect.poll(() => visitor.read(conversationId)).toContain('How did we do?');
+
+  // The widget shows the ballot; the visitor votes, then changes the vote.
+  const ballot = widget.getByRole('form', { name: title });
+
+  await ballot.getByRole('radio', { name: 'Great' }).check();
+  await ballot.getByRole('button', { name: 'Vote' }).click();
+  await expect(ballot.getByRole('status')).toContainText('your vote is in');
+  await expectAccessible(site.shop, ballot);
+  await ballot.getByRole('radio', { name: 'Fine' }).check();
+  await ballot.getByRole('button', { name: 'Change vote' }).click();
+  await expect(ballot.getByRole('status')).toBeVisible();
+
+  // One visitor, one vote, however often they change it.
+  await page.reload();
+  await expect(thread.getByRole('button', { name: `${title} 1 vote` })).toBeVisible();
 });
 
 test('a member without frontline permissions is refused the surveys', async ({ newMember }) => {
