@@ -132,7 +132,7 @@ test('a messenger, the inbox, a conversation and the widget', async ({ page, req
   const panel = recordPanel(page);
   const name = `Ada ${unique()}`;
   const thread = page.getByRole('list', { name: 'Messages' });
-  const first = thread.getByRole('listitem', { name: 'Message' }).first();
+  const first = thread.getByRole('article', { name: 'Message' }).first();
   const sidebar = page.getByRole('complementary', { name: 'Customer details' });
   const rail = page.getByRole('toolbar', { name: 'Customer panels' });
 

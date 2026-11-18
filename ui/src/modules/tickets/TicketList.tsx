@@ -12,10 +12,16 @@ import { TICKET_TYPE } from '~/plugin.ts';
 import { AssigneeCell, PriorityCell, TicketMenu, TicketName } from './TicketCells.tsx';
 import { SlaBadge } from './SlaBadge.tsx';
 import { TicketTags } from './TicketLinks.tsx';
-import { type Ticket, useChoices, useTicketPipeline } from './queries.ts';
+import {
+  type Ticket,
+  type TicketRowActions,
+  useChoices,
+  useTicketPipeline,
+  useTicketRowActions,
+} from './queries.ts';
 
 /** One ticket: its number and name, tags, SLA, priority, assignee, last change, and its menu. */
-const TicketRow = ({ ticket }: { ticket: Ticket }) => (
+const TicketRow = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => (
   <div className="flex min-w-0 flex-1 items-center gap-3 text-xs">
     <span className="flex min-w-0 flex-1">
       <TicketName ticket={ticket} />
@@ -25,17 +31,17 @@ const TicketRow = ({ ticket }: { ticket: Ticket }) => (
     </span>
     <SlaBadge ticket={ticket} />
     <span className="w-32 shrink-0">
-      <PriorityCell ticket={ticket} />
+      <PriorityCell ticket={ticket} act={act} />
     </span>
     <span className="hidden w-44 shrink-0 md:block">
-      <AssigneeCell ticket={ticket} />
+      <AssigneeCell ticket={ticket} act={act} />
     </span>
     <span className="w-24 shrink-0 text-muted-foreground">
       <RelativeDateDisplay value={ticket.updatedAt.toISOString()}>
         <RelativeDateDisplay.Value value={ticket.updatedAt.toISOString()} />
       </RelativeDateDisplay>
     </span>
-    <TicketMenu ticket={ticket} />
+    <TicketMenu ticket={ticket} act={act} />
   </div>
 );
 
@@ -57,6 +63,7 @@ export const useStatusGroups = (tickets: Ticket[]) => {
 export const TicketList = ({ tickets }: { tickets: Ticket[] }) => {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
+  const act = useTicketRowActions();
 
   const groups: RecordListGroup<Ticket>[] = useStatusGroups(tickets)
     .filter((group) => group.rows.length > 0)
@@ -84,7 +91,7 @@ export const TicketList = ({ tickets }: { tickets: Ticket[] }) => {
       groups={groups}
       rowId={(ticket) => ticket.id}
       rowLabel={(ticket) => ticket.name}
-      renderRow={(ticket) => <TicketRow ticket={ticket} />}
+      renderRow={(ticket) => <TicketRow ticket={ticket} act={act} />}
     />
   );
 };

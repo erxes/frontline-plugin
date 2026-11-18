@@ -52,7 +52,7 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
 
   await expect(lateRow).toContainText(/Website \S+/);
   await lateRow.click();
-  await expect(thread.getByRole('listitem', { name: 'Message' })).toContainText(late);
+  await expect(thread.getByRole('article', { name: 'Message' })).toContainText(late);
 
   // A reply reaches the visitor; an internal note stays with the team.
   await page.getByRole('textbox', { name: 'Reply' }).fill('It ships today.');
@@ -61,7 +61,7 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await page.getByRole('tab', { name: 'Internal note' }).click();
   await page.getByRole('textbox', { name: 'Internal note' }).fill('Courier confirmed.');
   await page.getByRole('button', { name: 'Add note' }).click();
-  await expect(thread.getByRole('listitem', { name: 'Internal note' })).toContainText(
+  await expect(thread.getByRole('article', { name: 'Internal note' })).toContainText(
     'Courier confirmed.',
   );
 
@@ -98,7 +98,7 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   expect(await left(assignee)).toBeLessThan(await left(tags));
   expect(await left(tags)).toBeLessThan(await left(resolve));
 
-  const first = thread.getByRole('listitem', { name: 'Message' }).first();
+  const first = thread.getByRole('article', { name: 'Message' }).first();
 
   await first.hover();
   await first.getByRole('button', { name: 'Pin' }).click();
@@ -275,7 +275,7 @@ test('a member takes over from the bot, sees the visitor typing and edits a repl
 
   await visitor.tell(conversationId, 'person');
   await expect(thread).toContainText('A person from the team will answer you here.');
-  await expect(thread.getByRole('listitem', { name: 'Message' }).last()).toContainText('Bot');
+  await expect(thread.getByRole('article', { name: 'Message' }).last()).toContainText('Bot');
   await actions.click();
   await page.getByRole('menuitem', { name: 'Let the bot answer' }).click();
   await actions.click();
@@ -296,7 +296,7 @@ test('a member takes over from the bot, sees the visitor typing and edits a repl
   await page.getByRole('textbox', { name: 'Reply' }).fill('It ships tomorow.');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
 
-  const reply = thread.getByRole('listitem', { name: 'Message' }).filter({ hasText: 'tomorow' });
+  const reply = thread.getByRole('article', { name: 'Message' }).filter({ hasText: 'tomorow' });
 
   await reply.hover();
   await reply.getByRole('button', { name: 'Edit message' }).click();

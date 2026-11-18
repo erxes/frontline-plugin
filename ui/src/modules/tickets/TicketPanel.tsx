@@ -25,7 +25,13 @@ import { PrioritySelect, StatusSelect, TicketMenu } from './TicketCells.tsx';
 import { TicketContent, TicketPlan, TicketSla } from './TicketFields.tsx';
 import { TicketContacts, TicketLabels, TicketPeople } from './TicketLinks.tsx';
 import { TicketPropertiesSection } from './TicketProperties.tsx';
-import { type Ticket, useChoices, useEditTicket, useTicket } from './queries.ts';
+import {
+  type Ticket,
+  useChoices,
+  useEditTicket,
+  useTicket,
+  useTicketRowActions,
+} from './queries.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
 import { MemberChip } from '~/shared/Person.tsx';
 
@@ -64,8 +70,9 @@ export const TicketTitle = ({ contentId }: TRecordSlotProps) => {
 /** The header's menu: archive or unarchive, and delete for its channel's admins. */
 export const TicketActions = ({ contentId }: TRecordSlotProps) => {
   const { data } = useTicket(contentId);
+  const act = useTicketRowActions();
 
-  return data ? <TicketMenu ticket={data} /> : null;
+  return data ? <TicketMenu ticket={data} act={act} /> : null;
 };
 
 /** Where the ticket is filed and who made it when, read only, at the foot of the tab. */
