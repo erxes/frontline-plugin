@@ -62,10 +62,9 @@ test('a member files, changes and filters tickets in the list', async ({ page })
   await pick(page, panel.getByRole('combobox', { name: 'Pipeline' }), `${channel} › ${pipeline}`);
   await panel.getByLabel('Name').fill(refund);
 
-  // The draft outlives a reload until it is created.
+  // The panel and its draft outlive a reload until the ticket is created.
   await page.reload();
-  await page.getByRole('button', { name: 'Create ticket' }).first().click();
-  await expect(panel.getByLabel('Name')).toHaveValue(refund);
+  await expect(panel.getByRole('textbox', { name: 'Name' })).toHaveValue(refund);
   await panel.getByRole('button', { name: 'Create ticket' }).click();
   await expect(panel.getByRole('button', { name: `Name ${refund}` })).toBeVisible();
   await pick(page, panel.getByRole('combobox', { name: 'Priority' }), 'High');
@@ -85,12 +84,13 @@ test('a member files, changes and filters tickets in the list', async ({ page })
   await expect(page.getByRole('region', { name: 'New' })).toContainText(login);
 
   // Cancel asks before it throws a draft away.
+  const draftName = panel.getByRole('textbox', { name: 'Name' });
   await page.getByRole('button', { name: 'Add a ticket to New' }).click();
-  await panel.getByLabel('Name').fill('Dropped');
+  await draftName.fill('Dropped');
   await panel.getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Discard' }).click();
   await page.getByRole('button', { name: 'Add a ticket to New' }).click();
-  await expect(panel.getByLabel('Name')).toHaveValue('');
+  await expect(draftName).toHaveValue('');
   await panel.getByRole('button', { name: 'Cancel' }).click();
 
   // The filter lives in the address, so a reload keeps it.

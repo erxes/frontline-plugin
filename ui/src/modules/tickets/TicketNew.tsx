@@ -192,13 +192,22 @@ type Labels = Pick<TicketDraft, 'tagIds' | 'propertiesData'>;
  * Cancel throws the draft away, after asking once something is in it. Closing the panel keeps
  * it for later, so only Cancel asks.
  */
+/**
+ * Whether the member wrote anything into the draft. Its filing doesn't count, and a description
+ * the editor emptied again holds blocks without a `"text"` in them.
+ */
+const written = (draft: TicketDraft) =>
+  /"text":"[^"]/.test(draft.description) ||
+  JSON.stringify({ ...draft, pipelineId: '', statusId: '', description: '' }) !==
+    JSON.stringify(NO_TICKET);
+
 const useDiscard = (draft: { value: TicketDraft; clear: () => void }, onCancel: () => void) => {
   const { t } = useTranslation('frontline');
   const { confirm } = useConfirm();
 
   return () =>
     void (
-      JSON.stringify(draft.value) === JSON.stringify(NO_TICKET)
+      !written(draft.value)
         ? Promise.resolve()
         : confirm({
             message: t('discard-ticket', 'Discard this new ticket?'),
@@ -250,12 +259,18 @@ const LabelRows = ({
 export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
   const { pipelines } = useChoices();
-  const draft = useDraft(ticketDrafts, 'new', NO_TICKET);
+  // One draft per place it opens from, so "+" on a status never brings back another's draft.
+  const opener = textOf(defaults.statusId) || textOf(defaults.pipelineId);
+  const draft = useDraft(ticketDrafts, opener || 'new', NO_TICKET);
   const discard = useDiscard(draft, onCancel);
   const { pipelineId: picked, statusId: pickedStatus, name, description, ...fields } = draft.value;
   const pipelineId = picked || textOf(defaults.pipelineId) || (pipelines[0]?.id ?? '');
   const statusId = picked ? pickedStatus : textOf(defaults.statusId);
-  const save = (patch: Partial<TicketDraft>) => draft.save((last) => ({ ...last, ...patch }));
+
+  // Every save pins the filing the form shows, so its properties never follow another pipeline.
+  const save = (patch: Partial<TicketDraft>) =>
+    draft.save((last) => ({ ...last, pipelineId, statusId, ...patch }));
+
   const { onSuccess } = useTicketChange();
 
   const create = useMutation(
@@ -289,7 +304,7 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
           pipelineId={pipelineId}
           statusId={statusId}
           onPipeline={(next) => save({ pipelineId: next, statusId: '', propertiesData: {} })}
-          onStatus={(next) => save({ pipelineId, statusId: next })}
+          onStatus={(next) => save({ statusId: next })}
         />
         <TextRow
           label={t('name', 'Name')}
