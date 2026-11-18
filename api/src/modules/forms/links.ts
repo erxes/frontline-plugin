@@ -1,19 +1,13 @@
-import { hkdfSync } from 'node:crypto';
 import type { CoreCall, PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { asc, eq } from 'drizzle-orm';
-import { jwtVerify, SignJWT } from 'jose';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { FORM_LINK_DAYS, PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { forms } from '#/db/forms.ts';
 import { keyOfOrganization } from '../public.ts';
-
-/** The form links' signing key, derived from the plugin's secret so it needs no setting of its own. */
-const secret = new Uint8Array(
-  hkdfSync('sha256', config.pluginSecret, '', 'frontline form links', 32),
-);
+import { readToken, signToken } from '../tokens.ts';
 
 /**
  * What a form link vouches for. It comes only from a token this API signed, so the visitor
@@ -32,12 +26,9 @@ export type FormLink = z.infer<typeof FormLink>;
 
 /** The link a token names, or null when it is forged, expired or made for another form. */
 export const formLinkOf = async (token: string, orgId: string, formId: string) => {
-  const verified = await jwtVerify(token, secret, { algorithms: ['HS256'] }).catch(() => null);
-  const link = FormLink.safeParse(verified?.payload);
+  const link = await readToken('form links', token, FormLink);
 
-  return link.success && link.data.orgId === orgId && link.data.formId === formId
-    ? link.data
-    : null;
+  return link?.orgId === orgId && link.formId === formId ? link : null;
 };
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -102,18 +93,18 @@ export const createFormLink = async (call: CoreCall, body: unknown, key: string)
   const about = event?.entityType && event.entityId ? event : null;
   const expiresAt = new Date(Date.now() + input.expiresInDays * DAY);
 
-  const token = await new SignJWT({
-    orgId: call.orgId,
-    formId: form.id,
-    linkId: key,
-    customerId: event?.subjectType === 'customer' ? (event.subjectId ?? null) : null,
-    referenceType: about?.entityType ?? null,
-    referenceId: about?.entityId ?? null,
-  } satisfies FormLink)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime(expiresAt)
-    .sign(secret);
+  const token = await signToken(
+    'form links',
+    {
+      orgId: call.orgId,
+      formId: form.id,
+      linkId: key,
+      customerId: event?.subjectType === 'customer' ? (event.subjectId ?? null) : null,
+      referenceType: about?.entityType ?? null,
+      referenceId: about?.entityId ?? null,
+    } satisfies FormLink,
+    expiresAt,
+  );
 
   const path = `/forms/${encodeURIComponent(publicKey)}/${encodeURIComponent(form.code)}`;
 

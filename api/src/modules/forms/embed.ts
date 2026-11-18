@@ -108,7 +108,8 @@ const Params = z.object({ key: z.string().max(100), code: z.string().max(100) })
 const Submit = z.object({ answers: VisitorAnswers, link: z.string().min(1).max(4000).optional() });
 
 /** Whom a form's file receipts are for: that form, so an upload attaches to no other. */
-const ownerOf = (organizationId: string, formId: string) => `form ${organizationId} ${formId}`;
+const formReceiptOwner = (organizationId: string, formId: string) =>
+  `form ${organizationId} ${formId}`;
 
 /**
  * The visitor's answers with each file field's receipts swapped for the files they name, and
@@ -223,7 +224,7 @@ const submit = async (req: Request, res: Response) => {
     return;
   }
 
-  const owner = ownerOf(route.organizationId, found.form.id);
+  const owner = formReceiptOwner(route.organizationId, found.form.id);
   const withFileAnswers = await withFiles(owner, found.fields, body.data.answers);
   const { values, errors } = checkAnswers(found.fields, withFileAnswers.values);
 
@@ -349,7 +350,7 @@ const upload = async (req: Request, res: Response) => {
     }
 
     const file = await storeFile(route.organizationId, uploadOf(req));
-    const owner = ownerOf(route.organizationId, found.form.id);
+    const owner = formReceiptOwner(route.organizationId, found.form.id);
     const reply: Uploaded = { ...file, receipt: await receiptOf(owner, file) };
 
     res.status(201).json(reply);

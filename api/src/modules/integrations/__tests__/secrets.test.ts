@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { z } from 'zod';
-import { openSecret, readToken, sameText, sealSecret, signToken } from '../secrets.ts';
+import { readToken, signToken } from '../../tokens.ts';
+import { openSecret, sameText, sealSecret } from '../secrets.ts';
 
 const Secret = z.object({ token: z.string() });
 
@@ -17,17 +18,24 @@ describe('secrets', () => {
     expect(() => openSecret('org-a', 'plain-token', Secret)).toThrow('Unknown secret format');
   });
 
-  it('reads back the tokens it signed for the same purpose', async () => {
+  it('reads back the tokens it signed for the same purpose and subject', async () => {
     const State = z.object({ orgId: z.string() });
-    const token = await signToken('meta-login', { orgId: 'org-a' }, '10m');
+    const token = await signToken('meta login', { orgId: 'org-a' }, '10m');
 
-    await expect(readToken('meta-login', token, State)).resolves.toEqual({ orgId: 'org-a' });
-    await expect(readToken('other', token, State)).resolves.toBeNull();
-    await expect(readToken('meta-login', `${token}x`, State)).resolves.toBeNull();
+    await expect(readToken('meta login', token, State)).resolves.toEqual({ orgId: 'org-a' });
+    await expect(readToken('form links', token, State)).resolves.toBeNull();
+    await expect(readToken('meta login', `${token}x`, State)).resolves.toBeNull();
 
-    const expired = await signToken('meta-login', { orgId: 'org-a' }, '-1s');
+    const expired = await signToken('meta login', { orgId: 'org-a' }, '-1s');
 
-    await expect(readToken('meta-login', expired, State)).resolves.toBeNull();
+    await expect(readToken('meta login', expired, State)).resolves.toBeNull();
+
+    const receipt = await signToken('file receipts', { orgId: 'org-a' }, '1d', 'form f1');
+
+    await expect(readToken('file receipts', receipt, State, 'form f1')).resolves.toEqual({
+      orgId: 'org-a',
+    });
+    await expect(readToken('file receipts', receipt, State, 'form f2')).resolves.toBeNull();
   });
 
   it('compares text in constant time and refuses anything else', () => {

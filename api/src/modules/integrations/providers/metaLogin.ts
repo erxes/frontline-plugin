@@ -4,13 +4,13 @@ import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { writes } from '#/orpc.ts';
+import { readToken, signToken } from '../../tokens.ts';
 import { inOrder } from '../provider.ts';
 import { metaKey, saveAccount } from '../store.ts';
-import { readToken, signToken } from '../secrets.ts';
 import { GRAPH_VERSION, graph } from './meta.ts';
 import { routeThroughRelay } from './metaRelay.ts';
 
-const STATE = 'meta-login';
+const STATE = 'meta login';
 
 /**
  * What the pages need: Messenger and Instagram messages, comments and replies to them, posts,

@@ -1,16 +1,9 @@
-import { hkdfSync } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
-import { jwtVerify, SignJWT } from 'jose';
 import { z } from 'zod';
-import { config } from '#/config.ts';
 import { filesOf } from '../files.ts';
 import { INTEGRATION_KEY } from '../inbox/integrations.ts';
 import { openedBy } from '../public.ts';
-
-/** The visitor tokens' signing key, derived from the plugin's secret so it needs no setting of its own. */
-const secret = new Uint8Array(
-  hkdfSync('sha256', config.pluginSecret, '', 'frontline messenger visitors', 32),
-);
+import { readToken, signToken } from '../tokens.ts';
 
 /** Who a visitor is: the organisation, the messenger and the core customer behind them. */
 export const Visitor = z.object({
@@ -29,30 +22,19 @@ export const Visitor = z.object({
 export type Visitor = z.output<typeof Visitor>;
 
 /** A signed token naming the visitor, which the messenger keeps and sends back. */
-export const tokenOf = (visitor: Visitor) =>
-  new SignJWT(visitor)
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('180d')
-    .sign(secret);
+export const tokenOf = (visitor: Visitor) => signToken('messenger visitors', visitor, '180d');
 
-/** The visitor a token names, or null when it is forged, expired or for another messenger. */
-export const visitorOf = async (token: string | undefined) => {
-  if (!token) return null;
-
-  const verified = await jwtVerify(token, secret, { algorithms: ['HS256'] }).catch(() => null);
-  const visitor = Visitor.safeParse(verified?.payload);
-
-  return visitor.success ? visitor.data : null;
-};
+/** The visitor a token names, or null when it is forged or expired. */
+export const visitorOf = async (token: string | undefined) =>
+  token ? readToken('messenger visitors', token, Visitor) : null;
 
 /** Whom a visitor's file receipts are for: that customer, on that messenger. */
-export const ownerOf = (visitor: Visitor) =>
+export const visitorReceiptOwner = (visitor: Visitor) =>
   `messenger ${visitor.integrationId} ${visitor.customerId}`;
 
 /** The files the visitor's receipts name; a forged, expired or foreign one is refused. */
 export const attachmentsOf = async (visitor: Visitor, receipts: string[]) => {
-  const files = await filesOf(ownerOf(visitor), receipts);
+  const files = await filesOf(visitorReceiptOwner(visitor), receipts);
 
   if (!files) throw new ORPCError('BAD_REQUEST', { message: 'Attach the file again' });
 

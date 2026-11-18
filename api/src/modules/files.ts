@@ -1,11 +1,10 @@
-import { hkdfSync } from 'node:crypto';
 import { Readable } from 'node:stream';
 import express, { type Request, type Response } from 'express';
-import { jwtVerify, SignJWT } from 'jose';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { core } from '#/core.ts';
 import { Attachment } from '#/db/table.ts';
+import { readToken, signToken } from './tokens.ts';
 
 /**
  * Stores `bytes` as a file of the organisation in core, and gives it as records keep their files
@@ -114,44 +113,24 @@ export const uploadOf = (req: Request) => {
   });
 };
 
-/** The receipts' signing key, derived from the plugin's secret so it needs no setting of its own. */
-const receiptKey = new Uint8Array(
-  hkdfSync('sha256', config.pluginSecret, '', 'frontline file receipts', 32),
-);
-
-/** What a receipt's audience says, so no other token of the plugin passes for one. */
-const RECEIPT = 'frontline file';
-
 /**
  * A signed receipt for a file a signed-out visitor uploaded, for `owner`: the visitor or form
  * that may attach it. What they send attaches files by receipt only, never by address, so it
  * carries only files they uploaded.
  */
 export const receiptOf = (owner: string, file: Attachment) =>
-  new SignJWT({ file })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setAudience(RECEIPT)
-    .setSubject(owner)
-    .setIssuedAt()
-    .setExpirationTime('1d')
-    .sign(receiptKey);
+  signToken('file receipts', { file }, '1d', owner);
 
-/** The file a receipt names, or null when it is forged, expired or someone else's. */
-export const fileOf = async (owner: string, receipt: string) => {
-  const verified = await jwtVerify(receipt, receiptKey, {
-    algorithms: ['HS256'],
-    audience: RECEIPT,
-    subject: owner,
-  }).catch(() => null);
+const Receipt = z.object({ file: Attachment });
 
-  const parsed = z.object({ file: Attachment }).safeParse(verified?.payload);
-
-  return parsed.success ? parsed.data.file : null;
-};
-
-/** The files `receipts` name for `owner`, or null when any of them is no good. */
+/** The files `receipts` name for `owner`, or null when any is forged, expired or someone else's. */
 export const filesOf = async (owner: string, receipts: string[]) => {
-  const files = await Promise.all(receipts.map((receipt) => fileOf(owner, receipt)));
+  const files = await Promise.all(
+    receipts.map(
+      async (receipt) => (await readToken('file receipts', receipt, Receipt, owner))?.file ?? null,
+    ),
+  );
+
   const good = files.filter((file) => file !== null);
 
   return good.length === receipts.length ? good : null;
