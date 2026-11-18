@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [postgre]
+    branches: [main]
   pull_request:
     # labeled: the budget-increase label reruns the budget check.
     types: [opened, synchronize, reopened, labeled, unlabeled]
@@ -129,7 +129,7 @@ jobs:
   push:
     name: Push the image to Docker Hub
     needs: required
-    if: github.event_name == 'push' && github.ref == 'refs/heads/postgre'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions: {}
@@ -141,11 +141,11 @@ jobs:
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Tag and push sha-<12 chars> and postgre
+      - name: Tag and push sha-<12 chars> and main
         run: |
           gunzip -c frontline-plugin.tar.gz | docker load
           image=docker.io/erxes/frontline-plugin
-          for tag in "sha-${GITHUB_SHA::12}" postgre; do
+          for tag in "sha-${GITHUB_SHA::12}" main; do
             docker tag frontline-plugin:ci "$image:$tag"
             docker push "$image:$tag"
           done
