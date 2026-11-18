@@ -278,5 +278,10 @@ export const formAnswers = table(
       t.fieldId,
     ),
     index('frontline_form_answers_org_field_idx').on(t.orgId, t.fieldId),
+    // The submissions' search matches an answer anywhere in it, as text.
+    index('frontline_form_answers_value_trgm_idx').using(
+      'gin',
+      sql`(${t.value}::text) gin_trgm_ops`,
+    ),
   ],
 );

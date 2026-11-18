@@ -78,6 +78,11 @@ export const conversations = table(
       .array()
       .notNull()
       .default(sql`'{}'`),
+    /** The members its messages mention, for the Mentions queue and filter. */
+    mentionedUserIds: text()
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
     /** The members who read it since the customer last wrote. */
     readBy: text()
       .array()
@@ -122,8 +127,17 @@ export const conversations = table(
       t.id.desc(),
     ),
     index('frontline_conversations_org_channel_status_idx').on(t.orgId, t.channelId, t.status),
+    // The sidebar's unread counts, which only open conversations make.
+    index('frontline_conversations_org_channel_open_idx')
+      .on(t.orgId, t.channelId)
+      .where(sql`${t.status} <> 'resolved'`),
     index('frontline_conversations_org_customer_idx').on(t.orgId, t.customerId),
     index('frontline_conversations_org_assignee_idx').on(t.orgId, t.assigneeId),
+    // Reports count the conversations started in a period.
+    index('frontline_conversations_org_created_idx').on(t.orgId, t.createdAt),
+    index('frontline_conversations_mentioned_user_ids_idx').using('gin', t.mentionedUserIds),
+    // The list's search matches the last message anywhere in it.
+    index('frontline_conversations_content_trgm_idx').using('gin', t.content.op('gin_trgm_ops')),
     check('frontline_conversations_status_check', sql`${t.status} in ('new', 'open', 'resolved')`),
     check('frontline_conversations_operator_check', sql`${t.operator} in ('bot', 'person')`),
   ],
@@ -192,6 +206,8 @@ export const messages = table(
       t.id.desc(),
     ),
     index('frontline_messages_reply_to_idx').on(t.replyToId),
+    // Reports count the replies of a period.
+    index('frontline_messages_org_created_idx').on(t.orgId, t.createdAt),
     check('frontline_messages_author_check', sql`${t.customerId} is null or ${t.userId} is null`),
     check(
       'frontline_messages_delivery_status_check',

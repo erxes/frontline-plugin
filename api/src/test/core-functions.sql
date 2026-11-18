@@ -1,6 +1,9 @@
 -- Core's tenant functions, which plugin migrations call, as erxes
 -- packages/db/drizzle defines them. Tests and tools/check-rls.sh install them
 -- in their throwaway databases.
+-- Core's 0037_field_values_and_search.sql makes pg_trgm, whose operator classes the
+-- plugin's search indexes use.
+CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE OR REPLACE FUNCTION core_tenant_visible(p_org_id text) RETURNS boolean
 LANGUAGE sql STABLE AS $$
   SELECT p_org_id = current_setting('app.org_id', true)

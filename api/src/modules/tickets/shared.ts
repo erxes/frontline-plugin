@@ -153,23 +153,8 @@ const prefixOf = (config: string, day: Date) =>
     .replaceAll('{month}', String(day.getUTCMonth() + 1).padStart(2, '0'))
     .replaceAll('{day}', String(day.getUTCDate()).padStart(2, '0'));
 
-/**
- * The next `count` numbers of the pipeline's tickets, or nulls when it doesn't number them.
- * Holds the pipeline, so tickets made at once get distinct numbers; the sequence goes on from
- * the highest number with today's prefix, so imported tickets keep theirs.
- */
-export const nextNumbers = async (tx: Tx, pipelineId: string, count: number) => {
-  const [pipeline] = await tx
-    .select({ numberConfig: pipelines.numberConfig, numberSize: pipelines.numberSize })
-    .from(pipelines)
-    .where(eq(pipelines.id, pipelineId))
-    .for('update');
-
-  const size = pipeline?.numberSize;
-
-  if (!size) return Array.from({ length: count }, () => null);
-
-  const prefix = prefixOf(pipeline.numberConfig ?? '', new Date());
+/** The highest number of the pipeline's tickets with `prefix`, or null when none has one. */
+const highestNumber = async (tx: Tx, pipelineId: string, prefix: string) => {
   const tail = sql`substring(${tickets.number} from ${prefix.length + 1}::int)`;
 
   const [last] = await tx
@@ -183,7 +168,48 @@ export const nextNumbers = async (tx: Tx, pipelineId: string, count: number) => 
       ),
     );
 
-  const start = last?.value == null ? 0 : Number(last.value) + 1;
+  return last?.value == null ? null : Number(last.value);
+};
+
+/**
+ * The next `count` numbers of the pipeline's tickets, or nulls when it doesn't number them.
+ * Holds the pipeline, so tickets made at once get distinct numbers, and counts on from its
+ * `lastNumber`. A new prefix, such as a new day's, goes on from the highest number its tickets
+ * have, so imported tickets keep theirs.
+ */
+export const nextNumbers = async (tx: Tx, pipelineId: string, count: number) => {
+  const [pipeline] = await tx
+    .select({
+      numberConfig: pipelines.numberConfig,
+      numberSize: pipelines.numberSize,
+      lastNumber: pipelines.lastNumber,
+      lastNumberPrefix: pipelines.lastNumberPrefix,
+    })
+    .from(pipelines)
+    .where(eq(pipelines.id, pipelineId))
+    .for('update');
+
+  const size = pipeline?.numberSize;
+
+  if (!size) return Array.from({ length: count }, () => null);
+
+  const prefix = prefixOf(pipeline.numberConfig ?? '', new Date());
+
+  const last =
+    pipeline.lastNumberPrefix === prefix
+      ? pipeline.lastNumber
+      : await highestNumber(tx, pipelineId, prefix);
+
+  const start = last === null ? 0 : last + 1;
+
+  await tx
+    .update(pipelines)
+    .set({
+      lastNumber: start + count - 1,
+      lastNumberPrefix: prefix,
+      updatedAt: sql`${pipelines.updatedAt}`,
+    })
+    .where(eq(pipelines.id, pipelineId));
 
   return Array.from(
     { length: count },
