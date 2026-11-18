@@ -1,0 +1,37 @@
+name: PR
+
+# What CI can't build or run: the PR itself. Apart from CI so a body edit reruns only this.
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened, labeled, unlabeled]
+
+permissions: {}
+
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  # 48 of the first 76 merged PRs showed no screenshot, and the bugs on screen shipped with
+  # them. A PR that changes a component in ui/ or widget/ shows one, or says with the
+  # no-screen-change label that nothing on screen moves.
+  screenshot:
+    name: Screenshot
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      pull-requests: read
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+          BODY: ${{ github.event.pull_request.body }}
+          LABELED: ${{ contains(github.event.pull_request.labels.*.name, 'no-screen-change') }}
+        run: |
+          files=$(gh api "repos/$REPO/pulls/$NUMBER/files" --paginate --jq '.[].filename')
+          grep -qE '^(ui|widget)/src/.+\.tsx$' <<< "$files" || exit 0
+          [ "$LABELED" = true ] && exit 0
+          grep -qE '!\[[^]]*\]\([^)]+\)|<img ' <<< "$BODY" && exit 0
+          echo "::error::This PR changes a screen in ui/ or widget/. Put a screenshot of each changed screen in its body, or add the no-screen-change label if nothing on screen moves."
+          exit 1

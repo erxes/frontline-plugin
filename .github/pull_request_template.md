@@ -4,7 +4,7 @@
 
 ## Evidence
 
-<!-- From the verify skill: what you saw at each step, the refusal included, and screenshots. "Tests pass" is not evidence. -->
+<!-- From the verify skill: what you saw at each step, the refusal included, and a screenshot of each changed screen at 1280×800, empty and with data. "Tests pass" is not evidence. -->
 
 ## Made with
 
