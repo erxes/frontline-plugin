@@ -87,10 +87,18 @@ const buildFields = async (page: Page) => {
   // Fields drag into a new order, and the keyboard drags them too: Seats goes above Plan and back.
   const first = page.getByRole('button', { name: /^Settings of/ }).first();
 
+  // Each key waits for the screen reader announcement, since dnd-kit listens for the next key
+  // only after it.
+  const announcement = page.getByText(/was moved over droppable area/);
   const moveSeats = async (key: 'ArrowUp' | 'ArrowDown') => {
-    await page.getByRole('button', { name: 'Move Seats' }).focus();
-    await page.keyboard.press('Space');
+    const handle = page.getByRole('button', { name: 'Move Seats', exact: true });
+
+    await handle.press('Space');
+    await expect(handle).toHaveAttribute('aria-pressed', 'true');
+    const overItself = await announcement.textContent();
+
     await page.keyboard.press(key);
+    await expect(announcement).not.toHaveText(overItself ?? '');
     await page.keyboard.press('Space');
   };
 
