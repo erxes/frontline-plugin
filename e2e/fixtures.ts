@@ -81,6 +81,8 @@ export const createPipeline = async (page: Page, name = `Returns ${unique()}`) =
   const panel = recordPanel(page);
 
   await page.getByRole('button', { name: 'Create pipeline' }).click();
+  // The draft replaces whatever record the panel held, whose fields also match Name.
+  await expect(panel.getByRole('button', { name: 'Create pipeline' })).toBeVisible();
   await panel.getByLabel('Name').fill(name);
   await panel.getByRole('button', { name: 'Create pipeline' }).click();
   await expect(panel.getByRole('button', { name: `Name ${name}` })).toBeVisible();
