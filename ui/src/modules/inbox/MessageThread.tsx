@@ -1,5 +1,5 @@
-import { IconPin } from '@tabler/icons-react';
-import { Button, ScrollArea, Skeleton, toIsoDay, useFormat } from 'erxes-ui';
+import { IconArrowDown, IconPin } from '@tabler/icons-react';
+import { Button, cn, ScrollArea, Skeleton, Spinner, toIsoDay, useFormat } from 'erxes-ui';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type CustomContainerComponentProps, Virtualizer, type VirtualizerHandle } from 'virtua';
@@ -94,31 +94,117 @@ const usePrepended = (messages: Message[]) => {
   return seen.prepended;
 };
 
+/** How near the end the reader has to be for a new message to scroll the thread to it. */
+const FOLLOW_PX = 120;
+
+/** How near the top the reader has to scroll for the earlier messages to load. */
+const EARLIER_PX = 400;
+
 /**
- * The open conversation's messages, oldest at the top under a divider for each day, scrolled to
- * the newest as one arrives; earlier ones load on demand. Only the messages in view and a few
- * around them render.
+ * Below the thread while the reader is up in its history: how many messages came since, or a way
+ * back to the newest. It fades in, so it doesn't jump at a reader who scrolled up a line.
+ */
+const LatestButton = ({
+  shown,
+  unseen,
+  onClick,
+}: {
+  shown: boolean;
+  unseen: number;
+  onClick: () => void;
+}) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <div
+      inert={!shown}
+      className={cn(
+        'pointer-events-none absolute inset-x-0 bottom-3 flex justify-center transition duration-150 ease-out motion-reduce:transition-none',
+        shown ? 'opacity-100' : 'translate-y-1 opacity-0',
+      )}
+    >
+      <Button variant="secondary" size="sm" className="pointer-events-auto" onClick={onClick}>
+        <IconArrowDown />
+        {unseen > 0
+          ? t('new-messages', '{{count}} new messages', {
+              count: unseen,
+              defaultValue_one: '{{count}} new message',
+            })
+          : t('latest-messages', 'Latest messages')}
+      </Button>
+    </div>
+  );
+};
+
+/**
+ * Where the reader is in the thread. A new message scrolls into view while they sit at the end,
+ * or when the member sent it; a reader up in the history stays put, and `unseen` counts what came
+ * below. Earlier messages load as the reader nears the top.
+ */
+const useReader = (thread: ReturnType<typeof useMessages>) => {
+  const { messages } = thread;
+  const rows = useRef<VirtualizerHandle>(null);
+  // While the newest messages are dropped for older ones, the last shown is no new arrival.
+  const last = thread.hasPreviousPage ? undefined : messages.at(-1);
+  const lastId = last?.id;
+  // The member's own message, from the composer, always scrolls into view.
+  const sentByMe = Boolean(last && !last.customerId && last.canEdit);
+  const [atEnd, setAtEnd] = useState(true);
+  const following = useRef(true);
+  // The newest message the reader has had in view; what came after it counts as new.
+  const [seenId, setSeenId] = useState(lastId);
+
+  if (atEnd && seenId !== lastId) setSeenId(lastId);
+
+  const seenAt = messages.findIndex((message) => message.id === seenId);
+  const unseen = atEnd || seenAt === -1 ? 0 : messages.length - 1 - seenAt;
+
+  // virtua clamps the index to the last message and scrolls again once it measured the rows.
+  useEffect(() => {
+    if (lastId && (following.current || sentByMe))
+      rows.current?.scrollToIndex(Infinity, { align: 'end' });
+  }, [lastId, sentByMe]);
+
+  const onScroll = (offset: number) => {
+    const handle = rows.current;
+
+    if (!handle) return;
+
+    const end = handle.scrollSize - offset - handle.viewportSize < FOLLOW_PX;
+
+    following.current = end;
+    setAtEnd(end);
+
+    if (offset < EARLIER_PX && thread.hasNextPage && !thread.isFetchingNextPage)
+      void thread.fetchNextPage();
+  };
+
+  return {
+    rows,
+    onScroll,
+    atEnd,
+    unseen,
+    toEnd: () => rows.current?.scrollToIndex(Infinity, { align: 'end' }),
+  };
+};
+
+/**
+ * The open conversation's messages, oldest at the top under a divider for each day, following
+ * the newest as `useReader` says. Only the messages in view and a few around them render.
  */
 export const MessageThread = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const thread = useMessages(conversation.id);
-  const { messages, isPending, hasNextPage, fetchNextPage } = thread;
+  const { messages, isPending, hasNextPage } = thread;
   const customer = useCustomer(conversation.customerId);
   const viewport = useRef<HTMLDivElement>(null);
-  const rows = useRef<VirtualizerHandle>(null);
   const shift = usePrepended(messages);
-  // While the newest messages are dropped for older ones, the last shown is no new arrival.
-  const lastId = thread.hasPreviousPage ? undefined : messages.at(-1)?.id;
-
-  // virtua clamps the index to the last message and scrolls again once it measured the rows.
-  useEffect(() => {
-    if (lastId) rows.current?.scrollToIndex(Infinity, { align: 'end' });
-  }, [lastId]);
+  const { rows, onScroll, atEnd, unseen, toEnd } = useReader(thread);
 
   return (
     <>
       <Pinned conversationId={conversation.id} />
-      <ScrollArea.Root className="min-h-0 flex-1">
+      <ScrollArea.Root className="relative min-h-0 flex-1">
         <ScrollArea.Viewport ref={viewport}>
           {thread.error && messages.length === 0 ? (
             <p role="alert" className="p-6 text-center text-sm text-destructive-text">
@@ -139,20 +225,15 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
                 shift={shift}
                 as={MessageList}
                 item="li"
+                onScroll={onScroll}
               >
                 {(message, index) => (
                   <Fragment key={message.id}>
                     {/* The thread's edges sit inside its first and last rows, so virtua's offsets count them. */}
                     {index === 0 && (
-                      <div className="pt-6">
+                      <div className="flex h-12 items-start justify-center pt-6">
                         {hasNextPage && (
-                          <Button
-                            variant="ghost"
-                            className="mb-3"
-                            onClick={() => void fetchNextPage()}
-                          >
-                            {t('earlier-messages', 'Earlier messages')}
-                          </Button>
+                          <Spinner aria-label={t('earlier-messages', 'Earlier messages')} />
                         )}
                       </div>
                     )}
@@ -175,6 +256,7 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
           <LoadPage paging={thread} newer />
         </ScrollArea.Viewport>
         <ScrollArea.Bar />
+        <LatestButton shown={!atEnd && messages.length > 0} unseen={unseen} onClick={toEnd} />
       </ScrollArea.Root>
     </>
   );
