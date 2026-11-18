@@ -13,6 +13,25 @@ export const PageInput = {
   limit: z.number().int().min(1).max(50).default(50),
 };
 
+/** What a counted list returns beside its rows. */
+export const PageOutput = {
+  nextCursor: z.string().nullable(),
+  /** How many rows match. Only the first page counts them; a later one leaves it out. */
+  totalCount: z.number().optional(),
+};
+
+/** How many rows `counted` finds, on the first page only (no `cursor`). */
+export const firstPageCount = async (
+  cursor: string | undefined,
+  counted: () => PromiseLike<{ value: number }[]>,
+) => {
+  if (cursor) return undefined;
+
+  const [total] = await counted();
+
+  return total?.value ?? 0;
+};
+
 /** What a cursor holds: the last row's date as Postgres prints it, to the microsecond, and its id. */
 const Cursor = z.tuple([z.string(), z.string()]);
 

@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server';
 import {
   and,
   asc,
+  count,
   eq,
   getTableColumns,
   ilike,
@@ -22,7 +23,7 @@ import { canChangeSql, channelFor, managesAll, membership } from '../channels/ac
 import { Blank, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
-import { orderOf, PageInput } from '../paging.ts';
+import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 import { statusRights } from './rights.ts';
 
 /** Core user ids a setting lists. */
@@ -122,8 +123,7 @@ const list = reads(PERMISSIONS.channelView)
   .output(
     z.object({
       pipelines: z.array(Pipeline),
-      nextCursor: z.string().nullable(),
-      totalCount: z.number(),
+      ...PageOutput,
     }),
   )
   .handler(async ({ input, context: { tx, member } }) => {
@@ -147,7 +147,13 @@ const list = reads(PERMISSIONS.channelView)
 
     const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
-    return { pipelines: items, nextCursor, totalCount: await tx.$count(pipelines, matches) };
+    return {
+      pipelines: items,
+      nextCursor,
+      totalCount: await firstPageCount(input.cursor, () =>
+        tx.select({ value: count() }).from(pipelines).where(matches),
+      ),
+    };
   });
 
 /** One pipeline. */

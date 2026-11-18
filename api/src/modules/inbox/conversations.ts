@@ -16,7 +16,7 @@ import { reads, readsWithCore, writes } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, filtersBy, likeText } from '../filter.ts';
-import { orderOf, PageInput } from '../paging.ts';
+import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 import {
   Conversation,
   conversationById,
@@ -71,8 +71,7 @@ const list = readsWithCore(
   .output(
     z.object({
       conversations: z.array(Conversation),
-      nextCursor: z.string().nullable(),
-      totalCount: z.number(),
+      ...PageOutput,
     }),
   )
   .handler(async ({ input, context: { tx, member, fromCore: customerIds } }) => {
@@ -95,16 +94,18 @@ const list = readsWithCore(
       .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
-    const [total] = await tx
-      .select({ value: count() })
-      .from(conversations)
-      .innerJoin(integrations, eq(integrations.id, conversations.integrationId))
-      .leftJoin(channelMembers, membership(member, conversations.channelId))
-      .where(matches);
+    const totalCount = await firstPageCount(input.cursor, () =>
+      tx
+        .select({ value: count() })
+        .from(conversations)
+        .innerJoin(integrations, eq(integrations.id, conversations.integrationId))
+        .leftJoin(channelMembers, membership(member, conversations.channelId))
+        .where(matches),
+    );
 
     const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
-    return { conversations: items, nextCursor, totalCount: total?.value ?? 0 };
+    return { conversations: items, nextCursor, totalCount };
   });
 
 /** One conversation, for the members of its channel. */

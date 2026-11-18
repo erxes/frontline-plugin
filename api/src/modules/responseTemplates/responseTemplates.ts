@@ -10,7 +10,7 @@ import { reads, writes } from '#/orpc.ts';
 import { channelFor, managesAll } from '../channels/access.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
-import { orderOf, PageInput } from '../paging.ts';
+import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 
 /** The row without `org_id`, which the caller already knows. */
 const { orgId, ...templateColumns } = getTableColumns(responseTemplates);
@@ -107,8 +107,7 @@ const list = reads(PERMISSIONS.channelView)
   .output(
     z.object({
       templates: z.array(Template),
-      nextCursor: z.string().nullable(),
-      totalCount: z.number(),
+      ...PageOutput,
     }),
   )
   .handler(async ({ input, context: { tx, member } }) => {
@@ -130,10 +129,13 @@ const list = reads(PERMISSIONS.channelView)
       .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
-    const [total] = await tx.select({ value: count() }).from(responseTemplates).where(matches);
+    const totalCount = await firstPageCount(input.cursor, () =>
+      tx.select({ value: count() }).from(responseTemplates).where(matches),
+    );
+
     const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
-    return { templates: items, nextCursor, totalCount: total?.value ?? 0 };
+    return { templates: items, nextCursor, totalCount };
   });
 
 /** One template. */

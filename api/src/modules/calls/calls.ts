@@ -16,7 +16,7 @@ import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
 import { seenBy } from '../inbox/shared.ts';
 import { queueRecording } from '../integrations/providers/call/record.ts';
-import { orderOf, PageInput } from '../paging.ts';
+import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 
 const { orgId: _orgId, ...callColumns } = getTableColumns(calls);
 
@@ -69,9 +69,7 @@ const order = orderOf(calls, calls.startedAt);
 /** The calls of the caller's channels, newest first, narrowed by the filter bar. */
 const list = reads(PERMISSIONS.callView)
   .input(z.object({ ...FilterInput, ...PageInput }))
-  .output(
-    z.object({ calls: z.array(Call), nextCursor: z.string().nullable(), totalCount: z.number() }),
-  )
+  .output(z.object({ calls: z.array(Call), ...PageOutput }))
   .handler(async ({ input, context: { tx, member } }) => {
     const matches = and(
       seenBy(member),
@@ -84,16 +82,18 @@ const list = reads(PERMISSIONS.callView)
       .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
-    const [total] = await tx
-      .select({ value: count() })
-      .from(calls)
-      .innerJoin(conversations, eq(conversations.id, calls.conversationId))
-      .leftJoin(channelMembers, membership(member, conversations.channelId))
-      .where(matches);
+    const totalCount = await firstPageCount(input.cursor, () =>
+      tx
+        .select({ value: count() })
+        .from(calls)
+        .innerJoin(conversations, eq(conversations.id, calls.conversationId))
+        .leftJoin(channelMembers, membership(member, conversations.channelId))
+        .where(matches),
+    );
 
     const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
-    return { calls: items, nextCursor, totalCount: total?.value ?? 0 };
+    return { calls: items, nextCursor, totalCount };
   });
 
 const callById = async (tx: Tx, member: PluginMember, id: string) => {

@@ -10,7 +10,7 @@ import { reads, writes } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, filtersBy, likeText } from '../filter.ts';
-import { orderOf, PageInput } from '../paging.ts';
+import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 import { pipelineFor } from '../pipelines/pipelines.ts';
 import { assertLinks } from './changes.ts';
 import { createdEvent, publish, snapshot } from './events.ts';
@@ -73,8 +73,7 @@ const list = reads(PERMISSIONS.channelView)
   .output(
     z.object({
       tickets: z.array(Ticket),
-      nextCursor: z.string().nullable(),
-      totalCount: z.number(),
+      ...PageOutput,
     }),
   )
   .handler(async ({ input, context: { tx, member } }) => {
@@ -95,15 +94,17 @@ const list = reads(PERMISSIONS.channelView)
       .orderBy(...order.orderBy)
       .limit(input.limit + 1);
 
-    const [total] = await tx
-      .select({ value: count() })
-      .from(tickets)
-      .leftJoin(channelMembers, membership(member, tickets.channelId))
-      .where(matches);
+    const totalCount = await firstPageCount(input.cursor, () =>
+      tx
+        .select({ value: count() })
+        .from(tickets)
+        .leftJoin(channelMembers, membership(member, tickets.channelId))
+        .where(matches),
+    );
 
     const { items, nextCursor } = await order.page(tx, rows, input.limit);
 
-    return { tickets: items, nextCursor, totalCount: total?.value ?? 0 };
+    return { tickets: items, nextCursor, totalCount };
   });
 
 /** One ticket, for the members of its channel. */
