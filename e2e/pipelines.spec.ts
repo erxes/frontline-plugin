@@ -3,7 +3,6 @@ import {
   confirmDelete,
   createPipeline,
   expect,
-  expectAccessible,
   openChannelPipelines,
   recordPanel,
   test,
@@ -31,11 +30,11 @@ test('a channel admin creates a pipeline and sets its ticket numbers; a member r
   const panel = recordPanel(page);
 
   await openChannelPipelines(page, teammate.fullName);
-  await expectAccessible(page);
+
   await page.getByRole('button', { name: 'Create pipeline' }).click();
   await panel.getByLabel('Name').fill('Returns');
   await panel.getByLabel('Description').fill('Refunds and exchanges');
-  await expectAccessible(page);
+
   await panel.getByRole('button', { name: 'Create pipeline' }).click();
   await expect(panel.getByRole('button', { name: 'Name Returns' })).toBeVisible();
   await expect(page.getByRole('row', { name: /Returns/ })).toBeVisible();
@@ -44,7 +43,7 @@ test('a channel admin creates a pipeline and sets its ticket numbers; a member r
   await editField(page, /^Ticket number/, 'RT-{year}-');
   await editField(page, /^Digits/, '4');
   await expect(panel.locator('output')).toContainText(`RT-${new Date().getFullYear()}-0000`);
-  await expectAccessible(page);
+
   await page.reload();
   await expect(panel.getByRole('button', { name: /^Ticket number RT-\{year\}-/ })).toBeVisible();
   await expect(panel.getByRole('button', { name: /^Digits 4/ })).toBeVisible();
@@ -54,12 +53,11 @@ test('a channel admin creates a pipeline and sets its ticket numbers; a member r
   await expect(teammate.page.getByRole('button', { name: 'Returns' })).toBeVisible();
   await expect(teammate.page.getByRole('button', { name: 'Create pipeline' })).toBeHidden();
   await expect(teammate.page.getByRole('button', { name: 'Actions for Returns' })).toBeHidden();
-  await expectAccessible(teammate.page);
+
   await teammate.page.getByRole('button', { name: 'Returns' }).click();
   await expect(
     recordPanel(teammate.page).getByRole('button', { name: /^Ticket number/ }),
   ).toBeDisabled();
-  await expectAccessible(teammate.page);
 });
 
 test("a channel admin adds, reorders, edits and deletes a pipeline's statuses", async ({
@@ -85,7 +83,6 @@ test("a channel admin adds, reorders, edits and deletes a pipeline's statuses", 
   await page.getByLabel('Status name').fill('Waiting on customer');
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(open.getByRole('listitem').last()).toContainText('Waiting on customer');
-  await expectAccessible(page);
 
   // The keyboard moves a status up its stage, and the order is saved. Each key waits for the
   // screen reader announcement, since dnd-kit listens for the next key only after it.
@@ -117,7 +114,6 @@ test("a channel admin adds, reorders, edits and deletes a pipeline's statuses", 
   await expect(theirPanel.getByRole('button', { name: 'Waiting', exact: true })).toBeDisabled();
   await expect(theirPanel.getByRole('button', { name: 'Add a status to Open' })).toBeHidden();
   await expect(theirPanel.getByRole('button', { name: 'Reorder Waiting' })).toBeHidden();
-  await expectAccessible(teammate.page);
 
   await open.getByRole('button', { name: 'Actions for Waiting' }).click();
   await page.getByRole('option', { name: 'Delete' }).click();
@@ -143,7 +139,7 @@ test("a channel admin sets a pipeline's SLA", async ({ page }) => {
   await editField(page, /^First response for Critical/, '1');
   await editField(page, /^Resolution for Critical/, '4');
   await editField(page, /^Warn before/, '0.5');
-  await expectAccessible(page);
+
   await page.reload();
   await panel.getByRole('tab', { name: 'SLA' }).click();
   await expect(panel.getByRole('switch', { name: 'Keep an SLA' })).toBeChecked();
@@ -175,7 +171,7 @@ test("a channel admin sets who sees a pipeline's tickets and who moves them, whi
   await expect(checkUser).toBeChecked();
   await panel.getByRole('switch', { name: 'New is private' }).click();
   await expect(panel.getByText('Who sees it')).toBeVisible();
-  await expectAccessible(page);
+
   await page.reload();
   await panel.getByRole('tab', { name: 'Permissions' }).click();
   await expect(checkUser).toBeChecked();
@@ -190,7 +186,6 @@ test("a channel admin sets who sees a pipeline's tickets and who moves them, whi
       name: 'Members see only tickets they created, hold or follow',
     }),
   ).toBeDisabled();
-  await expectAccessible(teammate.page);
 });
 
 test('a channel admin moves a pipeline to another channel and deletes it there', async ({
@@ -226,5 +221,4 @@ test('a member without frontline permissions is refused the pipelines', async ({
 
   await page.goto('/frontline/settings/channels/missing/pipelines');
   await expect(page.getByText('You need the frontline.channel.view permission')).toBeVisible();
-  await expectAccessible(page);
 });

@@ -39,11 +39,6 @@ test('a member answers with a response template, formats it, attaches a file and
   const thread = page.getByRole('list', { name: 'Messages' });
   const reply = page.getByRole('textbox', { name: 'Reply' });
 
-  // axe runs on each editor before its `/` menu opens: the menu leaves `aria-expanded` on the
-  // textbox (https://github.com/erxes/erxes/issues/10611). A send starts a fresh editor.
-  await expect(reply).toBeVisible();
-  await expectAccessible(page);
-
   // `/` and the template's name put the template in the reply; bold stays bold in the thread.
   await reply.click();
   await page.keyboard.type(`/${template}`);
@@ -62,8 +57,8 @@ test('a member answers with a response template, formats it, attaches a file and
 
   await expect(sent).toContainText('Refunds take five days.');
   await expect(sent.locator('strong')).toHaveText('Sorry for the wait.');
-  await expect(sent.getByRole('link', { name: 'receipt.txt' })).toBeVisible();
-  await expectAccessible(page);
+  // An attachment shows only in a thread that has one.
+  await expectAccessible(page, sent.getByRole('link', { name: 'receipt.txt' }));
 
   // The visitor reads the reply as text.
   expect(await visitor.read(conversationId)).toContain(
@@ -86,7 +81,7 @@ test('a member answers with a response template, formats it, attaches a file and
   const note = page.getByRole('textbox', { name: 'Internal note' });
 
   await expect(note).toBeVisible();
-  await expectAccessible(page);
+
   await note.click();
   await page.keyboard.type(`Please check /${teammate.fullName}`);
   await page.getByRole('button', { name: teammate.fullName, exact: true }).click();
@@ -95,7 +90,6 @@ test('a member answers with a response template, formats it, attaches a file and
   await expect(thread.getByRole('listitem', { name: 'Internal note' })).toContainText(
     `@${teammate.fullName}`,
   );
-  await expectAccessible(page);
 
   // The teammate finds it under Mentions, and gets no templates without the channel permission.
   const mentions = teammate.page

@@ -1,9 +1,8 @@
-import { z } from 'zod';
 import {
   confirmDelete,
   expect,
-  expectAccessible,
   Id,
+  messengerIn,
   openMessenger,
   openShop,
   pluginApi,
@@ -58,31 +57,21 @@ test('a visitor reads the knowledge base from its script on a website and in the
     await panel.getByRole('button', { name: /^Billing/ }).click();
     await panel.getByRole('button', { name: /^Refunds/ }).click();
     await expect(panel.getByText('Write to us within 30 days.')).toBeVisible();
-    await expectAccessible(site.shop);
   }
 
   // A messenger that offers the topic has a Help articles tab, searched in place.
   const channel = await rpc('channels/create', { name: `Site ${unique()}` }, Id);
 
-  const { publicKey } = await rpc(
-    'integrations/create',
-    {
-      channelId: channel.id,
-      kind: 'messenger',
-      name: 'Website',
-      config: { knowledgeBaseTopicId: topic.id },
-    },
-    z.object({ publicKey: z.string() }),
-  );
+  const key = await messengerIn(rpc, channel.id, { knowledgeBaseTopicId: topic.id });
 
-  await using site = await openMessenger(page.context(), publicKey);
+  await using site = await openMessenger(page.context(), key);
   const search = site.panel.getByRole('searchbox', { name: 'Search articles' });
 
   await site.panel.getByRole('button', { name: /^Help articles/ }).click();
   await search.fill('money');
   await site.panel.getByRole('button', { name: /^Refunds/ }).click();
   await expect(site.panel.getByText('Write to us within 30 days.')).toBeVisible();
-  await expectAccessible(site.shop);
+
   await site.panel.getByRole('button', { name: 'Back' }).click();
   await expect(search).toHaveValue('money');
 });
@@ -99,7 +88,7 @@ test('the owner creates a help center, edits it, sees its domain tab and deletes
   await expect(page).toHaveURL(new RegExp(`${HELP_CENTERS}$`));
   await page.getByRole('button', { name: 'Add help center' }).click();
   await panel.getByLabel('Title').fill(title);
-  await expectAccessible(page);
+
   await panel.getByRole('button', { name: 'Create help center' }).click();
 
   // It opens edited in place, with the public key its site is found by.
@@ -110,14 +99,12 @@ test('the owner creates a help center, edits it, sees its domain tab and deletes
   await page.keyboard.press('Enter');
   await expect(page.getByRole('row', { name: new RegExp(renamed) })).toBeVisible();
   await expect(panel.getByText('Look')).toBeVisible();
-  await expectAccessible(page);
 
   // The e2e stack has no Cloudflare settings, so the domain tab says so.
   await panel.getByRole('tab', { name: 'Domain' }).click();
   await expect(
     panel.getByText('Custom domains are not available on this installation.'),
   ).toBeVisible();
-  await expectAccessible(page);
 
   await panel.getByRole('button', { name: 'Help center actions' }).click();
   await page.getByRole('option', { name: 'Delete' }).click();
@@ -147,11 +134,9 @@ test('a reader sees help centers read-only, and a member without the permission 
   await reader.page.getByRole('button', { name: title, exact: true }).click();
   await expect(theirPanel.getByRole('button', { name: title }).first()).toBeDisabled();
   await expect(theirPanel.getByRole('button', { name: 'Help center actions' })).toBeHidden();
-  await expectAccessible(reader.page);
 
   await stranger.page.goto(HELP_CENTERS);
   await expect(
     stranger.page.getByText('You need the frontline.help_center.view permission'),
   ).toBeVisible();
-  await expectAccessible(stranger.page);
 });

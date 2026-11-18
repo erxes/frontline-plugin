@@ -1,12 +1,4 @@
-import {
-  confirmDelete,
-  expect,
-  expectAccessible,
-  newRecordPath,
-  recordPanel,
-  test,
-  unique,
-} from './fixtures.ts';
+import { confirmDelete, expect, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
 
 const CHANNELS = '/frontline/settings/channels';
 
@@ -32,14 +24,13 @@ test("a channel admin writes, edits and deletes the channel's response templates
   await expect(panel.getByRole('combobox', { name: 'Channel' })).toHaveText(channel);
   await panel.getByLabel('Name').fill('Greeting');
   await panel.getByRole('textbox', { name: 'Content' }).fill('Hello, thanks for writing to us.');
-  await expectAccessible(page);
+
   await panel.getByRole('button', { name: 'Create response template' }).click();
 
   // The saved template takes the draft's place in the panel.
   await expect(panel.getByText('Hello, thanks for writing to us.')).toBeVisible();
   await expect(page.getByRole('row', { name: /Greeting/ })).toBeVisible();
   await expect(page.getByText('1 record')).toBeVisible();
-  await expectAccessible(page);
 
   // The name is edited in place.
   await panel.getByRole('button', { name: 'Name Greeting', exact: true }).click();
@@ -73,7 +64,6 @@ test("a channel admin writes, edits and deletes the channel's response templates
   await expect(
     recordPanel(teammate.page).getByRole('button', { name: 'Response template actions' }),
   ).toBeHidden();
-  await expectAccessible(teammate.page);
 
   await page
     .getByRole('row', { name: /Welcome/ })
@@ -89,5 +79,4 @@ test('a member without frontline permissions is refused the templates', async ({
 
   await page.goto(`${CHANNELS}/any/response`);
   await expect(page.getByText('You need the frontline.channel.view permission')).toBeVisible();
-  await expectAccessible(page);
 });

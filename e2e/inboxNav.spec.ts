@@ -1,11 +1,10 @@
-import { z } from 'zod';
 import {
   addMessenger,
   createChannel,
   expect,
-  expectAccessible,
   Id,
   INBOX,
+  messengerIn,
   pluginApi,
   test,
   unique,
@@ -14,8 +13,6 @@ import {
 
 // A daily agent: the inbox, their channels, and core's team list to assign from.
 const MEMBER = ['frontline.inbox.view', 'frontline.channel.view', 'team.view'];
-
-const Messenger = z.object({ publicKey: z.string() });
 
 test('the sidebar’s queues and channels filter the inbox and count what waits unread, live', async ({
   page,
@@ -45,7 +42,6 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
     .getByRole('link', { name: new RegExp(`^${channel}`) });
 
   await expect(channelLink.getByLabel('1 unread')).toBeVisible();
-  await expectAccessible(member);
 
   // Another conversation in the channel raises its count without a reload.
   await visitor.write(`Where is my parcel ${unique()}`);
@@ -62,7 +58,6 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   await expect(row).toBeVisible();
   await queues.getByRole('link', { name: /^Awaiting response/ }).click();
   await expect(row).toBeVisible();
-  await expectAccessible(member);
 
   // Opening it reads it. Mentions filters by the member's mentions; a second click clears it.
   await row.click();
@@ -104,13 +99,9 @@ test('My inbox and Team inbox split the member’s channels; quiet ones fold, a 
     Promise.all(Array.from({ length: 8 }, async () => (await channelOf()).name)),
   ]);
 
-  const { publicKey } = await rpc(
-    'integrations/create',
-    { channelId: busyId, kind: 'messenger', name: 'Website', config: { welcome: 'Hi' } },
-    Messenger,
-  );
+  const key = await messengerIn(rpc, busyId, { welcome: 'Hi' });
 
-  await (await visitorOf(request, publicKey)).write(`Hello ${unique()}`);
+  await (await visitorOf(request, key)).write(`Hello ${unique()}`);
 
   const member = teammate.page;
   const first = quiet.at(0) ?? '';
@@ -129,7 +120,6 @@ test('My inbox and Team inbox split the member’s channels; quiet ones fold, a 
   await expect(team.getByRole('link', { name: /^Personal inbox/ })).toBeHidden();
   await expect(link(busy).getByLabel('1 unread')).toBeVisible();
   await expect(link(first)).toBeHidden();
-  await expectAccessible(member);
 
   // The quiet channels fold behind one row, and come back.
   await team.getByRole('button', { name: '8 quiet channels' }).click();
@@ -168,5 +158,4 @@ test('a member without the inbox permission gets the Inbox link and none of its 
   await expect(page.getByRole('list', { name: 'Work queue' })).toBeHidden();
   await expect(page.getByRole('list', { name: 'My inbox' })).toBeHidden();
   await expect(page.getByRole('list', { name: 'Team inbox' })).toBeHidden();
-  await expectAccessible(page);
 });

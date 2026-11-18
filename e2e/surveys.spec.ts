@@ -30,7 +30,6 @@ const newSurvey = async (page: Page, channel: string, title: string) => {
     await page.keyboard.press('Enter');
   }
 
-  await expectAccessible(page);
   await panel.getByRole('button', { name: 'Create survey' }).click();
   await expect(panel.getByRole('button', { name: `Title ${title}`, exact: true })).toBeVisible();
 };
@@ -59,14 +58,12 @@ test('an admin writes a survey, edits its questions and reads its results, which
   await expect(
     panel.getByRole('button', { name: 'Would you call again?', exact: true }),
   ).toBeVisible();
-  await expectAccessible(page);
 
   await panel.getByRole('tab', { name: 'Results' }).click();
   const results = panel.getByRole('tabpanel', { name: 'Results' });
 
   await expect(results.getByText('0 voters')).toBeVisible();
   await expect(results.getByText('Great', { exact: true })).toBeVisible();
-  await expectAccessible(page);
 
   await panel.getByRole('tab', { name: 'Activity' }).click();
   await expect(panel.getByText(`Created ${title}`)).toBeVisible();
@@ -91,7 +88,6 @@ test('an admin writes a survey, edits its questions and reads its results, which
   await expect(
     recordPanel(teammate.page).getByRole('button', { name: `Title ${title}`, exact: true }),
   ).toBeDisabled();
-  await expectAccessible(teammate.page);
 });
 
 test('an admin archives, reactivates and deletes surveys', async ({ page }) => {
@@ -111,7 +107,6 @@ test('an admin archives, reactivates and deletes surveys', async ({ page }) => {
   await expect(
     page.getByRole('region', { name: 'Active' }).getByRole('button', { name: title, exact: true }),
   ).toBeVisible();
-  await expectAccessible(page);
 
   // Narrowed to its channel, the table's bar deletes it.
   await page.getByRole('button', { name: 'Filter', exact: true }).click();
@@ -154,8 +149,8 @@ test('a member sends a survey into a messenger conversation and the visitor gets
 
   const thread = page.getByRole('list', { name: 'Messages' });
 
-  await expect(thread.getByRole('button', { name: `${title} 0 votes` })).toBeVisible();
-  await expectAccessible(page);
+  // A survey's card in the thread.
+  await expectAccessible(page, thread.getByRole('button', { name: `${title} 0 votes` }));
   await expect.poll(() => visitor.read(conversationId)).toContain('How did we do?');
 });
 
@@ -164,5 +159,4 @@ test('a member without frontline permissions is refused the surveys', async ({ n
 
   await page.goto(SURVEYS);
   await expect(page.getByText('You need the frontline.channel.view permission')).toBeVisible();
-  await expectAccessible(page);
 });

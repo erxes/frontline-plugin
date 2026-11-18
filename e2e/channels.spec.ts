@@ -1,4 +1,4 @@
-import { expect, expectAccessible, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
+import { expect, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
 
 const CHANNELS = '/frontline/settings/channels';
 
@@ -16,7 +16,7 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await panel.getByLabel('Name').fill(name);
   await panel.getByPlaceholder('Search members').fill(teammate.fullName);
   await panel.getByRole('option', { name: teammate.fullName }).click();
-  await expectAccessible(page);
+
   await panel.getByRole('button', { name: 'Create channel' }).click();
 
   // The draft becomes the channel, its name edited in place; its members are the creator, as
@@ -27,7 +27,6 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await expect(page).toHaveURL(/\/members$/);
   await expect(page.getByRole('row', { name: new RegExp(teammate.fullName) })).toBeVisible();
   await expect(page.getByRole('combobox', { name: 'Role: Admin' })).toBeVisible();
-  await expectAccessible(page);
 
   // A second channel with the same name is refused, and the form keeps what was typed.
   await page.goto(newRecordPath(CHANNELS, 'frontline:channel'));
@@ -43,14 +42,12 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await teammate.page.getByRole('button', { name, exact: true }).click();
   await expect(theirPanel.getByRole('button', { name })).toBeDisabled();
   await expect(theirPanel.getByRole('button', { name: 'Channel actions' })).toBeHidden();
-  await expectAccessible(teammate.page);
 
   await theirPanel.getByRole('link', { name: /Manage channel members/ }).click();
   // Without core's team.view the teammate can't read names, but sees both members and their roles.
   await expect(teammate.page.getByRole('row')).toHaveCount(3);
   await expect(teammate.page.getByRole('cell', { name: 'Member', exact: true })).toBeVisible();
   await expect(teammate.page.getByRole('button', { name: 'Add members' })).toBeHidden();
-  await expectAccessible(teammate.page);
 });
 
 test('each member opens their own personal inbox, left out of the channel list', async ({
@@ -65,7 +62,6 @@ test('each member opens their own personal inbox, left out of the channel list',
   await expect(panel.getByRole('button', { name: 'Personal inbox' })).toBeVisible();
   const mine = page.url();
 
-  await expectAccessible(page);
   await page.goto('/frontline/personal-channel');
   await expect(page).toHaveURL(mine);
   await page.goto(CHANNELS);
@@ -74,7 +70,6 @@ test('each member opens their own personal inbox, left out of the channel list',
   await teammate.page.goto('/frontline/personal-channel');
   await expect(teammate.page).toHaveURL(new RegExp(`${CHANNELS}/[^/]+$`));
   expect(teammate.page.url()).not.toBe(mine);
-  await expectAccessible(teammate.page);
 });
 
 test('the owner renames a channel, adds a member, removes them, and cannot remove the last admin', async ({
@@ -105,7 +100,6 @@ test('the owner renames a channel, adds a member, removes them, and cannot remov
   const row = page.getByRole('row', { name: new RegExp(teammate.fullName) });
 
   await expect(row).toBeVisible();
-  await expectAccessible(page);
 
   await row.getByRole('button', { name: 'Member actions' }).click();
   await page.getByRole('option', { name: 'Remove' }).click();
@@ -125,5 +119,4 @@ test('a member without frontline permissions is refused', async ({ newMember }) 
 
   await page.goto('/frontline/settings/channels');
   await expect(page.getByText('You need the frontline.channel.view permission')).toBeVisible();
-  await expectAccessible(page);
 });

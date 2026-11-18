@@ -1,13 +1,5 @@
 import type { Page } from '@playwright/test';
-import {
-  confirmDelete,
-  expect,
-  expectAccessible,
-  newRecordPath,
-  recordPanel,
-  test,
-  unique,
-} from './fixtures.ts';
+import { confirmDelete, expect, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
 
 const KB = '/frontline/knowledgebase';
 
@@ -17,7 +9,7 @@ const newTopic = async (page: Page, title: string) => {
 
   await page.goto(newRecordPath(KB, 'frontline:kb-topic'));
   await panel.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
-  await expectAccessible(page);
+
   await panel.getByRole('button', { name: 'Create topic' }).click();
 
   // The topic takes the draft's place in the panel, and joins the cards; its card opens its articles.
@@ -71,11 +63,9 @@ test('a manager files articles under categories that a reader can only read', as
   await page.goto(categories);
   await newCategory(page, 'Billing');
   await newCategory(page, 'Cards', 'Billing');
-  await expectAccessible(page);
 
   await page.goto(articles);
   await newArticle(page, 'Refunds');
-  await expectAccessible(page);
 
   // The article opened in the panel when it was created; its fields are edited in place.
   await panel.getByRole('button', { name: 'Title Refunds', exact: true }).click();
@@ -92,7 +82,6 @@ test('a manager files articles under categories that a reader can only read', as
 
   await expect(published.getByRole('button', { name: 'Card refunds', exact: true })).toBeVisible();
   await expect(page.getByRole('region', { name: 'Draft' })).toBeHidden();
-  await expectAccessible(page);
 
   // A category's articles are the ones in it and under it: Cards has none, Billing has Refunds.
   await page.goto(categories);
@@ -116,7 +105,6 @@ test('a manager files articles under categories that a reader can only read', as
   await expect(
     recordPanel(reader.page).getByRole('button', { name: 'Title Card refunds', exact: true }),
   ).toBeDisabled();
-  await expectAccessible(reader.page);
 });
 
 test('a manager duplicates and deletes an article, then sets up and deletes its topic', async ({
@@ -147,7 +135,6 @@ test('a manager duplicates and deletes an article, then sets up and deletes its 
   await page.getByRole('option', { name: 'English' }).click();
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Topic saved')).toBeVisible();
-  await expectAccessible(page);
 
   await page.getByRole('button', { name: 'Delete topic' }).click();
   await confirmDelete(page);
@@ -163,5 +150,4 @@ test('a member without the knowledge base permission is refused', async ({ newMe
   await expect(
     page.getByText('You need the frontline.knowledgebase.view permission'),
   ).toBeVisible();
-  await expectAccessible(page);
 });

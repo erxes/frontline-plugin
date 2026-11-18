@@ -42,8 +42,6 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   const visitor = await visitorOf(request, await addMessenger(page, channel));
   const conversationId = await visitor.write(late);
 
-  // axe runs before the filters: erxes-ui's Filter button names itself without its count
-  // (DECISIONS.md).
   await page.goto(INBOX);
 
   const conversations = page.getByRole('list', { name: 'Conversations' });
@@ -55,7 +53,6 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await expect(lateRow).toContainText(/Website \S+/);
   await lateRow.click();
   await expect(thread.getByRole('listitem', { name: 'Message' })).toContainText(late);
-  await expectAccessible(page);
 
   // A reply reaches the visitor; an internal note stays with the team.
   await page.getByRole('textbox', { name: 'Reply' }).fill('It ships today.');
@@ -67,7 +64,7 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await expect(thread.getByRole('listitem', { name: 'Internal note' })).toContainText(
     'Courier confirmed.',
   );
-  await expectAccessible(page);
+
   expect(await visitor.read(conversationId)).toEqual([late, 'It ships today.']);
 
   // The visitor's next message shows in the open thread and the list's preview without a reload.
@@ -106,7 +103,6 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await first.hover();
   await first.getByRole('button', { name: 'Pin' }).click();
   await expect(page.getByRole('region', { name: 'Pinned messages' })).toContainText(late);
-  await expectAccessible(page);
 
   // The filters find it by its channel, assignee and tag.
   await filterBy(page, 'Channel', channel);
@@ -145,7 +141,6 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
     'Hi, how can we help?',
   );
   await expect(page.getByText(`/widget/messenger.js?key=${key}"></script>`)).toBeVisible();
-  await expectAccessible(page);
 
   // The secret the website signs visitors with: made, then rotated after a confirm.
   const secret = page.getByLabel('Messenger identity secret');
@@ -170,7 +165,8 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await page.getByRole('switch', { name: 'Ask for an email or phone' }).click();
   await page.getByRole('textbox', { name: 'Bot greeting' }).fill('I am the bot. Ask me anything.');
   await expect(preview).toContainText('I am the bot.');
-  await expectAccessible(page);
+  // Online hours and the bot's fields show only once switched on.
+  await expectAccessible(page, page.getByRole('button', { name: 'Add hours' }));
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Messenger saved')).toBeVisible();
 
@@ -208,7 +204,7 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
 
   await outsider.page.goto(new URL(page.url()).pathname);
   await expect(outsider.page.getByRole('alert')).toContainText('No such integration');
-  await expectAccessible(outsider.page);
+  await expectAccessible(outsider.page, outsider.page.getByRole('alert'));
 });
 
 test('a visitor writes from the widget on a website and reads the reply without a reload', async ({
@@ -220,14 +216,13 @@ test('a visitor writes from the widget on a website and reads the reply without 
   await page.goto(INBOX);
 
   await using site = await openMessenger(page.context(), await addMessenger(page, channel));
-  const { shop, panel } = site;
+  const { panel } = site;
 
   await panel.getByRole('button', { name: 'Send us a message' }).click();
   await expect(panel).toContainText('Hi, how can we help?');
   await panel.getByRole('textbox', { name: 'Message' }).fill(question);
   await panel.getByRole('button', { name: 'Send' }).click();
   await expect(panel).toContainText(question);
-  await expectAccessible(shop);
 
   await page.goto(INBOX);
   await page
@@ -288,7 +283,6 @@ test('a member takes over from the bot, sees the visitor typing and edits a repl
   await actions.click();
   await expect(page.getByRole('menuitem', { name: 'Let the bot answer' })).toBeVisible();
   await page.keyboard.press('Escape');
-  await expectAccessible(page);
 
   // The header's toggle gives the thread the list's width.
   const conversations = page.getByRole('list', { name: 'Conversations' });
@@ -311,7 +305,7 @@ test('a member takes over from the bot, sees the visitor typing and edits a repl
   await thread.getByRole('button', { name: 'Save' }).click();
   await expect(thread).toContainText('It ships tomorrow.');
   await expect(thread).toContainText('Edited');
-  await expectAccessible(page);
+
   expect(await visitor.read(conversationId)).toContain('It ships tomorrow.');
 });
 
@@ -322,5 +316,4 @@ test('a member without the inbox permission is refused the inbox', async ({ newM
   await expect(page.getByText('You need the frontline.inbox.view permission')).toBeVisible();
   await expect(page.getByRole('link', { name: 'Inbox', exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Work queue' })).toBeHidden();
-  await expectAccessible(page);
 });

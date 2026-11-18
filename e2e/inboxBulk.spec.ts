@@ -1,14 +1,5 @@
 import type { Page } from '@playwright/test';
-import {
-  addMessenger,
-  createChannel,
-  expect,
-  expectAccessible,
-  INBOX,
-  test,
-  unique,
-  visitorOf,
-} from './fixtures.ts';
+import { addMessenger, createChannel, expect, INBOX, test, unique, visitorOf } from './fixtures.ts';
 
 /** The inbox narrowed by its search, which lives in the address. */
 const search = (page: Page, value: string, status?: string) => {
@@ -52,10 +43,8 @@ test('a member finds a customer by email, then tags, resolves and assigns their 
 
   await search(page, email);
   await expect(conversations.getByRole('listitem')).toHaveCount(2);
-  await expectAccessible(page);
 
-  // Picked rows get the bar: a tag made in its picker lands on both. axe runs only while the bar
-  // is closed: its dialog has no name (https://github.com/erxes/erxes/issues/10610).
+  // Picked rows get the bar: a tag made in its picker lands on both.
   await picks.nth(0).click();
   await picks.nth(1).click();
   await expect(page.getByText('2 selected')).toBeVisible();
@@ -82,7 +71,6 @@ test('a member finds a customer by email, then tags, resolves and assigns their 
   await expect(conversations.getByRole('listitem')).toHaveCount(0);
   await search(page, email, 'resolved');
   await expect(conversations.getByRole('listitem')).toHaveCount(2);
-  await expectAccessible(page);
 
   // A member outside the channel finds none of them.
   await search(outsider.page, email);
