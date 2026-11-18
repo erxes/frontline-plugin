@@ -1,6 +1,6 @@
 import type { Icon } from '@tabler/icons-react';
 import { Input, PanelFormRow, Textarea } from 'erxes-ui';
-import { useId } from 'react';
+import { type FocusEvent, type ReactNode, useId } from 'react';
 
 /**
  * A draft's text field in core's side panel: the row and the input the form reads by `name`,
@@ -18,6 +18,8 @@ export const TextRow = ({
   maxLength,
   multiline,
   type,
+  hint,
+  onBlur,
 }: {
   label: string;
   icon: Icon;
@@ -30,12 +32,34 @@ export const TextRow = ({
   multiline?: boolean;
   /** A one-line input's type, such as `password` for a secret the screen hides. */
   type?: 'email' | 'number' | 'password';
+  /** What the field takes, or where to find it, under the control. */
+  hint?: ReactNode;
+  onBlur?: (value: string) => void;
 }) => {
   const id = useId();
-  const field = { id, name, required, placeholder, defaultValue, maxLength };
+
+  const field = {
+    id,
+    name,
+    required,
+    placeholder,
+    defaultValue,
+    maxLength,
+    onBlur:
+      onBlur &&
+      ((event: FocusEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+        onBlur(event.currentTarget.value)),
+  };
 
   return (
-    <PanelFormRow label={label} icon={icon} required={required} error={error} htmlFor={id}>
+    <PanelFormRow
+      label={label}
+      icon={icon}
+      required={required}
+      error={error}
+      hint={hint}
+      htmlFor={id}
+    >
       {multiline ? (
         <Textarea {...field} />
       ) : (
