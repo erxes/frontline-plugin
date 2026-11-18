@@ -3,6 +3,8 @@ import { useMutation } from '@tanstack/react-query';
 import { PanelFormLayout, type TRecordDraftProps, textOf } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import { messengerPath } from '@/messenger/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { ChannelRow, useManagedChannels } from '~/shared/ChannelSelect.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
@@ -12,7 +14,8 @@ import { useIntegrationChange } from './queries.ts';
  * A new website messenger in core's side panel: the channel its conversations land in, its name
  * and the welcome its visitors see. Opened with a connected account's `kind` and `accountId`, it
  * adds that page, bot or mailbox to the channel instead. Only the channels the member is an
- * admin of are offered; a `channelId` picks one.
+ * admin of are offered; a `channelId` picks one. A new messenger opens on its settings page, where
+ * its look and install code are.
  */
 export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
@@ -25,12 +28,15 @@ export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftPr
   const [picked, setChannelId] = useState(() => textOf(defaults.channelId));
   const channelId = picked || first;
   const { onSuccess } = useIntegrationChange();
+  const navigate = useNavigate();
 
   const create = useMutation(
     orpc.integrations.create.mutationOptions({
       onSuccess: (integration) => {
         onSuccess();
         onCreated(integration.id);
+
+        if (integration.kind === 'messenger') void navigate(messengerPath(integration.id));
       },
     }),
   );

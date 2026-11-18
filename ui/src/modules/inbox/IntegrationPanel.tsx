@@ -5,7 +5,6 @@ import {
   IconDots,
   IconKey,
   IconLetterCase,
-  IconMessage,
   IconPower,
   IconRestore,
   IconSettings,
@@ -15,6 +14,7 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Button,
+  buttonVariants,
   CopyText,
   PanelField,
   PanelSection,
@@ -27,7 +27,7 @@ import {
 } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { messengerPath } from '@/messenger/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { CHANNEL_TYPE } from '~/plugin.ts';
@@ -144,7 +144,6 @@ const Fields = ({ integration }: { integration: Integration }) => {
     ({ id }) => id === integration.channelId,
   );
 
-  const welcome = typeof integration.config.welcome === 'string' ? integration.config.welcome : '';
   const scope = `frontline-integration.${integration.id}`;
   const messenger = integration.kind === 'messenger';
   const kind = useKindNames()[integration.kind] ?? integration.kind;
@@ -166,18 +165,17 @@ const Fields = ({ integration }: { integration: Integration }) => {
           />
         </PanelField>
         {messenger && (
-          <PanelField icon={IconMessage} label={t('welcome-message', 'Welcome message')}>
-            <TextField
-              scope={`${scope}.welcome`}
-              value={welcome}
-              placeholder={t('welcome-message', 'Welcome message')}
-              onSave={(next) =>
-                update.mutate({
-                  id: integration.id,
-                  config: { ...integration.config, welcome: next },
-                })
-              }
-            />
+          <PanelField icon={IconSettings} label={t('settings', 'Settings')} cell={false}>
+            <Link
+              to={messengerPath(integration.id)}
+              className={buttonVariants({
+                variant: 'ghost',
+                size: 'sm',
+                className: 'justify-start',
+              })}
+            >
+              {t('messenger-settings-open', 'Greeting, look, hours and install code')}
+            </Link>
           </PanelField>
         )}
       </ReadOnly>

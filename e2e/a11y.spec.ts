@@ -125,9 +125,6 @@ test('a messenger and its settings', async ({ page }) => {
 
   const key = await addMessenger(page, channel);
 
-  await expectAccessible(page, panel.getByText(key, { exact: true }));
-  await panel.getByRole('button', { name: 'Integration actions' }).click();
-  await page.getByRole('option', { name: 'Messenger settings' }).click();
   await expectAccessible(page, page.getByRole('textbox', { name: 'Welcome message' }));
 });
 

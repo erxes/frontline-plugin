@@ -1,4 +1,9 @@
-import { IconMessageCirclePlus, IconPlugConnected, IconPlus } from '@tabler/icons-react';
+import {
+  IconMessageCirclePlus,
+  IconPlugConnected,
+  IconPlus,
+  IconSettings,
+} from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -11,6 +16,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import type { Integration } from '@/inbox/queries.ts';
+import { messengerPath } from '@/messenger/queries.ts';
 import { INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { KindIcon, kindIconOf, useKindNames } from '~/shared/kinds.tsx';
 import { integrationsQuery } from '~/shared/reference.ts';
@@ -55,24 +61,41 @@ export const IntegrationBadges = ({ channelId }: { channelId: string }) => {
   );
 };
 
-/** One integration of a kind: its tinted icon and name, opening it in the side panel. */
+/**
+ * One integration of a kind: its tinted icon and name, opening it in the side panel, and for a
+ * messenger, a link to its settings page.
+ */
 const IntegrationButton = ({ integration }: { integration: Integration }) => {
   const { t } = useTranslation('frontline');
   const { open } = useOpenRecord();
 
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className="w-full justify-start"
-      onClick={() => open({ contentType: INTEGRATION_TYPE, contentId: integration.id })}
-    >
-      <KindIcon kind={integration.kind} />
-      <span className="min-w-0 flex-1 truncate text-left">{integration.name}</span>
-      {!integration.isActive && (
-        <span className="text-muted-foreground">{t('archived', 'Archived')}</span>
+    <span className="flex items-center">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="min-w-0 flex-1 justify-start"
+        onClick={() => open({ contentType: INTEGRATION_TYPE, contentId: integration.id })}
+      >
+        <KindIcon kind={integration.kind} />
+        <span className="min-w-0 flex-1 truncate text-left">{integration.name}</span>
+        {!integration.isActive && (
+          <span className="text-muted-foreground">{t('archived', 'Archived')}</span>
+        )}
+      </Button>
+      {integration.kind === 'messenger' && (
+        <Link
+          to={messengerPath(integration.id)}
+          aria-label={t('messenger-settings-of', 'Settings of {{name}}', {
+            name: integration.name,
+          })}
+          title={t('messenger-settings', 'Messenger settings')}
+          className={buttonVariants({ variant: 'ghost', size: 'icon' })}
+        >
+          <IconSettings />
+        </Link>
       )}
-    </Button>
+    </span>
   );
 };
 

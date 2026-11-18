@@ -81,8 +81,6 @@ const IdentitySecret = ({ id, secret }: { id: string; secret: string | null }) =
 export const InstallCard = ({ messenger }: { messenger: MessengerSettings }) => {
   const { t } = useTranslation('frontline');
 
-  if (!messenger.scriptUrl) return null;
-
   return (
     <SettingsCard
       title={t('messenger-install', 'Install')}

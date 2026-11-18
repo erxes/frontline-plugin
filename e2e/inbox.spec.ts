@@ -10,7 +10,6 @@ import {
   openMessenger,
   OWNER,
   pick,
-  recordPanel,
   test,
   unique,
   visitorOf,
@@ -133,9 +132,11 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await page.goto(INBOX);
 
   const key = await addMessenger(page, channel);
+  const settingsUrl = page.url();
   const panel = recordPanel(page);
 
   // Archived, it takes no visitors until an admin unarchives it.
+  await page.goto(`${INBOX}?panel=/detail/frontline:integration/${settingsUrl.split('/').pop()}`);
   await panel.getByRole('button', { name: 'Integration actions' }).click();
   await page.getByRole('option', { name: 'Archive' }).click();
   await expect(panel.getByText('Archived', { exact: true })).toBeVisible();
@@ -143,9 +144,9 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await page.getByRole('option', { name: 'Unarchive' }).click();
   await expect(panel.getByText('Active', { exact: true })).toBeVisible();
 
-  await panel.getByRole('button', { name: 'Integration actions' }).click();
-  await page.getByRole('option', { name: 'Messenger settings' }).click();
-  await expect(page).toHaveURL(/\/frontline\/inbox\/messengers\/[\w-]+$/);
+  // The panel's Settings row leads back to the settings page.
+  await panel.getByRole('link', { name: 'Look, hours and install code' }).click();
+  await expect(page).toHaveURL(settingsUrl);
   await expect(page.getByRole('textbox', { name: 'Welcome message' })).toHaveValue(
     'Hi, how can we help?',
   );

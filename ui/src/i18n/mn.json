@@ -668,6 +668,8 @@
   "messenger-secret-rotate-confirm": "Шинэ таних нууц түлхүүр үүсгэх үү?",
   "messenger-secret-rotate-description": "Таны вэбсайт шинэ түлхүүрийг ашиглах хүртэл одоогийн түлхүүрээр хийсэн гарын үсэг ажиллахгүй.",
   "messenger-settings": "Мессенжерийн тохиргоо",
+  "messenger-settings-of": "{{name}}-ийн тохиргоо",
+  "messenger-settings-open": "Мэндчилгээ, харагдах байдал, цаг, суулгах код",
   "messenger-show-chat": "Чат харуулах",
   "messenger-show-chat-hint": "Зочид харилцан яриа эхлүүлж болно.",
   "messenger-show-launcher": "Нээх товч харуулах",

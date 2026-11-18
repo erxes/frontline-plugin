@@ -21,8 +21,8 @@ const settings = reads(PERMISSIONS.channelView)
       id: z.string(),
       name: z.string(),
       channelId: z.string(),
-      publicKey: z.string().nullable(),
-      scriptUrl: z.string().nullable(),
+      publicKey: z.string(),
+      scriptUrl: z.string(),
       canManage: z.boolean(),
       identitySecret: z.string().nullable(),
       config: MessengerConfig,
@@ -35,7 +35,7 @@ const settings = reads(PERMISSIONS.channelView)
 
     return {
       ...row,
-      scriptUrl: row.publicKey && widgetScript('messenger', { key: row.publicKey }),
+      scriptUrl: widgetScript('messenger', { key: row.publicKey }),
       identitySecret: row.canManage ? await identitySecretOf(tx, member.orgId, row.id) : null,
       config: MessengerConfig.parse(row.config),
     };

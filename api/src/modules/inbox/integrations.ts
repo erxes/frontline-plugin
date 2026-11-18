@@ -28,13 +28,13 @@ const Integration = createSelectSchema(integrations, {
   config: () => z.record(z.string(), z.unknown()),
 })
   .omit({ orgId: true })
-  .extend({ publicKey: z.string().nullable(), canManage: z.boolean() });
+  .extend({ publicKey: z.string(), canManage: z.boolean() });
 
 const integrationRows = (tx: Tx, member: PluginMember) =>
   tx
     .select({ ...integrationColumns, publicKey: publicKeys.key, canManage: canChangeSql(member) })
     .from(integrations)
-    .leftJoin(
+    .innerJoin(
       publicKeys,
       and(eq(publicKeys.kind, INTEGRATION_KEY), eq(publicKeys.targetId, integrations.id)),
     )
