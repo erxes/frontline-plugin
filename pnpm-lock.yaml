@@ -410,6 +410,9 @@ importers:
       '@erxes/core-contract':
         specifier: 0.1.0-v2.29
         version: 0.1.0-v2.29(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+      '@icons-pack/react-simple-icons':
+        specifier: 13.15.1
+        version: 13.15.1(react@19.3.1)
       '@orpc/client':
         specifier: 1.16.2
         version: 1.16.2(@opentelemetry/api@1.10.0)
@@ -1477,6 +1480,11 @@ packages:
 
   '@iarna/toml@2.2.5':
     resolution: {integrity: sha512-trnsAYxU3xnS1gPHPyU961coFyLkh4gAD/0zQ5mymY4yOZ+CYvsPqUbOFSw0aDM4y0tV7tiFxL/1XfXPNC6IPg==}
+
+  '@icons-pack/react-simple-icons@13.15.1':
+    resolution: {integrity: sha512-S35E7vJlJzMeoqjwwI7ZmQUJ2W+2KspnB6bc49KdoDGwp5mCgAy9L3sscfWMewQSMgBdPU8KWWwpSGq5DJyAFw==}
+    peerDependencies:
+      react: ^16.13 || ^17 || ^18 || ^19
 
   '@isaacs/nonrecursive-glob-match@1.1.0':
     resolution: {integrity: sha512-GPm/Dbvk5RLmhRnxXIa7nTpK0xtl4E0wj0MslsuNiJ1FIROU+2+9lgUC/dgF7Ey4QCWhfEsgxilMRMCdHPfDfw==}
@@ -7241,6 +7249,10 @@ snapshots:
   '@humanwhocodes/retry@0.4.3': {}
 
   '@iarna/toml@2.2.5': {}
+
+  '@icons-pack/react-simple-icons@13.15.1(react@19.3.1)':
+    dependencies:
+      react: 19.3.1
 
   '@isaacs/nonrecursive-glob-match@1.1.0': {}
 

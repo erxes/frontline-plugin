@@ -178,7 +178,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
       </span>
       <IconTip label={`${conversation.channelName} · ${conversation.integrationName}`}>
         <span className="grid size-6 shrink-0 place-items-center">
-          <KindIcon kind={conversation.kind} className="size-4" />
+          <KindIcon kind={conversation.kind} thread={conversation.externalId} className="size-4" />
           <span className="sr-only">{conversation.channelName}</span>
         </span>
       </IconTip>
