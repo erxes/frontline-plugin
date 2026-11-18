@@ -150,10 +150,40 @@ export const readMail = async (
   };
 };
 
+/** How many mails one pull reads at most; the rest wait for the next run. */
+const PULL_MAILS = 50;
+
+/** How many bytes of mail one pull downloads at most. A bigger mail is skipped. */
+const PULL_BYTES = 25 * 1024 * 1024;
+
 /**
- * The messages that reached INBOX since `state`, the addresses its reports said to stop mailing,
- * and where this pull leaves off. The first pull of a mailbox only notes where INBOX stands, so
- * connecting one doesn't import its history.
+ * Which of `sized`, in uid order, one pull downloads: up to `PULL_MAILS` of them and `PULL_BYTES`
+ * in all. A mail bigger than `PULL_BYTES` is skipped, logged, so it can't hold the rest back.
+ * `lastUid` is the last one taken or skipped.
+ */
+const pick = (sized: { uid: number; size: number }[], address: string) => {
+  const uids: number[] = [];
+  let bytes = 0;
+  let lastUid: number | undefined;
+
+  for (const { uid, size } of sized.slice(0, PULL_MAILS)) {
+    if (size > PULL_BYTES) logger.warn({ address, uid, size }, 'mail too big to read');
+    else if (bytes + size > PULL_BYTES) break;
+    else {
+      bytes += size;
+      uids.push(uid);
+    }
+
+    lastUid = uid;
+  }
+
+  return { uids, lastUid };
+};
+
+/**
+ * Up to `PULL_MAILS` messages that reached INBOX since `state`, each with its uid, the addresses
+ * its reports said to stop mailing, and where this pull leaves off. The first pull of a mailbox
+ * only notes where INBOX stands, so connecting one doesn't import its history.
  */
 export const pullMail = async (
   imap: z.infer<typeof Server>,
@@ -174,35 +204,59 @@ export const pullMail = async (
       if (!mailbox) throw new Error('INBOX did not open');
 
       const uidValidity = String(mailbox.uidValidity);
-      const last = mailbox.uidNext - 1;
 
       if (!state || state.uidValidity !== uidValidity)
-        return { messages: [], suppressed: [], state: { uidValidity, lastUid: last } };
+        return {
+          messages: [],
+          suppressed: [],
+          state: { uidValidity, lastUid: mailbox.uidNext - 1 },
+        };
 
-      const messages: InboundMessage[] = [];
+      const messages: { uid: number; message: InboundMessage }[] = [];
       const suppressed: Suppressed[] = [];
-      let lastUid = state.lastUid;
+      // `n:*` names the newest mail even when its uid is below n, so only higher uids count.
+      const found = await client.search({ uid: `${state.lastUid + 1}:*` }, { uid: true });
 
-      if (last > state.lastUid) {
+      // A failed search gives false or nothing.
+      const fresh = (Array.isArray(found) ? found : [])
+        .filter((uid) => uid > state.lastUid)
+        .toSorted((a, b) => a - b);
+
+      if (fresh.length === 0) return { messages, suppressed, state };
+
+      const sized = [];
+
+      for await (const { uid, size = 0 } of client.fetch(
+        fresh.slice(0, PULL_MAILS).join(','),
+        { uid: true, size: true },
+        { uid: true },
+      ))
+        sized.push({ uid, size });
+
+      const { uids, lastUid = state.lastUid } = pick(
+        sized.toSorted((a, b) => a.uid - b.uid),
+        address,
+      );
+
+      if (uids.length > 0)
         for await (const fetched of client.fetch(
-          `${state.lastUid + 1}:*`,
+          uids.join(','),
           { uid: true, source: true },
           { uid: true },
         )) {
-          if (fetched.uid <= state.lastUid || !fetched.source) continue;
-
-          const read = await readMail(fetched.source, address);
+          const read = fetched.source ? await readMail(fetched.source, address) : null;
 
           if (!read)
             logger.warn({ address, uid: fetched.uid }, 'mail without a sender or Message-ID');
-          else if ('message' in read) messages.push(read.message);
+          else if ('message' in read) messages.push({ uid: fetched.uid, message: read.message });
           else suppressed.push(...read.suppressed);
-
-          lastUid = Math.max(lastUid, fetched.uid);
         }
-      }
 
-      return { messages, suppressed, state: { uidValidity, lastUid } };
+      return {
+        messages: messages.toSorted((a, b) => a.uid - b.uid),
+        suppressed,
+        state: { uidValidity, lastUid },
+      };
     } finally {
       lock.release();
     }

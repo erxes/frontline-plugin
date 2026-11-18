@@ -165,86 +165,95 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
 };
 
 /**
- * Adds a customer's message to its conversation, starting one when it has none, in one
- * transaction: the conversation waits on a reply again, unread by everyone, and a resolved one
- * reopens. A new message publishes `event` for automations. A message the provider sent before
- * (`externalId`) adds nothing. Returns the message.
+ * Adds a customer's message to its conversation in `tx`, starting one when it has none: the
+ * conversation waits on a reply again, unread by everyone, and a resolved one reopens. A new
+ * message publishes `event` for automations. A message the provider sent before (`externalId`)
+ * adds nothing. Returns the message, and its conversation when it changed, for the caller to
+ * signal.
  */
+export const receiveIn = async (tx: Tx, orgId: string, incoming: Incoming) => {
+  const conversation = await conversationOf(tx, orgId, incoming);
+
+  const [message] = await tx
+    .insert(messages)
+    .values({
+      orgId,
+      conversationId: conversation.id,
+      customerId: incoming.customerId,
+      content: incoming.content,
+      attachments: incoming.attachments ?? [],
+      externalId: incoming.externalId,
+      providerData: incoming.providerData,
+    })
+    .onConflictDoNothing()
+    .returning();
+
+  if (!message) {
+    const [existing] = await tx
+      .select()
+      .from(messages)
+      .where(
+        and(
+          eq(messages.conversationId, conversation.id),
+          eq(messages.externalId, incoming.externalId ?? ''),
+        ),
+      );
+
+    if (!existing) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+    return { message: existing, changed: null };
+  }
+
+  await tx
+    .update(conversations)
+    .set({
+      content: incoming.content,
+      messageCount: sql`${conversations.messageCount} + 1`,
+      lastMessageAt: message.createdAt,
+      customerRespondedLast: true,
+      readBy: sql`'{}'`,
+      status: sql`case when ${conversations.status} = 'resolved' then 'open' else ${conversations.status} end`,
+      resolvedAt: null,
+      resolvedBy: null,
+    })
+    .where(eq(conversations.id, conversation.id));
+
+  if (incoming.event)
+    await publishConversationEvents(tx, orgId, null, [
+      {
+        conversationId: conversation.id,
+        customerId: conversation.customerId,
+        type: incoming.event,
+        summary: null,
+        payload: {
+          ...incoming.providerData,
+          conversationId: conversation.id,
+          messageId: message.id,
+          integrationId: incoming.integrationId,
+          content: message.content,
+        },
+      },
+    ]);
+
+  await publishMessageReceived(tx, orgId, {
+    conversationId: conversation.id,
+    customerId: conversation.customerId,
+    integrationId: incoming.integrationId,
+    kind: conversation.kind,
+    operator: conversation.operator,
+    messageId: message.id,
+    content: message.content,
+  });
+
+  return { message, changed: conversation };
+};
+
+/** `receiveIn` in a transaction of its own, which signals the conversation. Returns the message. */
 export const receive = (orgId: string, incoming: Incoming) =>
   withOrg(orgId, async (tx) => {
-    const conversation = await conversationOf(tx, orgId, incoming);
+    const { message, changed } = await receiveIn(tx, orgId, incoming);
 
-    const [message] = await tx
-      .insert(messages)
-      .values({
-        orgId,
-        conversationId: conversation.id,
-        customerId: incoming.customerId,
-        content: incoming.content,
-        attachments: incoming.attachments ?? [],
-        externalId: incoming.externalId,
-        providerData: incoming.providerData,
-      })
-      .onConflictDoNothing()
-      .returning();
-
-    if (!message) {
-      const [existing] = await tx
-        .select()
-        .from(messages)
-        .where(
-          and(
-            eq(messages.conversationId, conversation.id),
-            eq(messages.externalId, incoming.externalId ?? ''),
-          ),
-        );
-
-      if (!existing) throw new ORPCError('INTERNAL_SERVER_ERROR');
-
-      return existing;
-    }
-
-    await tx
-      .update(conversations)
-      .set({
-        content: incoming.content,
-        messageCount: sql`${conversations.messageCount} + 1`,
-        lastMessageAt: message.createdAt,
-        customerRespondedLast: true,
-        readBy: sql`'{}'`,
-        status: sql`case when ${conversations.status} = 'resolved' then 'open' else ${conversations.status} end`,
-        resolvedAt: null,
-        resolvedBy: null,
-      })
-      .where(eq(conversations.id, conversation.id));
-
-    if (incoming.event)
-      await publishConversationEvents(tx, orgId, null, [
-        {
-          conversationId: conversation.id,
-          customerId: conversation.customerId,
-          type: incoming.event,
-          summary: null,
-          payload: {
-            ...incoming.providerData,
-            conversationId: conversation.id,
-            messageId: message.id,
-            integrationId: incoming.integrationId,
-            content: message.content,
-          },
-        },
-      ]);
-
-    await signalConversations(tx, orgId, [conversation]);
-    await publishMessageReceived(tx, orgId, {
-      conversationId: conversation.id,
-      customerId: conversation.customerId,
-      integrationId: incoming.integrationId,
-      kind: conversation.kind,
-      operator: conversation.operator,
-      messageId: message.id,
-      content: message.content,
-    });
+    if (changed) await signalConversations(tx, orgId, [changed]);
 
     return message;
   });
