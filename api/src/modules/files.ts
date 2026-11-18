@@ -62,8 +62,8 @@ export const readFile = async (orgId: string, id: string) => {
 export const fileIdOf = (url: string) => CORE_FILE.exec(url)?.[1] ?? null;
 
 /**
- * A file a member attached to what a provider sends, read from core: providers get its bytes,
- * never its address. Throws for a file core doesn't hold or one at any other address.
+ * A file a member attached to what a provider sends, read whole from core: providers get its
+ * bytes, never its address. Throws for a file core doesn't hold or one at any other address.
  */
 export const attachedFile = async (orgId: string, file: StoredFile) => {
   const id = fileIdOf(file.url);
@@ -71,7 +71,7 @@ export const attachedFile = async (orgId: string, file: StoredFile) => {
 
   if (!read) throw new Error(`No file in core's storage at ${file.url}`);
 
-  return read;
+  return { contentType: read.contentType, bytes: await new Response(read.body).arrayBuffer() };
 };
 
 /**

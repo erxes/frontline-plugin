@@ -1,4 +1,3 @@
-import { Readable } from 'node:stream';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { createTransport } from 'nodemailer';
@@ -322,7 +321,7 @@ export const mail = defineProvider({
         return {
           filename: file.name,
           contentType: read.contentType,
-          content: Readable.fromWeb(read.body),
+          content: Buffer.from(read.bytes),
         };
       }),
     );

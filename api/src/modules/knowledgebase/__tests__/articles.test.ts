@@ -39,7 +39,11 @@ describe('knowledge base articles', () => {
     });
 
     // A file attaches only at the address core's storage gave it.
-    for (const url of ['/proc/self/environ', 'http://169.254.169.254/latest', 'javascript:alert(1)'])
+    for (const url of [
+      '/proc/self/environ',
+      'http://169.254.169.254/latest',
+      'javascript:alert(1)',
+    ])
       await expect(
         owner.knowledgebase.articles.create({
           categoryId: category.id,
