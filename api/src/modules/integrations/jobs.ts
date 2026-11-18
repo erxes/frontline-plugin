@@ -8,7 +8,8 @@ import { logger } from '#/logger.ts';
 import { checkAccount, recordCheck } from './accounts.ts';
 import { deliverInbound } from './inbound.ts';
 import type { AccountRow } from './provider.ts';
-import { mail, pullMail, SyncState, syncFailure } from './providers/mail.ts';
+import { mail, pullMail } from './providers/mail.ts';
+import { SyncState, syncFailure } from './providers/mailSync.ts';
 import { suppress } from './providers/mailSuppressions.ts';
 
 const accountsOf = (orgId: string, provider?: 'mail') =>

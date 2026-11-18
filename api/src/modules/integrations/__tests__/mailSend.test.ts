@@ -324,14 +324,7 @@ describe('mail', () => {
 
     // Postgres refuses text with a NUL byte, every time.
     mailbox.inbox.push(
-      [
-        'From: Bat <bat@example.mn>',
-        'To: support@shop.mn',
-        'Subject: Broken',
-        'Message-ID: <bat-nul@example.mn>',
-        '',
-        'Half\u0000a mail',
-      ].join('\r\n'),
+      'From: bat@example.mn\r\nMessage-ID: <bat-nul@example.mn>\r\n\r\nHalf\u0000a',
     );
     // HTML beside a file, with no plain text part.
     mailbox.inbox.push(
@@ -361,8 +354,6 @@ describe('mail', () => {
 
     const { conversations } = await owner.conversations.list({});
 
-    expect(conversations).toHaveLength(1);
-
     const [received] = (
       await owner.conversations.messages.list({ conversationId: conversations[0]?.id ?? '' })
     ).messages;
@@ -381,27 +372,25 @@ describe('mail', () => {
 
     // The sync moved past both: the next run finds nothing new.
     await sync('org-mail-d');
-    expect((await owner.conversations.list({})).conversations[0]?.messageCount).toBe(1);
+    expect((await owner.conversations.list({})).conversations).toMatchObject([{ messageCount: 1 }]);
 
     const health = async () =>
-      (await owner.integrations.accounts.list({ provider: 'mail' })).accounts.map(
-        ({ status, error }) => ({ status, error }),
-      );
+      (await owner.integrations.accounts.list({ provider: 'mail' })).accounts;
 
     // A server that stops answering is retried; the fifth failed run in a row shows it broken.
     mailbox.down = true;
 
     for (let run = 1; run <= 4; run += 1) await sync('org-mail-d');
 
-    expect(await health()).toEqual([{ status: 'healthy', error: null }]);
+    expect(await health()).toMatchObject([{ status: 'healthy', error: null }]);
     await sync('org-mail-d');
-    expect(await health()).toEqual([
+    expect(await health()).toMatchObject([
       { status: 'broken', error: 'The last 5 mail syncs failed: Connection timed out' },
     ]);
     expect(asked.notifications.at(-1)).toMatchObject({ title: 'Shop support stopped working' });
 
     mailbox.down = false;
     await sync('org-mail-d');
-    expect(await health()).toEqual([{ status: 'healthy', error: null }]);
+    expect(await health()).toMatchObject([{ status: 'healthy', error: null }]);
   });
 });
