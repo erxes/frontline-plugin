@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
 import type { FormApi, VisitorForm } from './api.ts';
 import { FormView } from './FormView.tsx';
@@ -12,10 +12,12 @@ const SENT_EVENT = 'frontline:form-submitted';
 /**
  * Whether the form is open: an embedded form always is, a pop-up or shoutbox opens on the
  * visitor's click, and a dropdown or slide-in opens with the page. Any element with
- * `data-frontline-form-open="<code>"`, or the open event, opens it.
+ * `data-frontline-form-open="<code>"`, or the open event, opens it. Null until it first opens.
  */
 const useOpen = (code: string, loadType: VisitorForm['form']['loadType']) => {
-  const [open, setOpen] = useState(loadType !== 'popup' && loadType !== 'shoutbox');
+  const [open, setOpen] = useState<boolean | null>(
+    loadType === 'popup' || loadType === 'shoutbox' ? null : true,
+  );
 
   useEffect(() => {
     const onClick = (event: MouseEvent) => {
@@ -45,6 +47,32 @@ const useOpen = (code: string, loadType: VisitorForm['form']['loadType']) => {
   return [open, setOpen] as const;
 };
 
+/**
+ * Focus follows the visitor's open and close: into the form, then back to the shoutbox's
+ * launcher or the page's element that opened it. A form open with the page leaves focus alone.
+ */
+const useFocus = (shown: boolean | null) => {
+  const panel = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const opener = useRef<HTMLElement | null>(null);
+  const loaded = useRef(false);
+
+  useEffect(() => {
+    if (!loaded.current) {
+      loaded.current = true;
+
+      return;
+    }
+
+    if (shown) {
+      if (document.activeElement instanceof HTMLElement) opener.current = document.activeElement;
+      panel.current?.focus();
+    } else if (shown === false) (toggle.current ?? opener.current)?.focus();
+  }, [shown]);
+
+  return { panel, toggle };
+};
+
 /** A form on a website, shown the way its load type says. */
 export const FormEmbed = ({
   api,
@@ -56,8 +84,10 @@ export const FormEmbed = ({
   visitorForm: VisitorForm;
 }) => {
   const { form } = visitorForm;
-  const [open, setOpen] = useOpen(code, form.loadType);
+  const [shown, setOpen] = useOpen(code, form.loadType);
+  const open = shown === true;
   const name = form.title || form.name;
+  const { panel, toggle } = useFocus(shown);
 
   const view = (
     <FormView
@@ -80,10 +110,23 @@ export const FormEmbed = ({
 
   return (
     <div class={`fl fl-${form.loadType}`} style={style}>
-      {open && (
+      {/* Closing only hides the form, so the answers wait for the visitor's return. */}
+      {shown !== null && (
         <>
-          {form.loadType === 'popup' && <div class="fl-overlay" onClick={() => setOpen(false)} />}
-          <section class="fl-panel" role="dialog" aria-label={name}>
+          {open && form.loadType === 'popup' && (
+            <div class="fl-overlay" onClick={() => setOpen(false)} />
+          )}
+          <section
+            ref={panel}
+            class="fl-panel"
+            role="dialog"
+            aria-label={name}
+            tabIndex={-1}
+            hidden={!open}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setOpen(false);
+            }}
+          >
             <button
               type="button"
               class="fl-icon-button fl-close"
@@ -98,6 +141,7 @@ export const FormEmbed = ({
       )}
       {form.loadType === 'shoutbox' && (
         <button
+          ref={toggle}
           type="button"
           class="fl-launcher"
           aria-label={open ? `Close ${name}` : `Open ${name}`}

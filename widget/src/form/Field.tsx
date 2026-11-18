@@ -146,7 +146,12 @@ const Input = ({ field, value, onChange }: InputProps) => {
           {...common}
           type="number"
           value={textOf(value)}
-          onInput={(event) => onChange(event.currentTarget.valueAsNumber)}
+          onInput={(event) => {
+            const number = event.currentTarget.valueAsNumber;
+
+            // A cleared field is no answer, so a required one still asks for it.
+            onChange(Number.isNaN(number) ? '' : number);
+          }}
         />
       );
     case 'boolean':
