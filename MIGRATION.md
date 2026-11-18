@@ -615,9 +615,9 @@ Procedures replace the 337 GraphQL types.
 
 - [x] `frontline_integrations` from collection `integrations` (16 fields) `frontline_api/src/modules/inbox/db/definitions/integrations.ts:310`
 - [x] `frontline_conversations` from collection `conversations` (3 fields) `frontline_api/src/modules/inbox/db/definitions/conversations.ts:111`
-- [x] `frontline_conversation_messages` from collection `conversation_messages` (27 fields) `frontline_api/src/modules/inbox/db/definitions/conversationMessages.ts:60`
-- [x] `frontline_messenger_apps` from collection `messenger_apps` (6 fields) `frontline_api/src/modules/inbox/db/definitions/messengerApps.ts:49`
-- [x] `frontline_configs` from collection `configs` (3 fields) `frontline_api/src/modules/inbox/@types/configs.ts:16`
+- [x] `frontline_conversation_messages` from collection `conversation_messages` (27 fields) → `frontline_messages` `frontline_api/src/modules/inbox/db/definitions/conversationMessages.ts:60`
+- [x] `frontline_messenger_apps` from collection `messenger_apps` (6 fields) → `knowledgeBaseTopicId` and `websiteApps` in the messenger's config (`api/src/modules/messenger/adapter.ts`) `frontline_api/src/modules/inbox/db/definitions/messengerApps.ts:49`
+- [x] `frontline_configs` from collection `configs` (3 fields) → dropped: it held only the video call delay and a Telnyx key (the "`frontline_configs`" row in DECISIONS.md) `frontline_api/src/modules/inbox/@types/configs.ts:16`
 
 ### Procedures
 
@@ -632,83 +632,83 @@ Procedures replace the 337 GraphQL types.
 - [x] subscription `cpConversationChanged` → **drop**: the new core has no client portal (the "Client portal procedures (`cp*`), brands and segments" row in DECISIONS.md) `frontline_api/src/modules/inbox/graphql/schemas/clientPortal.ts:38`
 - [x] subscription `cpConversationMessageInserted` → **drop**: the new core has no client portal (the "Client portal procedures (`cp*`), brands and segments" row in DECISIONS.md) `frontline_api/src/modules/inbox/graphql/schemas/clientPortal.ts:38`
 - [x] subscription `cpConversationClientMessageInserted` → **drop**: the new core has no client portal (the "Client portal procedures (`cp*`), brands and segments" row in DECISIONS.md) `frontline_api/src/modules/inbox/graphql/schemas/clientPortal.ts:38`
-- [x] query `getColorThemePreview` → procedure `colorThemePreviews.get` (returns `ColorThemePreview`) `frontline_api/src/modules/inbox/graphql/schemas/colorTheme.ts:1`
-- [x] mutation `applyColorThemeToIntegration` → procedure `inbox.applyColorThemeToIntegration` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/colorTheme.ts:5`
-- [x] query `conversationMessage` → procedure `conversationMessages.get` (returns `ConversationMessage`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
+- [x] query `getColorThemePreview` → the Appearance card's theme presets (`ui/src/modules/messenger/AppearanceCard.tsx`), shown at once in the live preview (`ui/src/modules/messenger/MessengerPreview.tsx`) `frontline_api/src/modules/inbox/graphql/schemas/colorTheme.ts:1`
+- [x] mutation `applyColorThemeToIntegration` → a theme preset sets the colour and text colour, saved with `integrations.update` (`ui/src/modules/messenger/AppearanceCard.tsx`) `frontline_api/src/modules/inbox/graphql/schemas/colorTheme.ts:5`
+- [x] query `conversationMessage` → dropped: the new screen never calls it (the "`conversationsGetLast` opened the newest conversation, and `conversationMessage` read one message" row in DECISIONS.md) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
 - [x] query `conversations` → procedure `conversations.list` (returns `ConversationListResponse`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
-- [x] query `conversationMessages` → procedure `conversationMessages.list` (returns `[ConversationMessage]`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
-- [x] query `conversationMessagesTotalCount` → procedure `conversationMessages.list` (returns `Int`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
-- [x] query `conversationPinnedMessages` → procedure `conversationPinnedMessages.list` (returns `[ConversationMessage]`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
-- [x] query `conversationCounts` → procedure `conversationCounts.list` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
+- [x] query `conversationMessages` → `conversations.messages.list` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
+- [x] query `conversationMessagesTotalCount` → folded: the thread pages with `conversations.messages.list`'s `nextCursor`, so it needs no total `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
+- [x] query `conversationPinnedMessages` → `conversations.messages.list` with `pinned: true` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
+- [x] query `conversationCounts` → `conversations.counts` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
 - [x] query `conversationsTotalCount` → procedure `conversations.list` (returns `Int`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
 - [x] query `conversationDetail` → procedure `conversations.get` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
-- [x] query `conversationsGetLast` → procedure `conversationsGetLasts.get` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
-- [x] query `conversationsTotalUnreadCount` → procedure `conversationsTotalUnreadCounts.get` (returns `Int`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
-- [x] query `userConversations` → procedure `userConversations.list` (returns `UserConversationListResponse`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
+- [x] query `conversationsGetLast` → dropped: the new screen never calls it (the "`conversationsGetLast` opened the newest conversation, and `conversationMessage` read one message" row in DECISIONS.md) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
+- [x] query `conversationsTotalUnreadCount` → `conversations.counts`, the unread total `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
+- [x] query `userConversations` → the inbox's Participant filter on `conversations.list` (`ui/src/modules/inbox/InboxFilter.tsx`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:42`
 - [x] mutation `conversationMessageReact` → procedure `inbox.conversationMessageReact` (returns `Boolean!`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`. `conversations.messages.react` (`api/src/modules/inbox/reactions.ts`)
   - note: reactions go out through each provider's adapter, and no adapter sends one yet (the "HTML messages, reactions and custom fields" row in DECISIONS.md)
-- [x] mutation `conversationMessageAdd` → procedure `conversationMessages.create` (returns `ConversationMessage`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [x] mutation `conversationMessagePin` → procedure `inbox.conversationMessagePin` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [x] mutation `conversationMessageEdit` → procedure `conversationMessages.update` (returns `ConversationMessage`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [x] mutation `conversationsAssign` → procedure `inbox.conversationsAssign` (returns `[Conversation]`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [x] mutation `conversationsUnassign` → procedure `inbox.conversationsUnassign` (returns `[Conversation]`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [x] mutation `conversationsChangeStatus` → procedure `inbox.conversationsChangeStatus` (returns `[Conversation]`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [x] mutation `conversationMarkAsRead` → procedure `inbox.conversationMarkAsRead` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [x] mutation `conversationAgentTyping` → procedure `inbox.conversationAgentTyping` (returns `Boolean`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [x] mutation `changeConversationOperator` → procedure `inbox.changeConversationOperator` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [x] mutation `conversationSetAutomatedReplyControl` → procedure `inbox.conversationSetAutomatedReplyControl` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
-- [x] mutation `conversationsResolve` → procedure `inbox.conversationsResolve` (returns `Int`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `conversationMessageAdd` → `conversations.messages.create` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `conversationMessagePin` → `conversations.messages.pin` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `conversationMessageEdit` → `conversations.messages.update` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `conversationsAssign` → `conversations.assign` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `conversationsUnassign` → `conversations.assign` with a null assignee `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `conversationsChangeStatus` → `conversations.setStatus` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `conversationMarkAsRead` → `conversations.markRead` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `conversationAgentTyping` → `conversations.typing` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `changeConversationOperator` → `conversations.setOperator` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `conversationSetAutomatedReplyControl` → `conversations.setOperator`: the bot answers only while the operator is `bot` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
+- [x] mutation `conversationsResolve` → `conversations.setStatus` with the picked `ids` and `resolved` `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`
 - [x] mutation `conversationEditCustomFields` → procedure `inbox.conversationEditCustomFields` (returns `Conversation`) `frontline_api/src/modules/inbox/graphql/schemas/conversation.ts:63`. `conversations.properties.save` in `api/src/modules/inbox/properties.ts` (the "`conversationEditCustomFields` wrote `customFieldsData` after core's `fields.validateFieldValues`, and `FieldsInDetail` drew them" row in DECISIONS.md)
 - [x] query `integrations` → procedure `integrations.list` (returns `IntegrationRespone`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
-- [x] query `allLeadIntegrations` → procedure `allLeadIntegrations.list` (returns `[Integration]`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
-- [x] query `integrationsGetUsedTypes` → procedure `integrationsGetUsedTypes.list` (returns `[integrationsGetUsedTypes]`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
-- [x] query `integrationsGetUsedTypesByChannel` → procedure `integrationsGetUsedTypesByChannels.get` (returns `[integrationsGetUsedTypesByChannel]`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
+- [x] query `allLeadIntegrations` → dropped: forms own lead forms (the "Lead integrations and their view count in the inbox's API" row in DECISIONS.md) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
+- [x] query `integrationsGetUsedTypes` → `conversations.counts`, the kinds of integration each channel has `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
+- [x] query `integrationsGetUsedTypesByChannel` → `conversations.counts`, the kinds of integration each channel has `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
 - [x] query `integrationDetail` → procedure `integrations.get` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
 - [x] query `integrationsTotalCount` → procedure `integrations.list` (returns `integrationsTotalCount`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:217`
-- [x] mutation `integrationsCreateMessengerOnboarding` → procedure `inbox.integrationsCreateMessengerOnboarding` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-- [x] mutation `integrationsEditMessengerOnboarding` → procedure `inbox.integrationsEditMessengerOnboarding` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-- [x] mutation `integrationsCreateMessengerIntegration` → procedure `inbox.integrationsCreateMessengerIntegration` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-- [x] mutation `integrationsEditMessengerIntegration` → procedure `inbox.integrationsEditMessengerIntegration` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-- [x] mutation `integrationsSaveMessengerAppearanceData` → procedure `inbox.integrationsSaveMessengerAppearanceData` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-- [x] mutation `integrationsSaveMessengerColorTheme` → procedure `inbox.integrationsSaveMessengerColorTheme` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-- [x] mutation `integrationsGetMessengerColorThemes` → procedure `inbox.integrationsGetMessengerColorThemes` (returns `[MessengerColorTheme]`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-- [x] mutation `integrationsSaveMessengerConfigs` → procedure `inbox.integrationsSaveMessengerConfigs` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsCreateMessengerOnboarding` → the messenger's New form in a channel (`ui/src/modules/inbox/IntegrationNew.tsx`), `integrations.create` `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsEditMessengerOnboarding` → the messenger's settings page (`ui/src/modules/messenger/MessengerSettingsPage.tsx`), `integrations.update` `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsCreateMessengerIntegration` → `integrations.create` from the messenger's New form (`ui/src/modules/inbox/IntegrationNew.tsx`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsEditMessengerIntegration` → `integrations.update` from the messenger's settings page (`ui/src/modules/messenger/MessengerSettingsPage.tsx`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsSaveMessengerAppearanceData` → `integrations.update` from the Appearance card (`ui/src/modules/messenger/AppearanceCard.tsx`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsSaveMessengerColorTheme` → `integrations.update` with a theme preset's colours (`ui/src/modules/messenger/AppearanceCard.tsx`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsGetMessengerColorThemes` → `COLOR_THEMES` in `ui/src/modules/messenger/queries.ts`, the presets the Appearance card offers `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsSaveMessengerConfigs` → `integrations.update` from the messenger's settings page (`ui/src/modules/messenger/MessengerSettingsPage.tsx`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
 - [x] mutation `integrationsCreateExternalIntegration` → procedure `inbox.integrationsCreateExternalIntegration` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`. `integrations.create` with the provider's `kind`, its config checked by the kind's adapter (`api/src/modules/inbox/integrations.ts`)
   - note: provider accounts and connections come with the integrations lane
-- [x] mutation `integrationsEditCommonFields` → procedure `inbox.integrationsEditCommonFields` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsEditCommonFields` → `integrations.update` `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
 - [x] mutation `integrationsRemove` → procedure `integrations.remove` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
 - [x] mutation `integrationsRemoveAccount` → procedure `inbox.integrationsRemoveAccount` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`. `integrations.accounts.remove` (`api/src/modules/integrations/accounts.ts`)
   - note: provider accounts and connections come with the integrations lane
 - [x] mutation `integrationsRepair` → procedure `inbox.integrationsRepair` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`. `integrations.accounts.check` (`api/src/modules/integrations/accounts.ts`)
   - note: provider accounts and connections come with the integrations lane
-- [x] mutation `integrationsArchive` → procedure `inbox.integrationsArchive` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-- [x] mutation `integrationsCreateLeadIntegration` → procedure `inbox.integrationsCreateLeadIntegration` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-- [x] mutation `integrationsEditLeadIntegration` → procedure `inbox.integrationsEditLeadIntegration` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
-- [x] mutation `integrationsCopyLeadIntegration` → procedure `inbox.integrationsCopyLeadIntegration` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsArchive` → `integrations.update` with `isActive`, the switch on the integration's panel (`ui/src/modules/inbox/IntegrationPanel.tsx`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsCreateLeadIntegration` → `forms.create`: forms own lead forms `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsEditLeadIntegration` → `forms.update`: forms own lead forms `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
+- [x] mutation `integrationsCopyLeadIntegration` → `forms.duplicate`: forms own lead forms `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`
 - [x] mutation `integrationsSaveMessengerTicketData` → procedure `inbox.integrationsSaveMessengerTicketData` (returns `Integration`) `frontline_api/src/modules/inbox/graphql/schemas/integration.ts:239`. `integrations.update` with the messenger's `ticketPipelineIds`, the Tickets card on its settings page (`ui/src/modules/messenger/TicketsCard.tsx`) (decision)
-- [x] query `widgetsConversations` → procedure `widgetsConversations.list` (returns `[Conversation]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-- [x] query `widgetsConversationDetail` → procedure `widgetsConversations.get` (returns `ConversationDetailResponse`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-- [x] query `widgetsMessages` → procedure `widgetsMessages.list` (returns `[ConversationMessage]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-- [x] query `widgetsUnreadCount` → procedure `widgetsUnreadCounts.get` (returns `Int`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-- [x] query `widgetsTotalUnreadCount` → procedure `widgetsTotalUnreadCounts.get` (returns `Int`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-- [x] query `widgetsMessengerSupporters` → procedure `widgetsMessengerSupporters.list` (returns `MessengerSupportersResponse`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
-- [x] query `widgetsTicketCustomerDetail` → procedure `widgetsTicketCustomers.get` (returns `Customer`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `POST /api/public/messenger/connect` with `identity` (decision)
+- [x] query `widgetsConversations` → GET `/api/public/messenger/conversations` (`api/src/modules/messenger/threads.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
+- [x] query `widgetsConversationDetail` → GET `/api/public/messenger/conversations/:id/messages` (`api/src/modules/messenger/threads.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
+- [x] query `widgetsMessages` → GET `/api/public/messenger/conversations/:id/messages` (`api/src/modules/messenger/threads.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
+- [x] query `widgetsUnreadCount` → `unreadCount` on each conversation from GET `/api/public/messenger/conversations` (`api/src/modules/messenger/threads.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
+- [x] query `widgetsTotalUnreadCount` → `unreadCount` on each conversation from GET `/api/public/messenger/conversations` (`api/src/modules/messenger/threads.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
+- [x] query `widgetsMessengerSupporters` → `/settings` and `/connect` return up to 10 supporters' names and avatars (`supportersOf` in `api/src/modules/messenger/visitors.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
+- [x] query `widgetsTicketCustomerDetail` → `/connect`'s `identity` (`api/src/modules/messenger/identity.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `POST /api/public/messenger/connect` with `identity` (decision)
 - [x] query `widgetsGetTicketTags` → procedure `widgetsGetTicketTags.list` (returns `[Tag]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `GET /api/public/messenger/tickets/forms`, with each offered pipeline's properties (`api/src/modules/messenger/tickets.ts`)
-- [x] query `widgetTicketCheckProgress` → procedure `widgetTicketCheckProgress.list` (returns `Ticket`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `GET /api/public/messenger/tickets` shows each ticket's status (decision)
+- [x] query `widgetTicketCheckProgress` → the visitor's tickets (`api/src/modules/messenger/tickets.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `GET /api/public/messenger/tickets` shows each ticket's status (decision)
 - [x] query `widgetTicketComments` → procedure `widgetTicketComments.list` (returns `[TicketNote]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49` (filed https://github.com/erxes/erxes/issues/10657)
 - [x] query `widgetTicketActivityLogs` → procedure `widgetTicketActivityLogs.list` (returns `[TicketActivity]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49` (filed https://github.com/erxes/erxes/issues/10657)
 - [x] query `widgetTicketsByCustomer` → procedure `widgetTicketsByCustomers.get` (returns `[Ticket]`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `GET /api/public/messenger/tickets` (`api/src/modules/messenger/tickets.ts`)
-- [x] mutation `widgetsMessengerConnect` → procedure `inbox.widgetsMessengerConnect` (returns `MessengerConnectResponse`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-- [x] mutation `widgetsSaveBrowserInfo` → procedure `inbox.widgetsSaveBrowserInfo` (returns `ConversationMessage`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-- [x] mutation `widgetsInsertMessage` → procedure `inbox.widgetsInsertMessage` (returns `ConversationMessage`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-- [x] mutation `widgetBotRequest` → procedure `inbox.widgetBotRequest` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-- [x] mutation `widgetsReadConversationMessages` → procedure `inbox.widgetsReadConversationMessages` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-- [x] mutation `widgetChangeOperatorStatus` → procedure `inbox.widgetChangeOperatorStatus` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-- [x] mutation `widgetGetBotInitialMessage` → procedure `inbox.widgetGetBotInitialMessage` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-- [x] mutation `widgetsLeadIncreaseViewCount` → procedure `inbox.widgetsLeadIncreaseViewCount` (returns `JSON`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-- [x] mutation `widgetsSendTypingInfo` → procedure `inbox.widgetsSendTypingInfo` (returns `String`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
-- [x] mutation `widgetsTicketCustomersEdit` → procedure `widgetsTicketCustomers.update` (returns `Customer`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`. `POST /api/public/messenger/connect` with `identity` (decision)
-- [x] mutation `widgetTicketCreated` → procedure `inbox.widgetTicketCreated` (returns `Ticket`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`. `POST /api/public/messenger/tickets`, in a pipeline the messenger offers (decision)
+- [x] mutation `widgetsMessengerConnect` → POST `/api/public/messenger/connect` (`api/src/modules/messenger/routes.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
+- [x] mutation `widgetsSaveBrowserInfo` → POST `/api/public/messenger/browser` (`api/src/modules/messenger/routes.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
+- [x] mutation `widgetsInsertMessage` → POST `/api/public/messenger/messages` (`api/src/modules/messenger/threads.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
+- [x] mutation `widgetBotRequest` → an automation on `frontline.conversation.message_received` answers with `frontline.conversation.reply` `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
+- [x] mutation `widgetsReadConversationMessages` → POST `/api/public/messenger/conversations/:id/read` (`api/src/modules/messenger/threads.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
+- [x] mutation `widgetChangeOperatorStatus` → POST `/api/public/messenger/conversations/:id/person`, the visitor asking for a person (`api/src/modules/messenger/threads.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
+- [x] mutation `widgetGetBotInitialMessage` → the config's `botGreeting` and menu, shown by `widget/src/messenger/Thread.tsx` `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
+- [x] mutation `widgetsLeadIncreaseViewCount` → GET `/api/public/:key/forms/:code` counts the form's view (`countView` in `api/src/modules/forms/embed.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
+- [x] mutation `widgetsSendTypingInfo` → POST `/api/public/messenger/conversations/:id/typing` (`api/src/modules/messenger/threads.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
+- [x] mutation `widgetsTicketCustomersEdit` → `/connect`'s `identity` (`api/src/modules/messenger/identity.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`. `POST /api/public/messenger/connect` with `identity` (decision)
+- [x] mutation `widgetTicketCreated` → a visitor's ticket (`api/src/modules/messenger/tickets.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`. `POST /api/public/messenger/tickets`, in a pipeline the messenger offers (decision)
 - [x] mutation `widgetTicketCommentAdd` → procedure `widgetTicketComments.create` (returns `TicketNote`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66` (filed https://github.com/erxes/erxes/issues/10657)
 - [x] mutation `widgetTicketCommentRemove` → procedure `widgetTicketComments.remove` (returns `String`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66` (filed https://github.com/erxes/erxes/issues/10657)
 
