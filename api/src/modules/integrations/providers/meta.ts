@@ -1,5 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
+import { config } from '#/config.ts';
 import type { Tx } from '#/db/client.ts';
 import { openSecret } from '../secrets.ts';
 import { accountRow } from '../store.ts';
@@ -47,6 +48,7 @@ export const graph = async (
       ...(options.body ? { 'content-type': 'application/json' } : {}),
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
+    signal: AbortSignal.timeout(config.outboundMs),
   });
 
   const body: unknown = await response.json();

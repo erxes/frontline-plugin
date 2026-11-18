@@ -22,6 +22,8 @@ export const storeFile = async (
     method: upload.method,
     headers: upload.headers,
     body: bytes,
+    // The bytes go in one request, so they get longer than an API call.
+    signal: AbortSignal.timeout(4 * config.outboundMs),
   });
 
   if (!sent.ok) throw new Error(`Core's storage refused the file: ${sent.status}`);
@@ -31,13 +33,25 @@ export const storeFile = async (
   return { url: ready.url, name: ready.name, type: ready.contentType, size: ready.size };
 };
 
-/** A file of the organisation from core: its name and type, and its bytes as core streams them. */
+/**
+ * A file of the organisation from core: its name and type, and its bytes as core streams them.
+ * Core has `config.outboundMs` to start answering; the stream itself takes as long as it takes.
+ */
 export const readFile = async (orgId: string, id: string) => {
   const file = await core.forOrg(orgId).files.get({ id });
 
   if (!file.downloadUrl) return null;
 
-  const answer = await fetch(new URL(file.downloadUrl, config.coreUrl));
+  const started = new AbortController();
+
+  const timer = setTimeout(
+    () => started.abort(new Error('Core did not send the file')),
+    config.outboundMs,
+  );
+
+  const answer = await fetch(new URL(file.downloadUrl, config.coreUrl), {
+    signal: started.signal,
+  }).finally(() => clearTimeout(timer));
 
   if (!answer.ok || !answer.body)
     throw new Error(`Core's storage refused the file: ${answer.status}`);

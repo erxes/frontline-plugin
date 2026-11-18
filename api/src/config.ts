@@ -8,6 +8,8 @@ const Env = z.object({
   PORT: z.coerce.number().int().positive().default(3399),
   /** Postgres as the plugin's own role (`pnpm db:plugin-role frontline` in core). */
   DATA_URL: z.url(),
+  /** Connections each API process holds open at most. */
+  DATA_POOL_MAX: z.coerce.number().int().positive().default(10),
   /** Core's address, without `/core/v1`. */
   CORE_URL: z.url(),
   /** This plugin's secret from core's `CORE_PLUGIN_KEYS`. */
@@ -65,6 +67,18 @@ const env = Env.refine((vars) => !vars.META_RELAY_URL === !vars.META_RELAY_KEY, 
 export const config = {
   port: env.PORT,
   dataUrl: env.DATA_URL,
+  /**
+   * The pool: a request waits 5 s for a free connection, a transaction's statement runs 15 s,
+   * and a transaction idle for 30 s is ended, so a stuck one can't hold a connection.
+   */
+  pool: {
+    max: env.DATA_POOL_MAX,
+    connectMs: 5_000,
+    statementMs: 15_000,
+    idleInTransactionMs: 30_000,
+  },
+  /** How long frontline waits for core or a provider's API to answer. */
+  outboundMs: 15_000,
   coreUrl: env.CORE_URL,
   pluginSecret: env.PLUGIN_SECRET,
   publicUrl: env.PUBLIC_URL.replace(/\/+$/, ''),
