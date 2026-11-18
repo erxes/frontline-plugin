@@ -9,6 +9,7 @@ import {
   RecordTableInlineCell,
   useOpenRecord,
 } from 'erxes-ui';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import type { Integration } from '@/inbox/queries.ts';
@@ -31,17 +32,19 @@ const useKinds = (channelId: string) => {
 
 /**
  * The list's Integrations cell: one chip per kind, its icon and how many, as the old channel list
- * showed them. It opens the integrations themselves, each leading to its side panel.
+ * showed them. It opens the integrations themselves, each leading to its side panel, and closes
+ * once one opens there.
  */
 export const IntegrationBadges = ({ channelId }: { channelId: string }) => {
   const { t } = useTranslation('frontline');
   const names = useKindNames();
   const kinds = useKinds(channelId);
+  const [shown, setShown] = useState(false);
 
   if (kinds.size === 0) return <RecordTableInlineCell />;
 
   return (
-    <Popover>
+    <Popover open={shown} onOpenChange={setShown}>
       <RecordTableInlineCell.Trigger
         variant="field"
         aria-label={t('channel-integrations', 'Integrations: {{kinds}}', {
@@ -66,7 +69,11 @@ export const IntegrationBadges = ({ channelId }: { channelId: string }) => {
       <RecordTableInlineCell.Content>
         <span className="flex flex-col">
           {[...kinds.values()].flat().map((integration) => (
-            <IntegrationButton key={integration.id} integration={integration} />
+            <IntegrationButton
+              key={integration.id}
+              integration={integration}
+              onOpen={() => setShown(false)}
+            />
           ))}
         </span>
       </RecordTableInlineCell.Content>
@@ -76,9 +83,15 @@ export const IntegrationBadges = ({ channelId }: { channelId: string }) => {
 
 /**
  * One integration of a kind: its tinted icon and name, opening it in the side panel, and for a
- * messenger, a link to its settings page.
+ * messenger, a link to its settings page. `onOpen` runs once it opened.
  */
-const IntegrationButton = ({ integration }: { integration: Integration }) => {
+const IntegrationButton = ({
+  integration,
+  onOpen,
+}: {
+  integration: Integration;
+  onOpen?: () => void;
+}) => {
   const { t } = useTranslation('frontline');
   const { open } = useOpenRecord();
 
@@ -88,7 +101,10 @@ const IntegrationButton = ({ integration }: { integration: Integration }) => {
         variant="ghost"
         size="sm"
         className="min-w-0 flex-1 justify-start"
-        onClick={() => open({ contentType: INTEGRATION_TYPE, contentId: integration.id })}
+        onClick={() => {
+          open({ contentType: INTEGRATION_TYPE, contentId: integration.id });
+          onOpen?.();
+        }}
       >
         <KindIcon kind={integration.kind} />
         <span className="min-w-0 flex-1 truncate text-left">{integration.name}</span>
