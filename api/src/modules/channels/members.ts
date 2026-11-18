@@ -2,13 +2,13 @@ import { ORPCError } from '@orpc/server';
 import { and, asc, desc, eq, inArray, notInArray } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
-import { PERMISSIONS } from '#/core.ts';
+import { CHANNEL_EVENTS, PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { CHANNEL_ROLES, channelMembers } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput } from '../filter.ts';
-import { channelFor, insertMembers } from './access.ts';
+import { channelFor, insertMembers, publishChannelEvents } from './access.ts';
 
 const Members = z.object({ id: z.string(), userIds: z.array(z.string()).min(1).max(500) });
 const Member = createSelectSchema(channelMembers).pick({ userId: true, role: true });
@@ -97,10 +97,22 @@ const removeMembers = writes(PERMISSIONS.channelView)
 
     if (!(await keepsAnAdmin(tx, input.id, input.userIds))) throw errors.LAST_ADMIN();
 
-    return tx
+    const removed = await tx
       .delete(channelMembers)
       .where(inChannel(input.id, input.userIds))
       .returning({ userId: channelMembers.userId });
+
+    if (removed.length > 0)
+      await publishChannelEvents(tx, member, [
+        {
+          entityId: input.id,
+          type: CHANNEL_EVENTS.membersRemoved.type,
+          summary: removed.length === 1 ? 'Removed a member' : `Removed ${removed.length} members`,
+          payload: { channelId: input.id, userIds: removed.map((row) => row.userId) },
+        },
+      ]);
+
+    return removed;
   });
 
 const setRole = writes(PERMISSIONS.channelView)
@@ -120,6 +132,15 @@ const setRole = writes(PERMISSIONS.channelView)
       .returning({ userId: channelMembers.userId, role: channelMembers.role });
 
     if (!row) throw new ORPCError('NOT_FOUND', { message: 'Not a member of this channel' });
+
+    await publishChannelEvents(tx, member, [
+      {
+        entityId: input.id,
+        type: CHANNEL_EVENTS.roleChanged.type,
+        summary: row.role === 'admin' ? 'Made a member an admin' : 'Made an admin a member',
+        payload: { channelId: input.id, userId: row.userId, role: row.role },
+      },
+    ]);
 
     return row;
   });

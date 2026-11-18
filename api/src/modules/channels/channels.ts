@@ -14,7 +14,7 @@ import {
 } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
-import { CHANNEL_EVENTS, PERMISSIONS } from '#/core.ts';
+import { CHANNEL_EVENTS, CHANNEL_REMOVED, PERMISSIONS } from '#/core.ts';
 import { type Tx, uniqueViolation } from '#/db/client.ts';
 import { forms } from '#/db/forms.ts';
 import {
@@ -27,12 +27,13 @@ import {
 import { pipelines } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
-import { changedEvent } from '../events.ts';
+import { auditRemoved, changedEvent } from '../events.ts';
 import { FilterInput, likeText } from '../filter.ts';
 import {
   canChangeSql,
   channelFor,
   channelsFor,
+  channelTimeline,
   insertMembers,
   managesAll,
   membership,
@@ -256,7 +257,9 @@ const remove = writes(PERMISSIONS.channelView)
     const removed = await tx
       .delete(channels)
       .where(inArray(channels.id, input.ids))
-      .returning({ id: channels.id });
+      .returning({ id: channels.id, name: channels.name });
+
+    await auditRemoved(tx, channelTimeline(member), CHANNEL_REMOVED, removed);
 
     return { ids: removed.map((row) => row.id) };
   });
@@ -279,7 +282,17 @@ const personal = writes(PERMISSIONS.channelView)
       .onConflictDoNothing()
       .returning({ id: channels.id });
 
-    if (made) await insertMembers(tx, member, made.id, [member.userId], 'admin');
+    if (made) {
+      await publishChannelEvents(tx, member, [
+        {
+          entityId: made.id,
+          type: CHANNEL_EVENTS.created.type,
+          summary: 'Created a personal inbox',
+          payload: { name: 'Personal inbox' },
+        },
+      ]);
+      await insertMembers(tx, member, made.id, [member.userId], 'admin');
+    }
 
     const [row] = await channelRows(tx, member).where(eq(channels.ownerId, member.userId));
 

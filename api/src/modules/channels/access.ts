@@ -126,19 +126,18 @@ export const insertMembers = async (
   );
 };
 
+/** The channels' timeline in core, as `member` changes them. */
+export const channelTimeline = (member: PluginMember) => ({
+  orgId: member.orgId,
+  actorUserId: member.userId,
+  entityType: CHANNEL_TIMELINE,
+  linkOf: (id: string) => `/${PLUGIN}/settings/channels/${encodeURIComponent(id)}`,
+  audited: false,
+});
+
 /** Puts the events on the channels' timelines in core. */
 export const publishChannelEvents = (tx: Tx, member: PluginMember, events: RecordEvent[]) =>
-  publishEvents(
-    tx,
-    {
-      orgId: member.orgId,
-      actorUserId: member.userId,
-      entityType: CHANNEL_TIMELINE,
-      linkOf: (id) => `/${PLUGIN}/settings/channels/${encodeURIComponent(id)}`,
-      audited: false,
-    },
-    events,
-  );
+  publishEvents(tx, channelTimeline(member), events);
 
 /**
  * Records the members added to a channel on its timeline, and tells them, except the one who
