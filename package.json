@@ -19,7 +19,8 @@
     "e2e:stack": "bash e2e/stack.sh",
     "image": "pnpm build && rm -rf .runtime && pnpm --filter @frontline/api deploy --prod .runtime && docker build --build-arg VERSION=${VERSION:-dev} -t frontline-plugin:ci .",
     "migrate:import": "node --env-file-if-exists=.env scripts/import-mongo.ts",
-    "migrate:ticket-properties": "node --env-file-if-exists=.env scripts/move-ticket-properties.ts"
+    "migrate:ticket-properties": "node --env-file-if-exists=.env scripts/move-ticket-properties.ts",
+    "check:migration": "vp test run api/src/__tests__/migration.test.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.14.0",
