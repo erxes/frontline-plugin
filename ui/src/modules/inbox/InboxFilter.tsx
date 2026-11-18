@@ -20,7 +20,7 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import type { TListFilterField } from 'erxes-ui';
+import { cn, type TListFilterField } from 'erxes-ui';
 import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
@@ -53,22 +53,29 @@ export const useKindNames = (): Record<string, string> => {
   };
 };
 
-const KIND_ICONS: Record<string, ComponentType<{ className?: string }>> = {
-  messenger: IconMessageCircle,
-  facebook: IconBrandMessenger,
-  instagram: IconBrandInstagram,
-  telegram: IconBrandTelegram,
-  discord: IconBrandDiscord,
-  mail: IconMail,
-  call: IconPhone,
-  callpro: IconPhone,
+/**
+ * Each kind's icon, tinted as near its brand as the theme's tokens get, so a row says where a
+ * conversation came from at a glance, as the old inbox's coloured icons did.
+ */
+const KIND_ICONS: Record<string, { icon: ComponentType<{ className?: string }>; tint: string }> = {
+  messenger: { icon: IconMessageCircle, tint: 'text-primary-text' },
+  facebook: { icon: IconBrandMessenger, tint: 'text-info-text' },
+  instagram: { icon: IconBrandInstagram, tint: 'text-destructive-text' },
+  telegram: { icon: IconBrandTelegram, tint: 'text-info-text' },
+  discord: { icon: IconBrandDiscord, tint: 'text-primary-text' },
+  mail: { icon: IconMail, tint: 'text-warning-text' },
+  call: { icon: IconPhone, tint: 'text-success-text' },
+  callpro: { icon: IconPhone, tint: 'text-success-text' },
 };
 
 /** The icon of the integration kind a conversation came through, a plug for one the UI doesn't know. */
 export const KindIcon = ({ kind, className }: { kind: string; className?: string }) => {
-  const Icon = KIND_ICONS[kind] ?? IconPlug;
+  const { icon: Icon, tint } = KIND_ICONS[kind] ?? {
+    icon: IconPlug,
+    tint: 'text-muted-foreground',
+  };
 
-  return <Icon className={className} aria-hidden />;
+  return <Icon className={cn(tint, className)} aria-hidden />;
 };
 
 /** The dates a conversation carries. */

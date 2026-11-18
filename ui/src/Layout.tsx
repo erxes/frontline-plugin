@@ -20,6 +20,7 @@ import {
   AppLayout,
   AppLayoutFooterLink,
   cn,
+  IconsProvider,
   NavigationMenuLinkItem,
   Sidebar,
   Skeleton,
@@ -90,7 +91,8 @@ const CallsGroup = () => {
 
 /**
  * Frontline's pages, as core's Contacts and Products draw theirs: the app sidebar, Settings
- * pinned at its foot, and the open page.
+ * pinned at its foot, and the open page. The icons members pick for channels and categories
+ * load in the background.
  */
 export const FrontlineLayout = () => {
   const { t } = useTranslation('frontline');
@@ -103,48 +105,50 @@ export const FrontlineLayout = () => {
   ];
 
   return (
-    <AppLayout
-      id={PLUGIN}
-      title={t('frontline', 'Frontline')}
-      footer={
-        <AppLayoutFooterLink to={SETTINGS} name={t('settings', 'Settings')} icon={IconSettings} />
-      }
-      sidebar={
-        <>
-          <Sidebar.Group variant="flush">
-            <Sidebar.GroupContent>
-              <Sidebar.Menu>
-                <Suspense
-                  fallback={
+    <IconsProvider>
+      <AppLayout
+        id={PLUGIN}
+        title={t('frontline', 'Frontline')}
+        footer={
+          <AppLayoutFooterLink to={SETTINGS} name={t('settings', 'Settings')} icon={IconSettings} />
+        }
+        sidebar={
+          <>
+            <Sidebar.Group variant="flush">
+              <Sidebar.GroupContent>
+                <Sidebar.Menu>
+                  <Suspense
+                    fallback={
+                      <NavigationMenuLinkItem
+                        to={`${ROOT}/inbox`}
+                        name={t('inbox', 'Inbox')}
+                        icon={IconInbox}
+                      />
+                    }
+                  >
+                    <InboxNav />
+                  </Suspense>
+                  {items.map((item) => (
                     <NavigationMenuLinkItem
-                      to={`${ROOT}/inbox`}
-                      name={t('inbox', 'Inbox')}
-                      icon={IconInbox}
+                      key={item.to}
+                      to={item.to}
+                      name={item.name}
+                      icon={item.icon}
                     />
-                  }
-                >
-                  <InboxNav />
-                </Suspense>
-                {items.map((item) => (
-                  <NavigationMenuLinkItem
-                    key={item.to}
-                    to={item.to}
-                    name={item.name}
-                    icon={item.icon}
-                  />
-                ))}
-                <CallsGroup />
-              </Sidebar.Menu>
-            </Sidebar.GroupContent>
-          </Sidebar.Group>
-          <Suspense fallback={null}>
-            <InboxGroups />
-          </Suspense>
-        </>
-      }
-    >
-      <Page />
-    </AppLayout>
+                  ))}
+                  <CallsGroup />
+                </Sidebar.Menu>
+              </Sidebar.GroupContent>
+            </Sidebar.Group>
+            <Suspense fallback={null}>
+              <InboxGroups />
+            </Suspense>
+          </>
+        }
+      >
+        <Page />
+      </AppLayout>
+    </IconsProvider>
   );
 };
 

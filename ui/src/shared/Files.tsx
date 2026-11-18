@@ -1,8 +1,8 @@
 import type { InferClientOutputs } from '@orpc/client';
 import type { Client } from '@frontline/api';
 import { IconFile, IconUpload, IconX } from '@tabler/icons-react';
-import { Button, Upload, useUpload } from 'erxes-ui';
-import { useRef } from 'react';
+import { Button, IconTip, Upload, useUpload } from 'erxes-ui';
+import { type ReactNode, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 /** A file on core's storage, as every record with files stores it (`api/src/db/table.ts`). */
@@ -27,14 +27,19 @@ export const ImageField = ({
   </Upload.Root>
 );
 
-/** A button that uploads the file picked; `accept` names the types it takes. */
+/**
+ * A button that uploads the file picked; `accept` names the types it takes. Given an `icon`, it
+ * is that icon alone with `label` on hover, as a composer's tools are.
+ */
 export const FilePicker = ({
   label,
   accept,
+  icon,
   onUploaded,
 }: {
   label: string;
   accept?: string;
+  icon?: ReactNode;
   onUploaded: (file: Attachment) => void;
 }) => {
   const input = useRef<HTMLInputElement>(null);
@@ -61,16 +66,32 @@ export const FilePicker = ({
           })
         }
       />
-      <Button
-        type="button"
-        variant="outline"
-        className="self-start"
-        disabled={isLoading}
-        onClick={() => input.current?.click()}
-      >
-        <IconUpload />
-        {label}
-      </Button>
+      {icon ? (
+        <IconTip label={label}>
+          <Button
+            type="button"
+            variant="ghost"
+            tone="muted"
+            size="icon"
+            aria-label={label}
+            disabled={isLoading}
+            onClick={() => input.current?.click()}
+          >
+            {icon}
+          </Button>
+        </IconTip>
+      ) : (
+        <Button
+          type="button"
+          variant="outline"
+          className="self-start"
+          disabled={isLoading}
+          onClick={() => input.current?.click()}
+        >
+          <IconUpload />
+          {label}
+        </Button>
+      )}
     </>
   );
 };

@@ -7,7 +7,7 @@ import { CONVERSATION_TIMELINE } from '#/core.ts';
 import { PLUGIN } from '#/config.ts';
 import type { Tx } from '#/db/client.ts';
 import { conversations, conversationTags, integrations, messages } from '#/db/inbox.ts';
-import { channelMembers } from '#/db/schema.ts';
+import { channelMembers, channels } from '#/db/schema.ts';
 import { managesAll, membership } from '../channels/access.ts';
 import { publishEvents } from '../events.ts';
 
@@ -42,8 +42,10 @@ export const Conversation = createSelectSchema(conversations)
   .extend({
     /** Its integration's adapter kind, such as `messenger`. */
     kind: z.string(),
-    /** Its integration's name, which the list shows under the customer. */
+    /** Its integration's name, which the list shows on hover of the kind's icon. */
     integrationName: z.string(),
+    /** Its channel's name, which the list shows beside the customer. */
+    channelName: z.string(),
     tagIds: z.array(z.string()),
     isRead: z.boolean(),
   });
@@ -61,11 +63,13 @@ export const conversationRows = (tx: Tx, member: PluginMember) => {
       ...columns,
       kind: integrations.kind,
       integrationName: integrations.name,
+      channelName: channels.name,
       tagIds: tagIdsOf,
       isRead: readSql(member),
     })
     .from(conversations)
     .innerJoin(integrations, eq(integrations.id, conversations.integrationId))
+    .innerJoin(channels, eq(channels.id, conversations.channelId))
     .leftJoin(channelMembers, membership(member, conversations.channelId))
     .$dynamic();
 };

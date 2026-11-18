@@ -7,7 +7,6 @@ import {
   IconRobot,
 } from '@tabler/icons-react';
 import {
-  Avatar,
   Button,
   cn,
   Editor,
@@ -19,7 +18,6 @@ import {
 } from 'erxes-ui';
 import { Fragment, type SubmitEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useCustomerName } from './ConversationList.tsx';
 import {
   type Conversation,
   type Message,
@@ -30,6 +28,7 @@ import {
 } from './queries.ts';
 import { SentSurvey } from '~/modules/surveys/SurveyMessage.tsx';
 import { MemberLine } from '~/shared/MemberLine.tsx';
+import { PersonAvatar, useCustomer } from '~/shared/PersonAvatar.tsx';
 import { Attachments, LinkPreviews, MessageBody } from './MessageContent.tsx';
 import { Reactions } from './Reactions.tsx';
 import { useSendShortcut } from './useSendShortcut.ts';
@@ -112,68 +111,105 @@ const Marks = ({ message }: { message: Message }) => {
   );
 };
 
-const Bubble = ({
-  message,
-  customerName,
-  kind,
-}: {
-  message: Message;
-  customerName: string;
-  kind: string;
-}) => {
+/** Two messages from one author this close together read as one run, under one name. */
+const RUN_MS = 5 * 60_000;
+
+/** Whether `message` continues the run of the one before it: the same author, minutes apart. */
+const continues = (message: Message, previous: Message | undefined) =>
+  previous !== undefined &&
+  previous.customerId === message.customerId &&
+  previous.userId === message.userId &&
+  previous.internal === message.internal &&
+  message.createdAt.getTime() - previous.createdAt.getTime() < RUN_MS &&
+  toIsoDay(message.createdAt) === toIsoDay(previous.createdAt);
+
+/** Pin and edit, beside the bubble on hover; a pinned message keeps its unpin button in view. */
+const MessageTools = ({ message, onEdit }: { message: Message; onEdit: () => void }) => {
   const { t } = useTranslation('frontline');
   const pin = usePinMessage();
+  const pinned = Boolean(message.pinnedAt);
+
+  return (
+    <>
+      <Button
+        variant="ghost"
+        size="icon"
+        className={cn('size-6', !pinned && 'opacity-0 group-hover:opacity-100 focus:opacity-100')}
+        aria-label={pinned ? t('unpin', 'Unpin') : t('pin', 'Pin')}
+        onClick={() => pin.mutate({ id: message.id, pinned: !pinned })}
+      >
+        {pinned ? <IconPinnedOff /> : <IconPin />}
+      </Button>
+      {message.canEdit && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 opacity-0 group-hover:opacity-100 focus:opacity-100"
+          aria-label={t('edit-message', 'Edit message')}
+          onClick={onEdit}
+        >
+          <IconPencil />
+        </Button>
+      )}
+    </>
+  );
+};
+
+/**
+ * One message: the customer's on the left beside their avatar, the team's on the right. The first
+ * of a run carries the author and time; the rest of the run sits close under it, its own time in
+ * its tooltip.
+ */
+const Bubble = ({
+  message,
+  customer,
+  kind,
+  first,
+}: {
+  message: Message;
+  customer: { name: string; avatarUrl?: string | null };
+  kind: string;
+  first: boolean;
+}) => {
+  const { t } = useTranslation('frontline');
+  const format = useFormat();
   const [editing, setEditing] = useState(false);
   const fromCustomer = Boolean(message.customerId);
-  const pinned = Boolean(message.pinnedAt);
 
   return (
     <li
       aria-label={message.internal ? t('internal-note', 'Internal note') : t('message', 'Message')}
-      className={cn('group flex max-w-2xl gap-2', !fromCustomer && 'flex-row-reverse self-end')}
+      title={first ? undefined : format.dateTime(message.createdAt)}
+      className={cn(
+        'group flex max-w-2xl gap-2',
+        !fromCustomer && 'flex-row-reverse self-end',
+        first && 'mt-3',
+      )}
     >
       {fromCustomer && (
-        <Avatar size="lg" className="mt-6 shrink-0">
-          <Avatar.Fallback>{customerName.charAt(0).toUpperCase()}</Avatar.Fallback>
-        </Avatar>
+        <span className="size-8 shrink-0">
+          {first && <PersonAvatar name={customer.name} src={customer.avatarUrl} className="mt-6" />}
+        </span>
       )}
       <div className={cn('flex min-w-0 flex-col gap-1', !fromCustomer && 'items-end')}>
-        <span
-          className={cn(
-            'flex h-6 items-center gap-2 text-xs text-muted-foreground',
-            !fromCustomer && 'flex-row-reverse',
-          )}
-        >
-          <Author message={message} customerName={customerName} />
-          <Marks message={message} />
-          <Button
-            variant="ghost"
-            size="icon"
+        {first && (
+          <span
             className={cn(
-              'size-6',
-              !pinned && 'opacity-0 group-hover:opacity-100 focus:opacity-100',
+              'flex h-6 items-center gap-2 text-xs text-muted-foreground',
+              !fromCustomer && 'flex-row-reverse',
             )}
-            aria-label={pinned ? t('unpin', 'Unpin') : t('pin', 'Pin')}
-            onClick={() => pin.mutate({ id: message.id, pinned: !pinned })}
           >
-            {pinned ? <IconPinnedOff /> : <IconPin />}
-          </Button>
-          {message.canEdit && !editing && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-6 opacity-0 group-hover:opacity-100 focus:opacity-100"
-              aria-label={t('edit-message', 'Edit message')}
-              onClick={() => setEditing(true)}
-            >
-              <IconPencil />
-            </Button>
-          )}
-        </span>
+            <Author message={message} customerName={customer.name} />
+            <Marks message={message} />
+          </span>
+        )}
         {editing ? (
           <EditBox message={message} onDone={() => setEditing(false)} />
         ) : (
-          <MessageBody message={message} />
+          <span className={cn('flex items-center gap-1', !fromCustomer && 'flex-row-reverse')}>
+            <MessageBody message={message} />
+            <MessageTools message={message} onEdit={() => setEditing(true)} />
+          </span>
         )}
         <Attachments files={message.attachments} />
         <LinkPreviews message={message} />
@@ -223,7 +259,7 @@ const DayDivider = ({ date }: { date: Date }) => {
         : format.date(date);
 
   return (
-    <li className="flex items-center gap-3 text-xs text-muted-foreground">
+    <li className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
       <hr className="flex-1" />
       {label}
       <hr className="flex-1" />
@@ -247,7 +283,7 @@ const ThreadSkeleton = () => (
 export const MessageThread = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const { messages, isPending, hasNextPage, fetchNextPage } = useMessages(conversation.id);
-  const customerName = useCustomerName(conversation.customerId);
+  const customer = useCustomer(conversation.customerId);
   const end = useRef<HTMLDivElement>(null);
   const lastId = messages.at(-1)?.id;
 
@@ -271,14 +307,22 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
             {t('no-messages-yet', 'No messages yet. Write the first one below.')}
           </p>
         ) : (
-          <ol aria-label={t('messages', 'Messages')} className="flex flex-col gap-4 p-4">
+          <ol
+            aria-label={t('messages', 'Messages')}
+            className="mx-auto flex w-full max-w-2xl flex-col gap-1 px-3 py-6"
+          >
             {messages.map((message, index) => (
               <Fragment key={message.id}>
                 {toIsoDay(message.createdAt) !==
                   toIsoDay(messages[index - 1]?.createdAt ?? new Date(0)) && (
                   <DayDivider date={message.createdAt} />
                 )}
-                <Bubble message={message} customerName={customerName} kind={conversation.kind} />
+                <Bubble
+                  message={message}
+                  customer={customer}
+                  kind={conversation.kind}
+                  first={!continues(message, messages[index - 1])}
+                />
               </Fragment>
             ))}
           </ol>

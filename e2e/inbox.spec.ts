@@ -58,7 +58,7 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
 
   // A reply reaches the visitor; an internal note stays with the team.
   await page.getByRole('textbox', { name: 'Reply' }).fill('It ships today.');
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(thread).toContainText('It ships today.');
   await page.getByRole('tab', { name: 'Internal note' }).click();
   await page.getByRole('textbox', { name: 'Internal note' }).fill('Courier confirmed.');
@@ -91,9 +91,10 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await expect(header).toContainText(tag);
 
   // The header is one row, as the old inbox's was: the assignee, then the tags, then Resolve.
-  // The assignee's button holds more than their name, so it matches by part of its name.
+  // The assignee's button holds more than their name, and the tags' button names its tags after
+  // Edit tags, so both match by part of their names.
   const assignee = header.getByRole('button', { name: fullName });
-  const tags = header.getByRole('button', { name: 'Edit tags', exact: true });
+  const tags = header.getByRole('button', { name: /^Edit tags/ });
   const resolve = header.getByRole('button', { name: 'Resolve', exact: true });
 
   expect(await left(assignee)).toBeLessThan(await left(tags));
@@ -204,7 +205,7 @@ test('a visitor writes from the widget on a website and reads the reply without 
     .getByRole('button', { name: new RegExp(question.replace('?', '\\?')) })
     .click();
   await page.getByRole('textbox', { name: 'Reply' }).fill('Yes, to 40 countries.');
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
 
   // The stream tells the widget; it refetches the open conversation.
   await expect(panel).toContainText('Yes, to 40 countries.');
@@ -259,20 +260,17 @@ test('a member takes over from the bot, sees the visitor typing and edits a repl
   await page.keyboard.press('Escape');
   await expectAccessible(page);
 
-  // The header's toggle gives the thread the list's width, and the reply box folds to its tabs.
+  // The header's toggle gives the thread the list's width.
   const conversations = page.getByRole('list', { name: 'Conversations' });
 
   await header.getByRole('button', { name: 'Hide conversations' }).click();
   await expect(conversations).toBeHidden();
   await header.getByRole('button', { name: 'Show conversations' }).click();
   await expect(conversations).toBeVisible();
-  await page.getByRole('button', { name: 'Fold the reply box' }).click();
-  await expect(page.getByRole('textbox', { name: 'Reply' })).toBeHidden();
-  await page.getByRole('button', { name: 'Expand the reply box' }).click();
 
   // The member fixes a typo in their reply, and the visitor reads the fixed one.
   await page.getByRole('textbox', { name: 'Reply' }).fill('It ships tomorow.');
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
 
   const reply = thread.getByRole('listitem', { name: 'Message' }).filter({ hasText: 'tomorow' });
 

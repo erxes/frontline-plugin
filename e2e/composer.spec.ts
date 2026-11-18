@@ -51,11 +51,12 @@ test('a member answers with a response template, formats it, attaches a file and
   await expect(reply).toContainText('Refunds take five days.');
   await page.keyboard.press('ControlOrMeta+b');
   await page.keyboard.type(' Sorry for the wait.');
+  // The paperclip opens the file input behind it.
   await page
-    .getByLabel('Attach file')
+    .locator('input[type="file"]')
     .setInputFiles({ name: 'receipt.txt', mimeType: 'text/plain', buffer: Buffer.from('paid') });
   await expect(page.getByRole('button', { name: 'Remove receipt.txt' })).toBeVisible();
-  await page.getByRole('button', { name: 'Send' }).click();
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
 
   const sent = thread.getByRole('listitem', { name: 'Message' }).last();
 
@@ -78,7 +79,7 @@ test('a member answers with a response template, formats it, attaches a file and
 
   await page.getByRole('tab', { name: 'Internal note' }).click();
   await expect(page.getByRole('button', { name: 'Add note' })).toBeVisible();
-  await expect(page.getByRole('button', { name: 'Send' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Send', exact: true })).toBeHidden();
   await expect(card).not.toHaveCSS('background-color', replyTint);
 
   // It mentions the teammate through `/` and their name, and Ctrl or ⌘ with Enter adds it.

@@ -10,7 +10,6 @@ import {
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
-  Badge,
   Button,
   ContactLink,
   EntityPicker,
@@ -21,6 +20,7 @@ import {
   useOpenRecord,
 } from 'erxes-ui';
 import { useAtom } from 'jotai';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { CONVERSATION_TYPE, PLUGIN } from '~/plugin.ts';
@@ -36,17 +36,19 @@ import {
 } from './queries.ts';
 
 /**
- * A button that opens the conversation tags, `tagIds` picked, and sets them on each of `ids`;
- * the search makes a new one.
+ * A button named `label` that opens the conversation tags, `tagIds` picked, and sets them on each
+ * of `ids`; the search makes a new one. `children` shows on the button in place of the label.
  */
 export const TagEditor = ({
   ids,
   tagIds,
   label,
+  children,
 }: {
   ids: string[];
   tagIds: string[];
   label: string;
+  children?: ReactNode;
 }) => {
   const { t } = useTranslation('frontline');
   const tags = useQuery(conversationTags);
@@ -58,9 +60,16 @@ export const TagEditor = ({
     <Popover>
       <Popover.Trigger
         render={
-          <Button variant="outline" size="sm">
+          <Button variant="outline" size="sm" className="max-w-60 min-w-0">
             <IconTag />
-            {label}
+            {children ? (
+              <>
+                <span className="sr-only">{label}</span>
+                {children}
+              </>
+            ) : (
+              label
+            )}
           </Button>
         }
       />
@@ -126,59 +135,93 @@ const ListToggle = () => {
   );
 };
 
-/** The conversation's tags, as badges beside Edit tags. */
-const useTags = (conversation: Conversation) =>
-  (useQuery(conversationTags).data?.data ?? []).filter((tag) =>
+/** How many tag names fit on the header's tag button before the rest count as +N. */
+const TAGS_SHOWN = 2;
+
+/**
+ * The conversation's tags on its tag button, as the old inbox had them: each one's name after a
+ * dot of its own colour, the first two named and the rest counted.
+ */
+const TagSummary = ({ conversation }: { conversation: Conversation }) => {
+  const tags = (useQuery(conversationTags).data?.data ?? []).filter((tag) =>
     conversation.tagIds.includes(tag.id),
   );
 
+  const rest = tags.length - TAGS_SHOWN;
+
+  return (
+    <>
+      {tags.slice(0, TAGS_SHOWN).map((tag) => {
+        const dot: Record<`--${string}`, string> = { '--tag-color': tag.colorCode ?? '' };
+
+        return (
+          <span key={tag.id} className="flex min-w-0 items-center gap-1">
+            {tag.colorCode && (
+              <span
+                aria-hidden
+                style={dot}
+                className="size-2 shrink-0 rounded-full bg-(--tag-color)"
+              />
+            )}
+            <span className="truncate">{tag.name}</span>
+          </span>
+        );
+      })}
+      {rest > 0 && <span className="shrink-0 text-muted-foreground">+{rest}</span>}
+    </>
+  );
+};
+
 /**
  * The open conversation's controls on one row, as the old inbox had them: the list toggle, who
- * it is with and its assignee on the left; its tags, Resolve or Reopen and the overflow menu on
- * the right. Each change saves at once.
+ * it is with, where it came from and its assignee on the left; its tags, Resolve or Reopen and
+ * the overflow menu on the right. Each change shows at once and saves behind it.
  */
 export const ConversationHeader = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const assign = useAssign();
   const setStatus = useSetStatus();
   const resolved = conversation.status === 'resolved';
-  const tags = useTags(conversation);
   const { open } = useOpenRecord();
 
   return (
-    <header className="flex shrink-0 items-center gap-2 border-b px-3 py-2">
+    <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
       <ListToggle />
-      <ContactLink
-        contentType="core:customer"
-        contentId={conversation.customerId}
-        contacts={contactQueries}
-        placeholder={t('visitor', 'Visitor')}
-      />
-      <span className="hidden items-center gap-1 truncate text-xs text-muted-foreground xl:flex">
-        <KindIcon kind={conversation.kind} className="size-3.5 shrink-0" />
-        {conversation.integrationName}
+      <span className="flex min-w-0">
+        <ContactLink
+          contentType="core:customer"
+          contentId={conversation.customerId}
+          contacts={contactQueries}
+          placeholder={t('visitor', 'Visitor')}
+        />
       </span>
+      <IconTip label={`${conversation.channelName} · ${conversation.integrationName}`}>
+        <span className="grid size-6 shrink-0 place-items-center">
+          <KindIcon kind={conversation.kind} className="size-4" />
+          <span className="sr-only">{conversation.channelName}</span>
+        </span>
+      </IconTip>
       <VisitorTyping conversation={conversation} />
-      <SelectMember.Linked
+      <SelectMember.InlineCell
+        variant="field"
         value={conversation.assigneeId}
         onValueChange={(assigneeId) => assign.mutate({ ids: [conversation.id], assigneeId })}
         members={memberQueries}
         noneLabel={t('unassigned', 'Unassigned')}
-        addLabel={t('assign', 'Assign')}
-        changeLabel={t('change-assignee', 'Change assignee')}
+        placeholder={t('assign', 'Assign')}
+        aria-label={conversation.assigneeId ? undefined : t('assign', 'Assign')}
+        className="w-auto min-w-0"
       />
-      <span className="flex min-w-0 flex-1 justify-end gap-1 overflow-hidden">
-        {tags.map((tag) => (
-          <Badge key={tag.id} variant="secondary">
-            {tag.name}
-          </Badge>
-        ))}
-      </span>
+      <span className="flex-1" />
       <TagEditor
         ids={[conversation.id]}
         tagIds={conversation.tagIds}
-        label={tags.length === 0 ? t('add-tags', 'Add tags') : t('edit-tags', 'Edit tags')}
-      />
+        label={
+          conversation.tagIds.length === 0 ? t('add-tags', 'Add tags') : t('edit-tags', 'Edit tags')
+        }
+      >
+        {conversation.tagIds.length > 0 ? <TagSummary conversation={conversation} /> : undefined}
+      </TagEditor>
       <IconTip label={t('conversation-details', 'Details and properties')}>
         <Button
           variant="ghost"

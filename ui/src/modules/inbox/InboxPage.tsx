@@ -9,7 +9,9 @@ import {
   PageContainer,
   PageHeader,
   RecordList,
+  Skeleton,
   useOpenRecord,
+  usePageHotkey,
   ViewBar,
 } from 'erxes-ui';
 import { useAtomValue } from 'jotai';
@@ -29,18 +31,45 @@ import {
   useConversation,
   useConversations,
   useIntegrations,
+  useMessages,
   useOpenConversation,
 } from './queries.ts';
 
 const LIST = 'frontline-inbox';
 
-/** The open conversation on the right, or a hint to pick one. */
+/** The pane's shape while a conversation opened from the address loads: header, thread, reply box. */
+const PaneSkeleton = () => (
+  <div aria-hidden className="flex min-h-0 flex-1 flex-col">
+    <div className="flex h-12 items-center gap-2 border-b px-3">
+      <Skeleton radius="circle" className="size-6" />
+      <Skeleton className="h-4 w-40" />
+    </div>
+    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-3 py-6">
+      <Skeleton className="h-12 w-2/5" />
+      <Skeleton className="h-16 w-1/2 self-end" />
+      <Skeleton className="h-10 w-1/3" />
+    </div>
+    <div className="mx-auto w-full max-w-2xl p-3">
+      <Skeleton radius="lg" className="h-24" />
+    </div>
+  </div>
+);
+
+/**
+ * The open conversation on the right, or a hint to pick one. Its messages load beside it, not
+ * after it, and Escape closes it.
+ */
 const ConversationPane = () => {
   const { t } = useTranslation('frontline');
-  const [id] = useOpenConversation();
+  const [id, setId] = useOpenConversation();
   const { data: conversation, error } = useConversation(id);
 
+  useMessages(id);
+  usePageHotkey('escape', () => void setId(null), { when: () => Boolean(id) });
+
   if (error) return <p className="m-4 text-sm text-destructive-text">{error.message}</p>;
+
+  if (id && !conversation) return <PaneSkeleton />;
 
   if (!conversation)
     return (
@@ -61,9 +90,8 @@ const ConversationPane = () => {
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
         <ConversationHeader conversation={conversation} />
-        <Composer key={conversation.id} conversation={conversation}>
-          <MessageThread conversation={conversation} />
-        </Composer>
+        <MessageThread conversation={conversation} />
+        <Composer key={conversation.id} conversation={conversation} />
       </div>
       <CustomerSidebar conversation={conversation} />
     </div>
@@ -154,7 +182,7 @@ export const InboxPage = () => {
         <InboxEmpty onConnect={canConnect ? connect : undefined} />
       ) : (
         <div className="flex min-h-0 flex-1">
-          <aside className={cn('w-80 shrink-0 border-r', !shown && openId && 'hidden')}>
+          <aside className={cn('w-80 shrink-0', !shown && openId && 'hidden')}>
             {empty ? (
               <InboxEmpty onConnect={canConnect ? connect : undefined} />
             ) : (
@@ -172,7 +200,7 @@ export const InboxPage = () => {
           </aside>
           <section
             aria-label={t('conversation', 'Conversation')}
-            className="flex min-w-0 flex-1 flex-col"
+            className="flex min-w-0 flex-1 flex-col border-l"
           >
             <ConversationPane />
           </section>
