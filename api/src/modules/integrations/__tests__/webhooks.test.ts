@@ -120,12 +120,23 @@ describe('meta', () => {
       expect.objectContaining({ firstName: 'Bat', lastName: 'Erdene', source: 'facebook' }),
     );
 
-    await owner.conversations.messages.create({ conversationId, content: 'We do' });
+    // A reply to the question quotes it, as Messenger's own reply does.
+    const question = messages.at(-1);
+
+    await owner.conversations.messages.create({
+      conversationId,
+      content: 'We do',
+      replyToId: question?.id ?? null,
+    });
     await runQueued();
 
     expect(calls.at(-1)).toMatchObject({
       authorization: 'Bearer page-token-1',
-      body: { recipient: { id: 'psid-1' }, messaging_type: 'RESPONSE', message: { text: 'We do' } },
+      body: {
+        recipient: { id: 'psid-1' },
+        messaging_type: 'RESPONSE',
+        message: { reply_to: { mid: question?.externalId }, text: 'We do' },
+      },
     });
   });
 

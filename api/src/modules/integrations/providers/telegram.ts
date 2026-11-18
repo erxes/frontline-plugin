@@ -121,6 +121,9 @@ export class TelegramRefused extends Error {}
 const why = (error: unknown) => (error instanceof Error ? error.message : 'Telegram failed');
 
 /** Has Telegram post the bot's updates to its address under `key`, signed with `secret`. */
+/** A message's id in its chat, from the `chat:message` id the inbox keeps. */
+const messageIdOf = (externalId: string) => Number(externalId.split(':').at(-1));
+
 const setWebhook = (token: string, key: string, secret: string) =>
   call(token, 'setWebhook', z.boolean(), {
     url: `${config.publicUrl}/api/public/webhooks/telegram/${key}`,
@@ -135,7 +138,8 @@ export const telegram = defineProvider({
   check: async ({ secret }) => call(secret.token, 'getMe', User).then(() => null, why),
   // Each file goes as a message of its own, the text as the first one's caption when it fits.
   // Every file is read before anything goes out, so one core can't give fails the whole reply,
-  // and a retry sends only the parts Telegram didn't take.
+  // and a retry sends only the parts Telegram didn't take. The first part quotes the message the
+  // member answers; a quoted message that is gone sends the reply on its own.
   send: async ({ row, secret }, message) => {
     const files = await Promise.all(
       message.attachments.map((file) => attachedFile(row.orgId, file)),
@@ -143,31 +147,37 @@ export const telegram = defineProvider({
 
     const captioned = files.length > 0 && message.text.length <= CAPTION_CHARS;
 
-    const sends = [
-      ...(message.text && !captioned
-        ? [
-            () =>
-              call(secret.token, 'sendMessage', Message, {
-                chat_id: message.threadId,
-                text: message.text,
-              }),
-          ]
-        : []),
-      ...files.map((file, index) => () => {
-        const { method, field } = mediaOf(file);
-        const form = new FormData();
+    // null is the text.
+    const parts = [...(message.text && !captioned ? [null] : []), ...files];
 
-        form.set('chat_id', message.threadId);
-        form.set(field, file);
+    const reply = message.quotedId && {
+      message_id: messageIdOf(message.quotedId),
+      allow_sending_without_reply: true,
+    };
 
-        if (captioned && index === 0 && message.text) form.set('caption', message.text);
+    const [first] = await sendInParts(message.parts, parts, async (file) => {
+      const quote = file === parts[0] && reply ? reply : null;
 
-        return call(secret.token, method, Message, form);
-      }),
-    ];
+      if (!file) {
+        const sent = await call(secret.token, 'sendMessage', Message, {
+          chat_id: message.threadId,
+          text: message.text,
+          ...(quote && { reply_parameters: quote }),
+        });
 
-    const [first] = await sendInParts(message.parts, sends, async (send) => {
-      const sent = await send();
+        return `${sent.chat.id}:${sent.message_id}`;
+      }
+
+      const { method, field } = mediaOf(file);
+      const form = new FormData();
+
+      form.set('chat_id', message.threadId);
+      form.set(field, file);
+
+      if (captioned && file === files[0] && message.text) form.set('caption', message.text);
+      if (quote) form.set('reply_parameters', JSON.stringify(quote));
+
+      const sent = await call(secret.token, method, Message, form);
 
       return `${sent.chat.id}:${sent.message_id}`;
     });
@@ -182,7 +192,7 @@ export const telegram = defineProvider({
 
     await call(secret.token, 'setMessageReaction', z.boolean(), {
       chat_id: threadId,
-      message_id: Number(message.externalId.split(':').at(-1)),
+      message_id: messageIdOf(message.externalId),
       reaction: latest ? [{ type: 'emoji', emoji: latest }] : [],
     });
   },

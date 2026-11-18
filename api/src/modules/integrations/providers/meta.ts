@@ -148,9 +148,15 @@ const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessag
   };
 
   // Messenger shows the messages in the order they reach it; null is the text.
+  const parts = [...(message.text ? [null] : []), ...message.attachments];
+
+  // The first one quotes the message the member answers.
+  const quote = (part: (typeof parts)[number]) =>
+    part === parts[0] && message.quotedId ? { reply_to: { mid: message.quotedId } } : {};
+
   const [first] = await sendInParts(
     message.parts,
-    [...(message.text ? [null] : []), ...message.attachments],
+    parts,
     async (file) =>
       Sent.parse(
         await graph('me/messages', secret.pageToken, {
@@ -159,13 +165,14 @@ const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessag
             ? await withFile(row.orgId, file, 'filedata', {
                 ...fields,
                 message: {
+                  ...quote(file),
                   attachment: {
                     type: file.type?.startsWith('image/') ? 'image' : 'file',
                     payload: { is_reusable: false },
                   },
                 },
               })
-            : { ...fields, message: { text: message.text } },
+            : { ...fields, message: { ...quote(null), text: message.text } },
         }),
       ).message_id,
   );
@@ -176,7 +183,8 @@ const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessag
 };
 
 /**
- * Answers the customer's latest comment in the thread, under it on the post. Facebook mentions
+ * Answers the comment the member picked, or else the customer's latest in the thread, under it on
+ * the post. Facebook mentions
  * them and takes one attachment; Instagram takes text only.
  */
 const replyToComment = async (
@@ -184,7 +192,7 @@ const replyToComment = async (
   { row, secret }: MetaAccount,
   message: OutboundMessage,
 ) => {
-  const commentId = message.replyTo?.externalId;
+  const commentId = message.quotedId ?? message.replyTo?.externalId;
 
   if (!commentId) throw new MetaError('No comment to answer');
 

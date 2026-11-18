@@ -1,5 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { and, desc, eq, isNotNull, or } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
 import { customerLinks, messages } from '#/db/inbox.ts';
@@ -59,6 +60,19 @@ const replyContext = async (
   };
 };
 
+const quoted = alias(messages, 'quoted');
+
+/** The provider's id for the message a reply answers, when the member picked one it has. */
+const quotedIdOf = async (tx: Tx, messageId: string) => {
+  const [row] = await tx
+    .select({ externalId: quoted.externalId })
+    .from(messages)
+    .innerJoin(quoted, eq(quoted.id, messages.replyToId))
+    .where(eq(messages.id, messageId));
+
+  return row?.externalId ?? null;
+};
+
 /** The integration's account, opened, with the thread and what a reply answers at the provider. */
 const threadOf = async (
   tx: Tx,
@@ -97,6 +111,7 @@ const adapterOf = (provider: ProviderName, label: string): Adapter => ({
   send: async (tx, outgoing) => {
     const { row, account, threadId, context } = await threadOf(tx, provider, outgoing);
     const { message } = outgoing;
+    const quotedId = await quotedIdOf(tx, message.id);
 
     return async (record) => ({
       externalId: await through(row, () =>
@@ -107,6 +122,7 @@ const adapterOf = (provider: ProviderName, label: string): Adapter => ({
           attachments: message.attachments,
           providerData: message.providerData,
           parts: { sent: Parts.parse(message.providerData?.parts), record },
+          quotedId,
           ...context,
         }),
       ),
