@@ -26,7 +26,7 @@ const MetaReport = z.object({
 });
 
 /** A conversation of one person's comments under one post: `comment:<post id>:<author id>`. */
-const commentThread = sql`${conversations.externalId} like 'comment:%'`;
+const commentThread = sql`coalesce(${conversations.externalId} like 'comment:%', false)`;
 
 const direct = sql`not ${commentThread}`;
 

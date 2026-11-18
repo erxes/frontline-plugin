@@ -125,7 +125,8 @@ describe('integrations', () => {
       const opened = await tx
         .insert(conversations)
         .values(
-          ['m_1', 'comment:post-1:person-1', 'comment:post-1:person-2', 'm_2'].map(
+          // A conversation with no external id is a direct one, not a comment thread.
+          [null, 'comment:post-1:person-1', 'comment:post-1:person-2', 'm_2'].map(
             (externalId, i) => ({
               orgId,
               externalId,
