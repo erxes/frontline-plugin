@@ -1,6 +1,7 @@
-import { IconFile } from '@tabler/icons-react';
-import { cn } from 'erxes-ui';
+import { IconExternalLink, IconFile } from '@tabler/icons-react';
+import { Button, cn, Dialog } from 'erxes-ui';
 import parse from 'html-react-parser';
+import { useTranslation } from 'react-i18next';
 import { type Message, useLinkPreviews } from './queries.ts';
 
 /**
@@ -36,7 +37,57 @@ export const MessageBody = ({ message }: { message: Message }) => {
   );
 };
 
-/** The message's files: images as thumbnails, the rest as chips with their name. */
+type File = Message['attachments'][number];
+
+/**
+ * An image as a thumbnail; a click shows it whole over the page, as the old inbox did, with a
+ * link to the file itself.
+ */
+const ImageFile = ({ file }: { file: File }) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <Dialog>
+      <Dialog.Trigger
+        render={
+          <Button
+            variant="ghost"
+            size="flush"
+            aria-label={t('view-image', 'View {{name}}', { name: file.name })}
+          />
+        }
+      >
+        <img
+          src={file.url}
+          alt={file.name}
+          loading="lazy"
+          className="max-h-40 max-w-60 rounded-md border object-cover"
+        />
+      </Dialog.Trigger>
+      <Dialog.Content className="max-w-6xl">
+        <div className="flex max-h-svh min-w-0 flex-col gap-3">
+          <Dialog.Title>{file.name}</Dialog.Title>
+          <img
+            src={file.url}
+            alt={file.name}
+            className="min-h-0 self-center rounded-md object-contain"
+          />
+          <a
+            href={file.url}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-1 self-end text-xs text-muted-foreground hover:underline"
+          >
+            <IconExternalLink className="size-3.5" aria-hidden />
+            {t('open-original', 'Open the original')}
+          </a>
+        </div>
+      </Dialog.Content>
+    </Dialog>
+  );
+};
+
+/** The message's files: images as thumbnails that open whole, the rest as chips with their name. */
 export const Attachments = ({ files }: { files: Message['attachments'] }) => {
   if (files.length === 0) return null;
 
@@ -44,21 +95,19 @@ export const Attachments = ({ files }: { files: Message['attachments'] }) => {
     <ul className="flex flex-wrap gap-2">
       {files.map((file) => (
         <li key={file.url}>
-          <a
-            href={file.url}
-            target="_blank"
-            rel="noreferrer"
-            className="flex max-w-60 items-center gap-1.5 rounded-md border bg-background px-2 py-1.5 text-xs hover:bg-accent"
-          >
-            {file.type?.startsWith('image/') ? (
-              <img src={file.url} alt={file.name} className="max-h-40 rounded-sm" />
-            ) : (
-              <>
-                <IconFile className="size-4 shrink-0" aria-hidden />
-                <span className="truncate">{file.name}</span>
-              </>
-            )}
-          </a>
+          {file.type?.startsWith('image/') ? (
+            <ImageFile file={file} />
+          ) : (
+            <a
+              href={file.url}
+              target="_blank"
+              rel="noreferrer"
+              className="flex max-w-60 items-center gap-1.5 rounded-md border bg-background px-2 py-1.5 text-xs hover:bg-accent"
+            >
+              <IconFile className="size-4 shrink-0" aria-hidden />
+              <span className="truncate">{file.name}</span>
+            </a>
+          )}
         </li>
       ))}
     </ul>

@@ -102,7 +102,15 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
 
   await first.hover();
   await first.getByRole('button', { name: 'Pin' }).click();
-  await expect(page.getByRole('region', { name: 'Pinned messages' })).toContainText(late);
+
+  const pinned = page.getByRole('region', { name: 'Pinned messages' });
+
+  await expect(pinned).toContainText(late);
+  // The bar goes to the message, and unpins it.
+  await pinned.getByRole('button', { name: new RegExp(late) }).click();
+  await expect(first).toBeInViewport();
+  await pinned.getByRole('button', { name: 'Unpin' }).click();
+  await expect(pinned).toBeHidden();
 
   // The filters find it by its channel, assignee and tag.
   await filterBy(page, 'Channel', channel);
@@ -120,9 +128,22 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await expect(row).toBeVisible();
   await page.getByRole('button', { name: 'Reopen', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Resolve', exact: true })).toBeVisible();
+});
 
-  // The thread follows new messages while the reader is at its end. A reader up in the history
-  // stays there, and a button counts what came below and takes them down to it.
+test('the thread follows new messages at its end, and counts them for a reader up in the history', async ({
+  page,
+  request,
+}) => {
+  const channel = await createChannel(page);
+
+  await page.goto(INBOX);
+
+  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const conversationId = await visitor.write(`Hello ${unique()}`);
+  const thread = page.getByRole('list', { name: 'Messages' });
+
+  await page.goto(`${INBOX}?conversationId=${conversationId}`);
+  await expect(thread).toBeVisible();
   await Promise.all(
     Array.from({ length: 20 }, (_, line) => visitor.write(`Line ${line}`, conversationId)),
   );

@@ -10,6 +10,16 @@ import {
   visitorOf,
 } from './fixtures.ts';
 
+/** A one-pixel PNG, to attach an image. */
+const PARCEL = {
+  name: 'parcel.png',
+  mimeType: 'image/png',
+  buffer: Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+    'base64',
+  ),
+};
+
 test('a member answers with a response template, formats it, attaches a file and mentions a teammate in a note', async ({
   page,
   request,
@@ -51,6 +61,8 @@ test('a member answers with a response template, formats it, attaches a file and
     .locator('input[type="file"]')
     .setInputFiles({ name: 'receipt.txt', mimeType: 'text/plain', buffer: Buffer.from('paid') });
   await expect(page.getByRole('button', { name: 'Remove receipt.txt' })).toBeVisible();
+  await page.locator('input[type="file"]').setInputFiles(PARCEL);
+  await expect(page.getByRole('button', { name: 'Remove parcel.png' })).toBeVisible();
   await page.getByRole('button', { name: 'Send', exact: true }).click();
 
   const sent = thread.getByRole('article', { name: 'Message' }).last();
@@ -59,6 +71,12 @@ test('a member answers with a response template, formats it, attaches a file and
   await expect(sent.locator('strong')).toHaveText('Sorry for the wait.');
   // An attachment shows only in a thread that has one.
   await expectAccessible(page, sent.getByRole('link', { name: 'receipt.txt' }));
+
+  // An image opens whole over the page.
+  await sent.getByRole('button', { name: 'View parcel.png' }).click();
+  await expectAccessible(page, page.getByRole('dialog', { name: 'parcel.png' }));
+  await page.keyboard.press('Escape');
+  await expect(page.getByRole('dialog')).toBeHidden();
 
   // The visitor reads the reply as text.
   expect(await visitor.read(conversationId)).toContain(

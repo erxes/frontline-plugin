@@ -1,34 +1,13 @@
-import { IconArrowDown, IconPin } from '@tabler/icons-react';
-import { Button, cn, ScrollArea, Skeleton, Spinner, toIsoDay, useFormat } from 'erxes-ui';
-import { Fragment, useEffect, useRef, useState } from 'react';
+import { IconArrowDown } from '@tabler/icons-react';
+import { Button, cn, ScrollArea, Skeleton, Spinner, toast, toIsoDay, useFormat } from 'erxes-ui';
+import { Fragment, type RefObject, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type CustomContainerComponentProps, Virtualizer, type VirtualizerHandle } from 'virtua';
-import { type Conversation, type Message, useMessages, usePinnedMessages } from './queries.ts';
+import { type Conversation, type Message, threadOf, useMessages } from './queries.ts';
 import { LoadPage } from '~/shared/List.tsx';
 import { useCustomer } from '~/shared/Person.tsx';
 import { Bubble, continues } from './MessageBubble.tsx';
-
-/** The conversation's pinned messages, above its thread, as the old inbox kept them. */
-const Pinned = ({ conversationId }: { conversationId: string }) => {
-  const { t } = useTranslation('frontline');
-  const pinned = usePinnedMessages(conversationId).data?.messages ?? [];
-
-  if (pinned.length === 0) return null;
-
-  return (
-    <section
-      aria-label={t('pinned-messages', 'Pinned messages')}
-      className="flex flex-col gap-1 border-b bg-muted px-4 py-2"
-    >
-      {pinned.map((message) => (
-        <p key={message.id} className="flex items-center gap-2 truncate text-xs">
-          <IconPin className="size-3 shrink-0" aria-hidden />
-          {message.content}
-        </p>
-      ))}
-    </section>
-  );
-};
+import { PinnedBar } from './PinnedBar.tsx';
 
 /** The day a run of messages was sent: Today, Yesterday or its date. */
 const DayDivider = ({ date }: { date: Date }) => {
@@ -213,6 +192,60 @@ const useReader = (thread: ReturnType<typeof useMessages>) => {
   };
 };
 
+/** How long a message the member jumped to stays marked, the smooth scroll to it included. */
+const MARK_MS = 1500;
+
+/**
+ * Goes to a message, from the pinned bar: loads earlier pages until it is among them, or newer ones
+ * when the reader went back so far that the newest were dropped, then centres it and marks it for
+ * a moment. One no longer in the thread says so.
+ */
+const useJump = (
+  thread: ReturnType<typeof useMessages>,
+  rows: RefObject<VirtualizerHandle | null>,
+) => {
+  const { t } = useTranslation('frontline');
+  const [marked, setMarked] = useState<string>();
+  const index = marked ? thread.messages.findIndex((message) => message.id === marked) : -1;
+
+  // The page that holds it renders before it can scroll there.
+  useEffect(() => {
+    if (index === -1) return;
+
+    rows.current?.scrollToIndex(index, { align: 'center', smooth: true });
+
+    const unmark = setTimeout(() => setMarked(undefined), MARK_MS);
+
+    return () => clearTimeout(unmark);
+  }, [index, rows]);
+
+  const jump = async (target: Pick<Message, 'id' | 'createdAt'>) => {
+    let state: Pick<typeof thread, 'data' | 'hasNextPage' | 'hasPreviousPage'> = thread;
+
+    for (;;) {
+      const messages = threadOf(state.data);
+
+      if (messages.some((message) => message.id === target.id)) return setMarked(target.id);
+
+      const earlier = messages[0] !== undefined && target.createdAt < messages[0].createdAt;
+
+      const next = earlier
+        ? state.hasNextPage && (await thread.fetchNextPage())
+        : state.hasPreviousPage && (await thread.fetchPreviousPage());
+
+      if (!next || next.isError) {
+        toast({ title: t('message-gone', 'That message is no longer in the thread') });
+
+        return;
+      }
+
+      state = next;
+    }
+  };
+
+  return { marked, jump };
+};
+
 /**
  * The open conversation's messages, oldest at the top under a divider for each day, following
  * the newest as `useReader` says. Only the messages in view and a few around them render.
@@ -225,10 +258,11 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
   const viewport = useRef<HTMLDivElement>(null);
   const shift = usePrepended(messages);
   const { rows, onScroll, atEnd, unseen, toEnd } = useReader(thread);
+  const { marked, jump } = useJump(thread, rows);
 
   return (
     <>
-      <Pinned conversationId={conversation.id} />
+      <PinnedBar conversationId={conversation.id} onJump={(message) => void jump(message)} />
       <ScrollArea.Root className="relative min-h-0 flex-1">
         <ScrollArea.Viewport ref={viewport}>
           {thread.error && messages.length === 0 ? (
@@ -265,6 +299,7 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
                       customer={customer}
                       kind={conversation.kind}
                       first={!continues(message, messages[index - 1])}
+                      marked={message.id === marked}
                     />
                     {index === messages.length - 1 && <div aria-hidden className="h-6" />}
                   </Fragment>
