@@ -8,33 +8,40 @@ import { callWebhooks } from './providers/call/routes.ts';
 import { connectMetaPages, SETTINGS_URL } from './providers/metaLogin.ts';
 import { accountOf } from './store.ts';
 
+/** Whether `error` says a delivery can't be read, which no resend changes. */
+const unreadable = (error: unknown) => error instanceof SyntaxError || error instanceof z.ZodError;
+
 /**
- * What a delivery's routes hold, delivered: false, delivering nothing, when one route's events
- * aren't its account's. A route to no connected account is logged and skipped.
+ * Each routed account with what its events hold, or null when one route's events aren't its
+ * account's. A route to no connected account is logged and skipped, and so are events an
+ * account can't read.
  */
-const handle = async (webhook: WebhookSource, request: WebhookRequest, routes: Routed[]) => {
+const receiveAll = async (webhook: WebhookSource, request: WebhookRequest, routes: Routed[]) => {
   const found = await Promise.all(
     routes.map(async (routed) => {
       const row = await accountOf(routed);
 
-      if (!row) logger.info({ provider: routed.provider }, 'webhook for no connected account');
+      if (!row) {
+        logger.info({ provider: routed.provider }, 'webhook for no connected account');
 
-      return row ? { row, inbound: webhook.receive(row, routed.events, request) } : null;
+        return [];
+      }
+
+      try {
+        const inbound = webhook.receive(row, routed.events, request);
+
+        return inbound ? [{ row, inbound }] : null;
+      } catch (error) {
+        if (!unreadable(error)) throw error;
+
+        logger.warn({ err: error, accountId: row.id }, 'webhook events left out');
+
+        return [];
+      }
     }),
   );
 
-  const accounts = found.filter((account) => account !== null);
-
-  if (accounts.some(({ inbound }) => !inbound)) return false;
-
-  await Promise.all(
-    accounts.map(async ({ row, inbound }) => {
-      await deliverInbound(row, inbound?.messages ?? []);
-      await deliverReactions(row, inbound?.reactions ?? []);
-    }),
-  );
-
-  return true;
+  return found.every((account) => account !== null) ? found.flat() : null;
 };
 
 const Callback = z.object({ code: z.string(), state: z.string() });
@@ -42,8 +49,8 @@ const Callback = z.object({ code: z.string(), state: z.string() });
 /**
  * The providers' signed-out routes at `/api/public/webhooks`: Meta's login callback, each
  * provider's address check, and the deliveries. A delivery is answered 200 once it is in the
- * inbox, 401 when its signature fails, and 500 when it could not be stored, so the provider
- * sends it again.
+ * inbox or could never be, 401 when its signature fails, and 500 when it could not be stored
+ * this time, so the provider sends it again.
  */
 export const webhookRoutes = () => {
   const router = express.Router();
@@ -91,17 +98,39 @@ export const webhookRoutes = () => {
       return;
     }
 
+    let accounts: Awaited<ReturnType<typeof receiveAll>>;
+
     try {
       const body: unknown = JSON.parse(raw);
       const request: WebhookRequest = { key: req.params.key, raw, body, headers: req.headers };
       const routes = webhook.route(request);
 
-      res.sendStatus(routes && (await handle(webhook, request, routes)) ? 200 : 401);
+      accounts = routes && (await receiveAll(webhook, request, routes));
     } catch (error) {
-      // A body that isn't the provider's shape won't be any better sent again.
-      if (error instanceof SyntaxError || error instanceof z.ZodError) res.sendStatus(400);
-      else throw error;
+      if (!unreadable(error)) throw error;
+
+      // A body that isn't the provider's shape won't be any better sent again, and Meta and
+      // Telegram resend anything but a 2xx, Telegram holding the bot's later updates behind it.
+      logger.warn({ err: error, source }, 'webhook delivery left out');
+      res.sendStatus(200);
+
+      return;
     }
+
+    if (!accounts) {
+      res.sendStatus(401);
+
+      return;
+    }
+
+    // A failure storing it this time is a 500, so the provider sends it again.
+    await Promise.all(
+      accounts.map(async ({ row, inbound }) => {
+        await deliverInbound(row, inbound.messages);
+        await deliverReactions(row, inbound.reactions);
+      }),
+    );
+    res.sendStatus(200);
   });
 
   return router;
