@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { writesWithCore } from '#/orpc.ts';
+import { attachedFile } from '#/modules/files.ts';
 import { defineProvider } from '../provider.ts';
 import { Account, saveAccount } from '../store.ts';
 
@@ -19,21 +20,24 @@ const Failure = z.object({ message: z.string() });
 
 /**
  * One Discord REST call as the bot. Resolves to the parsed body, null for 204 No Content, or
- * fails with Discord's message.
+ * fails with Discord's message. A form carries files; it gets longer, since its bytes go up in
+ * the one request.
  */
 const rest = async (
   token: string,
   route: `/${string}`,
   { method = 'GET', body }: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {},
 ) => {
+  const form = body instanceof FormData;
+
   const response = await fetch(`${RouteBases.api}${route}`, {
     method,
     headers: {
       authorization: `Bot ${token}`,
-      ...(body ? { 'content-type': 'application/json' } : {}),
+      ...(body && !form ? { 'content-type': 'application/json' } : {}),
     },
-    body: body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout(config.outboundMs),
+    body: form ? body : body ? JSON.stringify(body) : undefined,
+    signal: AbortSignal.timeout((form ? 4 : 1) * config.outboundMs),
   });
 
   const answer: unknown = response.status === 204 ? null : await response.json();
@@ -56,12 +60,26 @@ export const discord = defineProvider({
   Config: z.object({}),
   Secret,
   check: async ({ secret }) => botOf(secret.token).then(() => null, why),
-  send: async ({ secret }, message) => {
-    const sent = Sent.parse(
-      await rest(secret.token, Routes.channelMessages(message.threadId), {
-        method: 'POST',
-        body: { content: message.text },
+  // The text and every file go as one message. Discord refuses more than it takes, and then the
+  // reply fails rather than goes without them.
+  send: async ({ row, secret }, message) => {
+    const files = await Promise.all(
+      message.attachments.map((file) => attachedFile(row.orgId, file)),
+    );
+
+    const body = new FormData();
+
+    body.set(
+      'payload_json',
+      JSON.stringify({
+        content: message.text,
+        attachments: files.map((file, id) => ({ id, filename: file.name })),
       }),
+    );
+    files.forEach((file, id) => body.set(`files[${id}]`, file));
+
+    const sent = Sent.parse(
+      await rest(secret.token, Routes.channelMessages(message.threadId), { method: 'POST', body }),
     );
 
     return sent.id;

@@ -11,9 +11,8 @@ import { providerOf } from './providers/index.ts';
 import { Account, accountColumns, accountRow, removeWebhookKeys, webhookKeyOf } from './store.ts';
 
 /**
- * Asks the provider whether `row` still works and records the answer in its own transaction,
- * after pointing its events at frontline again when `repair` names the account's webhook key.
- * Whoever connected an account that just broke hears of it.
+ * Asks the provider whether `row` still works and records the answer, after pointing its events
+ * at frontline again when `repair` names the account's webhook key.
  */
 export const checkAccount = async (row: AccountRow, repair?: { webhookKey: string | null }) => {
   const provider = providerOf(row.provider).open(row);
@@ -22,6 +21,14 @@ export const checkAccount = async (row: AccountRow, repair?: { webhookKey: strin
     .then(() => provider.check())
     .catch((failure: unknown) => (failure instanceof Error ? failure.message : String(failure)));
 
+  return recordCheck(row, error);
+};
+
+/**
+ * Records in its own transaction whether `row` works: healthy, or broken with `error`. Whoever
+ * connected an account that just broke hears of it.
+ */
+export const recordCheck = async (row: AccountRow, error: string | null) => {
   const [checked] = await withOrg(row.orgId, (tx) =>
     tx
       .update(integrationAccounts)

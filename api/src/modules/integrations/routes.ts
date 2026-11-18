@@ -1,7 +1,7 @@
 import express from 'express';
 import { z } from 'zod';
 import { logger } from '#/logger.ts';
-import { deliverInbound, deliverReactions } from './adapters.ts';
+import { deliverInbound, deliverReactions } from './inbound.ts';
 import type { Routed, WebhookRequest, WebhookSource } from './provider.ts';
 import { WEBHOOKS } from './providers/index.ts';
 import { callWebhooks } from './providers/call/routes.ts';

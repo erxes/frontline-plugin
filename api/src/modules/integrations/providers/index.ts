@@ -4,7 +4,8 @@ import { discord } from './discord.ts';
 import { mail } from './mail.ts';
 import { facebook, instagram } from './meta.ts';
 import { metaWebhook } from './metaWebhook.ts';
-import { telegram, telegramWebhook } from './telegram.ts';
+import { telegram } from './telegram.ts';
+import { telegramWebhook } from './telegramWebhook.ts';
 
 const PROVIDERS: Record<ProviderName, Provider> = {
   facebook,

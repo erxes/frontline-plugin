@@ -87,7 +87,7 @@ describe('calls through a PBX', () => {
     const call = await owner.calls.get({ conversationId: conversations[0]?.id ?? '' });
 
     expect(call.recording).toEqual({
-      url: 'https://files.core.test/file-auto-1763170000-1002-99112233.wav',
+      url: '/core/v1/files/file-auto-1763170000-1002-99112233-wav/download',
       name: 'auto-1763170000-1002-99112233.wav',
       type: 'audio/wav',
       size: 4,

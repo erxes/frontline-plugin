@@ -4,15 +4,10 @@ import { z } from 'zod';
 import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
+import { attachedFile } from '#/modules/files.ts';
 import { readsWithCore, writesWithCore } from '#/orpc.ts';
+import { defineProvider, sendInParts } from '../provider.ts';
 import { Account, accountRow, saveAccount } from '../store.ts';
-import {
-  defineProvider,
-  type InboundMessage,
-  type InboundReaction,
-  type WebhookSource,
-} from '../provider.ts';
-import { sameText } from '../secrets.ts';
 
 const Config = z.object({ username: z.string() });
 
@@ -23,7 +18,7 @@ const Secret = z.object({
 });
 
 /** The parts of the Bot API's objects frontline reads. */
-const User = z.object({
+export const User = z.object({
   id: z.number(),
   is_bot: z.boolean(),
   first_name: z.string(),
@@ -31,40 +26,94 @@ const User = z.object({
   username: z.string().optional(),
 });
 
-const Message = z.object({
+/** A file in a message, by the id the bot fetches it with. */
+const TelegramFile = z.object({
+  file_id: z.string(),
+  file_name: z.string().optional(),
+  mime_type: z.string().optional(),
+});
+
+export const Message = z.object({
   message_id: z.number(),
   date: z.number(),
   chat: z.object({ id: z.number(), type: z.string(), title: z.string().optional() }),
   from: User.optional(),
   text: z.string().optional(),
   caption: z.string().optional(),
+  /** One photo in sizes, smallest first. */
+  photo: z.array(TelegramFile).optional(),
+  document: TelegramFile.optional(),
+  video: TelegramFile.optional(),
+  audio: TelegramFile.optional(),
+  voice: TelegramFile.optional(),
+  video_note: TelegramFile.optional(),
+  sticker: TelegramFile.extend({
+    emoji: z.string().optional(),
+    is_animated: z.boolean(),
+    is_video: z.boolean(),
+  }).optional(),
+  location: z.object({ latitude: z.number(), longitude: z.number() }).optional(),
+  contact: z
+    .object({ phone_number: z.string(), first_name: z.string(), last_name: z.string().optional() })
+    .optional(),
 });
+
+/** The photo types Telegram shows as a photo, up to `PHOTO_BYTES`. */
+const PHOTO_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+
+/** The biggest photo `sendPhoto` takes; a bigger one goes as a document. */
+const PHOTO_BYTES = 10 * 1024 * 1024;
+
+/** The method and field that send a file of each type as Telegram plays it; others go as documents. */
+const MEDIA: Record<string, { method: string; field: string }> = {
+  'image/gif': { method: 'sendAnimation', field: 'animation' },
+  'video/mp4': { method: 'sendVideo', field: 'video' },
+  'audio/mpeg': { method: 'sendAudio', field: 'audio' },
+  'audio/ogg': { method: 'sendVoice', field: 'voice' },
+};
+
+const mediaOf = (file: File) =>
+  PHOTO_TYPES.has(file.type) && file.size <= PHOTO_BYTES
+    ? { method: 'sendPhoto', field: 'photo' }
+    : (MEDIA[file.type] ?? { method: 'sendDocument', field: 'document' });
+
+/** The most text Telegram takes as a file's caption. */
+const CAPTION_CHARS = 1024;
 
 const Answer = z.discriminatedUnion('ok', [
   z.object({ ok: z.literal(true), result: z.unknown() }),
   z.object({ ok: z.literal(false), description: z.string() }),
 ]);
 
-/** One Bot API method as the bot, its result read through `Result`, or Telegram's refusal. */
-const call = async <T>(
+/**
+ * One Bot API method as the bot, its result read through `Result`, or Telegram's refusal. A form
+ * carries files; it gets longer, since its bytes go up in the one request.
+ */
+export const call = async <T>(
   token: string,
   method: string,
   Result: z.ZodType<T>,
-  params: Record<string, unknown> = {},
+  params: Record<string, unknown> | FormData = {},
 ) => {
+  const form = params instanceof FormData;
+
   const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(params),
-    signal: AbortSignal.timeout(config.outboundMs),
+    ...(form
+      ? { body: params }
+      : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(params) }),
+    signal: AbortSignal.timeout((form ? 4 : 1) * config.outboundMs),
   });
 
   const answer = Answer.parse(await response.json());
 
-  if (!answer.ok) throw new Error(answer.description);
+  if (!answer.ok) throw new TelegramRefused(answer.description);
 
   return Result.parse(answer.result);
 };
+
+/** Telegram's answer that it won't do what the bot asked, such as fetch a file too big for bots. */
+export class TelegramRefused extends Error {}
 
 const why = (error: unknown) => (error instanceof Error ? error.message : 'Telegram failed');
 
@@ -81,13 +130,44 @@ export const telegram = defineProvider({
   Config,
   Secret,
   check: async ({ secret }) => call(secret.token, 'getMe', User).then(() => null, why),
-  send: async ({ secret }, message) => {
-    const sent = await call(secret.token, 'sendMessage', Message, {
-      chat_id: message.threadId,
-      text: message.text,
-    });
+  // Each file goes as a message of its own, the text as the first one's caption when it fits.
+  // Every file is read before anything goes out, so one core can't give fails the whole reply,
+  // and a reply Telegram took part of fails as it stands rather than send those parts again.
+  send: async ({ row, secret }, message) => {
+    const files = await Promise.all(
+      message.attachments.map((file) => attachedFile(row.orgId, file)),
+    );
 
-    return `${sent.chat.id}:${sent.message_id}`;
+    const captioned = files.length > 0 && message.text.length <= CAPTION_CHARS;
+
+    const sends = [
+      ...(message.text && !captioned
+        ? [
+            () =>
+              call(secret.token, 'sendMessage', Message, {
+                chat_id: message.threadId,
+                text: message.text,
+              }),
+          ]
+        : []),
+      ...files.map((file, index) => () => {
+        const { method, field } = mediaOf(file);
+        const form = new FormData();
+
+        form.set('chat_id', message.threadId);
+        form.set(field, file);
+
+        if (captioned && index === 0 && message.text) form.set('caption', message.text);
+
+        return call(secret.token, method, Message, form);
+      }),
+    ];
+
+    const [first] = await sendInParts(sends, (send) => send());
+
+    if (!first) throw new Error('A reply needs text or a file');
+
+    return `${first.chat.id}:${first.message_id}`;
   },
   // A bot keeps one reaction on a message: the team's latest. Telegram's emoji carry no U+FE0F.
   react: async ({ secret }, { threadId, message, emojis }) => {
@@ -108,81 +188,6 @@ export const telegram = defineProvider({
     await setWebhook(secret.token, webhookKey, secret.webhookSecret);
   },
 });
-
-/** A reaction type: an emoji, or a custom or paid one frontline can't show. */
-const Reaction = z.looseObject({ type: z.string(), emoji: z.string().optional() });
-
-/** A person changed their reactions on a message; `new_reaction` is all of theirs now. */
-const MessageReaction = z.object({
-  chat: z.object({ id: z.number() }),
-  message_id: z.number(),
-  user: User.optional(),
-  new_reaction: z.array(Reaction),
-});
-
-const Update = z.object({
-  update_id: z.number(),
-  message: Message.optional(),
-  message_reaction: MessageReaction.optional(),
-});
-
-/** A person's reactions as the inbox keeps them, in the chat's conversation; none from a bot. */
-const reactionOf = (changed: z.infer<typeof MessageReaction>): InboundReaction[] =>
-  changed.user?.is_bot
-    ? []
-    : [
-        {
-          threadId: String(changed.chat.id),
-          messageId: `${changed.chat.id}:${changed.message_id}`,
-          author: { externalId: String(changed.chat.id) },
-          emojis: changed.new_reaction.flatMap((reaction) => reaction.emoji ?? []),
-        },
-      ];
-
-/**
- * A chat's message as the inbox reads it, or none from a bot. The customer is the chat: a person
- * in a private chat, the group in a group, so a group is one conversation.
- */
-const inboundOf = (message: z.infer<typeof Message>): InboundMessage[] => {
-  const author = message.from;
-
-  if (author?.is_bot) return [];
-
-  const person = [author?.first_name, author?.last_name].filter(Boolean).join(' ');
-
-  return [
-    {
-      threadId: String(message.chat.id),
-      messageId: `${message.chat.id}:${message.message_id}`,
-      author: {
-        externalId: String(message.chat.id),
-        name: message.chat.type === 'private' ? person : (message.chat.title ?? person),
-      },
-      text: message.text ?? message.caption ?? '',
-      attachments: [],
-    },
-  ];
-};
-
-/** Telegram posts each bot's updates to the address with the key frontline gave it. */
-export const telegramWebhook: WebhookSource = {
-  route: ({ key, body }) => (key ? [{ provider: 'telegram', key, events: [body] }] : null),
-  receive: (row, events, { headers }) => {
-    const { account } = telegram.open(row);
-
-    if (!sameText(account.secret.webhookSecret, headers['x-telegram-bot-api-secret-token']))
-      return null;
-
-    const updates = events.map((event) => Update.parse(event));
-
-    return {
-      messages: updates.flatMap(({ message }) => (message ? inboundOf(message) : [])),
-      reactions: updates.flatMap(({ message_reaction: changed }) =>
-        changed ? reactionOf(changed) : [],
-      ),
-    };
-  },
-};
 
 /**
  * Connects a bot by its token from BotFather: Telegram checks the token, then posts the bot's

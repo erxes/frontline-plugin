@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { convert } from 'html-to-text';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { createTransport } from 'nodemailer';
@@ -8,6 +9,7 @@ import { logger } from '#/logger.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { defineProvider, type InboundMessage } from '../provider.ts';
 import { type Reported, type Suppressed, suppressedAmong } from './mailSuppressions.ts';
+import { type SyncState, syncFailure } from './mailSync.ts';
 
 export const Server = z.object({
   host: z.string().trim().min(1).max(255),
@@ -20,9 +22,6 @@ export const Server = z.object({
 const Config = z.object({ imap: Server, smtp: Server });
 
 const Secret = z.object({ imapPassword: z.string(), smtpPassword: z.string() });
-
-/** Where the last pull left off in INBOX. A new `uidValidity` means the uids started over. */
-export const SyncState = z.object({ uidValidity: z.string(), lastUid: z.number().int() });
 
 const imapClient = (imap: z.infer<typeof Server>, password: string) =>
   new ImapFlow({
@@ -196,9 +195,15 @@ export const readMail = async (
       threadId: `${sender} ${root}`,
       messageId: mail.messageId,
       author: { externalId: sender, name: from?.name || sender, email: sender },
-      text: mail.text || '',
+      // mailparser leaves the text empty for an HTML part beside files, with no plain text part.
+      text: mail.text || (mail.html ? convert(mail.html, { wordwrap: false }) : ''),
       providerData: { subject: mail.subject, root } satisfies z.infer<typeof MailData>,
       attachments: [],
+      files: mail.attachments.map((part) => ({
+        name: part.filename ?? 'attachment',
+        contentType: part.contentType,
+        bytes: async () => part.content,
+      })),
     },
   };
 };
@@ -297,10 +302,19 @@ export const pullMail = async (
           { uid: true, source: true },
           { uid: true },
         )) {
-          const read = fetched.source ? await readMail(fetched.source, address) : null;
+          const read = fetched.source
+            ? await readMail(fetched.source, address).catch((error: unknown) => {
+                logger.error({ err: error, address, uid: fetched.uid }, 'mail that does not parse');
+
+                return null;
+              })
+            : null;
 
           if (!read)
-            logger.warn({ address, uid: fetched.uid }, 'mail without a sender or Message-ID');
+            logger.warn(
+              { address, uid: fetched.uid },
+              'mail skipped: no sender or Message-ID, or the mailbox sent it',
+            );
           else if ('message' in read) messages.push({ uid: fetched.uid, message: read.message });
           else suppressed.push(...read.suppressed);
         }
@@ -349,7 +363,9 @@ export const mail = defineProvider({
   name: 'mail',
   Config,
   Secret,
-  check: async ({ config, secret }) => checkMail(config, secret),
+  // A mailbox that logs in but keeps failing to sync stays broken until a sync gets through.
+  check: async ({ config, secret, row }) =>
+    (await checkMail(config, secret)) ?? syncFailure(row.syncState),
   // A mail goes to the address its thread is with, which a customer with two addresses needs.
   send: async ({ config, secret, row }, message) => {
     const to = threadAddress(message.threadId);
@@ -371,9 +387,9 @@ export const mail = defineProvider({
         const read = await attachedFile(row.orgId, file);
 
         return {
-          filename: file.name,
-          contentType: read.contentType,
-          content: Buffer.from(read.bytes),
+          filename: read.name,
+          contentType: read.type,
+          content: Buffer.from(await read.arrayBuffer()),
         };
       }),
     );
