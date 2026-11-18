@@ -1,4 +1,4 @@
-import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useMutation } from '@tanstack/react-query';
 import { CommandBar, RecordList, Separator, Spinner, type TRecordSlotProps } from 'erxes-ui';
@@ -93,7 +93,7 @@ const Statuses = ({ pipeline, statuses }: { pipeline: Pipeline; statuses: Status
 
   return (
     <RecordList.Provider listId={`frontline-pipeline-statuses.${pipeline.id}`}>
-      <DndContext {...drag} collisionDetection={closestCenter} onDragEnd={dragEnd}>
+      <DndContext {...drag} onDragEnd={dragEnd}>
         <SortableContext
           items={statuses.map((status) => status.id)}
           strategy={verticalListSortingStrategy}

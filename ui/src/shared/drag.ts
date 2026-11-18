@@ -1,5 +1,7 @@
 import {
   type Announcements,
+  closestCenter,
+  type CollisionDetection,
   KeyboardSensor,
   PointerSensor,
   type UniqueIdentifier,
@@ -11,12 +13,41 @@ import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { useTranslation } from 'react-i18next';
 
 /**
- * A list's rows dragged up and down by their handles: by pointer once it moves 4 px, or by
- * keyboard (Space, the arrows, Space). Spread it into `DndContext`. A screen reader hears each
- * row by `nameOf` its id rather than the id itself, and specs wait for the same words.
+ * Where a row held by keyboard is. Each arrow lines the row's top up with the row above's top, or
+ * its bottom with the row below's bottom, so it is over the row it lines up with. Measuring by
+ * corners or centres instead keeps a tall row, such as a field with its settings open, over itself.
  */
-export const useListDrag = (nameOf: (id: UniqueIdentifier) => string) => {
+const linedUp: CollisionDetection = ({ collisionRect, droppableRects, droppableContainers }) =>
+  droppableContainers
+    .flatMap((container) => {
+      const rect = droppableRects.get(container.id);
+
+      if (!rect) return [];
+
+      const top = Math.abs(rect.top - collisionRect.top);
+      const bottom = Math.abs(rect.bottom - collisionRect.bottom);
+
+      return [
+        { id: container.id, data: { droppableContainer: container, value: Math.min(top, bottom) } },
+      ];
+    })
+    .toSorted((a, b) => a.data.value - b.data.value);
+
+/**
+ * A list's rows dragged up and down by their handles: by pointer once it moves 4 px, landing by
+ * `byPointer`, or by keyboard (Space, the arrows, Space). Spread it into `DndContext`. A screen
+ * reader hears each row by `nameOf` its id rather than the id itself, and specs wait for the same
+ * words.
+ */
+export const useListDrag = (
+  nameOf: (id: UniqueIdentifier) => string,
+  byPointer: CollisionDetection = closestCenter,
+) => {
   const { t } = useTranslation('frontline');
+
+  // A keyboard drag has no pointer.
+  const collisionDetection: CollisionDetection = (args) =>
+    args.pointerCoordinates ? byPointer(args) : linedUp(args);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -49,6 +80,7 @@ export const useListDrag = (nameOf: (id: UniqueIdentifier) => string) => {
 
   return {
     sensors,
+    collisionDetection,
     modifiers: [restrictToVerticalAxis],
     accessibility: {
       announcements,

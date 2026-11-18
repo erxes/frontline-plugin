@@ -362,13 +362,14 @@ export const pick = async (page: Page, select: Locator, option: string) => {
 /**
  * Moves `item` by keyboard with its drag `handle`: Space picks it up, `key` takes it over `to`,
  * Space drops it. Each key waits for the screen reader's announcement of the step before, which
- * names where the row is, since dnd-kit takes the next key only after it.
+ * names where the row is: dnd-kit listens for keys a moment after the pickup, so an arrow sent
+ * as soon as the handle is pressed can be lost.
  */
 export const moveByKeys = async (handle: Locator, key: string, item: string, to: string) => {
   const page = handle.page();
 
   await handle.press('Space');
-  await expect(handle).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText(`${item} is in its place.`, { exact: true })).toBeAttached();
   await page.keyboard.press(key);
   await expect(page.getByText(`${item} is over ${to}.`, { exact: true })).toBeAttached();
   await page.keyboard.press('Space');

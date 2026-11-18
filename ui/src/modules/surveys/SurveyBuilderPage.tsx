@@ -1,4 +1,4 @@
-import { closestCenter, DndContext, type DragEndEvent } from '@dnd-kit/core';
+import { DndContext, type DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { IconChecklist, IconPlus } from '@tabler/icons-react';
 import { Button, PageContainer, ScrollArea, Skeleton } from 'erxes-ui';
@@ -30,7 +30,7 @@ const Questions = ({ survey }: { survey: Survey }) => {
 
   return (
     <div className="flex min-w-0 flex-1 flex-col gap-4">
-      <DndContext {...drag} collisionDetection={closestCenter} onDragEnd={dragEnd}>
+      <DndContext {...drag} onDragEnd={dragEnd}>
         <SortableContext
           items={steps.map((step) => step.id)}
           strategy={verticalListSortingStrategy}

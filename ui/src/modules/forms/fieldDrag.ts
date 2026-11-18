@@ -55,7 +55,7 @@ export const useFieldDrag = (formId: string, fields: FormField[], steps: number)
     return zone === -1
       ? (fields.find((field) => field.id === id)?.label ?? '')
       : t('form-step-n', 'Step {{n}}', { n: zone + 1 });
-  });
+  }, closestCorners);
 
   const dragOver = ({ active, over }: DragOverEvent) => {
     if (!over) return;
@@ -91,7 +91,6 @@ export const useFieldDrag = (formId: string, fields: FormField[], steps: number)
     layout,
     context: {
       ...drag,
-      collisionDetection: closestCorners,
       onDragStart: () => setHeld({ fields, layout: layoutOf(fields, steps) }),
       onDragOver: dragOver,
       onDragEnd: dragEnd,
