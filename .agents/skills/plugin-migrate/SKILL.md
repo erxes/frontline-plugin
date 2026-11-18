@@ -63,7 +63,10 @@ The row goes in the module's commit.
    skill and shaped like `api/src/modules/channels`. Name it after what it does
    (`tasks.list`, not `getTasks`), and fold operations that only differ by
    filter into one input. A failure the UI acts on gets a typed error. An
-   operation the new UI never calls is ticked with no procedure.
+   operation with no procedure is ticked only when its feature is dropped,
+   with the `DECISIONS.md` row named on its line. Archive, rename and filters
+   were once ticked by a regex because no screen called them yet, and never
+   got built.
    The answer is the table's rows, flat, through the `.output()` the `endpoint` skill builds,
    not the old GraphQL type. Where the old type nested a reference (`contentType` with
    `contentTypeId`, `{ type, id }`), store and return the two columns (`referenceType`,
@@ -98,16 +101,20 @@ The row goes in the module's commit.
    old files only it uses, the operations it calls, its `ui-modules` symbols
    and what it `keeps`: hotkeys, URL state, confirms and their copy, paging,
    drafts and toasts. Read those files and keep every behavior; drop one only
-   with a decision on the page's line. Tick a Shared UI row with what replaces
+   with a decision on the page's line. The brief was generated from old source,
+   so it misses what the screen does: open the old screen and add its form
+   fields, tabs, filters, sticky parts, previews, dialogs and empty states to
+   `keeps` before you build. Tick a Shared UI row with what replaces
    that symbol, so the next page reuses it. An item left open on purpose gets
    a `  - note: <why>` line under it.
-6. Check feature parity, not layout parity, with the `verify` skill: the
-   module's e2e spec walks every old action, field and filter on the new
-   page. Don't run old erxes beside it. Wording, spacing, order and colour go
-   in the PR body as a list, never into another fix round. When the same
-   failure happens twice, stop and report it with the output.
-7. Tick an item once it works on the new core and its old bugs and
-   workarounds are gone. When an item needs something core doesn't offer
+6. Check parity with the `verify` skill: the module's e2e spec walks every
+   old action, field and filter on the new page, and you look at the new
+   screen beside the old one. The module's PR carries both screenshots of
+   each screen, as the `verify` skill says. When the same failure happens
+   twice, stop and report it with the output.
+7. Tick an item by hand, one at a time, once it works on the new core and its
+   old bugs and workarounds are gone. The line names the procedure,
+   component or spec that does it. Never tick rows in bulk with a script. When an item needs something core doesn't offer
    (marked **gap**, or one you find), follow "When core lacks something",
    tick the item and end its line with `(filed <issue url>)`. The feature
    waits for core.
