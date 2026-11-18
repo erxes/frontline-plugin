@@ -59,6 +59,9 @@ export const knownVerifyToken = async (token: string) =>
 /** Where Meta's webhook subscription points: every app, the install's or an organisation's. */
 const webhookUrl = () => `${config.publicUrl}/api/public/webhooks/meta`;
 
+/** Where Meta's login sends the member back; an app lists it as a valid OAuth redirect URI. */
+export const metaCallbackUrl = () => `${webhookUrl()}/callback`;
+
 const Settings = z.object({
   appId: z.string().nullable(),
   verifyToken: z.string().nullable(),
@@ -69,6 +72,7 @@ const Settings = z.object({
   /** Whether the install has an app the organisation falls back to. */
   installApp: z.boolean(),
   webhookUrl: z.string(),
+  callbackUrl: z.string(),
 });
 
 const settingsOf = async (tx: Tx, orgId: string): Promise<z.infer<typeof Settings>> => {
@@ -81,6 +85,7 @@ const settingsOf = async (tx: Tx, orgId: string): Promise<z.infer<typeof Setting
     own: own !== null,
     installApp: installApp() !== null,
     webhookUrl: webhookUrl(),
+    callbackUrl: metaCallbackUrl(),
   };
 };
 

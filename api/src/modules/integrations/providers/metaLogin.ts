@@ -8,7 +8,7 @@ import { readToken, signToken } from '../../tokens.ts';
 import { inOrder } from '../provider.ts';
 import { Into, intoChannel, metaKey, saveAccount } from '../store.ts';
 import { GRAPH_VERSION, graph, subscribeToPage } from './meta.ts';
-import { type MetaApp, metaAppIn, metaAppOf } from './metaApp.ts';
+import { type MetaApp, metaAppIn, metaAppOf, metaCallbackUrl } from './metaApp.ts';
 import { routeThroughRelay } from './metaRelay.ts';
 
 const STATE = 'meta login';
@@ -32,8 +32,6 @@ const SCOPES = [
 ];
 
 const State = z.object({ orgId: z.string(), userId: z.string(), ...Into });
-
-const callbackUrl = () => `${config.publicUrl}/api/public/webhooks/meta/callback`;
 
 /** Where Meta's login returns the member: the Facebook and Instagram settings in web. */
 export const SETTINGS_URL = `${config.coreUiOrigin}/frontline/settings/integrations`;
@@ -59,7 +57,7 @@ const loginUrl = writes(PERMISSIONS.integrationManage)
     const url = new URL(`https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`);
 
     url.searchParams.set('client_id', app.appId);
-    url.searchParams.set('redirect_uri', callbackUrl());
+    url.searchParams.set('redirect_uri', metaCallbackUrl());
     url.searchParams.set('scope', SCOPES.join(','));
     url.searchParams.set('response_type', 'code');
     url.searchParams.set(
@@ -99,7 +97,7 @@ const Pages = z.object({
 const userTokenOf = async (code: string, { appId, appSecret }: MetaApp) => {
   const short = Token.parse(
     await graph('oauth/access_token', null, {
-      query: { client_id: appId, client_secret: appSecret, redirect_uri: callbackUrl(), code },
+      query: { client_id: appId, client_secret: appSecret, redirect_uri: metaCallbackUrl(), code },
     }),
   );
 
