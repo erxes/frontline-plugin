@@ -250,6 +250,9 @@ export const BarList = ({ rows, empty }: { rows: BarRow[]; empty: string }) => {
 export const percentText = (share: number | null) =>
   share === null ? '–' : `${Math.round(share * 1000) / 10}%`;
 
+/** `part` as a percent of `whole`, "–" of none. */
+export const shareOf = (part: number, whole: number) => percentText(whole ? part / whole : null);
+
 const round = (value: number) => Math.round(value * 10) / 10;
 
 /** How long an average took, in the largest unit that reads well: "45 s", "12 min", "3.5 h", "2.1 d". */

@@ -2,10 +2,7 @@ import { useFormat } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { DayChart } from './Charts.tsx';
 import { useMetaReport } from './queries.ts';
-import { percentText, Stat, Stats, Tile } from './Tile.tsx';
-
-/** A share of a whole, "–" of none. */
-const shareOf = (part: number, whole: number) => percentText(whole ? part / whole : null);
+import { shareOf, Stat, Stats, Tile } from './Tile.tsx';
 
 /**
  * The pages' and accounts' direct conversations, who wrote their messages and the bot's share,

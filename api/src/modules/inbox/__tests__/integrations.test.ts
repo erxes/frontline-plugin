@@ -101,7 +101,7 @@ describe('integrations', () => {
     expect((await teammate.conversations.list({})).totalCount).toBe(0);
   });
 
-  it('reports a Facebook page’s conversations, who wrote in them, and the comments by post', async () => {
+  it('reports a Facebook page’s conversations, who wrote in them, and its comments and the posts they were on', async () => {
     const orgId = 'org-in-c';
     const { owner, teammate, channel } = await setUp(orgId);
     const sales = await owner.channels.create({ name: 'Sales' });
