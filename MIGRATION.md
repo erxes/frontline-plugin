@@ -1,9 +1,11 @@
 # Migrating frontline to the new core
 
 From erxes/erxes `origin/main` (f2a56ac961), `frontline_api` and `frontline_ui`.
-1038 items: 2 gaps and 49 drops. Follow `.agents/skills/plugin-migrate`: one module at a time,
+1038 items, 1034 ticked: 67 filed gaps and 203 drops. Follow `.agents/skills/plugin-migrate`: one module at a time,
 tick an item once it works on the new core and its old bugs and workarounds are gone, tick a gap once filed, ending its line with `(filed <issue url>)`,
 and tick a drop once its code is left out (segments, the client portal and brands are not migrated).
+A ticked item names the code that does its job: a file, a procedure, a table, a setting or a string the manifest sends core.
+A drop names its row in DECISIONS.md as `the "<Old cell>" row in DECISIONS.md`. `pnpm check:migration` checks both.
 
 The old UI imports 145 symbols from `ui-modules` in 328 files; the host has no `ui-modules`, so each page rebuilds them from `erxes-ui` or `ui/src/shared`, and Plugin-wide's Shared UI section records which (members through its `SelectMember` and `MemberInline`, other records through `EntityPicker`). erxes-ui's own old-to-new component table is `packages/ui/MIGRATION.md` in erxes (branch `postgre`).
 Procedures replace the 337 GraphQL types.
@@ -84,9 +86,9 @@ Procedures replace the 337 GraphQL types.
 
 ### Core calls
 
-- [x] frontline `conversation.find` → plugin-owned `a direct function call` `frontline_api/src/apollo/subscription.ts:94`
+- [x] frontline `conversation.find` → `signalMembers` in `api/src/modules/inbox/shared.ts`: the live signal names only the conversation, and the refetch reads it through the member's channel access `frontline_api/src/apollo/subscription.ts:94`
 - [x] frontline `ticket.matchesProperties` → plugin-owned `a direct function call` `frontline_api/src/apollo/subscription.ts:250`. No match in the API: each ticket change calls `core_live_signal()` (`api/src/modules/tickets/shared.ts`) and the open list refetches with its own filters
-- [x] frontline `mail.canViewConversation` → plugin-owned `a direct function call` `frontline_api/src/apollo/subscription.ts:527`. The inbox's channel access decides who reads a mail conversation
+- [x] frontline `mail.canViewConversation` → `channelsFor` in `api/src/modules/channels/access.ts` `frontline_api/src/apollo/subscription.ts:527`. The inbox's channel access decides who reads a mail conversation
 - [x] core `segment.fetchSegment` → **drop**: the new core has no segments (the "Client portal procedures (`cp*`), brands and segments" row in DECISIONS.md); the plugin filters its own records `frontline_api/src/conversationQueryBuilder.ts:99`
 - [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/conversationQueryBuilder.ts:363`
 - [x] core `customers.find` → `customers.list({ search })` before the inbox list's transaction, matching the customer's name, email or phone (`readsWithCore` in `api/src/orpc.ts`, `api/src/modules/inbox/conversations.ts`) `frontline_api/src/conversationQueryBuilder.ts:419`
@@ -105,17 +107,17 @@ Procedures replace the 337 GraphQL types.
 - [x] `frontline_api/src/modules/customdomain/schedule.ts` (upsertJobScheduler) → plugin-owned: a job in the API process. The `helpcenter.domains` job (`JOBS.domains`)
 - [x] `frontline_api/src/modules/customdomain/worker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process. The `helpcenter.domains` job (`JOBS.domains`)
 - [x] `frontline_api/src/modules/form/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The Create form link step runs when core calls `/api/automations/actions` (`createFormLink` in `api/src/modules/forms/links.ts`); core matches the Form submitted trigger's conditions on the event's fields itself
-- [x] `frontline_api/src/modules/inbox/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process
-- [x] `frontline_api/src/modules/integrations/discord/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The send action runs when core calls `/api/automations/actions`
+- [x] `frontline_api/src/modules/inbox/meta/automation/workers.ts` (path) → the inbox's actions run when core calls `/api/automations/actions/:type` (`api/src/modules/inbox/automations.ts`)
+- [x] `frontline_api/src/modules/integrations/discord/meta/automation/workers.ts` (path) → `frontline.discord.send_message` runs when core calls `/api/automations/actions/:type` (`api/src/modules/integrations/actions.ts`)
 - [x] `frontline_api/src/modules/integrations/facebook/commentOutboxWorker.ts` → the inbox's `messages.send` job
 - [x] `frontline_api/src/modules/integrations/facebook/meta/automation/messages/inputWait.ts` → dropped: core's automations wait for input (the "Separate Facebook and Instagram bot tables with handoff, back-button and automation-message fields" row in DECISIONS.md)
 - [x] `frontline_api/src/modules/integrations/facebook/meta/automation/workers.ts` → `frontline.facebook.reply` at `/api/automations/actions/<type>`
 - [x] `frontline_api/src/modules/integrations/instagram/meta/automation/workers.ts` → `frontline.instagram.reply` at `/api/automations/actions/<type>`
-- [x] `frontline_api/src/modules/integrations/mail/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The send action runs when core calls `/api/automations/actions`
+- [x] `frontline_api/src/modules/integrations/mail/meta/automation/workers.ts` (path) → `frontline.mail.send` runs when core calls `/api/automations/actions/:type` (`api/src/modules/integrations/actions.ts`)
 - [x] `frontline_api/src/modules/integrations/mail/utils/cloudflare/worker.ts` (path) → plugin-owned: a job in the API process. Dropped: Cloudflare mail, its drafts and its pipelines are left out (the "Cloudflare email routing with its worker and provisioning, the sending quota, mail drafts, and mail pipelines whose address opened tickets" row in DECISIONS.md)
 - [x] `frontline_api/src/modules/integrations/mail/worker/bundle.generated.ts` (path) → plugin-owned: a job in the API process. Dropped: Cloudflare mail, its drafts and its pipelines are left out (the "Cloudflare email routing with its worker and provisioning, the sending quota, mail drafts, and mail pipelines whose address opened tickets" row in DECISIONS.md)
-- [x] `frontline_api/src/modules/integrations/telegram/meta/automation/workers.ts` (path) → plugin-owned: a job in the API process. The send action runs when core calls `/api/automations/actions`
-- [x] `frontline_api/src/modules/knowledgebase/utils/scheduledPublish.ts` (createMQWorkerWithListeners) → no job: every article read first publishes the scheduled articles whose time has passed, so a lost queue job can't leave one unpublished
+- [x] `frontline_api/src/modules/integrations/telegram/meta/automation/workers.ts` (path) → `frontline.telegram.send_message` runs when core calls `/api/automations/actions/:type` (`api/src/modules/integrations/actions.ts`)
+- [x] `frontline_api/src/modules/knowledgebase/utils/scheduledPublish.ts` (createMQWorkerWithListeners) → core's `knowledgebase.publish` job each minute runs `publishScheduled` (`api/src/modules/knowledgebase/articles.ts`, `api/src/jobs.ts`)
 - [x] `frontline_api/src/modules/ticket/utils/slaWorker.ts` (createMQWorkerWithListeners, path) → plugin-owned: a job in the API process. The `tickets.sla` job (`JOBS.sla`)
   - note: waits for notifications; tickets keep their SLA due and met times, which the job will read
 
@@ -262,7 +264,7 @@ Procedures replace the 337 GraphQL types.
 - [x] `REACT_APP_WIDGETS_URL` → api/src/config.ts `frontline_ui/src/modules/utils.ts:27`. dropped: the API serves the embeds at `${PUBLIC_URL}/widget` from `WIDGET_DIR`, and the messenger's Install card shows its script line (`ui/src/modules/messenger/InstallCard.tsx`) (the "`ENDPOINT_URL`, `REACT_APP_WIDGETS_URL` and `FACEBOOK_GRAPH_URL` set addresses in the environment" row in DECISIONS.md)
 - [x] `SINCE` → dropped: an old Mongo data migration (the "Scripts in `frontline_api/src/migrations` rewrote old Mongo documents in place" row in DECISIONS.md) `frontline_api/src/migrations/migrateCallConversationContents.ts:19`
 - [x] `STATIC_CHANNEL_ID` → api/src/config.ts `frontline_api/src/migrations/migrateTickets.ts:24`. dropped: an old Mongo data migration (the "Scripts in `frontline_api/src/migrations` rewrote old Mongo documents in place" row in DECISIONS.md); `scripts/import-mongo.ts` copies the old data
-- [x] `TIMEZONE` → each PBX account's `timeZone`; CDR times are read in it `frontline_api/src/modules/integrations/call/utils.ts:586`
+- [x] `TIMEZONE` → each PBX account's `timeZone`; CDR times are read in it (`pbxTime` in `api/src/modules/integrations/providers/call/cdr.ts`) `frontline_api/src/modules/integrations/call/utils.ts:586`
 - [x] `TZ` → dropped: a report's days and hours use the member's browser time zone, sent with the period (`api/src/modules/reports/shared.ts`) (the "Days and hours in the server's `TIMEZONE` or a hardcoded `+08:00`" row in DECISIONS.md) `frontline_api/src/modules/reports/utils.ts:384`
 - [x] `WIDGETS_DOMAIN` → api/src/config.ts `frontline_api/src/modules/form/meta/automation/createFormLinkAction.ts:87`. `config.widgetsDomain`: a form link opens `<WIDGETS_DOMAIN>/forms/<key>/<code>?link=<token>`; unset, the step fails and says so
 
@@ -366,7 +368,7 @@ Procedures replace the 337 GraphQL types.
 - [x] `getRelationWidgetLabel` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
 - [x] `hasFieldValue` (1 files). A property with no value text gets no badge (`TicketPropertyBadges` in `ui/src/modules/tickets/TicketProperties.tsx`)
 - [x] `IAutomationHistoryAction` (1 files). Core's automation runs keep each step's result (the "Bot delivery stats, comment reply stats and the `facebook_logs` and `instagram_logs` tables" row in DECISIONS.md); actions answer core at `/api/automations/actions` (`api/src/modules/inbox/automations.ts`, `api/src/modules/integrations/actions.ts`)
-- [x] `IDashboardWidgetProps` (1 files). Core's `TDashboardWidget`; a tile takes no props and reads its own report
+- [x] `IDashboardWidgetProps` (1 files). Core's `TDashboardWidget` (`ui/src/dashboardWidgets.ts`); a tile takes no props and reads its own report
 - [x] `IFieldMutation` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `ILayoutAsideApi` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the "Core's fields and field groups per pipeline, and ticket configs choosing a layout" row in DECISIONS.md)
 - [x] `ILayoutItem` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the "Core's fields and field groups per pipeline, and ticket configs choosing a layout" row in DECISIONS.md)
@@ -439,7 +441,7 @@ Procedures replace the 337 GraphQL types.
 - [x] mutation `channelRemoveMember` → `channels.removeMembers` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 - [x] mutation `channelRemoveMembers` → `channels.removeMembers`, refused when it would leave no admin `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 - [x] mutation `channelUpdateMember` → `channels.setRole` `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
-- [x] mutation `channelMoveResources` → each pipeline and template moves on its own panel (decision) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
+- [x] mutation `channelMoveResources` → each pipeline and template moves on its own panel (`ui/src/modules/pipelines/PipelinePanel.tsx`, `ui/src/modules/responseTemplates/ResponseTemplatePanel.tsx`) (decision) `frontline_api/src/modules/channel/graphql/schemas/channel.ts:59`
 
 ### Pages
 
@@ -510,7 +512,7 @@ Procedures replace the 337 GraphQL types.
 - [x] mutation `formSubmissionsRemove` → `forms.submissions.remove` `frontline_api/src/modules/form/graphql/schema/form.ts:188`
 - [x] mutation `formSubmissionsEdit` → `forms.submissions.update`, which checks the answer like a visitor's `frontline_api/src/modules/form/graphql/schema/form.ts:188`
 - [x] mutation `widgetsLeadConnect` → GET `/api/public/:key/forms/:code`, whose address `forms.embed` gives; it counts the view `frontline_api/src/modules/form/graphql/schema/form.ts:188`
-- [x] mutation `widgetsSaveLead` → POST `/api/public/:key/forms/:code`: 201, or 422 with what to fix. Decision: a visitor's cached customer id is ignored, since anyone could send another's `frontline_api/src/modules/form/graphql/schema/form.ts:188`
+- [x] mutation `widgetsSaveLead` → POST `/api/public/:key/forms/:code` (`api/src/modules/forms/embed.ts`): 201, or 422 with what to fix. Decision: a visitor's cached customer id is ignored, since anyone could send another's `frontline_api/src/modules/form/graphql/schema/form.ts:188`
 - [x] mutation `cpWidgetsSaveLead` → **drop**: the new core has no client portal (the "Client portal procedures (`cp*`), brands and segments" row in DECISIONS.md) `frontline_api/src/modules/form/graphql/schema/form.ts:188`
 
 ### Pages
@@ -548,7 +550,7 @@ Procedures replace the 337 GraphQL types.
 
 - [x] core `fields.getFieldList` → `frontline_form_fields` `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:318`
 - [x] core `fields.getFieldList` → `frontline_form_fields` `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:329`
-- [x] core `customers.findOne` → not called. Decision: the browser's cached customer id is ignored; the customer comes from the answers' email or phone `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:438`
+- [x] core `customers.findOne` → not called. Decision: the browser's cached customer id is ignored; the customer comes from the answers' email or phone (`api/src/modules/forms/customers.ts`) `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:438`
 - [x] core `customers.createCustomer` → `customers.findOrCreate` by email or phone, else `customers.create`, in `api/src/modules/forms/customers.ts` `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:449`
 - [x] core `customers.updateCustomer` → `customers.update` with the middle name, description, birth date, sex and avatar `frontline_api/src/modules/form/graphql/resolvers/mutations/widget.ts:506`
 - [x] core `tags.findOne` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/form/graphql/resolvers/queries/forms.ts:23`. Form tags in `frontline_forms.tag_ids`, the forms bar's `subject.tagIds` filter (`api/src/modules/forms/forms.ts`); frontline tags have no children to expand
@@ -593,7 +595,7 @@ Procedures replace the 337 GraphQL types.
 - [x] query `helpCenterConfig` → procedure `helpCenterConfigs.get` (returns `HelpCenterConfig`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`. `helpCenters.get`
 - [x] query `helpCenterConfigs` → procedure `helpCenterConfigs.list` (returns `[HelpCenterConfig]`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`. `helpCenters.list`
 - [x] query `helpCenterConfigsTotalCount` → procedure `helpCenterConfigs.list` (returns `Int`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`. Folded into `helpCenters.list`, which returns them all
-- [x] query `helpCenterGetConfigByDomain` → procedure `helpCenterGetConfigByDomains.get` (returns `HelpCenterConfig`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`. GET `/api/public/help-centers/:address`, by public key or connected host
+- [x] query `helpCenterGetConfigByDomain` → `api/src/modules/helpcenter/public.ts` `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:190`. GET `/api/public/help-centers/:address`, by public key or connected host
 - [x] mutation `helpCenterConfigUpdate` → procedure `helpCenterConfigs.update` (returns `HelpCenterConfig`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:197`. `helpCenters.create` and `helpCenters.update`
 - [x] mutation `helpCenterConfigRemove` → procedure `helpCenterConfigs.remove` (returns `JSON`) `frontline_api/src/modules/helpcenter/graphql/schemas/helpCenterConfig.ts:197`. `helpCenters.remove`
 
@@ -760,9 +762,9 @@ Procedures replace the 337 GraphQL types.
 - [x] core `fields.generatePropertiesData` → plugin-owned `frontline_fields` `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:499`. dropped: `/connect` takes the company's custom fields by field id, as core keeps them (`VisitorData` in `api/src/modules/messenger/visitors.ts`) (the "The widget's `updateCustomerProperties` and its `companyData` wrote onto whichever customer id it sent, and changed an existing company" row in DECISIONS.md)
 - [x] core `companies.updateCompany` → sdk `companies.update` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:517`. dropped: a visitor never changes an existing company (the "The widget's `updateCustomerProperties` and its `companyData` wrote onto whichever customer id it sent, and changed an existing company" row in DECISIONS.md)
 - [x] core `companies.createCompany` → sdk `companies.create` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:537`. `companyFor` in `api/src/modules/messenger/visitors.ts`, then `customers.linkCompany`
-- [x] core `customers.markCustomerAsActive` → plugin-owned `frontline_customers` (messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:786`
-- [x] core `customers.updateLocation` → plugin-owned `frontline_customers` (the visitor's location is messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:999`
-- [x] core `customers.updateSession` → plugin-owned `frontline_customers` (messenger session data) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:1011`
+- [x] core `customers.markCustomerAsActive` → `frontline_visitors` (`setOnline` in `api/src/modules/messenger/visitors.ts`) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:786`
+- [x] core `customers.updateLocation` → `frontline_visitors`, the visitor's browser and address (`recordVisit` in `api/src/modules/messenger/visitors.ts`) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:999`
+- [x] core `customers.updateSession` → `frontline_visitors`, the visit count (`recordVisit` in `api/src/modules/messenger/visitors.ts`) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:1011`
 - [x] core `customers.updateCustomer` → sdk `customers.update` (scope customers:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:1290`. Not called: `/connect` with `identity` finds or creates the customer through `customers.findOrCreate` (decision)
 - [x] core `tags.findOne` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/inbox/graphql/resolvers/queries/integrations.ts:83`
 - [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/inbox/graphql/resolvers/queries/integrations.ts:344`
@@ -775,7 +777,7 @@ Procedures replace the 337 GraphQL types.
 - [x] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/inbox/receiveMessage.ts:152`. Each PBX operator's member comes from `frontline_call_operators` (`operatorOf` in `api/src/modules/integrations/providers/call/record.ts`)
 - [x] core `config.getConfig` → plugin-owned `frontline_settings` (country and currency: organizations.current (sdk)) `frontline_api/src/modules/inbox/receiveMessage.ts:310`. dropped: it answered the old integrations service; providers now run in the plugin (`api/src/modules/integrations/providers`) (the "Core's `config.getConfig` and `users.getIds` answered the old integrations service" row in DECISIONS.md)
 - [x] core `users.getIds` → sdk `users.list` (scope users:read) `frontline_api/src/modules/inbox/receiveMessage.ts:323`. dropped: it answered the old integrations service; providers now run in the plugin (`api/src/modules/integrations/providers`) (the "Core's `config.getConfig` and `users.getIds` answered the old integrations service" row in DECISIONS.md)
-- [x] core `automation.find` → plugin-owned `frontline_settings` (what the plugin read from an automation (a chatbot's menu, its get-started reply) is its own setting; automations act on its events) `frontline_api/src/modules/inbox/utils.ts:75`
+- [x] core `automation.find` → a chatbot's menu and get-started reply are the plugin's own: `frontline_meta_bots` for a page, the messenger's `botGreeting` and menu (`api/src/modules/messenger/adapter.ts`); automations act on its events `frontline_api/src/modules/inbox/utils.ts:75`
 - [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/inbox/utils/conversationCounts.ts:36`
 - [x] core `activityLog.createActivityLog` → sdk `activities.create` (scope activities:write; customer or company targets, else manifest timelines) `frontline_api/src/modules/inbox/utils/conversationFormSubmission.ts:61`. `frontline.form.submitted` published with the customer who sent it (`api/src/modules/forms/embed.ts`), so it lands on their Activity tab
 - [x] core `customers.find` → sdk `customers.list` (scope customers:read; search, ids, state, tagIds, companyId, filter) `frontline_api/src/modules/inbox/widgetSession.ts:142`. the visitor's customer is the one their signed token names (`api/src/modules/messenger/session.ts`); visits, browser and address are `frontline_visitors` (`recordVisit` in `api/src/modules/messenger/visitors.ts`)
@@ -789,8 +791,8 @@ Procedures replace the 337 GraphQL types.
 - [x] `sendNotifications` → sdk `notifications.create` (scope notifications:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/conversations.ts:111`
 - [x] `sendNotifications` → sdk `notifications.create` (scope notifications:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/conversations.ts:165`. Dropped: only the new assignee and mentioned members are notified (`notifyAssignee` in `api/src/modules/inbox/conversations.ts`, `notifyMentioned` in `api/src/modules/inbox/messages.ts`); the "Notifications on each message, assignee change, unassign and status change" row in DECISIONS.md
 - [x] `sendNotifications` → sdk `notifications.create` (scope notifications:write) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/conversations.ts:189`. Dropped: only the new assignee and mentioned members are notified (`notifyAssignee` in `api/src/modules/inbox/conversations.ts`, `notifyMentioned` in `api/src/modules/inbox/messages.ts`); the "Notifications on each message, assignee change, unassign and status change" row in DECISIONS.md
-- [x] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:529`
-- [x] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:818`
+- [x] `sendAutomationTrigger` → `frontline.conversation.message_received`, published with `core_publish_event()` in the message's transaction (`api/src/modules/inbox/receive.ts`) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:529`
+- [x] `sendAutomationTrigger` → `frontline.conversation.message_received`, published with `core_publish_event()` in the message's transaction (`api/src/modules/inbox/receive.ts`) `frontline_api/src/modules/inbox/graphql/resolvers/mutations/widget.ts:818`
 - [x] `sendNotification` → sdk `notifications.create` (scope notifications:write; kind in manifest.notificationKinds) `frontline_api/src/modules/inbox/meta/afterProcess/conversation.ts:35`. Dropped: only the new assignee and mentioned members are notified (`notifyAssignee` in `api/src/modules/inbox/conversations.ts`, `notifyMentioned` in `api/src/modules/inbox/messages.ts`); the "Notifications on each message, assignee change, unassign and status change" row in DECISIONS.md
 - [x] `sendNotification` → sdk `notifications.create` (scope notifications:write; kind in manifest.notificationKinds) `frontline_api/src/modules/inbox/meta/afterProcess/conversation.ts:52`. Dropped: only the new assignee and mentioned members are notified (`notifyAssignee` in `api/src/modules/inbox/conversations.ts`, `notifyMentioned` in `api/src/modules/inbox/messages.ts`); the "Notifications on each message, assignee change, unassign and status change" row in DECISIONS.md
 - [x] `sendNotifications` → sdk `notifications.create` (scope notifications:write) `frontline_api/src/modules/inbox/trpc/inbox.ts:946`. Dropped: only the new assignee and mentioned members are notified (`notifyAssignee` in `api/src/modules/inbox/conversations.ts`, `notifyMentioned` in `api/src/modules/inbox/messages.ts`); the "Notifications on each message, assignee change, unassign and status change" row in DECISIONS.md
@@ -801,22 +803,22 @@ Procedures replace the 337 GraphQL types.
 
 - [x] `frontline_facebook_accounts` → `frontline_integration_accounts`, one `facebook` row per page, its token sealed `frontline_api/src/modules/integrations/facebook/db/definitions/accounts.ts:6`
 - [x] `frontline_customers_facebooks` → `frontline_customer_links` (source `facebook`) and core's customers `frontline_api/src/modules/integrations/facebook/db/definitions/customers.ts:4`
-- [x] `frontline_conversations_facebooks` → the inbox's conversations; a chat's `externalId` is the sender's page-scoped id `frontline_api/src/modules/integrations/facebook/db/definitions/conversations.ts:5`
-- [x] `frontline_conversation_messages_facebooks` → the inbox's messages, with postback and quick reply payloads in `providerData` `frontline_api/src/modules/integrations/facebook/db/definitions/conversationMessages.ts:5`
-- [x] `frontline_comment_conversations_facebook` → the inbox's conversations: one person's comments on one post are the thread `comment:<post>:<person>` `frontline_api/src/modules/integrations/facebook/db/definitions/comment_conversations.ts:5`
-- [x] `frontline_comment_conversations_reply_facebook` → messages of that thread; a member's reply answers the person's latest comment `frontline_api/src/modules/integrations/facebook/db/definitions/comment_conversations_reply.ts:4`
+- [x] `frontline_conversations_facebooks` → the inbox's `frontline_conversations`; a chat's `externalId` is the sender's page-scoped id `frontline_api/src/modules/integrations/facebook/db/definitions/conversations.ts:5`
+- [x] `frontline_conversation_messages_facebooks` → the inbox's `frontline_messages`, with postback and quick reply payloads in `providerData` `frontline_api/src/modules/integrations/facebook/db/definitions/conversationMessages.ts:5`
+- [x] `frontline_comment_conversations_facebook` → the inbox's `frontline_conversations`: one person's comments on one post are the thread `comment:<post>:<person>` `frontline_api/src/modules/integrations/facebook/db/definitions/comment_conversations.ts:5`
+- [x] `frontline_comment_conversations_reply_facebook` → `frontline_messages` of that thread; a member's reply answers the person's latest comment `frontline_api/src/modules/integrations/facebook/db/definitions/comment_conversations_reply.ts:4`
 - [x] `frontline_comment_outbox_facebook` → the inbox's `messages.send` job, which automation replies use too `frontline_api/src/modules/integrations/facebook/db/definitions/comment_outbox.ts:36`
-- [x] `frontline_facebook_integrations` → the inbox's integrations of kind `facebook`, `config.accountId` naming the page `frontline_api/src/modules/integrations/facebook/db/definitions/integrations.ts:4`
+- [x] `frontline_facebook_integrations` → the inbox's `frontline_integrations` of kind `facebook`, `config.accountId` naming the page `frontline_api/src/modules/integrations/facebook/db/definitions/integrations.ts:4`
 - [x] `frontline_facebook_logs` → dropped: no screen read it; failures go to the structured log (the "Bot delivery stats, comment reply stats and the `facebook_logs` and `instagram_logs` tables" row in DECISIONS.md) `frontline_api/src/modules/integrations/facebook/db/definitions/logs.ts:4`
 - [x] `frontline_posts_conversations_facebooks` → dropped: a thread's post is read from Meta when shown (the "Posts stored in `posts_conversations`" row in DECISIONS.md) (`integrations.meta.posts.get`) `frontline_api/src/modules/integrations/facebook/db/definitions/postConversations.ts:3`
 - [x] `frontline_facebook_configs` from collection `facebook_configs` → dropped: the Meta app is `META_APP_ID`, `META_APP_SECRET` and `META_VERIFY_TOKEN` in api/src/config.ts (the "The Meta app id, secret and verify token were settings saved through the UI" row in DECISIONS.md) `frontline_api/src/modules/integrations/facebook/db/definitions/config.ts:4`
-- [x] `frontline_instagram_integrations` → the inbox's integrations of kind `instagram` `frontline_api/src/modules/integrations/instagram/db/definitions/integrations.ts:4`
+- [x] `frontline_instagram_integrations` → the inbox's `frontline_integrations` of kind `instagram` `frontline_api/src/modules/integrations/instagram/db/definitions/integrations.ts:4`
 - [x] `frontline_instagram_accounts` → `frontline_integration_accounts`, one `instagram` row per account `frontline_api/src/modules/integrations/instagram/db/definitions/accounts.ts:5`
 - [x] `frontline_instagram_customers` → `frontline_customer_links` (source `instagram`) `frontline_api/src/modules/integrations/instagram/db/definitions/customers.ts:4`
-- [x] `frontline_instagram_conversations` → the inbox's conversations `frontline_api/src/modules/integrations/instagram/db/definitions/conversations.ts:5`
-- [x] `frontline_instagram_conversation_messages` → the inbox's messages; a story reply keeps the story as an attachment `frontline_api/src/modules/integrations/instagram/db/definitions/conversationMessages.ts:11`
-- [x] `frontline_instagram_comment_conversations` → the inbox's conversations, one thread per person per post `frontline_api/src/modules/integrations/instagram/db/definitions/comment_conversations.ts:6`
-- [x] `frontline_instagram_comment_conversations_reply` → messages of that thread `frontline_api/src/modules/integrations/instagram/db/definitions/comment_conversations_reply.ts:6`
+- [x] `frontline_instagram_conversations` → the inbox's `frontline_conversations` `frontline_api/src/modules/integrations/instagram/db/definitions/conversations.ts:5`
+- [x] `frontline_instagram_conversation_messages` → the inbox's `frontline_messages`; a story reply keeps the story as an attachment `frontline_api/src/modules/integrations/instagram/db/definitions/conversationMessages.ts:11`
+- [x] `frontline_instagram_comment_conversations` → the inbox's `frontline_conversations`, one thread per person per post `frontline_api/src/modules/integrations/instagram/db/definitions/comment_conversations.ts:6`
+- [x] `frontline_instagram_comment_conversations_reply` → `frontline_messages` of that thread `frontline_api/src/modules/integrations/instagram/db/definitions/comment_conversations_reply.ts:6`
 - [x] `frontline_instagram_post_conversations` → dropped: the post is read from Meta when shown (the "Posts stored in `posts_conversations`" row in DECISIONS.md) `frontline_api/src/modules/integrations/instagram/db/definitions/postConversations.ts:5`
 - [x] `frontline_instagram_logs` → dropped: no screen read it (the "Bot delivery stats, comment reply stats and the `facebook_logs` and `instagram_logs` tables" row in DECISIONS.md) `frontline_api/src/modules/integrations/instagram/db/definitions/logs.ts:6`
 - [x] `frontline_instagram_bots` → `frontline_meta_bots`, one bot per page or account `frontline_api/src/modules/integrations/instagram/db/definitions/bots.ts:12`
@@ -858,7 +860,7 @@ Procedures replace the 337 GraphQL types.
 - [x] subscription `callStatistic` → `core_live_signal()` on `calls` tells members' pages to refetch, and `calls.queues.get` reads what the PBX last pushed `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:260`
 - [x] query `callsIntegrationDetail` → `integrations.call.settings` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callUserIntegrations` → `calls.agents.mine` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
-- [x] query `callsCustomerDetail` → dropped: erxes-ui's `ContactLink` reads core's customer (the "`calls_customers` and `customers_callpro`, phone numbers unique across organisations" row in DECISIONS.md) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
+- [x] query `callsCustomerDetail` → dropped: `ContactChip` reads core's customer (the "`calls_customers` and `customers_callpro`, phone numbers unique across organisations" row in DECISIONS.md) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callHistories` → `calls.list` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callHistoriesTotalCount` → `calls.list`'s `totalCount` `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
 - [x] query `callsGetConfigs` → dropped: `calls_configs` is gone (the "`calls_configs`, `callsGetConfigs` and `callsUpdateConfigs`" row in DECISIONS.md) `frontline_api/src/modules/integrations/call/graphql/schema/call.ts:281`
@@ -904,14 +906,14 @@ Procedures replace the 337 GraphQL types.
 - [x] query `facebookGetIntegrationDetail` → the inbox's `integrations.get` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookGetConfigs` → dropped: the Meta app is `META_APP_ID`, `META_APP_SECRET` and `META_VERIFY_TOKEN` in api/src/config.ts (the "The Meta app id, secret and verify token were settings saved through the UI" row in DECISIONS.md) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookGetComments` → the comment thread's `conversations.messages.list` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
-- [x] query `facebookGetCommentCount` → folded: the thread's `messageCount` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
+- [x] query `facebookGetCommentCount` → folded: the thread's `messageCount` on `frontline_conversations` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookGetPages` → folded into Meta's login dialog (`integrations.meta.loginUrl`), where the member picks the pages `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookConversationDetail` → the inbox's `conversations.get` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookConversationMessages` → the inbox's `conversations.messages.list` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookConversationMessagesCount` → folded into `conversations.messages.list` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookGetPost` → `integrations.meta.posts.get` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookGetPosts` → `integrations.meta.posts.list` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
-- [x] query `facebookHasTaggedMessages` → folded: a reply after Messenger's 24 hours goes with the `HUMAN_AGENT` tag `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
+- [x] query `facebookHasTaggedMessages` → folded: a reply after Messenger's 24 hours goes with the `HUMAN_AGENT` tag (`api/src/modules/integrations/providers/meta.ts`) `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookPostMessages` → the comment threads' `conversations.messages.list` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookMessengerBotsTotalCount` → folded into `integrations.meta.bots.list` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
 - [x] query `facebookMessengerBots` → `integrations.meta.bots.list` `frontline_api/src/modules/integrations/facebook/graphql/schema/facebook.ts:250`
@@ -934,14 +936,14 @@ Procedures replace the 337 GraphQL types.
 - [x] query `instagramGetIntegrationDetail` → the inbox's `integrations.get` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramGetConfigs` → dropped: the Meta app is `META_APP_ID`, `META_APP_SECRET` and `META_VERIFY_TOKEN` in api/src/config.ts (the "The Meta app id, secret and verify token were settings saved through the UI" row in DECISIONS.md) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramGetComments` → the comment thread's `conversations.messages.list` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [x] query `instagramGetCommentCount` → folded: the thread's `messageCount` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [x] query `instagramGetPages` → folded into Meta's login dialog: each page's linked Instagram account connects with it `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
+- [x] query `instagramGetCommentCount` → folded: the thread's `messageCount` on `frontline_conversations` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
+- [x] query `instagramGetPages` → folded into Meta's login dialog: each page's linked Instagram account connects with it (`api/src/modules/integrations/providers/metaLogin.ts`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramConversationDetail` → the inbox's `conversations.get` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramConversationMessages` → the inbox's `conversations.messages.list` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramConversationMessagesCount` → folded into `conversations.messages.list` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramGetPost` → `integrations.meta.posts.get` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramGetPosts` → `integrations.meta.posts.list` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
-- [x] query `instagramHasTaggedMessages` → folded: a reply after 24 hours goes with the `HUMAN_AGENT` tag `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
+- [x] query `instagramHasTaggedMessages` → folded: a reply after 24 hours goes with the `HUMAN_AGENT` tag (`api/src/modules/integrations/providers/meta.ts`) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramPostMessages` → the comment threads' `conversations.messages.list` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramMessengerBotsTotalCount` → folded into `integrations.meta.bots.list` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
 - [x] query `instagramMessengerBots` → `integrations.meta.bots.list` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:172`
@@ -951,7 +953,7 @@ Procedures replace the 337 GraphQL types.
 - [x] mutation `instagramUpdateConfigs` → dropped: the Meta app is `META_APP_ID`, `META_APP_SECRET` and `META_VERIFY_TOKEN` in api/src/config.ts (the "The Meta app id, secret and verify token were settings saved through the UI" row in DECISIONS.md) `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [x] mutation `instagramRepair` → `integrations.accounts.check`; logging in again refreshes the page tokens `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [x] mutation `instagramReplyToComment` → the inbox's `conversations.messages.create` in the comment thread `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
-- [x] mutation `instagramResolveComment` → the inbox's status change on the comment thread `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
+- [x] mutation `instagramResolveComment` → `conversations.setStatus` on the comment thread `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [x] mutation `instagramMessengerAddBot` → `integrations.meta.bots.create` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [x] mutation `instagramMessengerUpdateBot` → `integrations.meta.bots.update` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
 - [x] mutation `instagramMessengerRemoveBot` → `integrations.meta.bots.remove` `frontline_api/src/modules/integrations/instagram/graphql/schema/instagram.ts:196`
@@ -1005,8 +1007,8 @@ Procedures replace the 337 GraphQL types.
 
 ### Core calls
 
-- [x] core `customers.findOne` → erxes-ui's `ContactLink` reads core's customer in the UI `frontline_api/src/modules/integrations/call/graphql/resolvers/customResolvers/customer.ts:11`
-- [x] core `customers.findOne` → erxes-ui's `ContactLink` reads core's customer in the UI `frontline_api/src/modules/integrations/call/graphql/resolvers/queries.ts:69`
+- [x] core `customers.findOne` → `ContactChip` (`ui/src/shared/Person.tsx`) reads core's customer in the call's panel `frontline_api/src/modules/integrations/call/graphql/resolvers/customResolvers/customer.ts:11`
+- [x] core `customers.findOne` → `ContactChip` (`ui/src/shared/Person.tsx`) reads core's customer in the call's panel `frontline_api/src/modules/integrations/call/graphql/resolvers/queries.ts:69`
 - [x] core `customers.findOne` → dropped: logs go through the structured logger (the "Core lookups that only filled a log line or a label, or whose result went unused" row in DECISIONS.md) `frontline_api/src/modules/integrations/call/logUtils.ts:7`
 - [x] core `users.findOne` → dropped: logs go through the structured logger (the "Core lookups that only filled a log line or a label, or whose result went unused" row in DECISIONS.md) `frontline_api/src/modules/integrations/call/logUtils.ts:37`
 - [x] core `users.findOne` → dropped: the line is the account's phone; members show with `MemberInline` (the "Core lookups that only filled a log line or a label, or whose result went unused" row in DECISIONS.md) `frontline_api/src/modules/integrations/call/services/cdrServices.ts:184`
@@ -1022,8 +1024,8 @@ Procedures replace the 337 GraphQL types.
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/db/models/Customers.ts:46`. `customerFor` asks core's `customers.findOrCreate` by the address, then links it
 - [x] core `customers.createCustomer` → the inbox's `customerFor` makes the sender a lead and links their address in `frontline_customer_links` `frontline_api/src/modules/integrations/mail/db/models/Customers.ts:58`
 - [x] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/integrations/mail/trpc/mail.ts:22`. The inbox's channel access decides who reads a mail conversation
-- [x] core `emailDeliveries.create` → plugin-owned `frontline_email_deliveries` (mail sent from the organisation's own mailbox is the plugin's to log) `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:13`. Folded into the message's `deliveryStatus`
-- [x] core `emailDeliveries.recordHandoff` → plugin-owned `frontline_email_deliveries` `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:24`. Folded into the message's `deliveryStatus`
+- [x] core `emailDeliveries.create` → the message's `deliveryStatus` (`api/src/modules/inbox/send.ts`) `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:13`. Folded into the message's `deliveryStatus`
+- [x] core `emailDeliveries.recordHandoff` → the message's `deliveryStatus` (`api/src/modules/inbox/send.ts`) `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:24`. Folded into the message's `deliveryStatus`
 - [x] core `emailSuppression.blocked` → plugin-owned `frontline_email_suppressions` (bounces and opt-outs the plugin hears from its mailbox) `frontline_api/src/modules/integrations/mail/utils/emailPorts.ts:37`. `frontline_email_suppressions`, filled from bounce and spam reports in the mailbox; `integrations.mail.suppressions` lists and removes them
 - [x] core `customers.findOne` → sdk `customers.get` (scope customers:read; by id only) `frontline_api/src/modules/integrations/mail/utils/mailRecipient.ts:8`. The reply goes to the customer's linked address
 - [x] core `customers.findActiveCustomers` → sdk `customers.list` (scope customers:read) `frontline_api/src/modules/integrations/mail/utils/recipients.ts:55`. sdk `customers.list` in `integrations.mail.recipients`
@@ -1041,7 +1043,7 @@ Procedures replace the 337 GraphQL types.
 - [x] `sendNotifications` → dropped: it told members of a reply, which the inbox's notifications own (the "A notification for each comment reply" row in DECISIONS.md) `frontline_api/src/modules/integrations/facebook/handleFacebookMessage.ts:203`
 - [x] `sendAutomationTrigger` → dropped: core's automations wait for the customer's next message event (the "Automation triggers sent from the message handlers" row in DECISIONS.md) `frontline_api/src/modules/integrations/facebook/meta/automation/messages/inputWait.ts:153`
 - [x] `sendAutomationTrigger` → `frontline.facebook.message_received` `frontline_api/src/modules/integrations/facebook/meta/automation/utils/messageUtils.ts:165`
-- [x] `sendNotification` → `checkAccount` in `modules/integrations/accounts.ts` tells whoever connected the account `frontline_api/src/modules/integrations/healthNotification.ts:30`
+- [x] `sendNotification` → `checkAccount` in `api/src/modules/integrations/accounts.ts` tells whoever connected the account `frontline_api/src/modules/integrations/healthNotification.ts:30`
 - [x] `sendAutomationTrigger` → `frontline.instagram.message_received` and `comment_received`, published with the new message `frontline_api/src/modules/integrations/instagram/controller/store.ts:230`
 - [x] `sendNotifications` → dropped: it told members of a comment reply, which the inbox's notifications own (the "A notification for each comment reply" row in DECISIONS.md) `frontline_api/src/modules/integrations/instagram/graphql/resolvers/mutations.ts:105`
 - [x] `sendNotifications` → dropped: it told members of a reply, which the inbox's notifications own (the "A notification for each comment reply" row in DECISIONS.md) `frontline_api/src/modules/integrations/instagram/handleInstagramMessage.ts:185`
@@ -1052,12 +1054,12 @@ Procedures replace the 337 GraphQL types.
 ### Routes
 
 - [x] GET `/resetCallCookie` → dropped: each PBX's cookie is renewed when it expires (the "`/resetCallCookie`" row in DECISIONS.md) `frontline_api/src/modules/integrations/call/initApp.ts:87`
-- [x] POST `/call/queueRealtimeUpdate` → `/api/public/webhooks/call/<key>/queue-live`, signed `frontline_api/src/modules/integrations/call/initApp.ts:92`
-- [x] POST `/call/queueStatistics` → `/api/public/webhooks/call/<key>/queue-stats`, signed `frontline_api/src/modules/integrations/call/initApp.ts:121`
-- [x] POST `/call/cdrReceive` (webhook) → `/api/public/webhooks/call/<key>/cdr`, signed `frontline_api/src/modules/integrations/call/initApp.ts:154`
-- [x] POST `/call/event` → `/api/public/webhooks/call/<key>/event`, signed `frontline_api/src/modules/integrations/call/initApp.ts:173`
-- [x] POST `/call/receiveCall` (webhook) → `/api/public/webhooks/call/<key>/receive-call`, signed `frontline_api/src/modules/integrations/call/initApp.ts:192`
-- [x] POST `/callpro/receive` (webhook) → `/api/public/webhooks/callpro/<key>`; the key is the secret `frontline_api/src/modules/integrations/callpro/routes.ts:11`
+- [x] POST `/call/queueRealtimeUpdate` → `/api/public/webhooks/call/<key>/queue-live`, signed (`api/src/modules/integrations/providers/call/routes.ts`) `frontline_api/src/modules/integrations/call/initApp.ts:92`
+- [x] POST `/call/queueStatistics` → `/api/public/webhooks/call/<key>/queue-stats`, signed (`api/src/modules/integrations/providers/call/routes.ts`) `frontline_api/src/modules/integrations/call/initApp.ts:121`
+- [x] POST `/call/cdrReceive` (webhook) → `/api/public/webhooks/call/<key>/cdr`, signed (`api/src/modules/integrations/providers/call/routes.ts`) `frontline_api/src/modules/integrations/call/initApp.ts:154`
+- [x] POST `/call/event` → `/api/public/webhooks/call/<key>/event`, signed (`api/src/modules/integrations/providers/call/routes.ts`) `frontline_api/src/modules/integrations/call/initApp.ts:173`
+- [x] POST `/call/receiveCall` (webhook) → `/api/public/webhooks/call/<key>/receive-call`, signed (`api/src/modules/integrations/providers/call/routes.ts`) `frontline_api/src/modules/integrations/call/initApp.ts:192`
+- [x] POST `/callpro/receive` (webhook) → `/api/public/webhooks/callpro/<key>`; the key is the secret (`api/src/modules/integrations/providers/call/routes.ts`) `frontline_api/src/modules/integrations/callpro/routes.ts:11`
 - [x] GET `/facebook/fblogin` → `integrations.meta.loginUrl`, back to GET `/api/public/webhooks/meta/callback` `frontline_api/src/modules/integrations/facebook/routes.ts:12`
 - [x] GET `/facebook/kind/:kind/fblogin` → folded into `integrations.meta.loginUrl`: one login connects Messenger and Instagram `frontline_api/src/modules/integrations/facebook/routes.ts:13`
 - [x] GET `/facebook/get-post` → `integrations.meta.posts.get` `frontline_api/src/modules/integrations/facebook/routes.ts:15`
@@ -1067,10 +1069,10 @@ Procedures replace the 337 GraphQL types.
 - [x] GET `/instagram/iglogin` → folded into `integrations.meta.loginUrl`: each page's linked Instagram account connects with it `frontline_api/src/modules/integrations/instagram/routes.ts:12`
 - [x] GET `/instagram/get-post` → `integrations.meta.posts.get` `frontline_api/src/modules/integrations/instagram/routes.ts:13`
 - [x] GET `/instagram/get-status` → the account's `status` in `integrations.accounts.list` `frontline_api/src/modules/integrations/instagram/routes.ts:14`
-- [x] GET `/instagram/receive` (webhook) → folded into GET `/api/public/webhooks/meta` `frontline_api/src/modules/integrations/instagram/routes.ts:15`
-- [x] POST `/instagram/receive` (webhook) → folded into POST `/api/public/webhooks/meta` `frontline_api/src/modules/integrations/instagram/routes.ts:16`
+- [x] GET `/instagram/receive` (webhook) → folded into GET `/api/public/webhooks/meta` (`api/src/modules/integrations/routes.ts`) `frontline_api/src/modules/integrations/instagram/routes.ts:15`
+- [x] POST `/instagram/receive` (webhook) → folded into POST `/api/public/webhooks/meta` (`api/src/modules/integrations/providers/metaWebhook.ts`) `frontline_api/src/modules/integrations/instagram/routes.ts:16`
 - [x] POST `/mail/receive` (webhook) → plugin-owned `a route on the plugin API` (organisation from the path (an id or key the plugin issued) or, for one address shared by every organisation (Meta's webhook), a lookup table listed in tools/no-org-id.sql; verify the sender's signature first) `frontline_api/src/modules/integrations/mail/routes.ts:7`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (the "Cloudflare email routing with its worker and provisioning, the sending quota, mail drafts, and mail pipelines whose address opened tickets" row in DECISIONS.md)
-- [x] POST `/telegram/receive/:_id` (webhook) → POST `/api/public/webhooks/telegram/:key`, with the key frontline issued and the bot's secret token `frontline_api/src/modules/integrations/telegram/routes.ts:8`
+- [x] POST `/telegram/receive/:_id` (webhook) → POST `/api/public/webhooks/telegram/:key`, with the key frontline issued and the bot's secret token (`api/src/modules/integrations/providers/telegram.ts`) `frontline_api/src/modules/integrations/telegram/routes.ts:8`
 
 ## knowledgebase
 
@@ -1091,7 +1093,7 @@ Procedures replace the 337 GraphQL types.
 - [x] query `knowledgeBaseCategoriesGetLast` → dropped: no screen called it, and it read the newest category of any topic (the "`knowledgeBaseCategoriesGetLast`" row in DECISIONS.md) `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`
 - [x] query `knowledgeBaseArticles` → `knowledgebase.articles.list`, newest first by cursor, filtered by category subtree, status and search `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`
 - [x] query `knowledgeBaseArticleDetail` → `knowledgebase.articles.get` `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`
-- [x] query `knowledgeBaseArticleDetailAndIncViewCount` → procedure `knowledgeBaseArticleDetailAndIncViewCounts.get` (returns `KnowledgeBaseArticle`) `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`. GET `/api/public/help-centers/:address/articles/:id`, which counts the view
+- [x] query `knowledgeBaseArticleDetailAndIncViewCount` → `api/src/modules/helpcenter/public.ts` `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`. GET `/api/public/help-centers/:address/articles/:id`, which counts the view
   - note: waits for public routes, since only the published site reads it
 - [x] query `knowledgeBaseArticlesTotalCount` → folded into `knowledgebase.articles.list` as `totalCount` `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`
 - [x] query `cpKnowledgeBaseTopicDetail` → **drop**: the new core has no client portal (the "Client portal procedures (`cp*`), brands and segments" row in DECISIONS.md) `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:147`
@@ -1104,7 +1106,7 @@ Procedures replace the 337 GraphQL types.
 - [x] mutation `knowledgeBaseArticlesAdd` → `knowledgebase.articles.create`; `knowledgebase.articles.duplicate` copies one as a draft `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:165`
 - [x] mutation `knowledgeBaseArticlesEdit` → `knowledgebase.articles.update` for one, `knowledgebase.articles.bulkUpdate` for a status or category on many `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:165`
 - [x] mutation `knowledgeBaseArticlesRemove` → `knowledgebase.articles.remove`, taking several ids `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:165`
-- [x] mutation `knowledgeBaseArticlesIncrementViewCount` → procedure `knowledgebase.knowledgeBaseArticlesIncrementViewCount` (returns `JSON`) `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:165`. GET `/api/public/help-centers/:address/articles/:id`, which counts the view
+- [x] mutation `knowledgeBaseArticlesIncrementViewCount` → `countView` in `api/src/modules/helpcenter/public.ts` `frontline_api/src/modules/knowledgebase/graphql/schemas/knowledgeBaseTypeDefs.ts:165`. GET `/api/public/help-centers/:address/articles/:id`, which counts the view
   - note: waits for public routes, since only the published site counts views
 
 ### Pages
@@ -1312,9 +1314,9 @@ Procedures replace the 337 GraphQL types.
 - [x] `frontline_tickets_pipeline` from collection `frontline_tickets_pipeline` (24 fields) `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. Decision: the table is `frontline_pipelines`; deleting a channel deletes its pipelines. `numberSize` is an integer from 1 to 8 and `slaPolicy` is parsed. `order`, `state`, `isHideName` and `tagId` are gone, since no screen set them. The permission, layout and counter fields stay in the import map for their ports
 - [x] `frontline_tickets_pipeline_status` from collection `frontline_tickets_pipeline_status` (14 fields) `frontline_api/src/modules/ticket/db/definitions/status.ts:4`. Decision: the table is `frontline_pipeline_statuses`, `type` is checked to 1 to 6 and deleting a pipeline deletes its statuses. `state` and `probability` are gone; the visibility fields stay in the import map for the permissions port
 - [x] `frontline_tickets` from collection `frontline_tickets` (33 fields) `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`. Decision: a ticket keeps its channel, and its pipeline and status are foreign keys, so a status in use can't go and deleting a channel deletes its tickets. `number` is unique per pipeline, `priority` is checked to 0 to 4, the SLA times are columns. Assigned members, tags, properties, teams, contacts and survey stay in the import map for their ports
-- [x] `frontline_ticket_activities` from collection `frontline_ticket_activities` (5 fields) `frontline_api/src/modules/ticket/db/definitions/activity.ts:26`. Core's Activity tab (decision)
+- [x] `frontline_ticket_activities` from collection `frontline_ticket_activities` (5 fields) `frontline_api/src/modules/ticket/db/definitions/activity.ts:26`. Core's Activity tab for `frontline.ticket`, fed by `api/src/modules/tickets/events.ts` (decision)
   - note: no table; new changes go to core's timeline as events. The old entries wait for core to import timeline entries
-- [x] `frontline_tickets_notes` from collection `frontline_tickets_notes` (8 fields) `frontline_api/src/modules/ticket/db/definitions/note.ts:9`. Core's Activity tab holds the notes (decision)
+- [x] `frontline_tickets_notes` from collection `frontline_tickets_notes` (8 fields) `frontline_api/src/modules/ticket/db/definitions/note.ts:9`. Core's Activity tab for `frontline.ticket` holds the notes (decision)
   - note: no table; notes are core's timeline notes on the ticket's Activity tab. The old notes wait for core to import timeline notes
 - [x] `frontline_ticket_configs` from collection `frontline_ticket_configs` (7 fields) `frontline_api/src/modules/ticket/db/definitions/ticketConfig.ts:36`. Folded into `frontline_ticket_properties` (decision)
 - [x] `ticketPipelineSchema.isCheckDepartment` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. `frontline_pipelines.is_check_department`
@@ -1335,12 +1337,12 @@ Procedures replace the 337 GraphQL types.
 ### Procedures
 
 - [x] query `getTicketActivities` → core's Activity tab on `frontline.ticket`, fed by the created, fields changed, moved and assigned events `tickets.create`, `tickets.update` and `tickets.bulkUpdate` publish with `core_publish_event()` in their transaction. Decision: core keeps the timeline, so the plugin has no activity table `frontline_api/src/modules/ticket/graphql/schemas/activity.ts:48`
-- [x] query `ticketGetNote` → core's timeline notes on the ticket's Activity tab `frontline_api/src/modules/ticket/graphql/schemas/note.ts:37`
-- [x] query `ticketGetNotes` → core's timeline notes, as above `frontline_api/src/modules/ticket/graphql/schemas/note.ts:37`
+- [x] query `ticketGetNote` → core's timeline notes on the Activity tab for `frontline.ticket` `frontline_api/src/modules/ticket/graphql/schemas/note.ts:37`
+- [x] query `ticketGetNotes` → core's timeline notes for `frontline.ticket` `frontline_api/src/modules/ticket/graphql/schemas/note.ts:37`
 - [x] query `cpTicketGetNotes` → **drop**: the new core has no client portal (the "Client portal procedures (`cp*`), brands and segments" row in DECISIONS.md) `frontline_api/src/modules/ticket/graphql/schemas/note.ts:37`
-- [x] mutation `ticketCreateNote` → core's timeline notes, as above. Decision: a note sent as a mail reply waits for mail `frontline_api/src/modules/ticket/graphql/schemas/note.ts:43`
-- [x] mutation `ticketUpdateNote` → core's timeline notes, as above `frontline_api/src/modules/ticket/graphql/schemas/note.ts:43`
-- [x] mutation `ticketDeleteNote` → core's timeline notes, as above `frontline_api/src/modules/ticket/graphql/schemas/note.ts:43`
+- [x] mutation `ticketCreateNote` → core's timeline notes for `frontline.ticket`. Decision: a note sent as a mail reply waits for mail `frontline_api/src/modules/ticket/graphql/schemas/note.ts:43`
+- [x] mutation `ticketUpdateNote` → core's timeline notes for `frontline.ticket` `frontline_api/src/modules/ticket/graphql/schemas/note.ts:43`
+- [x] mutation `ticketDeleteNote` → core's timeline notes for `frontline.ticket` `frontline_api/src/modules/ticket/graphql/schemas/note.ts:43`
 - [x] mutation `cpTicketCreateNote` → **drop**: the new core has no client portal (the "Client portal procedures (`cp*`), brands and segments" row in DECISIONS.md) `frontline_api/src/modules/ticket/graphql/schemas/note.ts:43`
 - [x] query `getTicketPipeline` → `pipelines.get`, for the members of the pipeline's channel `frontline_api/src/modules/ticket/graphql/schemas/pipeline.ts:98`
 - [x] query `getTicketPipelines` → `pipelines.list`, a channel's pipelines newest first by cursor, with the total. Decision: the `order` column is gone, since no screen set it `frontline_api/src/modules/ticket/graphql/schemas/pipeline.ts:98`
@@ -1367,15 +1369,15 @@ Procedures replace the 337 GraphQL types.
 - [x] mutation `removeTicket` → `tickets.bulkRemove`, one ticket or many in one transaction. Decision: only the channel's admins delete `frontline_api/src/modules/ticket/graphql/schemas/ticket.ts:212`
 - [x] mutation `cpCreateTicket` → **drop**: the new core has no client portal (the "Client portal procedures (`cp*`), brands and segments" row in DECISIONS.md) `frontline_api/src/modules/ticket/graphql/schemas/ticket.ts:212`
 - [x] mutation `cpUpdateTicket` → **drop**: the new core has no client portal (the "Client portal procedures (`cp*`), brands and segments" row in DECISIONS.md) `frontline_api/src/modules/ticket/graphql/schemas/ticket.ts:212`
-- [x] query `ticketConfigs` → procedure `ticketConfigs.list` (returns `[TicketConfig]`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`. `ticketProperties.*`, org-wide (decision)
+- [x] query `ticketConfigs` → `tickets.properties.list`, org-wide (decision) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`
   - note: waits for the configs tab, a port of its own
-- [x] query `ticketConfigDetail` → procedure `ticketConfigs.get` (returns `TicketConfig`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`. `ticketProperties.*`, org-wide (decision)
+- [x] query `ticketConfigDetail` → `tickets.properties.get`, org-wide (decision) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`
   - note: waits for the configs tab, a port of its own
-- [x] query `ticketConfig` → procedure `ticketConfigs.get` (returns `TicketConfig`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`. `ticketProperties.*`, org-wide (decision)
+- [x] query `ticketConfig` → `tickets.properties.list` with the pipeline's `pipelineId` (decision) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:88`
   - note: waits for the configs tab, a port of its own
-- [x] mutation `ticketSaveConfig` → procedure `ticket.ticketSaveConfig` (returns `TicketConfig!`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:94`. `ticketProperties.*`, org-wide (decision)
+- [x] mutation `ticketSaveConfig` → `tickets.properties.create` and `tickets.properties.update`, org-wide (decision) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:94`
   - note: waits for the configs tab, a port of its own
-- [x] mutation `ticketRemoveConfig` → procedure `ticket.ticketRemoveConfig` (returns `TicketConfig`) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:94`. `ticketProperties.*`, org-wide (decision)
+- [x] mutation `ticketRemoveConfig` → `tickets.properties.remove`, org-wide (decision) `frontline_api/src/modules/ticket/graphql/schemas/ticketConfig.ts:94`
   - note: waits for the configs tab, a port of its own
 
 ### Pages
@@ -1430,9 +1432,9 @@ Procedures replace the 337 GraphQL types.
 - [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/ticket/utils/pipelineProperties.ts:15`. `frontline_ticket_properties`
   - note: waits for custom properties
 - [x] core `branches.findOne` → sdk `units.list` (scopes units:read and units:write, subscription core.unit.*; a read-only copy in frontline_teams and frontline_team_members, old ones brought to core once with units.import) `frontline_api/src/modules/ticket/utils/slaCalendar.ts:26`. SLA due times count clock hours until core's units carry working hours and holidays (filed https://github.com/erxes/erxes/issues/10651)
-- [x] core `<module>.findWithChild` → **gap**: core had no equivalent `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:29`. `teamsOf` walks `frontline_teams.parent_id`
+- [x] core `<module>.findWithChild` → `teamsOf` in `api/src/modules/teams/teams.ts` walks `frontline_teams.parent_id`, since core has no equivalent `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:29`
   - note: waits for teams
-- [x] core `configs.getConfigs` → plugin-owned `frontline_settings` (country and currency: organizations.current (sdk)) `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:50`. The pipeline's `isCheckDepartment` and `isCheckBranch` (decision)
+- [x] core `configs.getConfigs` → the pipeline's `isCheckDepartment` and `isCheckBranch` (`api/src/modules/pipelines/rights.ts`) (decision) `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:50`
   - note: waits for teams
 - [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/ticket/utils/ticketConfig.ts:30`. `frontline_ticket_properties`
   - note: waits for the configs tab
