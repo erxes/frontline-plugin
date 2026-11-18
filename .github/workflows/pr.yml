@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   # 48 of the first 76 merged PRs showed no screenshot, and the bugs on screen shipped with
-  # them. A PR that changes a component in ui/ or widget/ shows one, or says with the
+  # them. A PR that changes ui/src or widget/src shows one, or says with the
   # no-screen-change label that nothing on screen moves.
   screenshot:
     name: Screenshot
@@ -30,7 +30,7 @@ jobs:
           LABELED: ${{ contains(github.event.pull_request.labels.*.name, 'no-screen-change') }}
         run: |
           files=$(gh api "repos/$REPO/pulls/$NUMBER/files" --paginate --jq '.[].filename')
-          grep -qE '^(ui|widget)/src/.+\.tsx$' <<< "$files" || exit 0
+          grep -qE '^(ui|widget)/src/' <<< "$files" || exit 0
           [ "$LABELED" = true ] && exit 0
           grep -qE '!\[[^]]*\]\([^)]+\)|<img ' <<< "$BODY" && exit 0
           echo "::error::This PR changes a screen in ui/ or widget/. Put a screenshot of each changed screen in its body, or add the no-screen-change label if nothing on screen moves."
