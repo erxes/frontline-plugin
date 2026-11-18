@@ -113,7 +113,7 @@ export const helpCenters = table(
     // (`frontline_public_keys`), so one organisation can't hold another's while it is pending.
     unique('frontline_help_centers_org_hostname_key').on(t.orgId, t.hostname),
     index('frontline_help_centers_org_title_idx').on(t.orgId, t.title),
-    index('frontline_help_centers_org_created_idx').on(t.orgId, t.createdAt.desc(), t.id.desc()),
+    index('frontline_help_centers_org_created_idx').on(t.orgId, t.createdAt, t.id),
     check(
       'frontline_help_centers_status_check',
       sql`${t.domainStatus} in ('pending', 'active') and ${t.sslStatus} in ('pending', 'active') and ${t.dnsStatus} in ('pending', 'active')`,

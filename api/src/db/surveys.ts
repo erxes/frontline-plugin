@@ -86,7 +86,7 @@ export const surveys = table(
     }).onDelete('cascade'),
     unique('frontline_surveys_org_id_key').on(t.orgId, t.id),
     uniqueIndex(SURVEY_CODE_INDEX).on(t.orgId, t.code),
-    index('frontline_surveys_org_created_idx').on(t.orgId, t.createdAt.desc(), t.id.desc()),
+    index('frontline_surveys_org_created_idx').on(t.orgId, t.createdAt, t.id),
     check(
       'frontline_surveys_status_check',
       sql`${t.status} in ('pending', 'active', 'rejected', 'archived')`,

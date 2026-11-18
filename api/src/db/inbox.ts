@@ -120,12 +120,13 @@ export const conversations = table(
       t.integrationId,
       t.externalId,
     ),
-    // The list's order, across the caller's channels.
-    index('frontline_conversations_org_last_message_idx').on(
-      t.orgId,
-      t.lastMessageAt.desc(),
-      t.id.desc(),
-    ),
+    // The list's order, across the caller's channels, read backward for newest first.
+    index('frontline_conversations_org_last_message_idx').on(t.orgId, t.lastMessageAt, t.id),
+    // The default list's, which hides resolved ones: its first page reads 51 rows, not every
+    // open one.
+    index('frontline_conversations_org_open_last_message_idx')
+      .on(t.orgId, t.lastMessageAt, t.id)
+      .where(sql`${t.status} <> 'resolved'`),
     index('frontline_conversations_org_channel_status_idx').on(t.orgId, t.channelId, t.status),
     // The sidebar's unread counts, which only open conversations make.
     index('frontline_conversations_org_channel_open_idx')
@@ -203,8 +204,8 @@ export const messages = table(
     index('frontline_messages_org_conversation_created_idx').on(
       t.orgId,
       t.conversationId,
-      t.createdAt.desc(),
-      t.id.desc(),
+      t.createdAt,
+      t.id,
     ),
     index('frontline_messages_reply_to_idx').on(t.replyToId),
     // A bounce report finds the mail it is about by Message-ID alone.

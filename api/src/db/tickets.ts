@@ -98,8 +98,8 @@ export const pipelines = table(
     index('frontline_pipelines_org_channel_created_idx').on(
       t.orgId,
       t.channelId,
-      t.createdAt.desc(),
-      t.id.desc(),
+      t.createdAt,
+      t.id,
     ),
   ],
 );
@@ -267,19 +267,19 @@ export const tickets = table(
     uniqueIndex(TICKET_NUMBER_INDEX).on(t.orgId, t.pipelineId, t.number),
     index('frontline_tickets_org_pipeline_status_idx').on(t.orgId, t.pipelineId, t.statusId),
     // The list's default order, across the caller's channels.
-    index('frontline_tickets_org_updated_idx').on(t.orgId, t.updatedAt.desc(), t.id.desc()),
+    index('frontline_tickets_org_updated_idx').on(t.orgId, t.updatedAt, t.id),
     // The list of one pipeline, in either of its orders.
     index('frontline_tickets_org_pipeline_updated_idx').on(
       t.orgId,
       t.pipelineId,
-      t.updatedAt.desc(),
-      t.id.desc(),
+      t.updatedAt,
+      t.id,
     ),
     index('frontline_tickets_org_pipeline_created_idx').on(
       t.orgId,
       t.pipelineId,
-      t.createdAt.desc(),
-      t.id.desc(),
+      t.createdAt,
+      t.id,
     ),
     // The SLA check's running clocks (`modules/tickets/sla.ts`), a few among every ticket.
     index('frontline_tickets_org_first_response_due_idx')

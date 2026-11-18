@@ -180,7 +180,7 @@ export const calls = table(
     }).onDelete('cascade'),
     unique('frontline_calls_org_id_key').on(t.orgId, t.id),
     unique('frontline_calls_org_account_key_key').on(t.orgId, t.accountId, t.callKey),
-    index('frontline_calls_org_started_idx').on(t.orgId, t.startedAt.desc(), t.id.desc()),
+    index('frontline_calls_org_started_idx').on(t.orgId, t.startedAt, t.id),
     index('frontline_calls_org_customer_idx').on(t.orgId, t.customerId),
     index('frontline_calls_org_conversation_idx').on(t.orgId, t.conversationId),
     // The list's search matches the phone number anywhere in it.
