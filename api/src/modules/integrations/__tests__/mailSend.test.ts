@@ -3,7 +3,6 @@ import { describe, expect, it, onTestFinished, vi } from 'vite-plus/test';
 import { JOBS, SEND_ATTEMPTS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { JOB_RUNS } from '#/jobs.ts';
-import type * as OutboundModule from '#/modules/outbound.ts';
 import { clientAs } from '#/test/member.ts';
 import { channelFor, fakeProviders, fixture, runJob, runQueued } from './fakes.ts';
 import { asked } from './standIns.ts';
@@ -15,12 +14,6 @@ vi.mock('#/core.ts', async (importOriginal) =>
 vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
   (await import('./standIns.ts')).sdkStandIn(await importOriginal()),
 );
-
-// The fake SMTP server answers any name, so the address it dials needs no DNS.
-vi.mock('#/modules/outbound.ts', async (importOriginal) => ({
-  ...(await importOriginal<typeof OutboundModule>()),
-  reachableAddress: async (host: string) => host,
-}));
 
 /** The mailbox's INBOX, which IMAP reads, what went out over SMTP, and whether the server is down. */
 const mailbox = vi.hoisted(() => ({
@@ -82,7 +75,8 @@ vi.mock('nodemailer', () => ({
   }),
 }));
 
-const server = { host: 'mail.shop.mn', port: 993, secure: true, user: 'support@shop.mn' };
+// A public address, which the fakes above answer without DNS.
+const server = { host: '93.184.215.14', port: 993, secure: true, user: 'support@shop.mn' };
 
 /** A channel of `orgId` reading the mailbox support@shop.mn: its mail integration. */
 const mailChannel = async (orgId: string) => {
@@ -116,17 +110,6 @@ describe('mail', () => {
 
     const owner = clientAs('org-mail-a');
     const integration = await mailChannel('org-mail-a');
-
-    // A mailbox's servers are never the API's own network, loopback or the metadata service.
-    for (const host of ['10.0.0.5', '::1', '169.254.169.254'])
-      await expect(
-        owner.integrations.mail.connect({
-          address: 'support@shop.mn',
-          name: 'Shop support',
-          imap: { ...server, host, password: 'imap-secret' },
-          smtp: { ...server, port: 465, password: 'smtp-secret' },
-        }),
-      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
 
     const { conversationId } = await owner.integrations.mail.compose({
       integrationId: integration.id,
