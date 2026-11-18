@@ -223,7 +223,7 @@ export const Bubble = ({
   customer: { name: string; avatarUrl?: string | null };
   kind: string;
   first: boolean;
-  /** The message the member just jumped to, shaded for a moment so they find it. */
+  /** The message the member just jumped to, outlined for a moment so they find it. */
   marked?: boolean;
 }) => {
   const { t } = useTranslation('frontline');
@@ -236,10 +236,10 @@ export const Bubble = ({
       aria-label={message.internal ? t('internal-note', 'Internal note') : t('message', 'Message')}
       title={first ? undefined : format.dateTime(message.createdAt)}
       className={cn(
-        'group flex gap-2 rounded-md pb-1 transition-colors',
+        'group flex gap-2 rounded-md pb-1',
         !fromCustomer && 'flex-row-reverse',
         first && 'mt-3',
-        marked && 'bg-muted',
+        marked && 'ring-2 ring-ring',
       )}
     >
       {fromCustomer && (

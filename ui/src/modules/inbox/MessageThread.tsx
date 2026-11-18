@@ -192,8 +192,8 @@ const useReader = (thread: ReturnType<typeof useMessages>) => {
   };
 };
 
-/** How long a message the member jumped to stays marked. */
-const MARK_MS = 900;
+/** How long a message the member jumped to stays marked, the smooth scroll to it included. */
+const MARK_MS = 1500;
 
 /**
  * Goes to a message, from the pinned bar: loads earlier pages until it is among them, or newer ones
