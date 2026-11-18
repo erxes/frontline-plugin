@@ -48,9 +48,19 @@ const Env = z.object({
   META_APP_SECRET: z.string().optional(),
   /** What Meta's webhook subscription sends back as `hub.verify_token`. */
   META_VERIFY_TOKEN: z.string().optional(),
+  /**
+   * meta-relay, which forwards the deliveries of a Meta app another erxes install shares: each
+   * connected page and Instagram account is routed to this API. Off unless both are set.
+   */
+  META_RELAY_URL: z.url().optional(),
+  /** This install's key at meta-relay. */
+  META_RELAY_KEY: z.string().min(1).optional(),
 });
 
-const env = Env.parse(process.env);
+const env = Env.refine((vars) => !vars.META_RELAY_URL === !vars.META_RELAY_KEY, {
+  message: 'Set META_RELAY_URL and META_RELAY_KEY together, or neither',
+  path: ['META_RELAY_KEY'],
+}).parse(process.env);
 
 export const config = {
   port: env.PORT,
@@ -76,5 +86,9 @@ export const config = {
     appId: env.META_APP_ID,
     appSecret: env.META_APP_SECRET,
     verifyToken: env.META_VERIFY_TOKEN,
+    relay:
+      env.META_RELAY_URL && env.META_RELAY_KEY
+        ? { url: env.META_RELAY_URL.replace(/\/+$/, ''), key: env.META_RELAY_KEY }
+        : null,
   },
 };

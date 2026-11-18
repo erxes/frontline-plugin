@@ -5,6 +5,7 @@ import {
   fakeProviders,
   fixture,
   graphApi,
+  type ProviderCall,
   runQueued,
   serve,
   signedByMeta,
@@ -159,6 +160,41 @@ const subscriptionCheck = async (token: string) => {
 const returnedTo = async (path: string) =>
   new URL((await get(path)).headers.get('location') ?? '').searchParams;
 
+/** Goes through Meta's login as `orgId`'s member, and reads where it sent them back. */
+const loggedIn = async (orgId: string) => {
+  const { url } = await clientAs(orgId).integrations.meta.loginUrl();
+  const state = new URL(url).searchParams.get('state') ?? '';
+
+  return returnedTo(`/meta/callback?code=login-code&state=${state}`);
+};
+
+/** The Graph API, and meta-relay answering `status`. */
+const withRelay =
+  (status = 200) =>
+  (call: ProviderCall) =>
+    call.url.hostname === 'relay.example' ? new Response(null, { status }) : graphApi(call);
+
+/** The calls to meta-relay, by path. */
+const relayed = (calls: ProviderCall[]) =>
+  calls
+    .filter((call) => call.url.hostname === 'relay.example')
+    .map(({ method, url, authorization, body }) => ({
+      method,
+      path: url.pathname,
+      authorization,
+      body,
+    }))
+    .toSorted((a, b) => a.path.localeCompare(b.path));
+
+const removeAll = async (orgId: string) => {
+  const owner = clientAs(orgId);
+  const { accounts } = await owner.integrations.accounts.list({});
+
+  await owner.integrations.accounts.remove({ ids: accounts.map((account) => account.id) });
+
+  return (await owner.integrations.accounts.list({})).accounts;
+};
+
 describe('meta', () => {
   it('answers the subscription check with the verify token only', async () => {
     expect(await subscriptionCheck('test-meta-verify')).toEqual([200, '4711']);
@@ -169,12 +205,7 @@ describe('meta', () => {
     const calls = fakeProviders(graphApi);
     const owner = clientAs('org-meta-a');
 
-    const { url } = await owner.integrations.meta.loginUrl();
-    const state = new URL(url).searchParams.get('state') ?? '';
-
-    expect(
-      (await returnedTo(`/meta/callback?code=login-code&state=${state}`)).get('connected'),
-    ).toBe('1');
+    expect((await loggedIn('org-meta-a')).get('connected')).toBe('1');
     expect(
       calls.find((call) => call.url.pathname.endsWith('page-1/subscribed_apps'))?.authorization,
     ).toBe('Bearer page-token-1');
@@ -227,5 +258,91 @@ describe('meta', () => {
     expect((await returnedTo('/meta/callback?code=login-code&state=forged')).get('error')).toBe(
       'The login expired: connect again',
     );
+  });
+});
+
+/** A call to meta-relay with this install's key; a PUT routes the page to frontline's webhook. */
+const route = (method: string, path: string) => ({
+  method,
+  path,
+  authorization: 'Bearer test-relay-key',
+  body: method === 'PUT' ? { url: 'http://localhost:3399/api/public/webhooks/meta' } : null,
+});
+
+describe('meta-relay', () => {
+  it('routes the page and its Instagram account here, and leaves the app subscribed when they go', async () => {
+    const calls = fakeProviders(withRelay());
+
+    expect((await loggedIn('org-relay-a')).get('connected')).toBe('1');
+    expect(relayed(calls)).toEqual([
+      route('PUT', '/v1/routes/facebook/page-1'),
+      route('PUT', '/v1/routes/instagram/ig-1'),
+    ]);
+
+    // Every field frontline reads and every field the older installs on the same app read.
+    const subscribed = calls.find((call) => call.url.pathname.endsWith('page-1/subscribed_apps'));
+
+    expect(subscribed?.method).toBe('POST');
+    expect(subscribed?.url.searchParams.get('subscribed_fields')?.split(',').toSorted()).toEqual([
+      'conversations',
+      'feed',
+      'message_deliveries',
+      'message_echoes',
+      'message_reactions',
+      'message_reads',
+      'messages',
+      'messaging_handovers',
+      'messaging_postbacks',
+      'messaging_referrals',
+      'standby',
+    ]);
+
+    calls.length = 0;
+
+    expect(await removeAll('org-relay-a')).toEqual([]);
+    expect(relayed(calls)).toEqual([
+      route('DELETE', '/v1/routes/facebook/page-1'),
+      route('DELETE', '/v1/routes/instagram/ig-1'),
+    ]);
+    expect(calls.filter((call) => call.url.hostname === 'graph.facebook.com')).toEqual([]);
+  });
+
+  it('keeps the route while another organisation still takes the page', async () => {
+    const calls = fakeProviders(withRelay());
+
+    await loggedIn('org-relay-b');
+    await loggedIn('org-relay-c');
+    calls.length = 0;
+
+    await removeAll('org-relay-b');
+
+    expect(relayed(calls)).toEqual([]);
+
+    await removeAll('org-relay-c');
+
+    expect(relayed(calls)).toEqual([
+      route('DELETE', '/v1/routes/facebook/page-1'),
+      route('DELETE', '/v1/routes/instagram/ig-1'),
+    ]);
+  });
+
+  it('connects nothing meta-relay refuses, and removes accounts while it is down', async () => {
+    fakeProviders(withRelay(401));
+
+    expect((await loggedIn('org-relay-d')).get('error')).toMatch(
+      /^The Meta relay refused the (facebook|instagram) account: 401$/,
+    );
+    expect((await clientAs('org-relay-d').integrations.accounts.list({})).accounts).toEqual([]);
+
+    fakeProviders(withRelay());
+    await loggedIn('org-relay-d');
+
+    const calls = fakeProviders(withRelay(500));
+
+    expect(await removeAll('org-relay-d')).toEqual([]);
+    expect(relayed(calls).map(({ method, path }) => `${method} ${path}`)).toEqual([
+      'DELETE /v1/routes/facebook/page-1',
+      'DELETE /v1/routes/instagram/ig-1',
+    ]);
   });
 });

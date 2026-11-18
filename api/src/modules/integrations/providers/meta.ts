@@ -11,6 +11,7 @@ import {
   type OutboundReaction,
   type ProviderName,
 } from '../provider.ts';
+import { unrouteFromRelay } from './metaRelay.ts';
 import { postOfThread } from './metaWebhook.ts';
 
 /** The Graph API version frontline's calls and Meta's login dialog use. */
@@ -205,6 +206,15 @@ const checkToken = async ({ secret }: MetaAccount) =>
     (error: unknown) => (error instanceof Error ? error.message : 'Meta failed'),
   );
 
+/**
+ * Removes the account's meta-relay route. The app stays subscribed to the page: another erxes
+ * install sharing the app may still read it.
+ */
+const disconnectFrom =
+  (provider: 'facebook' | 'instagram') =>
+  ({ row }: MetaAccount) =>
+    unrouteFromRelay(provider, row.externalId);
+
 /** A Facebook page: Messenger conversations, and the comments on its posts. */
 export const facebook = defineProvider({
   name: 'facebook',
@@ -213,6 +223,7 @@ export const facebook = defineProvider({
   check: checkToken,
   send: sendThrough('facebook'),
   react: reactThrough,
+  disconnect: disconnectFrom('facebook'),
 });
 
 /** An Instagram professional account, reached through its Facebook page's token. */
@@ -223,4 +234,5 @@ export const instagram = defineProvider({
   check: checkToken,
   send: sendThrough('instagram'),
   react: reactThrough,
+  disconnect: disconnectFrom('instagram'),
 });
