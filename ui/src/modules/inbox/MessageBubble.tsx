@@ -149,12 +149,15 @@ export const continues = (message: Message, previous: Message | undefined) =>
 const useCopy = () => {
   const { t } = useTranslation('frontline');
 
+  // A page outside a secure context has no clipboard; that refuses as well.
   return (text: string) =>
-    navigator.clipboard.writeText(text).then(
-      () => toast({ title: t('copied', 'Copied') }),
-      () =>
-        toast({ title: t('copy-failed', 'The browser refused to copy'), variant: 'destructive' }),
-    );
+    Promise.resolve(text)
+      .then((copied) => navigator.clipboard.writeText(copied))
+      .then(
+        () => toast({ title: t('copied', 'Copied') }),
+        () =>
+          toast({ title: t('copy-failed', 'The browser refused to copy'), variant: 'destructive' }),
+      );
 };
 
 /**
@@ -214,11 +217,14 @@ export const Bubble = ({
   customer,
   kind,
   first,
+  marked = false,
 }: {
   message: Message;
   customer: { name: string; avatarUrl?: string | null };
   kind: string;
   first: boolean;
+  /** The message the member just jumped to, shaded for a moment so they find it. */
+  marked?: boolean;
 }) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
@@ -229,7 +235,12 @@ export const Bubble = ({
     <article
       aria-label={message.internal ? t('internal-note', 'Internal note') : t('message', 'Message')}
       title={first ? undefined : format.dateTime(message.createdAt)}
-      className={cn('group flex gap-2 pb-1', !fromCustomer && 'flex-row-reverse', first && 'mt-3')}
+      className={cn(
+        'group flex gap-2 rounded-md pb-1 transition-colors',
+        !fromCustomer && 'flex-row-reverse',
+        first && 'mt-3',
+        marked && 'bg-muted',
+      )}
     >
       {fromCustomer && (
         <span className="size-8 shrink-0">

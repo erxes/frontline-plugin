@@ -224,13 +224,14 @@ export const usePrefetchConversation = () => {
  * A conversation's messages, oldest first for reading. The older ones load a page at a time as
  * next pages, the newer ones as previous pages once a long read back dropped them.
  */
+/** The loaded pages of a thread, oldest message first. */
+export const threadOf = (data: { pages: { messages: Message[] }[] } | undefined) =>
+  (data?.pages.flatMap((page) => page.messages) ?? []).toReversed();
+
 export const useMessages = (conversationId: string) => {
   const query = useInfiniteQuery(messagesOptions(conversationId));
 
-  return {
-    ...query,
-    messages: (query.data?.pages.flatMap((page) => page.messages) ?? []).toReversed(),
-  };
+  return { ...query, messages: threadOf(query.data) };
 };
 
 export const usePinnedMessages = (conversationId: string) =>
