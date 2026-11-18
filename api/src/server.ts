@@ -5,10 +5,10 @@ import { onError, ORPCError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/node';
 import cors from 'cors';
 import express from 'express';
-import { pinoHttp } from 'pino-http';
+
 import { config, PLUGIN } from '#/config.ts';
 import { JOB_RUNS } from '#/jobs.ts';
-import { logger } from '#/logger.ts';
+import { logger, requestLogger } from '#/logger.ts';
 import { manifest } from '#/manifest.ts';
 import { fail } from '#/modules/fail.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
@@ -95,7 +95,7 @@ export const createApp = () => {
   const app = express();
 
   app.disable('x-powered-by');
-  app.use(pinoHttp({ logger }));
+  app.use(requestLogger);
   // Providers post webhooks signed out, from their own servers.
   app.use('/api/public/webhooks', webhookRoutes());
   // What websites load and call signed out answers any origin: the messenger, forms (found by
