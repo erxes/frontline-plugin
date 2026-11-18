@@ -34,7 +34,8 @@ const leavesPage = (link: HTMLAnchorElement) =>
 /**
  * While `dirty`, leaving asks first: a reload or closed tab through the browser's prompt, and a
  * click on a link to another page, core's or the plugin's, through core's confirm. Core's web runs
- * a plain `BrowserRouter`, so react-router's `useBlocker` isn't there to stop Back as well.
+ * a plain `BrowserRouter`, so react-router's `useBlocker` isn't there to stop Back or a page change
+ * through `navigate()`, such as core's top bar (erxes/erxes#10802).
  */
 const useLeaveGuard = (dirty: boolean) => {
   const { t } = useTranslation('frontline');
