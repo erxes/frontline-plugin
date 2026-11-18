@@ -1,4 +1,5 @@
-import { CustomFieldsPatch } from '@erxes/core-contract';
+import { type ConditionGroup, CustomFieldsPatch } from '@erxes/core-contract';
+import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, asc, count, eq, ilike, or, sql } from 'drizzle-orm';
 import { createInsertSchema } from 'drizzle-zod';
@@ -56,10 +57,32 @@ const TICKET_FILTER: FilterFields = {
 };
 
 /**
+ * The tickets `member` sees, in `pipelineId` when given, narrowed by the filter bar. `search`
+ * matches the name or number; archived tickets show only when the filter asks for a state.
+ * `fromCore` types the rules on custom fields (`propertyFilter`). The query joins
+ * `channelMembers` by `membership`, as `ticketRows` does.
+ */
+export const ticketsMatching = (
+  member: PluginMember,
+  input: { search?: string; filter?: ConditionGroup | null; pipelineId?: string },
+  fromCore: FilterFields,
+) => {
+  const search = input.search ? likeText(input.search) : undefined;
+  const filter = input.filter ?? undefined;
+
+  return and(
+    seenBy(member),
+    input.pipelineId ? eq(tickets.pipelineId, input.pipelineId) : undefined,
+    filtersBy(filter, 'subject.state') ? undefined : eq(tickets.state, 'active'),
+    search ? or(ilike(tickets.name, search), ilike(tickets.number, search)) : undefined,
+    compileFilter({ ...TICKET_FILTER, ...fromCore }, filter, { me: member.userId }),
+  );
+};
+
+/**
  * The tickets of the caller's channels, or every channel's for a member who manages them all,
  * `limit` at a time, in `pipelineId` when given, narrowed by the filter bar, and how many match.
- * `search` matches the name or number; archived tickets show only when the filter asks for a
- * state. Sorted by the last change unless `sort` says creation, newest first unless `ascending`.
+ * Sorted by the last change unless `sort` says creation, newest first unless `ascending`.
  * A rule on a custom field asks core for its type first.
  */
 const list = readsWithCore(
@@ -80,15 +103,7 @@ const list = readsWithCore(
     }),
   )
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
-    const search = input.search ? likeText(input.search) : undefined;
-
-    const matches = and(
-      seenBy(member),
-      input.pipelineId ? eq(tickets.pipelineId, input.pipelineId) : undefined,
-      filtersBy(input.filter, 'subject.state') ? undefined : eq(tickets.state, 'active'),
-      search ? or(ilike(tickets.name, search), ilike(tickets.number, search)) : undefined,
-      compileFilter({ ...TICKET_FILTER, ...fromCore }, input.filter, { me: member.userId }),
-    );
+    const matches = ticketsMatching(member, input, fromCore);
 
     const order = orderOf(tickets, tickets[input.sort], input.ascending);
 

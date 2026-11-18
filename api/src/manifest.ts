@@ -22,6 +22,7 @@ import {
   TICKET_EVENTS,
   TICKET_TIMELINE,
 } from '#/core.ts';
+import { TRANSFERS } from '#/modules/transfer/routes.ts';
 import { RELATIONS } from '#/relations.ts';
 
 /** What a ticket's people hear about, each sent with the event it names (`notify`). */
@@ -137,7 +138,19 @@ export const manifest = {
       group: 'Integrations',
     },
     { action: PERMISSIONS.callView, label: 'See calls and call queues', group: 'Calls' },
+    {
+      action: PERMISSIONS.recordsExport,
+      label: 'Export the tickets and form submissions of your channels',
+      group: 'Frontline',
+    },
+    {
+      action: PERMISSIONS.recordsImport,
+      label: 'Import tickets and form submissions into your channels',
+      group: 'Frontline',
+    },
   ],
+  // Tickets and form submissions in core's Import & export (`modules/transfer`).
+  transfer: TRANSFERS,
   // What an owner adds to a role in one step, as the old plugin's default roles did.
   permissionSets: [
     {

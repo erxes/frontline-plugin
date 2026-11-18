@@ -238,18 +238,26 @@ export const changeTickets = async (
   await signalTickets(tx, member);
 };
 
+const TicketUpdate = Changes.omit({ pipelineId: true }).extend({ id: z.string() });
+
 /**
  * Changes what is given on one ticket, or moves it to another status of its pipeline. Its
  * custom fields change through `tickets.properties.save`, which core checks.
  */
-const update = writes(PERMISSIONS.channelView)
-  .input(Changes.omit({ pipelineId: true }).extend({ id: z.string() }))
-  .output(Ticket)
-  .handler(async ({ input: { id, ...change }, context: { tx, member } }) => {
-    await changeTickets(tx, member, await ticketsFor(tx, member, [id]), change);
+export const updateTicket = async (
+  tx: Tx,
+  member: PluginMember,
+  { id, ...change }: z.infer<typeof TicketUpdate>,
+) => {
+  await changeTickets(tx, member, await ticketsFor(tx, member, [id]), change);
 
-    return ticketById(tx, member, id);
-  });
+  return ticketById(tx, member, id);
+};
+
+const update = writes(PERMISSIONS.channelView)
+  .input(TicketUpdate)
+  .output(Ticket)
+  .handler(({ input, context: { tx, member } }) => updateTicket(tx, member, input));
 
 /** Assigns, prioritises, moves or archives the selected tickets: all of them, or none. */
 const bulkUpdate = writes(PERMISSIONS.channelView)

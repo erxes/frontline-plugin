@@ -169,6 +169,13 @@
       "when": 1795016375806,
       "tag": "0025_nappy_anthem",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1795019381517,
+      "tag": "0026_transfer_requests",
+      "breakpoints": true
     }
   ]
 }

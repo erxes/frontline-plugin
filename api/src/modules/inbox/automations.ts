@@ -3,7 +3,7 @@ import { ORPCError } from '@orpc/server';
 import { eq } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { config, PLUGIN } from '#/config.ts';
+import { PLUGIN, signedByCore } from '#/config.ts';
 import {
   CONVERSATION_EVENTS,
   core,
@@ -132,10 +132,7 @@ const handOff = async (call: CoreCall, body: Body) => {
  */
 export const runAction = async (req: Request, res: Response) => {
   const call = await verifiedBy(res, 'automation call token', 'Not a call from core', () =>
-    verifyCoreCall(bearerOf(req.headers.authorization) ?? '', {
-      coreUrl: config.coreUrl,
-      plugin: PLUGIN,
-    }),
+    verifyCoreCall(bearerOf(req.headers.authorization) ?? '', signedByCore),
   );
 
   if (!call) return;

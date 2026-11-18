@@ -177,6 +177,9 @@ export const pipelineStatuses = table(
 
 export const TICKET_STATES = ['active', 'archived'] as const;
 
+/** A ticket's `priority` in words, by its number. */
+export const PRIORITY_NAMES = ['No priority', 'Minor', 'Medium', 'High', 'Critical'];
+
 /** Numbers are unique per pipeline; a write that breaks one fails with 23505. */
 export const TICKET_NUMBER_INDEX = 'frontline_tickets_org_pipeline_number_key';
 
