@@ -166,11 +166,16 @@ test('a member labels a ticket with tags, a department and a property, and filte
   await addSetting(page, 'tags', 'Add tag', tag);
   // Departments are core's; frontline copies the new one when core tells it.
   await api.units.create({ kind: 'department', name: department });
-  await page.goto('/frontline/settings/ticket-properties');
-  await page.getByRole('button', { name: 'Add property' }).click();
-  await page.getByRole('dialog').getByLabel('Label', { exact: true }).fill(property);
-  await page.getByRole('dialog').getByRole('button', { name: 'Create' }).click();
-  await expect(page.getByRole('row', { name: new RegExp(property) })).toBeVisible();
+  // Ticket fields are core's custom fields on `frontline.ticket`.
+  const group = await api.fieldGroups.create({ contentType: 'frontline.ticket', name: property });
+
+  await api.fields.create({
+    contentType: 'frontline.ticket',
+    groupId: group.id,
+    label: property,
+    type: 'select',
+    options: ['Gold', 'Silver'],
+  });
 
   const channel = await openChannelPipelines(page);
   const pipeline = await createPipeline(page);
@@ -181,6 +186,7 @@ test('a member labels a ticket with tags, a department and a property, and filte
   await page.getByRole('button', { name: 'Create ticket' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Pipeline' }), `${channel} › ${pipeline}`);
   await panel.getByLabel('Name').fill(name);
+  await pick(page, panel.getByLabel(property, { exact: true }), 'Gold');
   await panel.getByRole('button', { name: 'Create ticket' }).click();
   await expect(panel.getByRole('button', { name: `Name ${name}` })).toBeVisible();
 
@@ -192,14 +198,7 @@ test('a member labels a ticket with tags, a department and a property, and filte
   await page.getByRole('option', { name: department }).click();
   await page.keyboard.press('Escape');
   await expect(panel.getByRole('button', { name: 'Department' })).toContainText(department);
-  // Empty properties wait behind a button, so the panel shows only what the ticket has.
-  await expect(panel.getByRole('button', { name: property })).toBeHidden();
-  await panel.getByRole('button', { name: /^Show \d+ empty propert/ }).click();
-  await panel.getByRole('button', { name: property }).click();
-  await page.getByPlaceholder(property, { exact: true }).fill('Gold');
-  await page.keyboard.press('Enter');
-  await expect(panel.getByRole('button', { name: property })).toContainText('Gold');
-  // The panel with tags, a department and a property filled in.
+  // The panel with tags and a department filled in.
   await expectAccessible(page, panel.getByText('Contacts'));
 
   // The filter bar narrows the list by the ticket's tag; its card shows the tag and the value.
@@ -211,6 +210,12 @@ test('a member labels a ticket with tags, a department and a property, and filte
   await display(page, 'List');
   await page.getByRole('button', { name: 'Remove Tags filter' }).click();
   await filterBy(page, 'Department', department);
+  await expect(ticket(page, name)).toBeVisible();
+  await page.getByRole('button', { name: 'Remove Department filter' }).click();
+  await filterBy(page, property, 'Silver');
+  await expect(ticket(page, name)).toBeHidden();
+  await page.getByRole('button', { name: `Remove ${property} filter` }).click();
+  await filterBy(page, property, 'Gold');
   await expect(ticket(page, name)).toBeVisible();
 });
 

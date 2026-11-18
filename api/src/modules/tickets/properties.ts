@@ -1,233 +1,150 @@
+import { isDeepStrictEqual } from 'node:util';
+import {
+  type ConditionGroup,
+  CustomFields,
+  CustomFieldsPatch,
+  type Field,
+} from '@erxes/core-contract';
+import type { FilterColumn, FilterFields } from '@erxes/plugin-sdk/filter';
 import { ORPCError } from '@orpc/server';
-import { and, asc, eq, getTableColumns, ilike, inArray, sql } from 'drizzle-orm';
-import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-zod';
+import { eq, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { PERMISSIONS } from '#/core.ts';
-import type { Tx } from '#/db/client.ts';
-import { type PROPERTY_TYPES, ticketProperties, tickets } from '#/db/tickets.ts';
-import { reads, writes } from '#/orpc.ts';
-import { Blank, Title } from '../fields.ts';
-import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
-import { FilterInput, likeText } from '../filter.ts';
+import { core, PERMISSIONS, TICKET_TIMELINE } from '#/core.ts';
+import { withOrg } from '#/db/client.ts';
+import { tickets } from '#/db/tickets.ts';
+import { reads, writesWithCore } from '#/orpc.ts';
+import { changeTickets } from './changes.ts';
+import { ticketById, ticketsFor } from './shared.ts';
 
-const { orgId, ...propertyColumns } = getTableColumns(ticketProperties);
+/**
+ * The values core keeps after `patch` on a ticket of `pipelineId`, checked against the fields of
+ * `frontline.ticket` whose groups apply to that pipeline. Called outside the transaction.
+ */
+export const checkProperties = async (
+  orgId: string,
+  pipelineId: string,
+  current: z.infer<typeof CustomFields>,
+  patch: z.infer<typeof CustomFieldsPatch>,
+) =>
+  Object.keys(patch).length === 0
+    ? current
+    : (
+        await core.forOrg(orgId).fields.check({
+          contentType: TICKET_TIMELINE,
+          current,
+          patch,
+          appliesTo: { pipeline: [pipelineId] },
+        })
+      ).values;
 
-const Property = createSelectSchema(ticketProperties).omit({ orgId: true });
+/** The ticket's custom field values by core field id, for core's Properties tab. */
+const values = reads(PERMISSIONS.channelView)
+  .input(z.object({ id: z.string() }))
+  .output(CustomFields)
+  .handler(
+    async ({ input, context: { tx, member } }) =>
+      (await ticketById(tx, member, input.id)).propertiesData,
+  );
 
-type Property = z.infer<typeof Property>;
+/**
+ * Saves a patch of values, null to clear one, as a change to the ticket: its status must let
+ * the member edit it, and its timeline records it. Values another member saved meanwhile make
+ * it a conflict to try again.
+ */
+const save = writesWithCore(
+  PERMISSIONS.channelView,
+  z.object({ id: z.string(), patch: CustomFieldsPatch }),
+  async (member, input) => {
+    const ticket = await withOrg(member.orgId, (tx) => ticketById(tx, member, input.id));
 
-const refine = {
-  label: () => Title,
-  description: () => Blank(500),
-  options: () => z.array(z.string().trim().min(1).max(200)).max(200),
-  pipelineIds: () => z.array(z.string()).max(200),
-};
+    return {
+      current: ticket.propertiesData,
+      checked: await checkProperties(
+        member.orgId,
+        ticket.pipelineId,
+        ticket.propertiesData,
+        input.patch,
+      ),
+    };
+  },
+)
+  .output(CustomFields)
+  .handler(async ({ input, context: { tx, member, fromCore } }) => {
+    const rows = await ticketsFor(tx, member, [input.id]);
 
-/** What a value of each type is; null clears it. */
-const VALUES: Record<(typeof PROPERTY_TYPES)[number], (options: string[]) => z.ZodType> = {
-  text: () => z.string().max(1000),
-  textarea: () => z.string().max(10_000),
-  number: () => z.number(),
-  date: () => z.iso.datetime({ offset: true }),
-  select: (options) => z.enum(options),
-  multiselect: (options) => z.array(z.enum(options)).max(200),
-  boolean: () => z.boolean(),
-};
+    const [locked] = await tx
+      .select({ values: tickets.propertiesData })
+      .from(tickets)
+      .where(eq(tickets.id, input.id))
+      .for('update');
 
-/** A change to a ticket's properties: values by property id, null to clear one. */
-export const PropertiesPatch = z
-  .record(z.string(), z.unknown())
-  .refine((patch) => Object.keys(patch).length <= 200, 'Too many properties');
+    if (!isDeepStrictEqual(locked?.values, fromCore.current))
+      throw new ORPCError('CONFLICT', { message: 'The fields changed meanwhile: save again' });
 
-/** The properties the tickets of `pipelineId` show: its own and those of every pipeline. */
-const propertiesOf = (tx: Tx, pipelineId: string) =>
-  tx
-    .select(propertyColumns)
-    .from(ticketProperties)
-    .where(
-      sql`cardinality(${ticketProperties.pipelineIds}) = 0 or ${pipelineId} = any(${ticketProperties.pipelineIds})`,
-    );
+    await changeTickets(tx, member, rows, { properties: fromCore.checked });
 
-const parseValue = (property: Property, value: unknown) => {
-  const parsed = VALUES[property.type](property.options).safeParse(value);
+    return fromCore.checked;
+  });
 
-  if (!parsed.success)
-    throw new ORPCError('BAD_REQUEST', { message: `${property.label} isn't a valid value` });
+export const propertyProcedures = { values, save };
 
-  return parsed.data;
+const CUSTOM_FIELD = 'subject.customFields.';
+
+const pathsOf = (group: ConditionGroup | undefined): string[] =>
+  group?.rules.flatMap((part) => ('rules' in part ? pathsOf(part) : [part.path])) ?? [];
+
+/** A field's value on the ticket as SQL of the type its filter compares, null when it has none. */
+const columnOf = (field: Field): FilterColumn => {
+  const value = sql`${tickets.propertiesData} -> ${field.id}`;
+
+  const typed = (jsonType: string, then: SQL) =>
+    sql`case when jsonb_typeof(${value}) = ${jsonType} then ${then} end`;
+
+  switch (field.type) {
+    case 'number':
+      return { type: 'number', expr: typed('number', sql`(${value})::numeric`) };
+    case 'date':
+      return { type: 'date', dateOnly: true, expr: typed('string', sql`(${value} ->> 0)::date`) };
+    case 'boolean':
+      return { type: 'boolean', expr: typed('boolean', sql`(${value})::boolean`) };
+    case 'select':
+    case 'radio':
+      return { type: 'select', expr: sql`${tickets.propertiesData} ->> ${field.id}` };
+    case 'multiselect':
+    case 'check':
+    case 'list':
+      return {
+        type: 'select',
+        array: true,
+        expr: sql`coalesce(${typed('array', sql`array(select jsonb_array_elements_text(${value}))`)}, '{}'::text[])`,
+      };
+    default:
+      return { type: 'text', expr: sql`${tickets.propertiesData} ->> ${field.id}` };
+  }
 };
 
 /**
- * Checks the properties of a ticket of `pipelineId` and returns them parsed: each id a property
- * its pipeline shows, each value of the property's type. A new ticket fills every required one;
- * a change can't clear one.
+ * The filter bar's rules on ticket fields (`subject.customFields.<id>`), each compared by the
+ * type core gives its field. Asks core only when the filter has one; an id core doesn't know
+ * is left out, so the filter refuses it.
  */
-export const parseProperties = async (
-  tx: Tx,
-  pipelineId: string,
-  patch: Record<string, unknown>,
-  { create }: { create: boolean },
-) => {
-  const properties = new Map((await propertiesOf(tx, pipelineId)).map((row) => [row.id, row]));
-
-  const parsed = Object.entries(patch).map(([id, value]) => {
-    const property = properties.get(id);
-
-    if (!property)
-      throw new ORPCError('BAD_REQUEST', { message: "Pick a property of the ticket's pipeline" });
-
-    return [id, value === null ? null : parseValue(property, value)] as const;
-  });
-
-  const values = Object.fromEntries(parsed);
-
-  const missing = [...properties.values()].find(
-    (property) =>
-      property.isRequired &&
-      (create ? (values[property.id] ?? null) === null : values[property.id] === null),
+export const propertyFilter = async (
+  orgId: string,
+  filter: ConditionGroup | undefined,
+): Promise<FilterFields> => {
+  const ids = new Set(
+    pathsOf(filter)
+      .filter((path) => path.startsWith(CUSTOM_FIELD))
+      .map((path) => path.slice(CUSTOM_FIELD.length)),
   );
 
-  if (missing) throw new ORPCError('BAD_REQUEST', { message: `Fill in ${missing.label}` });
+  if (ids.size === 0) return {};
 
-  return create ? Object.fromEntries(parsed.filter(([, value]) => value !== null)) : values;
-};
+  const { data } = await core.forOrg(orgId).fields.list({ contentType: TICKET_TIMELINE });
 
-/** Sets the patch's values on the ticket's properties; a null value removes the key. */
-export const mergeProperties = (patch: Record<string, unknown>) =>
-  sql`jsonb_strip_nulls(${tickets.propertiesData} || ${JSON.stringify(patch)}::jsonb)`;
-
-const propertyById = async (tx: Tx, id: string) => {
-  const [row] = await tx
-    .select(propertyColumns)
-    .from(ticketProperties)
-    .where(eq(ticketProperties.id, id));
-
-  if (!row) throw new ORPCError('NOT_FOUND', { message: 'No such property' });
-
-  return row;
-};
-
-/** Choices need options; other types have none. */
-const withOptions = <T extends { type?: (typeof PROPERTY_TYPES)[number]; options?: string[] }>(
-  input: T,
-) => {
-  const choices = input.type === 'select' || input.type === 'multiselect';
-
-  if (choices && (input.options ?? []).length === 0)
-    throw new ORPCError('BAD_REQUEST', { message: 'Add the choices' });
-
-  return input.type && !choices ? { ...input, options: [] } : input;
-};
-
-const PROPERTY_FILTER: FilterFields = {
-  'subject.label': { type: 'text', expr: ticketProperties.label },
-  'subject.type': { type: 'select', expr: ticketProperties.type },
-  'subject.isRequired': { type: 'boolean', expr: ticketProperties.isRequired },
-  'subject.createdAt': { type: 'date', expr: ticketProperties.createdAt },
-};
-
-/** Every ticket property in order, or those a pipeline's tickets show, narrowed by the filter bar. */
-const list = reads(PERMISSIONS.channelView)
-  .input(z.object({ pipelineId: z.string().optional(), ...FilterInput }))
-  .output(z.array(Property))
-  .handler(({ input, context: { tx, member } }) =>
-    tx
-      .select(propertyColumns)
-      .from(ticketProperties)
-      .where(
-        and(
-          input.pipelineId
-            ? sql`(cardinality(${ticketProperties.pipelineIds}) = 0 or ${input.pipelineId} = any(${ticketProperties.pipelineIds}))`
-            : undefined,
-          input.search ? ilike(ticketProperties.label, likeText(input.search)) : undefined,
-          compileFilter(PROPERTY_FILTER, input.filter, { me: member.userId }),
-        ),
-      )
-      .orderBy(asc(ticketProperties.order), asc(ticketProperties.createdAt)),
+  return Object.fromEntries(
+    data
+      .filter((field) => ids.has(field.id))
+      .map((field) => [`${CUSTOM_FIELD}${field.id}`, columnOf(field)]),
   );
-
-const get = reads(PERMISSIONS.channelView)
-  .input(z.object({ id: z.string() }))
-  .output(Property)
-  .handler(({ input, context: { tx } }) => propertyById(tx, input.id));
-
-/** A new property, last in order. */
-const create = writes(PERMISSIONS.settingsManage)
-  .input(
-    createInsertSchema(ticketProperties, refine)
-      .pick({
-        label: true,
-        description: true,
-        type: true,
-        options: true,
-        isRequired: true,
-        pipelineIds: true,
-      })
-      .partial({ description: true, options: true, isRequired: true, pipelineIds: true }),
-  )
-  .output(Property)
-  .handler(async ({ input, context: { tx, member } }) => {
-    const [row] = await tx
-      .insert(ticketProperties)
-      .values({
-        ...withOptions(input),
-        orgId: member.orgId,
-        createdBy: member.userId,
-        order: sql`coalesce((select max(${ticketProperties.order}) + 1 from ${ticketProperties}), 0)`,
-      })
-      .returning(propertyColumns);
-
-    if (!row) throw new ORPCError('INTERNAL_SERVER_ERROR');
-
-    return row;
-  });
-
-/** Changes what is given; a value a ticket holds stays, and shows again if the choice returns. */
-const update = writes(PERMISSIONS.settingsManage)
-  .input(
-    createUpdateSchema(ticketProperties, refine)
-      .pick({
-        label: true,
-        description: true,
-        type: true,
-        options: true,
-        isRequired: true,
-        pipelineIds: true,
-        order: true,
-      })
-      .extend({ id: z.string() }),
-  )
-  .output(Property)
-  .handler(async ({ input: { id, ...fields }, context: { tx } }) => {
-    const property = await propertyById(tx, id);
-
-    await tx
-      .update(ticketProperties)
-      .set(withOptions({ type: property.type, options: property.options, ...fields }))
-      .where(eq(ticketProperties.id, id));
-
-    return propertyById(tx, id);
-  });
-
-/** Deletes the properties and their values on every ticket. */
-const remove = writes(PERMISSIONS.settingsManage)
-  .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
-  .output(z.object({ ids: z.array(z.string()) }))
-  .handler(async ({ input, context: { tx } }) => {
-    const removed = await tx
-      .delete(ticketProperties)
-      .where(inArray(ticketProperties.id, input.ids))
-      .returning({ id: ticketProperties.id });
-
-    const ids = removed.map((row) => row.id);
-
-    if (ids.length > 0)
-      await tx
-        .update(tickets)
-        .set({ propertiesData: sql`${tickets.propertiesData} - ${sql.param(ids)}::text[]` })
-        .where(sql`${tickets.propertiesData} ?| ${sql.param(ids)}::text[]`);
-
-    return { ids };
-  });
-
-export const propertyProcedures = { list, get, create, update, remove };
+};

@@ -1,10 +1,13 @@
+import { CustomFieldsPatch, groupApplies } from '@erxes/core-contract';
 import { ORPCError } from '@orpc/server';
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
+import { core, TICKET_TIMELINE } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { tags } from '#/db/tags.ts';
-import { pipelineStatuses, pipelines, ticketProperties, tickets } from '#/db/tickets.ts';
-import { PropertiesPatch } from '../tickets/properties.ts';
+import { pipelineStatuses, pipelines, tickets } from '#/db/tickets.ts';
+import { logger } from '#/logger.ts';
+import { checkProperties } from '../tickets/properties.ts';
 import { fileTicket } from '../tickets/tickets.ts';
 import { attachmentsOf, type Visitor } from './session.ts';
 import { asVisitor, messengerIntegration } from './threads.ts';
@@ -33,28 +36,70 @@ const offered = (tx: Tx, settings: Settings) =>
     )
     .orderBy(asc(pipelines.name));
 
-/** What the visitor fills in to file a ticket: each pipeline with its properties, and the tags. */
-const formsOf = async (tx: Tx, settings: Settings) => {
-  const properties = await tx
-    .select({
-      id: ticketProperties.id,
-      label: ticketProperties.label,
-      description: ticketProperties.description,
-      type: ticketProperties.type,
-      options: ticketProperties.options,
-      isRequired: ticketProperties.isRequired,
-      pipelineIds: ticketProperties.pipelineIds,
-    })
-    .from(ticketProperties)
-    .orderBy(asc(ticketProperties.order));
+/** How the messenger draws each type of core's fields; it offers no other. */
+const WIDGET_TYPES = {
+  text: 'text',
+  phone: 'text',
+  textarea: 'textarea',
+  number: 'number',
+  date: 'date',
+  boolean: 'boolean',
+  select: 'select',
+  radio: 'select',
+  multiselect: 'multiselect',
+  check: 'multiselect',
+} as const;
 
-  // A property with no pipelines shows on every pipeline's tickets.
+const isWidgetType = (type: string): type is keyof typeof WIDGET_TYPES => type in WIDGET_TYPES;
+
+/**
+ * The visible ticket fields core keeps, each with the groups that say which pipelines show it.
+ * A visitor can still file a ticket while core can't answer, with no fields to fill in.
+ */
+const ticketFields = async (orgId: string) => {
+  const client = core.forOrg(orgId);
+
+  try {
+    const [fields, groups] = await Promise.all([
+      client.fields.list({ contentType: TICKET_TIMELINE }),
+      client.fieldGroups.list({ contentType: TICKET_TIMELINE }),
+    ]);
+
+    const appliesTo = new Map(groups.data.map((group) => [group.id, group.appliesTo]));
+
+    return fields.data.flatMap(({ id, label, description, type, options, isVisible, groupId }) =>
+      isVisible && isWidgetType(type)
+        ? [
+            {
+              id,
+              label,
+              description,
+              type: WIDGET_TYPES[type],
+              options,
+              appliesTo: appliesTo.get(groupId ?? '') ?? {},
+            },
+          ]
+        : [],
+    );
+  } catch (error) {
+    logger.warn({ err: error, orgId }, 'ticket fields unavailable for the messenger');
+
+    return [];
+  }
+};
+
+/** What the visitor fills in to file a ticket: each pipeline with its fields, and the tags. */
+const formsOf = async (
+  tx: Tx,
+  settings: Settings,
+  fields: Awaited<ReturnType<typeof ticketFields>>,
+) => {
   const forms = (await offered(tx, settings)).map(({ id, name }) => ({
     id,
     name,
-    properties: properties
-      .filter(({ pipelineIds }) => pipelineIds.length === 0 || pipelineIds.includes(id))
-      .map(({ pipelineIds, ...property }) => property),
+    properties: fields
+      .filter((field) => groupApplies(field.appliesTo, { pipeline: [id] }))
+      .map(({ appliesTo, ...field }) => field),
   }));
 
   const ticketTags = await tx
@@ -71,8 +116,9 @@ export type TicketForms = Awaited<ReturnType<typeof formsOf>>;
 
 const ticketForms = asVisitor(async (visitor, _req, res) => {
   const settings = await openMessenger(visitor);
+  const fields = await ticketFields(visitor.orgId);
 
-  res.json(await withOrg(visitor.orgId, (tx) => formsOf(tx, settings)));
+  res.json(await withOrg(visitor.orgId, (tx) => formsOf(tx, settings, fields)));
 });
 
 /** The visitor's tickets through this messenger's channel, newest first, with no member's ids. */
@@ -120,7 +166,7 @@ const File = z.object({
   /** The receipts `/files` gave for the visitor's uploads. */
   files: z.array(z.string().max(4000)).max(20).default([]),
   tagIds: z.array(z.string()).max(20).default([]),
-  propertiesData: PropertiesPatch.default({}),
+  propertiesData: CustomFieldsPatch.default({}),
 });
 
 /**
@@ -128,13 +174,14 @@ const File = z.object({
  * reaches them by the email or phone they left, so a visitor leaves one first.
  */
 const createTicket = asVisitor(async (visitor, req, res) => {
-  const { pipelineId, files, ...input } = File.parse(req.body);
+  const { pipelineId, files, propertiesData, ...input } = File.parse(req.body);
 
   if (!visitor.identified)
     throw new ORPCError('FORBIDDEN', { message: 'Leave your email or phone number first' });
 
   const attachments = await attachmentsOf(visitor, files);
   const settings = await openMessenger(visitor);
+  const properties = await checkProperties(visitor.orgId, pipelineId, {}, propertiesData);
 
   const filed = await withOrg(visitor.orgId, async (tx) => {
     const pipeline = (await offered(tx, settings)).find((offer) => offer.id === pipelineId);
@@ -143,6 +190,7 @@ const createTicket = asVisitor(async (visitor, req, res) => {
 
     const id = await fileTicket(tx, { orgId: visitor.orgId, userId: null }, pipeline, {
       ...input,
+      propertiesData: properties,
       attachments,
       customerId: visitor.customerId,
     });

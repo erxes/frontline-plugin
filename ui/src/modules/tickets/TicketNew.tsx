@@ -9,6 +9,7 @@ import {
   IconTag,
   IconUser,
 } from '@tabler/icons-react';
+import type { CustomValue } from '@erxes/core-contract';
 import { useMutation } from '@tanstack/react-query';
 import {
   DatePicker,
@@ -154,7 +155,7 @@ const PlanRows = ({ plan, onChange }: { plan: Plan; onChange: (patch: Partial<Pl
 };
 
 /** A new ticket's tags and the properties its pipeline shows. */
-type Labels = { tagIds: string[]; propertiesData: Record<string, unknown> };
+type Labels = { tagIds: string[]; propertiesData: Record<string, CustomValue | null> };
 
 const NO_LABELS: Labels = { tagIds: [], propertiesData: {} };
 

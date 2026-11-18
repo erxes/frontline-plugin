@@ -29,7 +29,7 @@ Procedures replace the 337 GraphQL types.
   - keeps: toast "resources-moved-to-channel" · useQueryState "channelId" · useQueryState "queryKey || 'channelId'" · useSidePanel · toast "something-went-wrong-getting-user-integrations" · atomWithStorage "config:call_integrations" · atomWithStorage "config:call_enabled_integrations" · atomWithStorage "callInfo" · useConfirm · confirm "{ message: isActive ? t('confirm-archive-integration', { nam" · confirm "confirm-delete-selected-integrations" · toast "integration-updated" · toast "repaired-successfully" · toast "Some channels were not connected. Retry to connect the remaining channels." · toast "please-try-again" · toast "Ticket config created" · toast "integration-added" · toast "failed-to-edit-messenger" · toast "Fill in the config step" · atomWithStorage "STORAGE_KEYS.SETUP_STEP" · atomWithStorage "settedIntegrationDetail" · atomWithStorage "STORAGE_KEYS.APPEARANCE" · atomWithStorage "STORAGE_KEYS.GREETING" · atomWithStorage "STORAGE_KEYS.INTRO" · atomWithStorage "STORAGE_KEYS.HOURS" · atomWithStorage "STORAGE_KEYS.SETTINGS" · atomWithStorage "STORAGE_KEYS.CONFIG" · toast "Allow popups and try connecting again." · toast "failed-to-add-integration" · usePanelFormDraft "{ form, recordKey, values: values ?? initial.current, drafts" · toast "Integration could not be saved. Please try again." · toast "please-allow-popups" · toast "authorization-cancelled" · toast "failed-to-remove-integration" · confirm "confirm-remove-integration" · toast "integration-removed" · fetchMore "{ variables: { cursor: pageInfo?.endCursor, limit: INTEGRATI" · toast "mail-integration-updated" · toast "copied" · toast "failed" · confirm "disconnectPrompt" · toast "disconnected" · useMultiQueryState "['searchValue', 'categoryId', 'status']" · toast "upload-failed" · usePanelFormDraft "{ form, recordKey, values: confirmedValues ?? values, drafts" · confirm "{ message: discardMessage }" · useQueryState "pipeline" · useQueryState "statusId" · toast "something-went-wrong" · useQueryState "aiReply" · useQueryState "botId" · useQueryState "facebookBotId" · toast "Save successful" · toast "Uh oh! Something went wrong."
 - [x] `/frontline/:id/pipelines/:pipelineId` (PipelineLayoutPage) → `ui/src/pipelines/PipelineLayout.tsx` at `/frontline/settings/channels/:id/pipelines/:pipelineId`, the pipeline's name over General, Ticket statuses and SLA tabs. Decision: each tab is its own page with a link instead of a side panel record path, and each loads on first visit `frontline_ui/src/modules/channels/components/settings/Settings.tsx:189`
 - [x] `/frontline/:id/pipelines/:pipelineId` (PipelineDetailPage) → `ui/src/pipelines/PipelineGeneralPage.tsx`, name, description, ticket number format with today's preview, and ticket name format, kept as a draft until saved. Decision: the attribution toast is gone, since the field trims what it saves; the mail section comes back with mail `frontline_ui/src/modules/channels/components/settings/Settings.tsx:193`
-- [x] `/frontline/:id/pipelines/:pipelineId/configs` (PipelineConfigsPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:198`. Ticket configs fold into the org-wide ticket properties at `/frontline/settings/ticket-properties` (decision)
+- [x] `/frontline/:id/pipelines/:pipelineId/configs` (PipelineConfigsPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:198`. Ticket configs fold into core's fields on `frontline.ticket`, groups limited to pipelines (decision)
   - files: 51, 8 only here: `modules/pipelines/components/configs/components/ConfigDetails.tsx`, `modules/pipelines/components/configs/components/ConfigList.tsx`, `modules/pipelines/components/configs/components/CreateConfig.tsx`, `modules/pipelines/components/configs/graphql/queries/getTicketConfigBetPipelineId.ts`, `modules/pipelines/components/configs/hooks/useGetTicketConfigByPipelineId.ts`, `modules/pipelines/components/configs/hooks/useRemoveTicketConfig.ts`, `modules/pipelines/components/configs/states.ts`, `pages/PipelineConfigsPage.tsx`
   - calls: ticket: `addTicketStatus`, `getAccessibleTicketStatuses`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`, `ticketConfig`, `ticketConfigDetail`, `ticketConfigs`, `ticketRemoveConfig`, `ticketSaveConfig`, `updateTicket`
   - ui-modules: `currentUserState`, `IField`, `SelectTags`, `useFieldGroups`, `useFields`, `usePermissionCheck`, `useSidePanel`
@@ -39,7 +39,7 @@ Procedures replace the 337 GraphQL types.
   - calls: ticket: `getAccessibleTicketStatuses`, `getTicketPipeline`, `getTicketStatus`, `getTicketStatusesByType`, `getTicketStatusesChoicesPipeline`, `updatePipeline`, `updateTicketStatus`
   - ui-modules: `SelectMember`
   - keeps: toast "Pipeline updated successfully" · toast "Update failed: {{message}}"
-- [x] `/frontline/:id/pipelines/:pipelineId/properties` (PipelinePropertiesPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:206`. `/frontline/settings/ticket-properties`, each property naming its pipelines
+- [x] `/frontline/:id/pipelines/:pipelineId/properties` (PipelinePropertiesPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:206`. Core's Settings › Properties › Ticket, each group limited to pipelines
   - files: 13, 7 only here: `modules/pipelines/components/PipelineCreateFormLayout.tsx`, `modules/pipelines/components/TicketCreateFormChrome.tsx`, `modules/pipelines/components/TicketLayoutFieldsPanel.tsx`, `modules/pipelines/graphql/mutations/ticketFormFieldMutations.ts`, `modules/pipelines/graphql/queries/ticketSystemFieldRules.ts`, `modules/pipelines/hooks/useTicketLayoutFields.ts`, `pages/PipelinePropertiesPage.tsx`
   - calls: core: `fieldEdit`, `propertySystemFieldEdit`, `propertySystemFields`; ticket: `getTicketPipeline`, `updatePipeline`
   - ui-modules: `FIELD_TYPES`, `ILayoutAsideApi`, `ILayoutItem`, `LayoutEditor`, `PropertyAddSheet`, `useFields`
@@ -295,8 +295,8 @@ Procedures replace the 337 GraphQL types.
 - [x] `SelectTags` (8 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [x] `AutomationActionNodeConfigProps` (7 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `AutomationTriggerConfigProps` (7 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
-- [x] `IField` (7 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
-- [x] `useFields` (7 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `IField` (7 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `useFields` (7 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `AutomationNodeMetaInfoRow` (6 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `buildAutomationSeedLink` (6 files) (filed https://github.com/erxes/erxes/issues/10658)
 - [x] `useSidePanelDraft` (6 files). Core's panel keeps a draft until Save or Cancel, through `TRecordDraftProps` on each `New` slot in `ui/src/config.tsx` (the usePanelFormDraft row in DECISIONS.md)
@@ -328,7 +328,7 @@ Procedures replace the 337 GraphQL types.
 - [x] `EditorMentionItem` (2 files). An internal note's `/` menu lists teammates (`ui/src/modules/inbox/slashItems.tsx`); the API reads the mentions from the note (`api/src/modules/inbox/html.ts`). (filed https://github.com/erxes/erxes/issues/10605)
 - [x] `EmailTemplate` (2 files) (filed https://github.com/erxes/erxes/issues/10652)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
-- [x] `FIELD_TYPES` (2 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `FIELD_TYPES` (2 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `getHostContacts` (2 files). A customer's tickets are core's `relationTabs` (`ui/src/modules/tickets/TicketRelations.tsx`), and their conversations' events show on the customer's Activity tab (`CONVERSATION_EVENTS` in `api/src/core.ts`)
 - [x] `ICustomer` (2 files). erxes-ui's `ContactLink` with `contactQueries` (`ui/src/modules/inbox/ConversationHeader.tsx`, `ui/src/modules/calls/CallHistoryPage.tsx`)
 - [x] `ICustomerInline` (2 files). erxes-ui's `ContactLink` with `contactQueries` (`ui/src/modules/inbox/ConversationHeader.tsx`, `ui/src/modules/calls/CallHistoryPage.tsx`)
@@ -341,7 +341,7 @@ Procedures replace the 337 GraphQL types.
 - [x] `useComposeEmail` (2 files). `MailNew`, the new conversation draft in the side panel (`ui/src/modules/inbox/MailNew.tsx`)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `useCustomers` (2 files). erxes-ui's `ContactLink` with `contactQueries` (`ui/src/modules/inbox/ConversationHeader.tsx`, `ui/src/modules/calls/CallHistoryPage.tsx`)
-- [x] `useFieldGroups` (2 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `useFieldGroups` (2 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `ActionResult` (1 files). Core's automation runs keep each step's result (the bot delivery stats row in DECISIONS.md); actions answer core at `/api/automations/actions` (`api/src/modules/inbox/automations.ts`, `api/src/modules/integrations/actions.ts`)
 - [x] `ActiveExports` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
 - [x] `AUTOMATION_CONDITION_OPERATORS` (1 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
@@ -354,43 +354,43 @@ Procedures replace the 337 GraphQL types.
 - [x] `currentOrganizationState` (1 files). **drop**: it told the config page whether the install was SaaS, and that page is gone (`META_APP_*` in `api/src/config.ts`)
 - [x] `DashboardWidgetCard` (1 files). Core draws the tile's frame and title; `Tile` in `ui/src/modules/reports/Tile.tsx` fills the body
 - [x] `DashboardWidgetListSkeleton` (1 files). `Tile`'s skeleton while the report loads, `ui/src/modules/reports/Tile.tsx`
-- [x] `DataExtensionCreateFields` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
-- [x] `DataExtensionRecordSection` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `DataExtensionCreateFields` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `DataExtensionRecordSection` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `DepartmentsInline` (1 files). Frontline teams, `useTeams` in `ui/src/modules/tickets/TicketLinks.tsx`
 - [x] `EmailTemplatePicker` (1 files) (filed https://github.com/erxes/erxes/issues/10652)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
 - [x] `ExportFieldSelection` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
 - [x] `FieldsInDetail` (1 files). Core's Properties tab on the conversation record type, `properties` in `ui/src/config.tsx`
-- [x] `FieldsInGroup` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `FieldsInGroup` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `formatFieldValue` (1 files). `useValueText` in `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `getRelationWidgetLabel` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
 - [x] `hasFieldValue` (1 files). A property with no value text gets no badge (`TicketPropertyBadges` in `ui/src/modules/tickets/TicketProperties.tsx`)
 - [x] `IAutomationHistoryAction` (1 files). Core's automation runs keep each step's result (the bot delivery stats row in DECISIONS.md); actions answer core at `/api/automations/actions` (`api/src/modules/inbox/automations.ts`, `api/src/modules/integrations/actions.ts`)
 - [x] `IDashboardWidgetProps` (1 files). Core's `TDashboardWidget`; a tile takes no props and reads its own report
-- [x] `IFieldMutation` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
-- [x] `ILayoutAsideApi` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
-- [x] `ILayoutItem` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
+- [x] `IFieldMutation` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `ILayoutAsideApi` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
+- [x] `ILayoutItem` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
 - [x] `Import` (1 files). (filed https://github.com/erxes/erxes/issues/10582)
 - [x] `InternalNoteDisplay` (1 files). Internal notes in `ui/src/modules/inbox/MessageThread.tsx`
 - [x] `IOpenRecordOptions` (1 files). erxes-ui's `useOpenRecord` (`ui/src/modules/tickets/TicketCells.tsx`)
 - [x] `isFieldVisibleByLogic` (1 files). Core's fields have no show-when rules (the conversation custom fields row in DECISIONS.md); a form's fields keep theirs in `api/src/modules/forms/logic.ts`
 - [x] `ISidePanelDraft` (1 files). Core's panel keeps a draft until Save or Cancel, through `TRecordDraftProps` on each `New` slot in `ui/src/config.tsx` (the usePanelFormDraft row in DECISIONS.md)
-- [x] `ISystemFieldRules` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
+- [x] `ISystemFieldRules` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
 - [x] `ITag` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
-- [x] `LayoutEditor` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
+- [x] `LayoutEditor` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
 - [x] `MentionInEditor` (1 files). Mentions are erxes-ui `Editor`'s mention inline content, picked from a note's `/` menu (`ui/src/modules/inbox/slashItems.tsx`). (filed https://github.com/erxes/erxes/issues/10605)
-- [x] `MultipleFieldsInGroup` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
-- [x] `mutateFunction` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `MultipleFieldsInGroup` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `mutateFunction` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `PageHeaderStart` (1 files). erxes-ui's `PageHeader.Start` (`ui/src/modules/settings/Settings.tsx`)
 - [x] `PanelDescriptionField` (1 files). erxes-ui's `PanelDescriptionField` (`ui/src/modules/tickets/TicketFields.tsx`)
 - [x] `PanelField` (1 files). erxes-ui's `PanelField` (`ui/src/modules/surveys/SurveyPanel.tsx`)
 - [x] `PluginSettingsRoutes` (1 files). (filed https://github.com/erxes/erxes/issues/10583)
 - [x] `PluginSharedSettingsNavigation` (1 files). (filed https://github.com/erxes/erxes/issues/10583)
-- [x] `PropertiesFilter` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
-- [x] `PropertyAddSheet` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
-- [x] `PropertyFormField` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
-- [x] `PropertyGroupCard` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
-- [x] `PropertyGroupShell` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `PropertiesFilter` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `PropertyAddSheet` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `PropertyFormField` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `PropertyGroupCard` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
+- [x] `PropertyGroupShell` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`
 - [x] `RelationWidgetEmptyState` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
 - [x] `RelationWidgetList` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
 - [x] `SegmentsFilter` (1 files). **drop**: the new core has no segments; the tickets list filters with `ListFilter` (`ui/src/modules/tickets/TicketFilter.tsx`)
@@ -413,7 +413,7 @@ Procedures replace the 337 GraphQL types.
 - [x] `useRelationWidget` (1 files). Core's `relationTabs`, `ui/src/modules/tickets/TicketRelations.tsx`
 - [x] `useRenderEmailTemplate` (1 files) (filed https://github.com/erxes/erxes/issues/10652)
   - note: no mail compose screen yet: `integrations.mail.compose` has no UI
-- [x] `useSystemFieldRules` (1 files). Ticket properties, `ui/src/modules/settings/PropertiesPage.tsx` and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
+- [x] `useSystemFieldRules` (1 files). Ticket properties, core's `frontline.ticket` fields and `ui/src/modules/tickets/TicketProperties.tsx`, each naming the pipelines it shows on (the ticket configs row in DECISIONS.md)
 - [x] `useTags` (1 files). Frontline tags, `ui/src/modules/tickets/TicketLinks.tsx`
 - [x] `useTemplateRequirementOptions` (1 files). Core draws automation forms from `manifest.actions` and their `fields`, and triggers from `manifest.events` (`api/src/core.ts`)
 - [x] `WelcomeNotificationContentLayout` (1 files). **drop**: the welcome notification and its onboarding videos; core sends no plugin welcome

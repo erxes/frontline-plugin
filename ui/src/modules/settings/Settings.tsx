@@ -20,15 +20,12 @@ import { ListEmpty } from '~/shared/List.tsx';
 import { RowActions, useConfirmDelete } from '~/shared/Records.tsx';
 import { Rows } from '~/shared/Table.tsx';
 
-/** Whether the member manages tags and ticket properties; others read them. */
+/** Whether the member manages the settings every channel shares; others read them. */
 export const useCanManageSettings = () =>
   useQuery(orpc.settings.access.queryOptions()).data?.canManage ?? false;
 
 /** A change to tags: refetches every tag list, which the pickers and badges read names from. */
 export const useTagChange = () => useChange(orpc.tags.key());
-
-/** A change to ticket properties: refetches the properties a ticket's fields are drawn from. */
-export const usePropertyChange = () => useChange(orpc.tickets.properties.key());
 
 /** Asks for "delete" to be typed, then calls `remove` with the one id. */
 export const useDeleteRow = (remove: (input: { ids: string[] }) => void) => {

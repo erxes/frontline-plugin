@@ -3,9 +3,6 @@
 /** The plugin's name in core. */
 export const PLUGIN = 'frontline';
 
-/** Core's Settings › Structure, where members with `structure.manage` edit branches and departments. */
-export const STRUCTURE_PATH = '/settings/structure';
-
 /** The plugin's records core's side panel opens: `useOpenRecord().open({ contentType, contentId })`. */
 export const CHANNEL_TYPE = `${PLUGIN}:channel`;
 
@@ -18,6 +15,9 @@ export const KB_CATEGORY_TYPE = `${PLUGIN}:kb-category`;
 export const KB_ARTICLE_TYPE = `${PLUGIN}:kb-article`;
 
 export const TICKET_TYPE = `${PLUGIN}:ticket`;
+
+/** The record type core keeps tickets' custom fields and timeline under. */
+export const TICKET_FIELDS = `${PLUGIN}.ticket` as const;
 
 export const HELP_CENTER_TYPE = `${PLUGIN}:help-center`;
 

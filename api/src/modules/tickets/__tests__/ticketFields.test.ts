@@ -2,14 +2,24 @@ import { sql } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
+import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
+import { coreTicketFields } from '#/test/coreUnits.ts';
 import { addUnit, removeUnit } from '#/test/units.ts';
+import { tokenOf } from '../../messenger/session.ts';
 import { checkSla } from '../sla.ts';
 
-// Branches and departments are core's; frontline copies them.
+// Branches, departments and ticket fields are core's; frontline copies the units and keeps the
+// fields' values.
 vi.mock('#/core.ts', async (importOriginal) =>
   (await import('#/test/coreUnits.ts')).unitsStandIn(await importOriginal()),
 );
+
+const messenger = serve('/api/public/messenger');
+
+/** The filter bar's one rule, as `useListFilterParams()` sends it. */
+const rule = (path: string, op: string, value?: unknown) =>
+  JSON.stringify({ match: 'all', rules: [{ path: `subject.${path}`, op, value }] });
 
 const agent = [PERMISSIONS.channelView];
 
@@ -98,62 +108,72 @@ describe('ticket fields', () => {
     expect((await eventsOf('org-tf-a', ticket.id)).rows[0]).toMatchObject({ subject_id: 'cus-1' });
   });
 
-  it('checks properties by type and pipeline, requires the required ones and merges changes', async () => {
+  it('keeps the values core checks for its pipeline, for members and visitors, and filters by them', async () => {
     const { owner, pipeline } = await setUp('org-tf-b');
     const other = await owner.pipelines.create({ channelId: pipeline.channelId, name: 'Other' });
 
-    const size = await owner.tickets.properties.create({
-      label: 'Size',
-      type: 'select',
-      options: ['S', 'M'],
-      isRequired: true,
-    });
+    coreTicketFields.seatsPipelineIds = [pipeline.id];
 
-    const seats = await owner.tickets.properties.create({
-      label: 'Seats',
-      type: 'number',
-      pipelineIds: [pipeline.id],
-    });
-
+    // Core refuses a field whose group doesn't apply to the ticket's pipeline.
     await expect(
-      owner.tickets.properties.create({ label: 'Plan', type: 'select' }),
-    ).rejects.toThrow('Add the choices');
-    await expect(owner.tickets.create({ pipelineId: pipeline.id, name: 'A' })).rejects.toThrow(
-      'Fill in Size',
-    );
-    await expect(
-      owner.tickets.create({ pipelineId: other.id, name: 'B', propertiesData: { [seats.id]: 3 } }),
-    ).rejects.toThrow("Pick a property of the ticket's pipeline");
-    await expect(
-      owner.tickets.create({
-        pipelineId: pipeline.id,
-        name: 'C',
-        propertiesData: { [size.id]: 'XL' },
-      }),
-    ).rejects.toThrow("Size isn't a valid value");
+      owner.tickets.create({ pipelineId: other.id, name: 'B', propertiesData: { seats: 3 } }),
+    ).rejects.toThrow("Seats doesn't apply");
 
     const ticket = await owner.tickets.create({
       pipelineId: pipeline.id,
       name: 'D',
-      propertiesData: { [size.id]: 'S' },
+      propertiesData: { size: 'S', labels: ['vip'] },
     });
 
-    await expect(
-      owner.tickets.update({ id: ticket.id, propertiesData: { [seats.id]: 4 } }),
-    ).resolves.toMatchObject({ propertiesData: { [size.id]: 'S', [seats.id]: 4 } });
-    await expect(
-      owner.tickets.update({ id: ticket.id, propertiesData: { [size.id]: null } }),
-    ).rejects.toThrow('Fill in Size');
-    await expect(
-      owner.tickets.update({ id: ticket.id, propertiesData: { [seats.id]: null } }),
-    ).resolves.toMatchObject({ propertiesData: { [size.id]: 'S' } });
-
-    await owner.tickets.properties.remove({ ids: [size.id] });
-
-    await expect(owner.tickets.get({ id: ticket.id })).resolves.toMatchObject({
-      propertiesData: {},
+    await owner.tickets.properties.save({ id: ticket.id, patch: { seats: 4, size: null } });
+    await expect(owner.tickets.properties.values({ id: ticket.id })).resolves.toEqual({
+      labels: ['vip'],
+      seats: 4,
     });
-    expect(ids(await owner.tickets.properties.list({ pipelineId: other.id }))).toEqual([]);
+    expect((await eventsOf('org-tf-b', ticket.id)).rows.map((row) => row.type)).toContain(
+      'frontline.ticket.fields_changed',
+    );
+
+    // A messenger visitor fills in the fields of the pipeline they file in.
+    const integration = await owner.integrations.create({
+      channelId: pipeline.channelId,
+      kind: 'messenger',
+      name: 'Website',
+      config: { ticketPipelineIds: [pipeline.id, other.id] },
+    });
+
+    const visitor = await tokenOf({
+      orgId: 'org-tf-b',
+      integrationId: integration.id,
+      verified: false,
+      customerId: 'customer-ann',
+      identified: true,
+    });
+
+    expect((await messenger.get('/tickets/forms', visitor)).body).toMatchObject({
+      pipelines: [
+        { name: 'Main', properties: [{ id: 'size' }, { id: 'seats' }, { id: 'labels' }] },
+        { name: 'Other', properties: [{ id: 'size' }, { id: 'labels' }] },
+      ],
+    });
+    await expect(
+      messenger.post(
+        '/tickets',
+        { pipelineId: pipeline.id, name: 'Zip', propertiesData: { seats: 2 } },
+        visitor,
+      ),
+    ).resolves.toMatchObject({ status: 201 });
+
+    const matching = async (path: string, op: string, value: unknown) =>
+      (await owner.tickets.list({ filter: rule(`customFields.${path}`, op, value) })).tickets.map(
+        (row) => row.name,
+      );
+
+    expect(await matching('seats', 'gt', 1)).toEqual(['Zip', 'D']);
+    expect(await matching('seats', 'gt', 3)).toEqual(['D']);
+    expect(await matching('labels', 'in', ['vip'])).toEqual(['D']);
+    expect(await matching('size', 'eq', 'S')).toEqual([]);
+    await expect(matching('gone', 'eq', 'S')).rejects.toThrow('Unknown field');
   });
 
   it('tells the new assignees and the followers, never the one who acted', async () => {

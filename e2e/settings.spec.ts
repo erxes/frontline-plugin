@@ -15,9 +15,8 @@ const addNamed = async (page: Page, button: string, name: string) => {
   await expect(page.getByRole('row', { name: new RegExp(name) })).toBeVisible();
 };
 
-test('the owner adds, finds and deletes tags and ticket properties', async ({ page }) => {
+test('the owner adds, finds and deletes tags', async ({ page }) => {
   const tag = `VIP ${unique()}`;
-  const property = `Plan ${unique()}`;
 
   await page.goto(`${SETTINGS}/tags`);
   await addNamed(page, 'Add tag', tag);
@@ -28,22 +27,6 @@ test('the owner adds, finds and deletes tags and ticket properties', async ({ pa
   await page.getByRole('option', { name: 'Delete' }).click();
   await confirmDelete(page);
   await expect(page.getByRole('row', { name: new RegExp(tag) })).toBeHidden();
-
-  await page.goto(`${SETTINGS}/ticket-properties`);
-  await page.getByRole('button', { name: 'Add property' }).click();
-  const sheet = page.getByRole('dialog');
-
-  await sheet.getByLabel('Label', { exact: true }).fill(property);
-  await sheet.getByRole('combobox', { name: 'Type' }).click();
-  await page.getByRole('option', { name: 'One choice' }).click();
-  await sheet.getByPlaceholder('Add a choice').fill('Gold');
-  await sheet.getByPlaceholder('Add a choice').press('Enter');
-
-  await sheet.getByRole('button', { name: 'Create' }).click();
-  await expect(page.getByRole('row', { name: new RegExp(property) })).toContainText('One choice');
-  await expect(page.getByRole('row', { name: new RegExp(property) })).toContainText(
-    'Every pipeline',
-  );
 });
 
 test('the sidebar opens every Frontline page, and Settings opens its own sidebar', async ({
@@ -62,7 +45,6 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
 
   const settings = {
     Tags: `${SETTINGS}/tags`,
-    'Ticket properties': `${SETTINGS}/ticket-properties`,
     Integrations: `${SETTINGS}/integrations`,
     Channels: `${SETTINGS}/channels`,
   };
@@ -86,12 +68,17 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
   await page.getByRole('link', { name: 'Exit settings' }).click();
   await expect(page).toHaveURL(/\/frontline\/inbox/);
 
-  // Branches and departments are core's, edited in its own settings. An old link stays in
-  // frontline's settings, so the app's tab never keeps a page that leaves the app.
+  // Branches, departments and ticket properties are core's, edited in its own settings. An old
+  // link stays in frontline's settings, so the app's tab never keeps a page that leaves the app.
   await page.goto(`${SETTINGS}/departments`);
   await expect(page).toHaveURL(`${SETTINGS}/channels`);
   await page.getByRole('link', { name: 'Branches and departments', exact: true }).click();
   await expect(page).toHaveURL('/settings/structure');
+
+  await page.goto(`${SETTINGS}/ticket-properties`);
+  await expect(page).toHaveURL(`${SETTINGS}/channels`);
+  await page.getByRole('link', { name: 'Ticket properties', exact: true }).click();
+  await expect(page).toHaveURL('/settings/properties/frontline.ticket');
 });
 
 test('a channel member reads the settings, and a member without frontline permissions is refused', async ({
@@ -110,8 +97,11 @@ test('a channel member reads the settings, and a member without frontline permis
   await expect(reader.page.getByRole('button', { name: 'Add tag' })).toBeHidden();
   await expect(reader.page.getByRole('button', { name: `Actions for ${tag}` })).toBeHidden();
 
-  await stranger.page.goto(`${SETTINGS}/ticket-properties`);
+  await stranger.page.goto(`${SETTINGS}/tags`);
   await expect(
-    stranger.page.getByText('You need the frontline.channel.view permission'),
+    // Tags label conversations too, so the inbox's readers read them.
+    stranger.page.getByText(
+      'You need the frontline.channel.view or frontline.inbox.view permission',
+    ),
   ).toBeVisible();
 });

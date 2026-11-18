@@ -1,3 +1,4 @@
+import { CustomFieldsPatch } from '@erxes/core-contract';
 import { ORPCError } from '@orpc/server';
 import { and, asc, count, eq, ilike, or, sql } from 'drizzle-orm';
 import { createInsertSchema } from 'drizzle-zod';
@@ -6,7 +7,7 @@ import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { pipelineStatuses, tickets } from '#/db/tickets.ts';
-import { reads, writes } from '#/orpc.ts';
+import { reads, readsWithCore, writesWithCore } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, filtersBy, likeText } from '../filter.ts';
@@ -14,7 +15,7 @@ import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 import { pipelineFor } from '../pipelines/pipelines.ts';
 import { assertLinks } from './changes.ts';
 import { createdEvent, publish, snapshot } from './events.ts';
-import { parseProperties, PropertiesPatch } from './properties.ts';
+import { checkProperties, propertyFilter } from './properties.ts';
 import {
   firstResponseSla,
   nextNumbers,
@@ -59,24 +60,26 @@ const TICKET_FILTER: FilterFields = {
  * `limit` at a time, in `pipelineId` when given, narrowed by the filter bar, and how many match.
  * `search` matches the name or number; archived tickets show only when the filter asks for a
  * state. Sorted by the last change unless `sort` says creation, newest first unless `ascending`.
+ * A rule on a custom field asks core for its type first.
  */
-const list = reads(PERMISSIONS.channelView)
-  .input(
-    z.object({
-      ...FilterInput,
-      ...PageInput,
-      pipelineId: z.string().optional(),
-      sort: z.enum(['updatedAt', 'createdAt']).default('updatedAt'),
-      ascending: z.boolean().default(false),
-    }),
-  )
+const list = readsWithCore(
+  PERMISSIONS.channelView,
+  z.object({
+    ...FilterInput,
+    ...PageInput,
+    pipelineId: z.string().optional(),
+    sort: z.enum(['updatedAt', 'createdAt']).default('updatedAt'),
+    ascending: z.boolean().default(false),
+  }),
+  (member, input) => propertyFilter(member.orgId, input.filter),
+)
   .output(
     z.object({
       tickets: z.array(Ticket),
       ...PageOutput,
     }),
   )
-  .handler(async ({ input, context: { tx, member } }) => {
+  .handler(async ({ input, context: { tx, member, fromCore } }) => {
     const search = input.search ? likeText(input.search) : undefined;
 
     const matches = and(
@@ -84,7 +87,7 @@ const list = reads(PERMISSIONS.channelView)
       input.pipelineId ? eq(tickets.pipelineId, input.pipelineId) : undefined,
       filtersBy(input.filter, 'subject.state') ? undefined : eq(tickets.state, 'active'),
       search ? or(ilike(tickets.name, search), ilike(tickets.number, search)) : undefined,
-      compileFilter(TICKET_FILTER, input.filter, { me: member.userId }),
+      compileFilter({ ...TICKET_FILTER, ...fromCore }, input.filter, { me: member.userId }),
     );
 
     const order = orderOf(tickets, tickets[input.sort], input.ascending);
@@ -152,29 +155,20 @@ export const insertTicket = async (
 
 type NewTicket = Omit<
   typeof tickets.$inferInsert,
-  | 'orgId'
-  | 'channelId'
-  | 'pipelineId'
-  | 'statusId'
-  | 'number'
-  | 'createdBy'
-  | 'statusChangedBy'
-  | 'propertiesData'
-> & { statusId?: string; propertiesData: Record<string, unknown> };
+  'orgId' | 'channelId' | 'pipelineId' | 'statusId' | 'number' | 'createdBy' | 'statusChangedBy'
+> & { statusId?: string };
 
 /**
  * Files a ticket in `pipeline` by `actor`, a member or, with no user, the customer it names:
- * its properties and links checked, in `statusId` or the pipeline's first status. The caller
- * checks that `actor` may file in the pipeline.
+ * its links checked, in `statusId` or the pipeline's first status. The caller checks that
+ * `actor` may file in the pipeline, and its properties with `checkProperties`.
  */
 export const fileTicket = async (
   tx: Tx,
   actor: { orgId: string; userId: string | null },
   pipeline: { id: string; channelId: string },
-  { propertiesData, ...input }: NewTicket,
+  input: NewTicket,
 ) => {
-  const properties = await parseProperties(tx, pipeline.id, propertiesData, { create: true });
-
   await assertLinks(tx, input);
 
   const [status] = await tx
@@ -194,7 +188,6 @@ export const fileTicket = async (
   return insertTicket(tx, actor, {
     ...input,
     pipelineId: pipeline.id,
-    propertiesData: properties,
     channelId: pipeline.channelId,
     statusId: status.id,
     createdBy: actor.userId,
@@ -203,45 +196,51 @@ export const fileTicket = async (
 
 /**
  * A new ticket in a pipeline of a channel the caller belongs to, in `statusId` or the pipeline's
- * first status, numbered by the pipeline and due by its SLA.
+ * first status, numbered by the pipeline and due by its SLA. Core checks its custom fields
+ * first.
  */
-const create = writes(PERMISSIONS.channelView)
-  .input(
-    createInsertSchema(tickets, refine)
-      .pick({
-        pipelineId: true,
-        statusId: true,
-        name: true,
-        description: true,
-        priority: true,
-        assigneeId: true,
-        assignedMemberIds: true,
-        subscribedUserIds: true,
-        tagIds: true,
-        branchId: true,
-        departmentId: true,
-        customerId: true,
-        companyId: true,
-        startDate: true,
-        targetDate: true,
-        attachments: true,
-      })
-      .partial({
-        statusId: true,
-        description: true,
-        priority: true,
-        assignedMemberIds: true,
-        subscribedUserIds: true,
-        tagIds: true,
-        attachments: true,
-      })
-      .extend({ propertiesData: PropertiesPatch.default({}) }),
-  )
+const create = writesWithCore(
+  PERMISSIONS.channelView,
+  createInsertSchema(tickets, refine)
+    .pick({
+      pipelineId: true,
+      statusId: true,
+      name: true,
+      description: true,
+      priority: true,
+      assigneeId: true,
+      assignedMemberIds: true,
+      subscribedUserIds: true,
+      tagIds: true,
+      branchId: true,
+      departmentId: true,
+      customerId: true,
+      companyId: true,
+      startDate: true,
+      targetDate: true,
+      attachments: true,
+    })
+    .partial({
+      statusId: true,
+      description: true,
+      priority: true,
+      assignedMemberIds: true,
+      subscribedUserIds: true,
+      tagIds: true,
+      attachments: true,
+    })
+    .extend({ propertiesData: CustomFieldsPatch.default({}) }),
+  (member, input) => checkProperties(member.orgId, input.pipelineId, {}, input.propertiesData),
+)
   .output(Ticket)
-  .handler(async ({ input, context: { tx, member } }) => {
+  .handler(async ({ input, context: { tx, member, fromCore } }) => {
     const pipeline = await pipelineFor(tx, member, input.pipelineId, { change: false });
 
-    return ticketById(tx, member, await fileTicket(tx, member, pipeline, input));
+    return ticketById(
+      tx,
+      member,
+      await fileTicket(tx, member, pipeline, { ...input, propertiesData: fromCore }),
+    );
   });
 
 export const ticketProcedures = { list, get, create };
