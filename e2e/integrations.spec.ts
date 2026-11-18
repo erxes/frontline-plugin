@@ -15,7 +15,9 @@ test('the owner sees the accounts page, what Meta’s login reported, and a prov
   await page.getByRole('button', { name: 'Connect' }).click();
   await page.getByRole('menuitem', { name: 'Facebook and Instagram' }).click();
   await expect(
-    page.getByText('Set META_APP_ID and META_APP_SECRET to connect Facebook and Instagram'),
+    page.getByText(
+      'Set your Meta app in Settings › Integrations › Meta to connect Facebook and Instagram',
+    ),
   ).toBeVisible();
 
   // A Telegram bot connects by its token, which Telegram checks before anything is saved.
