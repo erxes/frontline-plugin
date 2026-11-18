@@ -48,6 +48,23 @@ describe('mail', () => {
     });
   });
 
+  it('reads the id frontline sent from an inline copy whose Message-ID a relay replaced', async () => {
+    const relayed = fixture('mail-bounce.eml')
+      .toString()
+      .replace(
+        'Content-Type: message/rfc822\n',
+        'Content-Type: message/rfc822\nContent-Disposition: inline\n',
+      )
+      .replace(
+        'Message-ID: <sent-5@shop.mn>',
+        'Message-ID: <0100abc@email.amazonses.com>\nX-Frontline-Message-ID: <sent-5@shop.mn>',
+      );
+
+    await expect(readMail(relayed, 'support@shop.mn')).resolves.toMatchObject({
+      suppressed: [{ address: 'gone@example.mn', about: '<sent-5@shop.mn>' }],
+    });
+  });
+
   it("suggests a known service's servers for its own addresses", async () => {
     await expect(
       clientAs('org-mail-servers').integrations.mail.servers({ address: 'Saraa@Gmail.com' }),

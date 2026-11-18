@@ -206,6 +206,10 @@ export const messages = table(
       t.id.desc(),
     ),
     index('frontline_messages_reply_to_idx').on(t.replyToId),
+    // A bounce report finds the mail it is about by Message-ID alone.
+    index('frontline_messages_org_external_idx')
+      .on(t.orgId, t.externalId)
+      .where(sql`${t.externalId} is not null`),
     // Reports count the replies of a period.
     index('frontline_messages_org_created_idx').on(t.orgId, t.createdAt),
     check('frontline_messages_author_check', sql`${t.customerId} is null or ${t.userId} is null`),

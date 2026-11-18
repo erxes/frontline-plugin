@@ -223,27 +223,35 @@ describe('mail', () => {
 
     const [delivered] = mailbox.sent.splice(0);
 
+    const sentId = delivered?.messageId ?? '';
+
     expect(delivered?.to).toBe('gone@example.mn');
-    expect(delivered?.messageId).toMatch(/^<.+@shop\.mn>$/);
+    expect(sentId).toMatch(/^<.+@shop\.mn>$/);
+    // A relay such as SES rewrites the Message-ID, so a header keeps it.
+    expect(delivered?.headers).toEqual({ 'X-Frontline-Message-ID': sentId });
 
-    // Anyone can mail the mailbox a report: one about a mail the team never sent changes nothing.
-    mailbox.inbox.push(fixture('mail-bounce.eml'));
-    await sync('org-mail-b');
-    expect((await owner.integrations.mail.suppressions.list({})).suppressions).toEqual([]);
-
-    // The report about the mail that went out stops the next one.
-    mailbox.inbox.push(
-      fixture('mail-bounce.eml').replace('<sent-5@shop.mn>', delivered?.messageId ?? ''),
-    );
-    await sync('org-mail-b');
-
-    // A reply queued before the report arrived is held, and fails on its last try.
+    // A reply queued before the report arrives.
     const { id: messageId } = await owner.conversations.messages.create({
       conversationId,
       content: 'Did it arrive?',
     });
 
     const [queued] = asked.jobs.splice(0);
+
+    // Anyone can mail the mailbox a report: one about a mail the team never sent, or about a sent
+    // mail but naming another recipient, changes nothing.
+    mailbox.inbox.push(
+      fixture('mail-bounce.eml'),
+      fixture('mail-bounce.eml')
+        .replace('<sent-5@shop.mn>', sentId)
+        .replaceAll(/gone@example\.mn/gi, 'saraa@example.mn'),
+    );
+    await sync('org-mail-b');
+    expect((await owner.integrations.mail.suppressions.list({})).suppressions).toEqual([]);
+
+    // The report about the mail that went out holds the reply, which fails on its last try.
+    mailbox.inbox.push(fixture('mail-bounce.eml').replace('<sent-5@shop.mn>', sentId));
+    await sync('org-mail-b');
 
     const job = {
       orgId: 'org-mail-b',

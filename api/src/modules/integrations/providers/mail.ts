@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { createTransport } from 'nodemailer';
@@ -78,15 +79,23 @@ const suppressedBy = (reportType: unknown, text: string): Suppressed[] =>
     const recipient = fields.get('final-recipient');
     const reported = fields.get('original-rcpt-to');
 
+    // A mail to a forwarding address reports where it ended up as the final recipient, and the
+    // address it was sent to as the original one; `suppress` keeps the one the team mailed.
+    const recipients = [
+      ...new Set(
+        [recipient, fields.get('original-recipient')].flatMap((value) =>
+          value ? [reportAddress(value)] : [],
+        ),
+      ),
+    ];
+
     if (reportType === 'delivery-status' && recipient)
       return fields.get('action') === 'failed' && fields.get('status')?.startsWith('5')
-        ? [
-            {
-              address: reportAddress(recipient),
-              reason: 'bounce',
-              detail: fields.get('diagnostic-code') ?? fields.get('status') ?? null,
-            },
-          ]
+        ? recipients.map((address) => ({
+            address,
+            reason: 'bounce',
+            detail: fields.get('diagnostic-code') ?? fields.get('status') ?? null,
+          }))
         : [];
 
     if (reportType === 'feedback-report' && reported)
@@ -101,11 +110,28 @@ const suppressedBy = (reportType: unknown, text: string): Suppressed[] =>
     return [];
   });
 
-/** The Message-ID of the mail a report is about: the first one `parts` name in a header line. */
-const reportedMessageId = (parts: string[]) =>
+/**
+ * The header every mail frontline sends carries its Message-ID in, since a relay such as SES
+ * replaces the Message-ID itself and a report then returns the relay's.
+ */
+const SENT_ID_HEADER = 'X-Frontline-Message-ID';
+
+/** A new Message-ID for a mail `address` sends, on its domain. */
+export const newMessageId = (address: string) =>
+  `<${randomUUID()}@${address.split('@').at(-1) ?? 'localhost'}>`;
+
+/** The Message-ID a mail goes out with, and the header that keeps it through a relay. */
+const sentId = (messageId: string) => ({ messageId, headers: { [SENT_ID_HEADER]: messageId } });
+
+/** The first id a header line named `header` gives in `parts`. */
+const headerIn = (parts: string[], header: string) =>
   parts
-    .map((part) => /^message-id:[ \t]*(<[^>\s]+>)/im.exec(part)?.[1])
-    .find((id) => id !== undefined) ?? null;
+    .map((part) => new RegExp(`^${header}:[ \\t]*(<[^>\\s]+>)`, 'im').exec(part)?.[1])
+    .find((id) => id !== undefined);
+
+/** The Message-ID of the mail a report is about, as frontline sent it. */
+const reportedMessageId = (parts: string[]) =>
+  headerIn(parts, SENT_ID_HEADER) ?? headerIn(parts, 'message-id') ?? null;
 
 /** Whether a report's part is the copy of the mail it is about. */
 const isCopy = (part: { contentType: string }) => part.contentType === 'message/rfc822';
@@ -131,13 +157,15 @@ export const readMail = async (
   const type = ContentType.safeParse(mail.headers.get('content-type')).data;
 
   // mailparser folds some report parts into the text and keeps others as attachments. The copy of
-  // the mail a report returns names the Message-ID it is about, which `suppress` checks.
+  // the mail a report returns names the Message-ID it is about, which `suppress` checks. Read
+  // whole, an inline copy would fold into the text without its headers.
   if (type?.value === 'multipart/report') {
-    const copies = mail.attachments.filter(isCopy).map((part) => part.content.toString());
+    const report = await simpleParser(source, { ignoreEmbedded: true });
+    const copies = report.attachments.filter(isCopy).map((part) => part.content.toString());
 
     const fields = [
-      mail.text ?? '',
-      ...mail.attachments.filter((part) => !isCopy(part)).map((part) => part.content.toString()),
+      report.text ?? '',
+      ...report.attachments.filter((part) => !isCopy(part)).map((part) => part.content.toString()),
     ];
 
     const about = reportedMessageId([...copies, ...fields]);
@@ -341,11 +369,13 @@ export const mail = defineProvider({
       }),
     );
 
-    const sent = await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
+    const messageId = started?.root ?? newMessageId(row.externalId);
+
+    await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
       from: { name: row.name, address: row.externalId },
       to: message.to,
       subject: started ? (started.subject ?? '') : replySubject(subject),
-      messageId: started?.root,
+      ...sentId(messageId),
       text: message.text,
       html: message.html ?? undefined,
       inReplyTo: answered,
@@ -353,7 +383,7 @@ export const mail = defineProvider({
       attachments,
     });
 
-    return sent.messageId;
+    return messageId;
   },
   // RFC 9078: a reply whose one part, marked `reaction`, holds the team's emojis now; none
   // takes them all back.
