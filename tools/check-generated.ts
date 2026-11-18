@@ -18,23 +18,27 @@ const root = resolve(import.meta.dirname, '..');
 
 // Sorted, a new key lands among its neighbours instead of where every branch appends, at the end.
 const mnFile = join(root, 'ui/src/i18n/mn.json');
-const mn = z.record(z.string(), z.string()).parse(JSON.parse(readFileSync(mnFile, 'utf8')));
-const keys = Object.keys(mn);
-const sorted = keys.toSorted();
+const text = readFileSync(mnFile, 'utf8');
+const mn = z.record(z.string(), z.string()).parse(JSON.parse(text));
+const keys = Object.keys(mn).toSorted();
+
+// JSON.parse keeps a repeated key's last value, so count the file's own entries.
+if (text.match(/^ {2}"/gm)?.length !== keys.length)
+  throw new Error('ui/src/i18n/mn.json repeats a key. Keep one of its values.');
+
+// Written as text: an object would put integer-like keys first.
+const sorted = `{\n${keys.map((key) => `  ${JSON.stringify(key)}: ${JSON.stringify(mn[key])}`).join(',\n')}\n}\n`;
 
 if (process.argv.includes('--fix')) {
-  const entries = sorted.map((key) => [key, mn[key]]);
-
-  writeFileSync(mnFile, `${JSON.stringify(Object.fromEntries(entries), null, 2)}\n`);
+  writeFileSync(mnFile, sorted);
   process.exit(0);
 }
 
-const moved = keys.findIndex((key, index) => key !== sorted[index]);
+const lines = sorted.split('\n');
+const moved = text.split('\n').findIndex((line, index) => line !== lines[index]);
 
 if (moved !== -1)
-  throw new Error(
-    `ui/src/i18n/mn.json's keys are out of order from "${keys[moved]}". Run vp run fix.`,
-  );
+  throw new Error(`ui/src/i18n/mn.json is out of order at line ${moved + 1}. Run vp run fix.`);
 
 const scratch = join(root, '.scratch');
 
