@@ -5,7 +5,7 @@ import type {
 } from '@erxes/core-contract';
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { eq, sql } from 'drizzle-orm';
+import { eq, lt, sql } from 'drizzle-orm';
 import type { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
@@ -78,6 +78,10 @@ export const runImport = async (
 
       if (request.dryRun) throw new DryRun(rows);
 
+      // Core retries a batch within minutes; a day-old result answers nothing.
+      await tx
+        .delete(transferRequests)
+        .where(lt(transferRequests.createdAt, sql`now() - interval '1 day'`));
       await tx
         .insert(transferRequests)
         .values({ id: request.requestId, orgId: request.orgId, result: { rows } });
@@ -105,14 +109,51 @@ export const listOf = (cell: string | undefined) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
+/** A row error, in words the member's error report shows. */
+export const refuse = (message: string) => new ORPCError('BAD_REQUEST', { message });
+
+/**
+ * A `Label: value` list cell, as exports write a record's answers or fields, by the item each
+ * of `items` labels. An item starts where a part begins with its label, the longest first, so a
+ * label may hold `:` and a value `; `.
+ */
+export const labelledOf = <T extends { label: string }>(cell: string, items: T[]) => {
+  const named = items
+    .filter((item) => item.label)
+    .toSorted((a, b) => b.label.length - a.label.length);
+
+  const found: { item: T; text: string }[] = [];
+
+  for (const part of cell.split(/; |\n/)) {
+    const item = named.find((one) => part.startsWith(`${one.label}:`));
+    const last = found.at(-1);
+
+    if (item) found.push({ item, text: part.slice(item.label.length + 1).trim() });
+    else if (last) last.text = `${last.text}; ${part}`;
+    else if (part.trim()) throw refuse(`Write each one as Label: value; no label matches ${part}`);
+  }
+
+  return found;
+};
+
+/** A yes or no cell, as exports write a tick. */
+export const tickOf = (text: string, label: string) => {
+  const word = text.toLowerCase();
+
+  if (word === 'yes' || word === 'true') return true;
+
+  if (word === 'no' || word === 'false') return false;
+
+  throw refuse(`${label} is yes or no`);
+};
+
 /** A date cell, or a row error naming the column. */
 export const dateOf = (cell: string | undefined, column: string) => {
   if (!cell) return undefined;
 
   const date = new Date(cell);
 
-  if (Number.isNaN(date.getTime()))
-    throw new ORPCError('BAD_REQUEST', { message: `${column} is not a date: ${cell}` });
+  if (Number.isNaN(date.getTime())) throw refuse(`${column} is not a date: ${cell}`);
 
   return date;
 };

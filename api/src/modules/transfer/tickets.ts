@@ -1,8 +1,7 @@
 import type { PluginExportRequest } from '@erxes/core-contract';
-import { ORPCError } from '@orpc/server';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import type { z } from 'zod';
-import { type Tx, withOrg } from '#/db/client.ts';
+import { withOrg } from '#/db/client.ts';
 import { channelMembers, channels } from '#/db/schema.ts';
 import { tags } from '#/db/tags.ts';
 import { pipelines, pipelineStatuses, PRIORITY_NAMES, tickets } from '#/db/tickets.ts';
@@ -10,13 +9,27 @@ import { membership } from '../channels/access.ts';
 import { orderOf } from '../paging.ts';
 import { pipelineFor } from '../pipelines/pipelines.ts';
 import { updateTicket } from '../tickets/changes.ts';
-import { propertyFilter } from '../tickets/properties.ts';
-import { seenBy } from '../tickets/shared.ts';
+import { checkProperties, propertyFilter } from '../tickets/properties.ts';
 import { fileTicket, ticketsMatching } from '../tickets/tickets.ts';
-import { customersByEmail, membersByEmail, namesOf } from './people.ts';
-import { dateOf, type ImportRequest, listOf, rowOf, runImport, transferMember } from './shared.ts';
-
-type Member = ReturnType<typeof transferMember>;
+import { customersOf, membersByEmail, namesOf } from './people.ts';
+import { propertyCells, propertyPatchOf, ticketFieldsFor } from './properties.ts';
+import {
+  dateOf,
+  type ImportRequest,
+  listOf,
+  refuse,
+  rowOf,
+  runImport,
+  transferMember,
+} from './shared.ts';
+import {
+  pipelineOfRow,
+  priorityOf,
+  stateOf,
+  statusOfRow,
+  tagIdsOf,
+  ticketOfRow,
+} from './ticketRows.ts';
 
 /** Tickets' columns in core's import and export; `id` finds the ticket an import updates. */
 export const TICKET_COLUMNS = [
@@ -33,9 +46,10 @@ export const TICKET_COLUMNS = [
   { key: 'tags', label: 'Tags' },
   { key: 'customer', label: 'Customer', aliases: ['Customer email'] },
   { key: 'company', label: 'Company', importable: false },
+  { key: 'properties', label: 'Properties', aliases: ['Custom fields'] },
   { key: 'startDate', label: 'Start date' },
   { key: 'targetDate', label: 'Due date', aliases: ['Target date', 'Close date'] },
-  { key: 'state', label: 'State', importable: false, default: false },
+  { key: 'state', label: 'State', default: false },
   { key: 'createdAt', label: 'Created', importable: false },
   { key: 'updatedAt', label: 'Updated', importable: false, default: false },
 ];
@@ -63,11 +77,15 @@ const textOf = (description: string) => {
   }
 };
 
-/** A page of the tickets the member sees, oldest first, narrowed as their list narrows them. */
+/**
+ * A page of the tickets the member sees, archived ones too, oldest first, narrowed as their list
+ * narrows them.
+ */
 export const exportTickets = async (request: z.infer<typeof PluginExportRequest>) => {
   const member = transferMember(request.orgId, request.userId);
   const order = orderOf(tickets, tickets.createdAt, true);
   const fromCore = await propertyFilter(request.orgId, request.query.filter ?? undefined);
+  const fields = await ticketFieldsFor(request.orgId, request.columns.includes('properties'));
 
   const { items, nextCursor } = await withOrg(request.orgId, async (tx) => {
     const rows = await tx
@@ -87,6 +105,7 @@ export const exportTickets = async (request: z.infer<typeof PluginExportRequest>
         )`,
         customerId: tickets.customerId,
         companyId: tickets.companyId,
+        properties: tickets.propertiesData,
         startDate: tickets.startDate,
         targetDate: tickets.targetDate,
         state: tickets.state,
@@ -100,7 +119,7 @@ export const exportTickets = async (request: z.infer<typeof PluginExportRequest>
       .leftJoin(channelMembers, membership(member, tickets.channelId))
       .where(
         and(
-          ticketsMatching(member, request.query, fromCore),
+          ticketsMatching(member, { ...request.query, everyState: true }, fromCore),
           order.after(request.cursor ?? undefined),
         ),
       )
@@ -127,6 +146,7 @@ export const exportTickets = async (request: z.infer<typeof PluginExportRequest>
         members: memberIds.map((id) => nameOf(id) ?? id),
         customer: nameOf(customerId),
         company: nameOf(companyId),
+        properties: propertyCells(fields, row.properties),
         startDate: row.startDate?.toISOString() ?? null,
         targetDate: row.targetDate?.toISOString() ?? null,
         createdAt: row.createdAt.toISOString(),
@@ -136,116 +156,33 @@ export const exportTickets = async (request: z.infer<typeof PluginExportRequest>
   };
 };
 
-const refuse = (message: string) => new ORPCError('BAD_REQUEST', { message });
-
-/** A priority cell: its name in any case, or its number. */
-const priorityOf = (cell: string) => {
-  const at = PRIORITY_NAMES.findIndex((name) => name.toLowerCase() === cell.toLowerCase());
-  const priority = at >= 0 ? at : Number(cell);
-
-  if (!PRIORITY_NAMES[priority]) throw refuse(`Priority is one of ${PRIORITY_NAMES.join(', ')}`);
-
-  return priority;
-};
-
-type Row = Record<string, string>;
-
-/** The ticket the row's ID names, among those the member sees. */
-const ticketOfRow = async (tx: Tx, member: Member, row: Row) => {
-  if (!row.id) return undefined;
-
-  const [found] = await tx
-    .select({ id: tickets.id, pipelineId: tickets.pipelineId })
-    .from(tickets)
-    .leftJoin(channelMembers, membership(member, tickets.channelId))
-    .where(and(eq(tickets.id, row.id), seenBy(member)));
-
-  return found;
-};
-
-/** The pipeline of the row, by name or id; a ticket it updates stays in its own. */
-const pipelineOfRow = async (tx: Tx, row: Row, found: { pipelineId: string } | undefined) => {
-  const cell = row.pipeline;
-
-  const named = cell
-    ? await tx
-        .select({ id: pipelines.id })
-        .from(pipelines)
-        .where(sql`${pipelines.id} = ${cell} or lower(${pipelines.name}) = lower(${cell})`)
-    : [];
-
-  if (named.length > 1) throw refuse(`${named.length} pipelines are named ${cell}; use its ID`);
-
-  const [match] = named;
-
-  if (found && match && match.id !== found.pipelineId)
-    throw refuse('Move a ticket to another pipeline in frontline');
-
-  const id = found?.pipelineId ?? match?.id;
-
-  if (!id) throw refuse(cell ? `No pipeline ${cell}` : 'Pipeline is required');
-
-  return id;
-};
-
-/** The status the row names in the pipeline, or undefined for none. */
-const statusOfRow = async (tx: Tx, pipelineId: string, cell: string | undefined) => {
-  if (!cell) return undefined;
-
-  const [status] = await tx
-    .select({ id: pipelineStatuses.id })
-    .from(pipelineStatuses)
-    .where(
-      and(
-        eq(pipelineStatuses.pipelineId, pipelineId),
-        sql`lower(${pipelineStatuses.name}) = lower(${cell})`,
-      ),
-    );
-
-  if (!status) throw refuse(`The pipeline has no status ${cell}`);
-
-  return status.id;
-};
-
-/** The ticket tags the cell names; each must exist. */
-const tagIdsOf = async (tx: Tx, cell: string | undefined) => {
-  const names = listOf(cell).map((name) => name.toLowerCase());
-
-  if (!names.length) return undefined;
-
-  const found = await tx
-    .select({ id: tags.id, name: sql<string>`lower(${tags.name})` })
-    .from(tags)
-    .where(and(eq(tags.type, 'ticket'), inArray(sql`lower(${tags.name})`, names)));
-
-  const missing = names.find((name) => !found.some((tag) => tag.name === name));
-
-  if (missing) throw refuse(`No ticket tag ${missing}`);
-
-  return found.map((tag) => tag.id);
-};
-
 /**
  * Files or updates a ticket for each row, as the member would in frontline. `id` names the
  * ticket to update; a new one needs a name and a pipeline, by name or id, and takes its first
- * status unless the row names one. People are named by email: a member must exist, a customer
- * is made in core when it has none (not in a check).
+ * status unless the row names one. A member is named by email and must exist; a customer by
+ * email or phone, made in core when it has none (not in a check). Properties go through core's
+ * check, inside the row's transaction with the ticket locked, so a save meanwhile waits. A
+ * description stays as it is unless its text changed, so its formatting survives a round trip.
  */
 export const importTickets = async (request: ImportRequest) => {
   const member = transferMember(request.orgId, request.userId);
   const cells = request.rows.map((row) => row.values);
+
+  const fields = await ticketFieldsFor(
+    request.orgId,
+    cells.some((row) => row.properties),
+  );
 
   const people = await membersByEmail(
     request.orgId,
     cells.flatMap((row) => [row.assignee ?? [], listOf(row.members)].flat()),
   );
 
-  const customers = request.dryRun
-    ? new Map<string, string>()
-    : await customersByEmail(
-        request.orgId,
-        cells.flatMap((row) => row.customer ?? []),
-      );
+  const customerOf = await customersOf(
+    request.orgId,
+    cells.flatMap((row) => row.customer ?? []),
+    request.dryRun,
+  );
 
   const personOf = (email: string) => {
     const id = people.get(email.toLowerCase());
@@ -261,24 +198,38 @@ export const importTickets = async (request: ImportRequest) => {
     if (found ? request.mode === 'create' : request.mode === 'update')
       return { action: 'skip', recordId: found?.id };
 
-    const pipelineId = await pipelineOfRow(tx, row, found);
+    const pipelineId = await pipelineOfRow(tx, member, row.pipeline, found);
     const statusId = await statusOfRow(tx, pipelineId, row.status);
     const tagIds = await tagIdsOf(tx, row.tags);
+    const current = found?.properties ?? {};
+
+    const properties = row.properties
+      ? await checkProperties(
+          request.orgId,
+          pipelineId,
+          current,
+          propertyPatchOf(row.properties, fields, pipelineId),
+        )
+      : undefined;
+
+    const described = row.description && row.description !== textOf(found?.description ?? '');
+    const customerId = row.customer ? customerOf(row.customer, Boolean(found)) : undefined;
 
     const values = {
       ...(row.name ? { name: row.name } : {}),
-      ...(row.description ? { description: row.description } : {}),
+      ...(described ? { description: row.description } : {}),
       ...(row.priority ? { priority: priorityOf(row.priority) } : {}),
       ...(row.assignee ? { assigneeId: personOf(row.assignee) } : {}),
       ...(row.members ? { assignedMemberIds: listOf(row.members).map(personOf) } : {}),
       ...(tagIds ? { tagIds } : {}),
-      ...(row.customer ? { customerId: customers.get(row.customer.toLowerCase()) } : {}),
+      ...(customerId ? { customerId } : {}),
+      ...(row.state ? { state: stateOf(row.state) } : {}),
       ...(row.startDate ? { startDate: dateOf(row.startDate, 'Start date') } : {}),
       ...(row.targetDate ? { targetDate: dateOf(row.targetDate, 'Due date') } : {}),
     };
 
     if (found) {
-      await updateTicket(tx, member, { id: found.id, ...values, statusId });
+      await updateTicket(tx, member, { id: found.id, ...values, statusId, properties });
 
       return { action: 'update', recordId: found.id };
     }
@@ -291,7 +242,7 @@ export const importTickets = async (request: ImportRequest) => {
       ...values,
       name: values.name,
       statusId,
-      propertiesData: {},
+      propertiesData: properties ?? {},
     });
 
     return { action: 'create', recordId };
