@@ -141,8 +141,11 @@ export const publishConversationEvents = (
 /** The Postgres channel the public messenger stream listens on (`messenger/stream.ts`). */
 export const VISITOR_CHANNEL = 'frontline_visitors';
 
-/** What a visitor's stream hears: a conversation changed, or a member is typing in it. */
-export const VISITOR_EVENTS = ['changed', 'typing'] as const;
+/**
+ * What a visitor's stream hears: a conversation changed or a member is typing in it, or one of
+ * their tickets changed. Each names the conversation's or the ticket's id.
+ */
+export const VISITOR_EVENTS = ['changed', 'typing', 'ticket'] as const;
 
 type Notified = { id: string; customerId: string };
 
@@ -152,7 +155,7 @@ const visitorNotices = (
   event: (typeof VISITOR_EVENTS)[number],
 ) =>
   changed.map(({ id, customerId }) => {
-    const payload = JSON.stringify({ orgId, conversationId: id, customerId, event });
+    const payload = JSON.stringify({ orgId, id, customerId, event });
 
     return sql`pg_notify(${VISITOR_CHANNEL}, ${payload})`;
   });

@@ -6,9 +6,12 @@ import { AttachIcon } from './icons.tsx';
 export const messageOf = (failure: unknown) =>
   failure instanceof Error ? failure.message : 'Something went wrong';
 
-/** Files the visitor attaches, each uploaded as they pick it; a refused one names why. */
-export const useUploads = (upload: (file: File) => Promise<Uploaded>) => {
-  const [files, setFiles] = useState<Uploaded[]>([]);
+/**
+ * Files the visitor attaches, each uploaded as they pick it, after the `initial` ones; a refused
+ * one names why.
+ */
+export const useUploads = (upload: (file: File) => Promise<Uploaded>, initial: Uploaded[] = []) => {
+  const [files, setFiles] = useState(initial);
   const [uploading, setUploading] = useState(0);
   const [error, setError] = useState<string | null>(null);
 

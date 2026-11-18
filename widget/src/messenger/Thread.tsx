@@ -105,6 +105,13 @@ export const Bar = ({ settings, onBack }: { settings: Settings; onBack: () => vo
   </header>
 );
 
+/** In place of a page or list that is still on its way. */
+export const Loading = () => (
+  <p class="fl-loading" role="status">
+    Loading…
+  </p>
+);
+
 /** What the thread has loaded of one conversation, oldest first, and the cursor for earlier ones. */
 type Loaded = { id: string | null; messages: Message[]; earlier: string | null };
 

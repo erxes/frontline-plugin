@@ -1,5 +1,6 @@
-import { useState } from 'preact/hooks';
+import { useEffect, useState } from 'preact/hooks';
 import type { MessengerApi, NewTicket, Ticket, TicketForms } from '../api.ts';
+import type { Uploaded } from '../../shared/http.ts';
 import { AttachButton, FileChips, messageOf, useUploads } from '../../shared/uploads.tsx';
 import { PropertyField, toggled } from './PropertyField.tsx';
 
@@ -52,21 +53,40 @@ const TopicSelect = ({
 
 type Draft = Omit<NewTicket, 'files'>;
 
-/** What the visitor has filled in so far, and sending it with their uploads' receipts. */
+/**
+ * Each visitor's half-written ticket and its files, by their session's token, kept while the page
+ * lives so leaving the form loses none. A visitor who signs out gets a new token and a blank form.
+ */
+const drafts = new Map<string, { draft: Draft; files: Uploaded[] }>();
+
+/**
+ * What the visitor has filled in so far, kept when they leave the form or close the panel, and
+ * sending it with their uploads' receipts.
+ */
 const useDraft = (api: MessengerApi, token: string, forms: TicketForms) => {
-  const [draft, setDraft] = useState<Draft>({
-    pipelineId: forms.pipelines[0]?.id ?? '',
-    name: '',
-    description: '',
-    tagIds: [],
-    propertiesData: {},
-  });
+  const kept = drafts.get(token);
+
+  const [draft, setDraft] = useState<Draft>(
+    kept && forms.pipelines.some((pipeline) => pipeline.id === kept.draft.pipelineId)
+      ? kept.draft
+      : {
+          pipelineId: forms.pipelines[0]?.id ?? '',
+          name: '',
+          description: '',
+          tagIds: [],
+          propertiesData: {},
+        },
+  );
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const uploads = useUploads((file) => api.upload(token, file));
+  const uploads = useUploads((file) => api.upload(token, file), kept?.files);
   const form = forms.pipelines.find((pipeline) => pipeline.id === draft.pipelineId);
   const patch = (change: Partial<Draft>) => setDraft((current) => ({ ...current, ...change }));
+
+  useEffect(() => {
+    drafts.set(token, { draft, files: uploads.files });
+  }, [token, draft, uploads.files]);
 
   /** Files the draft; a property of another topic, or one left empty, stays out. */
   const send = async () => {
@@ -76,7 +96,7 @@ const useDraft = (api: MessengerApi, token: string, forms: TicketForms) => {
     try {
       const shown = new Set(form?.properties.map((property) => property.id));
 
-      return await api.fileTicket(token, {
+      const filed = await api.fileTicket(token, {
         ...draft,
         files: uploads.files.map((file) => file.receipt),
         propertiesData: Object.fromEntries(
@@ -85,6 +105,10 @@ const useDraft = (api: MessengerApi, token: string, forms: TicketForms) => {
           ),
         ),
       });
+
+      drafts.delete(token);
+
+      return filed;
     } catch (failure) {
       setError(messageOf(failure));
 

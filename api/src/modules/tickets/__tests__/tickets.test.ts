@@ -2,10 +2,7 @@ import { sql } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
-import { serve } from '#/test/http.ts';
-import { coreTicketFields } from '#/test/coreUnits.ts';
 import { clientAs } from '#/test/member.ts';
-import { tokenOf } from '../../messenger/session.ts';
 
 // Core checks a new ticket's fields.
 vi.mock('#/core.ts', async (importOriginal) =>
@@ -13,8 +10,6 @@ vi.mock('#/core.ts', async (importOriginal) =>
 );
 
 const agent = [PERMISSIONS.channelView];
-
-const messenger = serve('/api/public/messenger');
 
 /** An organisation's owner, a channel with `teammate` in it, and a pipeline with its statuses by stage. */
 const setUp = async (orgId: string) => {
@@ -325,54 +320,5 @@ describe('tickets', () => {
     await expect(owner.pipelines.choices()).resolves.toMatchObject({
       pipelines: [{ name: 'Main' }, { name: 'Secret' }],
     });
-  });
-
-  it('lets a messenger visitor file tickets in the pipelines it offers and follow only theirs', async () => {
-    const { owner, channel, pipeline } = await setUp('org-tk-visitor');
-    const elsewhere = await owner.channels.create({ name: 'Sales' });
-    const foreign = await owner.pipelines.create({ channelId: elsewhere.id, name: 'Leads' });
-    const tag = await owner.tags.create({ type: 'ticket', name: 'Shipping' });
-
-    const integration = await owner.integrations.create({
-      channelId: channel.id,
-      kind: 'messenger',
-      name: 'Website',
-      config: { ticketPipelineIds: [pipeline.id, foreign.id] },
-    });
-
-    const visitor = { orgId: 'org-tk-visitor', integrationId: integration.id, verified: false };
-    const ann = await tokenOf({ ...visitor, customerId: 'customer-ann', identified: true });
-    const anonymous = await tokenOf({ ...visitor, customerId: 'customer-bob', identified: false });
-    const file = { pipelineId: pipeline.id, name: 'Broken zip', tagIds: [tag.id] };
-
-    // Only the pipeline of the messenger's own channel is offered.
-    expect((await messenger.get('/tickets/forms', ann)).body).toMatchObject({
-      pipelines: [{ id: pipeline.id, name: 'Main' }],
-      tags: [{ id: tag.id, name: 'Shipping', colorCode: null }],
-    });
-    expect((await messenger.post('/tickets', file, anonymous)).status).toBe(403);
-    expect(
-      (await messenger.post('/tickets', { ...file, pipelineId: foreign.id }, ann)).status,
-    ).toBe(400);
-
-    // A field required on the new ticket form binds a member's ticket, not the visitor's.
-    coreTicketFields.required = ['size'];
-
-    await expect(owner.tickets.create({ pipelineId: pipeline.id, name: 'Late' })).rejects.toThrow(
-      'Size is required',
-    );
-
-    const filed = await messenger.post('/tickets', file, ann);
-
-    coreTicketFields.required = [];
-
-    expect(filed).toMatchObject({ status: 201, body: { name: 'Broken zip', status: 'New' } });
-    expect(await owner.tickets.list({})).toMatchObject({
-      tickets: [{ customerId: 'customer-ann', createdBy: null, tagIds: [tag.id] }],
-    });
-    expect((await messenger.get('/tickets', ann)).body).toEqual([
-      expect.objectContaining({ name: 'Broken zip', pipeline: 'Main' }),
-    ]);
-    expect((await messenger.get('/tickets', anonymous)).body).toEqual([]);
   });
 });

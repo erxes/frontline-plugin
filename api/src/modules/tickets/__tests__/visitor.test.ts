@@ -1,0 +1,83 @@
+import { describe, expect, it, vi } from 'vite-plus/test';
+import { serve } from '#/test/http.ts';
+import { coreTicketFields } from '#/test/coreUnits.ts';
+import { clientAs } from '#/test/member.ts';
+import { tokenOf } from '../../messenger/session.ts';
+import { subscribe } from '../../messenger/stream.ts';
+
+// Core checks a new ticket's fields.
+vi.mock('#/core.ts', async (importOriginal) =>
+  (await import('#/test/coreUnits.ts')).unitsStandIn(await importOriginal()),
+);
+
+const messenger = serve('/api/public/messenger');
+
+describe("a messenger visitor's tickets", () => {
+  it('lets a messenger visitor file tickets in the pipelines it offers and follow only theirs', async () => {
+    const owner = clientAs('org-tk-visitor');
+    const channel = await owner.channels.create({ name: 'Support' });
+    const pipeline = await owner.pipelines.create({ channelId: channel.id, name: 'Main' });
+    const statuses = await owner.pipelines.statuses.list({ pipelineId: pipeline.id });
+    const elsewhere = await owner.channels.create({ name: 'Sales' });
+    const foreign = await owner.pipelines.create({ channelId: elsewhere.id, name: 'Leads' });
+    const tag = await owner.tags.create({ type: 'ticket', name: 'Shipping' });
+
+    const integration = await owner.integrations.create({
+      channelId: channel.id,
+      kind: 'messenger',
+      name: 'Website',
+      config: { ticketPipelineIds: [pipeline.id, foreign.id] },
+    });
+
+    const visitor = { orgId: 'org-tk-visitor', integrationId: integration.id, verified: false };
+    const ann = await tokenOf({ ...visitor, customerId: 'customer-ann', identified: true });
+    const anonymous = await tokenOf({ ...visitor, customerId: 'customer-bob', identified: false });
+    const file = { pipelineId: pipeline.id, name: 'Broken zip', tagIds: [tag.id] };
+
+    // Only the pipeline of the messenger's own channel is offered.
+    expect((await messenger.get('/tickets/forms', ann)).body).toMatchObject({
+      pipelines: [{ id: pipeline.id, name: 'Main' }],
+      tags: [{ id: tag.id, name: 'Shipping', colorCode: null }],
+    });
+    expect((await messenger.post('/tickets', file, anonymous)).status).toBe(403);
+    expect(
+      (await messenger.post('/tickets', { ...file, pipelineId: foreign.id }, ann)).status,
+    ).toBe(400);
+
+    // A field required on the new ticket form binds a member's ticket, not the visitor's.
+    coreTicketFields.required = ['size'];
+
+    await expect(owner.tickets.create({ pipelineId: pipeline.id, name: 'Late' })).rejects.toThrow(
+      'Size is required',
+    );
+
+    const filed = await messenger.post('/tickets', file, ann);
+
+    coreTicketFields.required = [];
+
+    expect(filed).toMatchObject({ status: 201, body: { name: 'Broken zip', status: 'New' } });
+    expect(await owner.tickets.list({})).toMatchObject({
+      tickets: [{ customerId: 'customer-ann', createdBy: null, tagIds: [tag.id] }],
+    });
+    expect((await messenger.get('/tickets', ann)).body).toEqual([
+      expect.objectContaining({ name: 'Broken zip', pipeline: 'Main' }),
+    ]);
+    expect((await messenger.get('/tickets', anonymous)).body).toEqual([]);
+
+    // The team moving Ann's ticket on to Bob tells both their messengers' streams, so it leaves
+    // her ticket tab and joins his.
+    const heard: string[] = [];
+    const id = (await owner.tickets.list({})).tickets[0]?.id ?? '';
+    const resolved = statuses.find((status) => status.type === 4)?.id ?? '';
+
+    const listen = (who: string) =>
+      subscribe('org-tk-visitor', `customer-${who}`, (n) => heard.push(`${who} ${n.event}`));
+
+    const stops = [await listen('ann'), await listen('bob')];
+
+    await owner.tickets.update({ id, statusId: resolved, customerId: 'customer-bob' });
+    await vi.waitFor(() => expect(heard.toSorted()).toEqual(['ann ticket', 'bob ticket']));
+
+    for (const stop of stops) stop();
+  });
+});

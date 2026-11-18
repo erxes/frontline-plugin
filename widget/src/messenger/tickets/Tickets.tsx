@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { MessengerApi, Settings, Ticket, TicketForms } from '../api.ts';
 import { Identify } from '../Composer.tsx';
 import { timeOf } from '../hours.ts';
-import { Bar, Files } from '../Thread.tsx';
+import { Bar, Files, Loading } from '../Thread.tsx';
 import { messageOf } from '../../shared/uploads.tsx';
 import type { MessengerState } from '../useMessenger.ts';
 import { TicketForm } from './TicketForm.tsx';
@@ -58,8 +58,41 @@ const TicketList = ({
     </ul>
   );
 
-/** The visitor's tickets and the forms they file new ones with, loaded when the tab opens. */
-const useTickets = (api: MessengerApi, token: string | undefined) => {
+/** What the visitor reads once they filed a ticket: its number, to copy, and where it goes on. */
+const Filed = ({ ticket }: { ticket: Ticket }) => {
+  const [copied, setCopied] = useState(false);
+  const { number } = ticket;
+
+  return (
+    <div class="fl-filed" role="status">
+      <p>
+        {number ? `Ticket ${number} is filed.` : 'Your ticket is filed.'} Its status shows here as
+        the team works on it.
+      </p>
+      {/* A page served over plain http has no clipboard; the number above is there to select. */}
+      {number && window.isSecureContext && (
+        <button
+          type="button"
+          class="fl-link"
+          onClick={() =>
+            void navigator.clipboard.writeText(number).then(
+              () => setCopied(true),
+              () => setCopied(false),
+            )
+          }
+        >
+          {copied ? 'Copied' : 'Copy the number'}
+        </button>
+      )}
+    </div>
+  );
+};
+
+/**
+ * The visitor's tickets and the forms they file new ones with, loaded when the tab opens and
+ * again whenever the stream says one of their tickets changed (`version`).
+ */
+const useTickets = (api: MessengerApi, token: string | undefined, version: number) => {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [forms, setForms] = useState<TicketForms | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -77,6 +110,7 @@ const useTickets = (api: MessengerApi, token: string | undefined) => {
 
         setTickets(list);
         setForms(offered);
+        setError(null);
       } catch (failure) {
         if (live) setError(messageOf(failure));
       }
@@ -87,9 +121,10 @@ const useTickets = (api: MessengerApi, token: string | undefined) => {
     return () => {
       live = false;
     };
-  }, [api, token]);
+  }, [api, token, version]);
 
-  const filed = (ticket: Ticket) => setTickets((list) => [ticket, ...list]);
+  const filed = (ticket: Ticket) =>
+    setTickets((list) => [ticket, ...list.filter((each) => each.id !== ticket.id)]);
 
   return { tickets, forms, error, filed };
 };
@@ -107,10 +142,11 @@ export const Tickets = ({
   messenger: MessengerState;
   onBack: () => void;
 }) => {
-  const { settings, session, connect } = messenger;
+  const { settings, session, connect, ticketsChanged } = messenger;
   const token = session?.token;
-  const { tickets, forms, error, filed } = useTickets(api, token);
+  const { tickets, forms, error, filed } = useTickets(api, token, ticketsChanged);
   const [filing, setFiling] = useState(false);
+  const [justFiled, setJustFiled] = useState<Ticket | null>(null);
 
   if (!settings || !token) return null;
 
@@ -134,13 +170,24 @@ export const Tickets = ({
             forms={forms}
             onFiled={(ticket) => {
               filed(ticket);
+              setJustFiled(ticket);
               setFiling(false);
             }}
           />
+        ) : !forms && !error ? (
+          <Loading />
         ) : (
           <>
+            {justFiled && <Filed ticket={justFiled} />}
             {forms && forms.pipelines.length > 0 && (
-              <button type="button" class="fl-primary" onClick={() => setFiling(true)}>
+              <button
+                type="button"
+                class="fl-primary"
+                onClick={() => {
+                  setJustFiled(null);
+                  setFiling(true);
+                }}
+              >
                 File a ticket
               </button>
             )}

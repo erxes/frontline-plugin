@@ -70,6 +70,13 @@
   overflow-y: auto;
 }
 
+.fl-loading {
+  margin: 0;
+  padding: 24px;
+  color: var(--fl-muted);
+  text-align: center;
+}
+
 .fl-hero {
   padding: 28px 24px 56px;
   background: var(--fl-color);

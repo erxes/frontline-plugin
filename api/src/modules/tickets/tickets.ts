@@ -165,7 +165,7 @@ export const insertTicket = async (
   const [created] = await tx
     .insert(tickets)
     .values({ ...values, orgId: actor.orgId, number, statusChangedBy: actor.userId })
-    .returning({ id: tickets.id });
+    .returning({ id: tickets.id, customerId: tickets.customerId });
 
   if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
@@ -175,7 +175,7 @@ export const insertTicket = async (
     actor,
     (await snapshot(tx, [created.id])).map((row) => createdEvent(row)),
   );
-  await signalTickets(tx, actor);
+  await signalTickets(tx, actor, [created]);
 
   return created.id;
 };

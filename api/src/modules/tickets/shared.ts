@@ -21,6 +21,7 @@ import { Attachment, StoredFile } from '#/db/table.ts';
 import { pipelineStatuses, pipelines, STATUS_TYPES, tickets } from '#/db/tickets.ts';
 import { canChangeSql, heldInChannels, managesAll, membership } from '../channels/access.ts';
 import { Title } from '../fields.ts';
+import { notifyVisitors } from '../inbox/shared.ts';
 import { statusRights, ticketVisible } from '../pipelines/rights.ts';
 
 /** The row without `org_id`, which the caller already knows. */
@@ -283,6 +284,26 @@ export const refreshSla = (tx: Tx, ids: string[]) => {
     .where(and(eq(pipelines.id, tickets.pipelineId), inArray(tickets.id, ids)));
 };
 
-/** Tells the organisation's open ticket screens to refetch, once the change commits. */
-export const signalTickets = (tx: Tx, actor: { orgId: string }) =>
-  tx.execute(sql`select core_live_signal(${actor.orgId}, 'frontline', 'tickets')`);
+/**
+ * Tells the organisation's open ticket screens to refetch once the change commits, and the
+ * customer of each changed ticket, so their messenger's ticket tab refetches too.
+ */
+export const signalTickets = async (
+  tx: Tx,
+  actor: { orgId: string },
+  changed: { id: string; customerId: string | null }[],
+) => {
+  await tx.execute(sql`select core_live_signal(${actor.orgId}, 'frontline', 'tickets')`);
+
+  // One event per customer: their tab refetches every ticket, however many changed.
+  const byCustomer = new Map(
+    changed.flatMap(({ id, customerId }) => (customerId ? [[customerId, id] as const] : [])),
+  );
+
+  await notifyVisitors(
+    tx,
+    actor.orgId,
+    [...byCustomer].map(([customerId, id]) => ({ id, customerId })),
+    'ticket',
+  );
+};

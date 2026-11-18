@@ -4,7 +4,7 @@ import type { Topic } from '../../articles/api.ts';
 import styles from '../../articles/articles.css?inline';
 import { messageOf } from '../../shared/uploads.tsx';
 import type { MessengerApi } from '../api.ts';
-import { Bar } from '../Thread.tsx';
+import { Bar, Loading } from '../Thread.tsx';
 import type { MessengerState } from '../useMessenger.ts';
 
 /** The topic the messenger offers, loaded when the tab opens. */
@@ -62,7 +62,7 @@ export const ArticlesTab = ({
             {error}
           </p>
         )}
-        {topic && <Articles topic={topic} read={read} views={views} />}
+        {topic ? <Articles topic={topic} read={read} views={views} /> : !error && <Loading />}
       </div>
     </div>
   );

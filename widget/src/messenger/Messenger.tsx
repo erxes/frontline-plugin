@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import type { MessengerApi } from './api.ts';
 import { Home } from './Home.tsx';
 import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
-import { Thread } from './Thread.tsx';
+import { Loading, Thread } from './Thread.tsx';
 import { useLazy } from './lazy.ts';
 import { type MessengerState, useMessenger } from './useMessenger.ts';
 
@@ -49,10 +49,10 @@ const Page = ({
     );
 
   if (view.name === 'tickets')
-    return TicketsTab && <TicketsTab api={api} messenger={messenger} onBack={home} />;
+    return TicketsTab ? <TicketsTab api={api} messenger={messenger} onBack={home} /> : <Loading />;
 
   if (view.name === 'articles')
-    return HelpTab && <HelpTab api={api} messenger={messenger} onBack={home} />;
+    return HelpTab ? <HelpTab api={api} messenger={messenger} onBack={home} /> : <Loading />;
 
   return (
     <Thread

@@ -329,7 +329,7 @@ describe('inbox', () => {
     const next = await reader?.read();
 
     expect(decoder.decode(Chunk.parse(next?.value))).toBe(
-      `event: changed\ndata: ${JSON.stringify({ conversationId: id })}\n\n`,
+      `event: changed\ndata: ${JSON.stringify({ id })}\n\n`,
     );
     controller.abort();
   });
