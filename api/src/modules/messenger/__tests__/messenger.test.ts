@@ -176,15 +176,19 @@ describe('messenger', () => {
       outsider.integrations.messenger.settings({ id: integration.id }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
 
-    // 10:00 on a Monday in Ulaanbaatar is 02:00 UTC; Saturday is off.
+    // Ulaanbaatar, weekdays 09:00 to 18:00: on Monday 10:00, off 19:00 and Saturday. Friday 22:00
+    // to 06:00: on Friday 23:00 and Saturday 05:00, off Saturday 07:00 and Thursday 03:00.
     const hours = MessengerConfig.parse(integration.config);
+    const night = { ...hours, onlineHours: [{ day: 'friday', from: '22:00', to: '06:00' }] };
 
-    expect(isOnlineAt(hours, new Date('2026-11-16T02:00:00Z'))).toBe(true);
-    expect(isOnlineAt(hours, new Date('2026-11-16T11:00:00Z'))).toBe(false);
-    expect(isOnlineAt(hours, new Date('2026-11-21T02:00:00Z'))).toBe(false);
-    expect(isOnlineAt({ ...hours, availability: 'manual', isOnline: false }, new Date())).toBe(
-      false,
-    );
+    const on = (config: typeof hours, ...times: string[]) =>
+      times.map((time) => isOnlineAt(config, new Date(`2026-11-${time}:00Z`)));
+
+    expect(on(hours, '16T02:00', '16T11:00', '21T02:00')).toEqual([true, false, false]);
+    expect(
+      on(MessengerConfig.parse(night), '20T15:00', '20T21:00', '20T23:00', '18T19:00'),
+    ).toEqual([true, true, false, false]);
+    expect(on({ ...hours, availability: 'manual', isOnline: false }, '16T02:00')).toEqual([false]);
   });
 
   it('serves a visitor the files of their conversations, attached only by receipt', async () => {
