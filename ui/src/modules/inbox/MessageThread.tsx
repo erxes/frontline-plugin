@@ -120,8 +120,8 @@ const LatestButton = ({
     <div
       inert={!shown}
       className={cn(
-        'absolute inset-x-0 bottom-3 mx-auto w-fit transition duration-150 ease-out motion-reduce:transition-none',
-        shown ? 'opacity-100' : 'translate-y-1 opacity-0',
+        'absolute inset-x-0 bottom-3 mx-auto w-fit transition-opacity',
+        !shown && 'opacity-0',
       )}
     >
       <Button variant="outline" size="sm" onClick={onClick}>
