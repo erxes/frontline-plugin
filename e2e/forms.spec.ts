@@ -11,6 +11,7 @@ import {
   openShop,
   pluginApi,
   recordPanel,
+  recordPath,
   test,
   unique,
 } from './fixtures.ts';
@@ -170,6 +171,9 @@ test('an admin builds a form and a visitor sends it from a website and its addre
 
   // A visitor reads the form from its public address and sends it.
   await sendAsVisitor(page, request, name);
+  // The shop's and the address's answers both count; Gold was refused.
+  await page.reload();
+  await expect(panel.getByRole('link', { name: /^Submissions/ })).toContainText('2');
 });
 
 test('an admin narrows, corrects and deletes the answers a form got', async ({
@@ -205,8 +209,10 @@ test('an admin narrows, corrects and deletes the answers a form got', async ({
   await send({ [plan.id]: 'Team', [seats.id]: 5 });
   await send({ [plan.id]: 'Free', [seats.id]: 9 });
 
-  // The submissions table has a column per field, and the filter bar one filter per field.
-  await page.goto(`${FORMS}/${form.id}/submissions`);
+  // The form's panel links to its submissions: a column per field, and a filter per field.
+  await page.goto(recordPath(FORMS, 'frontline:form', form.id));
+  await panel.getByRole('link', { name: /^Submissions/ }).click();
+  await expect(page).toHaveURL(/\/submissions$/);
 
   const team = page.getByRole('row', { name: /Team/ });
   const free = page.getByRole('row', { name: /Free/ });
