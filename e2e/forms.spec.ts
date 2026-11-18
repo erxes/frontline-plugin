@@ -90,6 +90,7 @@ const buildFields = async (page: Page) => {
   // Each key waits for the screen reader announcement, since dnd-kit listens for the next key
   // only after it.
   const announcement = page.getByText(/was moved over droppable area/);
+
   const moveSeats = async (key: 'ArrowUp' | 'ArrowDown') => {
     const handle = page.getByRole('button', { name: 'Move Seats', exact: true });
 
