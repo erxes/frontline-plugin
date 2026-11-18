@@ -1412,7 +1412,7 @@ Procedures replace the 337 GraphQL types.
 
 - [x] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/ticket/db/models/Ticket.ts:205`. `parseProperties` in `api/src/modules/tickets/properties.ts`
   - note: waits for custom properties; zod checks every field tickets have now
-- [x] core `users.findOne` → contract: the pipelines list names the creator with `MemberInline` over `memberQueries`, so the API needs no `users:read` `frontline_api/src/modules/ticket/graphql/resolvers/customResolvers/pipeline.ts:11`
+- [x] core `users.findOne` → contract: the pipelines list names the creator with `MemberLine` (`ui/src/modules/pipelines/PipelinesPage.tsx`), so the API needs no `users:read` `frontline_api/src/modules/ticket/graphql/resolvers/customResolvers/pipeline.ts:11`
 - [x] core `users.findOne` → sdk `users.get` (scope users:read) `frontline_api/src/modules/ticket/graphql/resolvers/customResolvers/status.ts:24`. The UI names members through core's member queries
   - note: waits for the permissions tab, which names a status's members
 - [x] core `fields.validateFieldValues` → plugin-owned `zod in the procedure input` `frontline_api/src/modules/ticket/graphql/resolvers/mutations/ticket.ts:26`. `parseProperties` in `api/src/modules/tickets/properties.ts`

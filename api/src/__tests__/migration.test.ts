@@ -25,8 +25,9 @@ const strings = (value: unknown): string[] => {
   return [];
 };
 
-// Permissions, events, actions and everything else core learns from the manifest.
-const declared = new Set(strings(manifest));
+// The permissions, events, actions and other dotted names core learns from the manifest, not its
+// labels: `Ticket` names a record type, not code.
+const declared = new Set(strings(manifest).filter((name) => /^[\w-]+(\.[\w-]+)+$/.test(name)));
 
 const { rows } = await pool.query<{ name: string }>(
   "SELECT table_name AS name FROM information_schema.tables WHERE table_name LIKE 'frontline\\_%'",
@@ -43,7 +44,7 @@ const api = globSync('api/src/**/*.ts', { cwd: root }).map(read).join('\n');
 const decisions = new Set(
   read('DECISIONS.md')
     .split('\n')
-    .filter((line) => line.startsWith('| ') && !/^\| (-|Old\s)/.test(line))
+    .filter((line) => line.startsWith('| ') && !/^\| (-|Old\s+\| New\s)/.test(line))
     .map((line) => line.slice(2, line.indexOf(' | ')).trim()),
 );
 
@@ -72,7 +73,7 @@ const label = ({ line, text }: { line: number; text: string }) =>
   `MIGRATION.md:${line} ${text.slice(6, 120)}`;
 
 const links = (text: string) =>
-  [...text.matchAll(/the "([^"]+)" row in DECISIONS\.md/g)].map((match) => match[1] ?? '');
+  [...text.matchAll(/the "(.+?)" row in DECISIONS\.md/g)].map((match) => match[1] ?? '');
 
 const isDrop = (text: string) => /\*\*drop\*\*|\bdropped\b/i.test(text);
 
