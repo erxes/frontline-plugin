@@ -6,7 +6,7 @@ import { logger } from '#/logger.ts';
 import type { InboundMessage, InboundReaction, ProviderName, WebhookSource } from '../provider.ts';
 import { sameText } from '../secrets.ts';
 import { metaKey } from '../store.ts';
-import { knownVerifyToken, metaAppOf } from './metaApp.ts';
+import { knownVerifyToken, metaSecretsOf } from './metaApp.ts';
 
 /** The conversation of one person's comments on one post: `comment:<post id>:<their id>`. */
 const commentThread = (postId: string, authorId: string) => `comment:${postId}:${authorId}`;
@@ -91,16 +91,10 @@ const Delivery = z.object({
  * Meta signs the body it sent with the secret of the app the account connected through
  * (`X-Hub-Signature-256`): the organisation's own, or the install's.
  */
-const signedByMeta = async (orgId: string, raw: string, signature: unknown) => {
-  const app = await metaAppOf(orgId);
-
-  if (!app) return false;
-
-  return sameText(
-    `sha256=${createHmac('sha256', app.appSecret).update(raw).digest('hex')}`,
-    signature,
+const signedByMeta = async (orgId: string, raw: string, signature: unknown) =>
+  (await metaSecretsOf(orgId)).some((secret) =>
+    sameText(`sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`, signature),
   );
-};
 
 const filesOf = (attachments: z.infer<typeof Messaging>['message'] = { mid: '' }) =>
   (attachments.attachments ?? []).flatMap(({ type, payload }): StoredFile[] =>
@@ -213,7 +207,9 @@ export const metaWebhook: WebhookSource = {
     (await knownVerifyToken(query['hub.verify_token']))
       ? query['hub.challenge']
       : null,
-  route: ({ body }) => {
+  route: ({ body, headers }) => {
+    if (typeof headers['x-hub-signature-256'] !== 'string') return null;
+
     const delivery = Delivery.parse(body);
 
     const provider = delivery.object === 'page' ? 'facebook' : 'instagram';

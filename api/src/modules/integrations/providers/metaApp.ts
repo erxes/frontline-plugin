@@ -41,6 +41,16 @@ export const metaAppIn = async (tx: Tx, orgId: string): Promise<MetaApp | null> 
 /** `metaAppIn`, outside a request's transaction. */
 export const metaAppOf = (orgId: string) => withOrg(orgId, (tx) => metaAppIn(tx, orgId));
 
+/**
+ * The secrets Meta may sign the organisation's pages' deliveries with: its own app's, and the
+ * install's, which pages connected before the organisation set its own still go through.
+ */
+export const metaSecretsOf = async (orgId: string) => {
+  const own = await withOrg(orgId, (tx) => ownApp(tx, orgId));
+
+  return [own?.appSecret, installApp()?.appSecret].filter((secret) => secret !== undefined);
+};
+
 /** Whether Meta's address check names a verify token of the install or of an organisation's app. */
 export const knownVerifyToken = async (token: string) =>
   (config.meta.verifyToken !== undefined && token === config.meta.verifyToken) ||

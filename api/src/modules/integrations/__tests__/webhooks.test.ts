@@ -193,23 +193,20 @@ describe('meta', () => {
       verifyToken: 'own-verify-token',
     };
 
-    const other = clientAs('org-meta-b').integrations.meta.app;
-
     await owner.integrations.meta.app.save(app);
 
     expect(await owner.integrations.meta.app.get()).toMatchObject({ appId: app.appId, own: true });
     expect(await subscriptionCheck(app.verifyToken)).toEqual([200, '4711']);
-    await expect(other.save({ ...app, appId: '1234567891' })).rejects.toMatchObject({
-      code: 'CONFLICT',
-    });
+    await expect(
+      clientAs('org-meta-b').integrations.meta.app.save({ ...app, appId: '1234567891' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
 
     expect((await loggedIn('org-meta-own')).get('connected')).toBe('1');
 
     const exchange = calls.find((call) => call.url.pathname.endsWith('oauth/access_token'));
 
     expect(exchange?.url.searchParams.get('client_secret')).toBe(app.appSecret);
-    // The relay forwards the install's app; this one posts here itself.
-    expect(relayed(calls)).toEqual([]);
+    expect(relayed(calls)).toEqual([]); // the relay forwards only the install's app
 
     const { accounts } = await owner.integrations.accounts.list({});
     const page = accounts.find((account) => account.provider === 'facebook');
@@ -218,8 +215,9 @@ describe('meta', () => {
 
     const raw = fixture('meta-delivery.json');
 
-    expect(await deliver('/meta', raw, signedByMeta(raw))).toBe(401);
+    expect(await deliver('/meta', raw, signedByMeta(raw, 'a-stranger-app-secret'))).toBe(401);
     expect(await deliver('/meta', raw, signedByMeta(raw, app.appSecret))).toBe(200);
+    expect(await deliver('/meta', raw, signedByMeta(raw))).toBe(200); // a page it had before
     expect((await owner.conversations.list({})).totalCount).toBe(1);
 
     await owner.integrations.meta.app.remove();
