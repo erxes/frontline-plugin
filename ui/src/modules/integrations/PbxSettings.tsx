@@ -5,20 +5,20 @@ import {
   IconListNumbers,
   IconLock,
   IconPhone,
-  IconPlug,
   IconServer,
   IconUser,
   IconUsers,
+  IconX,
 } from '@tabler/icons-react';
 import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
 import { useMutation } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
-import { PanelField, PanelSection, TextField, useMembersById, memberName } from 'erxes-ui';
+import { Button, PanelField, PanelSection, TextField, useMembersById, memberName } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { useIntegrationChange } from '@/inbox/queries.ts';
 import { orpc } from '~/orpc.ts';
+import { useChange } from '~/shared/hooks.ts';
 import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { ZonePicker } from './ConnectFields.tsx';
 import { AddRow, ItemRow } from './parts.tsx';
@@ -27,8 +27,6 @@ import type { Account } from './useIntegrations.ts';
 /** A PBX's own settings, which `saveSettings` takes again with each change. */
 const PbxConfig = z.object({
   phone: z.string(),
-  srcTrunk: z.string().default(''),
-  dstTrunk: z.string().default(''),
   timeZone: z.string(),
   turnUrl: z.string().default(''),
   turnUsername: z.string().default(''),
@@ -43,11 +41,13 @@ type SaveInput = InferClientInputs<Client>['integrations']['call']['saveSettings
 
 /**
  * A PBX's settings, queues and operators as `saveSettings` takes them, and `change`, which saves
- * them all with `patch` applied.
+ * them all with `patch` applied. Softphones read the TURN server and extensions again after it.
  */
 const usePbx = (account: Account, settings: Settings) => {
   const save = useMutation(
-    orpc.integrations.call.saveSettings.mutationOptions(useIntegrationChange()),
+    orpc.integrations.call.saveSettings.mutationOptions(
+      useChange(orpc.integrations.key(), orpc.calls.phone.key()),
+    ),
   );
 
   const config = PbxConfig.safeParse(account.config);
@@ -102,8 +102,8 @@ const SettingRow = ({
 );
 
 /**
- * The PBX's number, trunks, time zone and the TURN server its softphones relay through, each
- * edited in place. The TURN password shows only that it is set; a new one replaces it.
+ * The PBX's number, time zone and the TURN server its softphones relay through, each edited in
+ * place. The TURN password shows only that it is set; a new one replaces it, and Clear drops it.
  */
 const SystemSection = ({ pbx }: { pbx: Pbx & { config: PbxConfig } }) => {
   const { t } = useTranslation('frontline');
@@ -115,18 +115,6 @@ const SystemSection = ({ pbx }: { pbx: Pbx & { config: PbxConfig } }) => {
       <PanelField icon={IconClock} label={t('time-zone', 'Time zone')} cell={false}>
         <ZonePicker value={config.timeZone} onValueChange={(timeZone) => change({ timeZone })} />
       </PanelField>
-      <SettingRow
-        pbx={pbx}
-        name="srcTrunk"
-        label={t('outbound-trunk', 'Outbound trunk')}
-        icon={IconPlug}
-      />
-      <SettingRow
-        pbx={pbx}
-        name="dstTrunk"
-        label={t('inbound-trunk', 'Inbound trunk')}
-        icon={IconPlug}
-      />
       <SettingRow
         pbx={pbx}
         name="turnUrl"
@@ -141,12 +129,24 @@ const SystemSection = ({ pbx }: { pbx: Pbx & { config: PbxConfig } }) => {
         icon={IconUser}
       />
       <PanelField icon={IconLock} label={t('turn-password', 'TURN password')}>
-        <TextField
-          scope="frontline-pbx.turnPassword"
-          value=""
-          placeholder={config.turnPassword ? '••••••••' : t('turn-password', 'TURN password')}
-          onSave={(turnPassword) => turnPassword && change({ turnPassword })}
-        />
+        <div className="flex items-center gap-1">
+          <TextField
+            scope="frontline-pbx.turnPassword"
+            value=""
+            placeholder={config.turnPassword ? '••••••••' : t('turn-password', 'TURN password')}
+            onSave={(turnPassword) => turnPassword && change({ turnPassword })}
+          />
+          {config.turnPassword && (
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label={t('clear-turn-password', 'Clear TURN password')}
+              onClick={() => change({ turnPassword: '' })}
+            >
+              <IconX />
+            </Button>
+          )}
+        </div>
       </PanelField>
     </PanelSection>
   );

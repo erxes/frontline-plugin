@@ -25,6 +25,7 @@ import {
   useOpenRecord,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
 import { INTEGRATION_TYPE } from '~/plugin.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
@@ -100,12 +101,22 @@ export const AccountActions = ({ contentId }: TRecordSlotProps) => {
  */
 const DISCORD_PERMISSIONS = String(2 ** 10 + 2 ** 11 + 2 ** 13 + 2 ** 16 + 2 ** 34 + 2 ** 38);
 
-/** Discord's page that adds the bot to a server, whose id is its application's. */
+/** What frontline keeps on a Discord bot's account. */
+const DiscordConfig = z.object({ applicationId: z.string() });
+
+/**
+ * Discord's page that adds the bot to a server, by its application's id. A bot connected before
+ * frontline kept that id has the bot's own, which is the application's for most bots, as the old
+ * plugin fell back to.
+ */
 const DiscordInvite = ({ account }: { account: Account }) => {
   const { t } = useTranslation('frontline');
   const url = new URL('https://discord.com/oauth2/authorize');
 
-  url.searchParams.set('client_id', account.externalId);
+  url.searchParams.set(
+    'client_id',
+    DiscordConfig.safeParse(account.config).data?.applicationId ?? account.externalId,
+  );
   url.searchParams.set('permissions', DISCORD_PERMISSIONS);
   url.searchParams.set('scope', 'bot');
 

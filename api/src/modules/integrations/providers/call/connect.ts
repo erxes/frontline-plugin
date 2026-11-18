@@ -28,8 +28,6 @@ const Phone = z.string().trim().min(3).max(30);
 
 const PbxInput = z.object({
   phone: Phone,
-  srcTrunk: z.string().trim().max(100).default(''),
-  dstTrunk: z.string().trim().max(100).default(''),
   timeZone: TimeZone,
   turnUrl: z
     .string()

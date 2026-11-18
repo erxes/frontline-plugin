@@ -1,12 +1,4 @@
-import {
-  IconClock,
-  IconKey,
-  IconLock,
-  IconPhone,
-  IconPlug,
-  IconServer,
-  IconUser,
-} from '@tabler/icons-react';
+import { IconClock, IconKey, IconLock, IconPhone, IconServer, IconUser } from '@tabler/icons-react';
 import { PanelFormRow, localTimeZone, zoneOffset } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -131,8 +123,6 @@ export const PbxFields = () => {
         required
       />
       <ZoneRow />
-      <TextRow label={t('outbound-trunk', 'Outbound trunk')} icon={IconPlug} name="srcTrunk" />
-      <TextRow label={t('inbound-trunk', 'Inbound trunk')} icon={IconPlug} name="dstTrunk" />
       <TextRow
         label={t('turn-server', 'TURN server')}
         icon={IconServer}

@@ -51,8 +51,6 @@ const CONNECT = {
       apiUser: textOf(form.get('apiUser')),
       apiPassword: textOf(form.get('apiPassword')),
       timeZone: textOf(form.get('timeZone')),
-      srcTrunk: textOf(form.get('srcTrunk')),
-      dstTrunk: textOf(form.get('dstTrunk')),
       turnUrl: textOf(form.get('turnUrl')),
       turnUsername: textOf(form.get('turnUsername')),
       turnPassword: textOf(form.get('turnPassword')),
