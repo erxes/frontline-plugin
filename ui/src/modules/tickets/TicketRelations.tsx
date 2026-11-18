@@ -1,9 +1,11 @@
+import { ORPCError } from '@orpc/client';
 import { IconTicket } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { Empty, Spinner, type TRecordContacts, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { TICKET_TYPE } from '~/plugin.ts';
+import { REFERENCE_MS } from '~/shared/reference.ts';
 import { useChoices } from './queries.ts';
 
 /** A ticket's customer and company, as core's relation tabs take them (`contacts` in config). */
@@ -20,10 +22,20 @@ const anyOf = (path: string, ids: string[]) =>
   ids.length > 0 ? [{ path, op: 'in' as const, value: ids }] : [];
 
 /**
- * The member's tickets about these customers or companies, active and archived, newest first.
- * `enabled` false only reads what the cache holds.
+ * Whether the member may read tickets, from one ticket asked for at most every few minutes, so
+ * the inbox's rail knows without asking for each customer's tickets. Tickets have no access
+ * procedure of their own.
  */
-export const useContactTickets = ({ customerIds, companyIds }: TRecordContacts, enabled = true) => {
+export const useTicketsReadable = () => {
+  const { error } = useQuery(
+    orpc.tickets.list.queryOptions({ input: { limit: 1 }, staleTime: REFERENCE_MS, retry: false }),
+  );
+
+  return !(error instanceof ORPCError && error.code === 'FORBIDDEN');
+};
+
+/** The member's tickets about these customers or companies, active and archived, newest first. */
+const useContactTickets = ({ customerIds, companyIds }: TRecordContacts) => {
   const filter = {
     match: 'all',
     rules: [
@@ -42,7 +54,7 @@ export const useContactTickets = ({ customerIds, companyIds }: TRecordContacts, 
     ...orpc.tickets.list.queryOptions({
       input: { filter: JSON.stringify(filter), sort: 'createdAt', limit: 50 },
     }),
-    enabled: enabled && customerIds.length + companyIds.length > 0,
+    enabled: customerIds.length + companyIds.length > 0,
   });
 };
 

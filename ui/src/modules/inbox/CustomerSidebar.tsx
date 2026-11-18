@@ -1,5 +1,4 @@
 import { contactQueries } from '@erxes/core-contract/client';
-import { ORPCError } from '@orpc/client';
 import { IconMail, IconMessages, IconPhone, IconTicket, IconUser } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { Badge, Button, IconTip, PanelSection, RelativeDateDisplay, stored } from 'erxes-ui';
@@ -10,7 +9,7 @@ import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
 import { ContactChip } from '~/shared/Person.tsx';
-import { TicketRelations, useContactTickets } from '@/tickets/TicketRelations.tsx';
+import { TicketRelations, useTicketsReadable } from '@/tickets/TicketRelations.tsx';
 import { useSelectConversation } from './ConversationList.tsx';
 import { VisitorPresence } from './ConversationPresence.tsx';
 import { useStatusNames } from './InboxFilter.tsx';
@@ -107,15 +106,14 @@ const openPanel = stored({
 
 /**
  * Beside the open conversation, as the old inbox's side widget: a thin rail of icons, each
- * opening one panel, the customer, their tickets or their other conversations. Tickets go away
- * once they are opened by a member who may not read them.
+ * opening one panel, the customer, their tickets or their other conversations. Tickets shows
+ * only to a member who may read them, and asks for the customer's tickets only once opened.
  */
 export const CustomerSidebar = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const [panel, setPanel] = useAtom(openPanel);
   const contacts = { customerIds: [conversation.customerId], companyIds: [] };
-  const { error } = useContactTickets(contacts, panel === 'tickets');
-  const ticketsAllowed = !(error instanceof ORPCError && error.code === 'FORBIDDEN');
+  const ticketsAllowed = useTicketsReadable();
 
   const rail = (
     [
