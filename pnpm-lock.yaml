@@ -206,8 +206,8 @@ importers:
         specifier: ^4.14.0
         version: 4.14.0(playwright-core@1.65.0)
       '@erxes/core-contract':
-        specifier: 0.1.0-v2.28
-        version: 0.1.0-v2.28(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+        specifier: 0.1.0-v2.29
+        version: 0.1.0-v2.29(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@erxes/lint':
         specifier: 0.1.3
         version: 0.1.3(eslint@10.15.0(jiti@2.7.0))(vite-plus@1.6.0(@opentelemetry/api@1.10.0)(@types/node@26.6.6)(@vitest/ui@5.1.0)(esbuild@0.28.2)(jiti@2.7.0)(playwright@1.65.0)(tsx@4.23.15)(typescript@7.0.2)(yaml@2.9.1))
@@ -260,11 +260,11 @@ importers:
         specifier: ^1.5.0
         version: 1.5.0
       '@erxes/core-contract':
-        specifier: 0.1.0-v2.28
-        version: 0.1.0-v2.28(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+        specifier: 0.1.0-v2.29
+        version: 0.1.0-v2.29(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@erxes/plugin-sdk':
-        specifier: 0.1.0-v2.27
-        version: 0.1.0-v2.27(@opentelemetry/api@1.10.0)(@orpc/server@1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0))(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)(ws@8.23.0)
+        specifier: 0.1.0-v2.28
+        version: 0.1.0-v2.28(@opentelemetry/api@1.10.0)(@orpc/server@1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0))(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)(ws@8.23.0)
       '@noble/ciphers':
         specifier: ^2.4.0
         version: 2.4.0
@@ -399,8 +399,8 @@ importers:
         specifier: 3.2.2
         version: 3.2.2(react@19.3.1)
       '@erxes/core-contract':
-        specifier: 0.1.0-v2.28
-        version: 0.1.0-v2.28(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+        specifier: 0.1.0-v2.29
+        version: 0.1.0-v2.29(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@orpc/client':
         specifier: 1.16.2
         version: 1.16.2(@opentelemetry/api@1.10.0)
@@ -414,8 +414,8 @@ importers:
         specifier: ^5.107.1
         version: 5.107.1(@types/react@19.3.0)(react@19.3.1)
       erxes-ui:
-        specifier: npm:@erxes/ui@4.0.0-v2.25
-        version: '@erxes/ui@4.0.0-v2.25(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)'
+        specifier: npm:@erxes/ui@4.0.0-v2.27
+        version: '@erxes/ui@4.0.0-v2.27(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)'
       html-react-parser:
         specifier: ^6.1.9
         version: 6.1.9(@types/react@19.3.0)(react@19.3.1)
@@ -800,8 +800,8 @@ packages:
   '@emnapi/wasi-threads@2.2.0':
     resolution: {integrity: sha512-JP7OYH38Q7+pyTAe14raZHLQIK7BDKbdwji+Xi3pcd/6QkJYQH3SX4wu6EplGrGJWRepoNzedfm0G3B9Z4e9Rw==}
 
-  '@erxes/core-contract@0.1.0-v2.28':
-    resolution: {integrity: sha512-W5Yoi4jlRZDv+r7TpJKaKXz0Xl/pLZy0HJ5EUMkO0fkIuyOMD3aO6dz82IVvR2vujM/tqgdb4pbsD80Yg08WaQ==}
+  '@erxes/core-contract@0.1.0-v2.29':
+    resolution: {integrity: sha512-HXO8Xh8hyfp+M/RGbUNKR/Z9pDh65Vq4FGcZaNvGDiymulDRt/H549GgLj/dOIWuuAlG4p/kdaEpPwkE0KMCWQ==}
 
   '@erxes/lint@0.1.3':
     resolution: {integrity: sha512-4diDLNZcOkH5MduST12R5TN/uJd7FWX1AcRYyXHQ0I1L5I5m9x3NVJuydq/TzEigMudGZsGuM2KaPg9I54vDXA==}
@@ -809,13 +809,13 @@ packages:
     peerDependencies:
       vite-plus: ^1.6.0
 
-  '@erxes/plugin-sdk@0.1.0-v2.27':
-    resolution: {integrity: sha512-gdL1MRKaF5lsDQJrhYHEFGBNH2nmI5eutsu2Yfvnm/7RK2eGyQnWI8edxlNPnckxghIM1612T5TrN3b6ZtSIjw==}
+  '@erxes/plugin-sdk@0.1.0-v2.28':
+    resolution: {integrity: sha512-cgdRzrMptEYdkwJp8hcpaByv+2/Y23UjdN2a7CkL/Io7Uq9sEpQsDYAbP3fiIWl9Eerf108ge+SNdbq1r8FFBg==}
     peerDependencies:
       drizzle-orm: 0.45.4
 
-  '@erxes/ui@4.0.0-v2.25':
-    resolution: {integrity: sha512-4vA+ojMeuAe4OB9xAAL65/IMR9Wk+VlGUzP/f/+Zk/bTS9hPuJgE5+vY6uuW5B2hssqrsLjDTeo6DET/Z9Vd6A==}
+  '@erxes/ui@4.0.0-v2.27':
+    resolution: {integrity: sha512-pCOtf/Po7RMWTy84ZP8fjr30rmibpYxqRnb54xyPWUC5eSTLNapZjXgwNllYPJbdcPR+R5zUm/OqGwhGbB7/pA==}
     peerDependencies:
       '@tanstack/react-query': ^5.107.1
       jotai: ^3.0.2
@@ -6620,7 +6620,7 @@ snapshots:
       tslib: 2.9.1
     optional: true
 
-  '@erxes/core-contract@0.1.0-v2.28(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)':
+  '@erxes/core-contract@0.1.0-v2.29(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)':
     dependencies:
       '@orpc/client': 1.16.2(@opentelemetry/api@1.10.0)
       '@orpc/contract': 1.16.2(@opentelemetry/api@1.10.0)
@@ -6673,9 +6673,9 @@ snapshots:
       - '@typescript-eslint/parser'
       - eslint
 
-  '@erxes/plugin-sdk@0.1.0-v2.27(@opentelemetry/api@1.10.0)(@orpc/server@1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0))(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)(ws@8.23.0)':
+  '@erxes/plugin-sdk@0.1.0-v2.28(@opentelemetry/api@1.10.0)(@orpc/server@1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0))(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(drizzle-orm@0.45.4(@opentelemetry/api@1.10.0)(@types/pg@8.23.1)(pg@8.23.1))(pg@8.23.1)(ws@8.23.0)':
     dependencies:
-      '@erxes/core-contract': 0.1.0-v2.28(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
+      '@erxes/core-contract': 0.1.0-v2.29(@opentelemetry/api@1.10.0)(@tanstack/query-core@5.107.1)(@types/pg@8.23.1)(pg@8.23.1)
       '@orpc/client': 1.16.2(@opentelemetry/api@1.10.0)
       '@orpc/contract': 1.16.2(@opentelemetry/api@1.10.0)
       '@orpc/openapi': 1.16.2(@opentelemetry/api@1.10.0)(ws@8.23.0)
@@ -6721,7 +6721,7 @@ snapshots:
       - sqlite3
       - ws
 
-  '@erxes/ui@4.0.0-v2.25(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)':
+  '@erxes/ui@4.0.0-v2.27(@date-fns/tz@1.5.0)(@floating-ui/dom@1.8.0)(@rspack/core@2.3.2(@module-federation/runtime-tools@2.9.3)(@swc/helpers@0.5.24))(@standard-schema/spec@1.1.0)(@tanstack/react-query@5.107.1(@types/react@19.3.0)(react@19.3.1))(@types/hast@3.0.5)(@types/react-dom@19.3.0(@types/react@19.3.0))(@types/react@19.3.0)(ajv-formats@3.0.1(ajv@8.20.0))(ajv@8.20.0)(jotai@3.0.2(@types/react@19.3.0)(react@19.3.1))(nuqs@2.10.3(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react-router@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1))(react-dom@19.3.1(react@19.3.1))(react-hook-form@7.92.0(@types/react@19.3.0)(react@19.3.1))(react-i18next@18.0.1(@types/react@19.3.0)(i18next@27.1.1(typescript@7.0.2))(react@19.3.1)(typescript@7.0.2))(react-is@17.0.2)(react-router-dom@7.18.5(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)(redux@5.0.1)(typescript@7.0.2)':
     dependencies:
       '@base-ui/react': 1.9.0(@date-fns/tz@1.5.0)(@types/react@19.3.0)(date-fns@4.1.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@blocknote/core': 0.57.0(@types/hast@3.0.5)

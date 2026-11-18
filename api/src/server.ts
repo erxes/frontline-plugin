@@ -6,7 +6,7 @@ import { RPCHandler } from '@orpc/server/node';
 import cors from 'cors';
 import express from 'express';
 
-import { config, PLUGIN } from '#/config.ts';
+import { config, PLUGIN, signedByCore } from '#/config.ts';
 import { JOB_RUNS } from '#/jobs.ts';
 import { logger, requestLogger } from '#/logger.ts';
 import { manifest } from '#/manifest.ts';
@@ -18,6 +18,7 @@ import { runAction } from '#/modules/inbox/automations.ts';
 import { webhookRoutes } from '#/modules/integrations/routes.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';
+import { transferRoutes } from '#/modules/transfer/routes.ts';
 import { router } from '#/router.ts';
 
 const logFailure = (error: unknown) => {
@@ -40,8 +41,6 @@ const memberDoc = pluginOpenApi(router, {
 });
 
 const anyOrigin = cors({ origin: true, credentials: false, maxAge: 600 });
-
-const signedByCore = { coreUrl: config.coreUrl, plugin: PLUGIN };
 
 /**
  * The member behind a request from the plugin UI, or null once it is answered: 401 with `refused`
@@ -198,6 +197,7 @@ export const createApp = () => {
   });
 
   app.use('/api/automations', automationRoutes());
+  app.use('/api/transfer', transferRoutes());
 
   if (config.uiDir) app.use('/ui', express.static(config.uiDir));
 

@@ -1,5 +1,6 @@
 import type { PluginManifest } from '@erxes/core-contract';
 import { PERMISSIONS } from '#/core.ts';
+import { PRIORITY_NAMES } from '#/db/tickets.ts';
 
 /**
  * What core's customer filter reads from frontline (the manifest's `relations`): each
@@ -61,7 +62,7 @@ export const RELATIONS = [
         key: 'priority',
         label: 'Priority',
         type: 'select',
-        options: ['No priority', 'Minor', 'Medium', 'High', 'Critical'],
+        options: PRIORITY_NAMES,
       },
       { key: 'assignee', label: 'Assignee', type: 'member' },
       { key: 'created_at', label: 'Created', type: 'date', measures: ['min', 'max'] },

@@ -1,3 +1,4 @@
+import type { PluginImportResult } from '@erxes/core-contract';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -224,4 +225,19 @@ export const kbArticles = table(
       sql`${t.status} in ('draft', 'publish', 'scheduled', 'archived')`,
     ),
   ],
+);
+
+/**
+ * Each import batch core sent, by its `requestId`, with what its rows did: a retried batch
+ * answers this instead of writing its rows twice.
+ */
+export const transferRequests = table(
+  'transfer_requests',
+  {
+    id: text().primaryKey(),
+    orgId: text().notNull(),
+    result: jsonb().$type<PluginImportResult>().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [index('frontline_transfer_requests_org_created_idx').on(t.orgId, t.createdAt)],
 );

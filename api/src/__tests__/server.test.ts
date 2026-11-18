@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { createApp } from '#/server.ts';
+import { clientAs } from '#/test/member.ts';
 import { fakeCoreSessions } from '#/test/session.ts';
 
 /** The parts of the OpenAPI document these tests read. */
@@ -16,10 +17,10 @@ const OpenApiDoc = z.object({
 
 let base = '';
 let server: ReturnType<ReturnType<typeof createApp>['listen']>;
-let sessionToken: Awaited<ReturnType<typeof fakeCoreSessions>>;
+let core: Awaited<ReturnType<typeof fakeCoreSessions>>;
 
 beforeAll(async () => {
-  sessionToken = await fakeCoreSessions();
+  core = await fakeCoreSessions();
 
   await new Promise<void>((resolve) => {
     server = createApp().listen(0, () => resolve());
@@ -65,7 +66,7 @@ describe('server', () => {
 
   it('serves the procedures as REST to a member with a session token', async () => {
     const url = `${base}/api/v1/channels/list`;
-    const token = await sessionToken(`org-${randomUUID()}`, 'user-1', [PERMISSIONS.channelView]);
+    const token = await core.session(`org-${randomUUID()}`, 'user-1', [PERMISSIONS.channelView]);
 
     expect((await fetch(url, { method: 'POST' })).status).toBe(401);
 
@@ -77,6 +78,82 @@ describe('server', () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ channels: [] });
+  });
+
+  it('imports and exports tickets for core, once per request', async () => {
+    const orgId = `org-${randomUUID()}`;
+    const owner = clientAs(orgId);
+    const channel = await owner.channels.create({ name: 'Support', memberIds: ['user-1'] });
+    const pipeline = await owner.pipelines.create({ channelId: channel.id, name: 'Main' });
+
+    /** Core's request, signed over `signed` (the body unless a test forges one). */
+    const post = async (
+      kind: string,
+      request: Record<string, unknown>,
+      requestId = randomUUID(),
+      signed?: string,
+    ) => {
+      const body = JSON.stringify({
+        requestId,
+        orgId,
+        userId: 'user-1',
+        type: 'frontline:ticket',
+        kind,
+        ...request,
+      });
+
+      const token = await core.transfer(signed ?? body, { requestId, orgId });
+
+      return fetch(`${base}/api/transfer/${kind}`, {
+        method: 'POST',
+        headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+        body,
+      });
+    };
+
+    const batch = {
+      importId: randomUUID(),
+      mode: 'create',
+      rows: [
+        { rowNumber: 2, values: { name: 'Refund', pipeline: 'Main', priority: 'High' } },
+        { rowNumber: 3, values: { name: 'Late', pipeline: 'Nowhere' } },
+      ],
+    };
+
+    const check = await post('import', { ...batch, dryRun: true });
+
+    expect(await check.json()).toMatchObject({
+      rows: [
+        { rowNumber: 2, action: 'create' },
+        { rowNumber: 3, action: 'error', error: 'No pipeline Nowhere' },
+      ],
+    });
+    expect((await owner.tickets.list({ pipelineId: pipeline.id })).tickets).toEqual([]);
+
+    const requestId = randomUUID();
+    const once = async () => (await post('import', { ...batch, dryRun: false }, requestId)).json();
+    const first: unknown = await once();
+
+    expect(await once()).toEqual(first);
+    expect((await owner.tickets.list({ pipelineId: pipeline.id })).tickets).toMatchObject([
+      { name: 'Refund', priority: 3 },
+    ]);
+
+    const page = await post('export', {
+      columns: ['name', 'pipeline', 'priority', 'channel'],
+      query: {},
+      cursor: null,
+      limit: 10,
+    });
+
+    expect(await page.json()).toEqual({
+      cursor: null,
+      rows: [{ name: 'Refund', pipeline: 'Main', priority: 'High', channel: 'Support' }],
+    });
+
+    const forged = await post('import', { ...batch, dryRun: false }, randomUUID(), '{}');
+
+    expect(forged.status).toBe(401);
   });
 
   it.each(['/api/rpc', '/api/v1', '/ui'])(
