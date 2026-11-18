@@ -95,7 +95,7 @@ export const PersonLine = ({
 );
 
 const CHIP =
-  'group/chip inline-flex h-6 max-w-full items-center gap-1 rounded-sm bg-muted px-1.5 text-xs font-medium';
+  'group/chip inline-flex h-6 max-w-full items-center gap-1 rounded-sm bg-muted px-1 text-xs font-medium';
 
 /**
  * A person as a chip: avatar and name. Inside erxes a click opens them in core's side panel
@@ -116,7 +116,7 @@ const PersonChip = ({
 }) => {
   const { open, canOpen } = useOpenRecord();
 
-  if (loading) return <Skeleton radius="sm" className="h-5 w-20" />;
+  if (loading) return <Skeleton radius="sm" className="h-6 w-24" />;
 
   const face = (
     <>
@@ -146,7 +146,7 @@ const PersonChip = ({
       {face}
       <IconArrowUpRight
         aria-hidden="true"
-        className="size-3 flex-none text-muted-foreground opacity-0 transition-opacity group-hover/chip:opacity-100 group-focus-visible/chip:opacity-100"
+        className="size-3 flex-none text-muted-foreground opacity-0 group-hover/chip:opacity-100 group-focus-visible/chip:opacity-100"
       />
     </button>
   );
@@ -260,7 +260,7 @@ export const MemberLine = ({
 
   if (!id) return <span className="truncate text-xs text-muted-foreground">{placeholder}</span>;
 
-  if (!member) return <Skeleton className="h-4 w-20" />;
+  if (!member) return <Skeleton className="h-4 w-24" />;
 
   return <PersonLine name={name} src={member.avatarUrl} size={size} />;
 };
