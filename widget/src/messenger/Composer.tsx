@@ -37,7 +37,8 @@ export const Composer = ({
 
     try {
       await onSend(content, uploads.files);
-      setText('');
+      // The message shows before the send settles, so the visitor may already be typing the next.
+      setText((now) => (now === text ? '' : now));
       uploads.clear();
     } catch (failure) {
       setError(messageOf(failure));
