@@ -2,13 +2,13 @@ import {
   addMessenger,
   createChannel,
   expect,
-  expectAccessible,
   INBOX,
   recordPanel,
   test,
   unique,
   visitorOf,
 } from './fixtures.ts';
+import { expectAccessible } from './axe.ts';
 
 test('a member answers with a response template, formats it, attaches a file and mentions a teammate in a note', async ({
   page,

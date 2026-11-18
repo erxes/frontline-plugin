@@ -98,10 +98,31 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
 
+  # Whether the screens can look different: the dark theme's axe pass runs only then. A push
+  # to main always runs it.
+  changes:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      screens: ${{ github.event_name != 'pull_request' || steps.filter.outputs.screens == 'true' }}
+    steps:
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
+        id: filter
+        if: github.event_name == 'pull_request'
+        with:
+          filters: |
+            screens:
+              - 'ui/**'
+              - 'widget/**'
+              - 'e2e/**'
+              - 'pnpm-lock.yaml'
+              - '.github/workflows/ci.yml'
+
   # The plugin in web: core's released images plus the built image (e2e/stack.sh), in
   # Chromium with axe, split across three runners that each start their own stack.
   e2e:
-    needs: build
+    needs: [build, changes]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -141,8 +162,10 @@ jobs:
           for _ in $(seq 150); do [ -f "$RUNNER_TEMP/stack.status" ] && break; sleep 2; done
           cat "$RUNNER_TEMP/stack.log"
           exit "$(cat "$RUNNER_TEMP/stack.status")"
-      - name: Shard ${{ matrix.shard }} of the flows in light and every screen in light and dark
-        run: pnpm e2e --shard=${{ matrix.shard }}/3 --workers=3 --reporter=github,list
+      - name: Shard ${{ matrix.shard }} of the flows and screens in light, and the screens in dark if they changed
+        env:
+          PROJECTS: ${{ needs.changes.outputs.screens == 'true' && '' || '--project=light' }}
+        run: pnpm e2e --shard=${{ matrix.shard }}/3 --workers=3 --reporter=github,list $PROJECTS
       - name: Traces and screenshots of failed specs
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -158,7 +181,7 @@ jobs:
   required:
     name: Check
     if: always()
-    needs: [check, test, build, scan, e2e]
+    needs: [check, test, build, changes, scan, e2e]
     runs-on: ubuntu-latest
     permissions: {}
     steps:

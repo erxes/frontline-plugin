@@ -60,9 +60,7 @@ test('a visitor reads the knowledge base from its script on a website and in the
   }
 
   // A messenger that offers the topic has a Help articles tab, searched in place.
-  const channel = await rpc('channels/create', { name: `Site ${unique()}` }, Id);
-
-  const key = await messengerIn(rpc, channel.id, { knowledgeBaseTopicId: topic.id });
+  const key = await messengerIn(rpc, { knowledgeBaseTopicId: topic.id });
 
   await using site = await openMessenger(page.context(), key);
   const search = site.panel.getByRole('searchbox', { name: 'Search articles' });

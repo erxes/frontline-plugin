@@ -3,7 +3,6 @@ import {
   addMessenger,
   confirmDelete,
   expect,
-  expectAccessible,
   INBOX,
   openChannelPipelines,
   pick,
@@ -12,6 +11,7 @@ import {
   unique,
   visitorOf,
 } from './fixtures.ts';
+import { expectAccessible } from './axe.ts';
 
 const SURVEYS = '/frontline/surveys';
 

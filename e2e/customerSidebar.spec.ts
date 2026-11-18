@@ -3,7 +3,6 @@ import {
   createChannel,
   createPipeline,
   expect,
-  expectAccessible,
   INBOX,
   openChannelPipelines,
   pick,
@@ -12,6 +11,7 @@ import {
   unique,
   visitorOf,
 } from './fixtures.ts';
+import { expectAccessible } from './axe.ts';
 
 test('the customer, their tickets and their other conversations show beside the open one', async ({
   page,

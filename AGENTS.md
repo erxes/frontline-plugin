@@ -44,8 +44,8 @@ without line-by-line review.
   `pnpm check:rls`, `pnpm image` then `pnpm budgets`, and `pnpm e2e`. `vp run fix`
   formats and fixes lint. CI's one required status is `Check`.
 - `pnpm e2e:stack up` runs core's released images and the plugin image on a
-  fresh database, web on :8080. `pnpm e2e` drives Chromium; `a11y.spec.ts`
-  runs axe, light and dark. A screen a member reaches gets a spec, its refusal, an axe stop.
+  fresh database, web on :8080. `pnpm e2e` drives Chromium; `a11y*.spec.ts`
+  run axe, light and dark. A screen a member reaches gets a spec, its refusal, an axe stop.
 - `api/src/__tests__/access.test.ts` walks the router: every procedure refuses a
   member without its permission. Build procedures on `reads`/`writes`, never bare `os`.
 - `budgets.json` caps, gzipped, what web loads on every page (`./config`,

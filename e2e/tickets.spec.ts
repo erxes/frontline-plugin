@@ -4,7 +4,6 @@ import {
   confirmDelete,
   createPipeline,
   expect,
-  expectAccessible,
   INBOX,
   openChannelPipelines,
   openMessenger,
@@ -13,6 +12,7 @@ import {
   test,
   unique,
 } from './fixtures.ts';
+import { expectAccessible } from './axe.ts';
 
 const TICKETS = '/frontline/tickets';
 

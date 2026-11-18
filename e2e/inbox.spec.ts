@@ -4,7 +4,6 @@ import {
   addMessenger,
   createChannel,
   expect,
-  expectAccessible,
   INBOX,
   MESSENGER,
   openMessenger,
@@ -15,6 +14,7 @@ import {
   unique,
   visitorOf,
 } from './fixtures.ts';
+import { expectAccessible } from './axe.ts';
 
 /** Where a control starts from the left of the page, to check the order of a row. */
 const left = async (control: Locator) => (await control.boundingBox())?.x ?? Number.NaN;

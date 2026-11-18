@@ -1,4 +1,3 @@
-import { AxeBuilder } from '@axe-core/playwright';
 import { CORE_API_PREFIX, coreContract } from '@erxes/core-contract';
 import { createORPCClient } from '@orpc/client';
 import type { ContractRouterClient } from '@orpc/contract';
@@ -131,37 +130,6 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
   return client;
 };
 
-/**
- * Fails on serious or critical axe violations, listing each rule with the elements that break it.
- * Colours are checked at rest: once `shown`, which the page draws from its data, is visible, and
- * the page's animations end. Spinners loop forever, so only finite animations are waited for.
- */
-export const expectAccessible = async (page: Page, shown: Locator) => {
-  await expect(shown).toBeVisible();
-  await page.waitForFunction(() =>
-    document
-      .getAnimations()
-      .every(
-        (animation) =>
-          animation.playState !== 'running' ||
-          animation.effect?.getTiming().iterations === Infinity,
-      ),
-  );
-
-  const { violations } = await new AxeBuilder({ page }).analyze();
-
-  const blocking = violations
-    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
-    .map(
-      (violation) =>
-        `${violation.id} (${violation.impact}): ${violation.help}\n${violation.nodes
-          .map((node) => `  ${node.target.join(' ')}\n    ${node.html.slice(0, 200)}`)
-          .join('\n')}`,
-    );
-
-  expect(blocking, `axe on ${page.url()}`).toEqual([]);
-};
-
 /** A member of the owner's organisation, signed in on their own page, whose role holds `permissions`. */
 type NewMember = (permissions: string[]) => Promise<{ page: Page; id: string; fullName: string }>;
 
@@ -225,13 +193,17 @@ const Messenger = z.object({ publicKey: z.string() });
 /** The messenger settings the specs set when they add one through the API. */
 type MessengerConfig = { welcome?: string; knowledgeBaseTopicId?: string };
 
-/** A website messenger in `channelId`, added through the API with `config`. Returns its key. */
+/**
+ * A website messenger added through the API with `config`, in `channelId` or else a new channel.
+ * Returns its key.
+ */
 export const messengerIn = async (
   rpc: Awaited<ReturnType<typeof pluginApi>>,
-  channelId: string,
   config: MessengerConfig,
+  channelId?: string,
 ) => {
-  const input = { channelId, kind: 'messenger', name: 'Website', config };
+  const channel = channelId ?? (await rpc('channels/create', { name: `Site ${unique()}` }, Id)).id;
+  const input = { channelId: channel, kind: 'messenger', name: 'Website', config };
 
   return (await rpc('integrations/create', input, Messenger)).publicKey;
 };

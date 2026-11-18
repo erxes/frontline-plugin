@@ -3,13 +3,13 @@ import { z } from 'zod';
 import {
   confirmDelete,
   expect,
-  expectAccessible,
   openChannelPipelines,
   openShop,
   recordPanel,
   test,
   unique,
 } from './fixtures.ts';
+import { expectAccessible } from './axe.ts';
 
 const FORMS = '/frontline/forms';
 
