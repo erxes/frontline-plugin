@@ -70,7 +70,8 @@ const AddField = ({ formId, pageNumber }: { formId: string; pageNumber: number }
 
 /**
  * One step's card: its name, its fields in the order `ids` gives, and adding a field at its end.
- * Fields drop onto it from other steps, an empty one too.
+ * Fields drop onto it from other steps. An empty step takes them on its own drop zone, which is
+ * off once it has fields, so a field held over them lands beside one instead of on the zone.
  */
 const StepCard = ({
   form,
@@ -86,7 +87,7 @@ const StepCard = ({
   const { t } = useTranslation('frontline');
   const edit = useEditForm(form.id);
   const removeStep = useMutation(orpc.forms.fields.removeStep.mutationOptions(useFormChange()));
-  const { setNodeRef } = useDroppable({ id: stepZone(pageNumber) });
+  const { setNodeRef } = useDroppable({ id: stepZone(pageNumber), disabled: ids.length > 0 });
   const own = ids.flatMap((id) => fields.find((field) => field.id === id) ?? []);
   const step = form.steps[pageNumber - 1];
 
