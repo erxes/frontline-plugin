@@ -29,7 +29,7 @@ const TicketCard = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) 
       footer={
         <div className="flex min-w-0 items-center gap-1 text-xs">
           <PriorityCell ticket={ticket} act={act} />
-          <span className="ml-auto min-w-0 max-w-40">
+          <span className="min-w-0 flex-1">
             <AssigneeCell ticket={ticket} act={act} />
           </span>
           <TicketMenu ticket={ticket} act={act} />
