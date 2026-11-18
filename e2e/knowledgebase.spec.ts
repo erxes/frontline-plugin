@@ -140,8 +140,23 @@ test('a manager duplicates and deletes an article, then sets up and deletes its 
   await page.goto(articles.replace(/articles$/, 'kbsettings'));
   await page.getByRole('combobox', { name: 'Language' }).click();
   await page.getByRole('option', { name: 'English' }).click();
+
+  // With a change pending, a link away asks first; Cancel keeps the page and its change.
+  const settingsUrl = page.url();
+  const leave = page.getByRole('alertdialog');
+
+  await page.getByRole('link', { name: /^Tickets( \d+ unread)?$/ }).click();
+  await expect(leave).toContainText('Discard your unsaved changes?');
+  await leave.getByRole('button', { name: 'Cancel' }).click();
+  await expect(page).toHaveURL(settingsUrl);
+
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Topic saved')).toBeVisible();
+
+  // Saved, the page leaves without asking.
+  await page.getByRole('link', { name: /^Tickets( \d+ unread)?$/ }).click();
+  await expect(page).toHaveURL(/\/frontline\/tickets/);
+  await page.goto(settingsUrl);
 
   await page.getByRole('button', { name: 'Delete topic' }).click();
   await confirmDelete(page);
