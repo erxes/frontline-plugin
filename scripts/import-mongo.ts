@@ -1,5 +1,5 @@
 // Copies one organisation's documents from the old erxes Mongo into this
-// plugin's tables, following migration/import-map.ts.
+// plugin's tables, following scripts/import-map.ts.
 //
 //   MONGO_URL=mongodb://… DATA_URL=postgres://… ORG_ID=<core org id> \
 //     pnpm migrate:import [-- --only <collection>]
@@ -16,7 +16,7 @@
 import { parseArgs } from 'node:util';
 import { type Document, MongoClient, ObjectId } from 'mongodb';
 import { DatabaseError, Pool } from 'pg';
-import { IMPORT_MAP } from '../migration/import-map.ts';
+import { IMPORT_MAP } from './import-map.ts';
 
 const BATCH = 500;
 

@@ -6,13 +6,13 @@ tick an item once it works on the new core and its old bugs and workarounds are 
 and tick a drop once its code is left out (segments, the client portal and brands are not migrated).
 
 The old UI imports 145 symbols from `ui-modules` in 328 files; the host has no `ui-modules`, so each page rebuilds them from `erxes-ui` or `ui/src/shared`, and Plugin-wide's Shared UI section records which (members through its `SelectMember` and `MemberInline`, other records through `EntityPicker`). erxes-ui's own old-to-new component table is `packages/ui/MIGRATION.md` in erxes (branch `postgre`).
-GraphQL types (337) are listed in `migration/inventory.json` for reference; procedures replace them.
+Procedures replace the 337 GraphQL types.
 
 ## Plugin-wide
 
 ### Tables
 
-- [x] `frontline_teams` and `frontline_team_members` from old core's `departments`, `branches` and the members' `departmentIds` and `branchIds` (drafts in migration/schema-draft.ts, imported by scripts/import-mongo.ts): a read-only copy of core's units, which the plugin brings to core once with `units.import` and refreshes from `core.unit.*` events. `api/src/db/teams.ts` and `api/src/modules/teams/sync.ts`; members edit them at core's `/settings/structure`
+- [x] `frontline_teams` and `frontline_team_members` from old core's `departments`, `branches` and the members' `departmentIds` and `branchIds` (imported by scripts/import-mongo.ts): a read-only copy of core's units, which the plugin brings to core once with `units.import` and refreshes from `core.unit.*` events. `api/src/db/teams.ts` and `api/src/modules/teams/sync.ts`; members edit them at core's `/settings/structure`
 
 ### Pages
 
@@ -422,8 +422,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_channels` from collection `channels` (11 fields, draft `frontlineChannels` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:6`. `memberIds` repeated the members table and the counts go stale, so both are gone; `icon` holds a Tabler icon name from erxes-ui's IconPicker; `scope` became `owner_id`, set on a personal inbox.
-- [x] `frontline_channel_members` from collection `channel_members` (5 fields, draft `frontlineChannelMembers` in migration/schema-draft.ts) `frontline_api/src/modules/channel/db/definitions/channel.ts:53`. Roles are admin and member; the old `lead` (add members only) folds into admin, and a role check keeps one admin per channel.
+- [x] `frontline_channels` from collection `channels` (11 fields) `frontline_api/src/modules/channel/db/definitions/channel.ts:6`. `memberIds` repeated the members table and the counts go stale, so both are gone; `icon` holds a Tabler icon name from erxes-ui's IconPicker; `scope` became `owner_id`, set on a personal inbox.
+- [x] `frontline_channel_members` from collection `channel_members` (5 fields) `frontline_api/src/modules/channel/db/definitions/channel.ts:53`. Roles are admin and member; the old `lead` (add members only) folds into admin, and a role check keeps one admin per channel.
 
 ### Procedures
 
@@ -483,9 +483,9 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_form_fields` from collection `frontline_form_fields` (37 fields, draft `frontlineFormFields` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/fields.ts:137`. Only forms use it now, so the property fields (`groupId`, `isVisible`, `showInCard`, `productCategoryId` and the rest) are gone; `validation` and `regexValidation` fold into `validator`, a preset or an RE2 pattern; customer fields are types such as `core:customer:email`
-- [x] `frontline_forms` from collection `frontline_forms` (20 fields, draft `frontlineForms` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:318`. `leadData` flattens into columns; its email, redirect, CSS, template and `rules` settings are gone (DECISIONS.md, Forms)
-- [x] `frontline_form_submissions` from collection `frontline_form_submissions` (13 fields, draft `frontlineFormSubmissions` in migration/schema-draft.ts) `frontline_api/src/modules/form/db/definitions/forms.ts:114`. One row per submission, with one `frontline_form_answers` row per answered field; `aboutRecord` is `referenceType` and `referenceId`
+- [x] `frontline_form_fields` from collection `frontline_form_fields` (37 fields) `frontline_api/src/modules/form/db/definitions/fields.ts:137`. Only forms use it now, so the property fields (`groupId`, `isVisible`, `showInCard`, `productCategoryId` and the rest) are gone; `validation` and `regexValidation` fold into `validator`, a preset or an RE2 pattern; customer fields are types such as `core:customer:email`
+- [x] `frontline_forms` from collection `frontline_forms` (20 fields) `frontline_api/src/modules/form/db/definitions/forms.ts:318`. `leadData` flattens into columns; its email, redirect, CSS, template and `rules` settings are gone (DECISIONS.md, Forms)
+- [x] `frontline_form_submissions` from collection `frontline_form_submissions` (13 fields) `frontline_api/src/modules/form/db/definitions/forms.ts:114`. One row per submission, with one `frontline_form_answers` row per answered field; `aboutRecord` is `referenceType` and `referenceId`
 - [x] `formSchema.departmentIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/form/db/definitions/forms.ts:318`. Dropped: no screen set or read it, and a form follows its channel (the forms row in DECISIONS.md)
 
 ### Procedures
@@ -586,7 +586,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_help_center_configs` from collection `frontline_help_center_configs` (28 fields, draft `frontlineHelpCenterConfigs` in migration/schema-draft.ts) `frontline_api/src/modules/helpcenter/db/definitions/helpCenterConfig.ts:78`. `frontline_help_centers` in `api/src/db/helpcenter.ts` (decision)
+- [x] `frontline_help_center_configs` from collection `frontline_help_center_configs` (28 fields) `frontline_api/src/modules/helpcenter/db/definitions/helpCenterConfig.ts:78`. `frontline_help_centers` in `api/src/db/helpcenter.ts` (decision)
 
 ### Procedures
 
@@ -613,11 +613,11 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_integrations` from collection `integrations` (16 fields, draft `frontlineIntegrations` in migration/schema-draft.ts) `frontline_api/src/modules/inbox/db/definitions/integrations.ts:310`
-- [x] `frontline_conversations` from collection `conversations` (3 fields, draft `frontlineConversations` in migration/schema-draft.ts) `frontline_api/src/modules/inbox/db/definitions/conversations.ts:111`
-- [x] `frontline_conversation_messages` from collection `conversation_messages` (27 fields, draft `frontlineConversationMessages` in migration/schema-draft.ts) `frontline_api/src/modules/inbox/db/definitions/conversationMessages.ts:60`
-- [x] `frontline_messenger_apps` from collection `messenger_apps` (6 fields, draft `frontlineMessengerApps` in migration/schema-draft.ts) `frontline_api/src/modules/inbox/db/definitions/messengerApps.ts:49`
-- [x] `frontline_configs` from collection `configs` (3 fields, draft `frontlineConfigs` in migration/schema-draft.ts) `frontline_api/src/modules/inbox/@types/configs.ts:16`
+- [x] `frontline_integrations` from collection `integrations` (16 fields) `frontline_api/src/modules/inbox/db/definitions/integrations.ts:310`
+- [x] `frontline_conversations` from collection `conversations` (3 fields) `frontline_api/src/modules/inbox/db/definitions/conversations.ts:111`
+- [x] `frontline_conversation_messages` from collection `conversation_messages` (27 fields) `frontline_api/src/modules/inbox/db/definitions/conversationMessages.ts:60`
+- [x] `frontline_messenger_apps` from collection `messenger_apps` (6 fields) `frontline_api/src/modules/inbox/db/definitions/messengerApps.ts:49`
+- [x] `frontline_configs` from collection `configs` (3 fields) `frontline_api/src/modules/inbox/@types/configs.ts:16`
 
 ### Procedures
 
@@ -830,25 +830,25 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] `frontline_calls_queue_statistics` from collection `calls_queue_statistics` → `frontline_call_queues`, the day's counters and the live board `frontline_api/src/modules/integrations/call/db/definitions/queueStatistics.ts:15`
 - [x] `frontline_calls_sessions` from collection `calls_sessions` → `frontline_calls` `frontline_api/src/modules/integrations/call/db/definitions/callSessions.ts:19`
 - [x] `frontline_facebook_messengers_bots` → `frontline_meta_bots`, one bot per page or account `frontline_api/src/modules/integrations/facebook/db/definitions/bots.ts:99`
-- [x] `frontline_discord_bots` from collection `discord_bots` (12 fields, draft `frontlineDiscordBots` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/bots.ts:22`. Folded into `frontline_integration_accounts`
-- [x] `frontline_customers_discord` from collection `customers_discord` (7 fields, draft `frontlineCustomersDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
-- [x] `frontline_conversations_discord` from collection `conversations_discord` (12 fields, draft `frontlineConversationsDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/conversations.ts:4`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
-- [x] `frontline_conversation_messages_discord` from collection `conversation_messages_discord` (14 fields, draft `frontlineConversationMessagesDiscord` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/discord/db/definitions/conversationMessages.ts:14`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
-- [x] `frontline_telegram_reactions` from collection `telegram_reactions` (8 fields, draft `frontlineTelegramReactions` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/models/Reactions.ts:4`. `frontline_message_reactions`, for every provider (`api/src/db/inbox.ts`)
+- [x] `frontline_discord_bots` from collection `discord_bots` (12 fields) `frontline_api/src/modules/integrations/discord/db/definitions/bots.ts:22`. Folded into `frontline_integration_accounts`
+- [x] `frontline_customers_discord` from collection `customers_discord` (7 fields) `frontline_api/src/modules/integrations/discord/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
+- [x] `frontline_conversations_discord` from collection `conversations_discord` (12 fields) `frontline_api/src/modules/integrations/discord/db/definitions/conversations.ts:4`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
+- [x] `frontline_conversation_messages_discord` from collection `conversation_messages_discord` (14 fields) `frontline_api/src/modules/integrations/discord/db/definitions/conversationMessages.ts:14`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
+- [x] `frontline_telegram_reactions` from collection `telegram_reactions` (8 fields) `frontline_api/src/modules/integrations/telegram/db/models/Reactions.ts:4`. `frontline_message_reactions`, for every provider (`api/src/db/inbox.ts`)
   - note: reactions go out through each provider's adapter, and no adapter sends one yet (the HTML messages, reactions and custom fields row in DECISIONS.md)
-- [x] `frontline_telegram_bots` from collection `telegram_bots` (11 fields, draft `frontlineTelegramBots` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/bots.ts:4`. Folded into `frontline_integration_accounts`
-- [x] `frontline_customers_telegram` from collection `customers_telegram` (7 fields, draft `frontlineCustomersTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
-- [x] `frontline_conversations_telegram` from collection `conversations_telegram` (11 fields, draft `frontlineConversationsTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/conversations.ts:4`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
-- [x] `frontline_conversation_messages_telegram` from collection `conversation_messages_telegram` (24 fields, draft `frontlineConversationMessagesTelegram` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/telegram/db/definitions/conversationMessages.ts:5`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
+- [x] `frontline_telegram_bots` from collection `telegram_bots` (11 fields) `frontline_api/src/modules/integrations/telegram/db/definitions/bots.ts:4`. Folded into `frontline_integration_accounts`
+- [x] `frontline_customers_telegram` from collection `customers_telegram` (7 fields) `frontline_api/src/modules/integrations/telegram/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
+- [x] `frontline_conversations_telegram` from collection `conversations_telegram` (11 fields) `frontline_api/src/modules/integrations/telegram/db/definitions/conversations.ts:4`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
+- [x] `frontline_conversation_messages_telegram` from collection `conversation_messages_telegram` (24 fields) `frontline_api/src/modules/integrations/telegram/db/definitions/conversationMessages.ts:5`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
 - [x] `frontline_integrations_callpro` from collection `integrations_callpro` → `frontline_integration_accounts` (`callpro`) `frontline_api/src/modules/integrations/callpro/db/definitions/integrations.ts:4`
 - [x] `frontline_customers_callpro` from collection `customers_callpro` → core's customer, found or created by phone, linked in `frontline_customer_links` `frontline_api/src/modules/integrations/callpro/db/definitions/customers.ts:4`
 - [x] `frontline_conversations_callpro` from collection `conversations_callpro` → `frontline_calls` and the call's inbox conversation `frontline_api/src/modules/integrations/callpro/db/definitions/conversations.ts:4`
 - [x] `frontline_logs_callpro` from collection `logs_callpro` → dropped: the structured logger `frontline_api/src/modules/integrations/callpro/db/definitions/logs.ts:4`
-- [x] `frontline_mail_integrations` from collection `mail_integrations` (13 fields, draft `frontlineMailIntegrations` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/integrations.ts:17`. Folded into `frontline_integration_accounts`; pipeline addresses wait with Cloudflare routing
-- [x] `frontline_mail_customers` from collection `mail_customers` (6 fields, draft `frontlineMailCustomers` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
-- [x] `frontline_mail_messages` from collection `mail_messages` (33 fields, draft `frontlineMailMessages` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/messages.ts:31`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
-- [x] `frontline_mail_drafts` from collection `mail_drafts` (15 fields, draft `frontlineMailDrafts` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/drafts.ts:5`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
-- [x] `frontline_mail_cloudflare` from collection `mail_cloudflare` (22 fields, draft `frontlineMailCloudflare` in migration/schema-draft.ts) `frontline_api/src/modules/integrations/mail/db/definitions/cloudflare.ts:15`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
+- [x] `frontline_mail_integrations` from collection `mail_integrations` (13 fields) `frontline_api/src/modules/integrations/mail/db/definitions/integrations.ts:17`. Folded into `frontline_integration_accounts`; pipeline addresses wait with Cloudflare routing
+- [x] `frontline_mail_customers` from collection `mail_customers` (6 fields) `frontline_api/src/modules/integrations/mail/db/definitions/customers.ts:4`. Folded into `frontline_customer_links` and core's customers
+- [x] `frontline_mail_messages` from collection `mail_messages` (33 fields) `frontline_api/src/modules/integrations/mail/db/definitions/messages.ts:31`. Folded into the inbox's `frontline_conversations` and `frontline_messages`
+- [x] `frontline_mail_drafts` from collection `mail_drafts` (15 fields) `frontline_api/src/modules/integrations/mail/db/definitions/drafts.ts:5`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
+- [x] `frontline_mail_cloudflare` from collection `mail_cloudflare` (22 fields) `frontline_api/src/modules/integrations/mail/db/definitions/cloudflare.ts:15`. Dropped: Cloudflare mail, its drafts and its pipelines are left out (DECISIONS.md, Integrations)
 
 ### Procedures
 
@@ -1076,9 +1076,9 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_knowledgebase_articles` from collection `knowledgebase_articles` (23 fields, draft `frontlineKnowledgebaseArticles` in migration/schema-draft.ts) `frontline_api/src/modules/knowledgebase/db/definitions/article.ts:13`. Decision: `topicId`, `code`, `forms`, `reactionCounts`, `publishedUserId`, `modifiedBy`, `modifiedDate` and `createdDate` are gone; the category gives the topic, and deleting the category deletes its articles. `scheduledDate` is `scheduled_at`.
-- [x] `frontline_knowledgebase_categories` from collection `knowledgebase_categories` (11 fields, draft `frontlineKnowledgebaseCategories` in migration/schema-draft.ts) `frontline_api/src/modules/knowledgebase/db/definitions/category.ts:4`. Decision: `parentCategoryId` is `parent_id`, a foreign key that lifts children to the top when their parent goes; a category's `code`, like a topic's, is unique in its organisation.
-- [x] `frontline_knowledgebase_topics` from collection `knowledgebase_topics` (13 fields, draft `frontlineKnowledgebaseTopics` in migration/schema-draft.ts) `frontline_api/src/modules/knowledgebase/db/definitions/topic.ts:4`. Decision: `brandId` goes with brands, `notificationSegmentId` with segments, and `categoryIds` repeated the categories table. Deleting a topic deletes its categories and articles.
+- [x] `frontline_knowledgebase_articles` from collection `knowledgebase_articles` (23 fields) `frontline_api/src/modules/knowledgebase/db/definitions/article.ts:13`. Decision: `topicId`, `code`, `forms`, `reactionCounts`, `publishedUserId`, `modifiedBy`, `modifiedDate` and `createdDate` are gone; the category gives the topic, and deleting the category deletes its articles. `scheduledDate` is `scheduled_at`.
+- [x] `frontline_knowledgebase_categories` from collection `knowledgebase_categories` (11 fields) `frontline_api/src/modules/knowledgebase/db/definitions/category.ts:4`. Decision: `parentCategoryId` is `parent_id`, a foreign key that lifts children to the top when their parent goes; a category's `code`, like a topic's, is unique in its organisation.
+- [x] `frontline_knowledgebase_topics` from collection `knowledgebase_topics` (13 fields) `frontline_api/src/modules/knowledgebase/db/definitions/topic.ts:4`. Decision: `brandId` goes with brands, `notificationSegmentId` with segments, and `categoryIds` repeated the categories table. Deleting a topic deletes its categories and articles.
 
 ### Procedures
 
@@ -1132,7 +1132,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_report_charts` from collection `frontline_report_charts` (7 fields, draft `frontlineReportCharts` in migration/schema-draft.ts) `frontline_api/src/modules/reports/db/definitions/chart.ts:45`. Dropped: core's dashboard layout keeps each member's tiles (DECISIONS.md, Reports)
+- [x] `frontline_report_charts` from collection `frontline_report_charts` (7 fields) `frontline_api/src/modules/reports/db/definitions/chart.ts:45`. Dropped: core's dashboard layout keeps each member's tiles (DECISIONS.md, Reports)
 - [x] `reportChartFiltersSchema.branchIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/reports/db/definitions/chart.ts:13`. Dropped with the saved charts
 
 ### Procedures
@@ -1207,13 +1207,13 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:277`. Not needed: the custom field report waits on a report page (filed https://github.com/erxes/erxes/issues/10654)
 - [x] core `tags.find` → plugin-owned `frontline_tags` (core's tags are for customers and companies (decision 9)) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:535`. Joined from `frontline_tags` in the report query
 - [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:641`. Not needed: the custom field report waits on a report page (filed https://github.com/erxes/erxes/issues/10654)
-- [x] core `<module>.find` → **gap**: not in migration/core-map.ts yet `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:880`. Not needed: it named the ticket list's pipelines, statuses, channels and teams, and the list waits on a report page (filed https://github.com/erxes/erxes/issues/10654)
+- [x] core `<module>.find` → **gap**: core had no equivalent `frontline_api/src/modules/reports/graphql/resolvers/ticketQueries.ts:880`. Not needed: it named the ticket list's pipelines, statuses, channels and teams, and the list waits on a report page (filed https://github.com/erxes/erxes/issues/10654)
 
 ## response
 
 ### Tables
 
-- [x] `frontline_response_templates` from collection `response_templates` (8 fields, draft `frontlineResponseTemplates` in migration/schema-draft.ts) `frontline_api/src/modules/response/db/definitions/responseTemplates.ts:6`. Decision: `files` is gone, since no screen set it. Deleting a channel deletes its templates.
+- [x] `frontline_response_templates` from collection `response_templates` (8 fields) `frontline_api/src/modules/response/db/definitions/responseTemplates.ts:6`. Decision: `files` is gone, since no screen set it. Deleting a channel deletes its templates.
 
 ### Procedures
 
@@ -1249,8 +1249,8 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_surveys` from collection `frontline_surveys` (15 fields, draft `frontlineSurveys` in migration/schema-draft.ts) `frontline_api/src/modules/survey/db/definitions/surveys.ts:71`. Steps only: the old single `question`, `options` and `allowMultiselect` are gone, as are `brandId` and `createdCpUserId`
-- [x] `frontline_survey_votes` from collection `frontline_survey_votes` (9 fields, draft `frontlineSurveyVotes` in migration/schema-draft.ts) `frontline_api/src/modules/survey/db/definitions/surveys.ts:106`. One vote per voter and message; `cpUserId` is gone with the client portal
+- [x] `frontline_surveys` from collection `frontline_surveys` (15 fields) `frontline_api/src/modules/survey/db/definitions/surveys.ts:71`. Steps only: the old single `question`, `options` and `allowMultiselect` are gone, as are `brandId` and `createdCpUserId`
+- [x] `frontline_survey_votes` from collection `frontline_survey_votes` (9 fields) `frontline_api/src/modules/survey/db/definitions/surveys.ts:106`. One vote per voter and message; `cpUserId` is gone with the client portal
 
 ### Procedures
 
@@ -1309,14 +1309,14 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 
 ### Tables
 
-- [x] `frontline_tickets_pipeline` from collection `frontline_tickets_pipeline` (24 fields, draft `frontlineTicketsPipeline` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. Decision: the table is `frontline_pipelines`; deleting a channel deletes its pipelines. `numberSize` is an integer from 1 to 8 and `slaPolicy` is parsed. `order`, `state`, `isHideName` and `tagId` are gone, since no screen set them. The permission, layout and counter fields stay in the import map for their ports
-- [x] `frontline_tickets_pipeline_status` from collection `frontline_tickets_pipeline_status` (14 fields, draft `frontlineTicketsPipelineStatus` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/status.ts:4`. Decision: the table is `frontline_pipeline_statuses`, `type` is checked to 1 to 6 and deleting a pipeline deletes its statuses. `state` and `probability` are gone; the visibility fields stay in the import map for the permissions port
-- [x] `frontline_tickets` from collection `frontline_tickets` (33 fields, draft `frontlineTickets` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`. Decision: a ticket keeps its channel, and its pipeline and status are foreign keys, so a status in use can't go and deleting a channel deletes its tickets. `number` is unique per pipeline, `priority` is checked to 0 to 4, the SLA times are columns. Assigned members, tags, properties, teams, contacts and survey stay in the import map for their ports
-- [x] `frontline_ticket_activities` from collection `frontline_ticket_activities` (5 fields, draft `frontlineTicketActivities` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/activity.ts:26`. Core's Activity tab (decision)
+- [x] `frontline_tickets_pipeline` from collection `frontline_tickets_pipeline` (24 fields) `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. Decision: the table is `frontline_pipelines`; deleting a channel deletes its pipelines. `numberSize` is an integer from 1 to 8 and `slaPolicy` is parsed. `order`, `state`, `isHideName` and `tagId` are gone, since no screen set them. The permission, layout and counter fields stay in the import map for their ports
+- [x] `frontline_tickets_pipeline_status` from collection `frontline_tickets_pipeline_status` (14 fields) `frontline_api/src/modules/ticket/db/definitions/status.ts:4`. Decision: the table is `frontline_pipeline_statuses`, `type` is checked to 1 to 6 and deleting a pipeline deletes its statuses. `state` and `probability` are gone; the visibility fields stay in the import map for the permissions port
+- [x] `frontline_tickets` from collection `frontline_tickets` (33 fields) `frontline_api/src/modules/ticket/db/definitions/ticket.ts:35`. Decision: a ticket keeps its channel, and its pipeline and status are foreign keys, so a status in use can't go and deleting a channel deletes its tickets. `number` is unique per pipeline, `priority` is checked to 0 to 4, the SLA times are columns. Assigned members, tags, properties, teams, contacts and survey stay in the import map for their ports
+- [x] `frontline_ticket_activities` from collection `frontline_ticket_activities` (5 fields) `frontline_api/src/modules/ticket/db/definitions/activity.ts:26`. Core's Activity tab (decision)
   - note: no table; new changes go to core's timeline as events. The old entries wait for core to import timeline entries
-- [x] `frontline_tickets_notes` from collection `frontline_tickets_notes` (8 fields, draft `frontlineTicketsNotes` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/note.ts:9`. Core's Activity tab holds the notes (decision)
+- [x] `frontline_tickets_notes` from collection `frontline_tickets_notes` (8 fields) `frontline_api/src/modules/ticket/db/definitions/note.ts:9`. Core's Activity tab holds the notes (decision)
   - note: no table; notes are core's timeline notes on the ticket's Activity tab. The old notes wait for core to import timeline notes
-- [x] `frontline_ticket_configs` from collection `frontline_ticket_configs` (7 fields, draft `frontlineTicketConfigs` in migration/schema-draft.ts) `frontline_api/src/modules/ticket/db/definitions/ticketConfig.ts:36`. Folded into `frontline_ticket_properties` (decision)
+- [x] `frontline_ticket_configs` from collection `frontline_ticket_configs` (7 fields) `frontline_api/src/modules/ticket/db/definitions/ticketConfig.ts:36`. Folded into `frontline_ticket_properties` (decision)
 - [x] `ticketPipelineSchema.isCheckDepartment` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. `frontline_pipelines.is_check_department`
 - [x] `ticketPipelineSchema.isCheckBranch` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. `frontline_pipelines.is_check_branch`
 - [x] `ticketPipelineSchema.departmentIds` → core units: ids kept by `units.import`, copied to `frontline_teams` `frontline_api/src/modules/ticket/db/definitions/pipeline.ts:22`. Dropped (decision)
@@ -1430,7 +1430,7 @@ GraphQL types (337) are listed in `migration/inventory.json` for reference; proc
 - [x] core `fields.find` → plugin-owned `frontline_fields` (core custom fields cover customers, companies and products) `frontline_api/src/modules/ticket/utils/pipelineProperties.ts:15`. `frontline_ticket_properties`
   - note: waits for custom properties
 - [x] core `branches.findOne` → sdk `units.list` (scopes units:read and units:write, subscription core.unit.*; a read-only copy in frontline_teams and frontline_team_members, old ones brought to core once with units.import) `frontline_api/src/modules/ticket/utils/slaCalendar.ts:26`. SLA due times count clock hours until core's units carry working hours and holidays (filed https://github.com/erxes/erxes/issues/10651)
-- [x] core `<module>.findWithChild` → **gap**: not in migration/core-map.ts yet `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:29`. `teamsOf` walks `frontline_teams.parent_id`
+- [x] core `<module>.findWithChild` → **gap**: core had no equivalent `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:29`. `teamsOf` walks `frontline_teams.parent_id`
   - note: waits for teams
 - [x] core `configs.getConfigs` → plugin-owned `frontline_settings` (country and currency: organizations.current (sdk)) `frontline_api/src/modules/ticket/utils/teamMemberRestriction.ts:50`. The pipeline's `isCheckDepartment` and `isCheckBranch` (decision)
   - note: waits for teams

@@ -1,1 +1,0 @@
-DROP TABLE "frontline_items" CASCADE;
