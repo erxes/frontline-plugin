@@ -5,7 +5,7 @@ import type { SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
-import { ChannelRow, useManagedChannels } from '~/shared/ChannelSelect.tsx';
+import { ChannelRow, useNewRecordChannel } from '~/shared/ChannelSelect.tsx';
 import { draftsOf, useDiscard, useDraft } from '~/shared/drafts.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { LoadTypeSelect } from './FormSettings.tsx';
@@ -29,7 +29,6 @@ const formDrafts = draftsOf(
  */
 export const FormNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
-  const first = useManagedChannels()[0]?.id ?? '';
 
   const draft = useDraft(formDrafts, 'new', {
     channelId: textOf(defaults.channelId),
@@ -38,7 +37,7 @@ export const FormNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) =>
     loadType: 'embedded',
   });
 
-  const channelId = draft.value.channelId || first;
+  const channelId = useNewRecordChannel(draft.value.channelId);
   const { onSuccess } = useFormChange();
   const discard = useDiscard(Boolean(draft.value.name || draft.value.title), draft.clear, onCancel);
 

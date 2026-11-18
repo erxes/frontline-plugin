@@ -12,7 +12,7 @@ import { type SubmitEvent, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
-import { ChannelRow, useManagedChannels } from '~/shared/ChannelSelect.tsx';
+import { ChannelRow, useNewRecordChannel } from '~/shared/ChannelSelect.tsx';
 import { draftsOf, useDiscard, useDraft } from '~/shared/drafts.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { useSurveyChange } from './useSurveys.ts';
@@ -79,7 +79,6 @@ const QuestionRows = ({ draft, save }: { draft: Draft; save: Save }) => {
  */
 export const SurveyNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
-  const first = useManagedChannels()[0]?.id ?? '';
 
   const draft = useDraft(surveyDrafts, 'new', {
     channelId: textOf(defaults.channelId),
@@ -90,7 +89,7 @@ export const SurveyNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
   });
 
   const { channelId: picked, title, question, options, allowMultiselect } = draft.value;
-  const channelId = picked || first;
+  const channelId = useNewRecordChannel(picked);
   const { onSuccess } = useSurveyChange();
   const discard = useDiscard(Boolean(title || question || options.length), draft.clear, onCancel);
 
