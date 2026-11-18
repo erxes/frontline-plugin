@@ -146,6 +146,7 @@ const openCall = async (row: AccountRow, init: NewCall) => {
       init.direction === 'incoming'
         ? `Incoming call from ${init.customerPhone}`
         : `Outgoing call to ${init.customerPhone}`,
+    outgoing: init.direction !== 'incoming',
   });
 
   return withOrg(row.orgId, async (tx) => {

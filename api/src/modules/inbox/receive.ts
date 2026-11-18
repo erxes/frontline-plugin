@@ -115,6 +115,8 @@ export type Incoming = {
   providerData?: Record<string, unknown>;
   /** The event type a new message publishes for automations to start from. */
   event?: string;
+  /** A member started it, as with an outgoing call, so no one hears it arrive. */
+  outgoing?: boolean;
 };
 
 /** The conversation `incoming` belongs to, locked, or a new one with its `started` event. */
@@ -270,7 +272,7 @@ export const receiveIn = async (tx: Tx, orgId: string, incoming: Incoming) => {
     content: message.content,
   });
 
-  await signalArrival(tx, orgId, conversation);
+  if (!incoming.outgoing) await signalArrival(tx, orgId, conversation);
 
   return { message, changed: conversation };
 };
