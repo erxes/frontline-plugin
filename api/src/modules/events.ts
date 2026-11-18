@@ -78,6 +78,8 @@ const auditSql = (
 /**
  * Publishes the events with core's `core_publish_event()` in the caller's transaction, so they
  * land on each record's Activity tab, and on its customer's, exactly when the change commits.
+ * Each gets the moment it was published, not the transaction's start, so a record's events in one
+ * change keep their order on the tab.
  * Core notifies each event's `notify` members but the one who made the change.
  */
 export const publishEvents = async (tx: Tx, timeline: Timeline, events: RecordEvent[]) => {
@@ -99,7 +101,8 @@ export const publishEvents = async (tx: Tx, timeline: Timeline, events: RecordEv
       p_link => ${timeline.linkOf(event.entityId)},
       p_actor_user_id => ${timeline.actorUserId},
       p_entity_type => ${timeline.entityType},
-      p_entity_id => ${event.entityId}
+      p_entity_id => ${event.entityId},
+      p_occurred_at => clock_timestamp()
     )`;
 
     return timeline.audited

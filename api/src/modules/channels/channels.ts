@@ -14,7 +14,7 @@ import {
 } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
-import { PERMISSIONS } from '#/core.ts';
+import { CHANNEL_EVENTS, CHANNEL_REMOVED, PERMISSIONS } from '#/core.ts';
 import { type Tx, uniqueViolation } from '#/db/client.ts';
 import { forms } from '#/db/forms.ts';
 import {
@@ -27,14 +27,17 @@ import {
 import { pipelines } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { auditRemoved, changedEvent } from '../events.ts';
 import { FilterInput, likeText } from '../filter.ts';
 import {
   canChangeSql,
   channelFor,
   channelsFor,
+  channelTimeline,
   insertMembers,
   managesAll,
   membership,
+  publishChannelEvents,
 } from './access.ts';
 
 const Name = z.string().trim().min(1).max(100);
@@ -189,12 +192,28 @@ const create = writes(PERMISSIONS.channelManage)
 
     if (!channel) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
+    await publishChannelEvents(tx, member, [
+      {
+        entityId: channel.id,
+        type: CHANNEL_EVENTS.created.type,
+        summary: `Created ${fields.name}`,
+        payload: { name: fields.name },
+      },
+    ]);
     await insertMembers(tx, member, channel.id, [member.userId], 'admin');
     await insertMembers(tx, member, channel.id, others, 'member');
 
     return channelById(tx, member, channel.id);
   });
 
+/** The fields a change names on the timeline. */
+const NAMES: [keyof z.infer<typeof Channel>, string][] = [
+  ['name', 'name'],
+  ['description', 'description'],
+  ['icon', 'icon'],
+];
+
+/** Renames a channel, or changes its description or icon. */
 const update = writes(PERMISSIONS.channelView)
   .errors(channelErrors)
   .input(
@@ -208,13 +227,24 @@ const update = writes(PERMISSIONS.channelView)
   .output(Channel)
   .handler(async ({ input: { id, ...fields }, context: { tx, member }, errors }) => {
     await channelFor(tx, member, id, { change: true });
+
+    const before = await channelById(tx, member, id);
+
     await tx
       .update(channels)
       .set(fields)
       .where(eq(channels.id, id))
       .catch(nameTaken(errors, fields.name));
 
-    return channelById(tx, member, id);
+    const changed = await channelById(tx, member, id);
+
+    await publishChannelEvents(
+      tx,
+      member,
+      changedEvent(CHANNEL_EVENTS.fieldsChanged.type, NAMES, before, changed),
+    );
+
+    return changed;
   });
 
 /** Deletes the channels and their memberships, all of them or none when the caller may not delete one. */
@@ -227,7 +257,9 @@ const remove = writes(PERMISSIONS.channelView)
     const removed = await tx
       .delete(channels)
       .where(inArray(channels.id, input.ids))
-      .returning({ id: channels.id });
+      .returning({ id: channels.id, name: channels.name });
+
+    await auditRemoved(tx, channelTimeline(member), CHANNEL_REMOVED, removed);
 
     return { ids: removed.map((row) => row.id) };
   });
@@ -250,7 +282,17 @@ const personal = writes(PERMISSIONS.channelView)
       .onConflictDoNothing()
       .returning({ id: channels.id });
 
-    if (made) await insertMembers(tx, member, made.id, [member.userId], 'admin');
+    if (made) {
+      await publishChannelEvents(tx, member, [
+        {
+          entityId: made.id,
+          type: CHANNEL_EVENTS.created.type,
+          summary: 'Created a personal inbox',
+          payload: { name: 'Personal inbox' },
+        },
+      ]);
+      await insertMembers(tx, member, made.id, [member.userId], 'admin');
+    }
 
     const [row] = await channelRows(tx, member).where(eq(channels.ownerId, member.userId));
 
