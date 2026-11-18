@@ -18,7 +18,7 @@ import { fail } from '../fail.ts';
 import { createFormLink } from '../forms/links.ts';
 import { sendKindOf, sendMessage } from '../integrations/actions.ts';
 import { addBotMessage, setOperatorOf } from './operator.ts';
-import { publishConversationEvents, signalConversations } from './shared.ts';
+import { publishConversationEvents, signalConversations, signalMembers } from './shared.ts';
 
 /** What core POSTs: the step's input, and the event that started the run. */
 const Body = z.object({
@@ -99,7 +99,7 @@ const handOff = async (call: CoreCall, body: Body) => {
           payload: { assigneeId, automationId: call.automationId },
         },
       ]);
-      await signalConversations(tx, call.orgId, []);
+      await signalMembers(tx, call.orgId, [row.id]);
     }
 
     return row;

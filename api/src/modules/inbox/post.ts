@@ -6,7 +6,7 @@ import type { Tx } from '#/db/client.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
 import type { Attachment } from '#/db/table.ts';
 import { ADAPTERS } from './adapters.ts';
-import { signalConversations } from './shared.ts';
+import { signalConversations, signalMembers } from './shared.ts';
 
 /** The row without `org_id`, which the caller already knows, and what only adapters read. */
 const { orgId: _orgId, providerData: _providerData, ...columns } = getTableColumns(messages);
@@ -97,7 +97,10 @@ export const postMessage = async (
 
   if (queued) await queueSend(tx, author.orgId, message.id, message.id);
 
-  await signalConversations(tx, author.orgId, written.internal ? [] : [conversation]);
+  // A note stays in the inbox, so the visitor hears only of a reply.
+  await (written.internal
+    ? signalMembers(tx, author.orgId, [conversation.id])
+    : signalConversations(tx, author.orgId, [conversation]));
 
   return message;
 };

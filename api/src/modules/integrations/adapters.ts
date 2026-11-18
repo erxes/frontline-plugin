@@ -13,7 +13,7 @@ import {
 import { logger } from '#/logger.ts';
 import type { Adapter } from '../inbox/adapters.ts';
 import { customerFor, receive } from '../inbox/receive.ts';
-import { signalConversations } from '../inbox/shared.ts';
+import { signalMembers } from '../inbox/shared.ts';
 import {
   type AccountRow,
   type InboundMessage,
@@ -225,9 +225,13 @@ export const deliverReactions = async (row: AccountRow, reactions: InboundReacti
 
   await withOrg(row.orgId, async (tx) => {
     // One transaction: the changes go one after another on its connection.
-    await inOrder(reactions, async (reaction) => {
+    const changed = await inOrder(reactions, async (reaction) => {
       const [found] = await tx
-        .select({ messageId: messages.id, customerId: customerLinks.customerId })
+        .select({
+          messageId: messages.id,
+          conversationId: messages.conversationId,
+          customerId: customerLinks.customerId,
+        })
         .from(messages)
         .innerJoin(conversations, eq(conversations.id, messages.conversationId))
         .innerJoin(
@@ -245,7 +249,7 @@ export const deliverReactions = async (row: AccountRow, reactions: InboundReacti
           ),
         );
 
-      if (!found) return;
+      if (!found) return [];
 
       await tx
         .delete(messageReactions)
@@ -265,8 +269,10 @@ export const deliverReactions = async (row: AccountRow, reactions: InboundReacti
             emoji,
           })),
         );
+
+      return [found.conversationId];
     });
 
-    await signalConversations(tx, row.orgId, []);
+    await signalMembers(tx, row.orgId, changed.flat());
   });
 };

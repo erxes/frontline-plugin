@@ -27,6 +27,7 @@ import {
   readSql,
   seenBy,
   signalConversations,
+  signalMembers,
   tagIdsOf,
 } from './shared.ts';
 
@@ -177,7 +178,11 @@ const assign = writes(PERMISSIONS.inboxView)
           payload: { from: row.assigneeId, to: input.assigneeId },
         })),
       );
-      await signalConversations(tx, member.orgId, []);
+      await signalMembers(
+        tx,
+        member.orgId,
+        changed.map((row) => row.id),
+      );
     }
 
     return conversationRows(tx, member).where(inArray(conversations.id, input.ids));
@@ -279,7 +284,7 @@ const setTags = writes(PERMISSIONS.inboxView)
           ),
         );
 
-    await signalConversations(tx, member.orgId, []);
+    await signalMembers(tx, member.orgId, ids);
 
     return conversationRows(tx, member).where(inArray(conversations.id, ids));
   });
