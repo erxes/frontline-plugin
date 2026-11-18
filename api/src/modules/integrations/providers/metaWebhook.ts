@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { config } from '#/config.ts';
 import { COMMENT_RECEIVED } from '#/core.ts';
 import type { StoredFile } from '#/db/table.ts';
+import { logger } from '#/logger.ts';
 import type { InboundMessage, InboundReaction, ProviderName, WebhookSource } from '../provider.ts';
 import { sameText } from '../secrets.ts';
 import { metaKey } from '../store.ts';
@@ -222,8 +223,18 @@ export const metaWebhook: WebhookSource = {
       ],
     }));
   },
+  // An event that isn't the shape frontline reads is logged and left out, so the messages Meta
+  // batched with it are still kept.
   receive: (row, events) => {
-    const parsed = events.map((raw) => MetaEvent.parse(raw));
+    const parsed = events.flatMap((raw) => {
+      const event = MetaEvent.safeParse(raw);
+
+      if (event.success) return [event.data];
+
+      logger.warn({ accountId: row.id, issues: event.error.issues }, 'Meta event left out');
+
+      return [];
+    });
 
     return {
       messages: parsed.flatMap((event) =>
