@@ -116,14 +116,15 @@ const LatestButton = ({
   const { t } = useTranslation('frontline');
 
   return (
+    // As wide as the button, so the thread around it still takes clicks; hidden, it takes none.
     <div
       inert={!shown}
       className={cn(
-        'pointer-events-none absolute inset-x-0 bottom-3 flex justify-center transition duration-150 ease-out motion-reduce:transition-none',
+        'absolute inset-x-0 bottom-3 mx-auto w-fit transition duration-150 ease-out motion-reduce:transition-none',
         shown ? 'opacity-100' : 'translate-y-1 opacity-0',
       )}
     >
-      <Button variant="secondary" size="sm" className="pointer-events-auto" onClick={onClick}>
+      <Button variant="outline" size="sm" onClick={onClick}>
         <IconArrowDown />
         {unseen > 0
           ? t('new-messages', '{{count}} new messages', {
