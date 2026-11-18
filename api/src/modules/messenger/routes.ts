@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { BrowserInfo } from '#/db/messenger.ts';
 import { logger } from '#/logger.ts';
 import { fail } from '../fail.ts';
-import { leadIpLimit, sendIpLimit, underKeyLimit } from '../limits.ts';
+import { sendIpLimit, underKeyLimit, underLeadLimit } from '../limits.ts';
 import { shownKeyOf, shownUrl } from '../shownFiles.ts';
 import { voteRoutes } from '../surveys/votes.ts';
 import { integrationChanges, isOnlineAt } from './adapter.ts';
@@ -124,6 +124,9 @@ const connect = async (req: Request, res: Response) => {
       (!known.verified || known.customerId === signed)
         ? known
         : null;
+
+    // Only a new visitor makes a core lead; a returning one's page loads don't count as leads.
+    if (!signed && !kept && !(await underLeadLimit(req, res))) return;
 
     const anonymous = async () => kept ?? (await newVisitor(found));
 
@@ -254,7 +257,7 @@ export const messengerRoutes = () => {
   router.use('/files', fileRoutes());
   router.use(express.json({ limit: '64kb' }));
   router.get('/settings', settings);
-  router.post('/connect', leadIpLimit, connect);
+  router.post('/connect', connect);
   router.post('/browser', browserInfo);
   router.get('/conversations', threadRoutes.conversations);
   router.get('/conversations/:id/messages', threadRoutes.conversationMessages);

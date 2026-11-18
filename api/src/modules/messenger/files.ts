@@ -5,6 +5,7 @@ import { withOrg } from '#/db/client.ts';
 import { conversations, messages } from '#/db/inbox.ts';
 import { tickets } from '#/db/tickets.ts';
 import { fail } from '../fail.ts';
+import { uploadIpLimit } from '../limits.ts';
 import {
   carries,
   rawUpload,
@@ -87,4 +88,5 @@ const download = async (req: Request, res: Response) => {
 };
 
 /** A visitor's files, under `/api/public/messenger/files`. */
-export const fileRoutes = () => express.Router().post('/', rawUpload, upload).get('/:id', download);
+export const fileRoutes = () =>
+  express.Router().post('/', uploadIpLimit, rawUpload, upload).get('/:id', download);

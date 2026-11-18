@@ -14,7 +14,7 @@ import {
 } from '#/db/forms.ts';
 import { writes } from '#/orpc.ts';
 import { fail } from '../fail.ts';
-import { leadIpLimit, underKeyLimit } from '../limits.ts';
+import { leadIpLimit, underKeyLimit, uploadIpLimit } from '../limits.ts';
 import {
   fileIdOf,
   filesOf,
@@ -361,5 +361,5 @@ const perFormKey: RequestHandler = async (req, res, next) => {
 export const formsPublicRouter = Router({ mergeParams: true })
   .get('/forms/:code', show)
   .post('/forms/:code', leadIpLimit, perFormKey, express.json({ limit: '1mb' }), submit)
-  .post('/forms/:code/files', perFormKey, rawUpload, upload)
+  .post('/forms/:code/files', uploadIpLimit, perFormKey, rawUpload, upload)
   .get('/forms/:code/images/:which', image);
