@@ -15,7 +15,7 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useAtom, useAtomValue } from 'jotai';
-import { type ReactNode, useEffect, useRef, useSyncExternalStore } from 'react';
+import { Fragment, type ReactNode, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { channelsQuery } from '~/shared/reference.ts';
@@ -127,8 +127,11 @@ const ConversationPane = () => {
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
         <ConversationHeader conversation={conversation} />
-        <MessageThread key={conversation.id} conversation={conversation} />
-        <Composer key={conversation.id} conversation={conversation} />
+        {/* Another conversation gets a new thread and composer, with nothing carried over. */}
+        <Fragment key={conversation.id}>
+          <MessageThread conversation={conversation} />
+          <Composer conversation={conversation} />
+        </Fragment>
       </div>
       <CustomerSidebar conversation={conversation} />
     </div>
