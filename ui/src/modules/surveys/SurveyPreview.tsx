@@ -1,8 +1,7 @@
-import { Button, Checkbox, Label, RadioGroup, type TRecordSlotProps } from 'erxes-ui';
+import { Button, Checkbox, Label, RadioGroup } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DevicePreview } from '~/shared/DevicePreview.tsx';
-import { WithSurvey } from './SurveyPanel.tsx';
 import type { Survey, SurveyStep } from './useSurveys.ts';
 
 /** One question's options, one pick or several, kept in the preview only. */
@@ -45,42 +44,35 @@ const Choices = ({
     </RadioGroup>
   );
 
-/** The survey as a voter reads it, each question with its options. */
-const Preview = ({ survey }: { survey: Survey }) => {
+/** The survey as a voter reads it, each question with its options, on a desktop, tablet or phone. */
+export const SurveyPreview = ({ survey }: { survey: Survey }) => {
   const { t } = useTranslation('frontline');
   const [picks, setPicks] = useState<Record<string, string[]>>({});
 
   return (
-    <div className="p-3">
-      <DevicePreview>
-        <section
-          aria-label={t('preview', 'Preview')}
-          className="flex flex-col gap-4 rounded-lg border bg-background p-4"
-        >
-          <h2 className="text-base font-semibold">{survey.title}</h2>
-          {survey.steps.map((step) => (
-            <div key={step.id} className="flex flex-col gap-2">
-              <p className="text-sm font-medium">{step.question}</p>
-              {step.description && (
-                <p className="text-xs text-muted-foreground">{step.description}</p>
-              )}
-              <Choices
-                step={step}
-                picked={picks[step.id] ?? []}
-                onChange={(picked) => setPicks((current) => ({ ...current, [step.id]: picked }))}
-              />
-            </div>
-          ))}
-          <Button disabled className="self-start">
-            {t('survey-vote', 'Vote')}
-          </Button>
-        </section>
-      </DevicePreview>
-    </div>
+    <DevicePreview>
+      <section
+        aria-label={t('preview', 'Preview')}
+        className="flex flex-col gap-4 rounded-lg border bg-background p-4"
+      >
+        <h2 className="text-base font-semibold">{survey.title}</h2>
+        {survey.steps.map((step) => (
+          <div key={step.id} className="flex flex-col gap-2">
+            <p className="text-sm font-medium">{step.question}</p>
+            {step.description && (
+              <p className="text-xs text-muted-foreground">{step.description}</p>
+            )}
+            <Choices
+              step={step}
+              picked={picks[step.id] ?? []}
+              onChange={(picked) => setPicks((current) => ({ ...current, [step.id]: picked }))}
+            />
+          </div>
+        ))}
+        <Button disabled className="self-start">
+          {t('survey-vote', 'Vote')}
+        </Button>
+      </section>
+    </DevicePreview>
   );
 };
-
-/** The Preview tab: the survey on a desktop, tablet or phone screen. */
-export const SurveyPreview = ({ contentId }: TRecordSlotProps) => (
-  <WithSurvey contentId={contentId} render={(survey) => <Preview survey={survey} />} />
-);

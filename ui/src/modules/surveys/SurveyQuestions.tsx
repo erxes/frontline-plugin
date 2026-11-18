@@ -12,6 +12,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { WithSurvey } from './SurveyPanel.tsx';
+import { SurveyPreview } from './SurveyPreview.tsx';
 import { type StepInput, type Survey, type SurveyStep, useEditSurvey } from './useSurveys.ts';
 
 /** The options as typed, keeping the id of each one already there so its votes stay with it. */
@@ -91,46 +92,49 @@ const Questions = ({ survey }: { survey: Survey }) => {
   const edit = useEditSurvey(survey.id);
 
   return (
-    <fieldset disabled={!survey.canManage} className="flex flex-col gap-3 p-3">
-      {survey.steps.map((step, index) => (
-        <StepCard
-          key={step.id}
-          survey={survey}
-          step={step}
-          save={(next) =>
-            edit({
-              steps: survey.steps.flatMap((each, at) =>
-                at !== index ? [each] : next ? [next] : [],
-              ),
-            })
-          }
-        />
-      ))}
-      {survey.canManage && survey.steps.length < 10 && (
-        <Button
-          variant="ghost"
-          className="self-start"
-          onClick={() =>
-            edit({
-              steps: [
-                ...survey.steps,
-                {
-                  question: t('survey-new-question', 'New question'),
-                  options: [{ text: t('yes', 'Yes') }, { text: t('no', 'No') }],
-                },
-              ],
-            })
-          }
-        >
-          <IconPlus />
-          {t('survey-add-question', 'Add question')}
-        </Button>
-      )}
-    </fieldset>
+    <div className="flex flex-col gap-3 p-3">
+      <fieldset disabled={!survey.canManage} className="contents">
+        {survey.steps.map((step, index) => (
+          <StepCard
+            key={step.id}
+            survey={survey}
+            step={step}
+            save={(next) =>
+              edit({
+                steps: survey.steps.flatMap((each, at) =>
+                  at !== index ? [each] : next ? [next] : [],
+                ),
+              })
+            }
+          />
+        ))}
+        {survey.canManage && survey.steps.length < 10 && (
+          <Button
+            variant="ghost"
+            className="self-start"
+            onClick={() =>
+              edit({
+                steps: [
+                  ...survey.steps,
+                  {
+                    question: t('survey-new-question', 'New question'),
+                    options: [{ text: t('yes', 'Yes') }, { text: t('no', 'No') }],
+                  },
+                ],
+              })
+            }
+          >
+            <IconPlus />
+            {t('survey-add-question', 'Add question')}
+          </Button>
+        )}
+      </fieldset>
+      <SurveyPreview survey={survey} />
+    </div>
   );
 };
 
-/** The Questions tab: each question and its options, saved as each changes. */
+/** The Questions tab: each question and its options, saved as each changes, over its preview. */
 export const SurveyQuestions = ({ contentId }: TRecordSlotProps) => (
   <WithSurvey contentId={contentId} render={(survey) => <Questions survey={survey} />} />
 );

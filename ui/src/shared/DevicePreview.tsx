@@ -3,7 +3,8 @@ import { ToggleGroup } from 'erxes-ui';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-const WIDTHS = { desktop: 'max-w-full', tablet: 'max-w-md', mobile: 'max-w-xs' } as const;
+// Near each screen's width, 672 and 384 px, in classes other screens already load.
+const WIDTHS = { desktop: 'max-w-full', tablet: 'max-w-2xl', mobile: 'max-w-sm' } as const;
 
 type Device = keyof typeof WIDTHS;
 

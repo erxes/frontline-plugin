@@ -149,9 +149,9 @@ const Builder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
   const steps = Math.max(form.steps.length, 1);
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:grid-cols-2">
+    <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:flex">
       <fieldset disabled={!form.canManage} className="contents">
-        <div className="flex flex-col gap-4">
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
           {Array.from({ length: steps }, (_, index) => (
             <StepCard key={index} form={form} fields={fields} pageNumber={index + 1} />
           ))}
@@ -177,7 +177,7 @@ const Builder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
           )}
         </div>
       </fieldset>
-      <div className="lg:sticky lg:top-0 lg:self-start">
+      <div className="min-w-0 flex-1 lg:sticky lg:top-0 lg:self-start">
         <DevicePreview>
           <FormPreview form={form} fields={fields} />
         </DevicePreview>
@@ -207,9 +207,9 @@ export const FormBuilderPage = () => {
         ) : form.data && fields.data ? (
           <Builder form={form.data} fields={fields.data} />
         ) : (
-          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:grid-cols-2">
-            <Skeleton className="h-80" />
-            <Skeleton className="h-80" />
+          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:flex">
+            <Skeleton className="h-80 flex-1" />
+            <Skeleton className="h-80 flex-1" />
           </div>
         )}
       </ScrollArea>
