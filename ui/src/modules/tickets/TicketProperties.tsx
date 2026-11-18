@@ -1,4 +1,4 @@
-import { type CustomValue, type Field, groupApplies } from '@erxes/core-contract';
+import { type CustomValue, type Field, groupApplies, logicShows } from '@erxes/core-contract';
 import { orpc as core } from '@erxes/core-contract/client';
 import {
   IconAlignLeft,
@@ -190,7 +190,9 @@ export const TicketPropertyBadges = ({ ticket }: { ticket: Ticket }) => {
   const valueText = useValueText();
 
   const labels = fields.flatMap((field) => {
-    const text = valueText(field, ticket.propertiesData[field.id]);
+    const text = logicShows(field.logic, ticket.propertiesData)
+      ? valueText(field, ticket.propertiesData[field.id])
+      : '';
 
     return text ? [`${field.label}: ${text}`] : [];
   });
@@ -198,7 +200,10 @@ export const TicketPropertyBadges = ({ ticket }: { ticket: Ticket }) => {
   return labels.length > 0 ? <Badges labels={labels} max={3} /> : null;
 };
 
-/** A new ticket's rows for the fields its pipeline shows. */
+/**
+ * A new ticket's rows for the fields its pipeline shows and the create form asks for, each while
+ * its logic shows it by the values filled in so far. Core refuses a required one left empty.
+ */
 export const PropertyRows = ({
   pipelineId,
   values,
@@ -207,16 +212,28 @@ export const PropertyRows = ({
   pipelineId: string;
   values: Record<string, CustomValue | null>;
   onChange: (id: string, value: CustomValue | null) => void;
-}) =>
-  usePipelineFields(pipelineId).map((field) => (
-    <PanelFormRow key={field.id} label={field.label} icon={iconOf(field)}>
-      <FieldInput
-        field={field}
-        value={values[field.id] ?? undefined}
-        onChange={(value) => onChange(field.id, value)}
-      />
-    </PanelFormRow>
-  ));
+}) => {
+  const filled = Object.fromEntries(
+    Object.entries(values).flatMap(([id, value]) => (value === null ? [] : [[id, value]])),
+  );
+
+  return usePipelineFields(pipelineId)
+    .filter((field) => field.isVisibleToCreate && logicShows(field.logic, filled))
+    .map((field) => (
+      <PanelFormRow
+        key={field.id}
+        label={field.label}
+        icon={iconOf(field)}
+        required={field.isRequired}
+      >
+        <FieldInput
+          field={field}
+          value={values[field.id] ?? undefined}
+          onChange={(value) => onChange(field.id, value)}
+        />
+      </PanelFormRow>
+    ));
+};
 
 const FILTER_TYPES = {
   text: 'text',

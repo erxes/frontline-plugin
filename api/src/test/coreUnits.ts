@@ -132,9 +132,9 @@ const importUnits = (orgId: string, units: Required<UnitInput>[]) => {
 
 /**
  * Core's fields of `frontline.ticket` in a test: Size and Labels in a group on every pipeline,
- * Seats in one on `seatsPipelineIds`.
+ * Seats in one on `seatsPipelineIds`. The fields of `required` are required on the create form.
  */
-export const coreTicketFields = { seatsPipelineIds: [] as string[] };
+export const coreTicketFields = { seatsPipelineIds: [] as string[], required: [] as string[] };
 
 const ticketField = (id: string, label: string, type: string, groupId: string) => ({
   id,
@@ -159,27 +159,46 @@ const ticketGroups = () => [
 
 type Values = Record<string, unknown>;
 
-/** Core's check: each field's group applies to the ticket's pipeline; null clears a value. */
+/**
+ * Core's check: each field's group applies to the ticket's pipeline; null clears a value. On
+ * `create`, each required field that applies needs one.
+ */
 const checkFields = async (input: {
   current: Values;
   patch: Values;
   appliesTo: { pipeline: string[] };
+  create?: boolean;
 }) => {
   const { ORPCError } = await import('@orpc/server');
 
+  const applies = (field: (typeof ticketFields)[number]) => {
+    const pipelines = ticketGroups().find((one) => one.id === field.groupId)?.appliesTo.pipeline;
+
+    return !pipelines || pipelines.some((one) => input.appliesTo.pipeline.includes(one));
+  };
+
   for (const id of Object.keys(input.patch)) {
     const field = ticketFields.find((one) => one.id === id);
-    const pipelines = ticketGroups().find((one) => one.id === field?.groupId)?.appliesTo.pipeline;
 
-    if (!field || (pipelines && !pipelines.some((one) => input.appliesTo.pipeline.includes(one))))
+    if (!field || !applies(field))
       throw new ORPCError('BAD_REQUEST', { message: `${field?.label ?? id} doesn't apply` });
   }
 
-  return {
-    values: Object.fromEntries(
-      Object.entries({ ...input.current, ...input.patch }).filter(([, value]) => value !== null),
-    ),
-  };
+  const values = Object.fromEntries(
+    Object.entries({ ...input.current, ...input.patch }).filter(([, value]) => value !== null),
+  );
+
+  const missing = ticketFields.find(
+    (field) =>
+      input.create &&
+      coreTicketFields.required.includes(field.id) &&
+      applies(field) &&
+      values[field.id] === undefined,
+  );
+
+  if (missing) throw new ORPCError('BAD_REQUEST', { message: `${missing.label} is required` });
+
+  return { values };
 };
 
 /**

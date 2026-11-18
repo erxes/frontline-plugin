@@ -41,6 +41,10 @@ type Old = {
   /** Each choice's stored value and the label core keeps as the option. */
   options: { value: string; label: string }[];
   isVisible: boolean;
+  isRequired: boolean;
+  isVisibleToCreate: boolean;
+  /** Old erxes's rules by old field id: the first one's action, every rule must match. */
+  logics: { field: string; operator: string; value: string; action: string }[];
   group: string;
   pipelineIds: string[];
 };
@@ -78,10 +82,11 @@ const pluginProperties = (client: PoolClient) =>
       description: string | null;
       type: string;
       options: string[];
+      is_required: boolean;
       pipeline_ids: string[];
       pipelines: string | null;
     }>(
-      `select p.id, p.label, p.description, p.type, p.options, p.pipeline_ids,
+      `select p.id, p.label, p.description, p.type, p.options, p.is_required, p.pipeline_ids,
          (select string_agg(name, ', ' order by name) from frontline_pipelines
            where id = any(p.pipeline_ids)) as pipelines
        from frontline_ticket_properties p order by p."order", p.created_at`,
@@ -94,6 +99,10 @@ const pluginProperties = (client: PoolClient) =>
         type: typeOf(row.type),
         options: row.options.map((option) => ({ value: option, label: option })),
         isVisible: true,
+        isRequired: row.is_required,
+        // The plugin's new ticket form asked for every property.
+        isVisibleToCreate: true,
+        logics: [],
         group: row.pipelines ? `Tickets: ${row.pipelines}` : 'Tickets',
         pipelineIds: row.pipeline_ids,
       })),
@@ -106,6 +115,9 @@ type MongoField = {
   type?: string;
   groupId?: string;
   isVisible?: boolean;
+  isRequired?: boolean;
+  isVisibleToCreate?: boolean;
+  logics?: { field?: string; operator?: string; value?: string; action?: string }[];
   options?: { label?: string; value?: string }[];
 };
 
@@ -139,6 +151,13 @@ const mongoProperties = async (url: string) => {
         value ? [{ value, label: label || value }] : [],
       ),
       isVisible: field.isVisible ?? true,
+      isRequired: field.isRequired ?? false,
+      isVisibleToCreate: field.isVisibleToCreate ?? false,
+      logics: (field.logics ?? []).flatMap(({ field: id, operator, value, action }) =>
+        id
+          ? [{ field: id, operator: operator ?? 'is', value: value ?? '', action: action ?? '' }]
+          : [],
+      ),
       group: groupName.get(field.groupId ?? '') ?? 'Tickets',
       pipelineIds: [],
     }));
@@ -153,6 +172,7 @@ const makeInCore = async (properties: Old[]) => {
   const groups = (await core.fieldGroups.list(input)).data;
   const fields = (await core.fields.list(input)).data;
   const made = new Map<string, string>();
+  const created = new Set<string>();
 
   for (const property of properties) {
     const groupKey = property.group.toLowerCase();
@@ -179,14 +199,57 @@ const makeInCore = async (properties: Old[]) => {
         type: property.type,
         options: [...new Set(property.options.map((option) => option.label))],
         isVisible: property.isVisible,
+        isRequired: property.isRequired,
+        isVisibleToCreate: property.isVisibleToCreate,
       });
       fields.push(field);
+      created.add(property.id);
     }
 
     made.set(property.id, field.id);
   }
 
-  return made;
+  return { made, created };
+};
+
+/**
+ * Old erxes's logic as core's, on the new field ids: a rule's value names a choice by its stored
+ * value, core by its label. Null for none, or a rule on a field that didn't move.
+ */
+const logicOf = (property: Old, byId: Map<string, Old>, made: Map<string, string>) => {
+  const rules = property.logics.flatMap(({ field, operator, value }) => {
+    const fieldId = made.get(field);
+    const source = byId.get(field);
+    const label = source?.options.find((option) => option.value === value)?.label ?? value;
+
+    const kind: 'is' | 'isNot' = operator === 'isNot' ? 'isNot' : 'is';
+
+    return fieldId ? [{ fieldId, operator: kind, value: label }] : [];
+  });
+
+  if (rules.length === 0 || rules.length < property.logics.length) return null;
+
+  return { action: property.logics[0]?.action === 'hide' ? 'hide' : 'show', rules } as const;
+};
+
+/** Sets each created field's logic once every field it reads has its new id. */
+const setLogic = async (properties: Old[], made: Map<string, string>, created: Set<string>) => {
+  const byId = new Map(properties.map((property) => [property.id, property]));
+  let set = 0;
+
+  for (const property of properties) {
+    const id = made.get(property.id);
+    const logic = created.has(property.id) ? logicOf(property, byId, made) : null;
+
+    if (id && logic) {
+      await core.fields.update({ id, logic });
+      set += 1;
+    } else if (id && created.has(property.id) && property.logics.length > 0) {
+      console.warn(`${property.label}: its logic reads a field that didn't move; set it in core`);
+    }
+  }
+
+  return set;
 };
 
 /** A stored value as core keeps it: a choice by its label, a day as `YYYY-MM-DD`. */
@@ -243,10 +306,13 @@ try {
     ...(MONGO_URL ? await mongoProperties(MONGO_URL) : []),
   ];
 
-  const made = await makeInCore(properties);
+  const { made, created } = await makeInCore(properties);
+  const withLogic = await setLogic(properties, made, created);
   const tickets = await inOrg(pool, (client) => rewriteTickets(client, properties, made));
 
-  console.info(`${made.size} properties are core fields; ${tickets} tickets rewritten`);
+  console.info(
+    `${made.size} properties are core fields, ${withLogic} with logic; ${tickets} tickets rewritten`,
+  );
 } finally {
   await pool.end();
 }

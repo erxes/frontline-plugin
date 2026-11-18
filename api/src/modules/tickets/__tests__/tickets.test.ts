@@ -1,10 +1,16 @@
 import { sql } from 'drizzle-orm';
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { serve } from '#/test/http.ts';
+import { coreTicketFields } from '#/test/coreUnits.ts';
 import { clientAs } from '#/test/member.ts';
 import { tokenOf } from '../../messenger/session.ts';
+
+// Core checks a new ticket's fields.
+vi.mock('#/core.ts', async (importOriginal) =>
+  (await import('#/test/coreUnits.ts')).unitsStandIn(await importOriginal()),
+);
 
 const agent = [PERMISSIONS.channelView];
 
@@ -339,9 +345,15 @@ describe('tickets', () => {
     const anonymous = await tokenOf({ ...visitor, customerId: 'customer-bob', identified: false });
     const file = { pipelineId: pipeline.id, name: 'Broken zip', tagIds: [tag.id] };
 
-    // Only the pipeline of the messenger's own channel is offered.
-    expect((await messenger.get('/tickets/forms', ann)).body).toEqual({
-      pipelines: [{ id: pipeline.id, name: 'Main', properties: [] }],
+    // Only the pipeline of the messenger's own channel is offered, with core's fields.
+    expect((await messenger.get('/tickets/forms', ann)).body).toMatchObject({
+      pipelines: [
+        {
+          id: pipeline.id,
+          name: 'Main',
+          properties: [{ id: 'size' }, { id: 'seats' }, { id: 'labels' }],
+        },
+      ],
       tags: [{ id: tag.id, name: 'Shipping', colorCode: null }],
     });
     expect((await messenger.post('/tickets', file, anonymous)).status).toBe(403);
@@ -349,7 +361,16 @@ describe('tickets', () => {
       (await messenger.post('/tickets', { ...file, pipelineId: foreign.id }, ann)).status,
     ).toBe(400);
 
+    // A field required on the new ticket form binds a member's ticket, not the visitor's.
+    coreTicketFields.required = ['size'];
+
+    await expect(owner.tickets.create({ pipelineId: pipeline.id, name: 'Late' })).rejects.toThrow(
+      'Size is required',
+    );
+
     const filed = await messenger.post('/tickets', file, ann);
+
+    coreTicketFields.required = [];
 
     expect(filed).toMatchObject({ status: 201, body: { name: 'Broken zip', status: 'New' } });
     expect(await owner.tickets.list({})).toMatchObject({
