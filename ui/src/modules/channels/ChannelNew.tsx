@@ -54,7 +54,7 @@ export const MemberPicker = ({
  */
 export const ChannelNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
-  const [icon, setIcon] = useState<string | null>(null);
+  const [icon, setIcon] = useState<string | null>('IconInbox');
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const { onSuccess } = useChannelChange();
 
@@ -95,7 +95,7 @@ export const ChannelNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
         <PanelFormRow label={t('icon', 'Icon')} icon={IconIcons}>
           <IconPicker
             aria-label={t('icon', 'Icon')}
-            value={icon ?? undefined}
+            value={icon ?? 'IconInbox'}
             onValueChange={setIcon}
             className="w-min"
           />

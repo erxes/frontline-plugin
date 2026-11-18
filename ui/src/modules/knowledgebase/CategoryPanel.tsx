@@ -136,7 +136,7 @@ const CategoryFields = ({ category }: { category: Category }) => {
       <PanelField icon={IconIcons} label={t('icon', 'Icon')} cell={false}>
         <IconPicker
           aria-label={t('icon', 'Icon')}
-          value={category.icon ?? undefined}
+          value={category.icon ?? 'IconFolder'}
           onValueChange={(icon) => edit({ icon })}
           className="w-min"
         />

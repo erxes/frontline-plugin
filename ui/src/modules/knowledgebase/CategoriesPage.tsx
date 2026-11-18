@@ -96,7 +96,7 @@ const TitleCell = ({ category }: { category: CategoryRow }) => {
         className="min-w-0 flex-1 justify-start"
         onClick={() => open({ contentType: KB_CATEGORY_TYPE, contentId: category.id })}
       >
-        {category.icon && <IconComponent name={category.icon} className="size-4 shrink-0" />}
+        <IconComponent name={category.icon ?? 'IconFolder'} className="size-4 shrink-0" />
         <span className="truncate">{category.title}</span>
       </Button>
     </RecordTableInlineCell>
