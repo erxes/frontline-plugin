@@ -107,8 +107,9 @@ Frontline builds these in its own tables, with no core change:
 - A screen's parity check is its e2e spec plus a look at the old screen
   beside the new one, as the `verify` skill says. The spec proves each action
   works; only the look catches a header that scrolls away or a dialog that
-  never opens. A bug you see gets fixed or filed as an issue, never left as a
-  note in the PR body.
+  never opens. Each module PR carries old and new screenshots, scrolled,
+  empty and with data, at 1280×800. A bug you see gets fixed or filed as an
+  issue, never left as a note in the PR body.
 - A failure in erxes-ui or core gets an issue and a decision row, not a fix
   in the plugin.
 - If the same failure happens twice, stop and report it with the output.

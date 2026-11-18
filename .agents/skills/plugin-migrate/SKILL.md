@@ -109,8 +109,9 @@ The row goes in the module's commit.
    a `  - note: <why>` line under it.
 6. Check parity with the `verify` skill: the module's e2e spec walks every
    old action, field and filter on the new page, and you look at the new
-   screen beside the old one. When the same failure happens twice, stop and
-   report it with the output.
+   screen beside the old one. The module's PR carries both screenshots of
+   each screen, as the `verify` skill says. When the same failure happens
+   twice, stop and report it with the output.
 7. Tick an item by hand, one at a time, once it works on the new core and its
    old bugs and workarounds are gone. The line names the procedure,
    component or spec that does it. Never tick rows in bulk with a script. When an item needs something core doesn't offer
