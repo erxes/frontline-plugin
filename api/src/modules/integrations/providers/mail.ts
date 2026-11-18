@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { isIP } from 'node:net';
 import { convert } from 'html-to-text';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
@@ -7,8 +8,9 @@ import { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
 import { logger } from '#/logger.ts';
 import { attachedFile } from '#/modules/files.ts';
+import { isBlockedIp, reachableAddress, reachableLookup } from '#/modules/outbound.ts';
 import { defineProvider, type InboundMessage } from '../provider.ts';
-import { type Reported, type Suppressed, suppressedAmong } from './mailSuppressions.ts';
+import { readReport, type Reported, sentId, suppressedAmong } from './mailSuppressions.ts';
 import { type SyncState, syncFailure } from './mailSync.ts';
 
 export const Server = z.object({
@@ -23,18 +25,39 @@ const Config = z.object({ imap: Server, smtp: Server });
 
 const Secret = z.object({ imapPassword: z.string(), smtpPassword: z.string() });
 
-const imapClient = (imap: z.infer<typeof Server>, password: string) =>
-  new ImapFlow({
+/** `Server` as a member types it: an IP must be public, and a name is checked when it's dialed. */
+export const ServerInput = Server.extend({
+  host: Server.shape.host.refine(
+    (host) => !isBlockedIp(host),
+    'A public address, not a private one',
+  ),
+});
+
+/**
+ * A member names the host, so it may only be a public address. A socket dials an IP without the
+ * lookup, so one is checked here; imapflow hands `tls` to the socket it opens, `lookup` included.
+ */
+const imapClient = (imap: z.infer<typeof Server>, password: string) => {
+  if (isBlockedIp(imap.host)) throw new Error(`${imap.host} is not a public address`);
+
+  return new ImapFlow({
     host: imap.host,
     port: imap.port,
     secure: imap.secure,
     auth: { user: imap.user, pass: password },
     logger: false,
+    tls: { lookup: reachableLookup },
   });
+};
 
-const smtpTransport = (smtp: z.infer<typeof Server>, password: string) =>
+/**
+ * nodemailer resolves names itself and takes no lookup, so it dials the checked address and
+ * checks TLS against the host's name.
+ */
+const smtpTransport = async (smtp: z.infer<typeof Server>, password: string) =>
   createTransport({
-    host: smtp.host,
+    host: await reachableAddress(smtp.host),
+    servername: isIP(smtp.host) ? undefined : smtp.host,
     port: smtp.port,
     secure: smtp.secure,
     auth: { user: smtp.user, pass: password },
@@ -52,94 +75,12 @@ const firstAddress = (value: string | string[] | undefined) =>
  */
 export const MailData = z.object({ subject: z.string().optional(), root: z.string().optional() });
 
-/** A report's `Field: value` blocks, names lowercased, with folded lines joined to their field. */
-const reportBlocks = (text: string) =>
-  text.split(/\r?\n[ \t]*\r?\n/).map((block) => {
-    const fields = new Map<string, string>();
-
-    for (const line of block.replace(/\r?\n[ \t]+/g, ' ').split(/\r?\n/)) {
-      const [, name, value] = /^([A-Za-z-]+):\s*(.*)$/.exec(line) ?? [];
-
-      if (name && value !== undefined) fields.set(name.toLowerCase(), value.trim());
-    }
-
-    return fields;
-  });
-
-/** `rfc822; Someone@Example.mn` as `someone@example.mn`. */
-const reportAddress = (value: string) => (value.split(';').at(-1) ?? '').trim().toLowerCase();
-
-/**
- * The addresses a delivery or spam report says to stop mailing: each recipient a delivery report
- * gave up on for good (a 5.x.x status), or the one a spam report names.
- */
-const suppressedBy = (reportType: unknown, text: string): Suppressed[] =>
-  reportBlocks(text).flatMap((fields): Suppressed[] => {
-    const recipient = fields.get('final-recipient');
-    const reported = fields.get('original-rcpt-to');
-
-    // A mail to a forwarding address reports where it ended up as the final recipient, and the
-    // address it was sent to as the original one; `suppress` keeps the one the team mailed.
-    const recipients = [
-      ...new Set(
-        [recipient, fields.get('original-recipient')].flatMap((value) =>
-          value ? [reportAddress(value)] : [],
-        ),
-      ),
-    ];
-
-    if (reportType === 'delivery-status' && recipient)
-      return fields.get('action') === 'failed' && fields.get('status')?.startsWith('5')
-        ? recipients.map((address) => ({
-            address,
-            reason: 'bounce',
-            detail: fields.get('diagnostic-code') ?? fields.get('status') ?? null,
-          }))
-        : [];
-
-    if (reportType === 'feedback-report' && reported)
-      return [
-        {
-          address: reportAddress(reported),
-          reason: 'complaint',
-          detail: fields.get('feedback-type') ?? null,
-        },
-      ];
-
-    return [];
-  });
-
-/**
- * The header every mail frontline sends carries its Message-ID in, since a relay such as SES
- * replaces the Message-ID itself and a report then returns the relay's.
- */
-const SENT_ID_HEADER = 'X-Frontline-Message-ID';
-
 /** A new Message-ID for a mail `address` sends, on its domain. */
 export const newMessageId = (address: string) =>
   `<${randomUUID()}@${address.split('@').at(-1) ?? 'localhost'}>`;
 
-/** The Message-ID a mail goes out with, and the header that keeps it through a relay. */
-const sentId = (messageId: string) => ({ messageId, headers: { [SENT_ID_HEADER]: messageId } });
-
-/** The first id a header line named `header` gives in `parts`, folded onto the next line or not. */
-const headerIn = (parts: string[], header: string) =>
-  parts
-    .map(
-      (part) =>
-        new RegExp(`^${header}:[ \\t]*(?:\\r?\\n[ \\t]+)?(<[^>\\s]+>)`, 'im').exec(part)?.[1],
-    )
-    .find((id) => id !== undefined);
-
 /** The address a mail thread is with: its id starts with it. */
 const threadAddress = (threadId: string) => threadId.split(' ')[0] ?? threadId;
-
-/** The Message-ID of the mail a report is about, as frontline sent it. */
-const reportedMessageId = (parts: string[]) =>
-  headerIn(parts, SENT_ID_HEADER) ?? headerIn(parts, 'message-id') ?? null;
-
-/** Whether a report's part is the copy of the mail it is about. */
-const isCopy = (part: { contentType: string }) => part.contentType === 'message/rfc822';
 
 /** A parsed `Content-Type` header. */
 const ContentType = z.object({ value: z.string(), params: z.record(z.string(), z.string()) });
@@ -161,27 +102,8 @@ export const readMail = async (
   const mail = await simpleParser(source);
   const type = ContentType.safeParse(mail.headers.get('content-type')).data;
 
-  // mailparser folds some report parts into the text and keeps others as attachments. The copy of
-  // the mail a report returns names the Message-ID it is about, which `suppress` checks. Read
-  // whole, an inline copy would fold into the text without its headers.
-  if (type?.value === 'multipart/report') {
-    const report = await simpleParser(source, { ignoreEmbedded: true });
-    const copies = report.attachments.filter(isCopy).map((part) => part.content.toString());
-
-    const fields = [
-      report.text ?? '',
-      ...report.attachments.filter((part) => !isCopy(part)).map((part) => part.content.toString()),
-    ];
-
-    const about = reportedMessageId([...copies, ...fields]);
-
-    return {
-      suppressed: suppressedBy(type.params['report-type'], fields.join('\n\n')).map((row) => ({
-        ...row,
-        about,
-      })),
-    };
-  }
+  if (type?.value === 'multipart/report')
+    return { suppressed: await readReport(source, type.params['report-type']) };
 
   const from = mail.from?.value[0];
   const sender = from?.address?.toLowerCase();
@@ -339,7 +261,7 @@ export const checkMail = async (config: z.infer<typeof Config>, secret: z.infer<
 
     await client.connect();
     await client.logout();
-    await smtpTransport(config.smtp, secret.smtpPassword).verify();
+    await (await smtpTransport(config.smtp, secret.smtpPassword)).verify();
 
     return null;
   } catch (error) {
@@ -396,7 +318,9 @@ export const mail = defineProvider({
 
     const messageId = started?.root ?? newMessageId(row.externalId);
 
-    await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
+    await (
+      await smtpTransport(config.smtp, secret.smtpPassword)
+    ).sendMail({
       from: { name: row.name, address: row.externalId },
       to,
       subject: started ? (started.subject ?? '') : replySubject(subject),
@@ -419,7 +343,9 @@ export const mail = defineProvider({
 
     const { subject = '', root } = MailData.safeParse(message.providerData ?? {}).data ?? {};
 
-    await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
+    await (
+      await smtpTransport(config.smtp, secret.smtpPassword)
+    ).sendMail({
       from: { name: row.name, address: row.externalId },
       to,
       subject: replySubject(subject),

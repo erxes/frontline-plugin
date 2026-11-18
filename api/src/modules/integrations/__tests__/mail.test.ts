@@ -86,6 +86,20 @@ describe('mail', () => {
     });
   });
 
+  it("refuses a mailbox on the API's own network, loopback or the metadata service", async () => {
+    const server = { host: 'mail.shop.mn', port: 993, secure: true, user: 'support@shop.mn' };
+
+    for (const host of ['10.0.0.5', '::1', '169.254.169.254'])
+      await expect(
+        clientAs('org-mail-servers').integrations.mail.connect({
+          address: 'support@shop.mn',
+          name: 'Shop support',
+          imap: { ...server, host, password: 'imap-secret' },
+          smtp: { ...server, port: 465, password: 'smtp-secret' },
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
   it('suggests servers only to members who connect accounts', async () => {
     await expect(
       clientAs('org-mail-servers', [PERMISSIONS.integrationView]).integrations.mail.servers({

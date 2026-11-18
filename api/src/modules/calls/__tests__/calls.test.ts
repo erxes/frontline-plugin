@@ -24,6 +24,12 @@ describe('calls through a PBX', () => {
       code: 'BAD_REQUEST',
       message: 'The PBX refused: wrong API user or password',
     });
+
+    // A PBX is never the API's own network, loopback or the metadata service.
+    for (const host of ['10.0.0.5', '127.0.0.1:8089', '169.254.169.254', '169.254.169.254.'])
+      await expect(
+        clientAs('org-call-x').integrations.call.connect({ ...PBX, host }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
   it('makes one call of its legs, in the inbox, with its operator and recording', async () => {

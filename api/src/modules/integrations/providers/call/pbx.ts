@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { config } from '#/config.ts';
+import { reachableOnly } from '#/modules/outbound.ts';
 
 /** Where a Grandstream UCM's HTTPS API answers, and the API user frontline signs in as. */
 export interface Pbx {
@@ -46,6 +47,10 @@ const post = (pbx: Pbx, request: Record<string, unknown>) =>
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ request }),
     signal: AbortSignal.timeout(config.outboundMs),
+    // A member names the host, so it may only be a public address, and a UCM's API never
+    // redirects, so neither does this.
+    dispatcher: reachableOnly,
+    redirect: 'error',
   });
 
 const ask = async (pbx: Pbx, request: Record<string, unknown>) => {

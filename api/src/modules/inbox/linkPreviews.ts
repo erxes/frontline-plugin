@@ -1,19 +1,17 @@
-import { lookup } from 'node:dns';
-import type { LookupFunction } from 'node:net';
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { eq } from 'drizzle-orm';
 import { Parser } from 'htmlparser2';
-import ipaddr from 'ipaddr.js';
 import { find } from 'linkifyjs';
 import { LRUCache } from 'lru-cache';
-import { Agent, fetch } from 'undici';
+import { fetch } from 'undici';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { messages } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
 import { readsWithCore } from '#/orpc.ts';
+import { isBlockedIp, reachableOnly } from '../outbound.ts';
 import { conversationById } from './shared.ts';
 
 /** Links a message previews, the bytes read of each page, and how long it may take. */
@@ -22,29 +20,10 @@ const MAX_BYTES = 256 * 1024;
 const TIMEOUT_MS = 5000;
 const MAX_REDIRECTS = 3;
 
-const isPublic = (address: string) => ipaddr.process(address).range() === 'unicast';
-
-/**
- * Resolves a name only to public unicast addresses. The agent checks the address it dials, so
- * neither a redirect nor a name that rebinds reaches the server's own network.
- */
-const publicLookup: LookupFunction = (hostname, options, callback) =>
-  lookup(hostname, { ...options, all: true }, (error, addresses) => {
-    if (error) return callback(error, []);
-
-    const [first] = addresses;
-
-    if (!first || !addresses.every(({ address }) => isPublic(address)))
-      callback(new Error(`${hostname} is not a public address`), []);
-    else if (options.all) callback(null, addresses);
-    else callback(null, first.address, first.family);
-  });
-
-const publicOnly = new Agent({ connect: { lookup: publicLookup } });
-
 /**
  * A web address on the default port, with no login in it, or null. A socket dials an address
- * without the lookup, so one that is not public is refused here.
+ * without the lookup, so one the API may not dial is refused here. `reachableOnly` checks the
+ * address each redirect and name resolves to.
  */
 const webUrl = (value: string, base?: URL) => {
   const url = URL.parse(value, base);
@@ -54,7 +33,7 @@ const webUrl = (value: string, base?: URL) => {
     ['http:', 'https:'].includes(url.protocol) &&
     !url.port &&
     !url.username &&
-    (!ipaddr.isValid(host) || isPublic(host))
+    !isBlockedIp(host)
     ? url
     : null;
 };
@@ -83,7 +62,7 @@ const pageAt = async (
   hops = 0,
 ): Promise<{ url: URL; html: string } | null> => {
   const response = await fetch(url, {
-    dispatcher: publicOnly,
+    dispatcher: reachableOnly,
     redirect: 'manual',
     signal,
     headers: { accept: 'text/html', 'user-agent': 'erxes-frontline link preview' },

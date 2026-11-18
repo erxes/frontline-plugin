@@ -75,7 +75,8 @@ vi.mock('nodemailer', () => ({
   }),
 }));
 
-const server = { host: 'mail.shop.mn', port: 993, secure: true, user: 'support@shop.mn' };
+// A public address, which the fakes above answer without DNS.
+const server = { host: '93.184.215.14', port: 993, secure: true, user: 'support@shop.mn' };
 
 /** A channel of `orgId` reading the mailbox support@shop.mn: its mail integration. */
 const mailChannel = async (orgId: string) => {
