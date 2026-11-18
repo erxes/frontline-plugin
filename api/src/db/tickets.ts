@@ -78,6 +78,8 @@ export const pipelines = table(
     isCheckUser: boolean().notNull().default(false),
     isCheckDepartment: boolean().notNull().default(false),
     isCheckBranch: boolean().notNull().default(false),
+    /** Members see only tickets created today, by UTC; channel admins and `excludeCheckUserIds` see every one. */
+    isCheckDate: boolean().notNull().default(false),
     excludeCheckUserIds: text()
       .array()
       .notNull()
