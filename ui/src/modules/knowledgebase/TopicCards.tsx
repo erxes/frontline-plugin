@@ -1,8 +1,8 @@
-import { IconDots, IconFolders, IconInfoCircle, IconTrash } from '@tabler/icons-react';
+import { IconDots, IconArticle, IconFolders, IconInfoCircle, IconTrash } from '@tabler/icons-react';
 import { Button, Skeleton, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
-import { KB_TOPIC_TYPE } from '~/plugin.ts';
+import { KB_ARTICLE_TYPE, KB_TOPIC_TYPE } from '~/plugin.ts';
 import { ActionsMenu, type RowAction } from '~/shared/Records.tsx';
 import { useDeleteTopics } from './useKbDeletes.ts';
 import { type Topic, topicPath, useKbAccess, useLanguageName } from './useKnowledgeBase.ts';
@@ -92,8 +92,46 @@ const TopicCard = ({ topic }: { topic: Topic }) => {
       {topic.description && (
         <p className="line-clamp-2 text-sm text-muted-foreground">{topic.description}</p>
       )}
-      <p className="mt-auto pt-3 text-xs text-muted-foreground">{facts.join(' · ')}</p>
+      <LatestArticles topic={topic} />
+      <p className="mt-auto pt-1 text-xs text-muted-foreground">{facts.join(' · ')}</p>
     </li>
+  );
+};
+
+/**
+ * The topic's last changed articles, each opening in core's side panel above the card's own
+ * link, or a line saying it has none yet.
+ */
+const LatestArticles = ({ topic }: { topic: Topic }) => {
+  const { t } = useTranslation('frontline');
+  const { open } = useOpenRecord();
+
+  if (topic.latestArticles.length === 0)
+    return (
+      <p className="border-t pt-3 text-sm text-muted-foreground">
+        {t('kb-no-articles-yet', 'No articles yet')}
+      </p>
+    );
+
+  return (
+    <ul
+      aria-label={t('kb-latest-articles', 'Latest articles in {{title}}', { title: topic.title })}
+      className="flex flex-col gap-0.5 border-t pt-2"
+    >
+      {topic.latestArticles.map((article) => (
+        <li key={article.id} className="flex min-w-0">
+          <Button
+            variant="ghost"
+            size="sm"
+            className="relative min-w-0 justify-start"
+            onClick={() => open({ contentType: KB_ARTICLE_TYPE, contentId: article.id })}
+          >
+            <IconArticle className="text-muted-foreground" />
+            <span className="truncate">{article.title}</span>
+          </Button>
+        </li>
+      ))}
+    </ul>
   );
 };
 
@@ -102,9 +140,9 @@ export const TopicCards = ({ topics, isPending }: { topics: Topic[]; isPending: 
   <div className="min-h-0 flex-1 overflow-y-auto">
     {isPending ? (
       <div className={GRID}>
-        <Skeleton radius="lg" className="h-32" />
-        <Skeleton radius="lg" className="h-32" />
-        <Skeleton radius="lg" className="h-32" />
+        <Skeleton radius="lg" className="h-48" />
+        <Skeleton radius="lg" className="h-48" />
+        <Skeleton radius="lg" className="h-48" />
       </div>
     ) : (
       <ul className={GRID}>

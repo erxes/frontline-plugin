@@ -411,6 +411,7 @@
   "kb-install-code": "Мэдлэгийн сангийн суулгах код",
   "kb-is-private": "Хаалттай",
   "kb-label": "Мэдлэгийн сангийн нэр",
+  "kb-latest-articles": "{{title}} сэдвийн сүүлийн нийтлэлүүд",
   "kb-manage-articles": "Нийтлэл удирдах",
   "kb-manage-categories": "Ангилал удирдах",
   "kb-move-to-category": "Ангилал руу зөөх",
