@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { confirmDelete, expect, test, unique } from './fixtures.ts';
+import { confirmDelete, expect, expectPage, test, unique } from './fixtures.ts';
 
 const SETTINGS = '/frontline/settings';
 
@@ -32,16 +32,17 @@ test('the owner adds, finds and deletes tags', async ({ page }) => {
 test('the sidebar opens every Frontline page, and Settings opens its own sidebar', async ({
   page,
 }) => {
-  const pages = {
-    Inbox: '/frontline/inbox',
-    Tickets: '/frontline/tickets',
-    Forms: '/frontline/forms',
-    Surveys: '/frontline/surveys',
-    'Knowledge Base': '/frontline/knowledgebase',
-    'Help centers': '/frontline/help-centers',
-    History: '/frontline/calls/history',
-    Queues: '/frontline/calls/queues',
-  };
+  // Each link, its page and the page's heading. Tickets is headed by its first pipeline.
+  const pages: [string, string, string?][] = [
+    ['Inbox', '/frontline/inbox', 'Inbox'],
+    ['Tickets', '/frontline/tickets'],
+    ['Forms', '/frontline/forms', 'Forms'],
+    ['Surveys', '/frontline/surveys', 'Surveys'],
+    ['Knowledge Base', '/frontline/knowledgebase', 'Knowledge Base'],
+    ['Help centers', '/frontline/help-centers', 'Help centers'],
+    ['History', '/frontline/calls/history', 'Call history'],
+    ['Queues', '/frontline/calls/queues', 'Queues'],
+  ];
 
   const settings = {
     Tags: `${SETTINGS}/tags`,
@@ -51,10 +52,12 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
 
   await page.goto('/frontline/tickets');
 
-  for (const [name, path] of Object.entries(pages)) {
+  for (const [name, path, heading] of pages) {
     // A link with unread items says how many: "Inbox 12 unread".
     await page.getByRole('link', { name: new RegExp(`^${name}( \\d+ unread)?$`) }).click();
     await expect(page).toHaveURL(new RegExp(`${path}(/|\\?|$)`));
+
+    if (heading) await expectPage(page, heading);
   }
 
   await page.getByRole('link', { name: 'Settings', exact: true }).click();
@@ -63,6 +66,7 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
   for (const [name, path] of Object.entries(settings)) {
     await page.getByRole('link', { name, exact: true }).click();
     await expect(page).toHaveURL(path);
+    await expectPage(page, name);
   }
 
   await page.getByRole('link', { name: 'Exit settings' }).click();

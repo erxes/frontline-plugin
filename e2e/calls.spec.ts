@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { callProLine, expect, recordPanel, test, unique } from './fixtures.ts';
+import { callProLine, expect, expectPage, recordPanel, test, unique } from './fixtures.ts';
 
 const HISTORY = '/frontline/calls/history';
 
@@ -64,6 +64,7 @@ test('calls from a phone line show in the call history as they happen, and open 
 
   await panel.getByRole('link', { name: 'Open in inbox' }).click();
   await expect(page).toHaveURL(/\/frontline\/inbox\?conversationId=/);
+  await expectPage(page, 'Inbox');
   await expect(page.getByText(`Incoming call from ${answered}`).first()).toBeVisible();
 });
 

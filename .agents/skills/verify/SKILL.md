@@ -17,7 +17,9 @@ for what no spec can drive.
    and filter, plus the refusal for a member without the permission. That spec
    is the parity check. Don't run old erxes beside it. The flow specs don't run
    axe; `e2e/a11y*.spec.ts` open each screen, panel and sheet once with data on
-   it and runs axe in light and dark, so a new screen gets a stop there.
+   it and run axe in light and dark, so a new screen gets a stop there. After
+   a link or button that changes page, wait with `expectPage(page, heading)`
+   for the new page's own heading, never for text the old page shows too.
 4. When a failure traces to erxes-ui or core, such as an axe contrast hit on
    core's button or a label core draws, file it on erxes/erxes, add a
    `DECISIONS.md` row with the link, and assert only what the plugin draws.
