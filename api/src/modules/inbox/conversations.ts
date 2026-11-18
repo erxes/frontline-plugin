@@ -8,6 +8,7 @@ import {
   conversations,
   conversationTags,
   integrations,
+  messages,
 } from '#/db/inbox.ts';
 import { tags } from '#/db/tags.ts';
 import { channelMembers } from '#/db/schema.ts';
@@ -44,6 +45,17 @@ const filterFields = (member: PluginMember): FilterFields => ({
   'subject.tagIds': { type: 'tags', expr: tagIdsOf },
   'subject.isRead': { type: 'boolean', expr: readSql(member) },
   'subject.customerRespondedLast': { type: 'boolean', expr: conversations.customerRespondedLast },
+  // The old inbox's automation states: "Automation responded" is a message from neither the
+  // customer nor a member, which only the bot writes; "Handed off to operator" is a person's.
+  'subject.botReplied': {
+    type: 'boolean',
+    expr: sql<boolean>`exists (select 1 from ${messages} where ${messages.conversationId} = ${conversations.id}
+      and ${messages.customerId} is null and ${messages.userId} is null and not ${messages.internal})`,
+  },
+  'subject.handedOff': {
+    type: 'boolean',
+    expr: sql<boolean>`${conversations.operator} = 'person'`,
+  },
   'subject.createdAt': { type: 'date', expr: conversations.createdAt },
   'subject.lastMessageAt': { type: 'date', expr: conversations.lastMessageAt },
   'subject.resolvedAt': { type: 'date', expr: conversations.resolvedAt },

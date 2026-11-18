@@ -346,6 +346,17 @@ describe('messenger', () => {
       content: 'On its way',
     });
 
+    /** The ids of the conversations the inbox's filter bar finds with `path` set to `value`. */
+    const found = async (path: string, value: boolean) =>
+      (
+        await teammate.conversations.list({
+          filter: JSON.stringify({ match: 'all', rules: [{ path, op: 'eq', value }] }),
+        })
+      ).conversations.map((conversation) => conversation.id);
+
+    expect(await found('subject.botReplied', true)).toEqual([id]);
+    expect(await found('subject.handedOff', true)).toEqual([]);
+
     const handed = await action(
       'frontline.conversation.hand_off',
       { assigneeIds: ['teammate'] },
@@ -357,6 +368,8 @@ describe('messenger', () => {
       operator: 'person',
       assigneeId: 'teammate',
     });
+    expect(await found('subject.handedOff', true)).toEqual([id]);
+    expect(await found('subject.handedOff', false)).toEqual([]);
 
     // Once a person has it, the bot stays quiet.
     const quiet = await action('frontline.conversation.reply', { content: 'Bot again' }, 'r2:s1');
