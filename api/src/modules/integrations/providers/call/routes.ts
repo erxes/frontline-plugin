@@ -156,8 +156,14 @@ const setQueue = (
     await signalCalls(tx, row.orgId);
   });
 
+/** The kinds of post a PBX bridge makes, the last part of its webhook's address. */
+const PbxKind = z.enum(['cdr', 'event', 'receive-call', 'queue-stats', 'queue-live']);
+
 /** What one kind of post does with a PBX account's body. */
-const PBX_POSTS: Record<string, (row: AccountRow, body: unknown) => Promise<void>> = {
+const PBX_POSTS: Record<
+  z.infer<typeof PbxKind>,
+  (row: AccountRow, body: unknown) => Promise<void>
+> = {
   cdr: async (row, body) => {
     const { config } = call.open(row).account;
     const cdr = Cdr.parse(body);
@@ -309,13 +315,13 @@ export const callWebhooks = () => {
     '/call/:key/:kind',
     text,
     handle('call', async (row, req, raw) => {
-      const post = PBX_POSTS[String(req.params.kind)];
+      const kind = PbxKind.safeParse(req.params.kind);
 
-      if (!post) return 404;
+      if (!kind.success) return 404;
 
       if (!signedBy(call.open(row).account.secret.webhookSecret, req, raw)) return 401;
 
-      await post(row, JSON.parse(raw));
+      await PBX_POSTS[kind.data](row, JSON.parse(raw));
 
       return 200;
     }),

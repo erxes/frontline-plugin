@@ -49,6 +49,9 @@ describe('calls through a PBX', () => {
     expect(await post('cdr', fixture('cdr-answered.json'))).toBe(200);
     expect(await post('cdr', '{not json')).toBe(400);
     expect(await post('nothing', '{}')).toBe(404);
+    // Names every object has are no kind of post either.
+    expect(await post('constructor', '{}')).toBe(404);
+    expect(await post('toString', '{}')).toBe(404);
 
     const { calls, totalCount } = await owner.calls.list({});
 
