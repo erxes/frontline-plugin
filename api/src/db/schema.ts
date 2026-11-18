@@ -98,8 +98,8 @@ export const responseTemplates = table(
     index('frontline_response_templates_org_channel_created_idx').on(
       t.orgId,
       t.channelId,
-      t.createdAt.desc(),
-      t.id.desc(),
+      t.createdAt,
+      t.id,
     ),
   ],
 );
@@ -213,8 +213,8 @@ export const kbArticles = table(
     index('frontline_knowledgebase_articles_org_category_created_idx').on(
       t.orgId,
       t.categoryId,
-      t.createdAt.desc(),
-      t.id.desc(),
+      t.createdAt,
+      t.id,
     ),
     index('frontline_knowledgebase_articles_org_scheduled_idx')
       .on(t.orgId, t.scheduledAt)

@@ -218,6 +218,13 @@
       "when": 1795040595395,
       "tag": "0032_kb_article_text",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1795043338325,
+      "tag": "0033_newest_first_indexes",
+      "breakpoints": true
     }
   ]
 }

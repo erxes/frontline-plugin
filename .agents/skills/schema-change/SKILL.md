@@ -7,6 +7,8 @@ description: Change the Postgres schema. Use when adding or altering a table, co
    `./table.ts`, which makes them `frontline_<name>`. A new table has
    `id: text().primaryKey()` and `orgId: text().notNull()`, and its indexes and
    constraints lead with `orgId` and carry their full `frontline_` name.
+   Index columns take no `.desc()`: Drizzle writes `DESC NULLS LAST`, which an
+   `orderBy(desc(...))` can't read, while a plain index serves both directions.
 2. Run `pnpm db:generate` and read the SQL in `api/drizzle/`. For each new
    table, append to that same file:
 
