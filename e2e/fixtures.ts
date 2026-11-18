@@ -282,7 +282,10 @@ const Connected = z.object({ token: z.string() });
 
 const Sent = z.object({ conversationId: z.string() });
 
-const VisitorMessages = z.array(z.object({ content: z.string(), fromVisitor: z.boolean() }));
+/** The latest page of a conversation's messages, newest first. */
+const VisitorMessages = z.object({
+  items: z.array(z.object({ content: z.string(), fromVisitor: z.boolean() })),
+});
 
 /**
  * A website visitor: connects with the messenger's key, as the customer with `identity`'s email
@@ -323,7 +326,9 @@ export const visitorOf = async (
         headers,
       });
 
-      return VisitorMessages.parse(await listed.json()).map((message) => message.content);
+      const { items } = VisitorMessages.parse(await listed.json());
+
+      return items.map((message) => message.content).toReversed();
     },
   };
 };
