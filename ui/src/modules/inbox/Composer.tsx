@@ -57,6 +57,19 @@ const isEmpty = (part: Part) => !editorText(part.html) && part.attachments.lengt
 const SHORTCUT = navigator.userAgent.includes('Mac') ? '⌘↵' : 'Ctrl↵';
 
 /**
+ * A template's text as HTML paragraphs, one a line, for one picked from the popover. erxes-ui's
+ * editor takes no blocks from outside, so only `/` inside it keeps a template's formatting.
+ */
+const paragraphs = (text: string) =>
+  text
+    .split('\n')
+    .map(
+      (line) =>
+        `<p>${line.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>`,
+    )
+    .join('');
+
+/**
  * The composer's foot, in the old inbox's order: the files attached so far, then templates,
  * attach and survey as icons on the left, the send shortcut and Send, or Add note in a note.
  */
@@ -329,7 +342,9 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
           disabled={send.isPending || empty}
           attachments={attachments}
           onAttachments={draft.setAttachments}
-          onTemplate={(content) => restart(editorText(html) ? html + content : content)}
+          onTemplate={(content) =>
+            restart((editorText(html) ? html : '') + paragraphs(editorText(content)))
+          }
         />
       </form>
     </div>
