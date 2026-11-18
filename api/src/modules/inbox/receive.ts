@@ -7,7 +7,7 @@ import { conversations, customerLinks, integrations, messages } from '#/db/inbox
 import type { StoredFile } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import type { Person } from '../integrations/provider.ts';
-import { publishConversationEvents, signalConversations } from './shared.ts';
+import { publishConversationEvents, signalArrival, signalConversations } from './shared.ts';
 
 /**
  * The provider's user, as an adapter knows them; `email` when the provider gives one. `whoIs`
@@ -153,7 +153,7 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
       )
       .for('update');
 
-    if (found) return { ...found, kind: integration.kind };
+    if (found) return { ...found, kind: integration.kind, channelId: integration.channelId };
 
     if (incoming.conversationId)
       throw new ORPCError('NOT_FOUND', { message: 'No such conversation' });
@@ -186,7 +186,7 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
     },
   ]);
 
-  return { ...created, kind: integration.kind };
+  return { ...created, kind: integration.kind, channelId: integration.channelId };
 };
 
 /**
@@ -269,6 +269,8 @@ export const receiveIn = async (tx: Tx, orgId: string, incoming: Incoming) => {
     messageId: message.id,
     content: message.content,
   });
+
+  await signalArrival(tx, orgId, conversation);
 
   return { message, changed: conversation };
 };

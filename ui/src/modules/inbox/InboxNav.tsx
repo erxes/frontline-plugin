@@ -18,6 +18,7 @@ import { CHANNELS_PATH } from '@/channels/useChannels.ts';
 import { ChannelLink, TeamChannels } from './ChannelNav.tsx';
 import { Count, FilterLink, INBOX, NavGroup } from './navLinks.tsx';
 import { useInboxCounts, useInboxSignal } from './queries.ts';
+import { useArrivalSound } from './useArrivalSound.ts';
 
 type Counts = NonNullable<ReturnType<typeof useInboxCounts>>;
 
@@ -103,6 +104,7 @@ export const InboxNav = () => {
   const counts = useInboxCounts();
 
   useInboxSignal();
+  useArrivalSound();
 
   return (
     <Sidebar.MenuItem>
