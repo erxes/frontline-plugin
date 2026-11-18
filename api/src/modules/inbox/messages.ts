@@ -14,7 +14,12 @@ import { orderOf, PageInput } from '../paging.ts';
 import { Content, Html, writtenText } from './html.ts';
 import { messageColumns, postMessage, queueSend } from './post.ts';
 import { Reaction, reactionsOf } from './reactions.ts';
-import { conversationById, conversationsFor, signalConversations } from './shared.ts';
+import {
+  conversationById,
+  conversationsFor,
+  signalConversations,
+  signalMembers,
+} from './shared.ts';
 
 export const Message = createSelectSchema(messages, {
   attachments: () => z.array(Attachment),
@@ -171,11 +176,10 @@ const update = writes(PERMISSIONS.inboxView)
 
     const [conversation] = await conversationsFor(tx, member, [message.conversationId]);
 
-    await signalConversations(
-      tx,
-      member.orgId,
-      conversation && !message.internal ? [conversation] : [],
-    );
+    // A note stays in the inbox, so the visitor hears only of a reply.
+    await (conversation && !message.internal
+      ? signalConversations(tx, member.orgId, [conversation])
+      : signalMembers(tx, member.orgId, [message.conversationId]));
 
     return updated;
   });
@@ -199,7 +203,7 @@ const pin = writes(PERMISSIONS.inboxView)
 
     if (!updated) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
-    await signalConversations(tx, member.orgId, []);
+    await signalMembers(tx, member.orgId, [updated.conversationId]);
 
     return updated;
   });

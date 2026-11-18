@@ -9,7 +9,7 @@ import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { fail } from '../fail.ts';
 import { setOperatorOf } from '../inbox/operator.ts';
 import { receive } from '../inbox/receive.ts';
-import { signalConversations, typingTopic } from '../inbox/shared.ts';
+import { signalMembers, typingTopic } from '../inbox/shared.ts';
 import { MessengerConfig, messenger } from './adapter.ts';
 import { attachmentsOf, type Visitor, visitorOf } from './session.ts';
 
@@ -191,7 +191,7 @@ const markRead = asVisitor(async (visitor, req, res) => {
           eq(messages.internal, false),
         ),
       );
-    await signalConversations(tx, visitor.orgId, []);
+    await signalMembers(tx, visitor.orgId, [id]);
   });
 
   res.status(204).end();

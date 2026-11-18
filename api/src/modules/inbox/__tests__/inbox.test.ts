@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vite-plus/test';
 import { z } from 'zod';
 import type * as CoreModule from '#/core.ts';
 import { PERMISSIONS } from '#/core.ts';
-import { withOrg } from '#/db/client.ts';
+import { pool, withOrg } from '#/db/client.ts';
 import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 
@@ -72,6 +72,9 @@ const Connected = z.looseObject({ token: z.string(), conversations: z.array(z.un
 
 /** One read of the event stream. */
 const Chunk = z.instanceof(Uint8Array);
+
+/** What `core_live_signal()` sends on `core_live`: the organisation and the topic. */
+const LiveSignal = z.looseObject({ o: z.string(), t: z.string() });
 
 /** The filter bar's one rule, as `useListFilterParams()` sends it. */
 const rule = (path: string, op: string, value?: unknown) =>
@@ -322,6 +325,32 @@ describe('inbox', () => {
       `event: changed\ndata: ${JSON.stringify({ conversationId: id })}\n\n`,
     );
     controller.abort();
+  });
+
+  it('signals the inbox and the changed conversation once each when a change commits', async () => {
+    const { teammate, token } = await setUp('org-ib-live');
+
+    await post('/messages', { content: 'Ping' }, token);
+
+    const [conversation] = (await teammate.conversations.list({})).conversations;
+    const id = conversation?.id ?? '';
+    const topics: string[] = [];
+    const listener = await pool.connect();
+
+    listener.on('notification', ({ payload }) => {
+      const signal = LiveSignal.parse(JSON.parse(payload ?? '{}'));
+
+      if (signal.o === 'org-ib-live') topics.push(signal.t);
+    });
+    await listener.query('LISTEN core_live');
+
+    await teammate.conversations.messages.create({ conversationId: id, content: 'Pong' });
+    await vi.waitFor(() => expect(topics.length).toBeGreaterThan(0));
+    await listener.query('UNLISTEN core_live');
+    listener.removeAllListeners('notification');
+    listener.release();
+
+    expect(topics.toSorted()).toEqual(['conversation.' + id.toLowerCase(), 'conversations']);
   });
 
   it('checks a messenger’s settings and lets only channel admins connect one', async () => {

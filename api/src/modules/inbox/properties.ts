@@ -5,7 +5,7 @@ import { CONVERSATION_TIMELINE, core, PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { conversations } from '#/db/inbox.ts';
 import { reads, writes } from '#/orpc.ts';
-import { conversationById, signalConversations } from './shared.ts';
+import { conversationById, signalMembers } from './shared.ts';
 
 const valuesOf = async (tx: Tx, id: string) => {
   const [row] = await tx
@@ -47,7 +47,7 @@ const save = writes(PERMISSIONS.conversationEditFields)
       .update(conversations)
       .set({ propertiesData: checked })
       .where(eq(conversations.id, input.id));
-    await signalConversations(tx, member.orgId, []);
+    await signalMembers(tx, member.orgId, [input.id]);
 
     return checked;
   });

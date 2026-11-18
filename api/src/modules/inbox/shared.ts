@@ -1,6 +1,6 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, eq, getTableColumns, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray, isNotNull, type SQL, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { CONVERSATION_TIMELINE } from '#/core.ts';
@@ -146,6 +146,21 @@ export const VISITOR_EVENTS = ['changed', 'typing'] as const;
 
 type Notified = { id: string; customerId: string };
 
+const visitorNotices = (
+  orgId: string,
+  changed: Notified[],
+  event: (typeof VISITOR_EVENTS)[number],
+) =>
+  changed.map(({ id, customerId }) => {
+    const payload = JSON.stringify({ orgId, conversationId: id, customerId, event });
+
+    return sql`pg_notify(${VISITOR_CHANNEL}, ${payload})`;
+  });
+
+/** Sends `notices` in one statement; each goes out once the transaction commits. */
+const send = (tx: Tx, notices: SQL[]) =>
+  notices.length > 0 ? tx.execute(sql`select ${sql.join(notices, sql`, `)}`) : undefined;
+
 /** Tells each conversation's visitor of `event` once the transaction commits. */
 export const notifyVisitors = async (
   tx: Tx,
@@ -153,25 +168,39 @@ export const notifyVisitors = async (
   changed: Notified[],
   event: (typeof VISITOR_EVENTS)[number] = 'changed',
 ) => {
-  if (changed.length === 0) return;
-
-  const notices = changed.map(({ id, customerId }) => {
-    const payload = JSON.stringify({ orgId, conversationId: id, customerId, event });
-
-    return sql`pg_notify(${VISITOR_CHANNEL}, ${payload})`;
-  });
-
-  await tx.execute(sql`select ${sql.join(notices, sql`, `)}`);
+  await send(tx, visitorNotices(orgId, changed, event));
 };
 
 /** The live topic a conversation's typing visitor signals on, for the members who have it open. */
 export const typingTopic = (conversationId: string) => `typing.${conversationId.toLowerCase()}`;
 
+/** The live topic of one conversation's changes, for the members who have it open. */
+export const conversationTopic = (conversationId: string) =>
+  `conversation.${conversationId.toLowerCase()}`;
+
+/** `conversations` for the list and counts, then each changed conversation's own topic. */
+const memberSignals = (orgId: string, ids: string[]) =>
+  ['conversations', ...new Set(ids.map(conversationTopic))].map(
+    (topic) => sql`core_live_signal(${orgId}, ${PLUGIN}, ${topic})`,
+  );
+
 /**
- * Tells the organisation's open inbox screens to refetch, and the conversation's visitor, once
- * the change commits. Neither carries the message: each refetches what it may see.
+ * Tells the organisation's open inbox screens that the conversations of `ids` changed, once the
+ * change commits: every screen hears `conversations`, and one showing a conversation hears its
+ * `conversationTopic`. Neither carries the change: each refetches what it may see. Postgres sends
+ * a signal once per transaction, however often it is raised in it.
  */
+export const signalMembers = async (tx: Tx, orgId: string, ids: string[]) => {
+  await send(tx, memberSignals(orgId, ids));
+};
+
+/** Signals the members as `signalMembers` does, and tells each conversation's visitor. */
 export const signalConversations = async (tx: Tx, orgId: string, changed: Notified[]) => {
-  await tx.execute(sql`select core_live_signal(${orgId}, ${PLUGIN}, 'conversations')`);
-  await notifyVisitors(tx, orgId, changed);
+  await send(tx, [
+    ...memberSignals(
+      orgId,
+      changed.map(({ id }) => id),
+    ),
+    ...visitorNotices(orgId, changed, 'changed'),
+  ]);
 };

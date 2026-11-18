@@ -6,7 +6,7 @@ import { PERMISSIONS } from '#/core.ts';
 import { integrations, messageReactions, messages } from '#/db/inbox.ts';
 import { writes } from '#/orpc.ts';
 import { ADAPTERS } from './adapters.ts';
-import { conversationById, signalConversations } from './shared.ts';
+import { conversationById, signalMembers } from './shared.ts';
 
 /** One emoji on a message: how many have it, and whether the caller does. */
 export const Reaction = z.object({ emoji: z.string(), count: z.number(), mine: z.boolean() });
@@ -104,7 +104,7 @@ const react = writes(PERMISSIONS.inboxView)
         });
       });
 
-    await signalConversations(tx, member.orgId, []);
+    await signalMembers(tx, member.orgId, [conversation.id]);
 
     const [row] = await tx
       .select({ reactions: reactionsOf(member) })
