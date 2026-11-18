@@ -91,16 +91,6 @@ test('a member answers with a response template, formats it, attaches a file and
     `@${teammate.fullName}`,
   );
 
-  // What is written and not sent stays as the conversation's draft, in the note tab it was in.
-  await note.click();
-  await page.keyboard.type('Half a thought');
-  await page.goto(INBOX);
-  await expect(page.getByText('Pick a conversation')).toBeVisible();
-  await page.goto(`${INBOX}?conversationId=${conversationId}`);
-  await expect(page.getByRole('textbox', { name: 'Internal note' })).toContainText(
-    'Half a thought',
-  );
-
   // The teammate finds it under Mentions, and gets no templates without the channel permission.
   const mentions = teammate.page
     .getByRole('list', { name: 'Work queue' })
@@ -117,4 +107,42 @@ test('a member answers with a response template, formats it, attaches a file and
   await teammate.page.getByRole('textbox', { name: 'Reply' }).click();
   await teammate.page.keyboard.type(`/${template}`);
   await expect(teammate.page.getByRole('button', { name: template, exact: true })).toBeHidden();
+});
+
+test('a conversation keeps its unsent reply and note apart, through a reload, until each goes', async ({
+  page,
+  request,
+}) => {
+  const channel = await createChannel(page);
+
+  await page.goto(INBOX);
+
+  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const conversationId = await visitor.write(`Where is my parcel ${unique()}`);
+  const open = `${INBOX}?conversationId=${conversationId}`;
+  const reply = page.getByRole('textbox', { name: 'Reply' });
+  const note = page.getByRole('textbox', { name: 'Internal note' });
+
+  await page.goto(open);
+  await reply.click();
+  await page.keyboard.type('Half a reply');
+  await page.getByRole('tab', { name: 'Internal note' }).click();
+  await note.click();
+  await page.keyboard.type('Half a thought');
+
+  // Another page and a reload later, the note tab comes back with its text, the reply with its own.
+  await page.goto(INBOX);
+  await expect(page.getByText('Pick a conversation')).toBeVisible();
+  await page.goto(open);
+  await page.reload();
+  await expect(note).toContainText('Half a thought');
+  await page.getByRole('tab', { name: 'Reply' }).click();
+  await expect(reply).toContainText('Half a reply');
+
+  // The reply goes and its draft with it; the note's stays.
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(page.getByRole('list', { name: 'Messages' })).toContainText('Half a reply');
+  await expect(reply).not.toContainText('Half a reply');
+  await page.getByRole('tab', { name: 'Internal note' }).click();
+  await expect(note).toContainText('Half a thought');
 });
