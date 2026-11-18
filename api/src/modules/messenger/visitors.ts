@@ -137,9 +137,14 @@ export const saveVisitorData = async (visitor: Visitor, data: VisitorData) => {
   );
 };
 
-/** Tells the open inbox screens that a visitor came or went. */
-const signalVisitors = (tx: Tx, orgId: string) =>
-  tx.execute(sql`select core_live_signal(${orgId}, ${PLUGIN}, 'visitors')`);
+/**
+ * Tells the members who have the visitor's conversation open that they came or went. A topic per
+ * visitor, so a busy site's page views reach only the screens showing that visitor.
+ */
+const signalVisitor = (tx: Tx, { orgId, customerId }: Visitor) =>
+  tx.execute(
+    sql`select core_live_signal(${orgId}, ${PLUGIN}, ${`visitor.${customerId.toLowerCase()}`})`,
+  );
 
 type Seen = { browser?: BrowserInfo; remoteAddress?: string };
 
@@ -164,7 +169,7 @@ export const recordVisit = (visitor: Visitor, seen: Seen, visit: boolean) =>
         target: [visitors.orgId, visitors.customerId],
         set: visit ? { ...known, sessionCount: sql`${visitors.sessionCount} + 1` } : known,
       });
-    await signalVisitors(tx, visitor.orgId);
+    await signalVisitor(tx, visitor);
   });
 
 /** Marks the visitor online while a messenger of theirs streams, and offline when the last closes. */
@@ -174,7 +179,7 @@ export const setOnline = (visitor: Visitor, isOnline: boolean) =>
       .update(visitors)
       .set({ isOnline, lastSeenAt: new Date() })
       .where(eq(visitors.customerId, visitor.customerId));
-    await signalVisitors(tx, visitor.orgId);
+    await signalVisitor(tx, visitor);
   });
 
 /** The members a messenger shows as its team: names and pictures from core, in its order. */

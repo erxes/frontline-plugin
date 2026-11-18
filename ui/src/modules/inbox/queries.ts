@@ -154,6 +154,9 @@ export const useConversations = () => {
       orpc.conversations.list.infiniteOptions({
         input: ({ cursor }: PageParam) => ({ ...params, cursor }),
         ...pageOptions,
+        // Every live signal refetches each page the list holds, so it holds 150 rows: three
+        // requests a signal at most, on every screen with the inbox open.
+        maxPages: 3,
         staleTime: FRESH_MS,
       }),
     ),
@@ -260,11 +263,11 @@ export const useInboxCounts = () =>
   useQuery(orpc.conversations.counts.queryOptions({ input: {}, staleTime: FRESH_MS })).data;
 
 /** The conversation's visitor as the messenger last saw them, kept fresh as they come and go. */
-export const useVisitor = (conversationId: string) => {
+export const useVisitor = ({ id, customerId }: Pick<Conversation, 'id' | 'customerId'>) => {
   const queryClient = useQueryClient();
-  const options = orpc.conversations.visitor.queryOptions({ input: { id: conversationId } });
+  const options = orpc.conversations.visitor.queryOptions({ input: { id } });
 
-  useLiveSignal(PLUGIN, 'visitors', () => {
+  useLiveSignal(PLUGIN, `visitor.${customerId.toLowerCase()}`, () => {
     void queryClient.invalidateQueries({ queryKey: options.queryKey });
   });
 

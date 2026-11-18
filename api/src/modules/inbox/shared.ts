@@ -197,6 +197,11 @@ export const signalMembers = async (tx: Tx, orgId: string, ids: string[]) => {
   await send(tx, memberSignals(orgId, ids));
 };
 
+/** Tells only the members who have the conversation open, for a change no list or count shows. */
+export const signalOpen = async (tx: Tx, orgId: string, id: string) => {
+  await send(tx, [sql`core_live_signal(${orgId}, ${PLUGIN}, ${conversationTopic(id)})`]);
+};
+
 /** Signals the members as `signalMembers` does, and tells each conversation's visitor. */
 export const signalConversations = async (tx: Tx, orgId: string, changed: Notified[]) => {
   await send(tx, [

@@ -57,7 +57,7 @@ export const VisitorTyping = ({ conversation }: { conversation: Conversation }) 
 export const VisitorPresence = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
-  const visitor = useVisitor(conversation.id);
+  const visitor = useVisitor(conversation);
 
   if (!visitor) return null;
 
