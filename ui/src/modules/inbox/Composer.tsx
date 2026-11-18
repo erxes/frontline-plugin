@@ -1,91 +1,73 @@
-import { IconLock, IconMessage2, IconPaperclip, IconSend, IconTemplate } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Button,
-  cn,
-  Editor,
-  editorText,
-  EntityPicker,
-  IconTip,
-  Kbd,
-  Popover,
-  Tabs,
-} from 'erxes-ui';
+import { IconLock, IconMessage2, IconPaperclip, IconSend } from '@tabler/icons-react';
+import { Button, cn, Editor, editorText, Kbd, Tabs } from 'erxes-ui';
 import { type SubmitEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { z } from 'zod';
 import { SendSurvey } from '~/modules/surveys/SurveyMessage.tsx';
-import { templatesQuery } from '~/shared/reference.ts';
+import { draftsOf, useDraft as useSavedDraft } from '~/shared/drafts.ts';
+import { takesNotesOnly } from '~/shared/kinds.tsx';
 import { type Attachment, FileList, FilePicker } from '~/shared/Files.tsx';
 import { type Conversation, useSendTyping } from './queries.ts';
 import { useSendMessage } from './changes.ts';
 import { useSlashItems } from './slashItems.tsx';
+import { TemplatePicker } from './TemplatePicker.tsx';
 import { useSendShortcut } from './useSendShortcut.ts';
 
 const MODES = ['reply', 'note'] as const;
 
 type Mode = (typeof MODES)[number];
 
+/** One tab's unsent text and files. */
+const Part = z.object({
+  html: z.string(),
+  attachments: z.array(
+    z.object({
+      url: z.string(),
+      name: z.string(),
+      type: z.string().optional(),
+      size: z.number().optional(),
+    }),
+  ),
+});
+
+type Part = z.infer<typeof Part>;
+
+const EMPTY: Part = { html: '', attachments: [] };
+
+/**
+ * What the member has written in each conversation and not sent: the reply and the note apart,
+ * and which tab was open. It stays while they switch conversations or reload, for as long as the
+ * tab is open, as the old inbox kept it.
+ */
+const Draft = z.object({ note: z.boolean(), reply: Part, internal: Part });
+
+type Draft = z.infer<typeof Draft>;
+
+const conversationDrafts = draftsOf('conversation', Draft);
+
+const NO_DRAFT: Draft = { note: false, reply: EMPTY, internal: EMPTY };
+
+/** The draft with the note's part, or the reply's, replaced. */
+const withPart = (draft: Draft, note: boolean, part: Part): Draft =>
+  note ? { ...draft, internal: part } : { ...draft, reply: part };
+
+const isEmpty = (part: Part) => !editorText(part.html) && part.attachments.length === 0;
+
 /** The send shortcut, as the member's keyboard labels it. */
 const SHORTCUT = navigator.userAgent.includes('Mac') ? '⌘↵' : 'Ctrl↵';
 
-/** Text as HTML, for a template added after what is written. */
-const paragraph = (text: string) =>
-  `<p>${text.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>`;
-
 /**
- * The channel's response templates in a popover over the composer, searchable by name; the one
- * picked goes into the reply. `/` in the editor reaches the same templates from the keyboard.
+ * A template's text as HTML paragraphs, one a line, for one picked from the popover. erxes-ui's
+ * editor takes no blocks from outside, so only `/` inside it keeps a template's formatting.
  */
-const TemplatePicker = ({
-  channelId,
-  onPick,
-}: {
-  channelId: string;
-  onPick: (content: string) => void;
-}) => {
-  const { t } = useTranslation('frontline');
-  const [open, setOpen] = useState(false);
-  const templates = useQuery(templatesQuery(channelId));
-  const label = t('response-templates', 'Response templates');
-
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <IconTip label={label}>
-        <Popover.Trigger
-          render={
-            <Button type="button" variant="ghost" tone="muted" size="icon" aria-label={label}>
-              <IconTemplate />
-            </Button>
-          }
-        />
-      </IconTip>
-      <Popover.Content side="top" align="start" className="w-80">
-        <EntityPicker
-          items={templates.data?.templates ?? []}
-          itemKey={(template) => ({ id: template.id, label: template.name })}
-          renderItem={(template) => (
-            <span className="flex min-w-0 flex-col">
-              <span className="truncate font-medium">{template.name}</span>
-              <span className="truncate text-xs text-muted-foreground">
-                {editorText(template.content)}
-              </span>
-            </span>
-          )}
-          value={[]}
-          onValueChange={([id]) => {
-            const template = templates.data?.templates.find((item) => item.id === id);
-
-            if (template) onPick(template.content);
-            setOpen(false);
-          }}
-          loading={templates.isPending}
-          error={templates.error}
-          searchPlaceholder={t('search-templates', 'Search templates')}
-        />
-      </Popover.Content>
-    </Popover>
-  );
-};
+const paragraphs = (text: string) =>
+  text
+    .split('\n')
+    .map(
+      (line) =>
+        `<p>${line.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>`,
+    )
+    .join('');
 
 /**
  * The composer's foot, in the old inbox's order: the files attached so far, then templates,
@@ -137,18 +119,31 @@ const Actions = ({
   );
 };
 
-/** Reply or Internal note, and in a note, who sees it. */
-const ModeTabs = ({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => void }) => {
+/**
+ * Reply or Internal note, and in a note, who sees it. A conversation that takes notes only, such
+ * as a phone call's, offers no Reply.
+ */
+const ModeTabs = ({
+  mode,
+  notesOnly,
+  onChange,
+}: {
+  mode: Mode;
+  notesOnly: boolean;
+  onChange: (mode: Mode) => void;
+}) => {
   const { t } = useTranslation('frontline');
 
   return (
     <div className="flex items-center gap-3 p-2">
       <Tabs value={mode} onValueChange={(value: Mode) => onChange(value)}>
         <Tabs.List variant="segment">
-          <Tabs.Trigger value="reply">
-            <IconMessage2 />
-            {t('reply', 'Reply')}
-          </Tabs.Trigger>
+          {!notesOnly && (
+            <Tabs.Trigger value="reply">
+              <IconMessage2 />
+              {t('reply', 'Reply')}
+            </Tabs.Trigger>
+          )}
           <Tabs.Trigger value="note">
             <IconLock />
             {t('internal-note', 'Internal note')}
@@ -157,7 +152,9 @@ const ModeTabs = ({ mode, onChange }: { mode: Mode; onChange: (mode: Mode) => vo
       </Tabs>
       {mode === 'note' && (
         <span className="truncate text-xs text-warning-text">
-          {t('note-hint', 'Only your team sees notes.')}
+          {notesOnly
+            ? t('notes-only-hint', 'A call takes notes only. Only your team sees them.')
+            : t('note-hint', 'Only your team sees notes.')}
         </span>
       )}
     </div>
@@ -221,22 +218,61 @@ const useEditorFocus = () => {
 };
 
 /**
+ * The open tab's draft in the conversation and what changes it. `clear` empties the tab as its
+ * message goes, and drops the draft once nothing is left; `restore` puts a refused message back
+ * in its tab, before anything written since.
+ */
+const useDraft = (conversation: Conversation) => {
+  const { value, save, clear } = useSavedDraft(conversationDrafts, conversation.id, NO_DRAFT);
+  const notesOnly = takesNotesOnly(conversation.kind);
+  const note = notesOnly || value.note;
+  const part = note ? value.internal : value.reply;
+
+  const edit = (update: (current: Part) => Part) =>
+    save((current) => withPart(current, note, update(note ? current.internal : current.reply)));
+
+  return {
+    ...part,
+    notesOnly,
+    note,
+    setHtml: (html: string) => edit((current) => ({ ...current, html })),
+    setNote: (next: boolean) => save((current) => ({ ...current, note: next })),
+    setAttachments: (update: (files: Attachment[]) => Attachment[]) =>
+      edit((current) => ({ ...current, attachments: update(current.attachments) })),
+    // A member writing notes stays in the note tab for the next one.
+    clear: () => {
+      if (!value.note && isEmpty(note ? value.reply : value.internal)) clear();
+      else edit(() => EMPTY);
+    },
+    restore: (sent: { html: string; attachments: Attachment[]; note: boolean }) =>
+      save((current) => {
+        const kept = sent.note ? current.internal : current.reply;
+
+        return withPart({ ...current, note: sent.note }, sent.note, {
+          html: editorText(kept.html) ? sent.html + kept.html : sent.html,
+          attachments: [...sent.attachments, ...kept.attachments],
+        });
+      }),
+  };
+};
+
+/**
  * The reply box, a compact card under the thread like the old inbox's: a reply goes to the
  * customer, an internal note stays with the team and can mention teammates. A note turns the
  * whole card yellow and its button reads Add note, so it can't pass for a reply. `/` opens the
  * formatting, the channel's response templates and, in a note, the teammates. Files attach
- * through core's upload. Ctrl or ⌘ with Enter sends it, and the cursor stays in the box.
+ * through core's upload. Ctrl or ⌘ with Enter sends it, and the cursor stays in the box. What
+ * is written stays as the conversation's draft until it goes.
  */
 export const Composer = ({ conversation }: { conversation: Conversation }) => {
-  const [mode, setMode] = useState<Mode>('reply');
-  const [html, setHtml] = useState('');
-  const [attachments, setAttachments] = useState<Attachment[]>([]);
+  const draft = useDraft(conversation);
+  const { html, attachments, note, setHtml } = draft;
+  const mode: Mode = note ? 'note' : 'reply';
   // Each change from outside the editor (a send, a template) starts a new one with the content.
   const [version, setVersion] = useState(0);
   const { attach, focus: focusEditor } = useEditorFocus();
   const send = useSendMessage();
   const sendTyping = useSendTyping(conversation.id);
-  const note = mode === 'note';
   const empty = !editorText(html) && attachments.length === 0;
 
   const restart = (content: string) => {
@@ -245,23 +281,19 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
     focusEditor();
   };
 
-  // The box empties as the message goes, ready for the next one. A refused message comes back,
-  // before anything written since.
   const submit = (event?: SubmitEvent<HTMLFormElement>) => {
     event?.preventDefault();
 
     if (empty || send.isPending) return;
 
-    const sent = { html, attachments };
-
-    setAttachments([]);
-    restart('');
+    draft.clear();
+    setVersion((count) => count + 1);
+    focusEditor();
     send.mutate(
       { conversationId: conversation.id, html, attachments, internal: note },
       {
         onError: () => {
-          setAttachments((files) => [...sent.attachments, ...files]);
-          setHtml((current) => (editorText(current) ? sent.html + current : sent.html));
+          draft.restore({ html, attachments, note });
           setVersion((count) => count + 1);
         },
       },
@@ -285,8 +317,9 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
       >
         <ModeTabs
           mode={mode}
+          notesOnly={draft.notesOnly}
           onChange={(value) => {
-            setMode(value);
+            draft.setNote(value === 'note');
             focusEditor();
           }}
         />
@@ -308,9 +341,9 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
           note={note}
           disabled={send.isPending || empty}
           attachments={attachments}
-          onAttachments={setAttachments}
+          onAttachments={draft.setAttachments}
           onTemplate={(content) =>
-            restart(editorText(html) ? html + paragraph(editorText(content)) : content)
+            restart((editorText(html) ? html : '') + paragraphs(editorText(content)))
           }
         />
       </form>

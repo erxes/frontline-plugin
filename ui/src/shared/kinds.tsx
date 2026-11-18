@@ -45,6 +45,12 @@ const KIND_ICONS: Record<string, { icon: Icon; tint: string }> = {
 
 const UNKNOWN = { icon: IconPlug, tint: 'text-muted-foreground' };
 
+/**
+ * Whether a kind's conversations take internal notes only, as the API's adapter says
+ * (`notesOnly` in `api/src/modules/inbox/adapters.ts`): a phone call has no thread to answer in.
+ */
+export const takesNotesOnly = (kind: string) => kind === 'call' || kind === 'callpro';
+
 /** The untinted icon of an integration kind, for a panel row's label; a plug for one the UI doesn't know. */
 export const kindIconOf = (kind: string) => (KIND_ICONS[kind] ?? UNKNOWN).icon;
 

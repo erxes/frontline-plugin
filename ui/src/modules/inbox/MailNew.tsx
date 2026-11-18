@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
 import { useDebounce } from 'use-debounce';
+import { draftsOf, useDraft } from '~/shared/drafts.ts';
 import { PickerField, SEARCH_PAUSE_MS } from '~/shared/Pickers.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { useIntegrations } from './queries.ts';
@@ -72,6 +73,37 @@ const FromRow = ({
   );
 };
 
+/** The address a new mail goes to: a customer core finds, or the address typed. */
+const ToRow = ({ value, onChange }: { value: string; onChange: (email: string) => void }) => {
+  const { t } = useTranslation('frontline');
+  const [search, setSearch] = useState('');
+  const recipients = useRecipients(search);
+
+  return (
+    <PanelFormRow label={t('to', 'To')} icon={IconAt} required>
+      <PickerField
+        label={t('to', 'To')}
+        display={<span className="truncate">{value}</span>}
+        placeholder={t('choose-recipient', 'A customer or an address')}
+        options={recipients.options}
+        value={value ? [value] : []}
+        onValueChange={(emails) => onChange(emails[0] ?? '')}
+        loading={recipients.loading}
+        error={recipients.error}
+        onSearchChange={setSearch}
+      />
+    </PanelFormRow>
+  );
+};
+
+/** The new mail being written, kept until it is sent, as the old new-email form kept it. */
+const mailDrafts = draftsOf(
+  'mail',
+  z.object({ integrationId: z.string(), to: z.string(), subject: z.string(), content: z.string() }),
+);
+
+const NO_MAIL = { integrationId: '', to: '', subject: '', content: '' };
+
 /**
  * A new mail in core's side panel: from one of the channel mailboxes, to a customer core finds
  * or any address, with a subject and text. Its conversation takes the draft's place, and the
@@ -84,56 +116,68 @@ export const MailNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
     (integration) => integration.kind === 'mail' && integration.isActive,
   );
 
-  const [picked, setIntegrationId] = useState('');
-  const integrationId = picked || mailboxes[0]?.id || '';
-  const [to, setTo] = useState('');
-  const [search, setSearch] = useState('');
-  const recipients = useRecipients(search);
+  const draft = useDraft(mailDrafts, 'new', NO_MAIL);
+  const integrationId = draft.value.integrationId || mailboxes[0]?.id || '';
   const { onSuccess } = useInboxChange();
 
   const compose = useMutation(
     orpc.integrations.mail.compose.mutationOptions({
       onSuccess: ({ conversationId }) => {
+        draft.clear();
         onSuccess();
         onCreated(conversationId);
       },
     }),
   );
 
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
-
-    compose.mutate({
-      integrationId,
-      to,
-      subject: textOf(form.get('subject')),
-      content: textOf(form.get('content')),
-    });
-  };
-
   return (
-    <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col">
-      <PanelFormLayout onCancel={onCancel} saving={compose.isPending} saveLabel={t('send', 'Send')}>
-        <FromRow value={integrationId} onChange={setIntegrationId} mailboxes={mailboxes} />
-        <PanelFormRow label={t('to', 'To')} icon={IconAt} required>
-          <PickerField
-            label={t('to', 'To')}
-            display={<span className="truncate">{to}</span>}
-            placeholder={t('choose-recipient', 'A customer or an address')}
-            options={recipients.options}
-            value={to ? [to] : []}
-            onValueChange={(emails) => setTo(emails[0] ?? '')}
-            loading={recipients.loading}
-            error={recipients.error}
-            onSearchChange={setSearch}
-          />
-        </PanelFormRow>
-        <TextRow label={t('subject', 'Subject')} icon={IconLetterCase} name="subject" required />
+    <form
+      onSubmit={(event: SubmitEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        compose.mutate({ ...draft.value, integrationId });
+      }}
+      // What is typed is kept as it is typed, so a closed panel or a reload loses none of it.
+      onChange={(event) => {
+        const form = new FormData(event.currentTarget);
+
+        draft.save((current) => ({
+          ...current,
+          subject: textOf(form.get('subject')),
+          content: textOf(form.get('content')),
+        }));
+      }}
+      className="flex min-h-0 flex-1 flex-col"
+    >
+      <PanelFormLayout
+        // Cancel throws the mail away; closing the panel keeps it for later.
+        onCancel={() => {
+          draft.clear();
+          onCancel();
+        }}
+        saving={compose.isPending}
+        saveLabel={t('send', 'Send')}
+      >
+        <FromRow
+          value={integrationId}
+          onChange={(id) => draft.save((current) => ({ ...current, integrationId: id }))}
+          mailboxes={mailboxes}
+        />
+        <ToRow
+          value={draft.value.to}
+          onChange={(to) => draft.save((current) => ({ ...current, to }))}
+        />
+        <TextRow
+          label={t('subject', 'Subject')}
+          icon={IconLetterCase}
+          name="subject"
+          defaultValue={draft.value.subject}
+          required
+        />
         <TextRow
           label={t('message', 'Message')}
           icon={IconMessage}
           name="content"
+          defaultValue={draft.value.content}
           required
           multiline
         />
