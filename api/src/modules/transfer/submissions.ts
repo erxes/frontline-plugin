@@ -7,17 +7,27 @@ import { type Tx, withOrg } from '#/db/client.ts';
 import { formAnswers, formFields, forms, formSubmissions } from '#/db/forms.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { membership } from '../channels/access.ts';
+import { FILE_FIELDS, typeError } from '../forms/answers.ts';
 import { answered, SUBMISSION_FILTER, submissionRows } from '../forms/submissions.ts';
 import { orderOf } from '../paging.ts';
-import { customersByEmail, namesOf } from './people.ts';
-import { dateOf, type ImportRequest, rowOf, runImport, transferMember } from './shared.ts';
+import { customersOf, namesOf } from './people.ts';
+import {
+  dateOf,
+  type ImportRequest,
+  labelledOf,
+  refuse,
+  rowOf,
+  runImport,
+  tickOf,
+  transferMember,
+} from './shared.ts';
 
 /**
  * Submissions' columns in core's import and export. Forms ask different questions, so the
  * answers share one column: `Question: answer` for each, `; ` between them.
  */
 export const SUBMISSION_COLUMNS = [
-  { key: 'id', label: 'ID', default: false, importable: false },
+  { key: 'id', label: 'ID', default: false },
   { key: 'form', label: 'Form', aliases: ['Form name', 'Маягт'] },
   { key: 'customer', label: 'Customer', aliases: ['Customer email'] },
   { key: 'answers', label: 'Answers', aliases: ['Хариулт'] },
@@ -40,12 +50,7 @@ const formsWithFields = async (tx: Tx, ids: string[]) => {
   if (!ids.length) return [];
 
   const fields = await tx
-    .select({
-      id: formFields.id,
-      formId: formFields.formId,
-      label: formFields.label,
-      type: formFields.type,
-    })
+    .select()
     .from(formFields)
     .where(inArray(formFields.formId, ids))
     .orderBy(asc(formFields.order));
@@ -113,53 +118,64 @@ export const exportSubmissions = async (request: z.infer<typeof PluginExportRequ
   };
 };
 
-const refuse = (message: string) => new ORPCError('BAD_REQUEST', { message });
-
 type Field = Awaited<ReturnType<typeof formsWithFields>>[number]['fields'][number];
 
-/**
- * A row's answers by field id, from `Question: answer` parts: a part starts at a question the
- * form asks, so an answer may hold `; ` itself. A tick box's answer is its picks.
- */
-const answersOf = (cell: string, fields: Field[]) => {
-  const labels = fields.filter((field) => field.label).map((field) => field.label);
+/** One answer from its text, by its field's type, as the form's own checks take it. */
+const answerOf = (field: Field, text: string) => {
+  if (FILE_FIELDS.has(field.type)) throw refuse(`${field.label}: files don't import`);
 
-  const starts = [...cell.matchAll(/(?:^|;\s*|\n)([^:;\n]+):\s*/g)].filter((match) =>
-    labels.includes(match[1]?.trim() ?? ''),
-  );
+  if (field.type === 'boolean') return tickOf(text, field.label);
 
-  if (cell.trim() && !starts.length) throw refuse('Write each answer as Question: answer');
+  if (field.type === 'number' && text && !Number.isNaN(Number(text))) return Number(text);
 
-  return Object.fromEntries(
-    starts.map((match, at) => {
-      const label = match[1]?.trim();
-      const field = fields.find((one) => one.label === label);
-      const end = starts[at + 1]?.index ?? cell.length;
-      const text = cell.slice((match.index ?? 0) + match[0].length, end).trim();
-
-      return [field?.id ?? '', field?.type === 'check' ? text.split(/,\s*/).filter(Boolean) : text];
-    }),
-  );
+  return field.type === 'check' ? text.split(/,\s*/).filter(Boolean) : text;
 };
 
 /**
+ * A row's answers by field id, from `Question: answer` parts, each fitting its field as the
+ * widget's would. A part starts at a question the form asks, so an answer may hold `; `.
+ */
+const answersOf = (cell: string, fields: Field[]) =>
+  Object.fromEntries(
+    labelledOf(cell, fields).flatMap(({ item, text }) => {
+      if (!text) return [];
+
+      const answer = answerOf(item, text);
+      const error = typeError(item, answer);
+
+      if (error) throw refuse(`${item.label}: ${error}`);
+
+      return [[item.id, answer]];
+    }),
+  );
+
+/**
  * Adds a submission for each row to a form in the member's channels, by name or id, with its
- * answers, customer (by email, made in core when it has none, not in a check) and date. It
- * fires no automation, as an old answer shouldn't send mail today. Submissions are only added:
- * an update finds nothing to change.
+ * answers, typed and checked as the form checks a visitor's, customer (by email, made in core
+ * when it has none, not in a check) and date. It fires no automation, as an old answer
+ * shouldn't send mail today. Submissions are only added: a row whose ID the member already
+ * has is skipped, so an export imports again without doubling.
  */
 export const importSubmissions = async (request: ImportRequest) => {
   const member = transferMember(request.orgId, request.userId);
 
-  const customers = request.dryRun
-    ? new Map<string, string>()
-    : await customersByEmail(
-        request.orgId,
-        request.rows.flatMap((row) => row.values.customer ?? []),
-      );
+  const customerOf = await customersOf(
+    request.orgId,
+    request.rows.flatMap((row) => row.values.customer ?? []),
+    request.dryRun,
+  );
 
   return runImport(request, async (tx, row) => {
-    if (request.mode === 'update') return { action: 'skip' };
+    const [found] = row.id
+      ? await tx
+          .select({ id: formSubmissions.id })
+          .from(formSubmissions)
+          .innerJoin(forms, eq(forms.id, formSubmissions.formId))
+          .innerJoin(channelMembers, membership(member, forms.channelId))
+          .where(eq(formSubmissions.id, row.id))
+      : [];
+
+    if (found || request.mode === 'update') return { action: 'skip', recordId: found?.id };
 
     if (!row.form) throw refuse('Form is required');
 
@@ -185,7 +201,7 @@ export const importSubmissions = async (request: ImportRequest) => {
       .values({
         orgId: request.orgId,
         formId: form.id,
-        customerId: row.customer ? customers.get(row.customer.toLowerCase()) : undefined,
+        customerId: row.customer ? customerOf(row.customer) : undefined,
         createdAt: dateOf(row.submittedAt, 'Submitted'),
       })
       .returning({ id: formSubmissions.id });

@@ -117,6 +117,7 @@ describe('server', () => {
       rows: [
         { rowNumber: 2, values: { name: 'Refund', pipeline: 'Main', priority: 'High' } },
         { rowNumber: 3, values: { name: 'Late', pipeline: 'Nowhere' } },
+        { rowNumber: 4, values: { name: 'Odd', pipeline: 'Main', customer: 'Bob' } },
       ],
     };
 
@@ -125,7 +126,8 @@ describe('server', () => {
     expect(await check.json()).toMatchObject({
       rows: [
         { rowNumber: 2, action: 'create' },
-        { rowNumber: 3, action: 'error', error: 'No pipeline Nowhere' },
+        { rowNumber: 3, action: 'error', error: 'No pipeline Nowhere in your channels' },
+        { rowNumber: 4, action: 'error', error: 'Customer is an email address, not Bob' },
       ],
     });
     expect((await owner.tickets.list({ pipelineId: pipeline.id })).tickets).toEqual([]);
@@ -157,42 +159,57 @@ describe('server', () => {
 
     const form = await owner.forms.create({ channelId: channel.id, name: 'Contact' });
     const field = await owner.forms.fields.add({ formId: form.id, type: 'text', label: 'Topic' });
-    const submission = { type: 'frontline:form_submission' };
+    const seats = await owner.forms.fields.add({ formId: form.id, type: 'number', label: 'Seats' });
 
-    const imported = await post('import', {
-      ...submission,
-      importId: randomUUID(),
-      mode: 'create',
-      dryRun: false,
-      rows: [
-        { rowNumber: 2, values: { form: 'contact', answers: 'Topic: refund; still waiting' } },
+    const submissions = (rows: { rowNumber: number; values: Record<string, string> }[]) =>
+      post('import', {
+        type: 'frontline:form_submission',
+        importId: randomUUID(),
+        mode: 'create',
+        dryRun: false,
+        rows,
+      }).then((response) => response.json());
+
+    expect(
+      await submissions([
+        { rowNumber: 2, values: { form: 'contact', answers: 'Topic: refund; still; Seats: 2' } },
         { rowNumber: 3, values: { form: 'Elsewhere' } },
-      ],
-    });
-
-    expect(await imported.json()).toMatchObject({
+        { rowNumber: 4, values: { form: 'Contact', answers: 'Seats: many' } },
+      ]),
+    ).toMatchObject({
       rows: [
         { rowNumber: 2, action: 'create' },
         { rowNumber: 3, action: 'error', error: 'No form Elsewhere in your channels' },
+        { rowNumber: 4, action: 'error', error: 'Seats: Enter a number' },
       ],
     });
 
-    const { submissions } = await owner.forms.submissions.list({ formId: form.id });
+    const listed = await owner.forms.submissions.list({ formId: form.id });
 
-    expect(submissions).toMatchObject([{ answers: { [field.id]: 'refund; still waiting' } }]);
+    expect(listed.submissions).toMatchObject([
+      { answers: { [field.id]: 'refund; still', [seats.id]: 2 } },
+    ]);
 
     const exported = await post('export', {
-      ...submission,
-      columns: ['form', 'answers'],
+      type: 'frontline:form_submission',
+      columns: ['id', 'form', 'answers'],
       query: {},
       cursor: null,
       limit: 10,
     });
 
-    expect(await exported.json()).toEqual({
-      cursor: null,
-      rows: [{ form: 'Contact', answers: ['Topic: refund; still waiting'] }],
-    });
+    const rows = [
+      {
+        id: listed.submissions[0]?.id,
+        form: 'Contact',
+        answers: ['Topic: refund; still', 'Seats: 2'],
+      },
+    ];
+
+    expect(await exported.json()).toEqual({ cursor: null, rows });
+    expect(
+      await submissions([{ rowNumber: 2, values: { id: String(rows[0]?.id), form: 'Contact' } }]),
+    ).toMatchObject({ rows: [{ rowNumber: 2, action: 'skip' }] });
   });
 
   it.each(['/api/rpc', '/api/v1', '/ui'])(

@@ -1,4 +1,6 @@
+import { z } from 'zod';
 import { core } from '#/core.ts';
+import { refuse } from './shared.ts';
 
 /** Core lists at most 100 ids at a time. */
 const chunks = (ids: Iterable<string>) => {
@@ -75,18 +77,40 @@ export const membersByEmail = async (orgId: string, emails: Iterable<string>) =>
   return new Map(found.filter((pair) => pair !== null));
 };
 
-/** The customers of `emails`, by lowercased email, made in core when it has none. */
-export const customersByEmail = async (orgId: string, emails: Iterable<string>) => {
-  const client = core.forOrg(orgId);
-  const wanted = [...new Set([...emails].map((email) => email.toLowerCase()))];
+const isEmail = (cell: string) => z.email().safeParse(cell).success;
 
-  return new Map(
+/**
+ * A batch's customers by their cells' emails, made in core when it has none, except in a
+ * check: a row whose cell isn't an email, or whose customer core refused, fails on its own.
+ * Returns the row's customer id for a cell.
+ */
+export const customersOf = async (orgId: string, cells: string[], dryRun: boolean) => {
+  const client = core.forOrg(orgId);
+
+  const wanted = dryRun
+    ? []
+    : [...new Set(cells.filter(isEmail).map((cell) => cell.toLowerCase()))];
+
+  const found = new Map(
     await Promise.all(
       wanted.map(async (email) => {
-        const { customer } = await client.customers.findOrCreate({ primaryEmail: email });
+        const made = await client.customers.findOrCreate({ primaryEmail: email }).then(
+          ({ customer }) => customer.id,
+          (error: unknown) => (error instanceof Error ? error : new Error('Core failed')),
+        );
 
-        return [email, customer.id] as const;
+        return [email, made] as const;
       }),
     ),
   );
+
+  return (cell: string) => {
+    if (!isEmail(cell)) throw refuse(`Customer is an email address, not ${cell}`);
+
+    const id = found.get(cell.toLowerCase());
+
+    if (id instanceof Error) throw refuse(`Customer ${cell}: ${id.message}`);
+
+    return id;
+  };
 };
