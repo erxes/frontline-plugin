@@ -5,8 +5,9 @@ import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'driz
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { pipelineStatuses, tickets } from '#/db/tickets.ts';
+import { pipelineStatuses, pipelines, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
+import { heldInChannels } from '../channels/access.ts';
 import { Blank, Color, Title } from '../fields.ts';
 import { pipelineFor, refuseUsed, UserIds } from './pipelines.ts';
 
@@ -177,7 +178,17 @@ const remove = writes(PERMISSIONS.channelView)
   .input(z.object({ ids: z.array(z.string()).min(1).max(100) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
-    await Promise.all(input.ids.map((id) => statusFor(tx, member, id, { change: true })));
+    await heldInChannels(
+      tx,
+      member,
+      input.ids,
+      await tx
+        .select({ channelId: pipelines.channelId })
+        .from(pipelineStatuses)
+        .innerJoin(pipelines, eq(pipelines.id, pipelineStatuses.pipelineId))
+        .where(inArray(pipelineStatuses.id, input.ids)),
+      { change: true, noun: 'status' },
+    );
     await refuseUsed(tx, inArray(tickets.statusId, input.ids), 'A status you picked has tickets');
 
     const removed = await tx

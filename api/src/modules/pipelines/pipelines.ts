@@ -19,7 +19,13 @@ import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { pipelines, pipelineStatuses, SlaPolicy, STATUS_TYPES, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
-import { canChangeSql, channelFor, managesAll, membership } from '../channels/access.ts';
+import {
+  canChangeSql,
+  channelFor,
+  heldInChannels,
+  managesAll,
+  membership,
+} from '../channels/access.ts';
 import { Blank, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
@@ -235,7 +241,16 @@ const remove = writes(PERMISSIONS.channelView)
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
-    await Promise.all(input.ids.map((id) => pipelineFor(tx, member, id, { change: true })));
+    await heldInChannels(
+      tx,
+      member,
+      input.ids,
+      await tx
+        .select({ channelId: pipelines.channelId })
+        .from(pipelines)
+        .where(inArray(pipelines.id, input.ids)),
+      { change: true, noun: 'pipeline' },
+    );
     await refuseUsed(
       tx,
       inArray(tickets.pipelineId, input.ids),

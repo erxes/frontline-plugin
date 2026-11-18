@@ -11,6 +11,7 @@ import { reads, writes } from '#/orpc.ts';
 import { Color, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
+import { inOrder } from '../integrations/provider.ts';
 
 const { orgId, ...tagColumns } = getTableColumns(tags);
 
@@ -141,15 +142,13 @@ const remove = writes(PERMISSIONS.settingsManage)
     const ids = removed.map((row) => row.id);
 
     if (ids.length > 0)
-      await Promise.all(
-        [tickets, forms].map((tagged) =>
-          tx
-            .update(tagged)
-            .set({
-              tagIds: sql`array(select unnest(${tagged.tagIds}) except select unnest(${sql.param(ids)}::text[]))`,
-            })
-            .where(sql`${tagged.tagIds} && ${sql.param(ids)}::text[]`),
-        ),
+      await inOrder([tickets, forms], (tagged) =>
+        tx
+          .update(tagged)
+          .set({
+            tagIds: sql`array(select unnest(${tagged.tagIds}) except select unnest(${sql.param(ids)}::text[]))`,
+          })
+          .where(sql`${tagged.tagIds} && ${sql.param(ids)}::text[]`),
       );
 
     return { ids };

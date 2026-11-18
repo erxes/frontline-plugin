@@ -18,7 +18,7 @@ import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { Attachment } from '#/db/table.ts';
 import { pipelineStatuses, pipelines, STATUS_TYPES, tickets } from '#/db/tickets.ts';
-import { canChangeSql, channelFor, managesAll, membership } from '../channels/access.ts';
+import { canChangeSql, heldInChannels, managesAll, membership } from '../channels/access.ts';
 import { Title } from '../fields.ts';
 import { statusRights, ticketVisible } from '../pipelines/rights.ts';
 
@@ -118,33 +118,26 @@ export const refine = {
 const UserIds = z.array(z.string()).max(100);
 
 /**
- * The tickets of `ids`, all of them or NOT_FOUND, oldest first. Their channels' members change
- * them; with `remove`, only the channels' admins. Each channel is held once, in id order, so two
- * changes to the same channels can't deadlock.
+ * The tickets of `ids`, all of them or NOT_FOUND, oldest first, with their channels held
+ * (`heldInChannels`). Their channels' members change them; with `remove`, only the admins.
  */
 export const ticketsFor = async (
   tx: Tx,
   member: PluginMember,
   ids: string[],
   { remove = false } = {},
-) => {
-  const rows = await tx
-    .select(ticketColumns)
-    .from(tickets)
-    .where(inArray(tickets.id, ids))
-    .orderBy(asc(tickets.createdAt), asc(tickets.id));
-
-  if (rows.length !== ids.length) throw new ORPCError('NOT_FOUND', { message: 'No such ticket' });
-
-  const channelIds = [...new Set(rows.map((row) => row.channelId))].toSorted();
-
-  // One connection runs the locks in the order they are sent.
-  await Promise.all(
-    channelIds.map((channelId) => channelFor(tx, member, channelId, { change: remove })),
+) =>
+  heldInChannels(
+    tx,
+    member,
+    ids,
+    await tx
+      .select(ticketColumns)
+      .from(tickets)
+      .where(inArray(tickets.id, ids))
+      .orderBy(asc(tickets.createdAt), asc(tickets.id)),
+    { change: remove, noun: 'ticket' },
   );
-
-  return rows;
-};
 
 /** A number's prefix on `day`: the pipeline's format with `{year}`, `{month}` and `{day}` filled in. */
 const prefixOf = (config: string, day: Date) =>

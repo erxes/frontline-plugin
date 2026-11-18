@@ -6,6 +6,7 @@ import { CONVERSATION_OPERATORS, conversations, integrations, messages } from '#
 import { writes } from '#/orpc.ts';
 import { ADAPTERS } from './adapters.ts';
 import { queueSend } from './post.ts';
+import { inOrder } from '../integrations/provider.ts';
 import { conversationsFor, Ids, signalConversations } from './shared.ts';
 
 /** What the customer reads when a person takes the conversation over from the bot. */
@@ -85,9 +86,8 @@ export const setOperatorOf = async (
       ),
     );
 
-  // One transaction's queries run one at a time on its connection, whatever the order they start.
   if (operator === 'person')
-    await Promise.all(changed.map((row) => addBotMessage(tx, orgId, row, HAND_OFF_MESSAGE)));
+    await inOrder(changed, (row) => addBotMessage(tx, orgId, row, HAND_OFF_MESSAGE));
 
   await signalConversations(tx, orgId, changed);
 };

@@ -7,7 +7,7 @@ import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { channelMembers, responseTemplates } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { channelFor, managesAll } from '../channels/access.ts';
+import { channelFor, heldInChannels, managesAll } from '../channels/access.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
@@ -192,7 +192,16 @@ const remove = writes(PERMISSIONS.channelView)
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
-    await Promise.all(input.ids.map((id) => templateFor(tx, member, id, { change: true })));
+    await heldInChannels(
+      tx,
+      member,
+      input.ids,
+      await tx
+        .select({ channelId: responseTemplates.channelId })
+        .from(responseTemplates)
+        .where(inArray(responseTemplates.id, input.ids)),
+      { change: true, noun: 'response template' },
+    );
 
     const removed = await tx
       .delete(responseTemplates)

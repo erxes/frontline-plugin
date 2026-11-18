@@ -4,6 +4,7 @@ import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { writes } from '#/orpc.ts';
+import { inOrder } from '../provider.ts';
 import { metaKey, saveAccount } from '../store.ts';
 import { readToken, signToken } from '../secrets.ts';
 import { GRAPH_VERSION, graph } from './meta.ts';
@@ -159,7 +160,7 @@ export const connectMetaPages = async (code: string, stateToken: string) => {
   });
 
   await withOrg(state.orgId, (tx) =>
-    Promise.all(accounts.map((account) => saveAccount(tx, state, account))),
+    inOrder(accounts, (account) => saveAccount(tx, state, account)),
   );
 
   return pages.length;
