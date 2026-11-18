@@ -196,7 +196,7 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   const connected = await request.post(`${MESSENGER}/connect`, { data: { key } });
 
   expect(await connected.json()).toMatchObject({
-    messenger: { greetingTitle: title, color: '#0D9488', requireAuth: true },
+    messenger: { greetingTitle: title, color: '#0F766E', requireAuth: true },
   });
 
   // A visitor the shop signs in writes at once, though the messenger asks others for an email.
