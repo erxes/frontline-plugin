@@ -5,6 +5,7 @@ import { onError, ORPCError, ValidationError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/node';
 import cors from 'cors';
 import express from 'express';
+import { z } from 'zod';
 
 import { config, PLUGIN, signedByCore } from '#/config.ts';
 import { JOB_RUNS } from '#/jobs.ts';
@@ -26,8 +27,8 @@ const logFailure = (error: unknown) => {
 };
 
 /**
- * Refused input says what is wrong, such as "A question needs at least 2 options", where oRPC
- * says "Input validation failed". The panels show the message as it comes.
+ * Refused input says what is wrong and where, as zod's pretty error does elsewhere ("✖ A question
+ * needs at least 2 options → at steps[0].options"), where oRPC says "Input validation failed".
  */
 const explainInput = (error: unknown) => {
   if (
@@ -35,10 +36,8 @@ const explainInput = (error: unknown) => {
     error.code === 'BAD_REQUEST' &&
     error.cause instanceof ValidationError
   ) {
-    const [first] = error.cause.issues;
-
     throw new ORPCError('BAD_REQUEST', {
-      message: first?.message ?? error.message,
+      message: z.prettifyError({ issues: error.cause.issues }),
       data: error.data,
       cause: error.cause,
     });
