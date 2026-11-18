@@ -18,7 +18,8 @@ import { publicKeys } from '#/db/public.ts';
 import { kbTopics } from '#/db/schema.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
 import { Blank, Color, Title } from '../fields.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 import { removeKeys, widgetScript } from '../public.ts';
 import {
   clearDomain,
@@ -81,10 +82,10 @@ const assertTopic = async (tx: Tx, topicId: string | null | undefined) => {
 };
 
 const CENTER_FILTER: FilterFields = {
-  'subject.title': { kind: 'text', expr: helpCenters.title },
-  'subject.kbTopicId': { kind: 'select', expr: helpCenters.kbTopicId },
-  'subject.createdBy': { kind: 'member', expr: helpCenters.createdBy },
-  'subject.createdAt': { kind: 'date', expr: helpCenters.createdAt },
+  'subject.title': { type: 'text', expr: helpCenters.title },
+  'subject.kbTopicId': { type: 'select', expr: helpCenters.kbTopicId },
+  'subject.createdBy': { type: 'member', expr: helpCenters.createdBy },
+  'subject.createdAt': { type: 'date', expr: helpCenters.createdAt },
 };
 
 /** Every help center, by title, narrowed by the filter bar, and whether the caller manages them. */
@@ -98,7 +99,7 @@ const list = reads(PERMISSIONS.helpCenterView)
       .where(
         and(
           input.search ? ilike(helpCenters.title, likeText(input.search)) : undefined,
-          input.filter ? filterSql(CENTER_FILTER, input.filter, member.userId) : undefined,
+          compileFilter(CENTER_FILTER, input.filter, { me: member.userId }),
         ),
       )
       .orderBy(asc(helpCenters.title));

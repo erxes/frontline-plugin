@@ -161,7 +161,7 @@ describe('pipelines', () => {
           rules: [{ path: 'subject.numberSize', op: 'eq', value: 4 }],
         }),
       }),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    ).rejects.toMatchObject({ code: 'INVALID_FILTER', status: 400 });
   });
 
   it('adds statuses last in their stage, even at once, and reorders a stage in one call', async () => {

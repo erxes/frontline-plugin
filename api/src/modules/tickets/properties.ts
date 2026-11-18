@@ -7,7 +7,8 @@ import type { Tx } from '#/db/client.ts';
 import { type PROPERTY_TYPES, ticketProperties, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Title } from '../fields.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 
 const { orgId, ...propertyColumns } = getTableColumns(ticketProperties);
 
@@ -119,10 +120,10 @@ const withOptions = <T extends { type?: (typeof PROPERTY_TYPES)[number]; options
 };
 
 const PROPERTY_FILTER: FilterFields = {
-  'subject.label': { kind: 'text', expr: ticketProperties.label },
-  'subject.type': { kind: 'select', expr: ticketProperties.type },
-  'subject.isRequired': { kind: 'boolean', expr: ticketProperties.isRequired },
-  'subject.createdAt': { kind: 'date', expr: ticketProperties.createdAt },
+  'subject.label': { type: 'text', expr: ticketProperties.label },
+  'subject.type': { type: 'select', expr: ticketProperties.type },
+  'subject.isRequired': { type: 'boolean', expr: ticketProperties.isRequired },
+  'subject.createdAt': { type: 'date', expr: ticketProperties.createdAt },
 };
 
 /** Every ticket property in order, or those a pipeline's tickets show, narrowed by the filter bar. */
@@ -139,7 +140,7 @@ const list = reads(PERMISSIONS.channelView)
             ? sql`(cardinality(${ticketProperties.pipelineIds}) = 0 or ${input.pipelineId} = any(${ticketProperties.pipelineIds}))`
             : undefined,
           input.search ? ilike(ticketProperties.label, likeText(input.search)) : undefined,
-          input.filter ? filterSql(PROPERTY_FILTER, input.filter, member.userId) : undefined,
+          compileFilter(PROPERTY_FILTER, input.filter, { me: member.userId }),
         ),
       )
       .orderBy(asc(ticketProperties.order), asc(ticketProperties.createdAt)),

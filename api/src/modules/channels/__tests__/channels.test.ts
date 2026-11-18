@@ -80,7 +80,7 @@ describe('channels', () => {
     ).resolves.toHaveLength(2);
     await expect(
       names([{ path: 'subject.orgId', op: 'eq', value: 'org-a' }]),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    ).rejects.toMatchObject({ code: 'INVALID_FILTER', status: 400 });
   });
 
   it('refuses a name the organisation already uses, ignoring case', async () => {

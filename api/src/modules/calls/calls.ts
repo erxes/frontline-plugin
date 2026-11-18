@@ -12,7 +12,8 @@ import { channelMembers } from '#/db/schema.ts';
 import { Attachment } from '#/db/table.ts';
 import { reads, writes } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 import { seenBy } from '../inbox/shared.ts';
 import { queueRecording } from '../integrations/providers/call/record.ts';
 import { orderOf, PageInput } from '../paging.ts';
@@ -52,15 +53,15 @@ const callRows = (tx: Tx, member: PluginMember) =>
 
 /** The `subject.<field>` paths the call list's filter bar names. */
 const CALL_FILTER: FilterFields = {
-  'subject.status': { kind: 'select', expr: calls.status },
-  'subject.direction': { kind: 'select', expr: calls.direction },
-  'subject.customerPhone': { kind: 'text', expr: calls.customerPhone },
-  'subject.number': { kind: 'text', expr: calls.number },
-  'subject.queue': { kind: 'text', expr: calls.queue },
-  'subject.extension': { kind: 'text', expr: calls.extension },
-  'subject.answeredBy': { kind: 'member', expr: calls.answeredBy },
-  'subject.startedAt': { kind: 'date', expr: calls.startedAt },
-  'subject.durationSec': { kind: 'number', expr: calls.durationSec },
+  'subject.status': { type: 'select', expr: calls.status },
+  'subject.direction': { type: 'select', expr: calls.direction },
+  'subject.customerPhone': { type: 'text', expr: calls.customerPhone },
+  'subject.number': { type: 'text', expr: calls.number },
+  'subject.queue': { type: 'text', expr: calls.queue },
+  'subject.extension': { type: 'text', expr: calls.extension },
+  'subject.answeredBy': { type: 'member', expr: calls.answeredBy },
+  'subject.startedAt': { type: 'date', expr: calls.startedAt },
+  'subject.durationSec': { type: 'number', expr: calls.durationSec },
 };
 
 const order = orderOf(calls, calls.startedAt);
@@ -75,7 +76,7 @@ const list = reads(PERMISSIONS.callView)
     const matches = and(
       seenBy(member),
       input.search ? ilike(calls.customerPhone, likeText(input.search)) : undefined,
-      input.filter ? filterSql(CALL_FILTER, input.filter, member.userId) : undefined,
+      compileFilter(CALL_FILTER, input.filter, { me: member.userId }),
     );
 
     const rows = await callRows(tx, member)

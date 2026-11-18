@@ -7,7 +7,8 @@ import type { Tx } from '#/db/client.ts';
 import { kbArticles, kbCategories } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Title } from '../fields.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 import {
   categoryColumns,
   categoryFor,
@@ -98,12 +99,12 @@ const categoryById = async (tx: Tx, id: string) => {
 
 /** What the categories list's filter bar narrows them by (`CategoriesPage.tsx` in the UI). */
 const CATEGORY_FILTER: FilterFields = {
-  'subject.title': { kind: 'text', expr: kbCategories.title },
-  'subject.description': { kind: 'text', expr: kbCategories.description },
-  'subject.code': { kind: 'text', expr: kbCategories.code },
-  'subject.parentId': { kind: 'select', expr: kbCategories.parentId },
-  'subject.createdBy': { kind: 'member', expr: kbCategories.createdBy },
-  'subject.createdAt': { kind: 'date', expr: kbCategories.createdAt },
+  'subject.title': { type: 'text', expr: kbCategories.title },
+  'subject.description': { type: 'text', expr: kbCategories.description },
+  'subject.code': { type: 'text', expr: kbCategories.code },
+  'subject.parentId': { type: 'select', expr: kbCategories.parentId },
+  'subject.createdBy': { type: 'member', expr: kbCategories.createdBy },
+  'subject.createdAt': { type: 'date', expr: kbCategories.createdAt },
 };
 
 /**
@@ -126,7 +127,7 @@ const list = reads(PERMISSIONS.kbView)
                 ilike(kbCategories.description, likeText(input.search)),
               )
             : undefined,
-          input.filter ? filterSql(CATEGORY_FILTER, input.filter, member.userId) : undefined,
+          compileFilter(CATEGORY_FILTER, input.filter, { me: member.userId }),
         ),
       )
       .orderBy(asc(sql`lower(${kbCategories.title})`), asc(kbCategories.id));

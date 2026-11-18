@@ -7,7 +7,8 @@ import type { Tx } from '#/db/client.ts';
 import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Color, Title } from '../fields.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 import { Code, codeTaken, kbErrors, topicColumns } from './shared.ts';
 
 const Fields = z
@@ -79,12 +80,12 @@ const topicById = async (tx: Tx, id: string) => {
 
 /** What the topics list's filter bar narrows them by (`ui/src/modules/knowledgebase/TopicsPage.tsx`). */
 const TOPIC_FILTER: FilterFields = {
-  'subject.title': { kind: 'text', expr: kbTopics.title },
-  'subject.description': { kind: 'text', expr: kbTopics.description },
-  'subject.code': { kind: 'text', expr: kbTopics.code },
-  'subject.languageCode': { kind: 'select', expr: kbTopics.languageCode },
-  'subject.createdBy': { kind: 'member', expr: kbTopics.createdBy },
-  'subject.createdAt': { kind: 'date', expr: kbTopics.createdAt },
+  'subject.title': { type: 'text', expr: kbTopics.title },
+  'subject.description': { type: 'text', expr: kbTopics.description },
+  'subject.code': { type: 'text', expr: kbTopics.code },
+  'subject.languageCode': { type: 'select', expr: kbTopics.languageCode },
+  'subject.createdBy': { type: 'member', expr: kbTopics.createdBy },
+  'subject.createdAt': { type: 'date', expr: kbTopics.createdAt },
 };
 
 /**
@@ -110,7 +111,7 @@ const list = reads(PERMISSIONS.kbView)
                 ilike(kbTopics.description, likeText(input.search)),
               )
             : undefined,
-          input.filter ? filterSql(TOPIC_FILTER, input.filter, member.userId) : undefined,
+          compileFilter(TOPIC_FILTER, input.filter, { me: member.userId }),
         ),
       )
       .orderBy(asc(sql`lower(${kbTopics.title})`), asc(kbTopics.id)),

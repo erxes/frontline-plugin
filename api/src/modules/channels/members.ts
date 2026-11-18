@@ -6,7 +6,8 @@ import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { CHANNEL_ROLES, channelMembers } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { FilterInput, type FilterFields, filterSql } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput } from '../filter.ts';
 import { channelFor, insertMembers } from './access.ts';
 
 const Members = z.object({ id: z.string(), userIds: z.array(z.string()).min(1).max(500) });
@@ -14,9 +15,9 @@ const Member = createSelectSchema(channelMembers).pick({ userId: true, role: tru
 
 /** What the members page's filter bar narrows them by. */
 const MEMBER_FILTER: FilterFields = {
-  'subject.userId': { kind: 'member', expr: channelMembers.userId },
-  'subject.role': { kind: 'select', expr: channelMembers.role },
-  'subject.createdAt': { kind: 'date', expr: channelMembers.createdAt },
+  'subject.userId': { type: 'member', expr: channelMembers.userId },
+  'subject.role': { type: 'select', expr: channelMembers.role },
+  'subject.createdAt': { type: 'date', expr: channelMembers.createdAt },
 };
 
 /**
@@ -41,7 +42,7 @@ const members = reads(PERMISSIONS.channelView)
       .where(
         and(
           eq(channelMembers.channelId, input.id),
-          input.filter ? filterSql(MEMBER_FILTER, input.filter, member.userId) : undefined,
+          compileFilter(MEMBER_FILTER, input.filter, { me: member.userId }),
         ),
       )
       .orderBy(asc(channelMembers.role), desc(channelMembers.createdAt));

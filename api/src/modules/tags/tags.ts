@@ -9,7 +9,8 @@ import { forms } from '#/db/forms.ts';
 import { tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Color, Title } from '../fields.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 
 const { orgId, ...tagColumns } = getTableColumns(tags);
 
@@ -57,10 +58,10 @@ export const assertTags = async (tx: Tx, type: (typeof TAG_TYPES)[number], ids: 
 };
 
 const TAG_FILTER: FilterFields = {
-  'subject.name': { kind: 'text', expr: tags.name },
-  'subject.type': { kind: 'select', expr: tags.type },
-  'subject.createdBy': { kind: 'member', expr: tags.createdBy },
-  'subject.createdAt': { kind: 'date', expr: tags.createdAt },
+  'subject.name': { type: 'text', expr: tags.name },
+  'subject.type': { type: 'select', expr: tags.type },
+  'subject.createdBy': { type: 'member', expr: tags.createdBy },
+  'subject.createdAt': { type: 'date', expr: tags.createdAt },
 };
 
 /**
@@ -81,7 +82,7 @@ const list = reads(TAG_READERS)
         and(
           input.type ? eq(tags.type, input.type) : undefined,
           input.search ? ilike(tags.name, likeText(input.search)) : undefined,
-          input.filter ? filterSql(TAG_FILTER, input.filter, member.userId) : undefined,
+          compileFilter(TAG_FILTER, input.filter, { me: member.userId }),
         ),
       )
       .orderBy(asc(sql`lower(${tags.name})`), tags.type),

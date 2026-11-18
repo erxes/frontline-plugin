@@ -20,7 +20,8 @@ import { pipelines, pipelineStatuses, SlaPolicy, STATUS_TYPES, tickets } from '#
 import { reads, writes } from '#/orpc.ts';
 import { canChangeSql, channelFor, managesAll, membership } from '../channels/access.ts';
 import { Blank, Title } from '../fields.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import { statusRights } from './rights.ts';
 
@@ -103,11 +104,11 @@ const pipelineById = async (tx: Tx, member: PluginMember, id: string) => {
 
 /** What the list's filter bar narrows pipelines by (`ui/src/modules/pipelines/PipelinesPage.tsx`). */
 const PIPELINE_FILTER: FilterFields = {
-  'subject.name': { kind: 'text', expr: pipelines.name },
-  'subject.description': { kind: 'text', expr: pipelines.description },
-  'subject.createdBy': { kind: 'member', expr: pipelines.createdBy },
-  'subject.createdAt': { kind: 'date', expr: pipelines.createdAt },
-  'subject.updatedAt': { kind: 'date', expr: pipelines.updatedAt },
+  'subject.name': { type: 'text', expr: pipelines.name },
+  'subject.description': { type: 'text', expr: pipelines.description },
+  'subject.createdBy': { type: 'member', expr: pipelines.createdBy },
+  'subject.createdAt': { type: 'date', expr: pipelines.createdAt },
+  'subject.updatedAt': { type: 'date', expr: pipelines.updatedAt },
 };
 
 const order = orderOf(pipelines);
@@ -136,7 +137,7 @@ const list = reads(PERMISSIONS.channelView)
             ilike(pipelines.description, likeText(input.search)),
           )
         : undefined,
-      input.filter ? filterSql(PIPELINE_FILTER, input.filter, member.userId) : undefined,
+      compileFilter(PIPELINE_FILTER, input.filter, { me: member.userId }),
     );
 
     const rows = await pipelineRows(tx, member)
