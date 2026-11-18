@@ -58,7 +58,7 @@ const photoSent = JSON.stringify({
 });
 
 describe('telegram', () => {
-  it('connects a bot, takes its updates into a conversation and replies through it', async () => {
+  it('connects a bot, takes its updates into a conversation, replies, and stops once its token is revoked', async () => {
     const calls = fakeProviders(telegramApi);
     const owner = clientAs('org-tg-a');
 
@@ -114,6 +114,22 @@ describe('telegram', () => {
     ).toEqual([
       { content: 'It ships today', deliveryStatus: 'sent', externalId: '4242:42' },
       { content: 'Hello, is my order on its way?', deliveryStatus: null, externalId: '4242:41' },
+    ]);
+
+    // The token was revoked in BotFather: the reply fails at once and the bot shows broken.
+    fakeProviders(() =>
+      Response.json({ ok: false, error_code: 401, description: 'Unauthorized' }, { status: 401 }),
+    );
+
+    const refused = await owner.conversations.messages.create({ conversationId, content: 'Hi?' });
+
+    await runQueued();
+
+    const after = (await owner.conversations.messages.list({ conversationId })).messages;
+
+    expect(after.find((message) => message.id === refused.id)?.deliveryStatus).toBe('failed');
+    expect((await owner.integrations.accounts.list({})).accounts).toMatchObject([
+      { status: 'broken', error: 'Unauthorized' },
     ]);
   });
 

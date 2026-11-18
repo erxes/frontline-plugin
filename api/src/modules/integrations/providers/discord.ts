@@ -5,7 +5,7 @@ import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { writesWithCore } from '#/orpc.ts';
 import { attachedFile } from '#/modules/files.ts';
-import { defineProvider } from '../provider.ts';
+import { AccountRefused, defineProvider } from '../provider.ts';
 import { Account, saveAccount } from '../store.ts';
 
 const Secret = z.object({ token: z.string() });
@@ -40,10 +40,12 @@ const rest = async (
 
   const answer: unknown = response.status === 204 ? null : await response.json();
 
-  if (!response.ok)
-    throw new Error(
-      Failure.safeParse(answer).data?.message ?? `Discord answered ${response.status}`,
-    );
+  if (!response.ok) {
+    const message =
+      Failure.safeParse(answer).data?.message ?? `Discord answered ${response.status}`;
+
+    throw response.status === 401 ? new AccountRefused(message) : new Error(message);
+  }
 
   return answer;
 };

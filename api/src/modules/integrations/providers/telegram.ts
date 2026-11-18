@@ -6,7 +6,7 @@ import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { readsWithCore, writesWithCore } from '#/orpc.ts';
-import { defineProvider, sendInParts } from '../provider.ts';
+import { AccountRefused, defineProvider, sendInParts } from '../provider.ts';
 import { Account, accountRow, saveAccount } from '../store.ts';
 
 const Config = z.object({ username: z.string() });
@@ -82,7 +82,7 @@ const CAPTION_CHARS = 1024;
 
 const Answer = z.discriminatedUnion('ok', [
   z.object({ ok: z.literal(true), result: z.unknown() }),
-  z.object({ ok: z.literal(false), description: z.string() }),
+  z.object({ ok: z.literal(false), error_code: z.number(), description: z.string() }),
 ]);
 
 /**
@@ -107,7 +107,10 @@ export const call = async <T>(
 
   const answer = Answer.parse(await response.json());
 
-  if (!answer.ok) throw new TelegramRefused(answer.description);
+  if (!answer.ok)
+    throw answer.error_code === 401
+      ? new AccountRefused(answer.description)
+      : new TelegramRefused(answer.description);
 
   return Result.parse(answer.result);
 };
