@@ -59,8 +59,9 @@ const TICKET_FILTER: FilterFields = {
 /**
  * The tickets `member` sees, in `pipelineId` and `statusId` when given (a board column asks for
  * its status), narrowed by the filter bar. `search` matches the name or number; archived tickets
- * show only when the filter asks for a state. `fromCore` types the rules on custom fields
- * (`propertyFilter`). The query joins `channelMembers` by `membership`, as `ticketRows` does.
+ * show only with `everyState` or when the filter asks for a state. `fromCore` types the rules on
+ * custom fields (`propertyFilter`). The query joins `channelMembers` by `membership`, as
+ * `ticketRows` does.
  */
 export const ticketsMatching = (
   member: PluginMember,
@@ -69,6 +70,8 @@ export const ticketsMatching = (
     filter?: ConditionGroup | null;
     pipelineId?: string;
     statusId?: string;
+    /** Archived tickets too, as an export takes them. */
+    everyState?: boolean;
   },
   fromCore: FilterFields,
 ) => {
@@ -79,7 +82,9 @@ export const ticketsMatching = (
     seenBy(member),
     input.pipelineId ? eq(tickets.pipelineId, input.pipelineId) : undefined,
     input.statusId ? eq(tickets.statusId, input.statusId) : undefined,
-    filtersBy(filter, 'subject.state') ? undefined : eq(tickets.state, 'active'),
+    input.everyState || filtersBy(filter, 'subject.state')
+      ? undefined
+      : eq(tickets.state, 'active'),
     search ? or(ilike(tickets.name, search), ilike(tickets.number, search)) : undefined,
     compileFilter({ ...TICKET_FILTER, ...fromCore }, filter, { me: member.userId }),
   );
@@ -252,7 +257,8 @@ const create = writesWithCore(
       attachments: true,
     })
     .extend({ propertiesData: CustomFieldsPatch.default({}) }),
-  (member, input) => checkProperties(member.orgId, input.pipelineId, {}, input.propertiesData),
+  (member, input) =>
+    checkProperties(member.orgId, input.pipelineId, {}, input.propertiesData, { create: true }),
 )
   .output(Ticket)
   .handler(async ({ input, context: { tx, member, fromCore } }) => {

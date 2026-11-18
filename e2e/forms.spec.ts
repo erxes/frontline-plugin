@@ -4,6 +4,7 @@ import {
   confirmDelete,
   expect,
   expectAccessible,
+  moveByKeys,
   openChannelPipelines,
   openShop,
   recordPanel,
@@ -86,26 +87,11 @@ const buildFields = async (page: Page) => {
 
   // Fields drag into a new order, and the keyboard drags them too: Seats goes above Plan and back.
   const first = page.getByRole('button', { name: /^Settings of/ }).first();
+  const seats = page.getByRole('button', { name: 'Move Seats', exact: true });
 
-  // Each key waits for the screen reader announcement, since dnd-kit listens for the next key
-  // only after it.
-  const announcement = page.getByText(/was moved over droppable area/);
-
-  const moveSeats = async (key: 'ArrowUp' | 'ArrowDown') => {
-    const handle = page.getByRole('button', { name: 'Move Seats', exact: true });
-
-    await handle.press('Space');
-    await expect(handle).toHaveAttribute('aria-pressed', 'true');
-    const overItself = await announcement.textContent();
-
-    await page.keyboard.press(key);
-    await expect(announcement).not.toHaveText(overItself ?? '');
-    await page.keyboard.press('Space');
-  };
-
-  await moveSeats('ArrowUp');
+  await moveByKeys(seats, 'ArrowUp', 'Seats', 'Plan');
   await expect(first).toHaveAccessibleName('Settings of Seats');
-  await moveSeats('ArrowDown');
+  await moveByKeys(seats, 'ArrowDown', 'Seats', 'Plan');
   await expect(first).toHaveAccessibleName('Settings of Plan');
 };
 

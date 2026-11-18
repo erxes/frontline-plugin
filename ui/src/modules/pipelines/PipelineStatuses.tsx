@@ -1,23 +1,10 @@
-import {
-  closestCenter,
-  DndContext,
-  type DragEndEvent,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
-import {
-  arrayMove,
-  SortableContext,
-  sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-} from '@dnd-kit/sortable';
+import { DndContext, type DragEndEvent } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useMutation } from '@tanstack/react-query';
 import { CommandBar, RecordList, Separator, Spinner, type TRecordSlotProps } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { useListDrag } from '~/shared/drag.ts';
 import { useOptimistic } from '~/shared/hooks.ts';
 import { DeleteButton } from '~/shared/Records.tsx';
 import { WithPipeline } from './PipelinePanel.tsx';
@@ -80,10 +67,7 @@ const Statuses = ({ pipeline, statuses }: { pipeline: Pipeline; statuses: Status
   const stages = useStages();
   const reorder = useReorder(pipeline.id);
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const drag = useListDrag((id) => statuses.find((status) => status.id === id)?.name ?? '');
 
   // A status moves only within its stage.
   const dragEnd = ({ active, over }: DragEndEvent) => {
@@ -109,12 +93,7 @@ const Statuses = ({ pipeline, statuses }: { pipeline: Pipeline; statuses: Status
 
   return (
     <RecordList.Provider listId={`frontline-pipeline-statuses.${pipeline.id}`}>
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        modifiers={[restrictToVerticalAxis]}
-        onDragEnd={dragEnd}
-      >
+      <DndContext {...drag} onDragEnd={dragEnd}>
         <SortableContext
           items={statuses.map((status) => status.id)}
           strategy={verticalListSortingStrategy}

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -11,7 +10,7 @@ import { postMessage } from '#/modules/inbox/post.ts';
 import { customerFor } from '#/modules/inbox/receive.ts';
 import { publishConversationEvents } from '#/modules/inbox/shared.ts';
 import { accountRow } from '../store.ts';
-import type { MailData } from './mail.ts';
+import { type MailData, newMessageId } from './mail.ts';
 import { suppressedAmong } from './mailSuppressions.ts';
 
 const AccountConfig = z.object({ accountId: z.string() });
@@ -56,7 +55,7 @@ const compose = writes(PERMISSIONS.inboxView)
       });
 
     const account = await accountRow(tx, AccountConfig.parse(integration.config).accountId);
-    const root = `<${randomUUID()}@${account.externalId.split('@').at(-1) ?? 'localhost'}>`;
+    const root = newMessageId(account.externalId);
 
     const customerId = await customerFor(member.orgId, {
       source: 'mail',

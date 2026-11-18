@@ -2,15 +2,12 @@ import {
   closestCorners,
   type DragEndEvent,
   type DragOverEvent,
-  KeyboardSensor,
-  PointerSensor,
   type UniqueIdentifier,
-  useSensor,
-  useSensors,
 } from '@dnd-kit/core';
-import { restrictToVerticalAxis } from '@dnd-kit/modifiers';
-import { arrayMove, sortableKeyboardCoordinates } from '@dnd-kit/sortable';
+import { arrayMove } from '@dnd-kit/sortable';
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useListDrag } from '~/shared/drag.ts';
 import { type FormField, useArrangeFields } from './useForms.ts';
 
 /** Each step's field ids in order; step `n` is at `n - 1`. */
@@ -50,11 +47,15 @@ export const useFieldDrag = (formId: string, fields: FormField[], steps: number)
   const arrange = useArrangeFields(formId);
   const [held, setHeld] = useState<{ fields: FormField[]; layout: Layout } | null>(null);
   const layout = held?.fields === fields ? held.layout : layoutOf(fields, steps);
+  const { t } = useTranslation('frontline');
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  );
+  const drag = useListDrag((id) => {
+    const zone = layout.findIndex((_, index) => stepZone(index + 1) === id);
+
+    return zone === -1
+      ? fields.find((field) => field.id === id)?.label || t('field-untitled', 'Untitled field')
+      : t('form-step-n', 'Step {{n}}', { n: zone + 1 });
+  }, closestCorners);
 
   const dragOver = ({ active, over }: DragOverEvent) => {
     if (!over) return;
@@ -89,9 +90,7 @@ export const useFieldDrag = (formId: string, fields: FormField[], steps: number)
   return {
     layout,
     context: {
-      sensors,
-      collisionDetection: closestCorners,
-      modifiers: [restrictToVerticalAxis],
+      ...drag,
       onDragStart: () => setHeld({ fields, layout: layoutOf(fields, steps) }),
       onDragOver: dragOver,
       onDragEnd: dragEnd,

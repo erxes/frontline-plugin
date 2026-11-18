@@ -242,12 +242,12 @@ const TicketUpdate = Changes.omit({ pipelineId: true }).extend({ id: z.string() 
 
 /**
  * Changes what is given on one ticket, or moves it to another status of its pipeline. Its
- * custom fields change through `tickets.properties.save`, which core checks.
+ * custom fields change through `tickets.properties.save`, or an import, once core checks them.
  */
 export const updateTicket = async (
   tx: Tx,
   member: PluginMember,
-  { id, ...change }: z.infer<typeof TicketUpdate>,
+  { id, ...change }: z.infer<typeof TicketUpdate> & Pick<Change, 'properties'>,
 ) => {
   await changeTickets(tx, member, await ticketsFor(tx, member, [id]), change);
 
