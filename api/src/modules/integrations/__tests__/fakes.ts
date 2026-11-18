@@ -200,11 +200,14 @@ export const telegramApi = (call: ProviderCall) => {
   const method = call.url.pathname.split('/').at(-1);
 
   if (call.url.pathname.includes('bad-token'))
-    return Response.json({ ok: false, description: 'Unauthorized' }, { status: 401 });
+    return Response.json(
+      { ok: false, error_code: 401, description: 'Unauthorized' },
+      { status: 401 },
+    );
 
   if (JSON.stringify(call.body).includes('refused'))
     return Response.json(
-      { ok: false, description: 'Bad Request: wrong file type' },
+      { ok: false, error_code: 400, description: 'Bad Request: wrong file type' },
       { status: 400 },
     );
 

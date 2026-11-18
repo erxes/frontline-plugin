@@ -5,7 +5,7 @@ import { SEND_ATTEMPTS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
-import { PartlySent } from '../integrations/provider.ts';
+import { AccountRefused, PartlySent } from '../integrations/provider.ts';
 import { ADAPTERS } from './adapters.ts';
 import { signalConversations } from './shared.ts';
 
@@ -53,7 +53,8 @@ const settle = (
 /**
  * Sends one queued reply through its integration's adapter, outside any transaction, and marks it
  * sent with the provider's id. A failed send throws, so core tries again; after the last attempt,
- * or once the provider took part of it, the reply is marked failed. A reply that is no longer
+ * once the provider took part of it, or once it refused the account's token, the reply is marked
+ * failed. A reply that is no longer
  * queued is left alone, so a repeat is safe.
  */
 export const sendReply = async (job: PluginJobDelivery) => {
@@ -74,12 +75,13 @@ export const sendReply = async (job: PluginJobDelivery) => {
   } catch (error) {
     logger.error({ err: error, messageId, attempt: job.attempt }, 'reply send failed');
 
-    // Part of it reached the customer, so another try would send that part again.
-    const partly = error instanceof PartlySent;
+    // Part of it reached the customer, so another try would send that part again; or the account
+    // is broken until a member repairs it, so another try fails the same way.
+    const final = error instanceof PartlySent || error instanceof AccountRefused;
 
-    if (partly || job.attempt >= SEND_ATTEMPTS)
+    if (final || job.attempt >= SEND_ATTEMPTS)
       await settle(job.orgId, messageId, row.conversation, { deliveryStatus: 'failed' });
 
-    if (!partly) throw error;
+    if (!final) throw error;
   }
 };

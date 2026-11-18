@@ -161,6 +161,12 @@ export const inOrder = <T, R>(items: T[], step: (item: T) => Promise<R>) =>
 export class PartlySent extends Error {}
 
 /**
+ * The provider no longer takes the account's token, as when a page's admin revokes it. The
+ * account is broken until a repair or a new connect, so a reply fails at once rather than retry.
+ */
+export class AccountRefused extends Error {}
+
+/**
  * Sends a reply's `parts` one at a time, in order, and resolves to what each gave. A failure on
  * the first part throws as it is, so the reply is tried again; one after it is `PartlySent`.
  */
