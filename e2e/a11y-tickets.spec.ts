@@ -95,6 +95,8 @@ test('tickets in the list, the board and the table', async ({ page, api, request
   const pipeline = await pipelineIn(rpc);
   const name = `Refund ${unique()}`;
 
+  // The sidebar lists pipelines once there are two, so axe checks its links with one active.
+  await rpc('pipelines/create', { channelId: pipeline.channelId, name: unique() }, Id);
   await rpc('tickets/create', { pipelineId: pipeline.id, name }, Id);
   await page.goto(`/frontline/tickets?pipeline=${pipeline.id}`);
   await expectAccessible(page, page.getByRole('region', { name: 'New' }).getByText(name));
