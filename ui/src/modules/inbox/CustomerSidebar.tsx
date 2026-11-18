@@ -107,14 +107,14 @@ const openPanel = stored({
 
 /**
  * Beside the open conversation, as the old inbox's side widget: a thin rail of icons, each
- * opening one panel, the customer, their tickets or their other conversations. Tickets shows
- * only to a member who may read them.
+ * opening one panel, the customer, their tickets or their other conversations. Tickets go away
+ * once they are opened by a member who may not read them.
  */
 export const CustomerSidebar = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const [panel, setPanel] = useAtom(openPanel);
   const contacts = { customerIds: [conversation.customerId], companyIds: [] };
-  const { error } = useContactTickets(contacts);
+  const { error } = useContactTickets(contacts, panel === 'tickets');
   const ticketsAllowed = !(error instanceof ORPCError && error.code === 'FORBIDDEN');
 
   const rail = (

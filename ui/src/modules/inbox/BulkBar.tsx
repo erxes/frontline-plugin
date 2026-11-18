@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { ListSelectionBar } from '~/shared/Records.tsx';
 import { TagEditor } from './ConversationHeader.tsx';
-import { type Conversation, useAssign, useSetStatus } from './queries.ts';
+import { type Conversation } from './queries.ts';
+import { useAssign, useSetStatus } from './changes.ts';
 
 /** The tags every one of `picked` has, which the bar's tag editor starts from. */
 const sharedTags = (picked: Conversation[]) =>

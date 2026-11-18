@@ -208,8 +208,8 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
 
   const create = useMutation(
     orpc.tickets.create.mutationOptions({
-      onSuccess: async (ticket) => {
-        await onSuccess();
+      onSuccess: (ticket) => {
+        onSuccess();
         onCreated(ticket.id);
       },
     }),

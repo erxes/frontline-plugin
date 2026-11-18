@@ -50,8 +50,8 @@ export const BotNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => 
 
   const create = useMutation(
     orpc.integrations.meta.bots.create.mutationOptions({
-      onSuccess: async (bot) => {
-        await onSuccess();
+      onSuccess: (bot) => {
+        onSuccess();
         onCreated(bot.id);
       },
     }),

@@ -19,8 +19,11 @@ export const ticketContacts = async (id: string) => {
 const anyOf = (path: string, ids: string[]) =>
   ids.length > 0 ? [{ path, op: 'in' as const, value: ids }] : [];
 
-/** The member's tickets about these customers or companies, active and archived, newest first. */
-export const useContactTickets = ({ customerIds, companyIds }: TRecordContacts) => {
+/**
+ * The member's tickets about these customers or companies, active and archived, newest first.
+ * `enabled` false only reads what the cache holds.
+ */
+export const useContactTickets = ({ customerIds, companyIds }: TRecordContacts, enabled = true) => {
   const filter = {
     match: 'all',
     rules: [
@@ -39,7 +42,7 @@ export const useContactTickets = ({ customerIds, companyIds }: TRecordContacts) 
     ...orpc.tickets.list.queryOptions({
       input: { filter: JSON.stringify(filter), sort: 'createdAt', limit: 50 },
     }),
-    enabled: customerIds.length + companyIds.length > 0,
+    enabled: enabled && customerIds.length + companyIds.length > 0,
   });
 };
 

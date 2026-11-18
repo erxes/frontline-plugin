@@ -14,9 +14,10 @@ import {
 import { type SubmitEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SendSurvey } from '~/modules/surveys/SurveyMessage.tsx';
-import { orpc } from '~/orpc.ts';
+import { templatesQuery } from '~/shared/reference.ts';
 import { type Attachment, FileList, FilePicker } from '~/shared/Files.tsx';
-import { type Conversation, useSendMessage, useSendTyping } from './queries.ts';
+import { type Conversation, useSendTyping } from './queries.ts';
+import { useSendMessage } from './changes.ts';
 import { useSlashItems } from './slashItems.tsx';
 import { useSendShortcut } from './useSendShortcut.ts';
 
@@ -44,7 +45,7 @@ const TemplatePicker = ({
 }) => {
   const { t } = useTranslation('frontline');
   const [open, setOpen] = useState(false);
-  const templates = useQuery(orpc.responseTemplates.list.queryOptions({ input: { channelId } }));
+  const templates = useQuery(templatesQuery(channelId));
   const label = t('response-templates', 'Response templates');
 
   return (
@@ -244,17 +245,24 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
     focusEditor();
   };
 
+  // The box empties as the message goes, ready for the next one. A refused message comes back,
+  // before anything written since.
   const submit = (event?: SubmitEvent<HTMLFormElement>) => {
     event?.preventDefault();
 
     if (empty || send.isPending) return;
 
+    const sent = { html, attachments };
+
+    setAttachments([]);
+    restart('');
     send.mutate(
       { conversationId: conversation.id, html, attachments, internal: note },
       {
-        onSuccess: () => {
-          setAttachments([]);
-          restart('');
+        onError: () => {
+          setAttachments((files) => [...sent.attachments, ...files]);
+          setHtml((current) => (editorText(current) ? sent.html + current : sent.html));
+          setVersion((count) => count + 1);
         },
       },
     );

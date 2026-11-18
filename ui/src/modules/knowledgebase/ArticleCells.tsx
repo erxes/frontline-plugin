@@ -41,8 +41,8 @@ export const useArticleActions = (article: ArticleRef): RowAction[] => {
   const duplicate = useMutation(
     orpc.knowledgebase.articles.duplicate.mutationOptions({
       ...change,
-      onSuccess: async () => {
-        await change.onSuccess();
+      onSuccess: () => {
+        change.onSuccess();
         toast({ title: t('kb-article-duplicated', 'Article duplicated') });
       },
     }),

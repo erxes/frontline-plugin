@@ -68,8 +68,8 @@ export const CategoryNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps
 
   const create = useMutation(
     orpc.knowledgebase.categories.create.mutationOptions({
-      onSuccess: async (category) => {
-        await onSuccess();
+      onSuccess: (category) => {
+        onSuccess();
         onCreated(category.id);
       },
     }),

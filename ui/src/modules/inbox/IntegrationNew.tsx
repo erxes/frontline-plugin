@@ -28,8 +28,8 @@ export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftPr
 
   const create = useMutation(
     orpc.integrations.create.mutationOptions({
-      onSuccess: async (integration) => {
-        await onSuccess();
+      onSuccess: (integration) => {
+        onSuccess();
         onCreated(integration.id);
       },
     }),

@@ -199,8 +199,8 @@ const ConnectForm = ({
 
   const connect = useMutation({
     mutationFn: CONNECT[provider],
-    onSuccess: async (account) => {
-      await onSuccess();
+    onSuccess: (account) => {
+      onSuccess();
       onCreated(account.id);
     },
   });

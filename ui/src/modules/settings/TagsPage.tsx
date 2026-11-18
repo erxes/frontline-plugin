@@ -116,8 +116,8 @@ const AddTag = () => {
 
   const create = useMutation(
     orpc.tags.create.mutationOptions({
-      onSuccess: async () => {
-        await onSuccess();
+      onSuccess: () => {
+        onSuccess();
         setOpen(false);
       },
       onError,

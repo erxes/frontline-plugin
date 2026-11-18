@@ -18,14 +18,8 @@ import { MemberCell } from '~/shared/MemberPicker.tsx';
 import { ContactChip } from '~/shared/Person.tsx';
 import { ConversationMenu, VisitorTyping } from './ConversationPresence.tsx';
 import { KindIcon } from './InboxFilter.tsx';
-import {
-  type Conversation,
-  conversationTags,
-  useAssign,
-  useCreateTag,
-  useSetStatus,
-  useSetTags,
-} from './queries.ts';
+import { type Conversation, conversationTags, useCreateTag } from './queries.ts';
+import { useAssign, useSetStatus, useSetTags } from './changes.ts';
 
 /**
  * A button named `label` that opens the conversation tags, `tagIds` picked, and sets them on each

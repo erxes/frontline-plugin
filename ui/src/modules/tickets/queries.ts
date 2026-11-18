@@ -14,6 +14,7 @@ import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange, useOptimistic } from '~/shared/hooks.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
+import { choicesQuery } from '~/shared/reference.ts';
 
 type Outputs = InferClientOutputs<Client>['tickets'];
 
@@ -37,7 +38,7 @@ export const PIPELINE_PARAM = 'pipeline';
 
 /** The pipelines and statuses of the member's channels: what a ticket is filed under. */
 export const useChoices = () => {
-  const { data, isPending, error } = useQuery(orpc.pipelines.choices.queryOptions());
+  const { data, isPending, error } = useQuery(choicesQuery);
 
   return { pipelines: data?.pipelines ?? [], statuses: data?.statuses ?? [], isPending, error };
 };
@@ -60,8 +61,11 @@ export const useTicketPipeline = () => {
 export const useTickets = () => {
   const params = useListFilterParams();
   const [{ sort, direction }] = useTicketSort();
+  const [picked] = useQueryState(PIPELINE_PARAM);
   const choices = useChoices();
-  const pipelineId = useTicketPipeline()?.id;
+  const shown = useTicketPipeline()?.id;
+  // The sidebar's pick asks at once, beside the choices, and holds unless they don't have it.
+  const pipelineId = choices.isPending ? (picked ?? undefined) : shown;
   const ascending = direction === 'asc';
   const queryClient = useQueryClient();
 
@@ -80,7 +84,8 @@ export const useTickets = () => {
     }),
   );
 
-  // Without a pipeline the list never asks, so it waits only on the choices and shows their refusal.
+  // The rows group by the choices' statuses, so the list waits for both. Without a pipeline it
+  // never asks, and shows the choices' refusal.
   return {
     ...query,
     isPending: choices.isPending || (Boolean(pipelineId) && query.isPending),
@@ -98,6 +103,9 @@ export const useTicketChange = () => useChange(orpc.tickets.key());
 
 type TicketPages = InfiniteData<Outputs['list'], string | undefined>;
 
+/** The queries a ticket's edit writes into before the API answers: the lists and each ticket. */
+const TICKET_ROWS = [orpc.tickets.list.key(), orpc.tickets.get.key()];
+
 /**
  * Saves the given fields of a ticket, or moves it to another status of its pipeline. The list,
  * the board and the open ticket show the change at once; a property waits for the API, which
@@ -106,7 +114,7 @@ type TicketPages = InfiniteData<Outputs['list'], string | undefined>;
 export const useUpdateTicket = () =>
   useMutation(
     orpc.tickets.update.mutationOptions(
-      useOptimistic(orpc.tickets.key(), (queryClient, change: TicketChange & { id: string }) => {
+      useOptimistic(TICKET_ROWS, (queryClient, change: TicketChange & { id: string }) => {
         const apply = (ticket: Ticket) =>
           ticket.id === change.id
             ? { ...ticket, ...change, propertiesData: ticket.propertiesData }
@@ -155,7 +163,7 @@ export const useDeleteTickets = () => {
   const remove = useMutation(
     orpc.tickets.bulkRemove.mutationOptions({
       ...change,
-      onSuccess: async ({ ids }) => {
+      onSuccess: ({ ids }) => {
         toast({
           title: t('tickets-deleted', {
             defaultValue_one: 'Ticket deleted',
@@ -163,7 +171,7 @@ export const useDeleteTickets = () => {
             count: ids.length,
           }),
         });
-        await change.onSuccess();
+        change.onSuccess();
       },
     }),
   );

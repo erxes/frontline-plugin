@@ -77,8 +77,8 @@ export const SurveyNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
 
   const create = useMutation(
     orpc.surveys.create.mutationOptions({
-      onSuccess: async (survey) => {
-        await onSuccess();
+      onSuccess: (survey) => {
+        onSuccess();
         onCreated(survey.id);
       },
     }),

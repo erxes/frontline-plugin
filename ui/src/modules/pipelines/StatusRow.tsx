@@ -82,9 +82,9 @@ export const AddStatus = ({
   const create = useMutation(
     orpc.pipelines.statuses.create.mutationOptions({
       ...change,
-      onSuccess: async () => {
+      onSuccess: () => {
         setOpen(false);
-        await change.onSuccess();
+        change.onSuccess();
       },
     }),
   );

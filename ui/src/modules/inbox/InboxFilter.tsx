@@ -23,7 +23,7 @@ import { useQuery } from '@tanstack/react-query';
 import { cn, type TListFilterField } from 'erxes-ui';
 import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
-import { orpc } from '~/orpc.ts';
+import { channelsQuery } from '~/shared/reference.ts';
 import { type Conversation, useIntegrations } from './queries.ts';
 
 /** What each status reads as. */
@@ -111,7 +111,7 @@ const useDateFields = (): TListFilterField[] => {
  */
 export const useInboxFields = (): TListFilterField[] => {
   const { t } = useTranslation('frontline');
-  const channels = useQuery(orpc.channels.list.queryOptions({ input: {} })).data?.channels ?? [];
+  const channels = useQuery(channelsQuery).data?.channels ?? [];
   const integrations = useIntegrations().data ?? [];
   const statuses = useStatusNames();
   const kinds = useKindNames();

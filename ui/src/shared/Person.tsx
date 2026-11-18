@@ -152,73 +152,90 @@ const PersonChip = ({
   );
 };
 
-/** A customer's or company's title and picture, '' while core knows no name for them. */
-const useContact = (contentType: TContactContentType, contentId: string | null | undefined) => {
-  const customer = useQuery({
-    ...contactQueries.customer(contentId ?? ''),
-    enabled: contentType === 'core:customer' && Boolean(contentId),
+/** A customer's title and picture, the title '' while core knows no name for them. */
+const useCustomerFace = (id: string | null | undefined) =>
+  useQuery({
+    ...contactQueries.customer(id ?? ''),
+    enabled: Boolean(id),
+    select: (customer) => ({ title: customerTitle(customer), avatarUrl: customer.avatarUrl }),
   });
-
-  const company = useQuery({
-    ...contactQueries.company(contentId ?? ''),
-    enabled: contentType === 'core:company' && Boolean(contentId),
-  });
-
-  if (contentType === 'core:customer')
-    return {
-      title: customer.data ? customerTitle(customer.data) : '',
-      avatarUrl: customer.data?.avatarUrl,
-      isPending: Boolean(contentId) && customer.isPending,
-      error: customer.error,
-    };
-
-  return {
-    title: company.data ? companyTitle(company.data) : '',
-    avatarUrl: company.data?.avatarUrl,
-    isPending: Boolean(contentId) && company.isPending,
-    error: company.error,
-  };
-};
 
 /** The customer's name, else their email or phone, else "Visitor", and their picture. */
 export const useCustomer = (customerId: string | null | undefined) => {
   const { t } = useTranslation('frontline');
-  const { title, avatarUrl, isPending } = useContact('core:customer', customerId);
+  const { data, isPending } = useCustomerFace(customerId);
 
-  return { name: title || t('visitor', 'Visitor'), avatarUrl, isPending };
+  return {
+    name: data?.title || t('visitor', 'Visitor'),
+    avatarUrl: data?.avatarUrl,
+    isPending: Boolean(customerId) && isPending,
+  };
+};
+
+type ContactProps = { contentId: string; placeholder?: string };
+
+/** A contact's chip from its query: its title, else `placeholder`, else `unnamed`. */
+const ContactFace = ({
+  contentType,
+  contentId,
+  placeholder,
+  unnamed,
+  contact: { data, isPending, error },
+}: ContactProps & {
+  contentType: TContactContentType;
+  unnamed: string;
+  contact: {
+    data?: { title: string; avatarUrl: string | null };
+    isPending: boolean;
+    error: Error | null;
+  };
+}) => (
+  <PersonChip
+    record={{ contentType, contentId }}
+    name={error?.message || data?.title || placeholder || unnamed}
+    avatarUrl={data?.avatarUrl}
+    loading={isPending}
+    failed={Boolean(error)}
+  />
+);
+
+const CustomerChip = (props: ContactProps) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <ContactFace
+      {...props}
+      contentType="core:customer"
+      unnamed={t('unnamed-customer', 'Unnamed customer')}
+      contact={useCustomerFace(props.contentId)}
+    />
+  );
+};
+
+const CompanyChip = (props: ContactProps) => {
+  const { t } = useTranslation('frontline');
+
+  const contact = useQuery({
+    ...contactQueries.company(props.contentId),
+    select: (company) => ({ title: companyTitle(company), avatarUrl: company.avatarUrl }),
+  });
+
+  return (
+    <ContactFace
+      {...props}
+      contentType="core:company"
+      unnamed={t('unnamed-company', 'Unnamed company')}
+      contact={contact}
+    />
+  );
 };
 
 /** A customer or company as a chip that opens them in core's side panel. */
 export const ContactChip = ({
   contentType = 'core:customer',
-  contentId,
-  placeholder,
-}: {
-  contentType?: TContactContentType;
-  contentId: string;
-  placeholder?: string;
-}) => {
-  const { t } = useTranslation('frontline');
-  const contact = useContact(contentType, contentId);
-
-  const name =
-    contact.error?.message ||
-    contact.title ||
-    placeholder ||
-    (contentType === 'core:customer'
-      ? t('unnamed-customer', 'Unnamed customer')
-      : t('unnamed-company', 'Unnamed company'));
-
-  return (
-    <PersonChip
-      record={{ contentType, contentId }}
-      name={name}
-      avatarUrl={contact.avatarUrl}
-      loading={contact.isPending}
-      failed={Boolean(contact.error)}
-    />
-  );
-};
+  ...props
+}: ContactProps & { contentType?: TContactContentType }) =>
+  contentType === 'core:company' ? <CompanyChip {...props} /> : <CustomerChip {...props} />;
 
 /** A member by id, any status, and how they read. */
 const useMember = (id: string | null | undefined) => {

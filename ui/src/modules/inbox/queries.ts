@@ -1,9 +1,11 @@
-import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
+import { contactQueries, orpc as core } from '@erxes/core-contract/client';
+import type { InferClientOutputs } from '@orpc/client';
 import {
   type InfiniteData,
   type QueryClient,
   useInfiniteQuery,
   useMutation,
+  useQueries,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query';
@@ -13,11 +15,10 @@ import { parseAsString, useQueryState } from 'nuqs';
 import { useEffect, useRef, useState } from 'react';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
-import { useChange, useOptimistic } from '~/shared/hooks.ts';
+import { useChange } from '~/shared/hooks.ts';
+import { integrationsQuery, REFERENCE_MS, tagsOf } from '~/shared/reference.ts';
 
 type Outputs = InferClientOutputs<Client>;
-
-type Inputs = InferClientInputs<Client>['conversations'];
 
 export type Conversation = Outputs['conversations']['get'];
 
@@ -25,77 +26,169 @@ export type Message = Outputs['conversations']['messages']['list']['messages'][n
 
 export type Integration = Outputs['integrations']['get'];
 
+export type ListPage = Outputs['conversations']['list'];
+
+export type MessagePages = InfiniteData<
+  Outputs['conversations']['messages']['list'],
+  string | undefined
+>;
+
+export type Counts = Outputs['conversations']['counts'];
+
 /** The open conversation, in the address as the old inbox kept it. */
 export const useOpenConversation = () =>
   useQueryState('conversationId', parseAsString.withDefault(''));
 
-/** Refetches every inbox query when another member, a visitor or a provider changes one. */
-const useInboxSignal = () => {
+/**
+ * How long the inbox's own queries count as fresh, so opening, closing and reopening a
+ * conversation asks once. The live signal refetches them as soon as anything changes.
+ */
+const FRESH_MS = 30_000;
+
+/** How long the inbox gathers changes before it refetches once. */
+const REFRESH_MS = 1000;
+
+/**
+ * What changes when a conversation does: the lists, the sidebar's counts, each conversation and
+ * its messages. Of these only the ones on screen refetch; the rest wait until they show again.
+ */
+const REFRESHED = [
+  orpc.conversations.list.key(),
+  orpc.conversations.counts.key(),
+  orpc.conversations.get.key(),
+  orpc.conversations.messages.list.key(),
+];
+
+let refreshing: ReturnType<typeof setTimeout> | undefined;
+
+/**
+ * Refetches what a change to conversations shows in, once a second at most: a burst of live
+ * signals, and the member's own changes with them, become one refetch at its end.
+ */
+export const refreshInbox = (queryClient: QueryClient) => {
+  refreshing ??= setTimeout(() => {
+    refreshing = undefined;
+
+    for (const queryKey of REFRESHED) void queryClient.invalidateQueries({ queryKey });
+  }, REFRESH_MS);
+};
+
+/**
+ * Keeps the inbox live as another member, a visitor or a provider changes a conversation. The
+ * layout calls it once, for every page under it.
+ */
+export const useInboxSignal = () => {
   const queryClient = useQueryClient();
 
-  useLiveSignal(PLUGIN, 'conversations', () => {
-    void queryClient.invalidateQueries({ queryKey: orpc.conversations.key() });
+  useLiveSignal(PLUGIN, 'conversations', () => refreshInbox(queryClient));
+};
+
+/** How long a customer core sent counts as fresh, as core's own customer queries keep them. */
+const CUSTOMER_MS = 60_000;
+
+/**
+ * The customers of the list's conversations, one request a page. Each lands where a customer's
+ * own query reads it, so the open conversation's thread and sidebar ask for none.
+ */
+const usePageCustomers = (pages: ListPage[]) => {
+  const queryClient = useQueryClient();
+
+  return useQueries({
+    queries: pages.map((page) => {
+      const ids = [...new Set(page.conversations.map((row) => row.customerId))].toSorted();
+
+      return {
+        queryKey: [PLUGIN, 'page-customers', ids],
+        queryFn: async () => {
+          const { data } = await core.customers.list.call({
+            ids: ids.join(','),
+            limit: ids.length,
+          });
+
+          for (const customer of data)
+            queryClient.setQueryData(contactQueries.customer(customer.id).queryKey, customer);
+
+          return data;
+        },
+        enabled: ids.length > 0,
+        staleTime: CUSTOMER_MS,
+      };
+    }),
+    combine: (results) =>
+      new Map(results.flatMap((result) => result.data ?? []).map((row) => [row.id, row])),
   });
 };
 
-/** The conversations the filter bar keeps, latest message first, a page at a time. */
+/**
+ * The conversations the filter bar keeps, latest message first, a page at a time, and their
+ * customers by id.
+ */
 export const useConversations = () => {
   const params = useListFilterParams();
-
-  useInboxSignal();
 
   const query = useInfiniteQuery(
     orpc.conversations.list.infiniteOptions({
       input: (cursor: string | undefined) => ({ ...params, cursor }),
       initialPageParam: undefined,
       getNextPageParam: (page) => page.nextCursor ?? undefined,
+      staleTime: FRESH_MS,
     }),
   );
 
+  const pages = query.data?.pages ?? [];
+
   return {
     ...query,
-    conversations: query.data?.pages.flatMap((page) => page.conversations) ?? [],
-    totalCount: query.data?.pages[0]?.totalCount,
+    conversations: pages.flatMap((page) => page.conversations),
+    customers: usePageCustomers(pages),
+    totalCount: pages[0]?.totalCount,
   };
 };
 
-type ListPage = Outputs['conversations']['list'];
+export const LISTS = orpc.conversations.list.key({ type: 'infinite' });
 
-/** Every conversation the inbox's lists hold in the cache. */
-const listedConversations = (queryClient: QueryClient) =>
-  queryClient
-    .getQueriesData<InfiniteData<ListPage>>({
-      queryKey: orpc.conversations.list.key({ type: 'infinite' }),
-    })
-    .flatMap(([, data]) => data?.pages.flatMap((page) => page.conversations) ?? []);
+/** A conversation's row in a list the cache holds, and when that list loaded. */
+export const listedRow = (queryClient: QueryClient, id: string) => {
+  for (const [queryKey, data] of queryClient.getQueriesData<InfiniteData<ListPage>>({
+    queryKey: LISTS,
+  })) {
+    const row = data?.pages.flatMap((page) => page.conversations).find((item) => item.id === id);
 
-const conversationOptions = (id: string) =>
-  orpc.conversations.get.queryOptions({ input: { id }, enabled: Boolean(id) });
+    if (row) return { row, updatedAt: queryClient.getQueryState(queryKey)?.dataUpdatedAt };
+  }
+
+  return undefined;
+};
+
+export const conversationOptions = (id: string) =>
+  orpc.conversations.get.queryOptions({
+    input: { id },
+    enabled: Boolean(id),
+    staleTime: FRESH_MS,
+  });
 
 /**
  * One conversation. A conversation picked from the list shows at once from the list's row, and
- * refreshes from the API behind it.
+ * asks the API only once that row is older than the inbox's fresh time.
  */
 export const useConversation = (id: string) => {
   const queryClient = useQueryClient();
 
   return useQuery({
     ...conversationOptions(id),
-    initialData: () => listedConversations(queryClient).find((row) => row.id === id),
-    initialDataUpdatedAt: 0,
+    initialData: () => listedRow(queryClient, id)?.row,
+    initialDataUpdatedAt: () => listedRow(queryClient, id)?.updatedAt,
   });
 };
 
-const messagesOptions = (conversationId: string) =>
+export const messagesOptions = (conversationId: string) =>
   orpc.conversations.messages.list.infiniteOptions({
     enabled: Boolean(conversationId),
     input: (cursor: string | undefined) => ({ conversationId, cursor }),
     initialPageParam: undefined,
     getNextPageParam: (page) => page.nextCursor ?? undefined,
+    staleTime: FRESH_MS,
   });
-
-/** How long a prefetched thread counts as fresh, so moving the pointer back and forth asks once. */
-const PREFETCH_FRESH_MS = 30_000;
 
 /**
  * Loads a conversation's messages before it opens, as the pointer rests on its row or the keys
@@ -106,9 +199,7 @@ export const usePrefetchConversation = () => {
 
   return (conversation: Conversation) => {
     // A failed prefetch is only a slower open; the thread shows its own error.
-    queryClient
-      .infiniteQuery({ ...messagesOptions(conversation.id), staleTime: PREFETCH_FRESH_MS })
-      .catch(() => undefined);
+    queryClient.infiniteQuery(messagesOptions(conversation.id)).catch(() => undefined);
   };
 };
 
@@ -124,116 +215,29 @@ export const useMessages = (conversationId: string) => {
 
 export const usePinnedMessages = (conversationId: string) =>
   useQuery(
-    orpc.conversations.messages.list.queryOptions({ input: { conversationId, pinned: true } }),
+    orpc.conversations.messages.list.queryOptions({
+      input: { conversationId, pinned: true },
+      staleTime: FRESH_MS,
+    }),
   );
 
-/** Cards for the web links in a message's text; only one with a link asks. */
+/**
+ * Cards for the web links in a message's text; only one with a link asks, once. Editing the
+ * message refetches them.
+ */
 export const useLinkPreviews = (message: Message) =>
   useQuery({
     ...orpc.conversations.messages.linkPreviews.queryOptions({ input: { id: message.id } }),
     enabled: /https?:\/\//.test(message.content),
+    staleTime: Infinity,
   });
-
-/** Refetches the inbox after a change, and shows a refusal. */
-export const useInboxChange = () => useChange(orpc.conversations.key());
-
-/** Rewrites the conversations of `ids` wherever the cache holds them: the open one and the lists. */
-const patchConversations = (
-  queryClient: QueryClient,
-  ids: string[],
-  patch: Partial<Conversation>,
-) => {
-  const apply = (row: Conversation) => (ids.includes(row.id) ? { ...row, ...patch } : row);
-
-  queryClient.setQueriesData<InfiniteData<ListPage>>(
-    { queryKey: orpc.conversations.list.key({ type: 'infinite' }) },
-    (data) =>
-      data && {
-        ...data,
-        pages: data.pages.map((page) => ({
-          ...page,
-          conversations: page.conversations.map(apply),
-        })),
-      },
-  );
-
-  for (const id of ids)
-    queryClient.setQueryData(conversationOptions(id).queryKey, (row) => row && apply(row));
-};
-
-/** A change that shows at once on the conversations of `idsOf`, as `patch` says. */
-const usePatch = <TInput>(
-  idsOf: (input: TInput) => string[],
-  patch: (input: TInput) => Partial<Conversation>,
-) =>
-  useOptimistic(orpc.conversations.key(), (queryClient, input: TInput) =>
-    patchConversations(queryClient, idsOf(input), patch(input)),
-  );
-
-export const useAssign = () =>
-  useMutation(
-    orpc.conversations.assign.mutationOptions(
-      usePatch(
-        (input: Inputs['assign']) => input.ids,
-        ({ assigneeId }) => ({ assigneeId }),
-      ),
-    ),
-  );
-
-export const useSetStatus = () =>
-  useMutation(
-    orpc.conversations.setStatus.mutationOptions(
-      usePatch(
-        (input: Inputs['setStatus']) => input.ids,
-        ({ status }) => ({ status }),
-      ),
-    ),
-  );
-
-export const useSetTags = () =>
-  useMutation(
-    orpc.conversations.setTags.mutationOptions(
-      usePatch(
-        (input: Inputs['setTags']) => input.ids,
-        ({ tagIds }) => ({ tagIds }),
-      ),
-    ),
-  );
-
-export const useMarkRead = () =>
-  useMutation(
-    orpc.conversations.markRead.mutationOptions(
-      usePatch(
-        (input: Inputs['markRead']) => [input.id],
-        () => ({ isRead: true }),
-      ),
-    ),
-  );
-
-export const useSendMessage = () =>
-  useMutation(orpc.conversations.messages.create.mutationOptions(useInboxChange()));
-
-export const usePinMessage = () =>
-  useMutation(orpc.conversations.messages.pin.mutationOptions(useInboxChange()));
-
-export const useReact = () =>
-  useMutation(orpc.conversations.messages.react.mutationOptions(useInboxChange()));
-
-export const useEditMessage = () =>
-  useMutation(orpc.conversations.messages.update.mutationOptions(useInboxChange()));
-
-export const useSetOperator = () =>
-  useMutation(orpc.conversations.setOperator.mutationOptions(useInboxChange()));
 
 /**
  * How many conversations wait unread by the member: in all, in each sidebar queue and in each of
- * their channels, kept live as messages arrive.
+ * their channels, kept live by the layout's signal.
  */
-export const useInboxCounts = () => {
-  useInboxSignal();
-
-  return useQuery(orpc.conversations.counts.queryOptions({ input: {} })).data;
-};
+export const useInboxCounts = () =>
+  useQuery(orpc.conversations.counts.queryOptions({ input: {}, staleTime: FRESH_MS })).data;
 
 /** The conversation's visitor as the messenger last saw them, kept fresh as they come and go. */
 export const useVisitor = (conversationId: string) => {
@@ -289,15 +293,15 @@ export const useSendTyping = (conversationId: string) => {
 };
 
 /** The conversation tags, as the filter bar and pickers read them. */
-export const conversationTags = orpc.tags.list.queryOptions({ input: { type: 'conversation' } });
+export const conversationTags = tagsOf('conversation');
 
 export const useCreateTag = () =>
   useMutation(orpc.tags.create.mutationOptions(useChange(orpc.tags.key())));
 
 /** The integrations of the member's channels: the filter bar's choices and the empty inbox's. */
-export const useIntegrations = () => useQuery(orpc.integrations.list.queryOptions({ input: {} }));
+export const useIntegrations = () => useQuery(integrationsQuery);
 
 export const useIntegration = (id: string) =>
-  useQuery(orpc.integrations.get.queryOptions({ input: { id } }));
+  useQuery(orpc.integrations.get.queryOptions({ input: { id }, staleTime: REFERENCE_MS }));
 
 export const useIntegrationChange = () => useChange(orpc.integrations.key());

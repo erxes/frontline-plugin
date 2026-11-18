@@ -7,7 +7,8 @@ import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
 import { PickerField } from '~/shared/Pickers.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
-import { useInboxChange, useIntegrations } from './queries.ts';
+import { useIntegrations } from './queries.ts';
+import { useInboxChange } from './changes.ts';
 
 const Email = z.email();
 
@@ -86,8 +87,8 @@ export const MailNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
 
   const compose = useMutation(
     orpc.integrations.mail.compose.mutationOptions({
-      onSuccess: async ({ conversationId }) => {
-        await onSuccess();
+      onSuccess: ({ conversationId }) => {
+        onSuccess();
         onCreated(conversationId);
       },
     }),

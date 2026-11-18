@@ -65,8 +65,8 @@ export const useFormActions = (form: Pick<Form, 'id' | 'status' | 'canManage'>):
   const duplicate = useMutation(
     orpc.forms.duplicate.mutationOptions({
       ...change,
-      onSuccess: async () => {
-        await change.onSuccess();
+      onSuccess: () => {
+        change.onSuccess();
         toast({ title: t('form-duplicated', 'Form duplicated') });
       },
     }),

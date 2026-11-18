@@ -78,7 +78,7 @@ export const useDeletePipelines = () => {
   const remove = useMutation(
     orpc.pipelines.remove.mutationOptions({
       ...change,
-      onSuccess: async ({ ids }) => {
+      onSuccess: ({ ids }) => {
         toast({
           title: t('pipelines-deleted', {
             defaultValue_one: 'Pipeline deleted',
@@ -86,7 +86,7 @@ export const useDeletePipelines = () => {
             count: ids.length,
           }),
         });
-        await change.onSuccess();
+        change.onSuccess();
       },
     }),
   );

@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
-import { tagsOf } from '~/shared/Pickers.tsx';
+import { tagsOf } from '~/shared/reference.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 
 /** The organisation's form tags, for the list's tag cell and filter. */

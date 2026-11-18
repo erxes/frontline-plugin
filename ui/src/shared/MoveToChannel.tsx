@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Dialog, EntityPicker, toast } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { orpc } from '~/orpc.ts';
+import { channelsQuery } from '~/shared/reference.ts';
 
 /**
  * Moves the record `name` out of `channelId` to another channel the member is
@@ -19,7 +19,7 @@ export const MoveToChannelDialog = ({
   onClose: () => void;
 }) => {
   const { t } = useTranslation('frontline');
-  const channels = useQuery(orpc.channels.list.queryOptions({ input: {} }));
+  const channels = useQuery(channelsQuery);
 
   const targets = (channels.data?.channels ?? []).filter(
     (channel) => channel.canManage && channel.id !== channelId,

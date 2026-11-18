@@ -19,7 +19,7 @@ import { useAtom, useAtomValue } from 'jotai';
 import { type ReactNode, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { orpc } from '~/orpc.ts';
+import { channelsQuery } from '~/shared/reference.ts';
 import { CONVERSATION_TYPE, INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { BulkBar } from './BulkBar.tsx';
@@ -184,7 +184,7 @@ const InboxColumns = ({ list, showList }: { list: ReactNode; showList: boolean }
 export const InboxPage = () => {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
-  const channels = useQuery(orpc.channels.list.queryOptions({ input: {} })).data?.channels ?? [];
+  const channels = useQuery(channelsQuery).data?.channels ?? [];
   const canConnect = channels.some((channel) => channel.canManage);
   const connect = () => openNew(INTEGRATION_TYPE);
 
@@ -197,8 +197,8 @@ export const InboxPage = () => {
   // The header's toggle hides the list beside an open conversation only.
   const shown = useAtomValue(listShown);
 
-  const { conversations, totalCount, isPending, error, hasNextPage, fetchNextPage, refetch } =
-    useConversations();
+  const list = useConversations();
+  const { conversations, isPending } = list;
 
   // A conversation the filters no longer match stays open beside the empty list.
   const empty = !isPending && conversations.length === 0;
@@ -232,11 +232,11 @@ export const InboxPage = () => {
           fields={useInboxFields()}
           members={memberQueries}
           tags={conversationTags}
-          totalCount={totalCount}
+          totalCount={list.totalCount}
         />
       </ViewBar>
-      {error ? (
-        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
+      {list.error ? (
+        <p className="m-3 text-sm text-destructive-text">{list.error.message}</p>
       ) : empty && !openId ? (
         <InboxEmpty onConnect={canConnect ? connect : undefined} />
       ) : (
@@ -249,10 +249,11 @@ export const InboxPage = () => {
               <RecordList.Provider listId={LIST}>
                 <ConversationList
                   conversations={conversations}
+                  customers={list.customers}
                   isPending={isPending}
-                  hasNextPage={hasNextPage}
-                  fetchNextPage={() => void fetchNextPage()}
-                  refresh={() => void refetch()}
+                  hasNextPage={list.hasNextPage}
+                  fetchNextPage={() => void list.fetchNextPage()}
+                  refresh={() => void list.refetch()}
                 />
                 <BulkBar conversations={conversations} />
               </RecordList.Provider>

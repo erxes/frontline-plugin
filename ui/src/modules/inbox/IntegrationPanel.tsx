@@ -26,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { messengerPath } from '@/messenger/queries.ts';
 import { orpc } from '~/orpc.ts';
+import { channelsQuery } from '~/shared/reference.ts';
 import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { useKindNames } from './InboxFilter.tsx';
@@ -104,7 +105,7 @@ export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
 const Fields = ({ integration }: { integration: Integration }) => {
   const { t } = useTranslation('frontline');
   const update = useMutation(orpc.integrations.update.mutationOptions(useIntegrationChange()));
-  const channels = useQuery(orpc.channels.list.queryOptions({ input: {} })).data?.channels ?? [];
+  const channels = useQuery(channelsQuery).data?.channels ?? [];
   const welcome = typeof integration.config.welcome === 'string' ? integration.config.welcome : '';
   const scope = `frontline-integration.${integration.id}`;
   const messenger = integration.kind === 'messenger';

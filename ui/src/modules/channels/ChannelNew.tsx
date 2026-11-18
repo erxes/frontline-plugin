@@ -60,8 +60,8 @@ export const ChannelNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
 
   const create = useMutation(
     orpc.channels.create.mutationOptions({
-      onSuccess: async (channel) => {
-        await onSuccess();
+      onSuccess: (channel) => {
+        onSuccess();
         onCreated(channel.id);
       },
     }),
