@@ -1,206 +1,111 @@
-import {
-  DndContext,
-  type DragEndEvent,
-  KeyboardSensor,
-  PointerSensor,
-  pointerWithin,
-  useDndContext,
-  useDraggable,
-  useDroppable,
-  useSensor,
-  useSensors,
-} from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
-import { IconCalendarX, IconPlus } from '@tabler/icons-react';
-import { Button, cn, DragHandle, useFormat, useOpenRecord } from 'erxes-ui';
-import { useRef } from 'react';
+import { IconCalendarX } from '@tabler/icons-react';
+import { Board, type BoardMove, useFormat, useOpenRecord } from 'erxes-ui';
+import { memo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { type CustomItemComponentProps, Virtualizer } from 'virtua';
-import { usePriorityNames } from '@/pipelines/queries.ts';
-import { StageIcon } from '@/pipelines/StageIcon.tsx';
 import { TICKET_TYPE } from '~/plugin.ts';
-import { MemberLine } from '~/shared/Person.tsx';
 import { SlaBadge } from './SlaBadge.tsx';
-import { PriorityIcon, TicketMenu, TicketName } from './TicketCells.tsx';
+import { AssigneeCell, PriorityCell, TicketMenu } from './TicketCells.tsx';
 import { TicketTags } from './TicketLinks.tsx';
 import { TicketPropertyBadges } from './TicketProperties.tsx';
-import { useStatusGroups } from './TicketList.tsx';
-import { type Ticket, type TicketRowActions, useTicketRowActions } from './queries.ts';
+import { usePipelineStatuses } from './TicketList.tsx';
+import { type Ticket, type TicketRowActions, useTicketRowActions, useTickets } from './queries.ts';
 
-type Group = ReturnType<typeof useStatusGroups>[number];
+type Status = ReturnType<typeof usePipelineStatuses>[number];
 
 /**
- * A ticket on the board, laid out as the old board's card: its name and number, then its
- * priority, SLA and tags, then its target date and assignee, each only when it has one. The
- * handle drags it to another status of its pipeline.
+ * A ticket on the board, as the old board's card: its number and name, its SLA, tags and
+ * properties, and under them its priority, target date and assignee, each changed on the card.
+ * Drag it anywhere on it to another status; click it to open it.
  */
 const TicketCard = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
-  const { t } = useTranslation('frontline');
-  const priorities = usePriorityNames();
   const format = useFormat();
-
-  const { setNodeRef, attributes, listeners, transform, isDragging } = useDraggable({
-    id: ticket.id,
-    data: { pipelineId: ticket.pipelineId },
-  });
-
-  // erxes-ui's `sortable` utility reads the drag from this variable.
-  const cssVariables = { '--sortable-transform': CSS.Translate.toString(transform) };
+  const { open } = useOpenRecord();
 
   return (
-    <div
-      ref={setNodeRef}
-      style={cssVariables}
-      className={cn(
-        'sortable flex flex-col gap-2 rounded-lg border bg-background p-1.5 text-xs shadow-xs',
-        isDragging && 'relative z-10 shadow-md',
-      )}
-    >
-      <div className="flex items-center gap-0.5">
-        <DragHandle
-          aria-label={t('move-ticket', 'Move {{name}}', { name: ticket.name })}
-          {...attributes}
-          {...listeners}
-        />
-        <span className="flex min-w-0 flex-1">
-          <TicketName ticket={ticket} />
-        </span>
-        <TicketMenu ticket={ticket} act={act} />
-      </div>
-      <div className="flex flex-wrap items-center gap-2 px-2 empty:hidden">
-        {ticket.priority > 0 && (
-          <span className="flex items-center gap-1 text-muted-foreground">
-            <PriorityIcon priority={ticket.priority} />
-            {priorities[ticket.priority]}
-          </span>
-        )}
-        <SlaBadge ticket={ticket} />
-        <TicketTags tagIds={ticket.tagIds} max={5} />
-      </div>
-      <div className="px-2 empty:hidden">
-        <TicketPropertyBadges ticket={ticket} />
-      </div>
-      {(ticket.targetDate ?? ticket.assigneeId) && (
-        <div className="flex items-center justify-between gap-2 border-t px-2 pt-1.5 text-muted-foreground">
-          {ticket.targetDate ? (
-            <span className="flex items-center gap-1">
+    <Board.Card
+      id={ticket.id}
+      title={ticket.name}
+      onOpen={() => open({ contentType: TICKET_TYPE, contentId: ticket.id })}
+      footer={
+        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+          <PriorityCell ticket={ticket} act={act} />
+          {ticket.targetDate && (
+            <span className="flex shrink-0 items-center gap-1">
               <IconCalendarX className="size-3.5" />
               {format.date(ticket.targetDate)}
             </span>
-          ) : (
-            <span />
           )}
-          {ticket.assigneeId && <MemberLine id={ticket.assigneeId} size="sm" />}
+          <span className="ml-auto min-w-0 max-w-36">
+            <AssigneeCell ticket={ticket} act={act} />
+          </span>
+          <TicketMenu ticket={ticket} act={act} />
         </div>
-      )}
-    </div>
+      }
+    >
+      <span className="line-clamp-2 text-sm font-medium">
+        {ticket.number && (
+          <span className="mr-1.5 font-normal text-muted-foreground">{ticket.number}</span>
+        )}
+        {ticket.name}
+      </span>
+      <span className="flex flex-wrap items-center gap-1.5 text-xs empty:hidden">
+        <SlaBadge ticket={ticket} />
+        <TicketTags tagIds={ticket.tagIds} max={3} />
+      </span>
+      <span className="empty:hidden">
+        <TicketPropertyBadges ticket={ticket} />
+      </span>
+    </Board.Card>
   );
 };
 
-/** A card's place in its column's window, with the gap under it. */
-const CardSlot = ({ style, children, ref }: CustomItemComponentProps) => (
-  <li ref={ref} style={style} className="pb-2">
-    {children}
-  </li>
-);
-
-/** The column's header height and the gap under it, above the cards. */
-const HEADER_HEIGHT = 40;
-
-/**
- * One status's tickets, where a card of the same pipeline drops to move there. Its header adds a
- * ticket in that status; an empty column says so.
- */
-const Column = ({
-  group: { status, label, rows },
-  act,
-}: {
-  group: Group;
-  act: TicketRowActions;
-}) => {
+/** One status's tickets, a page at a time as it scrolls, with how many it holds. */
+const StatusColumn = memo(function StatusColumn({ status }: { status: Status }) {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
-  const { active } = useDndContext();
-  const accepts = active?.data.current?.pipelineId === status.pipelineId;
-  const { setNodeRef, isOver } = useDroppable({ id: status.id, disabled: !accepts });
-  const column = useRef<HTMLElement>(null);
-  // The dragged card stays mounted while its column scrolls it out of view.
-  const dragged = rows.findIndex((ticket) => ticket.id === active?.id);
-
-  return (
-    <section
-      ref={(node) => {
-        setNodeRef(node);
-        column.current = node;
-      }}
-      aria-labelledby={`column-${status.id}`}
-      className={cn(
-        'flex w-72 shrink-0 flex-col gap-2 overflow-y-auto rounded-lg bg-muted p-2',
-        isOver && accepts && 'ring-2 ring-primary',
-      )}
-    >
-      <header className="flex items-center gap-2 px-1">
-        <StageIcon type={status.type} color={status.color} />
-        <h2 id={`column-${status.id}`} className="truncate text-sm font-semibold">
-          {label}
-        </h2>
-        <span className="text-xs text-muted-foreground">{rows.length}</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="ml-auto"
-          aria-label={t('add-ticket-to', 'Add a ticket to {{status}}', { status: label })}
-          onClick={() =>
-            openNew(TICKET_TYPE, { pipelineId: status.pipelineId, statusId: status.id })
-          }
-        >
-          <IconPlus />
-        </Button>
-      </header>
-      {rows.length > 0 ? (
-        <Virtualizer
-          scrollRef={column}
-          startMargin={HEADER_HEIGHT}
-          data={rows}
-          keepMounted={dragged === -1 ? undefined : [dragged]}
-          as="ul"
-          item={CardSlot}
-        >
-          {(ticket) => <TicketCard key={ticket.id} ticket={ticket} act={act} />}
-        </Virtualizer>
-      ) : (
-        <p className="rounded-md border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">
-          {t('no-tickets-in-status', 'No tickets here')}
-        </p>
-      )}
-    </section>
-  );
-};
-
-/**
- * The shown pipeline's tickets in a column per status, the same list and filter as the other
- * displays. Dropping a card on another column moves it there at once.
- */
-export const TicketsBoard = ({ tickets }: { tickets: Ticket[] }) => {
-  const groups = useStatusGroups(tickets);
+  const column = useTickets(status.id);
   const act = useTicketRowActions();
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
-    useSensor(KeyboardSensor),
+  return (
+    <Board.Column
+      id={status.id}
+      title={status.name}
+      color={status.color ?? undefined}
+      count={column.totalCount ?? '·'}
+      add={{
+        label: t('add-ticket-to', 'Add a ticket to {{status}}', { status: status.name }),
+        onClick: () => openNew(TICKET_TYPE, { pipelineId: status.pipelineId, statusId: status.id }),
+      }}
+      loading={column.isPending}
+      error={column.error?.message}
+      empty={t('no-tickets-in-status', 'No tickets here')}
+      pages={column}
+    >
+      {column.rows.map((ticket) => (
+        <TicketCard key={ticket.id} ticket={ticket} act={act} />
+      ))}
+    </Board.Column>
   );
+});
 
-  const dragEnd = ({ active, over }: DragEndEvent) => {
-    if (over && !over.disabled) act.edit(String(active.id), { statusId: String(over.id) });
+/**
+ * The shown pipeline's tickets in a column per status, each its own paged list under the same
+ * filter and sort as the other displays. A dropped card lands in its new column at once and moves
+ * there; one the status refuses goes back with the refusal.
+ */
+export const TicketsBoard = () => {
+  const statuses = usePipelineStatuses();
+  const act = useTicketRowActions();
+
+  const move = ({ id, columnId, fromColumnId }: BoardMove) => {
+    if (columnId !== fromColumnId) act.edit(id, { statusId: columnId });
   };
 
   return (
-    <DndContext sensors={sensors} collisionDetection={pointerWithin} onDragEnd={dragEnd}>
-      <div className="flex min-h-0 flex-1 gap-3 overflow-x-auto p-3">
-        {groups.map((group) => (
-          <Column key={group.status.id} group={group} act={act} />
-        ))}
-      </div>
-    </DndContext>
+    <Board onMove={move}>
+      {statuses.map((status) => (
+        <StatusColumn key={status.id} status={status} />
+      ))}
+    </Board>
   );
 };

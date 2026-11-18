@@ -57,14 +57,19 @@ const TICKET_FILTER: FilterFields = {
 };
 
 /**
- * The tickets `member` sees, in `pipelineId` when given, narrowed by the filter bar. `search`
- * matches the name or number; archived tickets show only when the filter asks for a state.
- * `fromCore` types the rules on custom fields (`propertyFilter`). The query joins
- * `channelMembers` by `membership`, as `ticketRows` does.
+ * The tickets `member` sees, in `pipelineId` and `statusId` when given (a board column asks for
+ * its status), narrowed by the filter bar. `search` matches the name or number; archived tickets
+ * show only when the filter asks for a state. `fromCore` types the rules on custom fields
+ * (`propertyFilter`). The query joins `channelMembers` by `membership`, as `ticketRows` does.
  */
 export const ticketsMatching = (
   member: PluginMember,
-  input: { search?: string; filter?: ConditionGroup | null; pipelineId?: string },
+  input: {
+    search?: string;
+    filter?: ConditionGroup | null;
+    pipelineId?: string;
+    statusId?: string;
+  },
   fromCore: FilterFields,
 ) => {
   const search = input.search ? likeText(input.search) : undefined;
@@ -73,6 +78,7 @@ export const ticketsMatching = (
   return and(
     seenBy(member),
     input.pipelineId ? eq(tickets.pipelineId, input.pipelineId) : undefined,
+    input.statusId ? eq(tickets.statusId, input.statusId) : undefined,
     filtersBy(filter, 'subject.state') ? undefined : eq(tickets.state, 'active'),
     search ? or(ilike(tickets.name, search), ilike(tickets.number, search)) : undefined,
     compileFilter({ ...TICKET_FILTER, ...fromCore }, filter, { me: member.userId }),
@@ -81,8 +87,8 @@ export const ticketsMatching = (
 
 /**
  * The tickets of the caller's channels, or every channel's for a member who manages them all,
- * `limit` at a time, in `pipelineId` when given, narrowed by the filter bar, and how many match.
- * Sorted by the last change unless `sort` says creation, newest first unless `ascending`.
+ * `limit` at a time (`ticketsMatching`), and how many match. Sorted by the last change unless
+ * `sort` says creation, newest first unless `ascending`.
  * A rule on a custom field asks core for its type first.
  */
 const list = readsWithCore(
@@ -91,6 +97,7 @@ const list = readsWithCore(
     ...FilterInput,
     ...PageInput,
     pipelineId: z.string().optional(),
+    statusId: z.string().optional(),
     sort: z.enum(['updatedAt', 'createdAt']).default('updatedAt'),
     ascending: z.boolean().default(false),
   }),
