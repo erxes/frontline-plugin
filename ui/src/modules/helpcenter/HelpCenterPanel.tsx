@@ -208,7 +208,7 @@ const Content = ({ center }: { center: HelpCenter }) => {
           href={center.siteUrl}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex min-w-0 items-center gap-1 text-primary hover:underline"
+          className="inline-flex min-w-0 items-center gap-1 underline underline-offset-2"
         >
           <span className="truncate">{t('hc-open-site', 'Open the site')}</span>
           <IconExternalLink className="size-3.5 shrink-0" />
