@@ -5,6 +5,7 @@ import {
   buttonVariants,
   PanelField,
   PanelSection,
+  Popover,
   RecordTableInlineCell,
   useOpenRecord,
 } from 'erxes-ui';
@@ -30,27 +31,46 @@ const useKinds = (channelId: string) => {
 
 /**
  * The list's Integrations cell: one chip per kind, its icon and how many, as the old channel list
- * showed them.
+ * showed them. It opens the integrations themselves, each leading to its side panel.
  */
 export const IntegrationBadges = ({ channelId }: { channelId: string }) => {
+  const { t } = useTranslation('frontline');
   const names = useKindNames();
   const kinds = useKinds(channelId);
 
+  if (kinds.size === 0) return <RecordTableInlineCell />;
+
   return (
-    <RecordTableInlineCell>
-      <span className="flex gap-1">
-        {[...kinds].map(([kind, integrations]) => (
-          <span
-            key={kind}
-            title={names[kind] ?? kind}
-            className="inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-xs tabular-nums"
-          >
-            <KindIcon kind={kind} className="size-3.5" />
-            {integrations.length}
-          </span>
-        ))}
-      </span>
-    </RecordTableInlineCell>
+    <Popover>
+      <RecordTableInlineCell.Trigger
+        variant="field"
+        aria-label={t('channel-integrations', 'Integrations: {{kinds}}', {
+          kinds: [...kinds]
+            .map(([kind, integrations]) => `${names[kind] ?? kind} ${integrations.length}`)
+            .join(', '),
+        })}
+      >
+        <span className="flex gap-1">
+          {[...kinds].map(([kind, integrations]) => (
+            <span
+              key={kind}
+              title={names[kind] ?? kind}
+              className="inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-xs tabular-nums"
+            >
+              <KindIcon kind={kind} className="size-3.5" />
+              {integrations.length}
+            </span>
+          ))}
+        </span>
+      </RecordTableInlineCell.Trigger>
+      <RecordTableInlineCell.Content>
+        <span className="flex flex-col">
+          {[...kinds.values()].flat().map((integration) => (
+            <IntegrationButton key={integration.id} integration={integration} />
+          ))}
+        </span>
+      </RecordTableInlineCell.Content>
+    </Popover>
   );
 };
 
