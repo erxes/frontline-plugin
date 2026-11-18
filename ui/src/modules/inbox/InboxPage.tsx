@@ -32,6 +32,7 @@ import { MessageThread } from './MessageThread.tsx';
 import {
   conversationTags,
   useConversation,
+  useConversationSignal,
   useConversations,
   useIntegrations,
   useMessages,
@@ -68,6 +69,7 @@ const ConversationPane = () => {
   const { data: conversation, error } = useConversation(id);
 
   useMessages(id);
+  useConversationSignal(id);
   usePageHotkey('escape', () => void setId(null), { when: () => Boolean(id) });
 
   if (error) return <p className="m-4 text-sm text-destructive-text">{error.message}</p>;

@@ -1,8 +1,10 @@
 import { contactQueries, orpc as core } from '@erxes/core-contract/client';
 import type { InferClientOutputs } from '@orpc/client';
 import {
+  hashKey,
   type InfiniteData,
   type QueryClient,
+  type QueryKey,
   useInfiniteQuery,
   useMutation,
   useQueries,
@@ -48,39 +50,62 @@ const FRESH_MS = 30_000;
 /** How long the inbox gathers changes before it refetches once. */
 const REFRESH_MS = 1000;
 
-/**
- * What changes when a conversation does: the lists, the sidebar's counts, each conversation and
- * its messages. Of these only the ones on screen refetch; the rest wait until they show again.
- */
-const REFRESHED = [
-  orpc.conversations.list.key(),
-  orpc.conversations.counts.key(),
-  orpc.conversations.get.key(),
-  orpc.conversations.messages.list.key(),
+/** What any conversation's change shows in: the lists and the sidebar's counts. */
+const LISTED = [orpc.conversations.list.key(), orpc.conversations.counts.key()];
+
+/** What one conversation's change shows in: its row and its messages, pinned ones too. */
+const conversationKeys = (id: string) => [
+  orpc.conversations.get.key({ input: { id } }),
+  orpc.conversations.messages.list.key({ input: { conversationId: id } }),
 ];
 
+/** The member's own change: the lists, and every conversation, since one of them changed. */
+const CHANGED = [...LISTED, orpc.conversations.get.key(), orpc.conversations.messages.list.key()];
+
+let pending = new Map<string, QueryKey>();
 let refreshing: ReturnType<typeof setTimeout> | undefined;
 
 /**
- * Refetches what a change to conversations shows in, once a second at most: a burst of live
- * signals, and the member's own changes with them, become one refetch at its end.
+ * Refetches the queries under `keys`, gathered for a second: a burst of live signals, and the
+ * member's own changes with them, become one refetch at its end. Only the queries on screen
+ * refetch; the rest wait until they show again.
  */
-export const refreshInbox = (queryClient: QueryClient) => {
+const refresh = (queryClient: QueryClient, keys: QueryKey[]) => {
+  for (const key of keys) pending.set(hashKey(key), key);
+
   refreshing ??= setTimeout(() => {
+    const due = [...pending.values()];
+
+    pending = new Map();
     refreshing = undefined;
 
-    for (const queryKey of REFRESHED) void queryClient.invalidateQueries({ queryKey });
+    for (const queryKey of due) void queryClient.invalidateQueries({ queryKey });
   }, REFRESH_MS);
 };
 
+/** Refetches what the member's own change to a conversation shows in. */
+export const refreshInbox = (queryClient: QueryClient) => refresh(queryClient, CHANGED);
+
 /**
- * Keeps the inbox live as another member, a visitor or a provider changes a conversation. The
- * layout calls it once, for every page under it.
+ * Keeps the inbox's lists and counts live as another member, a visitor or a provider changes a
+ * conversation. The layout calls it once, for every page under it.
  */
 export const useInboxSignal = () => {
   const queryClient = useQueryClient();
 
-  useLiveSignal(PLUGIN, 'conversations', () => refreshInbox(queryClient));
+  useLiveSignal(PLUGIN, 'conversations', () => refresh(queryClient, LISTED));
+};
+
+/**
+ * Keeps one open conversation live: its own topic says it changed, so a change to another
+ * conversation leaves it alone. Nothing while no conversation is open.
+ */
+export const useConversationSignal = (id: string) => {
+  const queryClient = useQueryClient();
+
+  useLiveSignal(PLUGIN, id ? [`conversation.${id.toLowerCase()}`] : [], () =>
+    refresh(queryClient, conversationKeys(id)),
+  );
 };
 
 /** How long a customer core sent counts as fresh, as core's own customer queries keep them. */
