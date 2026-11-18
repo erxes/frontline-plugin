@@ -84,7 +84,9 @@ describe('telegram', () => {
     // Telegram sends an update again until it hears 200; the repeat adds nothing.
     expect(await deliver(path, update, signed)).toBe(200);
     expect(await deliver('/telegram/no-such-key', update)).toBe(200);
-    expect(await deliver(path, '{not json', signed)).toBe(400);
+    // One it can't read is left out, so Telegram doesn't hold the bot's next updates behind it.
+    expect(await deliver(path, '{not json', signed)).toBe(200);
+    expect(await deliver(path, '{"update_id":"nine"}', signed)).toBe(200);
 
     const { conversations } = await owner.conversations.list({});
 

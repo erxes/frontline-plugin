@@ -42,8 +42,8 @@ const Callback = z.object({ code: z.string(), state: z.string() });
 /**
  * The providers' signed-out routes at `/api/public/webhooks`: Meta's login callback, each
  * provider's address check, and the deliveries. A delivery is answered 200 once it is in the
- * inbox, 401 when its signature fails, and 500 when it could not be stored, so the provider
- * sends it again.
+ * inbox or could never be, 401 when its signature fails, and 500 when it could not be stored
+ * this time, so the provider sends it again.
  */
 export const webhookRoutes = () => {
   const router = express.Router();
@@ -98,9 +98,12 @@ export const webhookRoutes = () => {
 
       res.sendStatus(routes && (await handle(webhook, request, routes)) ? 200 : 401);
     } catch (error) {
-      // A body that isn't the provider's shape won't be any better sent again.
-      if (error instanceof SyntaxError || error instanceof z.ZodError) res.sendStatus(400);
-      else throw error;
+      if (!(error instanceof SyntaxError || error instanceof z.ZodError)) throw error;
+
+      // A body that isn't the provider's shape won't be any better sent again, and Meta and
+      // Telegram resend anything but a 2xx, Telegram holding the bot's later updates behind it.
+      logger.warn({ err: error, source }, 'webhook delivery left out');
+      res.sendStatus(200);
     }
   });
 
