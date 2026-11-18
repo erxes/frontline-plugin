@@ -1,8 +1,9 @@
 import { type AnyProcedure, call, isProcedure, resolveContractProcedures } from '@orpc/server';
 import { describe, expect, it } from 'vite-plus/test';
+import { PERMISSIONS } from '#/core.ts';
 import { manifest } from '#/manifest.ts';
 import { router } from '#/router.ts';
-import { memberOf } from '#/test/member.ts';
+import { clientAs, memberOf } from '#/test/member.ts';
 
 // Every procedure, found by walking the router, so a new one is covered the day it lands.
 const procedures: [string, AnyProcedure][] = [];
@@ -21,6 +22,22 @@ describe('every procedure', () => {
     await expect(
       call(procedure, {}, { context: { member: memberOf('org-a', []) } }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+});
+
+// What the integrations page reads, by a member who holds every permission but the integration ones.
+describe('the integrations page', () => {
+  const others = Object.values(PERMISSIONS).filter((action) => !action.includes('.integration.'));
+  const member = clientAs('org-a', ['team.view', ...others]);
+
+  const refusal = {
+    code: 'FORBIDDEN',
+    message: 'You need the frontline.integration.view permission',
+  };
+
+  it('needs frontline.integration.view', async () => {
+    await expect(member.integrations.accounts.list({})).rejects.toMatchObject(refusal);
+    await expect(member.integrations.meta.bots.list()).rejects.toMatchObject(refusal);
   });
 });
 
