@@ -1,12 +1,13 @@
 import { bearerOf } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, asc, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { PLUGIN } from '#/config.ts';
-import { withOrg } from '#/db/client.ts';
+import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { fail } from '../fail.ts';
+import { orderOf, PageInput } from '../paging.ts';
 import { setOperatorOf } from '../inbox/operator.ts';
 import { receive } from '../inbox/receive.ts';
 import { signalMembers, typingTopic } from '../inbox/shared.ts';
@@ -92,12 +93,20 @@ export const visitorConversations = (visitor: Visitor) =>
       .orderBy(desc(conversations.lastMessageAt)),
   );
 
-/** The visitor's conversation `id`, locked, or NOT_FOUND. */
-const ownConversation = async (visitor: Visitor, id: string) => {
-  const own = await visitorConversations(visitor);
+/** NOT_FOUND unless `id` is a conversation of the visitor's in this messenger. */
+const ownConversation = async (tx: Tx, visitor: Visitor, id: string) => {
+  const [own] = await tx
+    .select({ id: conversations.id })
+    .from(conversations)
+    .where(
+      and(
+        eq(conversations.id, id),
+        eq(conversations.integrationId, visitor.integrationId),
+        eq(conversations.customerId, visitor.customerId),
+      ),
+    );
 
-  if (!own.some((conversation) => conversation.id === id))
-    throw new ORPCError('NOT_FOUND', { message: 'No such conversation' });
+  if (!own) throw new ORPCError('NOT_FOUND', { message: 'No such conversation' });
 };
 
 /** Runs `handler` for the visitor the bearer token names, answering 401 without one and the status of a refusal. */
@@ -119,28 +128,59 @@ export const asVisitor =
     }
   };
 
-/** A conversation's messages, oldest first, without internal notes. */
-const messagesOf = (visitor: Visitor, conversationId: string) =>
-  withOrg(visitor.orgId, (tx) =>
-    tx
-      .select(visitorMessage)
-      .from(messages)
-      .where(and(eq(messages.conversationId, conversationId), eq(messages.internal, false)))
-      .orderBy(asc(messages.createdAt), asc(messages.id)),
-  );
+const newestFirst = orderOf(messages);
+
+/** A page of the query's `cursor` and `limit`, as strings in the address. */
+const PageQuery = z.object({
+  cursor: PageInput.cursor,
+  limit: z.coerce.number().int().min(1).max(50).default(50),
+});
+
+/**
+ * A page of a conversation's messages without internal notes, newest first: the messenger shows
+ * the latest and asks for earlier ones with `nextCursor`.
+ */
+const messagesOf = async (
+  tx: Tx,
+  conversationId: string,
+  { cursor, limit }: z.output<typeof PageQuery>,
+) => {
+  const rows = await tx
+    .select(visitorMessage)
+    .from(messages)
+    .where(
+      and(
+        eq(messages.conversationId, conversationId),
+        eq(messages.internal, false),
+        newestFirst.after(cursor),
+      ),
+    )
+    .orderBy(...newestFirst.orderBy)
+    .limit(limit + 1);
+
+  return newestFirst.page(tx, rows, limit);
+};
+
+/** A page of messages as the visitor sees them. */
+export type VisitorMessages = Awaited<ReturnType<typeof messagesOf>>;
 
 /** A message as the visitor sees it. */
-export type VisitorMessage = Awaited<ReturnType<typeof messagesOf>>[number];
+export type VisitorMessage = VisitorMessages['items'][number];
 
 /** A conversation of the visitor's, as their messenger lists it. */
 export type VisitorConversation = Awaited<ReturnType<typeof visitorConversations>>[number];
 
 const conversationMessages = asVisitor(async (visitor, req, res) => {
   const { id } = Params.parse(req.params);
+  const page = PageQuery.parse(req.query);
 
-  await ownConversation(visitor, id);
+  const reply: VisitorMessages = await withOrg(visitor.orgId, async (tx) => {
+    await ownConversation(tx, visitor, id);
 
-  res.json(await messagesOf(visitor, id));
+    return messagesOf(tx, id, page);
+  });
+
+  res.json(reply);
 });
 
 /**
@@ -178,8 +218,8 @@ const send = asVisitor(async (visitor, req, res) => {
 const markRead = asVisitor(async (visitor, req, res) => {
   const { id } = Params.parse(req.params);
 
-  await ownConversation(visitor, id);
   await withOrg(visitor.orgId, async (tx) => {
+    await ownConversation(tx, visitor, id);
     await tx
       .update(messages)
       .set({ customerReadAt: new Date() })
@@ -201,10 +241,10 @@ const markRead = asVisitor(async (visitor, req, res) => {
 const typing = asVisitor(async (visitor, req, res) => {
   const { id } = Params.parse(req.params);
 
-  await ownConversation(visitor, id);
-  await withOrg(visitor.orgId, (tx) =>
-    tx.execute(sql`select core_live_signal(${visitor.orgId}, ${PLUGIN}, ${typingTopic(id)})`),
-  );
+  await withOrg(visitor.orgId, async (tx) => {
+    await ownConversation(tx, visitor, id);
+    await tx.execute(sql`select core_live_signal(${visitor.orgId}, ${PLUGIN}, ${typingTopic(id)})`);
+  });
 
   res.status(204).end();
 });
@@ -213,8 +253,9 @@ const typing = asVisitor(async (visitor, req, res) => {
 const askForPerson = asVisitor(async (visitor, req, res) => {
   const { id } = Params.parse(req.params);
 
-  await ownConversation(visitor, id);
   await withOrg(visitor.orgId, async (tx) => {
+    await ownConversation(tx, visitor, id);
+
     const rows = await tx
       .select({
         id: conversations.id,

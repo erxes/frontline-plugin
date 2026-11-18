@@ -72,9 +72,13 @@ export const Bar = ({ settings, onBack }: { settings: Settings; onBack: () => vo
   </header>
 );
 
+/** What the thread has loaded of one conversation, oldest first, and the cursor for earlier ones. */
+type Loaded = { id: string | null; messages: Message[]; earlier: string | null };
+
 /**
- * A conversation's messages, refetched when the stream says it changed, and marked read while
- * the visitor has it open. `send` starts the conversation when there is none yet.
+ * A conversation's latest messages, refetched when the stream says it changed, with earlier ones
+ * on request, and marked read while the visitor has it open. `send` starts the conversation when
+ * there is none yet.
  */
 const useThread = (
   api: MessengerApi,
@@ -82,7 +86,28 @@ const useThread = (
   conversationId: string | null,
   onStarted: (id: string) => void,
 ) => {
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [loaded, setLoaded] = useState<Loaded>({ id: null, messages: [], earlier: null });
+  const shown = loaded.id === conversationId ? loaded : { messages: [], earlier: null };
+
+  /**
+   * Merges messages into conversation `id`, each once. Another conversation's start over with
+   * `cursor`; the same one keeps its cursor unless these are its `earlier` messages.
+   */
+  const put = (id: string, items: Message[], cursor: string | null, earlier = false) =>
+    setLoaded((was) => {
+      const same = was.id === id;
+
+      const byId = new Map(
+        [...(same ? was.messages : []), ...items].map((each) => [each.id, each]),
+      );
+
+      return {
+        id,
+        messages: [...byId.values()].toSorted((a, b) => a.createdAt.localeCompare(b.createdAt)),
+        earlier: same && !earlier ? was.earlier : cursor,
+      };
+    });
+
   const token = session?.token;
   const conversation = conversations.find((item) => item.id === conversationId);
   const unread = conversation?.unreadCount ?? 0;
@@ -94,9 +119,9 @@ const useThread = (
     let live = true;
 
     const load = async () => {
-      const list = await api.messages(token, conversationId);
+      const page = await api.messages(token, conversationId);
 
-      if (live) setMessages(list);
+      if (live) put(conversationId, page.items, page.nextCursor);
     };
 
     void load();
@@ -119,14 +144,29 @@ const useThread = (
       files: files.map((file) => file.receipt),
     });
 
-    setMessages((list) => [...list, sent]);
+    put(sent.conversationId, [sent], null);
 
     if (!conversationId) onStarted(sent.conversationId);
 
     await refresh();
   };
 
-  return { token, conversation, messages, send };
+  const loadEarlier = async () => {
+    if (!token || !conversationId || !shown.earlier) return;
+
+    const page = await api.messages(token, conversationId, shown.earlier);
+
+    put(conversationId, page.items, page.nextCursor, true);
+  };
+
+  return {
+    token,
+    conversation,
+    messages: shown.messages,
+    hasEarlier: shown.earlier !== null,
+    loadEarlier,
+    send,
+  };
 };
 
 /** The bot's menu: a link opens, anything else is sent as the visitor's message. */
@@ -166,7 +206,7 @@ export const Thread = ({
 }) => {
   const { settings, session, typing, connect, refresh, signOut } = messenger;
 
-  const { token, conversation, messages, send } = useThread(
+  const { token, conversation, messages, hasEarlier, loadEarlier, send } = useThread(
     api,
     messenger,
     conversationId,
@@ -184,7 +224,12 @@ export const Thread = ({
     <div class="fl-thread">
       <Bar settings={settings} onBack={onBack} />
       <div class="fl-scroll fl-messages" aria-live="polite">
-        {settings.welcome && <TeamNote>{settings.welcome}</TeamNote>}
+        {hasEarlier && (
+          <button type="button" class="fl-link" onClick={() => void loadEarlier()}>
+            Earlier messages
+          </button>
+        )}
+        {settings.welcome && !hasEarlier && <TeamNote>{settings.welcome}</TeamNote>}
         {withBot && settings.botGreeting && <TeamNote>{settings.botGreeting}</TeamNote>}
         {messages.map((message) => (
           <Bubble key={message.id} message={message} language={settings.language} urlOf={urlOf} />

@@ -12,6 +12,7 @@ import { channelMembers } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { canChangeSql, channelFor, membership } from '../channels/access.ts';
 import { Title } from '../fields.ts';
+import { integrationChanges } from '../messenger/adapter.ts';
 import { removeKeys } from '../public.ts';
 import { ADAPTERS } from './adapters.ts';
 import { seenBy } from './shared.ts';
@@ -149,13 +150,17 @@ const update = writes(PERMISSIONS.channelView)
     }),
   )
   .output(Integration)
-  .handler(async ({ input: { id, config, ...change }, context: { tx, member } }) => {
+  .handler(async ({ input: { id, config, ...change }, context: { tx, member, afterCommit } }) => {
     const row = await integrationFor(tx, member, id);
 
     await tx
       .update(integrations)
       .set({ ...change, ...(config ? { config: configOf(row.kind, config) } : {}) })
       .where(eq(integrations.id, id));
+
+    afterCommit(async () => {
+      integrationChanges.emit('changed', id);
+    });
 
     return integrationById(tx, member, id);
   });
@@ -164,9 +169,12 @@ const update = writes(PERMISSIONS.channelView)
 const remove = writes(PERMISSIONS.channelView)
   .input(z.object({ id: z.string() }))
   .output(z.object({ id: z.string() }))
-  .handler(async ({ input, context: { tx, member } }) => {
+  .handler(async ({ input, context: { tx, member, afterCommit } }) => {
     await integrationFor(tx, member, input.id);
     await tx.delete(integrations).where(eq(integrations.id, input.id));
+    afterCommit(async () => {
+      integrationChanges.emit('changed', input.id);
+    });
     await removeKeys(
       tx,
       member.orgId,

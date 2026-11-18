@@ -1,12 +1,13 @@
 import { ORPCError } from '@orpc/server';
 import cors from 'cors';
 import express, { type Request, type Response } from 'express';
+import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 import { BrowserInfo } from '#/db/messenger.ts';
 import { logger } from '#/logger.ts';
 import { fail } from '../fail.ts';
 import { voteRoutes } from '../surveys/votes.ts';
-import { isOnlineAt } from './adapter.ts';
+import { integrationChanges, isOnlineAt } from './adapter.ts';
 import { articleRoutes } from './articles.ts';
 import { fileRoutes } from './files.ts';
 import { messengerOf, tokenOf, visitorOf } from './session.ts';
@@ -35,31 +36,46 @@ const Connect = VisitorData.extend({
 
 export type { Identity } from './identity.ts';
 
-export type { VisitorConversation, VisitorMessage } from './threads.ts';
+export type { VisitorConversation, VisitorMessage, VisitorMessages } from './threads.ts';
 
 export type { TicketForms, VisitorTicket } from './tickets.ts';
 
-/** The active messenger a key opens, with its settings, or NOT_FOUND. */
+/** The active messenger a key opens, with its settings and its team from core, or NOT_FOUND. */
 const opened = async (key: string) => {
   const found = await messengerOf(key);
   const settings = found && (await messengerIntegration(found.orgId, found.integrationId));
 
   if (!found || !settings) throw new ORPCError('NOT_FOUND', { message: 'No such messenger' });
 
-  return { ...found, settings };
+  return { ...found, settings, supporters: await supportersOf(found.orgId, settings.supporterIds) };
 };
+
+/**
+ * `/settings` by messenger key for a minute, as browsers keep it (`max-age=60`), so a page view
+ * costs no query and no call to core. A change to the messenger drops it at once in this process.
+ */
+const openedRecently = new LRUCache<string, Awaited<ReturnType<typeof opened>>>({
+  max: 5000,
+  ttl: 60_000,
+  fetchMethod: opened,
+});
+
+integrationChanges.on('changed', (integrationId) => {
+  for (const [key, cached] of openedRecently.entries())
+    if (cached.integrationId === integrationId) openedRecently.delete(key);
+});
 
 /**
  * What a visitor sees of the messenger: its settings with its team in place of the team's ids,
  * whether that team is online now, and whether it takes tickets.
  */
-const messengerView = async ({ orgId, settings }: Awaited<ReturnType<typeof opened>>) => {
+const messengerView = ({ settings, supporters }: Awaited<ReturnType<typeof opened>>) => {
   const { supporterIds, channelId, ticketPipelineIds, ...shown } = settings;
 
   return {
     ...shown,
     isOnline: isOnlineAt(settings, new Date()),
-    supporters: await supportersOf(orgId, supporterIds),
+    supporters,
     tickets: ticketPipelineIds.length > 0,
   };
 };
@@ -68,7 +84,7 @@ const messengerView = async ({ orgId, settings }: Awaited<ReturnType<typeof open
 export type Connected = {
   token: string;
   identified: boolean;
-  messenger: Awaited<ReturnType<typeof messengerView>>;
+  messenger: ReturnType<typeof messengerView>;
   conversations: Awaited<ReturnType<typeof visitorConversations>>;
 };
 
@@ -109,7 +125,7 @@ const connect = async (req: Request, res: Response) => {
     const reply: Connected = {
       token: visitor === known && input.token ? input.token : await tokenOf(visitor),
       identified: visitor.identified,
-      messenger: await messengerView(shown),
+      messenger: messengerView(shown),
       conversations: await visitorConversations(visitor),
     };
 
@@ -125,11 +141,11 @@ const connect = async (req: Request, res: Response) => {
  */
 const settings = async (req: Request, res: Response) => {
   try {
-    const key = Connect.shape.key.parse(req.query.key);
+    const shown = await openedRecently.fetch(Connect.shape.key.parse(req.query.key));
 
-    const reply: Pick<Connected, 'messenger'> = {
-      messenger: await messengerView(await opened(key)),
-    };
+    if (!shown) throw new ORPCError('NOT_FOUND', { message: 'No such messenger' });
+
+    const reply: Pick<Connected, 'messenger'> = { messenger: messengerView(shown) };
 
     res.set('cache-control', 'public, max-age=60').json(reply);
   } catch (error) {
@@ -152,8 +168,17 @@ const browserInfo = asVisitor(async (visitor, req, res) => {
  * Server-sent events: `changed` for each conversation of the visitor that changes, so the
  * messenger refetches it, and `typing` while a member writes in one. The visitor reads as online
  * while a stream is open. An EventSource can't send headers, so the token is in the address.
+ * However the stream ends, before or after it opens, its listener goes and the visitor goes
+ * offline once their last stream has.
  */
 const stream = async (req: Request, res: Response) => {
+  const state: { closed: boolean; release: (() => void) | null } = { closed: false, release: null };
+
+  res.on('close', () => {
+    state.closed = true;
+    state.release?.();
+  });
+
   try {
     const visitor = await visitorOf(z.string().optional().parse(req.query.token));
 
@@ -164,10 +189,35 @@ const stream = async (req: Request, res: Response) => {
     }
 
     const stop = await subscribe(visitor.orgId, visitor.customerId, ({ conversationId, event }) => {
-      res.write(`event: ${event}\ndata: ${JSON.stringify({ conversationId })}\n\n`);
+      // Until the stream opens, the messenger's first read covers what happens.
+      if (res.headersSent)
+        res.write(`event: ${event}\ndata: ${JSON.stringify({ conversationId })}\n\n`);
     });
 
-    await setOnline(visitor, true);
+    const online = setOnline(visitor, true);
+    const beat: { timer?: NodeJS.Timeout } = {};
+
+    // Offline goes after online has settled, so it can't land first.
+    const goOffline = async () => {
+      await Promise.allSettled([online]);
+
+      if (!streaming(visitor.orgId, visitor.customerId)) await setOnline(visitor, false);
+    };
+
+    state.release = () => {
+      state.release = null;
+      clearInterval(beat.timer);
+      stop();
+      goOffline().catch((error: unknown) => {
+        logger.error({ err: error, customerId: visitor.customerId }, 'visitor offline failed');
+      });
+    };
+
+    if (state.closed) return state.release();
+
+    await online;
+
+    if (state.closed) return;
 
     res.writeHead(200, {
       'content-type': 'text/event-stream',
@@ -175,20 +225,10 @@ const stream = async (req: Request, res: Response) => {
       connection: 'keep-alive',
     });
     res.write(': connected\n\n');
-
     // A comment every 25 s keeps proxies from closing a quiet stream.
-    const beat = setInterval(() => res.write(': ping\n\n'), 25_000);
-
-    req.on('close', () => {
-      clearInterval(beat);
-      stop();
-
-      if (!streaming(visitor.orgId, visitor.customerId))
-        void setOnline(visitor, false).catch((error: unknown) => {
-          logger.error({ err: error, customerId: visitor.customerId }, 'visitor offline failed');
-        });
-    });
+    beat.timer = setInterval(() => res.write(': ping\n\n'), 25_000);
   } catch (error) {
+    state.release?.();
     fail(res, error, 'messenger stream');
   }
 };

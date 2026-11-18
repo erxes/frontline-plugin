@@ -1,6 +1,6 @@
 import { Client } from 'pg';
 import { z } from 'zod';
-import { config } from '#/config.ts';
+import { config, PLUGIN } from '#/config.ts';
 import { logger } from '#/logger.ts';
 import { VISITOR_CHANNEL, VISITOR_EVENTS } from '../inbox/shared.ts';
 
@@ -23,11 +23,7 @@ const listeners = new Map<string, Set<Listener>>();
 const keyOf = (orgId: string, customerId: string) => `${orgId}\u0000${customerId}`;
 
 let connection: Promise<Client> | null = null;
-
-const drop = (error?: Error) => {
-  if (error) logger.error({ err: error }, 'visitor stream connection failed');
-  connection = null;
-};
+let retry: NodeJS.Timeout | null = null;
 
 const deliver = (payload: string | undefined) => {
   const notice = Notice.safeParse(JSON.parse(payload ?? 'null'));
@@ -40,28 +36,52 @@ const deliver = (payload: string | undefined) => {
     listener({ conversationId, event });
 };
 
+/** While any stream is open, opens the connection again in 2 s, and again until it holds. */
+const reconnectSoon = () => {
+  if (retry || listeners.size === 0) return;
+
+  retry = setTimeout(() => {
+    retry = null;
+    // A failure drops the connection, which tries again.
+    connect().catch(() => undefined);
+  }, 2_000);
+
+  retry.unref();
+};
+
 /**
- * One connection LISTENing on the visitors' channel for the whole process. A dropped one is
- * reopened by the next stream that subscribes.
+ * One connection LISTENing on the visitors' channel for the whole process. A dropped one opens
+ * again while streams are open, so they keep hearing about their conversations.
  */
 const connect = () => {
-  connection ??= (async () => {
-    const client = new Client({ connectionString: config.dataUrl, application_name: 'frontline' });
+  if (connection) return connection;
 
-    client.on('error', drop);
-    client.on('end', () => drop());
-    client.on('notification', ({ payload }) => deliver(payload));
+  const client = new Client({ connectionString: config.dataUrl, application_name: PLUGIN });
 
+  const opened = (async () => {
     await client.connect();
     await client.query(`LISTEN ${VISITOR_CHANNEL}`);
 
     return client;
-  })().catch((error: unknown) => {
-    connection = null;
-    throw error;
-  });
+  })();
 
-  return connection;
+  const drop = (error?: unknown) => {
+    // A late `end` from a connection already replaced leaves the new one alone.
+    if (connection !== opened) return;
+
+    logger.error({ err: error }, 'visitor stream connection dropped');
+    connection = null;
+    reconnectSoon();
+  };
+
+  client.on('error', drop);
+  client.on('end', () => drop());
+  client.on('notification', ({ payload }) => deliver(payload));
+
+  connection = opened;
+  opened.catch(drop);
+
+  return opened;
 };
 
 /** Whether a messenger of the customer still streams from this process. */
