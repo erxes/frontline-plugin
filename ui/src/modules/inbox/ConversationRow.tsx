@@ -6,10 +6,11 @@ import {
   type RecordList,
   RelativeDateDisplay,
 } from 'erxes-ui';
+import { IconClockExclamation } from '@tabler/icons-react';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PersonAvatar } from '~/shared/Person.tsx';
-import { KindIcon } from '~/shared/kinds.tsx';
+import { MemberAvatar, PersonAvatar } from '~/shared/Person.tsx';
+import { isChat, KindIcon } from '~/shared/kinds.tsx';
 import type { Conversation } from './queries.ts';
 
 /** The list's row buttons carry the conversation's id, so the keys can move the focus between them. */
@@ -53,13 +54,52 @@ const Pick = ({
   );
 };
 
+/** How long a chat's customer waits for an answer before the row says so. */
+const WAIT_MS = 5 * 60_000;
+
+/** Whether the customer of an open chat wrote last and has waited five minutes or more. */
+const isWaiting = (conversation: Conversation, now: number) =>
+  conversation.customerRespondedLast &&
+  conversation.status !== 'resolved' &&
+  isChat(conversation.kind) &&
+  now - conversation.lastMessageAt.getTime() >= WAIT_MS;
+
+/** The last message's text, else what it sent, as the old list said: Photo, Video, Audio or File. */
+const usePreview = ({ content, attachmentType }: Conversation) => {
+  const { t } = useTranslation('frontline');
+
+  if (content || attachmentType === null) return content;
+
+  const media = attachmentType.split('/')[0];
+
+  if (media === 'image') return t('preview-photo', 'Photo');
+
+  if (media === 'video') return t('preview-video', 'Video');
+
+  if (media === 'audio') return t('preview-audio', 'Audio');
+
+  return t('preview-file', 'File');
+};
+
 /**
  * The row's text: the customer's name, bold while unread, the integration's icon and the
- * channel, the time, and the last message under them.
+ * channel, the time, a clock while the customer waits, and the last message and the assignee
+ * under them.
  */
-const Summary = ({ conversation, name }: { conversation: Conversation; name: string }) => {
+const Summary = ({
+  conversation,
+  name,
+  now,
+}: {
+  conversation: Conversation;
+  name: string;
+  now: number;
+}) => {
   const { t } = useTranslation('frontline');
   const unread = !conversation.isRead;
+  const waiting = isWaiting(conversation, now);
+  const waitingLabel = t('waiting-answer', 'Waiting over 5 minutes for an answer');
+  const preview = usePreview(conversation);
 
   return (
     <>
@@ -82,10 +122,19 @@ const Summary = ({ conversation, name }: { conversation: Conversation; name: str
         <span className="hidden min-w-0 flex-1 truncate text-xs text-muted-foreground @sm:block">
           {conversation.channelName}
         </span>
+        {waiting && (
+          <span title={waitingLabel} className="ml-auto flex shrink-0 text-warning-text">
+            <IconClockExclamation aria-hidden className="size-3.5" />
+            <span className="sr-only">{waitingLabel}</span>
+          </span>
+        )}
         <span
           className={cn(
-            'ml-auto shrink-0 text-xs',
-            unread ? 'font-medium text-primary-text' : 'text-muted-foreground',
+            'shrink-0 text-xs',
+            !waiting && 'ml-auto',
+            waiting && 'font-medium text-warning-text',
+            !waiting && unread && 'font-medium text-primary-text',
+            !waiting && !unread && 'text-muted-foreground',
           )}
         >
           <RelativeDateDisplay.Value value={conversation.lastMessageAt.toISOString()} />
@@ -98,8 +147,14 @@ const Summary = ({ conversation, name }: { conversation: Conversation; name: str
             unread ? 'text-foreground' : 'text-muted-foreground',
           )}
         >
-          {conversation.content}
+          {preview}
         </span>
+        {conversation.assigneeId && (
+          <MemberAvatar
+            id={conversation.assigneeId}
+            label={(assignee) => t('assigned-to', 'Assigned to {{name}}', { name: assignee })}
+          />
+        )}
         {unread && (
           <span className="size-2 shrink-0 rounded-full bg-primary">
             <span className="sr-only">{t('unread', 'Unread')}</span>
@@ -113,6 +168,8 @@ const Summary = ({ conversation, name }: { conversation: Conversation; name: str
 /** What the list reads once for every row: what is open and picked, and what to do. */
 export type RowHandlers = {
   openId: string | null;
+  /** The time to the minute, so a row knows how long its customer has waited. */
+  now: number;
   selection: ReturnType<typeof RecordList.useSelection>;
   select: (conversation: Conversation) => void;
   prefetch: (conversation: Conversation) => void;
@@ -126,7 +183,7 @@ export type RowHandlers = {
 export const ConversationRow = ({
   conversation,
   customer,
-  handlers: { openId, selection, select, prefetch, onKeyDown },
+  handlers: { openId, now, selection, select, prefetch, onKeyDown },
 }: {
   conversation: Conversation;
   customer: CustomerContact | undefined;
@@ -162,7 +219,7 @@ export const ConversationRow = ({
         onKeyDown={onKeyDown}
         className="flex min-w-0 flex-1 flex-col gap-1 py-2.5 text-left outline-none"
       >
-        <Summary conversation={conversation} name={name} />
+        <Summary conversation={conversation} name={name} now={now} />
       </button>
     </div>
   );

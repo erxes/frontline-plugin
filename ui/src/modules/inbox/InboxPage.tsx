@@ -10,6 +10,7 @@ import {
   Resizable,
   Skeleton,
   stored,
+  useListFilterParams,
   useOpenRecord,
   usePageHotkey,
   ViewBar,
@@ -241,6 +242,8 @@ export const InboxPage = () => {
 
   // A conversation the filters no longer match stays open beside the empty list.
   const empty = !isPending && conversations.length === 0;
+  // Another filter is another list, so what was picked in the last one goes.
+  const filter = JSON.stringify(useListFilterParams());
 
   return (
     <PageContainer>
@@ -266,7 +269,8 @@ export const InboxPage = () => {
           totalCount={list.totalCount}
         />
       </ViewBar>
-      {list.error ? (
+      {/* A later page that fails keeps the rows already shown, and its button to try again. */}
+      {list.error && conversations.length === 0 ? (
         <p className="m-3 text-sm text-destructive-text">{list.error.message}</p>
       ) : empty && !openId ? (
         <InboxEmpty onConnect={canConnect ? connect : undefined} />
@@ -277,7 +281,7 @@ export const InboxPage = () => {
             empty ? (
               <InboxEmpty onConnect={canConnect ? connect : undefined} />
             ) : (
-              <RecordList.Provider listId={LIST}>
+              <RecordList.Provider key={filter} listId={LIST}>
                 <ConversationList
                   conversations={conversations}
                   customers={list.customers}

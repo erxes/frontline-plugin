@@ -201,6 +201,18 @@ describe('inbox', () => {
       teammate.conversations.messages.create({ conversationId: id, content: '  ' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
 
+    // A reply of a photo alone gives the list the photo's type to name in place of text.
+    expect(await teammate.conversations.get({ id })).toMatchObject({ attachmentType: null });
+    await teammate.conversations.messages.create({
+      conversationId: id,
+      content: '',
+      attachments: [{ url: 'https://files.test/leg.png', name: 'leg.png', type: 'image/png' }],
+    });
+    expect(await teammate.conversations.get({ id })).toMatchObject({
+      content: '',
+      attachmentType: 'image/png',
+    });
+
     // A phone call's conversation takes notes only: a reply would go nowhere.
     await withOrg('org-ib-b', (tx) =>
       tx.execute(sql`update frontline_integrations set kind = 'callpro'`),
