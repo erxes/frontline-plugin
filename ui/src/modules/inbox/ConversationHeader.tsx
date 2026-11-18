@@ -212,20 +212,22 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
           <IconLayoutSidebarRightExpand />
         </Button>
       </IconTip>
-      <Button
-        variant="outline"
-        size="sm"
-        disabled={setStatus.isPending}
-        onClick={() =>
-          setStatus.mutate({ ids: [conversation.id], status: resolved ? 'open' : 'resolved' })
-        }
-      >
-        {resolved ? <IconRefresh /> : <IconCheck />}
-        {/* A narrow header keeps the icon, so the customer and the assignee keep their names. */}
-        <span className="sr-only @xl:not-sr-only">
-          {resolved ? t('reopen', 'Reopen') : t('resolve', 'Resolve')}
-        </span>
-      </Button>
+      {/* A narrow header keeps the icon, named on hover, so the customer and the assignee keep their names. */}
+      <IconTip label={resolved ? t('reopen', 'Reopen') : t('resolve', 'Resolve')}>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={setStatus.isPending}
+          onClick={() =>
+            setStatus.mutate({ ids: [conversation.id], status: resolved ? 'open' : 'resolved' })
+          }
+        >
+          {resolved ? <IconRefresh /> : <IconCheck />}
+          <span className="sr-only @xl:not-sr-only">
+            {resolved ? t('reopen', 'Reopen') : t('resolve', 'Resolve')}
+          </span>
+        </Button>
+      </IconTip>
       {conversation.kind === 'messenger' && <ConversationMenu conversation={conversation} />}
     </header>
   );

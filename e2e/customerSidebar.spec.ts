@@ -114,10 +114,23 @@ test('a conversation opens on its own page with its customer and status, resolve
   await page.getByRole('link', { name: /Open in the inbox/ }).click();
   await expect(page).toHaveURL(new RegExp(`conversationId=${conversationId}`));
 
-  // The inbox opens the same record in core's panel, with the custom fields core keeps.
+  const sidebar = page.getByRole('complementary', { name: 'Customer details' });
+  const rail = page.getByRole('toolbar', { name: 'Customer panels' });
+
+  await rail.getByRole('button', { name: 'Customer', exact: true }).click();
+  await expect(sidebar).toBeVisible();
+
+  // The inbox opens the same record in core's panel, with the custom fields core keeps. The
+  // customer panel folds to its rail meanwhile, so the conversation keeps its width.
   await page.getByRole('button', { name: 'Details and properties' }).click();
   await page.getByRole('tab', { name: 'Properties' }).click();
   await expect(page.getByRole('tabpanel', { name: 'Properties' })).toBeVisible();
+  await expect(sidebar).toBeHidden();
+
+  // A rail icon closes core's panel and brings the customer back.
+  await rail.getByRole('button', { name: 'Customer', exact: true }).click();
+  await expect(page.getByRole('tabpanel', { name: 'Properties' })).toBeHidden();
+  await expect(sidebar.getByText(name)).toBeVisible();
 
   // A member without the inbox permission reads none of it.
   const outsider = await newMember(['frontline.channel.view']);
