@@ -51,8 +51,9 @@ without line-by-line review.
   member without its permission. Build procedures on `reads`/`writes`, never bare `os`.
 - `budgets.json` caps, gzipped, what web loads on every page (`./config`,
   `remoteEntry.js`), the page module, and the bytes of these instructions. A
-  number over its ceiling fails; a PR that raises a ceiling needs the
-  `budget-increase` label. `./config` imports only icons, type names and lazy slots.
+  number over its ceiling, or 2% over the base branch's, fails without the
+  `budget-increase` label; `pnpm budgets --raise` sets a passed ceiling 5% over.
+  `./config` imports only icons, type names and lazy slots.
 - Core finds the plugin by these names, so they stay fixed: plugin `frontline`,
   remote `frontline_ui` exposing `./config` and `./frontline`, pages under `/frontline/*`.
 - Every table, index and constraint starts with `frontline_`, and every table has
