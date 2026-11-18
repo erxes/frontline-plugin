@@ -99,7 +99,7 @@ test('My inbox and Team inbox split the member’s channels; quiet ones fold, a 
     Promise.all(Array.from({ length: 8 }, async () => (await channelOf()).name)),
   ]);
 
-  const key = await messengerIn(rpc, busyId, { welcome: 'Hi' });
+  const key = await messengerIn(rpc, { welcome: 'Hi' }, busyId);
 
   await (await visitorOf(request, key)).write(`Hello ${unique()}`);
 

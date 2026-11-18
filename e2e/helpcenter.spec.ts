@@ -1,7 +1,9 @@
 import {
+  ARTICLE,
   confirmDelete,
   expect,
   Id,
+  knowledgeBase,
   messengerIn,
   openMessenger,
   openShop,
@@ -21,26 +23,9 @@ test('a visitor reads the knowledge base from its script on a website and in the
   const rpc = await pluginApi(api, request);
   const answers = `Answers ${unique()}`;
   const title = `Acme ${unique()}`;
-  const topic = await rpc('knowledgebase/topics/create', { title: answers }, Id);
+  const kbTopicId = await knowledgeBase(rpc, answers);
 
-  const category = await rpc(
-    'knowledgebase/categories/create',
-    { topicId: topic.id, title: 'Billing' },
-    Id,
-  );
-
-  await rpc(
-    'knowledgebase/articles/create',
-    {
-      categoryId: category.id,
-      title: 'Refunds',
-      summary: 'Money back within 30 days',
-      content: '<p>Write to us within 30 days.</p>',
-      status: 'publish',
-    },
-    Id,
-  );
-  await rpc('helpCenters/create', { title, kbTopicId: topic.id }, Id);
+  await rpc('helpCenters/create', { title, kbTopicId }, Id);
 
   // The help center's panel gives the script line; the website shows a launcher with its topic.
   await page.goto(HELP_CENTERS);
@@ -56,13 +41,11 @@ test('a visitor reads the knowledge base from its script on a website and in the
     await site.shop.getByRole('button', { name: `Open ${answers}` }).click();
     await panel.getByRole('button', { name: /^Billing/ }).click();
     await panel.getByRole('button', { name: /^Refunds/ }).click();
-    await expect(panel.getByText('Write to us within 30 days.')).toBeVisible();
+    await expect(panel.getByText(ARTICLE)).toBeVisible();
   }
 
   // A messenger that offers the topic has a Help articles tab, searched in place.
-  const channel = await rpc('channels/create', { name: `Site ${unique()}` }, Id);
-
-  const key = await messengerIn(rpc, channel.id, { knowledgeBaseTopicId: topic.id });
+  const key = await messengerIn(rpc, { knowledgeBaseTopicId: kbTopicId });
 
   await using site = await openMessenger(page.context(), key);
   const search = site.panel.getByRole('searchbox', { name: 'Search articles' });
@@ -70,7 +53,7 @@ test('a visitor reads the knowledge base from its script on a website and in the
   await site.panel.getByRole('button', { name: /^Help articles/ }).click();
   await search.fill('money');
   await site.panel.getByRole('button', { name: /^Refunds/ }).click();
-  await expect(site.panel.getByText('Write to us within 30 days.')).toBeVisible();
+  await expect(site.panel.getByText(ARTICLE)).toBeVisible();
 
   await site.panel.getByRole('button', { name: 'Back' }).click();
   await expect(search).toHaveValue('money');

@@ -220,18 +220,39 @@ export const pluginApi = async (api: ReturnType<typeof coreClient>, request: API
   };
 };
 
+type Rpc = Awaited<ReturnType<typeof pluginApi>>;
+
+/** The text of the article `knowledgeBase` publishes. */
+export const ARTICLE = 'Write to us within 30 days.';
+
+/**
+ * A topic with a Billing category, its Cards subcategory and a published Refunds article, made
+ * through the API. Returns the topic's id.
+ */
+export const knowledgeBase = async (rpc: Rpc, title: string) => {
+  const create = (kind: string, input: unknown) => rpc(`knowledgebase/${kind}/create`, input, Id);
+  const { id: topicId } = await create('topics', { title });
+  const { id: parentId } = await create('categories', { topicId, title: 'Billing' });
+  const article = { title: 'Refunds', summary: 'Money back', content: `<p>${ARTICLE}</p>` };
+
+  await create('categories', { topicId, title: 'Cards', parentId });
+  await create('articles', { ...article, categoryId: parentId, status: 'publish' });
+
+  return topicId;
+};
+
 const Messenger = z.object({ publicKey: z.string() });
 
 /** The messenger settings the specs set when they add one through the API. */
 type MessengerConfig = { welcome?: string; knowledgeBaseTopicId?: string };
 
-/** A website messenger in `channelId`, added through the API with `config`. Returns its key. */
-export const messengerIn = async (
-  rpc: Awaited<ReturnType<typeof pluginApi>>,
-  channelId: string,
-  config: MessengerConfig,
-) => {
-  const input = { channelId, kind: 'messenger', name: 'Website', config };
+/**
+ * A website messenger added through the API with `config`, in `channelId` or a new channel.
+ * Returns its key.
+ */
+export const messengerIn = async (rpc: Rpc, config: MessengerConfig, channelId?: string) => {
+  const channel = channelId ?? (await rpc('channels/create', { name: `Site ${unique()}` }, Id)).id;
+  const input = { channelId: channel, kind: 'messenger', name: 'Website', config };
 
   return (await rpc('integrations/create', input, Messenger)).publicKey;
 };
