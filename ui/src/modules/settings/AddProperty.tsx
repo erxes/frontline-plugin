@@ -52,8 +52,8 @@ export const AddProperty = () => {
 
   const create = useMutation(
     orpc.tickets.properties.create.mutationOptions({
-      onSuccess: async () => {
-        await onSuccess();
+      onSuccess: () => {
+        onSuccess();
         setOpen(false);
       },
       onError,

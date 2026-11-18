@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import { ChannelLink, TeamChannels } from './ChannelNav.tsx';
 import { Count, FilterLink, INBOX, NavGroup } from './navLinks.tsx';
-import { useInboxCounts } from './queries.ts';
+import { useInboxCounts, useInboxSignal } from './queries.ts';
 
 type Counts = NonNullable<ReturnType<typeof useInboxCounts>>;
 
@@ -56,11 +56,16 @@ const Queues = ({ counts }: { counts: Counts }) => {
   );
 };
 
-/** Inbox in Frontline's sidebar, with the count of what waits unread for the member. */
+/**
+ * Inbox in Frontline's sidebar, with the count of what waits unread for the member. It sits in
+ * the layout on every page, so it keeps the inbox live for all of them.
+ */
 export const InboxNav = () => {
   const { t } = useTranslation('frontline');
   const { pathname } = useLocation();
   const counts = useInboxCounts();
+
+  useInboxSignal();
 
   return (
     <Sidebar.MenuItem>

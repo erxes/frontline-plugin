@@ -1,7 +1,8 @@
 import { IconMoodSmile } from '@tabler/icons-react';
 import { Button, DropdownMenu, Toggle } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { type Message, useReact } from './queries.ts';
+import { type Message } from './queries.ts';
+import { useReact } from './changes.ts';
 
 /** Meta takes only ❤️ from a page. */
 const LOVE_ONLY = ['❤️'];

@@ -4,6 +4,7 @@ import type { Client } from '@frontline/api';
 import { useListFilterParams } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { channelsQuery } from '~/shared/reference.ts';
 import { useChange } from '~/shared/hooks.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 
@@ -43,12 +44,10 @@ export const useResponseTemplate = (id: string) =>
 
 /** The channels the member is an admin of: where a template can be written or moved to. */
 export const useManagedChannels = () =>
-  useQuery(
-    orpc.channels.list.queryOptions({
-      input: {},
-      select: (data) => data.channels.filter((channel) => channel.canManage),
-    }),
-  );
+  useQuery({
+    ...channelsQuery,
+    select: (data) => data.channels.filter((channel) => channel.canManage),
+  });
 
 /** Refetches the template queries after a change, and shows a refusal. */
 export const useTemplateChange = () => useChange(orpc.responseTemplates.key());

@@ -25,8 +25,8 @@ export const FormNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) =>
 
   const create = useMutation(
     orpc.forms.create.mutationOptions({
-      onSuccess: async (form) => {
-        await onSuccess();
+      onSuccess: (form) => {
+        onSuccess();
         onCreated(form.id);
       },
     }),

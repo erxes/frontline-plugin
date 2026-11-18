@@ -36,9 +36,9 @@ const SettingsForm = ({ messenger }: { messenger: MessengerSettings }) => {
   const update = useMutation(
     orpc.integrations.update.mutationOptions({
       ...change,
-      onSuccess: async () => {
+      onSuccess: () => {
         form.reset(form.getValues());
-        await change.onSuccess();
+        change.onSuccess();
         toast({ title: t('messenger-saved', 'Messenger saved') });
       },
     }),

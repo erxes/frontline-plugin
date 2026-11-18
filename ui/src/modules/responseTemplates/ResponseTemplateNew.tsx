@@ -26,8 +26,8 @@ export const ResponseTemplateNew = ({ defaults, onCreated, onCancel }: TRecordDr
 
   const create = useMutation(
     orpc.responseTemplates.create.mutationOptions({
-      onSuccess: async (template) => {
-        await onSuccess();
+      onSuccess: (template) => {
+        onSuccess();
         onCreated(template.id);
       },
     }),

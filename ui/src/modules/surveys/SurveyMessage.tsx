@@ -3,8 +3,9 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button, DropdownMenu, IconTip, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { sendableSurveysQuery } from '~/shared/reference.ts';
 import { SURVEY_TYPE } from '~/plugin.ts';
-import { useChange } from '~/shared/hooks.ts';
+import { useMessageChange } from '@/inbox/changes.ts';
 import { useSurvey } from './useSurveys.ts';
 
 /**
@@ -13,8 +14,8 @@ import { useSurvey } from './useSurveys.ts';
  */
 export const SendSurvey = ({ conversationId }: { conversationId: string }) => {
   const { t } = useTranslation('frontline');
-  const surveys = useQuery(orpc.surveys.sendable.queryOptions({ input: { conversationId } })).data;
-  const send = useMutation(orpc.surveys.send.mutationOptions(useChange(orpc.conversations.key())));
+  const surveys = useQuery(sendableSurveysQuery(conversationId)).data;
+  const send = useMutation(orpc.surveys.send.mutationOptions(useMessageChange()));
   const label = t('send-survey', 'Send survey');
 
   if (!surveys?.length) return null;

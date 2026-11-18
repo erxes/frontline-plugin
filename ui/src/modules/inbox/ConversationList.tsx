@@ -3,6 +3,8 @@ import {
   Button,
   Checkbox,
   cn,
+  type CustomerContact,
+  customerTitle,
   IconTip,
   RecordList,
   RelativeDateDisplay,
@@ -12,14 +14,10 @@ import {
 } from 'erxes-ui';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PersonAvatar, useCustomer } from '~/shared/Person.tsx';
+import { PersonAvatar } from '~/shared/Person.tsx';
 import { KindIcon } from './InboxFilter.tsx';
-import {
-  type Conversation,
-  useMarkRead,
-  useOpenConversation,
-  usePrefetchConversation,
-} from './queries.ts';
+import { type Conversation, useOpenConversation, usePrefetchConversation } from './queries.ts';
+import { useMarkRead } from './changes.ts';
 
 /** Opens a conversation and reads it, as the old inbox did. */
 export const useSelectConversation = () => {
@@ -78,14 +76,17 @@ const Pick = ({
  */
 const Row = ({
   conversation,
+  customer,
   onKeyDown,
 }: {
   conversation: Conversation;
+  customer: CustomerContact | undefined;
   onKeyDown: (event: KeyboardEvent) => void;
 }) => {
   const { t } = useTranslation('frontline');
   const [openId] = useOpenConversation();
-  const { name, avatarUrl } = useCustomer(conversation.customerId);
+  const name = (customer && customerTitle(customer)) || t('visitor', 'Visitor');
+  const avatarUrl = customer?.avatarUrl;
   const select = useSelectConversation();
   const prefetch = usePrefetchConversation();
   const open = openId === conversation.id;
@@ -242,12 +243,14 @@ const useListKeys = (conversations: Conversation[]) => {
  */
 export const ConversationList = ({
   conversations,
+  customers,
   isPending,
   hasNextPage,
   fetchNextPage,
   refresh,
 }: {
   conversations: Conversation[];
+  customers: ReadonlyMap<string, CustomerContact>;
   isPending: boolean;
   hasNextPage: boolean;
   fetchNextPage: () => void;
@@ -272,7 +275,12 @@ export const ConversationList = ({
             className="@container flex w-full flex-col"
           >
             {conversations.map((conversation) => (
-              <Row key={conversation.id} conversation={conversation} onKeyDown={onKeyDown} />
+              <Row
+                key={conversation.id}
+                conversation={conversation}
+                customer={customers.get(conversation.customerId)}
+                onKeyDown={onKeyDown}
+              />
             ))}
           </ul>
         )}

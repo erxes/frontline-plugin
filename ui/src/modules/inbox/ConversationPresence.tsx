@@ -1,7 +1,8 @@
 import { IconDots, IconRobot, IconUser } from '@tabler/icons-react';
 import { Badge, Button, DropdownMenu, useFormat } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { type Conversation, useSetOperator, useVisitor, useVisitorTyping } from './queries.ts';
+import { type Conversation, useVisitor, useVisitorTyping } from './queries.ts';
+import { useSetOperator } from './changes.ts';
 
 /**
  * The header's overflow menu for a messenger conversation: who answers it, the bot through

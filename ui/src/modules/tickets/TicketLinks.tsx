@@ -26,7 +26,8 @@ import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { MembersField } from '~/shared/MemberPicker.tsx';
 import { ContactChip } from '~/shared/Person.tsx';
-import { PickerField, TagBadges, TagsField, tagsOf } from '~/shared/Pickers.tsx';
+import { PickerField, TagBadges, TagsField } from '~/shared/Pickers.tsx';
+import { tagsOf } from '~/shared/reference.ts';
 import { type Ticket, useEditTicket } from './queries.ts';
 
 /** The organisation's ticket tags, as erxes-ui's tag lookups take them. */

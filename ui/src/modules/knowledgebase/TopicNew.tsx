@@ -33,8 +33,8 @@ export const TopicNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
 
   const create = useMutation(
     orpc.knowledgebase.topics.create.mutationOptions({
-      onSuccess: async (topic) => {
-        await onSuccess();
+      onSuccess: (topic) => {
+        onSuccess();
         onCreated(topic.id);
       },
     }),

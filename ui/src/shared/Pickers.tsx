@@ -1,16 +1,10 @@
 import { Badge, EntityPicker, Popover, RecordTableInlineCell, Tooltip } from 'erxes-ui';
-import type { InferClientInputs } from '@orpc/client';
 import { useQuery } from '@tanstack/react-query';
-import type { Client } from '@frontline/api';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { orpc } from '~/orpc.ts';
+import type { tagsOf } from '~/shared/reference.ts';
 
 type Option = { value: string; label: string };
-
-/** The organisation's tags of one type, as erxes-ui's tag lookups and `TagsField` take them. */
-export const tagsOf = (type: NonNullable<InferClientInputs<Client>['tags']['list']['type']>) =>
-  orpc.tags.list.queryOptions({ input: { type } });
 
 /**
  * A side panel value picked in place from `options`: one, or several with `multiple`. Its

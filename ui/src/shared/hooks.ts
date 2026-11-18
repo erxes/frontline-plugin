@@ -5,56 +5,64 @@ import { useTranslation } from 'react-i18next';
 /** A form field's or draft default's text, or '' when it's missing, a file or not text. */
 export const textOf = (value: unknown) => (typeof value === 'string' ? value : '');
 
-/**
- * What every change does when it settles: refetch the queries under `queryKey`
- * on success, show the API's refusal as a toast on failure.
- */
-export const useChange = (queryKey: QueryKey) => {
-  const { t } = useTranslation('frontline');
-  const queryClient = useQueryClient();
+/** Marks the queries under each key stale, refetching the ones on screen, without waiting. */
+const refetch = (queryClient: QueryClient, keys: QueryKey[]) => {
+  for (const queryKey of keys) void queryClient.invalidateQueries({ queryKey });
+};
 
-  return {
-    onSuccess: () => queryClient.invalidateQueries({ queryKey }),
-    onError: (error: Error) =>
-      toast({
-        variant: 'destructive',
-        title: t('change-failed', 'Could not save the change'),
-        description: error.message,
-      }),
-  };
+/** Shows the API's refusal of a change as a toast. */
+export const useRefusal = () => {
+  const { t } = useTranslation('frontline');
+
+  return (error: Error) =>
+    toast({
+      variant: 'destructive',
+      title: t('change-failed', 'Could not save the change'),
+      description: error.message,
+    });
 };
 
 /**
- * A mutation's options for a change that shows at once: `apply` writes it into the cache before
- * the request goes, the queries under `queryKey` go back and the refusal shows if the API says
- * no, and they refetch once it settles.
+ * What every change does when it settles: refetch the queries under `keys` on success, show the
+ * API's refusal as a toast on failure. The change is done once the API answers; the refetch runs
+ * behind it.
+ */
+export const useChange = (...keys: QueryKey[]) => {
+  const queryClient = useQueryClient();
+
+  return { onSuccess: () => refetch(queryClient, keys), onError: useRefusal() };
+};
+
+type Snapshot = ReturnType<QueryClient['getQueriesData']>;
+
+/**
+ * A mutation's options for a change that shows at once: the queries under `keys` stop loading,
+ * `apply` writes the change into them before the request goes, they go back and the refusal
+ * shows if the API says no, and they refetch once it settles. Only `keys` are touched, so the
+ * other queries on screen keep loading.
  */
 export const useOptimistic = <TInput>(
-  queryKey: QueryKey,
+  keys: QueryKey[],
   apply: (queryClient: QueryClient, input: TInput) => void,
 ) => {
   const queryClient = useQueryClient();
-  const { onError } = useChange(queryKey);
+  const refuse = useRefusal();
 
   return {
     onMutate: async (input: TInput) => {
-      await queryClient.cancelQueries({ queryKey });
+      await Promise.all(keys.map((queryKey) => queryClient.cancelQueries({ queryKey })));
 
-      const before = queryClient.getQueriesData({ queryKey });
+      const before: Snapshot = keys.flatMap((queryKey) => queryClient.getQueriesData({ queryKey }));
 
       apply(queryClient, input);
 
       return { before };
     },
-    onError: (
-      error: Error,
-      _input: TInput,
-      context: { before: ReturnType<QueryClient['getQueriesData']> } | undefined,
-    ) => {
+    onError: (error: Error, _input: TInput, context: { before: Snapshot } | undefined) => {
       for (const [key, data] of context?.before ?? []) queryClient.setQueryData(key, data);
 
-      onError(error);
+      refuse(error);
     },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
+    onSettled: () => refetch(queryClient, keys),
   };
 };

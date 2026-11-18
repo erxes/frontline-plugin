@@ -203,8 +203,8 @@ const AddMembers = ({ channel }: { channel: Channel }) => {
   const add = useMutation(
     orpc.channels.addMembers.mutationOptions({
       ...change,
-      onSuccess: async () => {
-        await change.onSuccess();
+      onSuccess: () => {
+        change.onSuccess();
         setUserIds([]);
         setOpen(false);
       },

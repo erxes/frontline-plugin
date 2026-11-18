@@ -22,8 +22,8 @@ export const PipelineNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps
 
   const create = useMutation(
     orpc.pipelines.create.mutationOptions({
-      onSuccess: async (pipeline) => {
-        await onSuccess();
+      onSuccess: (pipeline) => {
+        onSuccess();
         onCreated(pipeline.id);
       },
     }),

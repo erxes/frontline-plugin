@@ -18,14 +18,8 @@ import {
 } from 'erxes-ui';
 import { Fragment, type SubmitEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  type Conversation,
-  type Message,
-  useEditMessage,
-  useMessages,
-  usePinMessage,
-  usePinnedMessages,
-} from './queries.ts';
+import { type Conversation, type Message, useMessages, usePinnedMessages } from './queries.ts';
+import { useEditMessage, usePinMessage } from './changes.ts';
 import { SentSurvey } from '~/modules/surveys/SurveyMessage.tsx';
 import { MemberLine, PersonAvatar, useCustomer } from '~/shared/Person.tsx';
 import { Attachments, LinkPreviews, MessageBody } from './MessageContent.tsx';

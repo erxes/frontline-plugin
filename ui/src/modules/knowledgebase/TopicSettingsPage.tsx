@@ -40,9 +40,9 @@ const HelpCenterForm = ({ topic, editable }: { topic: Topic; editable: boolean }
   const update = useMutation(
     orpc.knowledgebase.topics.update.mutationOptions({
       ...change,
-      onSuccess: async (saved) => {
+      onSuccess: (saved) => {
         form.reset(valuesOf(saved));
-        await change.onSuccess();
+        change.onSuccess();
         toast({ title: t('kb-topic-saved', 'Topic saved') });
       },
     }),

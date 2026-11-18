@@ -16,7 +16,8 @@ import { InfoRow, PageLink, PanelSkeleton } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { Customer } from './CustomerSidebar.tsx';
 import { KindIcon, useStatusNames } from './InboxFilter.tsx';
-import { useConversation, useSetStatus } from './queries.ts';
+import { useConversation, useConversationSignal } from './queries.ts';
+import { useSetStatus } from './changes.ts';
 
 /** The panel header's title: the customer the conversation is with, and its provider. */
 export const ConversationTitle = ({ contentId }: TRecordSlotProps) => {
@@ -72,6 +73,8 @@ export const ConversationDetail = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
   const { data: conversation, error } = useConversation(contentId);
   const channels = useChannelNames();
+
+  useConversationSignal(contentId);
   const statuses = useStatusNames();
 
   if (error) return <p className="p-4 text-sm text-destructive-text">{error.message}</p>;

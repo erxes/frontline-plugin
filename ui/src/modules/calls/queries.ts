@@ -17,12 +17,23 @@ export type QueueLive = NonNullable<Outputs['queues']['get']['live']>;
 /** The pages under `/frontline/calls`. */
 export const CALLS_PATH = `/${PLUGIN}/calls`;
 
-/** Refetches every call query when a PBX, CallPro or another member changes one. */
+/**
+ * What a call changes: the history, each call, the queues' boards and the member's extensions.
+ * Not the softphone's lines, whose refetch would sign the phone in again.
+ */
+const CALL_KEYS = [
+  orpc.calls.list.key(),
+  orpc.calls.get.key(),
+  orpc.calls.queues.key(),
+  orpc.calls.agents.key(),
+];
+
+/** Refetches the call queries when a PBX, CallPro or another member changes a call. */
 export const useCallsSignal = () => {
   const queryClient = useQueryClient();
 
   useLiveSignal(PLUGIN, 'calls', () => {
-    void queryClient.invalidateQueries({ queryKey: orpc.calls.key() });
+    for (const queryKey of CALL_KEYS) void queryClient.invalidateQueries({ queryKey });
   });
 };
 
@@ -56,7 +67,7 @@ export const useCall = (id: string) => {
 
 /** Asks the PBX for the call's recording again. */
 export const useFetchRecording = () =>
-  useMutation(orpc.calls.fetchRecording.mutationOptions(useChange(orpc.calls.key())));
+  useMutation(orpc.calls.fetchRecording.mutationOptions(useChange(...CALL_KEYS)));
 
 /** The queues of the PBXs the member answers, with the day's counters. */
 export const useQueues = () => {
@@ -77,7 +88,7 @@ export const useAgents = () => {
   const mine = useQuery(orpc.calls.agents.mine.queryOptions({ input: {} }));
 
   const setStatus = useMutation(
-    orpc.calls.agents.setStatus.mutationOptions(useChange(orpc.calls.key())),
+    orpc.calls.agents.setStatus.mutationOptions(useChange(...CALL_KEYS)),
   );
 
   return { agents: mine.data ?? [], setStatus };

@@ -5,7 +5,7 @@ import { type Editor, editorText, jsonOf, memberName } from 'erxes-ui';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { orpc } from '~/orpc.ts';
+import { templatesQuery } from '~/shared/reference.ts';
 
 type SlashItems = NonNullable<ComponentProps<typeof Editor>['additionalSlashMenuItems']>;
 
@@ -48,9 +48,7 @@ const insertTemplate = (editor: ComposerEditor, content: string) => {
 export const useSlashItems = ({ channelId, note }: { channelId: string; note: boolean }) => {
   const { t } = useTranslation('frontline');
 
-  const templates =
-    useQuery(orpc.responseTemplates.list.queryOptions({ input: { channelId } })).data?.templates ??
-    [];
+  const templates = useQuery(templatesQuery(channelId)).data?.templates ?? [];
 
   const members = useQuery({ ...memberQueries.team, enabled: note }).data?.data ?? [];
 

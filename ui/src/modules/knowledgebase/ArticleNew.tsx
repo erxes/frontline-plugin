@@ -65,8 +65,8 @@ export const ArticleNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps)
 
   const create = useMutation(
     orpc.knowledgebase.articles.create.mutationOptions({
-      onSuccess: async (article) => {
-        await onSuccess();
+      onSuccess: (article) => {
+        onSuccess();
         onCreated(article.id);
       },
     }),

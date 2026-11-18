@@ -18,8 +18,8 @@ export const HelpCenterNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
 
   const create = useMutation(
     orpc.helpCenters.create.mutationOptions({
-      onSuccess: async (center) => {
-        await onSuccess();
+      onSuccess: (center) => {
+        onSuccess();
         onCreated(center.id);
       },
     }),
