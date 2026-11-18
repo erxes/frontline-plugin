@@ -1,10 +1,11 @@
 import { createHmac } from 'node:crypto';
-import type { Locator, Page } from '@playwright/test';
+import type { Locator } from '@playwright/test';
 import {
   addMessenger,
   createChannel,
   expect,
   expectAccessible,
+  filterBy,
   INBOX,
   MESSENGER,
   openMessenger,
@@ -18,14 +19,6 @@ import {
 
 /** Where a control starts from the left of the page, to check the order of a row. */
 const left = async (control: Locator) => (await control.boundingBox())?.x ?? Number.NaN;
-
-/** Narrows the inbox with the filter bar: `field` is one of `option`. */
-const filterBy = async (page: Page, field: string, option: string) => {
-  await page.getByRole('button', { name: 'Filter', exact: true }).click();
-  await page.getByRole('option', { name: field, exact: true }).click();
-  await page.getByRole('option', { name: option, exact: true }).click();
-  await page.keyboard.press('Escape');
-};
 
 test('a visitor writes through the messenger and a member answers, assigns, tags, pins and resolves it', async ({
   page,

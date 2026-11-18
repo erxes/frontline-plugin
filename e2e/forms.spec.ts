@@ -4,9 +4,12 @@ import {
   confirmDelete,
   expect,
   expectAccessible,
+  filterBy,
+  Id,
   moveByKeys,
   openChannelPipelines,
   openShop,
+  pluginApi,
   recordPanel,
   test,
   unique,
@@ -32,12 +35,16 @@ const retype = async (page: Page, button: Locator, placeholder: string, value: s
   await page.keyboard.press('Enter');
 };
 
-/** Narrows the list with the filter bar: `field` is one of `option`. */
-const filterBy = async (page: Page, field: string, option: string) => {
-  await page.getByRole('button', { name: 'Filter', exact: true }).click();
-  await page.getByRole('option', { name: field, exact: true }).click();
-  await page.getByRole('option', { name: option, exact: true }).click();
-  await page.keyboard.press('Escape');
+/** Creates the form `name` in `channel` from New form, then shows it in the panel. */
+const newForm = async (page: Page, channel: string, name: string) => {
+  const panel = recordPanel(page);
+
+  await page.goto(FORMS);
+  await page.getByRole('button', { name: 'New form' }).first().click();
+  await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
+  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
+  await panel.getByRole('button', { name: 'Create form' }).click();
+  await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
 };
 
 /** Adds a field of `type` to the first step and names it `label`. */
@@ -81,22 +88,6 @@ const buildFields = async (page: Page) => {
   await expect(preview.getByLabel('Seats')).toBeHidden();
   await pick(page, preview.getByRole('combobox', { name: 'Plan' }), 'Team');
   await expect(preview.getByLabel('Seats')).toBeVisible();
-  // The preview narrows to a phone's width and keeps what was typed.
-  await page.getByRole('button', { name: 'Mobile', exact: true }).click();
-  await expect(page.getByRole('button', { name: 'Mobile', exact: true })).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
-  await expect(preview.getByLabel('Seats')).toBeVisible();
-
-  // Fields drag into a new order, and the keyboard drags them too: Seats goes above Plan and back.
-  const first = page.getByRole('button', { name: /^Settings of/ }).first();
-  const seats = page.getByRole('button', { name: 'Move Seats', exact: true });
-
-  await moveByKeys(seats, 'ArrowUp', 'Seats', 'Plan');
-  await expect(first).toHaveAccessibleName('Settings of Seats');
-  await moveByKeys(seats, 'ArrowDown', 'Seats', 'Plan');
-  await expect(first).toHaveAccessibleName('Settings of Plan');
 };
 
 /**
@@ -145,7 +136,7 @@ const sendAsVisitor = async (page: Page, request: APIRequestContext, name: strin
   ).toBe(422);
 };
 
-test('an admin builds a form, a visitor sends it, and the admin corrects and deletes the answers', async ({
+test('an admin builds a form and a visitor sends it from a website and its address', async ({
   page,
   request,
 }) => {
@@ -179,11 +170,43 @@ test('an admin builds a form, a visitor sends it, and the admin corrects and del
 
   // A visitor reads the form from its public address and sends it.
   await sendAsVisitor(page, request, name);
+});
+
+test('an admin narrows, corrects and deletes the answers a form got', async ({
+  page,
+  api,
+  request,
+}) => {
+  const rpc = await pluginApi(api, request);
+  const panel = recordPanel(page);
+  const channel = await rpc('channels/create', { name: `Support ${unique()}` }, Id);
+  const form = await rpc('forms/create', { channelId: channel.id, name: unique() }, Id);
+  // Where the form takes submissions.
+  const { url } = await rpc('forms/embed', { id: form.id }, z.object({ url: z.string() }));
+
+  const plan = await rpc(
+    'forms/fields/add',
+    { formId: form.id, type: 'select', label: 'Plan', options: ['Free', 'Team'] },
+    Id,
+  );
+
+  // Seats shows only for the Team plan.
+  const logics = [{ fieldId: plan.id, operator: 'is', value: 'Team' }];
+
+  const seats = await rpc(
+    'forms/fields/add',
+    { formId: form.id, type: 'number', label: 'Seats', logicAction: 'show', logics },
+    Id,
+  );
+
+  const send = async (answers: Record<string, unknown>) =>
+    expect((await request.post(url, { data: { answers } })).status()).toBe(201);
+
+  await send({ [plan.id]: 'Team', [seats.id]: 5 });
+  await send({ [plan.id]: 'Free', [seats.id]: 9 });
 
   // The submissions table has a column per field, and the filter bar one filter per field.
-  await page.reload();
-  await panel.getByRole('link', { name: /^Submissions/ }).click();
-  await expect(page).toHaveURL(/\/submissions$/);
+  await page.goto(`${FORMS}/${form.id}/submissions`);
 
   const team = page.getByRole('row', { name: /Team/ });
   const free = page.getByRole('row', { name: /Free/ });
@@ -215,22 +238,48 @@ test('an admin builds a form, a visitor sends it, and the admin corrects and del
   await expect(team).toBeHidden();
 });
 
+test('the builder previews a phone and drags fields by keyboard', async ({
+  page,
+  api,
+  request,
+}) => {
+  const rpc = await pluginApi(api, request);
+  const channel = await rpc('channels/create', { name: `Support ${unique()}` }, Id);
+  const form = await rpc('forms/create', { channelId: channel.id, name: unique() }, Id);
+
+  await rpc('forms/fields/add', { formId: form.id, type: 'text', label: 'Company' }, Id);
+  await rpc('forms/fields/add', { formId: form.id, type: 'number', label: 'Seats' }, Id);
+  await page.goto(`${FORMS}/${form.id}/builder`);
+
+  const preview = page.getByRole('region', { name: 'Preview' });
+  const mobile = page.getByRole('button', { name: 'Mobile', exact: true });
+
+  // The preview narrows to a phone's width and keeps what was typed.
+  await preview.getByLabel('Seats').fill('5');
+  await mobile.click();
+  await expect(mobile).toHaveAttribute('aria-pressed', 'true');
+  await expect(preview.getByLabel('Seats')).toHaveValue('5');
+
+  // The keyboard drags Seats, its settings open, above Company and back (#174).
+  const first = page.getByRole('button', { name: /^Settings of/ }).first();
+  const seats = page.getByRole('button', { name: 'Move Seats', exact: true });
+
+  await page.getByRole('button', { name: 'Settings of Seats' }).click();
+  await moveByKeys(seats, 'ArrowUp', 'Seats', 'Company');
+  await expect(first).toHaveAccessibleName('Settings of Seats');
+  await moveByKeys(seats, 'ArrowDown', 'Seats', 'Company');
+  await expect(first).toHaveAccessibleName('Settings of Company');
+});
+
 test('a channel member reads a form and its submissions but changes neither', async ({
   page,
   newMember,
 }) => {
   const teammate = await newMember(['frontline.channel.view']);
   const channel = await openChannelPipelines(page, teammate.fullName);
-  const panel = recordPanel(page);
   const name = `Contact us ${unique()}`;
 
-  await page.goto(FORMS);
-  await page.getByRole('button', { name: 'New form' }).first().click();
-  await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
-  await panel.getByRole('button', { name: 'Create form' }).click();
-  await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
-
+  await newForm(page, channel, name);
   await teammate.page.goto(FORMS);
   await teammate.page.getByRole('button', { name: `Actions for ${name}` }).click();
   await expect(teammate.page.getByRole('option', { name: 'Submissions' })).toBeVisible();
@@ -245,8 +294,8 @@ test('a channel member reads a form and its submissions but changes neither', as
 
 test('an admin drafts, duplicates, archives and deletes forms', async ({ page }) => {
   const channel = await openChannelPipelines(page);
-  const panel = recordPanel(page);
   const name = `Feedback ${unique()}`;
+  const panel = recordPanel(page);
   const nameBox = panel.getByRole('textbox', { name: 'Name', exact: true });
 
   // What was typed in New form stays when the member leaves; Cancel asks, then throws it away.
@@ -260,12 +309,7 @@ test('an admin drafts, duplicates, archives and deletes forms', async ({ page })
   await page.getByRole('alertdialog').getByRole('button', { name: 'Discard' }).click();
   await page.getByRole('button', { name: 'New form' }).first().click();
   await expect(nameBox).toHaveValue('');
-
-  await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await nameBox.fill(name);
-  await panel.getByRole('button', { name: 'Create form' }).click();
-  await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
-
+  await newForm(page, channel, name);
   await page.getByRole('button', { name: `Actions for ${name}` }).click();
   await page.getByRole('option', { name: 'Duplicate' }).click();
   await expect(page.getByRole('option', { name: 'Duplicate' })).toBeHidden();
@@ -296,7 +340,6 @@ test('an admin drafts, duplicates, archives and deletes forms', async ({ page })
 
 test('an admin tags a form and narrows the forms by its tag', async ({ page }) => {
   const channel = await openChannelPipelines(page);
-  const panel = recordPanel(page);
   const name = `Webinar ${unique()}`;
   const tag = `Events ${unique()}`;
 
@@ -309,12 +352,7 @@ test('an admin tags a form and narrows the forms by its tag', async ({ page }) =
   await sheet.getByRole('button', { name: 'Create' }).click();
   await expect(page.getByRole('row', { name: new RegExp(`${tag}.*Forms`) })).toBeVisible();
 
-  await page.goto(FORMS);
-  await page.getByRole('button', { name: 'New form' }).first().click();
-  await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
-  await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
-  await panel.getByRole('button', { name: 'Create form' }).click();
-  await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
+  await newForm(page, channel, name);
   await page.keyboard.press('Escape');
 
   await page.getByRole('button', { name: 'Display' }).click();

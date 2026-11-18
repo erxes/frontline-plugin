@@ -309,6 +309,14 @@ export const pick = async (page: Page, select: Locator, option: string) => {
   await page.getByRole('option', { name: option, exact: true }).click();
 };
 
+/** Narrows the list with the filter bar: `field` is one of `option`. */
+export const filterBy = async (page: Page, field: string, option: string) => {
+  await page.getByRole('button', { name: 'Filter', exact: true }).click();
+  await page.getByRole('option', { name: field, exact: true }).click();
+  await page.getByRole('option', { name: option, exact: true }).click();
+  await page.keyboard.press('Escape');
+};
+
 /**
  * Moves `item` by keyboard with its drag `handle`: Space picks it up, `key` takes it over `to`,
  * Space drops it. Each key waits for the screen reader's announcement of the step before, which
