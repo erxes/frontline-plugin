@@ -66,7 +66,9 @@ describe('help centers', () => {
     for (const missed of ['onclick', 'Draft', 'Internal', 'M_ney'])
       await expect(search(missed)).resolves.toEqual([]);
 
-    expect((await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}/search?q=`)).status).toBe(400);
+    expect(
+      (await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}/search?q=`)).status,
+    ).toBe(400);
 
     // The view is written with the others that came meanwhile.
     await flushViews();
