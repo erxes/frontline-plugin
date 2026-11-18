@@ -5,10 +5,12 @@ import { withOrg } from '#/db/client.ts';
 import { forms } from '#/db/forms.ts';
 import { HELP_CENTER_DOMAIN, HELP_CENTER_KEY, helpCenters } from '#/db/helpcenter.ts';
 import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
+import type { Attachment } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import { urlOf } from '../forms/embed.ts';
 import { keyOfOrganization, openedBy, widgetScript } from '../public.ts';
 import { countView } from '../views.ts';
+import { shownFile, shownKeyOf, shownUrl } from '../shownFiles.ts';
 
 /**
  * The help center's organisation and id from the address a signed-out visitor came by: its key,
@@ -37,15 +39,33 @@ type Center = NonNullable<Awaited<ReturnType<typeof centerAt>>>;
  * An article's HTML as a visitor's page may show it: sanitize-html's default formatting tags,
  * plus images, with links opening in a new tab.
  */
-const visitorHtml = (html: string) =>
-  sanitizeHtml(html, {
+const visitorHtml = (html: string, key: string) => {
+  /** The tag with its `name` attribute's core file at the address a visitor loads it from. */
+  const shown = (attribs: sanitizeHtml.Attributes, name: string) => {
+    const url = attribs[name];
+
+    return url ? { ...attribs, [name]: shownUrl(key, url) } : attribs;
+  };
+
+  return sanitizeHtml(html, {
     allowedTags: [...sanitizeHtml.defaults.allowedTags, 'img'],
     allowedAttributes: { ...sanitizeHtml.defaults.allowedAttributes, a: ['href', 'target', 'rel'] },
     allowedSchemes: ['http', 'https', 'mailto', 'tel'],
     transformTags: {
-      a: sanitizeHtml.simpleTransform('a', { target: '_blank', rel: 'noreferrer' }),
+      a: (tagName, attribs) => ({
+        tagName,
+        attribs: { ...shown(attribs, 'href'), target: '_blank', rel: 'noreferrer' },
+      }),
+      img: (tagName, attribs) => ({ tagName, attribs: shown(attribs, 'src') }),
     },
   });
+};
+
+/** A stored file at the address a visitor loads it from. */
+const shownAttachment = (key: string, file: Attachment) => ({
+  ...file,
+  url: shownUrl(key, file.url),
+});
 
 /** A topic's categories and published public articles, as a help center or messenger shows them. */
 export const topicOf = (orgId: string, topicId: string) =>
@@ -93,8 +113,11 @@ export const topicOf = (orgId: string, topicId: string) =>
     };
   });
 
-/** The active forms of `ids`, in their order, with where an embed reads each and its script. */
-const formsOf = (orgId: string, ids: string[]) =>
+/**
+ * The active forms of `ids`, in their order, with where an embed reads each and its script, by
+ * the organisation's `key`.
+ */
+const formsOf = (orgId: string, key: string, ids: string[]) =>
   withOrg(orgId, async (tx) => {
     if (ids.length === 0) return [];
 
@@ -109,8 +132,6 @@ const formsOf = (orgId: string, ids: string[]) =>
       .from(forms)
       .where(and(inArray(forms.id, ids), eq(forms.status, 'active')));
 
-    const key = await keyOfOrganization(tx, orgId);
-
     return rows
       .toSorted((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
       .map((row) => ({
@@ -120,30 +141,43 @@ const formsOf = (orgId: string, ids: string[]) =>
       }));
   });
 
-/** What a visitor sees of the help center: its look, its topic's published articles and its forms. */
-const siteOf = async ({ orgId, center }: Center) => ({
-  helpCenter: {
-    title: center.title,
-    description: center.description,
-    languageCode: center.languageCode,
-    kbLabel: center.kbLabel,
-    color: center.color,
-    backgroundImage: center.backgroundImage,
-    styles: center.styles,
-    header: center.header,
-    footer: center.footer,
-  },
-  ...(await topicOf(orgId, center.kbTopicId ?? '')),
-  forms: await formsOf(orgId, center.formIds),
-});
+/**
+ * What a visitor sees of the help center: its look, with its images where a visitor loads them,
+ * its topic's published articles and its forms.
+ */
+const siteOf = async ({ orgId, center }: Center) => {
+  const key = await shownKeyOf(orgId);
+  const shown = (url: string | null | undefined) => url && shownUrl(key, url);
+
+  return {
+    helpCenter: {
+      title: center.title,
+      description: center.description,
+      languageCode: center.languageCode,
+      kbLabel: center.kbLabel,
+      color: center.color,
+      backgroundImage: shown(center.backgroundImage),
+      styles: {
+        ...center.styles,
+        mainLogo: shown(center.styles.mainLogo),
+        favicon: shown(center.styles.favicon),
+      },
+      header: center.header,
+      footer: { ...center.footer, logo: shown(center.footer.logo) },
+    },
+    ...(await topicOf(orgId, center.kbTopicId ?? '')),
+    forms: await formsOf(orgId, key, center.formIds),
+  };
+};
 
 /**
- * One published public article of the topic, its body sanitized, counted as viewed. The view is
- * written later with others (`flushViews`), so `viewCount` is what was written so far.
+ * One published public article of the topic, its body sanitized and its files where a visitor
+ * loads them, counted as viewed. The view is written later with others (`flushViews`), so
+ * `viewCount` is what was written so far.
  */
 export const articleOf = async (orgId: string, topicId: string, id: string) => {
-  const [article] = await withOrg(orgId, (tx) =>
-    tx
+  const found = await withOrg(orgId, async (tx) => {
+    const [article] = await tx
       .select({
         id: kbArticles.id,
         categoryId: kbArticles.categoryId,
@@ -164,14 +198,23 @@ export const articleOf = async (orgId: string, topicId: string, id: string) => {
           eq(kbArticles.isPrivate, false),
           eq(kbCategories.topicId, topicId),
         ),
-      ),
-  );
+      );
 
-  if (!article) return null;
+    return article && { article, key: await keyOfOrganization(tx, orgId) };
+  });
+
+  if (!found) return null;
+
+  const { article, key } = found;
 
   countView(orgId, 'article', article.id);
 
-  return { ...article, content: visitorHtml(article.content) };
+  return {
+    ...article,
+    content: visitorHtml(article.content, key),
+    image: article.image && shownAttachment(key, article.image),
+    attachments: article.attachments.map((file) => shownAttachment(key, file)),
+  };
 };
 
 /** What a topic gives a visitor, for the embeds to type their replies. */
@@ -211,6 +254,8 @@ export const publicRouter = (): Router => {
 
     res.json(article);
   });
+
+  router.get('/files/:key/:id', shownFile);
 
   router.get('/custom-domains/resolve', async (req, res) => {
     const host = typeof req.query.host === 'string' ? req.query.host : '';
