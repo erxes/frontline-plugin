@@ -196,8 +196,8 @@ Procedures replace the 337 GraphQL types.
 - [x] automation action `Send Erxes Messenger Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:161`
 - [x] automation action `Hand off to a person` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/inbox/meta/automation/constants.ts:172`
 - [x] segment `conversations` → **drop**: the new core has no segments (the "Client portal procedures (`cp*`), brands and segments" row in DECISIONS.md); the plugin filters its own records `frontline_api/src/modules/inbox/meta/segments/configs.ts:3`
-- [x] automation trigger `Discord Message` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/integrations/discord/meta/automation/constants.ts:45` (filed https://github.com/erxes/erxes/issues/10585)
-- [x] automation action `Send Discord Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/discord/meta/automation/constants.ts:33`. `frontline.discord.send_message`; it replies in Discord conversations once inbound arrives
+- [x] automation trigger `Discord Message` → sdk `manifest.events` (published with core_publish_event()) `frontline_api/src/modules/integrations/discord/meta/automation/constants.ts:45`. `frontline.discord.message_received`, published by `deliverInbound` for each message the gateway brings (`providers/discordGateway.ts`)
+- [x] automation action `Send Discord Message` → sdk `manifest.actions` (POST <api>/automations/actions/<type>, verifyCoreCall()) `frontline_api/src/modules/integrations/discord/meta/automation/constants.ts:33`. `frontline.discord.send_message`; it replies in the Discord conversation the trigger names
 - [x] automation trigger `Facebook Message` → `frontline.facebook.message_received` in `manifest.events` `frontline_api/src/modules/integrations/facebook/meta/automation/constants.ts:161`
 - [x] automation trigger `Facebook Comments` → `frontline.facebook.comment_received` in `manifest.events` `frontline_api/src/modules/integrations/facebook/meta/automation/constants.ts:172`
 - [x] automation action `Send Facebook Message` → `frontline.facebook.reply`, which answers the trigger's conversation `frontline_api/src/modules/integrations/facebook/meta/automation/constants.ts:105`
@@ -1035,7 +1035,7 @@ Procedures replace the 337 GraphQL types.
 
 ### Events
 
-- [x] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/discord/services/messages/inbound.ts:115` (filed https://github.com/erxes/erxes/issues/10585)
+- [x] `sendAutomationTrigger` → sdk `core_publish_event() in the same transaction` (declare the type in manifest.events; automations start from events) `frontline_api/src/modules/integrations/discord/services/messages/inbound.ts:115`. `frontline.discord.message_received`, published by `deliverInbound`
 - [x] `sendAutomationDeferredCompletion` → dropped: `frontline.facebook.reply` answers at once with the queued message (the "Four Facebook actions and two Instagram actions for messages and comments" row in DECISIONS.md) `frontline_api/src/modules/integrations/facebook/commentOutbox.ts:196`
 - [x] `sendAutomationTrigger` → `frontline.facebook.message_received` and `comment_received`, published with the new message `frontline_api/src/modules/integrations/facebook/controller/store.ts:241`
 - [x] `sendNotification` → dropped: a bot Meta refuses shows broken on the bot; a broken page sends `frontline.integration.broken` (the "The `integrationHealthBroken` notification" row in DECISIONS.md) `frontline_api/src/modules/integrations/facebook/db/models/Bots.ts:374`

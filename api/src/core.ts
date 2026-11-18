@@ -108,6 +108,11 @@ export const MESSAGE_RECEIVED = {
     label: 'Telegram Message',
     description: 'A connected bot received a Telegram message',
   },
+  discord: {
+    type: 'frontline.discord.message_received',
+    label: 'Discord Message',
+    description: 'A connected bot received a Discord message',
+  },
   mail: {
     type: 'frontline.mail.received',
     label: 'Email Received',
@@ -216,6 +221,12 @@ export const JOBS = {
   },
   /** Rechecks every connected account. */
   check: { name: 'integrations.check', cron: '17 3 * * *' },
+  /**
+   * Keeps a gateway open to Discord for each of the organisation's bots, on whichever replica
+   * holds its lease (`providers/discordGateway.ts`); a replica that stops gives its bots up to
+   * the next run.
+   */
+  discordGateway: { name: 'integrations.discord-gateway', cron: '* * * * *' },
   /** Copies a call's recording from the PBX to core's storage. */
   recording: { name: 'calls.recording', retry: { attempts: 5, delay: 60, maxDelay: 1800 } },
   /**
