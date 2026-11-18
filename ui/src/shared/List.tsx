@@ -1,4 +1,6 @@
-import { IconAlertTriangle, IconPlus, IconSearchOff } from '@tabler/icons-react';
+import { ORPCError } from '@orpc/client';
+import { IconAlertTriangle, IconPlus, IconRefresh, IconSearchOff } from '@tabler/icons-react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Kbd, useListFilterParams, useScopedHotkeys } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +36,35 @@ export const ListEmpty = ({
   );
 };
 
+/**
+ * "Try again" under a failed load; it refetches every query on screen that failed and spins until
+ * they settle. The API's refusals, such as a missing permission, get none: asking again changes
+ * nothing.
+ */
+export const RetryButton = ({ error }: { error: Error }) => {
+  const { t } = useTranslation('frontline');
+  const queryClient = useQueryClient();
+
+  const retry = useMutation({
+    mutationFn: () =>
+      queryClient.refetchQueries({
+        type: 'active',
+        predicate: (query) => query.state.status === 'error',
+      }),
+  });
+
+  if (error instanceof ORPCError && error.status < 500) {
+    return null;
+  }
+
+  return (
+    <Button variant="outline" size="sm" disabled={retry.isPending} onClick={() => retry.mutate()}>
+      <IconRefresh className={retry.isPending ? 'animate-spin' : undefined} />
+      {t('try-again', 'Try again')}
+    </Button>
+  );
+};
+
 /** What a page shows when its query failed: the API's message in an outlined empty state. */
 export const ListError = ({ error }: { error: Error }) => {
   const { t } = useTranslation('frontline');
@@ -47,6 +78,9 @@ export const ListError = ({ error }: { error: Error }) => {
         <Empty.Title>{t('could-not-load', 'Could not load this page')}</Empty.Title>
         <Empty.Description>{error.message}</Empty.Description>
       </Empty.Header>
+      <Empty.Content>
+        <RetryButton error={error} />
+      </Empty.Content>
     </Empty>
   );
 };

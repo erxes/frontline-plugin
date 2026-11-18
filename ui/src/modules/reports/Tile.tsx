@@ -10,10 +10,11 @@ import {
   useFormat,
 } from 'erxes-ui';
 import { useAtom } from 'jotai';
-import { type ReactNode, useMemo, useState } from 'react';
+import { type ReactNode, useMemo, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
+import { RetryButton } from '~/shared/List.tsx';
 import css from './styles.css?inline';
 
 addPluginStyles(`${PLUGIN}:reports`, css);
@@ -37,6 +38,13 @@ const minuteEnd = () => {
   return end.getTime();
 };
 
+/** Wakes React every 10 s; `minuteEnd` only changes once a minute, so tiles move then. */
+const everyFewSeconds = (tick: () => void) => {
+  const timer = setInterval(tick, 10_000);
+
+  return () => clearInterval(timer);
+};
+
 /** Each tile's period, by its widget name, kept in this browser. */
 const tilePeriod = storedFamily({
   key: `${PLUGIN}:tile-period`,
@@ -45,12 +53,13 @@ const tilePeriod = storedFamily({
 });
 
 /**
- * The last 30, 7 or 90 days to the end of the minute the tile mounted, in the browser's time
- * zone; the tile named `tile` keeps its pick. Tiles on the same period share one request.
+ * The last 30, 7 or 90 days to the end of the current minute, in the browser's time zone, so a
+ * dashboard left open keeps counting; the tile named `tile` keeps its pick. Tiles on the same
+ * period share one request.
  */
 export const usePeriod = (tile: string) => {
   const [days, setDays] = useAtom(tilePeriod(tile));
-  const [to] = useState(minuteEnd);
+  const to = useSyncExternalStore(everyFewSeconds, minuteEnd);
 
   const range = useMemo(
     () => ({
@@ -116,9 +125,10 @@ export const Tile = <Report,>({
       {period && <PeriodToggle {...period} />}
     </div>
     {query.error ? (
-      <p role="alert" className="text-sm text-destructive">
-        {query.error.message}
-      </p>
+      <div role="alert" className="flex flex-col items-start gap-2">
+        <p className="text-sm text-destructive">{query.error.message}</p>
+        <RetryButton error={query.error} />
+      </div>
     ) : query.data === undefined ? (
       <Skeleton className="h-24" />
     ) : (
