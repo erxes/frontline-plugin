@@ -22,12 +22,15 @@ import {
   TextField,
   type TRecordSlotProps,
   useConfirm,
+  useOpenRecord,
 } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { messengerPath } from '@/messenger/queries.ts';
 import { orpc } from '~/orpc.ts';
+import { CHANNEL_TYPE } from '~/plugin.ts';
+import { ChannelLabel } from '~/shared/ChannelSelect.tsx';
 import { MoveToChannelDialog } from '~/shared/MoveToChannel.tsx';
 import { channelsQuery } from '~/shared/reference.ts';
 import { InfoRow, ReadOnly } from '~/shared/Panel.tsx';
@@ -127,7 +130,12 @@ export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
 const Fields = ({ integration }: { integration: Integration }) => {
   const { t } = useTranslation('frontline');
   const update = useMutation(orpc.integrations.update.mutationOptions(useIntegrationChange()));
-  const channels = useQuery(channelsQuery).data?.channels ?? [];
+  const { open } = useOpenRecord();
+
+  const channel = useQuery(channelsQuery).data?.channels.find(
+    ({ id }) => id === integration.channelId,
+  );
+
   const welcome = typeof integration.config.welcome === 'string' ? integration.config.welcome : '';
   const scope = `frontline-integration.${integration.id}`;
   const messenger = integration.kind === 'messenger';
@@ -172,9 +180,18 @@ const Fields = ({ integration }: { integration: Integration }) => {
           />
         </PanelField>
       </ReadOnly>
-      <InfoRow icon={IconCircles} label={t('channel', 'Channel')}>
-        {channels.find((channel) => channel.id === integration.channelId)?.name}
-      </InfoRow>
+      {channel && (
+        <PanelField icon={IconCircles} label={t('channel', 'Channel')} cell={false}>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="justify-start"
+            onClick={() => open({ contentType: CHANNEL_TYPE, contentId: channel.id })}
+          >
+            <ChannelLabel id={channel.id} />
+          </Button>
+        </PanelField>
+      )}
       {messenger && integration.publicKey && (
         <PanelField icon={IconKey} label={t('messenger-key', 'Messenger key')} cell={false}>
           <div className="min-w-0 px-2">

@@ -1,11 +1,23 @@
 import { IconCircles } from '@tabler/icons-react';
-import { PanelFormRow, Select } from 'erxes-ui';
+import { useQuery } from '@tanstack/react-query';
+import { IconComponent, PanelFormRow, Select } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { useChannels } from '@/channels/useChannels.ts';
+import { channelsQuery } from './reference.ts';
 
-/** Channel names by id, for the channels the member sees. */
-export const useChannelNames = () =>
-  new Map((useChannels().data?.channels ?? []).map((channel) => [channel.id, channel.name]));
+/** A channel by its icon and name, as the inbox's sidebar shows it, or nothing for one not seen. */
+export const ChannelLabel = ({ id }: { id: string }) => {
+  const channel = useQuery(channelsQuery).data?.channels.find((one) => one.id === id);
+
+  if (!channel) return null;
+
+  return (
+    <span className="inline-flex min-w-0 items-center gap-1.5 [&_svg]:size-3.5 [&_svg]:shrink-0">
+      {channel.icon ? <IconComponent name={channel.icon} /> : <IconCircles />}
+      <span className="truncate">{channel.name}</span>
+    </span>
+  );
+};
 
 /** The channels the member is an admin of, the ones a new record can go in. */
 export const useManagedChannels = () =>

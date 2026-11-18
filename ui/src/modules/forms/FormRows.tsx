@@ -21,7 +21,7 @@ import {
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useChannelNames } from '~/shared/ChannelSelect.tsx';
+import { ChannelLabel } from '~/shared/ChannelSelect.tsx';
 import { ActionsMenu, RowActions, TextCell } from '~/shared/Records.tsx';
 import type { Paging } from '~/shared/paging.ts';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
@@ -50,7 +50,7 @@ const RowMenu = ({ form }: { form: Form }) => {
 };
 
 /** One form: its name, channel, how many sent it, its author, when it changed, and its menu. */
-const FormRow = ({ form, channel }: { form: Form; channel: string }) => {
+const FormRow = ({ form }: { form: Form }) => {
   const { t } = useTranslation('frontline');
 
   return (
@@ -58,8 +58,8 @@ const FormRow = ({ form, channel }: { form: Form; channel: string }) => {
       <span className="flex min-w-0 flex-1">
         <FormName form={form} />
       </span>
-      <span className="hidden w-36 shrink-0 truncate text-muted-foreground md:block">
-        {channel}
+      <span className="hidden w-36 shrink-0 text-muted-foreground md:flex">
+        <ChannelLabel id={form.channelId} />
       </span>
       <span className="w-28 shrink-0 text-muted-foreground">
         {t('form-submission-count', {
@@ -86,7 +86,6 @@ const FormRow = ({ form, channel }: { form: Form; channel: string }) => {
  */
 export const FormList = ({ forms }: { forms: Form[] }) => {
   const statuses = useStatusNames();
-  const channels = useChannelNames();
   const byStatus = Map.groupBy(forms, (form) => form.status);
 
   const groups: RecordListGroup<Form>[] = FORM_STATUSES.flatMap((status) => {
@@ -100,7 +99,7 @@ export const FormList = ({ forms }: { forms: Form[] }) => {
       groups={groups}
       rowId={(form) => form.id}
       rowLabel={(form) => form.name}
-      renderRow={(form) => <FormRow form={form} channel={channels.get(form.channelId) ?? ''} />}
+      renderRow={(form) => <FormRow form={form} />}
     />
   );
 };
@@ -129,7 +128,6 @@ const TagsCell = ({ form }: { form: Form }) => {
 
 const useColumns = (manage: boolean): RecordTableColumnDef<Form>[] => {
   const { t } = useTranslation('frontline');
-  const channels = useChannelNames();
 
   return [
     {
@@ -150,7 +148,9 @@ const useColumns = (manage: boolean): RecordTableColumnDef<Form>[] => {
       </RecordTableInlineCell>
     )),
     column('channel', t('channel', 'Channel'), IconCircles, 180, (form) => (
-      <TextCell value={channels.get(form.channelId) ?? null} />
+      <RecordTableInlineCell>
+        <ChannelLabel id={form.channelId} />
+      </RecordTableInlineCell>
     )),
     column('tagIds', t('tags', 'Tags'), IconTag, 200, (form) => <TagsCell form={form} />),
     column('title', t('form-title', 'Form title'), IconLetterCase, 220, (form) => (

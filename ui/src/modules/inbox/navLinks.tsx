@@ -1,5 +1,6 @@
 import {
   Badge,
+  cn,
   Collapsible,
   listFilterQuery,
   Sidebar,
@@ -37,7 +38,8 @@ export const useOpenFilter = () => {
   return JSON.stringify(advanced);
 };
 
-export const Count = ({ count }: { count: number }) => {
+/** An unread count at the row's end; `beforeAction` leaves room for the row's action button. */
+export const Count = ({ count, beforeAction }: { count: number; beforeAction?: boolean }) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
 
@@ -46,7 +48,7 @@ export const Count = ({ count }: { count: number }) => {
   return (
     <Badge
       variant="secondary"
-      className="ml-auto"
+      className={cn('ml-auto', beforeAction && 'mr-5')}
       aria-label={t('unread-count', '{{count}} unread', { count })}
     >
       {format.number(count)}
@@ -65,19 +67,22 @@ export const useFilterLink = (filter: TConditionGroup) => {
 
 /**
  * One queue or channel: a link that sets the inbox's filter to its rule, or clears it when that
- * filter is on already, with its unread count, and under it whatever `children` it opens.
+ * filter is on already, with its unread count, an `action` button at its end, and under it
+ * whatever `children` it opens.
  */
 export const FilterLink = ({
   name,
   icon,
   rule,
   count,
+  action,
   children,
 }: {
   name: string;
   icon: ReactNode;
   rule: TConditionRule;
   count: number;
+  action?: ReactNode;
   children?: ReactNode;
 }) => {
   const { active, to } = useFilterLink(filterOf(rule));
@@ -87,8 +92,9 @@ export const FilterLink = ({
       <Sidebar.MenuButton isActive={active} render={<Link to={to} />}>
         {icon}
         <span className="min-w-0 flex-1 truncate">{name}</span>
-        <Count count={count} />
+        <Count count={count} beforeAction={Boolean(action)} />
       </Sidebar.MenuButton>
+      {action}
       {children}
     </Sidebar.MenuItem>
   );
