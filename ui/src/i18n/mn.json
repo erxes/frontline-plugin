@@ -101,6 +101,8 @@
   "change-label": "{{label}} өөрчлөх",
   "channel": "Суваг",
   "channel-actions": "{{name}}-ийн үйлдэл",
+  "channel-kinds": "{{name}}-ийн интеграцууд",
+  "in-no-channel": "Одоогоор сувагт ороогүй",
   "channel-menu": "Сувгийн үйлдэл",
   "channel-pages": "Сувгийн тохиргоо",
   "channels": "Сувгууд",

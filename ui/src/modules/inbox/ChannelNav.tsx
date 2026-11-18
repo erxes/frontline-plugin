@@ -1,8 +1,11 @@
-import { IconCircles, IconMinus, IconPlus } from '@tabler/icons-react';
-import { Button, IconComponent, Sidebar, type TConditionRule } from 'erxes-ui';
+import { IconChevronRight, IconCircles, IconMinus, IconPlus } from '@tabler/icons-react';
+import { Button, cn, IconComponent, Sidebar, storedFamily, type TConditionRule } from 'erxes-ui';
+import { useAtom } from 'jotai';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
+import { z } from 'zod';
+import { PLUGIN } from '~/plugin.ts';
 import { KindIcon, useKindNames } from '~/shared/kinds.tsx';
 import {
   Count,
@@ -61,12 +64,27 @@ const KindLink = ({
 };
 
 /**
- * A channel, and while the inbox shows it, the kinds of integration in it, each with its unread,
- * as the old sidebar opened a channel into Messenger, Facebook, Email and the rest.
+ * Whether the member opened or closed a channel's kinds with its chevron, remembered in the
+ * browser. Until they do, the kinds show while the inbox shows the channel.
+ */
+const kindsOpen = storedFamily({
+  key: `${PLUGIN}:inbox-channel-kinds`,
+  schema: z.boolean().nullable(),
+  initial: null,
+});
+
+/**
+ * A channel, and under it the kinds of integration in it, each with its unread, as the old
+ * sidebar opened a channel into Messenger, Facebook, Email and the rest. Its chevron opens or
+ * closes them; a channel the member hasn't toggled shows them while the inbox shows it.
  */
 export const ChannelLink = ({ channel, icon }: { channel: Channel; icon: ReactNode }) => {
+  const { t } = useTranslation('frontline');
   const open = useOpenFilter();
+  const [toggled, setToggled] = useAtom(kindsOpen(channel.id));
   const channelOpen = open.includes(JSON.stringify(channelRule(channel.id)));
+  const hasKinds = channel.kinds.length > 1;
+  const shown = hasKinds && (toggled ?? channelOpen);
 
   return (
     <FilterLink
@@ -74,8 +92,19 @@ export const ChannelLink = ({ channel, icon }: { channel: Channel; icon: ReactNo
       icon={channel.icon ? <IconComponent name={channel.icon} /> : icon}
       rule={channelRule(channel.id)}
       count={channel.unread}
+      action={
+        hasKinds && (
+          <Sidebar.MenuAction
+            aria-label={t('channel-kinds', '{{name}} integrations', { name: channel.name })}
+            aria-expanded={shown}
+            onClick={() => setToggled(!shown)}
+          >
+            <IconChevronRight className={cn('transition-transform', shown && 'rotate-90')} />
+          </Sidebar.MenuAction>
+        )
+      }
     >
-      {channelOpen && channel.kinds.length > 1 && (
+      {shown && (
         <Sidebar.Sub>
           {channel.kinds.map(({ kind, unread }) => (
             <KindLink key={kind} channelId={channel.id} kind={kind} count={unread} />

@@ -20,7 +20,7 @@ import {
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useChannelNames } from '~/shared/ChannelSelect.tsx';
+import { ChannelLabel } from '~/shared/ChannelSelect.tsx';
 import { ActionsMenu, RowActions, TextCell } from '~/shared/Records.tsx';
 import type { Paging } from '~/shared/paging.ts';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
@@ -51,7 +51,7 @@ const RowMenu = ({ survey }: { survey: Survey }) => {
 };
 
 /** One survey: its title, channel, votes, author, when it changed, and its menu. */
-const SurveyRow = ({ survey, channel }: { survey: Survey; channel: string }) => {
+const SurveyRow = ({ survey }: { survey: Survey }) => {
   const { t } = useTranslation('frontline');
 
   return (
@@ -59,8 +59,8 @@ const SurveyRow = ({ survey, channel }: { survey: Survey; channel: string }) => 
       <span className="flex min-w-0 flex-1">
         <SurveyTitle survey={survey} />
       </span>
-      <span className="hidden w-36 shrink-0 truncate text-muted-foreground md:block">
-        {channel}
+      <span className="hidden w-36 shrink-0 text-muted-foreground md:flex">
+        <ChannelLabel id={survey.channelId} />
       </span>
       <span className="w-24 shrink-0 text-muted-foreground">
         {t('survey-vote-count', { defaultValue: '{{count}} votes', count: survey.voteCount })}
@@ -84,7 +84,6 @@ const SurveyRow = ({ survey, channel }: { survey: Survey; channel: string }) => 
  */
 export const SurveyList = ({ surveys }: { surveys: Survey[] }) => {
   const statuses = useStatusNames();
-  const channels = useChannelNames();
   const byStatus = Map.groupBy(surveys, (survey) => survey.status);
 
   const groups: RecordListGroup<Survey>[] = SURVEY_STATUSES.flatMap((status) => {
@@ -98,9 +97,7 @@ export const SurveyList = ({ surveys }: { surveys: Survey[] }) => {
       groups={groups}
       rowId={(survey) => survey.id}
       rowLabel={(survey) => survey.title}
-      renderRow={(survey) => (
-        <SurveyRow survey={survey} channel={channels.get(survey.channelId) ?? ''} />
-      )}
+      renderRow={(survey) => <SurveyRow survey={survey} />}
     />
   );
 };
@@ -123,7 +120,6 @@ const MoreCell = ({ survey }: { survey: Survey }) => {
 
 const useColumns = (manage: boolean): RecordTableColumnDef<Survey>[] => {
   const { t } = useTranslation('frontline');
-  const channels = useChannelNames();
 
   return [
     {
@@ -144,7 +140,9 @@ const useColumns = (manage: boolean): RecordTableColumnDef<Survey>[] => {
       </RecordTableInlineCell>
     )),
     column('channel', t('channel', 'Channel'), IconCircles, 180, (survey) => (
-      <TextCell value={channels.get(survey.channelId) ?? null} />
+      <RecordTableInlineCell>
+        <ChannelLabel id={survey.channelId} />
+      </RecordTableInlineCell>
     )),
     column('question', t('survey-question', 'Question'), IconHelp, 280, (survey) => (
       <TextCell value={survey.steps[0]?.question ?? null} />

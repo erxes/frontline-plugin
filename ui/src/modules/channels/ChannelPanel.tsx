@@ -171,7 +171,7 @@ const ChannelFields = ({ channel }: { channel: Channel }) => {
         <PanelField icon={IconIcons} label={t('icon', 'Icon')} cell={false}>
           <IconPicker
             aria-label={t('icon', 'Icon')}
-            value={channel.icon ?? undefined}
+            value={channel.icon ?? 'IconInbox'}
             onValueChange={(icon) => edit({ icon })}
             className="w-min"
           />

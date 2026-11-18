@@ -18,10 +18,13 @@ import {
   RecordTableInlineCell,
   useOpenRecord,
 } from 'erxes-ui';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { ACCOUNT_TYPE, INTEGRATION_TYPE, META_BOT_TYPE } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
+import { KindIcon } from '~/shared/kinds.tsx';
+import { AccountChannels } from './AccountChannels.tsx';
 import { ListEmpty } from '~/shared/List.tsx';
 import { RowActions, TextCell } from '~/shared/Records.tsx';
 import { DateCell, Rows } from '~/shared/Table.tsx';
@@ -96,13 +99,18 @@ const MoreCell = ({ row }: { row: Row }) => {
   );
 };
 
-/** A cell that opens the record `contentType` with its `label`, or reads empty without one. */
+/**
+ * A cell that opens the record `contentType` with its `icon` and `label`, or reads empty without
+ * one.
+ */
 const OpenCell = ({
   label,
+  icon,
   contentType,
   contentId,
 }: {
   label: string | undefined;
+  icon?: ReactNode;
   contentType: string;
   contentId: string;
 }) => {
@@ -117,6 +125,7 @@ const OpenCell = ({
         className="w-full justify-start"
         onClick={() => open({ contentType, contentId })}
       >
+        {icon}
         <span className="truncate">{label}</span>
       </Button>
     </RecordTableInlineCell>
@@ -140,6 +149,7 @@ const useColumns = (): RecordTableColumnDef<Row>[] => {
       cell: ({ row }) => (
         <OpenCell
           label={row.original.name}
+          icon={<KindIcon kind={row.original.provider} />}
           contentType={ACCOUNT_TYPE}
           contentId={row.original.id}
         />
@@ -151,6 +161,12 @@ const useColumns = (): RecordTableColumnDef<Row>[] => {
       header: () => <RecordTable.InlineHead label={t('type', 'Type')} icon={IconPlugConnected} />,
       cell: ({ row }) => <TextCell value={names[row.original.provider]} />,
       size: 170,
+    },
+    {
+      id: 'channels',
+      header: () => <RecordTable.InlineHead label={t('channels', 'Channels')} icon={IconCircles} />,
+      cell: ({ row }) => <AccountChannels accountId={row.original.id} />,
+      size: 260,
     },
     {
       id: 'status',

@@ -10,7 +10,7 @@ import {
 import { Button, PanelSection, Skeleton, type TRecordSlotProps } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { PLUGIN } from '~/plugin.ts';
-import { useChannelNames } from '~/shared/ChannelSelect.tsx';
+import { ChannelLabel } from '~/shared/ChannelSelect.tsx';
 import { MemberChip, useCustomer } from '~/shared/Person.tsx';
 import { InfoRow, PageLink, PanelSkeleton } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
@@ -73,7 +73,6 @@ export const ConversationActions = ({ contentId }: TRecordSlotProps) => {
 export const ConversationDetail = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
   const { data: conversation, error } = useConversation(contentId);
-  const channels = useChannelNames();
 
   useConversationSignal(contentId);
   const statuses = useStatusNames();
@@ -87,7 +86,8 @@ export const ConversationDetail = ({ contentId }: TRecordSlotProps) => {
       <Customer conversation={conversation} />
       <PanelSection title={t('conversation', 'Conversation')} icon={IconMessage}>
         <InfoRow icon={IconCircles} label={t('channel', 'Channel')}>
-          {channels.get(conversation.channelId)} · {conversation.integrationName}
+          <ChannelLabel id={conversation.channelId} />
+          <span className="truncate text-muted-foreground">· {conversation.integrationName}</span>
         </InfoRow>
         <InfoRow icon={IconCircleDot} label={t('status', 'Status')}>
           {statuses[conversation.status]}

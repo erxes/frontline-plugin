@@ -68,7 +68,7 @@ const PlacementRows = ({
 export const CategoryNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
   const [placement, setPlacement] = useState(() => placementOf(defaults));
-  const [icon, setIcon] = useState<string | null>(null);
+  const [icon, setIcon] = useState<string | null>('IconFolder');
   const { onSuccess } = useKbChange();
 
   const create = useMutation(
@@ -106,7 +106,7 @@ export const CategoryNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps
         <PanelFormRow label={t('icon', 'Icon')} icon={IconIcons}>
           <IconPicker
             aria-label={t('icon', 'Icon')}
-            value={icon ?? undefined}
+            value={icon ?? 'IconFolder'}
             onValueChange={setIcon}
             className="w-min"
           />
