@@ -14,12 +14,7 @@ import { type Reported, type Suppressed, suppressedAmong } from './mailSuppressi
 import { type SyncState, syncFailure } from './mailSync.ts';
 
 export const Server = z.object({
-  host: z
-    .string()
-    .trim()
-    .min(1)
-    .max(255)
-    .refine((host) => !isBlockedIp(host), 'A public address, not a private one'),
+  host: z.string().trim().min(1).max(255),
   port: z.number().int().min(1).max(65535),
   /** TLS from the first byte (993, 465); otherwise STARTTLS when the server offers it. */
   secure: z.boolean(),
@@ -30,17 +25,30 @@ const Config = z.object({ imap: Server, smtp: Server });
 
 const Secret = z.object({ imapPassword: z.string(), smtpPassword: z.string() });
 
-const imapClient = (imap: z.infer<typeof Server>, password: string) =>
-  new ImapFlow({
+/** `Server` as a member types it: an IP must be public, and a name is checked when it's dialed. */
+export const ServerInput = Server.extend({
+  host: Server.shape.host.refine(
+    (host) => !isBlockedIp(host),
+    'A public address, not a private one',
+  ),
+});
+
+/**
+ * A member names the host, so it may only be a public address. A socket dials an IP without the
+ * lookup, so one is checked here; imapflow hands `tls` to the socket it opens, `lookup` included.
+ */
+const imapClient = (imap: z.infer<typeof Server>, password: string) => {
+  if (isBlockedIp(imap.host)) throw new Error(`${imap.host} is not a public address`);
+
+  return new ImapFlow({
     host: imap.host,
     port: imap.port,
     secure: imap.secure,
     auth: { user: imap.user, pass: password },
     logger: false,
-    // A member names the host, so it may only resolve to a public address; imapflow hands these
-    // options to the socket it opens.
     tls: { lookup: reachableLookup },
   });
+};
 
 /**
  * nodemailer resolves names itself and takes no lookup, so it dials the checked address and

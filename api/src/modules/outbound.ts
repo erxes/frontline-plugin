@@ -1,7 +1,7 @@
 import { lookup } from 'node:dns';
 import type { LookupFunction } from 'node:net';
 import ipaddr from 'ipaddr.js';
-import { Agent } from 'undici';
+import { Agent, buildConnector } from 'undici';
 import { config } from '#/config.ts';
 
 /**
@@ -12,8 +12,15 @@ import { config } from '#/config.ts';
 export const isReachable = (address: string) =>
   config.outboundAllowPrivate || ipaddr.process(address).range() === 'unicast';
 
-/** Whether `host`, a name or an IP, is an IP the API may not dial. Names are checked on lookup. */
-export const isBlockedIp = (host: string) => ipaddr.isValid(host) && !isReachable(host);
+/**
+ * Whether `host`, a name or an IP, is an IP the API may not dial, with or without a trailing dot
+ * or IPv6 brackets. Names are checked on lookup.
+ */
+export const isBlockedIp = (host: string) => {
+  const bare = host.replace(/^\[|\]$/g, '').replace(/\.$/, '');
+
+  return ipaddr.isValid(bare) && !isReachable(bare);
+};
 
 /**
  * Resolves a name only to addresses the API may dial. A socket that dials through it checks the
@@ -31,8 +38,19 @@ export const reachableLookup: LookupFunction = (hostname, options, callback) =>
     else callback(null, first.address, first.family);
   });
 
-/** An undici dispatcher whose sockets resolve through `reachableLookup`. */
-export const reachableOnly = new Agent({ connect: { lookup: reachableLookup } });
+const connector = buildConnector({ lookup: reachableLookup });
+
+/**
+ * An undici dispatcher whose sockets resolve names through `reachableLookup`. A socket dials an IP
+ * without the lookup, so one the API may not dial is refused before it connects, on a redirect too.
+ */
+export const reachableOnly = new Agent({
+  connect: (options, callback) => {
+    if (isBlockedIp(options.hostname))
+      callback(new Error(`${options.hostname} is not a public address`), null);
+    else connector(options, callback);
+  },
+});
 
 /**
  * The address to dial for `host`, checked by `reachableLookup`, for a client that resolves names

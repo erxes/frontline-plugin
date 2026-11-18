@@ -47,8 +47,10 @@ const post = (pbx: Pbx, request: Record<string, unknown>) =>
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ request }),
     signal: AbortSignal.timeout(config.outboundMs),
-    // A member names the host, so it may only resolve to a public address.
+    // A member names the host, so it may only be a public address, and a UCM's API never
+    // redirects, so neither does this.
     dispatcher: reachableOnly,
+    redirect: 'error',
   });
 
 const ask = async (pbx: Pbx, request: Record<string, unknown>) => {
