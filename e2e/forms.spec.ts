@@ -61,9 +61,12 @@ const buildFields = async (page: Page) => {
   await page.getByRole('button', { name: 'Settings of Seats' }).click();
   await pick(page, page.getByRole('combobox', { name: 'Shows' }), 'Only when every rule holds');
   await page.getByRole('button', { name: 'Add rule' }).click();
-  await pick(page, page.getByRole('combobox', { name: 'Comparison' }), 'is');
-  await page.getByRole('textbox', { name: 'Value' }).fill('Team');
-  await page.keyboard.press('Tab');
+  // A rule on a dropdown compares a picked option, so it offers is and is not, and Plan's options.
+  await page.getByRole('combobox', { name: 'Comparison' }).click();
+  await expect(page.getByRole('option', { name: 'is not', exact: true })).toBeVisible();
+  await expect(page.getByRole('option', { name: 'contains', exact: true })).toBeHidden();
+  await page.getByRole('option', { name: 'is', exact: true }).click();
+  await pick(page, page.getByRole('combobox', { name: 'Value' }), 'Team');
 
   const preview = page.getByRole('region', { name: 'Preview' });
 

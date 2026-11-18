@@ -1,12 +1,71 @@
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { Button, Input, Label, Select, useItemKeys } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { OPERATORS, useOperatorNames, VALUELESS } from './fieldTypes.ts';
+import { OPERATORS, operatorsFor, useOperatorNames, VALUELESS } from './fieldTypes.ts';
 import type { FormField } from './useForms.ts';
 
 type Rule = FormField['logics'][number];
 
 type Action = NonNullable<FormField['logicAction']>;
+
+/**
+ * What the rule compares against, in the other field's terms: one of its options, yes or no, a
+ * date, a number, or text.
+ */
+const RuleValue = ({
+  rule,
+  other,
+  change,
+}: {
+  rule: Rule;
+  other: FormField | undefined;
+  change: (value: string) => void;
+}) => {
+  const { t } = useTranslation('frontline');
+  const label = t('logic-value', 'Value');
+
+  const choices =
+    other?.type === 'boolean'
+      ? [
+          { value: 'true', label: t('yes', 'Yes') },
+          { value: 'false', label: t('no', 'No') },
+        ]
+      : (other?.options ?? []).map((option) => ({ value: option, label: option }));
+
+  if (choices.length > 0)
+    return (
+      <Select
+        value={rule.value ?? ''}
+        onValueChange={(value) => typeof value === 'string' && change(value)}
+      >
+        <Select.Trigger aria-label={label} className="w-36">
+          <Select.Value />
+        </Select.Trigger>
+        <Select.Content>
+          {choices.map((choice) => (
+            <Select.Item key={choice.value} value={choice.value}>
+              {choice.label}
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select>
+    );
+
+  return (
+    <Input
+      key={other?.type}
+      aria-label={label}
+      type={other?.type === 'number' ? 'number' : other?.type.endsWith('ate') ? 'date' : 'text'}
+      defaultValue={rule.value ?? ''}
+      className="w-36"
+      onBlur={(event) => {
+        const value = event.currentTarget.value.trim();
+
+        if (value !== (rule.value ?? '')) change(value);
+      }}
+    />
+  );
+};
 
 /** One rule: which other field, how its answer compares, and to what. */
 const RuleRow = ({
@@ -22,12 +81,26 @@ const RuleRow = ({
 }) => {
   const { t } = useTranslation('frontline');
   const operators = useOperatorNames();
+  const compared = others.find((each) => each.id === rule.fieldId);
+  const offered = operatorsFor(compared?.type ?? '');
 
   return (
     <div className="flex items-center gap-2">
       <Select
         value={rule.fieldId}
-        onValueChange={(fieldId) => typeof fieldId === 'string' && change({ fieldId })}
+        onValueChange={(fieldId) => {
+          const next = others.find((each) => each.id === fieldId);
+
+          // Another field's answer reads differently, so the comparison starts over.
+          if (next && next.id !== rule.fieldId)
+            change({
+              fieldId: next.id,
+              operator: operatorsFor(next.type).includes(rule.operator)
+                ? rule.operator
+                : 'hasAnyValue',
+              value: undefined,
+            });
+        }}
       >
         <Select.Trigger aria-label={t('logic-field', 'Field')} className="flex-1">
           <Select.Value />
@@ -52,7 +125,7 @@ const RuleRow = ({
           <Select.Value />
         </Select.Trigger>
         <Select.Content>
-          {OPERATORS.map((operator) => (
+          {offered.map((operator) => (
             <Select.Item key={operator} value={operator}>
               {operators[operator]}
             </Select.Item>
@@ -60,16 +133,7 @@ const RuleRow = ({
         </Select.Content>
       </Select>
       {!VALUELESS.includes(rule.operator) && (
-        <Input
-          aria-label={t('logic-value', 'Value')}
-          defaultValue={rule.value ?? ''}
-          className="w-32"
-          onBlur={(event) => {
-            const value = event.currentTarget.value.trim();
-
-            if (value !== (rule.value ?? '')) change({ value });
-          }}
-        />
+        <RuleValue rule={rule} other={compared} change={(value) => change({ value })} />
       )}
       <Button
         variant="ghost"

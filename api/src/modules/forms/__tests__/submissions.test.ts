@@ -129,6 +129,37 @@ describe('form submissions', () => {
     expect((await fetch(url)).status).toBe(404);
   });
 
+  it('orders dates in show rules, so a field shows before a cutoff day', async () => {
+    const owner = clientAs('org-fs-b');
+    const channel = await owner.channels.create({ name: 'Delivery' });
+    const form = await owner.forms.create({ channelId: channel.id, name: 'Shipping' });
+    const day = await owner.forms.fields.add({ formId: form.id, type: 'date', label: 'Day' });
+
+    const rush = await owner.forms.fields.add({
+      formId: form.id,
+      type: 'text',
+      label: 'Rush note',
+      logicAction: 'show',
+      logics: [{ fieldId: day.id, operator: 'lessThan', value: '2026-12-01' }],
+    });
+
+    const url = await embedOf(owner, form.id);
+
+    const answersOf = async (answers: Record<string, string>) => {
+      const sent = await send(url, answers);
+      const { submissionId } = Created.parse(await sent.json());
+
+      return (await owner.forms.submissions.get({ id: submissionId })).answers;
+    };
+
+    await expect(
+      answersOf({ [day.id]: '2026-11-20', [rush.id]: 'Before the holidays' }),
+    ).resolves.toEqual({ [day.id]: '2026-11-20', [rush.id]: 'Before the holidays' });
+    await expect(answersOf({ [day.id]: '2026-12-20', [rush.id]: 'Hidden' })).resolves.toEqual({
+      [day.id]: '2026-12-20',
+    });
+  });
+
   it('checks answers, keeps the shown ones and lets members correct them', async () => {
     const owner = clientAs('org-fs-b');
     const channel = await owner.channels.create({ name: 'Sales' });
