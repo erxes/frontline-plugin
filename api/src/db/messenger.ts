@@ -1,6 +1,41 @@
-import { boolean, index, integer, jsonb, primaryKey, text, timestamp } from 'drizzle-orm/pg-core';
+import {
+  boolean,
+  foreignKey,
+  index,
+  integer,
+  jsonb,
+  primaryKey,
+  text,
+  timestamp,
+  unique,
+} from 'drizzle-orm/pg-core';
 import { z } from 'zod';
-import { table } from './table.ts';
+import { integrations } from './inbox.ts';
+import { id, stamps, table } from './table.ts';
+
+/**
+ * The key a website signs its visitors' email, phone or user id with, one per messenger. A
+ * visitor becomes an existing customer only with that signature. Sealed by `sealSecret`
+ * (`modules/integrations/secrets.ts`); deleting the messenger deletes it.
+ */
+export const messengerSecrets = table(
+  'messenger_secrets',
+  {
+    id: id(),
+    orgId: text().notNull(),
+    integrationId: text().notNull(),
+    secret: text().notNull(),
+    ...stamps(),
+  },
+  (t) => [
+    unique('frontline_messenger_secrets_org_integration_key').on(t.orgId, t.integrationId),
+    foreignKey({
+      name: 'frontline_messenger_secrets_integration_fkey',
+      columns: [t.orgId, t.integrationId],
+      foreignColumns: [integrations.orgId, integrations.id],
+    }).onDelete('cascade'),
+  ],
+);
 
 /** What a visitor's browser tells the messenger about the page it opened on. */
 export const BrowserInfo = z.object({

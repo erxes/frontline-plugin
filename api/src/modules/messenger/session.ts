@@ -18,9 +18,12 @@ export const Visitor = z.object({
   integrationId: z.string(),
   customerId: z.string(),
   /** Whether the visitor left an email or phone, which a messenger with `requireAuth` asks for. */
-  identified: z.boolean().default(false),
-  /** Whether the messenger made the customer, so what the website tells about the visitor may change it. */
-  owns: z.boolean().default(false),
+  identified: z.boolean(),
+  /**
+   * Whether the website signed the visitor in as `customerId`. Otherwise the customer is the
+   * visitor's own lead, which no one else's email or phone ever turns into another customer.
+   */
+  verified: z.boolean(),
 });
 
 export type Visitor = z.output<typeof Visitor>;

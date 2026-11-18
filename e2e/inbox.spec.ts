@@ -1,3 +1,4 @@
+import { createHmac } from 'node:crypto';
 import type { Locator, Page } from '@playwright/test';
 import {
   addMessenger,
@@ -146,6 +147,18 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await expect(page.getByText(`/widget/messenger.js?key=${key}"></script>`)).toBeVisible();
   await expectAccessible(page);
 
+  // The secret the website signs visitors with: made, then rotated after a confirm.
+  const secret = page.getByLabel('Messenger identity secret');
+
+  await page.getByRole('button', { name: 'Make a secret' }).click();
+  await expect(secret).toHaveText(/^[\w-]{43}$/);
+
+  const first = await secret.textContent();
+
+  await page.getByRole('button', { name: 'Rotate secret' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Rotate secret' }).click();
+  await expect(secret).not.toHaveText(first ?? '');
+
   // Each change shows in the preview before it saves.
   const preview = page.getByLabel('Preview');
 
@@ -172,6 +185,23 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   expect(await connected.json()).toMatchObject({
     messenger: { greetingTitle: title, color: '#0D9488', requireAuth: true },
   });
+
+  // A visitor the shop signs in writes at once, though the messenger asks others for an email.
+  const email = `${unique()}@e2e.test`;
+
+  const hash = createHmac('sha256', (await secret.textContent()) ?? '')
+    .update(email)
+    .digest('hex');
+
+  await using site = await openMessenger(
+    page.context(),
+    key,
+    `<script>window.frontlineMessenger = { email: '${email}', hash: '${hash}' };</script>`,
+  );
+
+  await site.panel.getByRole('button', { name: 'Send us a message' }).click();
+  await expect(site.panel.getByRole('textbox', { name: 'Message' })).toBeVisible();
+  await expect(site.panel).not.toContainText('Leave your email or phone number');
 
   // A member outside the messenger's channel doesn't find it.
   const outsider = await newMember(['frontline.channel.view']);

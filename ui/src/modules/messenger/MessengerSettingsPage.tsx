@@ -53,7 +53,7 @@ const SettingsForm = ({ messenger }: { messenger: MessengerSettings }) => {
         className="grid grid-cols-1 gap-4 lg:grid-cols-3"
       >
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
-          {messenger.scriptUrl && <InstallCard scriptUrl={messenger.scriptUrl} />}
+          <InstallCard messenger={messenger} />
           <fieldset disabled={!messenger.canManage} className="contents">
             <GreetingCard />
             <AppearanceCard />

@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
 import cors from 'cors';
 import express, { type Request, type Response } from 'express';
@@ -6,22 +5,23 @@ import { z } from 'zod';
 import { BrowserInfo } from '#/db/messenger.ts';
 import { logger } from '#/logger.ts';
 import { fail } from '../fail.ts';
-import { customerFor } from '../inbox/receive.ts';
 import { voteRoutes } from '../surveys/votes.ts';
-import { isOnlineAt, messenger } from './adapter.ts';
+import { isOnlineAt } from './adapter.ts';
 import { articleRoutes } from './articles.ts';
 import { fileRoutes } from './files.ts';
 import { messengerOf, tokenOf, visitorOf } from './session.ts';
 import { streaming, subscribe } from './stream.ts';
 import { ticketRoutes } from './tickets.ts';
 import { asVisitor, messengerIntegration, threadRoutes, visitorConversations } from './threads.ts';
+import { Identity, signedCustomer } from './identity.ts';
 import {
-  identify,
-  Identity,
+  fillIn,
+  newVisitor,
   recordVisit,
   saveVisitorData,
   setOnline,
   supportersOf,
+  verify,
   VisitorData,
 } from './visitors.ts';
 
@@ -32,6 +32,8 @@ const Connect = VisitorData.extend({
   identity: Identity.optional(),
   browser: BrowserInfo.optional(),
 });
+
+export type { Identity } from './identity.ts';
 
 export type { VisitorConversation, VisitorMessage } from './threads.ts';
 
@@ -73,32 +75,33 @@ export type Connected = {
 /**
  * A visitor opens the messenger with its integration's key, and gets back a signed token that
  * names them, the messenger's settings, its team and their conversations. A token for this
- * messenger keeps its visitor; without one, the visitor becomes a new core lead, linked by a
- * visitor id only the server makes. An email or phone makes them the core customer that has it.
+ * messenger keeps its visitor; without one, the visitor becomes a new core lead. Only an identity
+ * the website signed makes them an existing customer. A verified visitor stays verified only while
+ * the website signs them, so a page signed out starts a new visitor.
  */
 const connect = async (req: Request, res: Response) => {
   try {
     const input = Connect.parse(req.body);
     const shown = await opened(input.key);
     const found = { orgId: shown.orgId, integrationId: shown.integrationId };
+    const signed = input.identity && (await signedCustomer(found, input.identity));
 
     const known = await visitorOf(input.token);
-    const kept = known?.orgId === found.orgId && known.integrationId === found.integrationId;
 
-    const anonymous = kept
-      ? known
-      : {
-          ...found,
-          identified: false,
-          owns: true,
-          customerId: await customerFor(found.orgId, {
-            source: messenger.kind,
-            externalId: randomUUID(),
-            firstName: 'Visitor',
-          }),
-        };
+    const kept =
+      known?.orgId === found.orgId &&
+      known.integrationId === found.integrationId &&
+      (!known.verified || known.customerId === signed)
+        ? known
+        : null;
 
-    const visitor = input.identity ? await identify(anonymous, input.identity) : anonymous;
+    const anonymous = async () => kept ?? (await newVisitor(found));
+
+    const visitor = signed
+      ? await verify(kept, found, signed)
+      : input.identity
+        ? await fillIn(await anonymous(), input.identity)
+        : await anonymous();
 
     await recordVisit(visitor, { browser: input.browser, remoteAddress: req.ip }, true);
     await saveVisitorData(visitor, input);
