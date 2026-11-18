@@ -166,6 +166,7 @@ const AUTHORS_AT_ONCE = 4;
 const customersOf = async (row: AccountRow, inbound: InboundMessage[]) => {
   const authors = [...new Map(inbound.map(({ author }) => [author.externalId, author])).values()];
   const limit = pLimit(AUTHORS_AT_ONCE);
+  const { whoIs } = providerOf(row.provider).open(row);
 
   return new Map(
     await Promise.all(
@@ -176,6 +177,7 @@ const customersOf = async (row: AccountRow, inbound: InboundMessage[]) => {
             externalId: author.externalId,
             firstName: author.name || author.externalId,
             email: author.email,
+            whoIs: author.name ? undefined : () => whoIs(author.externalId),
           });
 
           return [author.externalId, customerId] as const;

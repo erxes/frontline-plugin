@@ -232,6 +232,9 @@ export const graphApi = (call: ProviderCall) => {
 
   if (path === 'me/messages') return { recipient_id: 'psid-1', message_id: 'm_sent' };
 
+  // The profile of the person behind psid-1, which Messenger's events leave out.
+  if (path === 'psid-1') return { id: 'psid-1', first_name: 'Bat', last_name: 'Erdene' };
+
   if (path.endsWith('/comments') || path.endsWith('/replies'))
     return call.method === 'POST' ? { id: `reply-to-${path.split('/')[0]}` } : { data: [] };
 

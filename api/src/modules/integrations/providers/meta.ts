@@ -208,6 +208,37 @@ const checkToken = async ({ secret }: MetaAccount) =>
     (error: unknown) => (error instanceof Error ? error.message : 'Meta failed'),
   );
 
+const FacebookPerson = z.object({
+  first_name: z.string().optional(),
+  last_name: z.string().optional(),
+});
+
+const InstagramPerson = z.object({ name: z.string().optional(), username: z.string().optional() });
+
+/**
+ * The name Meta keeps for someone who messaged the page or the account. Messenger and Instagram
+ * events give only their page-scoped id.
+ */
+const whoIsOn =
+  (provider: 'facebook' | 'instagram') =>
+  async ({ secret }: MetaAccount, id: string) => {
+    if (provider === 'instagram') {
+      const { name, username } = InstagramPerson.parse(
+        await graph(id, secret.pageToken, { query: { fields: 'name,username' } }),
+      );
+
+      const firstName = name || (username && `@${username}`);
+
+      return firstName ? { firstName } : null;
+    }
+
+    const person = FacebookPerson.parse(
+      await graph(id, secret.pageToken, { query: { fields: 'first_name,last_name' } }),
+    );
+
+    return person.first_name ? { firstName: person.first_name, lastName: person.last_name } : null;
+  };
+
 /**
  * Removes the account's meta-relay route. The app stays subscribed to the page: another erxes
  * install sharing the app may still read it.
@@ -226,6 +257,7 @@ export const facebook = defineProvider({
   send: sendThrough('facebook'),
   react: reactThrough,
   disconnect: disconnectFrom('facebook'),
+  whoIs: whoIsOn('facebook'),
 });
 
 /** An Instagram professional account, reached through its Facebook page's token. */
@@ -237,4 +269,5 @@ export const instagram = defineProvider({
   send: sendThrough('instagram'),
   react: reactThrough,
   disconnect: disconnectFrom('instagram'),
+  whoIs: whoIsOn('instagram'),
 });

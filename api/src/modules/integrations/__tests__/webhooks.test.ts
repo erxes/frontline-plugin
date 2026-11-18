@@ -12,6 +12,7 @@ import {
   telegramApi,
   webhookOf,
 } from './fakes.ts';
+import { asked } from './standIns.ts';
 
 vi.mock('#/core.ts', async (importOriginal) =>
   (await import('./standIns.ts')).coreStandIn(await importOriginal()),
@@ -242,6 +243,10 @@ describe('meta', () => {
       },
       { content: 'Do you ship to Darkhan?', attachments: [] },
     ]);
+    // Messenger's events carry only the sender's id; their name comes from Meta's profile.
+    expect(asked.created).toContainEqual(
+      expect.objectContaining({ firstName: 'Bat', lastName: 'Erdene', source: 'facebook' }),
+    );
 
     await owner.conversations.messages.create({ conversationId, content: 'We do' });
     await runQueued();

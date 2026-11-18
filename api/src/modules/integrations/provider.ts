@@ -93,6 +93,14 @@ interface ProviderSpec<Config, Secret> {
   react?: (account: OpenAccount<Config, Secret>, reaction: OutboundReaction) => Promise<void>;
   /** Stops the provider sending events for an account that is being removed. */
   disconnect?: (account: OpenAccount<Config, Secret>) => Promise<void>;
+  /** The name of a person the provider's events give only by id, or null when it has none. */
+  whoIs?: (account: OpenAccount<Config, Secret>, externalId: string) => Promise<Person | null>;
+}
+
+/** A customer's name as a provider gives it. */
+export interface Person {
+  firstName: string;
+  lastName?: string;
 }
 
 /**
@@ -118,6 +126,7 @@ export const defineProvider = <Config, Secret>(spec: ProviderSpec<Config, Secret
       disconnect: async () => {
         await spec.disconnect?.(account);
       },
+      whoIs: async (externalId: string) => (await spec.whoIs?.(account, externalId)) ?? null,
     };
   },
 });
