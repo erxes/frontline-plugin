@@ -253,6 +253,28 @@ describe('channels', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
+  it('puts what happens to a channel on its timeline: created, changed and members added', async () => {
+    const owner = clientAs('org-ch-timeline', undefined, 'boss');
+    const channel = await owner.channels.create({ name: 'Billing', memberIds: ['ann'] });
+
+    await owner.channels.update({ id: channel.id, name: 'Billing', description: 'Refunds' });
+    await owner.channels.update({ id: channel.id, name: 'Billing' });
+
+    const { rows } = await withOrg('org-ch-timeline', (tx) =>
+      tx.execute<{ type: string; summary: string; entity_type: string; entity_id: string }>(
+        sql`select type, summary, entity_type, entity_id from core_events where org_id = 'org-ch-timeline' order by seq`,
+      ),
+    );
+
+    const on = { entity_type: 'frontline.channel', entity_id: channel.id };
+
+    expect(rows).toEqual([
+      { ...on, type: 'frontline.channel.created', summary: 'Created Billing' },
+      { ...on, type: 'frontline.channel.members_added', summary: 'Added a member' },
+      { ...on, type: 'frontline.channel.fields_changed', summary: 'Changed description' },
+    ]);
+  });
+
   it('tells members they were added, once, and never the one who added them', async () => {
     const owner = clientAs('org-ch-notice', undefined, 'boss');
     const channel = await owner.channels.create({ name: 'Billing', memberIds: ['ann', 'boss'] });

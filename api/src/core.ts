@@ -171,9 +171,14 @@ export const TICKET_EVENTS = {
   slaBreached: { type: 'frontline.ticket.sla_breached', label: 'Ticket SLA missed' },
 } as const;
 
-/** What channel members hear about. */
+/** The record type whose Activity tab shows a channel's events. */
+export const CHANNEL_TIMELINE = 'frontline.channel';
+
+/** What a channel's timeline records. The members added hear of it too. */
 export const CHANNEL_EVENTS = {
-  membersAdded: { type: 'frontline.channel.members_added', label: 'You are added to a channel' },
+  created: { type: 'frontline.channel.created', label: 'Channel created' },
+  fieldsChanged: { type: 'frontline.channel.fields_changed', label: 'Channel changed' },
+  membersAdded: { type: 'frontline.channel.members_added', label: 'Members added to a channel' },
 } as const;
 
 /** Core's audit log records a deleted ticket with this action; it has no timeline left. */

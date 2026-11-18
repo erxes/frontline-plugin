@@ -27,6 +27,12 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await expect(row).toBeVisible();
   // It has no pipelines, forms or response templates yet; each count opens that list.
   await expect(row.getByRole('link', { name: '0' })).toHaveCount(3);
+
+  // Core's Activity tab shows what happened to it.
+  await panel.getByRole('tab', { name: 'Activity' }).click();
+  await expect(panel.getByText(`Created ${name}`)).toBeVisible();
+  await expect(panel.getByText('Added a member')).toBeVisible();
+  await panel.getByRole('tab', { name: 'Detail' }).click();
   await panel.getByRole('link', { name: /Manage channel members/ }).click();
   await expect(page).toHaveURL(/\/members$/);
   await expect(page.getByRole('row', { name: new RegExp(teammate.fullName) })).toBeVisible();

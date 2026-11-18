@@ -2,6 +2,7 @@ import type { PluginManifest } from '@erxes/core-contract';
 import { config } from '#/config.ts';
 import {
   CHANNEL_EVENTS,
+  CHANNEL_TIMELINE,
   COMMENT_RECEIVED,
   CONVERSATION_EVENTS,
   CONVERSATION_TIMELINE,
@@ -181,7 +182,7 @@ export const manifest = {
   ],
   notificationKinds: [
     ...TICKET_NOTICES.map(({ event, label }) => ({ kind: event.type, label })),
-    ...Object.values(CHANNEL_EVENTS).map(({ type, label }) => ({ kind: type, label })),
+    { kind: CHANNEL_EVENTS.membersAdded.type, label: 'You are added to a channel' },
     { kind: INBOX_NOTIFICATIONS.assigned, label: 'A conversation is assigned to you' },
     { kind: INBOX_NOTIFICATIONS.mentioned, label: 'You are mentioned in a conversation' },
     { kind: INTEGRATION_BROKEN, label: 'A page, bot or mailbox you connected stopped working' },
@@ -220,12 +221,14 @@ export const manifest = {
     { type: TICKET_TIMELINE, label: 'Ticket', permission: PERMISSIONS.channelView },
     { type: FORM_TIMELINE, label: 'Form', permission: PERMISSIONS.channelView },
     { type: SURVEY_TIMELINE, label: 'Survey', permission: PERMISSIONS.channelView },
+    { type: CHANNEL_TIMELINE, label: 'Channel', permission: PERMISSIONS.channelView },
     { type: CONVERSATION_TIMELINE, label: 'Conversation', permission: PERMISSIONS.inboxView },
   ],
   activityTypes: [
     ...activityTypes(TICKET_EVENTS, 'IconTicket'),
     ...activityTypes(FORM_EVENTS, 'IconFileText'),
     ...activityTypes(SURVEY_EVENTS, 'IconChecklist'),
+    ...activityTypes(CHANNEL_EVENTS, 'IconCircles'),
     ...activityTypes(CONVERSATION_EVENTS, 'IconMessage'),
   ],
   actions: [

@@ -116,6 +116,7 @@ export const CONFIG: IUIConfig = {
       title: 'Channel',
       icon: IconCircles,
       detailPath: pageOf('settings/channels'),
+      activity: `${PLUGIN}.channel`,
       ...slots(() => import('@/channels/slots.ts')),
     },
     {

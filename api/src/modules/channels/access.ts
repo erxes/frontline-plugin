@@ -2,9 +2,10 @@ import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, asc, type Column, eq, inArray, sql } from 'drizzle-orm';
 import { PLUGIN } from '#/config.ts';
-import { CHANNEL_EVENTS, PERMISSIONS } from '#/core.ts';
+import { CHANNEL_EVENTS, CHANNEL_TIMELINE, PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { type CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
+import { publishEvents, type RecordEvent } from '../events.ts';
 
 /** Whether `member` sees every channel, not only the ones they belong to. */
 export const managesAll = (member: PluginMember) => member.can(PERMISSIONS.channelManage);
@@ -125,7 +126,24 @@ export const insertMembers = async (
   );
 };
 
-/** Tells the members added to a channel, except the one who added them. */
+/** Puts the events on the channels' timelines in core. */
+export const publishChannelEvents = (tx: Tx, member: PluginMember, events: RecordEvent[]) =>
+  publishEvents(
+    tx,
+    {
+      orgId: member.orgId,
+      actorUserId: member.userId,
+      entityType: CHANNEL_TIMELINE,
+      linkOf: (id) => `/${PLUGIN}/settings/channels/${encodeURIComponent(id)}`,
+      audited: false,
+    },
+    events,
+  );
+
+/**
+ * Records the members added to a channel on its timeline, and tells them, except the one who
+ * added them.
+ */
 const noticeAdded = async (tx: Tx, member: PluginMember, channelId: string, userIds: string[]) => {
   const others = userIds.filter((id) => id !== member.userId);
 
@@ -136,17 +154,13 @@ const noticeAdded = async (tx: Tx, member: PluginMember, channelId: string, user
     .from(channels)
     .where(eq(channels.id, channelId));
 
-  const link = `/${PLUGIN}/settings/channels/${encodeURIComponent(channelId)}`;
-  const title = `You were added to ${channel?.name ?? 'a channel'}`;
-
-  await tx.execute(sql`select core_publish_event(
-    p_org_id => ${member.orgId},
-    p_source => ${PLUGIN},
-    p_type => ${CHANNEL_EVENTS.membersAdded.type},
-    p_payload => ${JSON.stringify({ channelId, userIds: others })}::jsonb,
-    p_notify => ${JSON.stringify({ userIds: others, title, link })}::jsonb,
-    p_summary => ${title},
-    p_link => ${link},
-    p_actor_user_id => ${member.userId}
-  )`);
+  await publishChannelEvents(tx, member, [
+    {
+      entityId: channelId,
+      type: CHANNEL_EVENTS.membersAdded.type,
+      summary: others.length === 1 ? 'Added a member' : `Added ${others.length} members`,
+      payload: { channelId, userIds: others },
+      notify: { userIds: others, title: `You were added to ${channel?.name ?? 'a channel'}` },
+    },
+  ]);
 };
