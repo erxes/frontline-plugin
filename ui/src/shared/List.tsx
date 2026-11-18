@@ -1,5 +1,5 @@
 import { IconAlertTriangle, IconPlus, IconRefresh, IconSearchOff } from '@tabler/icons-react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Kbd, useListFilterParams, useScopedHotkeys } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -35,25 +35,22 @@ export const ListEmpty = ({
   );
 };
 
-/** Refetches every query on screen that failed, for a "Try again" button. */
-const useRetryFailed = () => {
-  const queryClient = useQueryClient();
-
-  return () =>
-    void queryClient.refetchQueries({
-      type: 'active',
-      predicate: (query) => query.state.status === 'error',
-    });
-};
-
-/** "Try again" under a failed load; it refetches what failed on screen. */
+/** "Try again" under a failed load; it refetches every query on screen that failed and spins until they settle. */
 export const RetryButton = () => {
   const { t } = useTranslation('frontline');
-  const retry = useRetryFailed();
+  const queryClient = useQueryClient();
+
+  const retry = useMutation({
+    mutationFn: () =>
+      queryClient.refetchQueries({
+        type: 'active',
+        predicate: (query) => query.state.status === 'error',
+      }),
+  });
 
   return (
-    <Button variant="outline" size="sm" onClick={retry}>
-      <IconRefresh />
+    <Button variant="outline" size="sm" disabled={retry.isPending} onClick={() => retry.mutate()}>
+      <IconRefresh className={retry.isPending ? 'animate-spin' : undefined} />
       {t('try-again', 'Try again')}
     </Button>
   );
