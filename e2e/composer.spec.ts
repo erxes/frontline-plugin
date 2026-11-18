@@ -56,12 +56,14 @@ test('a member answers with a response template, formats it, attaches a file and
   await expect(reply).toContainText('Refunds take five days.');
   await page.keyboard.press('ControlOrMeta+b');
   await page.keyboard.type(' Sorry for the wait.');
-  // The paperclip opens the file input behind it.
+  // The paperclip opens the file input behind it, which takes several files at once.
   await page
     .locator('input[type="file"]')
-    .setInputFiles({ name: 'receipt.txt', mimeType: 'text/plain', buffer: Buffer.from('paid') });
+    .setInputFiles([
+      { name: 'receipt.txt', mimeType: 'text/plain', buffer: Buffer.from('paid') },
+      PARCEL,
+    ]);
   await expect(page.getByRole('button', { name: 'Remove receipt.txt' })).toBeVisible();
-  await page.locator('input[type="file"]').setInputFiles(PARCEL);
   await expect(page.getByRole('button', { name: 'Remove parcel.png' })).toBeVisible();
   await page.getByRole('button', { name: 'Send', exact: true }).click();
 
