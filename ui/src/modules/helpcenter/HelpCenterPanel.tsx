@@ -23,6 +23,7 @@ import {
 } from 'erxes-ui';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LANGUAGE_CODES, useLanguageName } from '@/knowledgebase/useKnowledgeBase.ts';
 import { InstallCode, scriptTag } from '~/shared/InstallCode.tsx';
 import { InfoRow, PageLink, PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
 import { Badges, PickerField } from '~/shared/Pickers.tsx';
@@ -132,6 +133,29 @@ const Text = ({
   </PanelField>
 );
 
+/** The language the site prints its own words and dates in. */
+const Language = ({ center }: { center: HelpCenter }) => {
+  const { t } = useTranslation('frontline');
+  const edit = useEditHelpCenter(center.id);
+  const language = useLanguageName();
+
+  return (
+    <PanelField icon={IconLanguage} label={t('language', 'Language')} cell={false}>
+      <PickerField
+        label={t('language', 'Language')}
+        placeholder={t('none', 'None')}
+        display={
+          <span className="truncate">{center.languageCode && language(center.languageCode)}</span>
+        }
+        options={LANGUAGE_CODES.map((code) => ({ value: code, label: language(code) }))}
+        value={center.languageCode ? [center.languageCode] : []}
+        onValueChange={([languageCode]) => edit({ languageCode: languageCode ?? null })}
+        noneLabel={t('none', 'None')}
+      />
+    </PanelField>
+  );
+};
+
 /** What the help center is and which topic it shows. */
 const Content = ({ center }: { center: HelpCenter }) => {
   const { t } = useTranslation('frontline');
@@ -156,13 +180,7 @@ const Content = ({ center }: { center: HelpCenter }) => {
         value={center.description}
         onSave={(description) => edit({ description })}
       />
-      <Text
-        scope={`${scope}.language`}
-        label={t('language', 'Language')}
-        icon={IconLanguage}
-        value={center.languageCode}
-        onSave={(languageCode) => edit({ languageCode })}
-      />
+      <Language center={center} />
       <PanelField icon={IconBook} label={t('kb-topic', 'Knowledge base topic')} cell={false}>
         <PickerField
           label={t('kb-topic', 'Knowledge base topic')}

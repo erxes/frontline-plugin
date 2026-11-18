@@ -6,7 +6,7 @@ import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { Blank, Color, Title } from '../fields.ts';
+import { Blank, Color, LanguageCode, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
 import { Code, codeTaken, kbErrors, topicColumns } from './shared.ts';
@@ -18,10 +18,7 @@ const Fields = z
     code: Code,
     color: Color.nullable(),
     backgroundImage: Blank(2000),
-    languageCode: z
-      .string()
-      .regex(/^[a-z]{2}$/)
-      .nullable(),
+    languageCode: LanguageCode.nullable(),
   })
   .partial();
 

@@ -1,6 +1,7 @@
 import express, { type Request, type Response } from 'express';
 import { config } from '#/config.ts';
 import { fail } from '../../fail.ts';
+import { LanguageCode } from '../../fields.ts';
 import { shownKeyOf } from '../../shownFiles.ts';
 import { articleOf, type Center, centerAt, siteOf, visitorHtml } from '../public.ts';
 import { copyOf } from './copy.ts';
@@ -20,10 +21,13 @@ import {
 const siteFor = async (found: Center, base: string): Promise<Site> => {
   const [data, key] = await Promise.all([siteOf(found), shownKeyOf(found.orgId)]);
   const { headerHtml, footerHtml } = found.center.styles;
+  // A language saved before the API checked it can't break the page.
+  const language = LanguageCode.safeParse(found.center.languageCode).data ?? 'en';
 
   return {
     ...data,
-    copy: copyOf(data.helpCenter.languageCode),
+    language,
+    copy: copyOf(language),
     base,
     headerHtml: headerHtml ? visitorHtml(headerHtml, key) : '',
     footerHtml: footerHtml ? visitorHtml(footerHtml, key) : '',

@@ -46,7 +46,6 @@ const mn: Copy = {
 };
 
 /** The site's words in the help center's language: Mongolian for `mn`, English otherwise. */
-export const copyOf = (languageCode: string | null) =>
-  languageCode?.toLowerCase().startsWith('mn') ? mn : en;
+export const copyOf = (language: string) => (language === 'mn' ? mn : en);
 
 export type { Copy };

@@ -19,7 +19,7 @@ import { forms } from '#/db/forms.ts';
 import { publicKeys } from '#/db/public.ts';
 import { kbTopics } from '#/db/schema.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
-import { Blank, Color, Title } from '../fields.ts';
+import { Blank, Color, LanguageCode, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
@@ -47,7 +47,7 @@ const centerColumns = {
 const refine = {
   title: () => Title,
   description: () => Blank(2000),
-  languageCode: () => z.string().max(10).nullable(),
+  languageCode: () => LanguageCode.nullable(),
   kbLabel: () => Blank(100),
   formIds: () => z.array(z.string()).max(50),
   color: () => Color.nullable(),

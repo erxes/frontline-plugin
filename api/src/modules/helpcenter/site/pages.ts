@@ -23,9 +23,7 @@ const countOf = (site: Site, category: Category) => {
 };
 
 const dateOf = (site: Site, date: Date) =>
-  new Intl.DateTimeFormat(site.helpCenter.languageCode || 'en', { dateStyle: 'medium' }).format(
-    date,
-  );
+  new Intl.DateTimeFormat(site.language, { dateStyle: 'medium' }).format(date);
 
 const SearchBox = (site: Site, term = '') =>
   html`<form class="hc-search" role="search" action="${href(site, '/search')}" method="get">

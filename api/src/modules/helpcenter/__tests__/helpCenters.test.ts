@@ -333,8 +333,8 @@ describe('help centers', () => {
     expect((await messenger.get('/knowledge-base', await visitorOf({}))).status).toBe(404);
   });
 
-  it('serves its site at its key: home, article, search, 404', async () => {
-    const { center, article } = await publishedSite('org-hc-site');
+  it('serves its site at its key: home, article, search, 404, in its language', async () => {
+    const { owner, center, article } = await publishedSite('org-hc-site');
     const origin = base.replace(/\/api\/public$/, '');
     const site = `${origin}/help/${center.publicKey}`;
     const home = await pageAt(site);
@@ -358,6 +358,17 @@ describe('help centers', () => {
     expect(missing.status).toBe(404);
     expect(missing.body).toContain('This page does not exist.');
     expect((await pageAt(`${origin}/help/no-such-key`)).status).toBe(404);
+
+    // A language is a two-letter code, which the site's words, dates and `lang` follow.
+    await expect(
+      owner.helpCenters.update({ id: center.id, languageCode: 'en_US' }),
+    ).rejects.toThrow('Input validation failed');
+    await owner.helpCenters.update({ id: center.id, languageCode: 'mn' });
+
+    const mongolian = await pageAt(`${site}/articles/${article.id}`);
+
+    expect(mongolian.status).toBe(200);
+    expect(mongolian.body).toContain('<html lang="mn">');
   });
 
   it('resolves only domains Cloudflare serves, and refuses one where Cloudflare is off', async () => {

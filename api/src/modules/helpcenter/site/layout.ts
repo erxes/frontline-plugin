@@ -9,6 +9,8 @@ export type Html = ReturnType<typeof html>;
 
 /** What every page of a help center's site draws from: its data, its words and its address. */
 export type Site = VisitorSite & {
+  /** The help center's language, or `en` when it has none or one a page can't name. */
+  language: string;
   copy: Copy;
   /** Where the site's pages sit: `/help/<key>` on frontline's address, nothing on its own host. */
   base: string;
@@ -144,7 +146,7 @@ export const page = async (site: Site, title: string, main: Html, description?: 
   const favicon = helpCenter.styles.favicon;
 
   const document = await html`<!doctype html>
-    <html lang="${helpCenter.languageCode || 'en'}">
+    <html lang="${site.language}">
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
