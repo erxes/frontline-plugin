@@ -9,9 +9,6 @@ export const PbxConfig = z.object({
   host: z.string(),
   /** The organisation's number on it. */
   phone: z.string(),
-  /** The trunks its calls come in and go out on, as its CDRs name them. */
-  srcTrunk: z.string().default(''),
-  dstTrunk: z.string().default(''),
   /** Its clock's IANA zone: CDR times are wall-clock times there. */
   timeZone: z.string(),
   /**

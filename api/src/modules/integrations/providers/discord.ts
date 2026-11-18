@@ -11,6 +11,8 @@ const Secret = z.object({ token: z.string() });
 
 const User = z.object({ id: z.string(), username: z.string() });
 
+const Application = z.object({ id: z.string() });
+
 const Sent = z.object({ id: z.string(), channel_id: z.string() });
 
 const Failure = z.object({ message: z.string() });
@@ -75,26 +77,38 @@ export const discord = defineProvider({
 });
 
 /**
- * Connects a bot by its token from Discord's developer portal, once Discord accepts it. Discord
- * is asked before the transaction opens.
+ * Connects a bot by its token from Discord's developer portal, once Discord accepts it, with its
+ * application's id, which the link that adds the bot to a server names. Discord is asked before
+ * the transaction opens.
  */
 const connect = writesWithCore(
   PERMISSIONS.integrationManage,
   z.object({ token: z.string().trim().min(20).max(200) }),
   (_member, input) =>
-    botOf(input.token).catch((error: unknown) => {
+    Promise.all([
+      botOf(input.token),
+      rest(input.token, Routes.currentApplication()).then((answer) => Application.parse(answer)),
+    ]).catch((error: unknown) => {
       throw new ORPCError('BAD_REQUEST', { message: `Discord refused the token: ${why(error)}` });
     }),
 )
   .output(Account)
-  .handler(({ input, context: { tx, member, fromCore: bot } }) =>
-    saveAccount(tx, member, {
-      provider: 'discord',
-      externalId: bot.id,
-      name: bot.username,
-      config: {},
-      secret: { token: input.token },
-    }),
+  .handler(
+    ({
+      input,
+      context: {
+        tx,
+        member,
+        fromCore: [bot, application],
+      },
+    }) =>
+      saveAccount(tx, member, {
+        provider: 'discord',
+        externalId: bot.id,
+        name: bot.username,
+        config: { applicationId: application.id },
+        secret: { token: input.token },
+      }),
   );
 
 export const discordProcedures = { connect };
