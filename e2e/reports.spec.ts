@@ -33,6 +33,7 @@ test('call, ticket and conversation tiles on the home dashboard count the period
     'Call summary',
     'Ticket summary',
     'Conversations over time',
+    'Facebook and Instagram summary',
   ]);
 
   const numbers = tileOf(page, 'Top numbers');
@@ -42,6 +43,9 @@ test('call, ticket and conversation tiles on the home dashboard count the period
   await expect(tileOf(page, 'Call summary')).toContainText('Service level');
   await expect(tileOf(page, 'Ticket summary')).toContainText('Overdue now');
   await expect(tileOf(page, 'Conversations over time').getByRole('alert')).toHaveCount(0);
+  await expect(tileOf(page, 'Facebook and Instagram summary')).toContainText(
+    'Direct conversations',
+  );
 
   // Each tile picks its own period; today's calls are in the last 7 days too.
   await numbers.getByRole('button', { name: 'Last 7 days' }).click();

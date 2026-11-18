@@ -115,7 +115,7 @@ export const DASHBOARD_WIDGETS = [
   }),
   tile({
     name: 'meta-summary',
-    title: 'Facebook and Instagram',
+    title: 'Facebook and Instagram summary',
     description:
       'Direct conversations, who wrote the messages, the bot’s share, comments and posts',
     icon: IconMessageCircle,
