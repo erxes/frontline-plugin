@@ -1,7 +1,7 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
-import { writes } from '#/orpc.ts';
+import { writesWithCore } from '#/orpc.ts';
 import { Account, saveAccount } from '../store.ts';
 import { checkMail, pullMail, Server } from './mail.ts';
 import { composeProcedures } from './mailCompose.ts';
@@ -11,20 +11,19 @@ const Login = Server.extend({ password: z.string().min(1).max(500) });
 
 /**
  * Connects a mailbox the organisation already has. Both servers must accept the login first;
- * INBOX is read from where it stands now, so its history stays out of the inbox.
+ * INBOX is read from where it stands now, so its history stays out of the inbox. The servers are
+ * asked before the transaction opens.
  */
-const connect = writes(PERMISSIONS.integrationManage)
-  .input(
-    z.object({
-      address: z.email().max(320),
-      /** The sender name on replies. */
-      name: z.string().trim().min(1).max(200),
-      imap: Login,
-      smtp: Login,
-    }),
-  )
-  .output(Account)
-  .handler(async ({ input, context: { tx, member } }) => {
+const connect = writesWithCore(
+  PERMISSIONS.integrationManage,
+  z.object({
+    address: z.email().max(320),
+    /** The sender name on replies. */
+    name: z.string().trim().min(1).max(200),
+    imap: Login,
+    smtp: Login,
+  }),
+  async (_member, input) => {
     const { password: imapPassword, ...imap } = input.imap;
     const { password: smtpPassword, ...smtp } = input.smtp;
     const address = input.address.toLowerCase();
@@ -39,15 +38,20 @@ const connect = writes(PERMISSIONS.integrationManage)
 
     const { state } = await pullMail(imap, imapPassword, address, null);
 
-    return saveAccount(tx, member, {
+    return { address, config, secret, syncState: state };
+  },
+)
+  .output(Account)
+  .handler(({ input, context: { tx, member, fromCore } }) =>
+    saveAccount(tx, member, {
       provider: 'mail',
-      externalId: address,
+      externalId: fromCore.address,
       name: input.name,
-      config,
-      secret,
-      syncState: state,
-    });
-  });
+      config: fromCore.config,
+      secret: fromCore.secret,
+      syncState: fromCore.syncState,
+    }),
+  );
 
 export const mailProcedures = {
   connect,

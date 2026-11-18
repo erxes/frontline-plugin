@@ -4,13 +4,13 @@ import { and, eq, getTableColumns, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
-import type { Tx } from '#/db/client.ts';
+import { type Tx, withOrg } from '#/db/client.ts';
 import { callOperators, callQueues, OPERATOR_STATUSES } from '#/db/calls.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
-import { reads, writes } from '#/orpc.ts';
+import { reads, writesWithCore } from '#/orpc.ts';
 import { managesAll } from '../channels/access.ts';
 import { call, pbxOf } from '../integrations/providers/call/call.ts';
-import { pbxAction } from '../integrations/providers/call/pbx.ts';
+import { pbxAction, pbxFailed } from '../integrations/providers/call/pbx.ts';
 import { signalCalls } from '../integrations/providers/call/record.ts';
 
 const { orgId: _orgId, live: _live, ...queueColumns } = getTableColumns(callQueues);
@@ -106,18 +106,28 @@ const mine = reads(PERMISSIONS.callView)
       .orderBy(integrationAccounts.name),
   );
 
-/** Pauses or resumes the caller in their PBX's queues: a paused agent gets no queue calls. */
-const setStatus = writes(PERMISSIONS.callView)
-  .input(z.object({ accountId: z.string(), status: z.enum(['available', 'paused']) }))
-  .output(Agent)
-  .handler(async ({ input, context: { tx, member } }) => {
-    const [found] = await tx
-      .select({ operator: operatorColumns, account: integrationAccounts })
-      .from(callOperators)
-      .innerJoin(integrationAccounts, eq(integrationAccounts.id, callOperators.accountId))
-      .where(
-        and(eq(callOperators.accountId, input.accountId), eq(callOperators.userId, member.userId)),
-      );
+/**
+ * Pauses or resumes the caller in their PBX's queues: a paused agent gets no queue calls. The
+ * PBX is told first, outside the transaction, and its refusal changes nothing.
+ */
+const setStatus = writesWithCore(
+  PERMISSIONS.callView,
+  z.object({ accountId: z.string(), status: z.enum(['available', 'paused']) }),
+  async (member, input) => {
+    const found = await withOrg(member.orgId, async (tx) => {
+      const [row] = await tx
+        .select({ operator: operatorColumns, account: integrationAccounts })
+        .from(callOperators)
+        .innerJoin(integrationAccounts, eq(integrationAccounts.id, callOperators.accountId))
+        .where(
+          and(
+            eq(callOperators.accountId, input.accountId),
+            eq(callOperators.userId, member.userId),
+          ),
+        );
+
+      return row;
+    });
 
     if (!found) throw new ORPCError('NOT_FOUND', { message: 'You have no extension on this PBX' });
 
@@ -129,23 +139,24 @@ const setStatus = writes(PERMISSIONS.callView)
         operatetype: input.status === 'paused' ? 'pause' : 'unpause',
         interface: found.operator.extension,
       },
-    ).catch((error: unknown) => {
-      throw new ORPCError('BAD_GATEWAY', {
-        message: error instanceof Error ? error.message : 'The PBX did not answer',
-      });
-    });
+    ).catch(pbxFailed);
 
+    return { operatorId: found.operator.id, accountName: found.account.name };
+  },
+)
+  .output(Agent)
+  .handler(async ({ input, context: { tx, member, fromCore } }) => {
     const [saved] = await tx
       .update(callOperators)
       .set({ status: input.status })
-      .where(eq(callOperators.id, found.operator.id))
+      .where(eq(callOperators.id, fromCore.operatorId))
       .returning(operatorColumns);
 
-    if (!saved) throw new ORPCError('INTERNAL_SERVER_ERROR');
+    if (!saved) throw new ORPCError('NOT_FOUND', { message: 'You have no extension on this PBX' });
 
     await signalCalls(tx, member.orgId);
 
-    return { ...saved, accountName: found.account.name };
+    return { ...saved, accountName: fromCore.accountName };
   });
 
 export const queueProcedures = { list, get };

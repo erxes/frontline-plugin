@@ -1,13 +1,15 @@
+import { randomUUID } from 'node:crypto';
+import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
-import { type Tx, uniqueViolation } from '#/db/client.ts';
+import { type Tx, uniqueViolation, withOrg } from '#/db/client.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { BOT_ACCOUNT_INDEX, BotMenuItem, IceBreaker, metaBots } from '#/db/meta.ts';
 import { logger } from '#/logger.ts';
-import { reads, writes } from '#/orpc.ts';
+import { reads, writes, writesWithCore } from '#/orpc.ts';
 import { askMeta, metaAccount } from './meta.ts';
 import { clearProfile, pushProfile } from './metaProfile.ts';
 
@@ -51,19 +53,16 @@ const Settings = z.object({
   greeting: z.string().trim().max(160).nullable(),
 });
 
-/** Saves the bot's profile at Meta, then marks it synced; Meta's refusal undoes the change. */
-const pushed = async (tx: Tx, id: string) => {
-  const bot = await botById(tx, id);
-  const { token } = await metaAccount(tx, bot.accountId);
+/** What a bot Meta took records. */
+const synced = { status: 'healthy', error: null, syncedAt: sql`now()` } as const;
 
-  await askMeta(pushProfile(bot.provider, token, bot));
-  await tx
-    .update(metaBots)
-    .set({ status: 'healthy', error: null, syncedAt: sql`now()` })
-    .where(eq(metaBots.id, id));
+/** The bot and its page's token, read in a transaction that ends before Meta is asked. */
+const botFor = (member: PluginMember, id: string) =>
+  withOrg(member.orgId, async (tx) => {
+    const bot = await botById(tx, id);
 
-  return botById(tx, id);
-};
+    return { bot, token: (await metaAccount(tx, bot.accountId)).token };
+  });
 
 /** The organisation's bots, by name. */
 const list = reads(PERMISSIONS.integrationView)
@@ -78,76 +77,117 @@ const get = reads(PERMISSIONS.integrationView)
   .output(Bot)
   .handler(({ input, context: { tx } }) => botById(tx, input.id));
 
-/** Sets up a bot on a page or Instagram account, which has one. */
-const create = writes(PERMISSIONS.integrationManage)
-  .input(Settings.extend({ accountId: z.string() }))
-  .output(Bot)
-  .handler(async ({ input, context: { tx, member } }) => {
-    await metaAccount(tx, input.accountId);
+const taken = () => new ORPCError('CONFLICT', { message: 'This page already has a bot' });
 
-    const [created] = await tx
+/**
+ * Sets up a bot on a page or Instagram account, which has one. Meta takes its profile first,
+ * outside the transaction, so Meta's refusal saves nothing.
+ */
+const create = writesWithCore(
+  PERMISSIONS.integrationManage,
+  Settings.extend({ accountId: z.string() }),
+  async (member, input) => {
+    const { provider, token, existing } = await withOrg(member.orgId, async (tx) => ({
+      ...(await metaAccount(tx, input.accountId)),
+      existing: await tx
+        .select({ id: metaBots.id })
+        .from(metaBots)
+        .where(eq(metaBots.accountId, input.accountId)),
+    }));
+
+    if (existing.length) throw taken();
+
+    const id = randomUUID();
+
+    await askMeta(pushProfile(provider, token, { id, ...input }));
+
+    return { id };
+  },
+)
+  .output(Bot)
+  .handler(async ({ input, context: { tx, member, fromCore } }) => {
+    await tx
       .insert(metaBots)
-      .values({ ...input, orgId: member.orgId, createdBy: member.userId })
-      .returning({ id: metaBots.id })
+      .values({
+        ...input,
+        ...synced,
+        id: fromCore.id,
+        orgId: member.orgId,
+        createdBy: member.userId,
+      })
       .catch((error: unknown) => {
-        if (uniqueViolation(error) === BOT_ACCOUNT_INDEX)
-          throw new ORPCError('CONFLICT', { message: 'This page already has a bot' });
+        if (uniqueViolation(error) === BOT_ACCOUNT_INDEX) throw taken();
 
         throw error;
       });
 
-    if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
-
-    return pushed(tx, created.id);
-  });
-
-/** Changes the bot's menu, ice breakers, button label or greeting, and saves them at Meta. */
-const update = writes(PERMISSIONS.integrationManage)
-  .input(Settings.extend({ id: z.string() }))
-  .output(Bot)
-  .handler(async ({ input: { id, ...settings }, context: { tx } }) => {
-    await botById(tx, id);
-    await tx.update(metaBots).set(settings).where(eq(metaBots.id, id));
-
-    return pushed(tx, id);
-  });
-
-/** Saves the profile at Meta again, and records whether Meta took it. */
-const sync = writes(PERMISSIONS.integrationManage)
-  .input(z.object({ id: z.string() }))
-  .output(Bot)
-  .handler(async ({ input, context: { tx } }) => {
-    const bot = await botById(tx, input.id);
-    const { token } = await metaAccount(tx, bot.accountId);
-
-    const error = await pushProfile(bot.provider, token, bot).then(
-      () => null,
-      (failure: unknown) => (failure instanceof Error ? failure.message : String(failure)),
-    );
-
-    await tx
-      .update(metaBots)
-      .set({ status: error ? 'broken' : 'healthy', error, syncedAt: sql`now()` })
-      .where(eq(metaBots.id, bot.id));
-
-    return botById(tx, bot.id);
+    return botById(tx, fromCore.id);
   });
 
 /**
- * Removes the bot and clears its profile at Meta. A page Meta can't reach doesn't keep the bot:
- * it is removed anyway and logged.
+ * Changes the bot's menu, ice breakers, button label or greeting. Meta takes them first, outside
+ * the transaction, so Meta's refusal changes nothing.
+ */
+const update = writesWithCore(
+  PERMISSIONS.integrationManage,
+  Settings.extend({ id: z.string() }),
+  async (member, { id, ...settings }) => {
+    const { bot, token } = await botFor(member, id);
+
+    await askMeta(pushProfile(bot.provider, token, { ...bot, ...settings }));
+  },
+)
+  .output(Bot)
+  .handler(async ({ input: { id, ...settings }, context: { tx } }) => {
+    await tx
+      .update(metaBots)
+      .set({ ...settings, ...synced })
+      .where(eq(metaBots.id, id));
+
+    return botById(tx, id);
+  });
+
+/** Saves the profile at Meta again, and records whether Meta took it. */
+const sync = writesWithCore(
+  PERMISSIONS.integrationManage,
+  z.object({ id: z.string() }),
+  async (member, input) => {
+    const { bot, token } = await botFor(member, input.id);
+
+    return pushProfile(bot.provider, token, bot).then(
+      () => null,
+      (failure: unknown) => (failure instanceof Error ? failure.message : String(failure)),
+    );
+  },
+)
+  .output(Bot)
+  .handler(async ({ input, context: { tx, fromCore: error } }) => {
+    await tx
+      .update(metaBots)
+      .set(error ? { status: 'broken', error, syncedAt: sql`now()` } : synced)
+      .where(eq(metaBots.id, input.id));
+
+    return botById(tx, input.id);
+  });
+
+/**
+ * Removes the bot, then clears its profile at Meta once that commits. A page Meta can't reach
+ * doesn't keep the bot: it is removed anyway and logged.
  */
 const remove = writes(PERMISSIONS.integrationManage)
   .input(z.object({ id: z.string() }))
   .output(z.object({ id: z.string() }))
-  .handler(async ({ input, context: { tx } }) => {
+  .handler(async ({ input, context: { tx, afterCommit } }) => {
     const bot = await botById(tx, input.id);
     const { token } = await metaAccount(tx, bot.accountId);
 
-    await clearProfile(bot.provider, token).catch((error: unknown) => {
-      logger.warn({ err: error, botId: bot.id }, 'clearing the bot profile failed');
-    });
     await tx.delete(metaBots).where(eq(metaBots.id, bot.id));
+
+    afterCommit(async () => {
+      await clearProfile(bot.provider, token).catch((error: unknown) => {
+        logger.warn({ err: error, botId: bot.id }, 'clearing the bot profile failed');
+      });
+    });
 
     return { id: bot.id };
   });

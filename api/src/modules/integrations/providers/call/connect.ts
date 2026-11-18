@@ -9,7 +9,7 @@ import type { Tx } from '#/db/client.ts';
 import { callOperators, callQueues } from '#/db/calls.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { publicKeys } from '#/db/public.ts';
-import { reads, writes } from '#/orpc.ts';
+import { reads, writes, writesWithCore } from '#/orpc.ts';
 import { sealSecret } from '../../secrets.ts';
 import { Account, accountColumns, accountRow, saveAccount } from '../../store.ts';
 import { call, PbxConfig } from './call.ts';
@@ -44,24 +44,30 @@ const PbxInput = z.object({
 const newKey = () => randomBytes(24).toString('base64url');
 
 /**
- * Connects a Grandstream UCM by its HTTPS API user: frontline signs in to check it, then hands out
- * the address and secret its bridge signs posts with. Connecting the same PBX again replaces its
- * credentials and key.
+ * Connects a Grandstream UCM by its HTTPS API user: frontline signs in to check it, before the
+ * transaction opens, then hands out the address and secret its bridge signs posts with.
+ * Connecting the same PBX again replaces its credentials and key.
  */
-const connect = writes(PERMISSIONS.integrationManage)
-  .input(
-    PbxInput.extend({
-      host: Host,
-      apiUser: z.string().trim().min(1).max(100),
-      apiPassword: z.string().min(1).max(200),
-    }),
-  )
-  .output(Account)
-  .handler(async ({ input, context: { tx, member } }) => {
-    const { apiUser, apiPassword, ...settings } = input;
-    const refused = await checkPbx({ host: input.host, user: apiUser, password: apiPassword });
+const connect = writesWithCore(
+  PERMISSIONS.integrationManage,
+  PbxInput.extend({
+    host: Host,
+    apiUser: z.string().trim().min(1).max(100),
+    apiPassword: z.string().min(1).max(200),
+  }),
+  async (_member, input) => {
+    const refused = await checkPbx({
+      host: input.host,
+      user: input.apiUser,
+      password: input.apiPassword,
+    });
 
     if (refused) throw new ORPCError('BAD_REQUEST', { message: refused });
+  },
+)
+  .output(Account)
+  .handler(({ input, context: { tx, member } }) => {
+    const { apiUser, apiPassword, ...settings } = input;
 
     return saveAccount(tx, member, {
       provider: 'call',

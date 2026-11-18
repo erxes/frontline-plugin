@@ -1,9 +1,11 @@
+import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
+import { withOrg } from '#/db/client.ts';
 import { integrations } from '#/db/inbox.ts';
-import { reads, writes } from '#/orpc.ts';
+import { readsWithCore, writesWithCore } from '#/orpc.ts';
 import { conversationById } from '../../inbox/shared.ts';
 import type { ProviderName } from '../provider.ts';
 import { askMeta, graph, metaAccount } from './meta.ts';
@@ -58,12 +60,16 @@ const Page = z.object({
 const postsPath = (provider: ProviderName, externalId: string) =>
   provider === 'instagram' ? `${externalId}/media` : `${externalId}/published_posts`;
 
+/** The page or account, read in a transaction that ends before Meta is asked. */
+const accountFor = (member: PluginMember, accountId: string) =>
+  withOrg(member.orgId, (tx) => metaAccount(tx, accountId));
+
 /** The account's posts, newest first, 25 at a time from Meta's cursor. */
-const list = reads(PERMISSIONS.integrationView)
-  .input(z.object({ accountId: z.string(), after: z.string().optional() }))
-  .output(z.object({ posts: z.array(Post), next: z.string().nullable() }))
-  .handler(async ({ input, context: { tx } }) => {
-    const { row, provider, token } = await metaAccount(tx, input.accountId);
+const list = readsWithCore(
+  PERMISSIONS.integrationView,
+  z.object({ accountId: z.string(), after: z.string().optional() }),
+  async (member, input) => {
+    const { row, provider, token } = await accountFor(member, input.accountId);
 
     const page = Page.parse(
       await askMeta(
@@ -81,48 +87,59 @@ const list = reads(PERMISSIONS.integrationView)
       posts: page.data,
       next: page.paging?.next ? (page.paging.cursors?.after ?? null) : null,
     };
-  });
+  },
+)
+  .output(z.object({ posts: z.array(Post), next: z.string().nullable() }))
+  .handler(({ context: { fromCore } }) => fromCore);
 
 const AccountConfig = z.object({ accountId: z.string() });
 
 /** The post a comment conversation hangs under, read from Meta; null for a chat. */
-const get = reads(PERMISSIONS.inboxView)
-  .input(z.object({ conversationId: z.string() }))
-  .output(Post.nullable())
-  .handler(async ({ input, context: { tx, member } }) => {
-    const conversation = await conversationById(tx, member, input.conversationId);
-    const postId = postOfThread(conversation.externalId);
+const get = readsWithCore(
+  PERMISSIONS.inboxView,
+  z.object({ conversationId: z.string() }),
+  async (member, input) => {
+    const found = await withOrg(member.orgId, async (tx) => {
+      const conversation = await conversationById(tx, member, input.conversationId);
+      const postId = postOfThread(conversation.externalId);
 
-    if (!postId) return null;
+      if (!postId) return null;
 
-    const [integration] = await tx
-      .select({ config: integrations.config })
-      .from(integrations)
-      .where(eq(integrations.id, conversation.integrationId));
+      const [integration] = await tx
+        .select({ config: integrations.config })
+        .from(integrations)
+        .where(eq(integrations.id, conversation.integrationId));
 
-    const { accountId } = AccountConfig.parse(integration?.config);
-    const { provider, token } = await metaAccount(tx, accountId);
+      const { accountId } = AccountConfig.parse(integration?.config);
+
+      return { postId, ...(await metaAccount(tx, accountId)) };
+    });
+
+    if (!found) return null;
 
     return GraphPost.parse(
-      await askMeta(graph(postId, token, { query: { fields: FIELDS[provider] } })),
+      await askMeta(
+        graph(found.postId, found.token, { query: { fields: FIELDS[found.provider] } }),
+      ),
     );
-  });
+  },
+)
+  .output(Post.nullable())
+  .handler(({ context: { fromCore } }) => fromCore);
 
 const Created = z.object({ id: z.string(), post_id: z.string().optional() });
 
 /** Publishes a post on a Facebook page: text with a link, or a photo with a caption. */
-const create = writes(PERMISSIONS.integrationManage)
-  .input(
-    z.object({
-      accountId: z.string(),
-      message: z.string().trim().min(1).max(5000),
-      link: z.url().optional(),
-      imageUrl: z.url().optional(),
-    }),
-  )
-  .output(z.object({ id: z.string() }))
-  .handler(async ({ input, context: { tx } }) => {
-    const { row, provider, token } = await metaAccount(tx, input.accountId);
+const create = writesWithCore(
+  PERMISSIONS.integrationManage,
+  z.object({
+    accountId: z.string(),
+    message: z.string().trim().min(1).max(5000),
+    link: z.url().optional(),
+    imageUrl: z.url().optional(),
+  }),
+  async (member, input) => {
+    const { row, provider, token } = await accountFor(member, input.accountId);
 
     if (provider !== 'facebook')
       throw new ORPCError('BAD_REQUEST', { message: 'Posts are published on Facebook pages' });
@@ -142,6 +159,9 @@ const create = writes(PERMISSIONS.integrationManage)
     );
 
     return { id: created.post_id ?? created.id };
-  });
+  },
+)
+  .output(z.object({ id: z.string() }))
+  .handler(({ context: { fromCore } }) => fromCore);
 
 export const metaPostProcedures = { list, get, create };
