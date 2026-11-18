@@ -23,6 +23,7 @@ import type { SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChannels } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
+import { useDiscard } from '~/shared/drafts.ts';
 import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { TagsField } from '~/shared/Pickers.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
@@ -31,7 +32,7 @@ import { dayOf } from './TicketFields.tsx';
 import { ticketTags } from './TicketLinks.tsx';
 import { PropertyRows } from './TicketProperties.tsx';
 import { useChoices, useTicketChange } from './queries.ts';
-import { type TicketDraft, useDiscard, useOpener, useTicketDraft } from './ticketDraft.ts';
+import { type TicketDraft, useOpener, useTicketDraft, written } from './ticketDraft.ts';
 
 /** The pipelines of the member's channels, each after its channel's name. */
 const PipelineSelect = ({
@@ -190,7 +191,7 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
   const { t } = useTranslation('frontline');
   const { pipelines } = useChoices();
   const draft = useTicketDraft();
-  const discard = useDiscard(draft, onCancel);
+  const discard = useDiscard(written(draft.value), draft.clear, onCancel);
 
   useOpener(draft, textOf(defaults.pipelineId), textOf(defaults.statusId));
 
@@ -227,7 +228,7 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
       className="flex min-h-0 flex-1 flex-col"
     >
       <PanelFormLayout
-        onCancel={discard}
+        onCancel={() => void discard()}
         saving={create.isPending}
         saveLabel={t('create-ticket', 'Create ticket')}
       >

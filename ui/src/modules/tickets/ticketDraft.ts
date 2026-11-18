@@ -49,7 +49,7 @@ type Draft = ReturnType<typeof useTicketDraft>;
  * Whether the member wrote anything into the draft. Its filing doesn't count, and a description
  * the editor emptied again holds blocks without a `"text"` in them.
  */
-const written = (draft: TicketDraft) =>
+export const written = (draft: TicketDraft) =>
   /"text":"[^"]/.test(draft.description) ||
   JSON.stringify({ ...draft, pipelineId: '', statusId: '', description: '' }) !==
     JSON.stringify(NO_TICKET);
@@ -78,27 +78,4 @@ export const useOpener = (draft: Draft, pipelineId: string, statusId: string) =>
   });
 
   useEffect(() => ask({ pipelineId, statusId }), [pipelineId, statusId]);
-};
-
-/**
- * Cancel throws the draft away, after asking once something is in it. Closing the panel keeps
- * it for later, so only Cancel asks.
- */
-export const useDiscard = (draft: Draft, onCancel: () => void) => {
-  const { t } = useTranslation('frontline');
-  const { confirm } = useConfirm();
-
-  return () =>
-    void (
-      written(draft.value)
-        ? confirm({
-            message: t('discard-ticket', 'Discard this new ticket?'),
-            options: { okLabel: t('discard', 'Discard') },
-          })
-        : Promise.resolve()
-    ).then(() => {
-      draft.clear();
-
-      return onCancel();
-    });
 };
