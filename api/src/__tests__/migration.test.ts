@@ -37,8 +37,11 @@ const tables = new Set(rows.map(({ name }) => name));
 
 const config = read('api/src/config.ts');
 
-// Where the API calls core through the sdk, as `core.users.get(`.
-const api = globSync('api/src/**/*.ts', { cwd: root }).map(read).join('\n');
+// The API's own code, where it calls core through the sdk as `.users.get(`: no tests or comments.
+const api = globSync('api/src/**/*.ts', { cwd: root, exclude: ['**/__tests__/**', '**/test/**'] })
+  .flatMap((file) => read(file).split('\n'))
+  .filter((line) => !/^\s*(\/\/|\/?\*)/.test(line))
+  .join('\n');
 
 // The first cell of each table row in DECISIONS.md.
 const decisions = new Set(
@@ -88,6 +91,16 @@ describe('MIGRATION.md', () => {
     );
 
     expect(unproven.map(label)).toEqual([]);
+  });
+
+  it('names only procedures the router has', () => {
+    const made = ticked.flatMap((row) =>
+      [...row.text.matchAll(/procedure `([^`]+)`/g)]
+        .filter(([, name]) => !procedures.has(name ?? ''))
+        .map(([, name]) => `${label(row)}: ${name}`),
+    );
+
+    expect(made).toEqual([]);
   });
 
   it('ticks a drop only with the DECISIONS.md row that says why', () => {
