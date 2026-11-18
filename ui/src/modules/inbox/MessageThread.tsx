@@ -335,7 +335,7 @@ export const MessageThread = ({ conversation, sending }: ThreadProps) => {
             </p>
           ) : isPending ? (
             <ThreadSkeleton />
-          ) : messages.length === 0 ? (
+          ) : messages.length === 0 && !sending ? (
             <p className="p-6 text-center text-sm text-muted-foreground">
               {t('no-messages-yet', 'No messages yet. Write the first one below.')}
             </p>

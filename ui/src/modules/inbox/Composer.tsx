@@ -8,7 +8,7 @@ import { draftsOf, useDraft as useSavedDraft } from '~/shared/drafts.ts';
 import { takesNotesOnly } from '~/shared/kinds.tsx';
 import type { Attachment } from '~/shared/Files.tsx';
 import { type Conversation, useSendTyping } from './queries.ts';
-import type { useSendMessage } from './changes.ts';
+import { sendingTo, type useSendMessage } from './changes.ts';
 import { AttachButton, AttachedFiles, useComposerFiles } from './ComposerFiles.tsx';
 import { useSlashItems } from './slashItems.tsx';
 import { TemplatePicker } from './TemplatePicker.tsx';
@@ -281,7 +281,8 @@ export const Composer = ({ conversation, send }: { conversation: Conversation; s
   const empty = !editorText(html) && attachments.length === 0;
   const files = useComposerFiles(note, draft.attach);
   // A message waits for its files, so none is sent without one still uploading.
-  const held = empty || files.uploading || send.isPending;
+  // The send is the pane's, so one still going in another conversation holds nothing here.
+  const held = empty || files.uploading || Boolean(sendingTo(send, conversation.id));
 
   const restart = (content: string) => {
     setHtml(content);

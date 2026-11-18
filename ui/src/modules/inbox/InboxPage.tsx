@@ -24,7 +24,7 @@ import { CONVERSATION_TYPE, INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { BulkBar } from './BulkBar.tsx';
-import { useMarkRead, useSendMessage } from './changes.ts';
+import { sendingTo, useMarkRead, useSendMessage } from './changes.ts';
 import { Composer } from './Composer.tsx';
 import { ConversationHeader, listShown } from './ConversationHeader.tsx';
 import { ConversationList } from './ConversationList.tsx';
@@ -134,14 +134,7 @@ const ConversationPane = () => {
         <ConversationHeader conversation={conversation} />
         {/* Another conversation gets a new thread and composer, with nothing carried over. */}
         <Fragment key={conversation.id}>
-          <MessageThread
-            conversation={conversation}
-            sending={
-              send.isPending && send.variables.conversationId === conversation.id
-                ? send.variables
-                : undefined
-            }
-          />
+          <MessageThread conversation={conversation} sending={sendingTo(send, conversation.id)} />
           <Composer conversation={conversation} send={send} />
         </Fragment>
       </div>
