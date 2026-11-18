@@ -26,6 +26,7 @@ import {
   uploadOf,
 } from '../files.ts';
 import { keyOfOrganization, organizationOfKey, widgetScript } from '../public.ts';
+import { countView } from '../views.ts';
 import { type Answer, checkAnswers, FILE_FIELDS, VisitorAnswers } from './answers.ts';
 import { customerOfSubmission } from './customers.ts';
 import { type FormLink, formLinkOf } from './links.ts';
@@ -173,23 +174,11 @@ const image = async (req: Request, res: Response) => {
   }
 };
 
-/** A form for an embed: its settings and fields. Each read counts as a view. */
+/** A form for an embed: its settings and fields. Each read counts as a view, written later. */
 const show = async (req: Request, res: Response) => {
   const route = await keyed(req);
 
-  const found =
-    route &&
-    (await withOrg(route.organizationId, async (tx) => {
-      const active = await activeForm(tx, route.code);
-
-      if (active)
-        await tx
-          .update(forms)
-          .set({ viewCount: sql`${forms.viewCount} + 1`, updatedAt: sql`${forms.updatedAt}` })
-          .where(eq(forms.id, active.form.id));
-
-      return active;
-    }));
+  const found = route && (await withOrg(route.organizationId, (tx) => activeForm(tx, route.code)));
 
   if (!found) {
     res.status(404).json({ message: 'No such form' });
@@ -197,6 +186,7 @@ const show = async (req: Request, res: Response) => {
     return;
   }
 
+  countView(route.organizationId, 'form', found.form.id);
   res.json(visitorView(found, urlOf(route.key, route.code)));
 };
 

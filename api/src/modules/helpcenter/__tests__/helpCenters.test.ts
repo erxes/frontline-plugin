@@ -4,6 +4,7 @@ import { createApp } from '#/server.ts';
 import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 import { tokenOf } from '../../messenger/session.ts';
+import { flushViews } from '../../views.ts';
 
 const messenger = serve('/api/public/messenger');
 
@@ -87,10 +88,13 @@ describe('help centers', () => {
 
     const read = await fetch(`${base}/help-centers/${center.publicKey}/articles/${article.id}`);
 
-    await expect(read.json()).resolves.toMatchObject({
-      content: SANITIZED,
-      viewCount: 1,
-    });
+    await expect(read.json()).resolves.toMatchObject({ content: SANITIZED, viewCount: 0 });
+
+    // The view is written with the others that came meanwhile.
+    await flushViews();
+    await expect(
+      (await fetch(`${base}/help-centers/${center.publicKey}`)).json(),
+    ).resolves.toMatchObject({ articles: [{ id: article.id, viewCount: 1 }] });
     expect((await fetch(`${base}/help-centers/unknown-key`)).status).toBe(404);
   });
 

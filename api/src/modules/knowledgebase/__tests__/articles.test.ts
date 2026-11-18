@@ -2,6 +2,7 @@ import { setTimeout } from 'node:timers/promises';
 import { describe, expect, it } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
 import { clientAs } from '#/test/member.ts';
+import { publishScheduled } from '../articles.ts';
 
 const topicWithCategory = async (orgId: string) => {
   const owner = clientAs(orgId);
@@ -130,6 +131,12 @@ describe('knowledge base articles', () => {
     ).resolves.toMatchObject({ status: 'scheduled', scheduledAt: at, publishedAt: null });
 
     await setTimeout(1100);
+
+    // Core's `knowledgebase.publish` job publishes it.
+    await expect(owner.knowledgebase.articles.get({ id: article.id })).resolves.toMatchObject({
+      status: 'scheduled',
+    });
+    await expect(publishScheduled('org-kba-b')).resolves.toEqual({ published: 1 });
 
     await expect(owner.knowledgebase.articles.get({ id: article.id })).resolves.toMatchObject({
       status: 'publish',

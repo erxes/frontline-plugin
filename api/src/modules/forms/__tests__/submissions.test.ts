@@ -4,6 +4,7 @@ import { config } from '#/config.ts';
 import type * as FilesModule from '#/modules/files.ts';
 import { createApp } from '#/server.ts';
 import { clientAs } from '#/test/member.ts';
+import { flushViews } from '../../views.ts';
 
 // Core's storage: each upload becomes the next file id.
 const stored = vi.hoisted(() => ({ count: 0 }));
@@ -115,6 +116,9 @@ describe('form submissions', () => {
     expect((await fetch(`${url}/images/thank`)).status).toBe(404);
     expect(body.fields.map((each) => each.id)).toEqual([field.id]);
 
+    // Views are written in batches.
+    await expect(owner.forms.get({ id: form.id })).resolves.toMatchObject({ viewCount: 0 });
+    await flushViews();
     await expect(owner.forms.get({ id: form.id })).resolves.toMatchObject({ viewCount: 1 });
 
     expect((await fetch(url.replace(form.code, 'deadbeef'))).status).toBe(404);

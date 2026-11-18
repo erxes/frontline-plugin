@@ -176,6 +176,8 @@ export const JOBS = {
   sla: { name: 'tickets.sla', cron: '*/5 * * * *' },
   /** Re-reads pending help center domains from Cloudflare until they are served. */
   domains: { name: 'helpcenter.domains', cron: '*/10 * * * *' },
+  /** Publishes the knowledge base articles scheduled for now or earlier. */
+  kbPublish: { name: 'knowledgebase.publish', cron: '* * * * *' },
   /** Hands a queued reply to its adapter (`modules/inbox/send.ts`). */
   send: {
     name: 'messages.send',
