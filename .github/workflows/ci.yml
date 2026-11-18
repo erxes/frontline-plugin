@@ -35,15 +35,31 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+          # A pull request checks out its merge commit; the first parent is the base branch.
+          fetch-depth: 2
       - uses: ./.github/actions/setup
       - run: pnpm exec vp run check
       - run: pnpm exec vp run test
       # What lets queries rely on withOrg() instead of org filters (tools/check-rls.sql).
       - run: pnpm check:rls
+      # This change's sizes against its ceilings, and against the base branch built beside it.
+      - name: Budgets
+        env:
+          LABELED: ${{ contains(github.event.pull_request.labels.*.name, 'budget-increase') }}
+        run: |
+          pnpm build
+          args=()
+          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
+            git worktree add --detach "$RUNNER_TEMP/base" HEAD^1
+            (cd "$RUNNER_TEMP/base" && pnpm install --frozen-lockfile --prefer-offline && pnpm build)
+            args+=(--base "$RUNNER_TEMP/base")
+          fi
+          [ "$LABELED" = true ] && args+=(--allow-increase)
+          pnpm budgets "${args[@]}"
 
-  # One image build feeds the budgets, the scan, the e2e shards and the push. A pull request
-  # that changes only Markdown builds no image and runs no e2e; one that changes no dependency,
-  # Dockerfile or workflow skips the scan, which main still runs on every push.
+  # One image build feeds the scan, the e2e shards and the push. A pull request that changes
+  # only Markdown builds no image and runs no e2e; one that changes no dependency, Dockerfile or
+  # workflow skips the scan, which main still runs on every push.
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -66,13 +82,13 @@ jobs:
             files=$(git diff --name-only HEAD^1 HEAD)
             grep -qv '\.md$' <<< "$files" || app=false
             grep -qE '^\.github/|(^|/)(Dockerfile|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.node-version)$' <<< "$files" || deps=false
-            mkdir -p .scratch
-            git show HEAD^1:budgets.json > .scratch/base-budgets.json || rm -f .scratch/base-budgets.json
           fi
           echo "app=$app" >> "$GITHUB_OUTPUT"
           echo "deps=$deps" >> "$GITHUB_OUTPUT"
-      - uses: ./.github/actions/setup
-      - run: pnpm ${{ steps.changes.outputs.app == 'true' && 'image' || 'build' }}
+      - if: steps.changes.outputs.app == 'true'
+        uses: ./.github/actions/setup
+      - if: steps.changes.outputs.app == 'true'
+        run: pnpm image
         env:
           VERSION: ${{ github.sha }}
       # gzip -1 and no zip on top: the upload and the shards' download wait on it.
@@ -85,7 +101,6 @@ jobs:
           path: frontline-plugin.tar.gz
           compression-level: 0
           retention-days: 3
-      - run: pnpm budgets --base .scratch/base-budgets.json ${{ contains(github.event.pull_request.labels.*.name, 'budget-increase') && '--allow-increase' || '' }}
 
   scan:
     needs: build
