@@ -133,8 +133,17 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await page.goto(INBOX);
 
   const key = await addMessenger(page, channel);
+  const panel = recordPanel(page);
 
-  await recordPanel(page).getByRole('button', { name: 'Integration actions' }).click();
+  // Archived, it takes no visitors until an admin unarchives it.
+  await panel.getByRole('button', { name: 'Integration actions' }).click();
+  await page.getByRole('option', { name: 'Archive' }).click();
+  await expect(panel.getByText('Archived', { exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'Integration actions' }).click();
+  await page.getByRole('option', { name: 'Unarchive' }).click();
+  await expect(panel.getByText('Active', { exact: true })).toBeVisible();
+
+  await panel.getByRole('button', { name: 'Integration actions' }).click();
   await page.getByRole('option', { name: 'Messenger settings' }).click();
   await expect(page).toHaveURL(/\/frontline\/inbox\/messengers\/[\w-]+$/);
   await expect(page.getByRole('textbox', { name: 'Welcome message' })).toHaveValue(

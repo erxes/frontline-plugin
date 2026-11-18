@@ -93,6 +93,11 @@ interface ProviderSpec<Config, Secret> {
   react?: (account: OpenAccount<Config, Secret>, reaction: OutboundReaction) => Promise<void>;
   /** Stops the provider sending events for an account that is being removed. */
   disconnect?: (account: OpenAccount<Config, Secret>) => Promise<void>;
+  /**
+   * Points the provider's events at frontline again, as connecting did, for an account whose
+   * webhook stopped. `webhookKey` is the key its deliveries name it by.
+   */
+  repair?: (account: OpenAccount<Config, Secret>, webhookKey: string | null) => Promise<void>;
   /** The name of a person the provider's events give only by id, or null when it has none. */
   whoIs?: (account: OpenAccount<Config, Secret>, externalId: string) => Promise<Person | null>;
 }
@@ -110,7 +115,7 @@ export interface Person {
 export const defineProvider = <Config, Secret>(spec: ProviderSpec<Config, Secret>) => ({
   name: spec.name,
   open: (row: AccountRow) => {
-    const { react } = spec;
+    const { react, repair } = spec;
 
     const account: OpenAccount<Config, Secret> = {
       row,
@@ -125,6 +130,9 @@ export const defineProvider = <Config, Secret>(spec: ProviderSpec<Config, Secret
       react: react ? (reaction: OutboundReaction) => react(account, reaction) : null,
       disconnect: async () => {
         await spec.disconnect?.(account);
+      },
+      repair: async (webhookKey: string | null) => {
+        await repair?.(account, webhookKey);
       },
       whoIs: async (externalId: string) => (await spec.whoIs?.(account, externalId)) ?? null,
     };

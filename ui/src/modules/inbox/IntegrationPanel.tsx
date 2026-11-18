@@ -1,4 +1,5 @@
 import {
+  IconArchive,
   IconArrowsExchange,
   IconCircles,
   IconDots,
@@ -6,6 +7,7 @@ import {
   IconLetterCase,
   IconMessage,
   IconPower,
+  IconRestore,
   IconSettings,
   IconTrash,
   IconUser,
@@ -18,7 +20,6 @@ import {
   PanelSection,
   Skeleton,
   Spinner,
-  Switch,
   TextField,
   type TRecordSlotProps,
   useConfirm,
@@ -49,8 +50,9 @@ export const IntegrationTitle = ({ contentId }: TRecordSlotProps) => {
 };
 
 /**
- * The header's menu: a messenger's settings page, and for its channel's admins, deleting it with
- * its conversations.
+ * The header's menu: a messenger's settings page, and for its channel's admins, archiving it,
+ * moving it to another channel, or deleting it with its conversations. An archived integration
+ * takes no new messages and leaves the inbox's pickers, as the old plugin's did.
  */
 export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
@@ -78,6 +80,12 @@ export const IntegrationActions = ({ contentId }: TRecordSlotProps) => {
 
   const manage = integration.canManage
     ? [
+        {
+          value: 'archive',
+          icon: integration.isActive ? <IconArchive /> : <IconRestore />,
+          label: integration.isActive ? t('archive', 'Archive') : t('unarchive', 'Unarchive'),
+          onSelect: () => update.mutate({ id: integration.id, isActive: !integration.isActive }),
+        },
         {
           value: 'move',
           icon: <IconArrowsExchange />,
@@ -172,14 +180,10 @@ const Fields = ({ integration }: { integration: Integration }) => {
             />
           </PanelField>
         )}
-        <PanelField icon={IconPower} label={t('active', 'Active')} cell={false}>
-          <Switch
-            aria-label={t('active', 'Active')}
-            checked={integration.isActive}
-            onCheckedChange={(isActive) => update.mutate({ id: integration.id, isActive })}
-          />
-        </PanelField>
       </ReadOnly>
+      <InfoRow icon={IconPower} label={t('status', 'Status')}>
+        {integration.isActive ? t('active', 'Active') : t('archived', 'Archived')}
+      </InfoRow>
       {channel && (
         <PanelField icon={IconCircles} label={t('channel', 'Channel')} cell={false}>
           <Button
