@@ -29,8 +29,8 @@
   },
   "dependencies": {
     "@date-fns/tz": "^1.5.0",
-    "@erxes/core-contract": "0.1.0-v2.25",
-    "@erxes/plugin-sdk": "0.1.0-v2.24",
+    "@erxes/core-contract": "0.1.0-v2.26",
+    "@erxes/plugin-sdk": "0.1.0-v2.25",
     "@noble/ciphers": "^2.4.0",
     "@opentelemetry/instrumentation-express": "^0.73.0",
     "@opentelemetry/instrumentation-http": "^0.301.1",
