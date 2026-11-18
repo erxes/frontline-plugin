@@ -20,7 +20,6 @@ import {
   AppLayout,
   AppLayoutFooterLink,
   cn,
-  IconsProvider,
   NavigationMenuLinkItem,
   Sidebar,
   Skeleton,
@@ -169,31 +168,28 @@ const SettingsLink = () => {
 
 /**
  * Frontline's pages, as core's Contacts and Products draw theirs: the app sidebar, Settings
- * pinned at its foot, and the open page. The icons members pick for channels and categories
- * load in the background. The title is `./config`'s word, so it shows at once.
+ * pinned at its foot, and the open page. The title is `./config`'s word, so it shows at once.
  */
 export const FrontlineLayout = () => {
   const { t } = useTranslation('frontline');
 
   return (
-    <IconsProvider>
-      <AppLayout
-        id={PLUGIN}
-        title={t('frontline', 'Frontline')}
-        footer={
-          <WithText>
-            <SettingsLink />
-          </WithText>
-        }
-        sidebar={
-          <WithText>
-            <FrontlineSidebar />
-          </WithText>
-        }
-      >
-        <Page />
-      </AppLayout>
-    </IconsProvider>
+    <AppLayout
+      id={PLUGIN}
+      title={t('frontline', 'Frontline')}
+      footer={
+        <WithText>
+          <SettingsLink />
+        </WithText>
+      }
+      sidebar={
+        <WithText>
+          <FrontlineSidebar />
+        </WithText>
+      }
+    >
+      <Page />
+    </AppLayout>
   );
 };
 

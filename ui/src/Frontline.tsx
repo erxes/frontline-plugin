@@ -1,4 +1,4 @@
-import { addPluginStyles, RecordPage } from 'erxes-ui';
+import { addPluginStyles, IconsProvider, RecordPage } from 'erxes-ui';
 import { lazy } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import {
@@ -197,61 +197,73 @@ const settingsRoutes = (
   </Route>
 );
 
+/**
+ * Frontline's routes. The icons members pick for channels and categories load in the background
+ * for every page, its settings included.
+ */
 export const Frontline = () => (
-  <Routes>
-    <Route element={<FrontlineLayout />}>
-      <Route index element={<Navigate to="inbox" replace />} />
-      <Route path="inbox">
-        <Route index element={<InboxPage />} />
-        <Route path="integrations/:id" element={<RecordRoute contentType={INTEGRATION_TYPE} />} />
-        <Route path="conversations/:id" element={<RecordRoute contentType={CONVERSATION_TYPE} />} />
-        <Route path="messengers/:id" element={<MessengerSettingsPage />} />
+  <IconsProvider>
+    <Routes>
+      <Route element={<FrontlineLayout />}>
+        <Route index element={<Navigate to="inbox" replace />} />
+        <Route path="inbox">
+          <Route index element={<InboxPage />} />
+          <Route path="integrations/:id" element={<RecordRoute contentType={INTEGRATION_TYPE} />} />
+          <Route
+            path="conversations/:id"
+            element={<RecordRoute contentType={CONVERSATION_TYPE} />}
+          />
+          <Route path="messengers/:id" element={<MessengerSettingsPage />} />
+        </Route>
+        <Route path="tickets">
+          <Route index element={<TicketsPage />} />
+          <Route path=":id" element={<RecordRoute contentType={TICKET_TYPE} />} />
+        </Route>
+        <Route path="forms">
+          <Route index element={<FormsPage />} />
+          <Route path="submissions/:formId" element={<SubmissionsRedirect />} />
+          <Route
+            path="submission/:id"
+            element={<RecordRoute contentType={FORM_SUBMISSION_TYPE} />}
+          />
+          <Route path=":id" element={<RecordRoute contentType={FORM_TYPE} />} />
+          <Route path=":id/builder" element={<FormBuilderPage />} />
+          <Route path=":id/submissions" element={<SubmissionsPage />} />
+        </Route>
+        <Route path="surveys">
+          <Route index element={<SurveysPage />} />
+          <Route path=":id" element={<RecordRoute contentType={SURVEY_TYPE} />} />
+        </Route>
+        <Route path="personal-channel" element={<PersonalChannel />} />
+        <Route path="calls">
+          <Route index element={<Navigate to="history" replace />} />
+          <Route path="history" element={<CallHistoryPage />} />
+          <Route path="history/:id" element={<RecordRoute contentType={CALL_TYPE} />} />
+          <Route path="queues" element={<QueuesPage />} />
+          <Route path="queues/:id" element={<QueuePage />} />
+          <Route path="dashboard" element={<Navigate to="../queues" replace />} />
+          <Route path="statistics" element={<Navigate to="../queues" replace />} />
+          <Route path="dashboard/:id" element={<QueueRedirect />} />
+          <Route path="statistics/:id" element={<QueueRedirect />} />
+          <Route path=":id" element={<QueueRedirect />} />
+        </Route>
+        <Route path="knowledgebase">
+          <Route index element={<TopicsPage />} />
+          <Route path="category/:id" element={<RecordRoute contentType={KB_CATEGORY_TYPE} />} />
+          <Route path="article/:id" element={<RecordRoute contentType={KB_ARTICLE_TYPE} />} />
+          <Route path=":id" element={<RecordRoute contentType={KB_TOPIC_TYPE} />} />
+          <Route path=":topicId/articles" element={<ArticlesPage />} />
+          <Route path=":topicId/categories" element={<CategoriesPage />} />
+          <Route path=":topicId/kbsettings" element={<TopicSettingsPage />} />
+        </Route>
       </Route>
-      <Route path="tickets">
-        <Route index element={<TicketsPage />} />
-        <Route path=":id" element={<RecordRoute contentType={TICKET_TYPE} />} />
-      </Route>
-      <Route path="forms">
-        <Route index element={<FormsPage />} />
-        <Route path="submissions/:formId" element={<SubmissionsRedirect />} />
-        <Route path="submission/:id" element={<RecordRoute contentType={FORM_SUBMISSION_TYPE} />} />
-        <Route path=":id" element={<RecordRoute contentType={FORM_TYPE} />} />
-        <Route path=":id/builder" element={<FormBuilderPage />} />
-        <Route path=":id/submissions" element={<SubmissionsPage />} />
-      </Route>
-      <Route path="surveys">
-        <Route index element={<SurveysPage />} />
-        <Route path=":id" element={<RecordRoute contentType={SURVEY_TYPE} />} />
-      </Route>
-      <Route path="personal-channel" element={<PersonalChannel />} />
-      <Route path="calls">
-        <Route index element={<Navigate to="history" replace />} />
-        <Route path="history" element={<CallHistoryPage />} />
-        <Route path="history/:id" element={<RecordRoute contentType={CALL_TYPE} />} />
-        <Route path="queues" element={<QueuesPage />} />
-        <Route path="queues/:id" element={<QueuePage />} />
-        <Route path="dashboard" element={<Navigate to="../queues" replace />} />
-        <Route path="statistics" element={<Navigate to="../queues" replace />} />
-        <Route path="dashboard/:id" element={<QueueRedirect />} />
-        <Route path="statistics/:id" element={<QueueRedirect />} />
-        <Route path=":id" element={<QueueRedirect />} />
-      </Route>
-      <Route path="knowledgebase">
-        <Route index element={<TopicsPage />} />
-        <Route path="category/:id" element={<RecordRoute contentType={KB_CATEGORY_TYPE} />} />
-        <Route path="article/:id" element={<RecordRoute contentType={KB_ARTICLE_TYPE} />} />
-        <Route path=":id" element={<RecordRoute contentType={KB_TOPIC_TYPE} />} />
-        <Route path=":topicId/articles" element={<ArticlesPage />} />
-        <Route path=":topicId/categories" element={<CategoriesPage />} />
-        <Route path=":topicId/kbsettings" element={<TopicSettingsPage />} />
-      </Route>
-    </Route>
-    {settingsRoutes}
-    <Route path="helpcenter" element={<Navigate to="../settings/help-centers" replace />} />
-    {/* The old integration detail page, one per channel and kind, is now the accounts list. */}
-    <Route
-      path="details/:id/:integrationType"
-      element={<Navigate to={`/${PLUGIN}/settings/integrations`} replace />}
-    />
-  </Routes>
+      {settingsRoutes}
+      <Route path="helpcenter" element={<Navigate to="../settings/help-centers" replace />} />
+      {/* The old integration detail page, one per channel and kind, is now the accounts list. */}
+      <Route
+        path="details/:id/:integrationType"
+        element={<Navigate to={`/${PLUGIN}/settings/integrations`} replace />}
+      />
+    </Routes>
+  </IconsProvider>
 );

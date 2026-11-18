@@ -11,6 +11,7 @@ import {
 } from '@tabler/icons-react';
 import {
   Button,
+  IconComponent,
   ListFilter,
   memberName,
   PageContainer,
@@ -34,7 +35,10 @@ import { type Channel, useChannels, useDeleteChannels } from './useChannels.ts';
 
 const column = columnOf<Channel>;
 
-/** The name opens the channel in core's side panel, as a customer's name does. */
+/**
+ * The channel's icon and name, opening it in core's side panel as a customer's name does. A
+ * channel without an icon of its own shows the channels icon, as the inbox's sidebar does.
+ */
 const NameCell = ({ channel }: { channel: Channel }) => {
   const { open } = useOpenRecord();
 
@@ -45,7 +49,8 @@ const NameCell = ({ channel }: { channel: Channel }) => {
         className="w-full justify-start"
         onClick={() => open({ contentType: CHANNEL_TYPE, contentId: channel.id })}
       >
-        {channel.name}
+        {channel.icon ? <IconComponent name={channel.icon} /> : <IconCircles />}
+        <span className="truncate">{channel.name}</span>
       </Button>
     </RecordTableInlineCell>
   );
