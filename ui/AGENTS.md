@@ -52,7 +52,8 @@ and renders `./frontline` (the `Frontline` export) under `/frontline/*`.
   (the `ui-patterns` skill). Forms are core's
   `PanelFormRow` rows with Cancel and Save at the bottom; nothing saves until
   Save. Dialogs are for confirmations, not forms.
-- Text uses `t(key, 'English default')` from `react-i18next`.
+- Text uses `t(key, 'English default')` from `react-i18next`, its Mongolian in
+  `src/i18n/mn.json`, where `vp run fix` puts a new key in its sorted place.
 - Development: `pnpm dev:ui` serves `http://localhost:3099/remoteEntry.js`;
   web loads it from the manifest's `UI_ENTRY_URL` or from its own
   `PUBLIC_PLUGINS=frontline_ui@http://localhost:3099/remoteEntry.js`.

@@ -38,11 +38,12 @@ without line-by-line review.
 
 - `vp run check` runs the escape guard, format, lint, types, React Doctor on `ui/`
   (`doctor.config.jsonc`), knip, the docs guard and `pnpm check:generated`, which
-  compares the migrations with the schema. `pnpm exec react-doctor why <file:line>`,
-  run in `ui/`, explains a React Doctor hit.
+  checks that `ui/src/i18n/mn.json`'s keys are sorted and the migrations match the
+  schema. `pnpm exec react-doctor why <file:line>`, run in `ui/`, explains a React
+  Doctor hit.
 - Other gates: `vp run test` on real Postgres via `DATA_TEST_URL`,
   `pnpm check:rls`, `pnpm image` then `pnpm budgets`, and `pnpm e2e`. `vp run fix`
-  formats and fixes lint. CI's one required status is `Check`.
+  sorts mn.json, formats and fixes lint. CI's one required status is `Check`.
 - `pnpm e2e:stack up` runs core's released images and the plugin image on a
   fresh database, web on :8080. `pnpm e2e` drives Chromium; `a11y*.spec.ts`
   run axe, light and dark, at most three passes a test. A screen a member reaches gets a spec, its refusal, an axe stop.
