@@ -3,6 +3,7 @@ import { join, resolve } from 'node:path';
 import { sql } from 'drizzle-orm';
 import { readMigrationFiles } from 'drizzle-orm/migrator';
 import { z } from 'zod';
+import { fillPublicContent } from '#/modules/knowledgebase/html.ts';
 import { db } from './client.ts';
 
 /** Our own tracking table: core and other plugins in the same database keep theirs. */
@@ -24,6 +25,12 @@ const migrationsFolder = () => {
 };
 
 const Journal = z.object({ entries: z.array(z.object({ tag: z.string() })) });
+
+/**
+ * What a migration fills in that SQL can't, by its tag. It runs after the pending SQL, in the
+ * same transaction, so a failure rolls both back.
+ */
+const BACKFILLS = new Map([['0025_article_public_content', fillPublicContent]]);
 
 /**
  * Applies pending migrations and returns their tags. One transaction under a
@@ -68,6 +75,9 @@ export const runMigrations = async () => {
     // statements in order. Each ends on its own line, so a trailing `--` comment can't hide
     // the separator, and an empty statement between two semicolons is allowed.
     await tx.execute(sql.raw(pending.flatMap((migration) => migration.sql).join('\n;\n')));
+
+    // Each backfill fills its own table, so they need no order between them.
+    await Promise.all(pending.flatMap((migration) => BACKFILLS.get(migration.tag)?.(tx) ?? []));
     await tx.execute(
       sql`insert into ${migrationsTable} (hash, created_at) values ${sql.join(
         pending.map((migration) => sql`(${migration.hash}, ${migration.folderMillis})`),

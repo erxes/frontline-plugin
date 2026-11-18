@@ -179,8 +179,10 @@ export const kbArticles = table(
     categoryId: text().notNull(),
     title: text().notNull(),
     summary: text(),
-    /** HTML, from erxes-ui's Editor. */
+    /** HTML, from erxes-ui's Editor, as the member wrote it. */
     content: text().notNull().default(''),
+    /** `content` sanitized on save, which visitors see (`knowledgebase/html.ts`). */
+    publicContent: text().notNull().default(''),
     status: text({ enum: KB_ARTICLE_STATUSES }).notNull().default('draft'),
     /** When a scheduled article goes live. */
     scheduledAt: timestamp({ withTimezone: true }),

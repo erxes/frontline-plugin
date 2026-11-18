@@ -98,6 +98,33 @@ describe('help centers', () => {
     expect((await fetch(`${base}/help-centers/unknown-key`)).status).toBe(404);
   });
 
+  it('keeps the HTML members wrote, and gives visitors the clean copy of each edit', async () => {
+    const { owner, center, article } = await publishedSite('org-hc-edit');
+
+    const read = async () =>
+      (await fetch(`${base}/help-centers/${center.publicKey}/articles/${article.id}`)).json();
+
+    const written = await owner.knowledgebase.articles.get({ id: article.id });
+
+    expect(written.content).toContain('<script>steal()</script>');
+    expect(written).not.toHaveProperty('publicContent');
+
+    await owner.knowledgebase.articles.update({
+      id: article.id,
+      content: '<h2 style="color:red">New terms</h2><img src="x" onerror="steal()">',
+    });
+
+    await expect(read()).resolves.toMatchObject({ content: '<h2>New terms</h2><img src="x" />' });
+
+    const copy = await owner.knowledgebase.articles.duplicate({ id: article.id, title: 'Copy' });
+
+    await owner.knowledgebase.articles.update({ id: copy.id, status: 'publish' });
+
+    await expect(
+      (await fetch(`${base}/help-centers/${center.publicKey}/articles/${copy.id}`)).json(),
+    ).resolves.toMatchObject({ content: '<h2>New terms</h2><img src="x" />' });
+  });
+
   it("doesn't serve another topic's articles, and stops serving a deleted help center", async () => {
     const { owner, center } = await publishedSite('org-hc-b');
     const other = await publishedSite('org-hc-c');

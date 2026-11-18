@@ -1,6 +1,5 @@
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import express, { type Response, type Router } from 'express';
-import sanitizeHtml from 'sanitize-html';
 import { withOrg } from '#/db/client.ts';
 import { HELP_CENTER_DOMAIN, HELP_CENTER_KEY, helpCenters } from '#/db/helpcenter.ts';
 import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
@@ -30,20 +29,6 @@ const centerAt = async (address: string) => {
 };
 
 type Center = NonNullable<Awaited<ReturnType<typeof centerAt>>>;
-
-/**
- * An article's HTML as a visitor's page may show it: sanitize-html's default formatting tags,
- * plus images, with links opening in a new tab.
- */
-const visitorHtml = (html: string) =>
-  sanitizeHtml(html, {
-    allowedTags: [...sanitizeHtml.defaults.allowedTags, 'img'],
-    allowedAttributes: { ...sanitizeHtml.defaults.allowedAttributes, a: ['href', 'target', 'rel'] },
-    allowedSchemes: ['http', 'https', 'mailto', 'tel'],
-    transformTags: {
-      a: sanitizeHtml.simpleTransform('a', { target: '_blank', rel: 'noreferrer' }),
-    },
-  });
 
 /** A topic's categories and published public articles, as a help center or messenger shows them. */
 export const topicOf = (orgId: string, topicId: string) =>
@@ -108,7 +93,7 @@ const siteOf = async ({ orgId, center }: Center) => ({
 });
 
 /**
- * One published public article of the topic, its body sanitized, counted as viewed. The view is
+ * One published public article of the topic, with the body sanitized on save, counted as viewed. The view is
  * written later with others (`flushViews`), so `viewCount` is what was written so far.
  */
 export const articleOf = async (orgId: string, topicId: string, id: string) => {
@@ -119,7 +104,8 @@ export const articleOf = async (orgId: string, topicId: string, id: string) => {
         categoryId: kbArticles.categoryId,
         title: kbArticles.title,
         summary: kbArticles.summary,
-        content: kbArticles.content,
+        // Visitors only ever see the clean copy, under the name the widget and help center read.
+        content: kbArticles.publicContent,
         image: kbArticles.image,
         attachments: kbArticles.attachments,
         viewCount: kbArticles.viewCount,
@@ -141,7 +127,7 @@ export const articleOf = async (orgId: string, topicId: string, id: string) => {
 
   countView(orgId, 'article', article.id);
 
-  return { ...article, content: visitorHtml(article.content) };
+  return article;
 };
 
 /** What a topic gives a visitor, for the embeds to type their replies. */

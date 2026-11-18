@@ -11,10 +11,20 @@ import { Blank, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
+import { contentColumns } from './html.ts';
 import { categoryFor, topicFor } from './shared.ts';
 
-const { orgId, content, reactionChoices, image, attachments, pdfAttachment, ...rowColumns } =
-  getTableColumns(kbArticles);
+// Members read `content`, the HTML they wrote; `publicContent` is the visitors' copy.
+const {
+  orgId,
+  content,
+  publicContent,
+  reactionChoices,
+  image,
+  attachments,
+  pdfAttachment,
+  ...rowColumns
+} = getTableColumns(kbArticles);
 
 const detailColumns = {
   ...rowColumns,
@@ -51,13 +61,14 @@ const Detail = createSelectSchema(kbArticles, {
   attachments: z.array(Attachment),
   pdfAttachment: z.object({ pdf: Attachment }).nullable(),
 })
-  .omit({ orgId: true })
+  .omit({ orgId: true, publicContent: true })
   .extend({ topicId: z.string() });
 
 /** An article as lists show it, without its content and files. */
 const Article = createSelectSchema(kbArticles).omit({
   orgId: true,
   content: true,
+  publicContent: true,
   reactionChoices: true,
   image: true,
   attachments: true,
@@ -220,6 +231,7 @@ const create = writes(PERMISSIONS.kbArticleManage)
         .insert(kbArticles)
         .values({
           ...fields,
+          ...contentColumns(fields.content),
           ...statusColumns(status, scheduledAt),
           orgId: member.orgId,
           createdBy: member.userId,
@@ -248,7 +260,7 @@ const update = writes(PERMISSIONS.kbArticleManage)
 
     await tx
       .update(kbArticles)
-      .set({ ...fields, ...publishing })
+      .set({ ...fields, ...contentColumns(fields.content), ...publishing })
       .where(eq(kbArticles.id, id));
 
     return articleFor(tx, id);
@@ -300,7 +312,13 @@ const duplicate = writes(PERMISSIONS.kbArticleManage)
 
     const [copy] = await tx
       .insert(kbArticles)
-      .values({ ...source, title: input.title, orgId: member.orgId, createdBy: member.userId })
+      .values({
+        ...source,
+        ...contentColumns(source.content),
+        title: input.title,
+        orgId: member.orgId,
+        createdBy: member.userId,
+      })
       .returning({ id: kbArticles.id });
 
     if (!copy) throw new ORPCError('INTERNAL_SERVER_ERROR');

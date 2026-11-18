@@ -1,0 +1,1 @@
+ALTER TABLE "frontline_knowledgebase_articles" ADD COLUMN "public_content" text DEFAULT '' NOT NULL;
