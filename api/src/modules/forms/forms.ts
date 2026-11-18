@@ -18,6 +18,7 @@ import { Form, formById, formFor, formRows, newCode, publishFormEvents, seenBy }
 
 /** What the forms list's filter bar narrows by (`ui/src/modules/forms`). */
 const FORM_FILTER: FilterFields = {
+  'subject.id': { type: 'select', expr: forms.id },
   'subject.name': { type: 'text', expr: forms.name },
   'subject.title': { type: 'text', expr: forms.title },
   'subject.status': { type: 'select', expr: forms.status },

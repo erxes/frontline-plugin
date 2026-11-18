@@ -2,10 +2,12 @@ import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import express, { type Response, type Router } from 'express';
 import sanitizeHtml from 'sanitize-html';
 import { withOrg } from '#/db/client.ts';
+import { forms } from '#/db/forms.ts';
 import { HELP_CENTER_DOMAIN, HELP_CENTER_KEY, helpCenters } from '#/db/helpcenter.ts';
 import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
 import { logger } from '#/logger.ts';
-import { openedBy } from '../public.ts';
+import { urlOf } from '../forms/embed.ts';
+import { keyOfOrganization, openedBy, widgetScript } from '../public.ts';
 import { countView } from '../views.ts';
 
 /**
@@ -91,7 +93,34 @@ export const topicOf = (orgId: string, topicId: string) =>
     };
   });
 
-/** What a visitor sees of the help center: its look and its topic's published articles. */
+/** The active forms of `ids`, in their order, with where an embed reads each and its script. */
+const formsOf = (orgId: string, ids: string[]) =>
+  withOrg(orgId, async (tx) => {
+    if (ids.length === 0) return [];
+
+    const rows = await tx
+      .select({
+        id: forms.id,
+        name: forms.name,
+        title: forms.title,
+        description: forms.description,
+        code: forms.code,
+      })
+      .from(forms)
+      .where(and(inArray(forms.id, ids), eq(forms.status, 'active')));
+
+    const key = await keyOfOrganization(tx, orgId);
+
+    return rows
+      .toSorted((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
+      .map((row) => ({
+        ...row,
+        url: urlOf(key, row.code),
+        scriptUrl: widgetScript('form', { key, code: row.code }),
+      }));
+  });
+
+/** What a visitor sees of the help center: its look, its topic's published articles and its forms. */
 const siteOf = async ({ orgId, center }: Center) => ({
   helpCenter: {
     title: center.title,
@@ -105,6 +134,7 @@ const siteOf = async ({ orgId, center }: Center) => ({
     footer: center.footer,
   },
   ...(await topicOf(orgId, center.kbTopicId ?? '')),
+  forms: await formsOf(orgId, center.formIds),
 });
 
 /**
