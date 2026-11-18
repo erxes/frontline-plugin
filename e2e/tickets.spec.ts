@@ -130,7 +130,7 @@ test('a member changes tickets in one go, sees them on the board and deletes the
   }
 
   // The board lays the pipeline's statuses out as columns, each counting its own; Space picks a
-  // card up and the arrow keys carry it to the next column.
+  // card up and the arrow keys carry it to the next column, each step said aloud.
   await display(page, 'Board');
   await expect(page.getByRole('region', { name: 'New' })).toContainText(refund);
   await page
@@ -138,7 +138,9 @@ test('a member changes tickets in one go, sees them on the board and deletes the
     .locator('[aria-roledescription="movable card"]', { hasText: refund })
     .focus();
   await page.keyboard.press('Space');
+  await expect(page.getByText(`Picked up ${refund}.`)).toBeAttached();
   await page.keyboard.press('ArrowRight');
+  await expect(page.getByText(`${refund} is in Open.`)).toBeAttached();
   await page.keyboard.press('Space');
   await expect(page.getByRole('region', { name: 'Open' })).toContainText(refund);
   await expect(page.getByRole('region', { name: 'New' })).not.toContainText(refund);
