@@ -196,6 +196,21 @@ describe('inbox', () => {
     await expect(
       teammate.conversations.messages.create({ conversationId: id, content: '  ' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    // A phone call's conversation takes notes only: a reply would go nowhere.
+    await withOrg('org-ib-b', (tx) =>
+      tx.execute(sql`update frontline_integrations set kind = 'callpro'`),
+    );
+    await expect(
+      teammate.conversations.messages.create({ conversationId: id, content: 'Calling back' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(
+      teammate.conversations.messages.create({
+        conversationId: id,
+        content: 'Called back, no answer',
+        internal: true,
+      }),
+    ).resolves.toMatchObject({ internal: true });
   });
 
   it('keeps a member’s rich text safe, with its plain text and the members it mentions', async () => {

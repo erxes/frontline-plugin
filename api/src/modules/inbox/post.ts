@@ -47,7 +47,12 @@ export const postMessage = async (
     .from(integrations)
     .where(eq(integrations.id, conversation.integrationId));
 
-  const queued = !written.internal && Boolean(ADAPTERS.get(integration?.kind ?? '')?.send);
+  const adapter = ADAPTERS.get(integration?.kind ?? '');
+
+  if (!written.internal && adapter?.notesOnly)
+    throw new ORPCError('BAD_REQUEST', { message: 'This conversation takes internal notes only' });
+
+  const queued = !written.internal && Boolean(adapter?.send);
 
   const [message] = await tx
     .insert(messages)
