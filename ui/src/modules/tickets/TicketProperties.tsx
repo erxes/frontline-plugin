@@ -5,12 +5,14 @@ import {
   IconLetterCase,
   IconListCheck,
   IconNumber,
+  IconPlus,
   IconSelect,
   IconToggleLeft,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
 import {
+  Button,
   DatePicker,
   NumberField,
   PanelField,
@@ -20,6 +22,7 @@ import {
   TextField,
   useFormat,
 } from 'erxes-ui';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
@@ -168,17 +171,29 @@ export const TicketPropertyBadges = ({ ticket }: { ticket: Ticket }) => {
   return labels.length > 0 ? <Badges labels={labels} max={3} /> : null;
 };
 
-/** The ticket's properties from settings, each saved as it changes; nothing when there are none. */
+/**
+ * The ticket's properties from settings, each saved as it changes; nothing when there are none.
+ * The ones with a value show, and a button opens the empty ones, so a pipeline with many
+ * properties doesn't fill the panel with "Empty".
+ */
 export const TicketPropertiesSection = ({ ticket }: { ticket: Ticket }) => {
   const { t } = useTranslation('frontline');
   const properties = useProperties(ticket.pipelineId);
+  const valueText = useValueText();
   const edit = useEditTicket(ticket.id);
+  const [all, setAll] = useState(false);
 
   if (properties.length === 0) return null;
 
+  const filled = properties.filter(
+    (property) => valueText(property, ticket.propertiesData[property.id]) !== '',
+  );
+
+  const empty = properties.length - filled.length;
+
   return (
     <PanelSection title={t('properties', 'Properties')}>
-      {properties.map((property) => (
+      {(all ? properties : filled).map((property) => (
         <PanelField
           key={property.id}
           icon={PROPERTY_ICONS[property.type]}
@@ -193,6 +208,16 @@ export const TicketPropertiesSection = ({ ticket }: { ticket: Ticket }) => {
           />
         </PanelField>
       ))}
+      {!all && empty > 0 && (
+        <Button variant="ghost" size="sm" className="self-start" onClick={() => setAll(true)}>
+          <IconPlus />
+          {t('show-empty-properties', {
+            defaultValue_one: 'Show {{count}} empty property',
+            defaultValue_other: 'Show {{count}} empty properties',
+            count: empty,
+          })}
+        </Button>
+      )}
     </PanelSection>
   );
 };

@@ -1,4 +1,4 @@
-import { contactQueries, orpc as core } from '@erxes/core-contract/client';
+import { contactQueries, orpc as core, memberQueries } from '@erxes/core-contract/client';
 import {
   IconBuilding,
   IconBuildingStore,
@@ -6,6 +6,7 @@ import {
   IconPencil,
   IconSitemap,
   IconTag,
+  IconUser,
   IconUserCircle,
   IconUsers,
 } from '@tabler/icons-react';
@@ -19,6 +20,7 @@ import {
   PanelField,
   PanelSection,
   Popover,
+  SelectMember,
   type TContactContentType,
 } from 'erxes-ui';
 import { useState } from 'react';
@@ -34,16 +36,27 @@ export const ticketTags = tagsOf('ticket');
 export const useTeams = (kind: 'department' | 'branch') =>
   useQuery(orpc.teams.list.queryOptions({ input: { kind } })).data ?? [];
 
-/** Who works the ticket beside its assignee, and who follows it. */
+/** Who owns the ticket, who else works it, and who follows it, together. */
 export const TicketPeople = ({ ticket }: { ticket: Ticket }) => {
   const { t } = useTranslation('frontline');
   const edit = useEditTicket(ticket.id);
 
   return (
     <PanelSection title={t('people', 'People')}>
-      <PanelField icon={IconUsers} label={t('assigned-members', 'Assigned members')} cell={false}>
+      <PanelField icon={IconUser} label={t('assignee', 'Assignee')} cell={false}>
+        <SelectMember.Linked
+          scope={`frontline-ticket.${ticket.id}.assignee`}
+          value={ticket.assigneeId}
+          onValueChange={(assigneeId) => edit({ assigneeId })}
+          members={memberQueries}
+          noneLabel={t('no-assignee', 'No assignee')}
+          addLabel={t('add-assignee', 'Add assignee')}
+          changeLabel={t('change-assignee', 'Change assignee')}
+        />
+      </PanelField>
+      <PanelField icon={IconUsers} label={t('also-assigned', 'Also assigned')} cell={false}>
         <MembersField
-          label={t('assigned-members', 'Assigned members')}
+          label={t('also-assigned', 'Also assigned')}
           value={ticket.assignedMemberIds}
           onValueChange={(assignedMemberIds) => edit({ assignedMemberIds })}
         />

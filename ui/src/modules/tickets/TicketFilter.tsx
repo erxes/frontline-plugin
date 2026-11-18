@@ -9,10 +9,8 @@ import {
   IconCalendarX,
   IconCheck,
   IconBuildingStore,
-  IconCircles,
   IconClockCheck,
   IconEye,
-  IconGitBranch,
   IconHash,
   IconLetterCase,
   IconProgressCheck,
@@ -25,48 +23,26 @@ import {
 } from '@tabler/icons-react';
 import { Button, type TListFilterField } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { useChannels } from '@/channels/useChannels.ts';
 import { PRIORITIES, usePriorityNames } from '@/pipelines/queries.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { useTeams } from './TicketLinks.tsx';
-import { useChoices, useSlaNames, useTicketSort } from './queries.ts';
+import { useChoices, useSlaNames, useTicketPipeline, useTicketSort } from './queries.ts';
 
-/** The fields that pick from the member's channels, pipelines and statuses. */
-const useFilingFields = (): TListFilterField[] => {
+/** The status field, over the shown pipeline's statuses: the sidebar picks the pipeline. */
+const useStatusField = (): TListFilterField => {
   const { t } = useTranslation('frontline');
-  const channels = useChannels().data?.channels ?? [];
-  const { pipelines, statuses } = useChoices();
-  const pipelineName = new Map(pipelines.map((pipeline) => [pipeline.id, pipeline.name]));
+  const { statuses } = useChoices();
+  const pipelineId = useTicketPipeline()?.id;
 
-  return [
-    {
-      path: 'subject.statusId',
-      label: t('status', 'Status'),
-      type: 'select',
-      icon: IconProgressCheck,
-      options: statuses.map((status) => ({
-        value: status.id,
-        label:
-          pipelines.length > 1
-            ? `${pipelineName.get(status.pipelineId) ?? ''} › ${status.name}`
-            : status.name,
-      })),
-    },
-    {
-      path: 'subject.pipelineId',
-      label: t('pipeline', 'Pipeline'),
-      type: 'select',
-      icon: IconGitBranch,
-      options: pipelines.map((pipeline) => ({ value: pipeline.id, label: pipeline.name })),
-    },
-    {
-      path: 'subject.channelId',
-      label: t('channel', 'Channel'),
-      type: 'select',
-      icon: IconCircles,
-      options: channels.map((channel) => ({ value: channel.id, label: channel.name })),
-    },
-  ];
+  return {
+    path: 'subject.statusId',
+    label: t('status', 'Status'),
+    type: 'select',
+    icon: IconProgressCheck,
+    options: statuses
+      .filter((status) => status.pipelineId === pipelineId)
+      .map((status) => ({ value: status.id, label: status.name })),
+  };
 };
 
 const teamOptions = (rows: { id: string; name: string }[]) =>
@@ -79,7 +55,7 @@ const useLinkFields = (): TListFilterField[] => {
   return [
     {
       path: 'subject.assignedMemberIds',
-      label: t('assigned-members', 'Assigned members'),
+      label: t('also-assigned', 'Also assigned'),
       type: 'member',
       icon: IconUsers,
     },
@@ -128,9 +104,8 @@ const useDateFields = () => {
 };
 
 /**
- * Every field the tickets list narrows by, as the old page's filters had them; the API applies
- * them (`api/src/modules/tickets/tickets.ts`). A status reads with its pipeline's name when the
- * member sees several pipelines.
+ * Every field the shown pipeline's tickets narrow by, as the old page's filters had them; the
+ * API applies them (`api/src/modules/tickets/tickets.ts`).
  */
 export const useTicketFields = (): TListFilterField[] => {
   const { t } = useTranslation('frontline');
@@ -141,7 +116,7 @@ export const useTicketFields = (): TListFilterField[] => {
   return [
     { path: 'subject.name', label: t('name', 'Name'), type: 'text', icon: IconLetterCase },
     { path: 'subject.number', label: t('number', 'Number'), type: 'text', icon: IconHash },
-    ...useFilingFields(),
+    useStatusField(),
     {
       path: 'subject.priority',
       label: t('priority', 'Priority'),

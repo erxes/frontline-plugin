@@ -12,7 +12,7 @@ import { TICKET_TYPE } from '~/plugin.ts';
 import { AssigneeCell, PriorityCell, TicketMenu, TicketName } from './TicketCells.tsx';
 import { SlaBadge } from './SlaBadge.tsx';
 import { TicketTags } from './TicketLinks.tsx';
-import { type Ticket, useChoices } from './queries.ts';
+import { type Ticket, useChoices, useTicketPipeline } from './queries.ts';
 
 /** One ticket: its number and name, tags, SLA, priority, assignee, last change, and its menu. */
 const TicketRow = ({ ticket }: { ticket: Ticket }) => (
@@ -39,27 +39,15 @@ const TicketRow = ({ ticket }: { ticket: Ticket }) => (
   </div>
 );
 
-/**
- * The statuses the shown tickets are in, by pipeline, stage and order, each with its tickets. A
- * status reads with its pipeline's name when the tickets come from several.
- */
+/** The shown pipeline's statuses by stage and order, each with its tickets. */
 export const useStatusGroups = (tickets: Ticket[]) => {
-  const { pipelines, statuses } = useChoices();
+  const { statuses } = useChoices();
+  const pipelineId = useTicketPipeline()?.id;
   const byStatus = Map.groupBy(tickets, (ticket) => ticket.statusId);
-  const shown = new Set(tickets.map((ticket) => ticket.pipelineId));
-  const pipelineName = new Map(pipelines.map((pipeline) => [pipeline.id, pipeline.name]));
 
-  return pipelines
-    .filter((pipeline) => shown.has(pipeline.id))
-    .flatMap((pipeline) => statuses.filter((status) => status.pipelineId === pipeline.id))
-    .map((status) => ({
-      status,
-      label:
-        shown.size > 1
-          ? `${pipelineName.get(status.pipelineId) ?? ''} › ${status.name}`
-          : status.name,
-      rows: byStatus.get(status.id) ?? [],
-    }));
+  return statuses
+    .filter((status) => status.pipelineId === pipelineId)
+    .map((status) => ({ status, label: status.name, rows: byStatus.get(status.id) ?? [] }));
 };
 
 /**

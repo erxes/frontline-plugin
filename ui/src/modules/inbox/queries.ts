@@ -13,7 +13,7 @@ import { parseAsString, useQueryState } from 'nuqs';
 import { useEffect, useRef, useState } from 'react';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
-import { useChange } from '~/shared/hooks.ts';
+import { useChange, useOptimistic } from '~/shared/hooks.ts';
 
 type Outputs = InferClientOutputs<Client>;
 
@@ -161,45 +161,19 @@ const patchConversations = (
     queryClient.setQueryData(conversationOptions(id).queryKey, (row) => row && apply(row));
 };
 
-/**
- * A change that shows at once: the cached conversations take `patch` before the request goes,
- * go back if the API refuses, and the inbox refetches once it settles.
- */
-const useOptimistic = <TInput>(
+/** A change that shows at once on the conversations of `idsOf`, as `patch` says. */
+const usePatch = <TInput>(
   idsOf: (input: TInput) => string[],
   patch: (input: TInput) => Partial<Conversation>,
-) => {
-  const queryClient = useQueryClient();
-  const { onError } = useInboxChange();
-  const queryKey = orpc.conversations.key();
-
-  return {
-    onMutate: async (input: TInput) => {
-      await queryClient.cancelQueries({ queryKey });
-
-      const before = queryClient.getQueriesData({ queryKey });
-
-      patchConversations(queryClient, idsOf(input), patch(input));
-
-      return { before };
-    },
-    onError: (
-      error: Error,
-      _input: TInput,
-      context: { before: ReturnType<QueryClient['getQueriesData']> } | undefined,
-    ) => {
-      for (const [key, data] of context?.before ?? []) queryClient.setQueryData(key, data);
-
-      onError(error);
-    },
-    onSettled: () => queryClient.invalidateQueries({ queryKey }),
-  };
-};
+) =>
+  useOptimistic(orpc.conversations.key(), (queryClient, input: TInput) =>
+    patchConversations(queryClient, idsOf(input), patch(input)),
+  );
 
 export const useAssign = () =>
   useMutation(
     orpc.conversations.assign.mutationOptions(
-      useOptimistic(
+      usePatch(
         (input: Inputs['assign']) => input.ids,
         ({ assigneeId }) => ({ assigneeId }),
       ),
@@ -209,7 +183,7 @@ export const useAssign = () =>
 export const useSetStatus = () =>
   useMutation(
     orpc.conversations.setStatus.mutationOptions(
-      useOptimistic(
+      usePatch(
         (input: Inputs['setStatus']) => input.ids,
         ({ status }) => ({ status }),
       ),
@@ -219,7 +193,7 @@ export const useSetStatus = () =>
 export const useSetTags = () =>
   useMutation(
     orpc.conversations.setTags.mutationOptions(
-      useOptimistic(
+      usePatch(
         (input: Inputs['setTags']) => input.ids,
         ({ tagIds }) => ({ tagIds }),
       ),
@@ -229,7 +203,7 @@ export const useSetTags = () =>
 export const useMarkRead = () =>
   useMutation(
     orpc.conversations.markRead.mutationOptions(
-      useOptimistic(
+      usePatch(
         (input: Inputs['markRead']) => [input.id],
         () => ({ isRead: true }),
       ),

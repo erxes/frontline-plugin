@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlertSquareRounded,
   IconCalendarPlus,
@@ -8,13 +7,11 @@ import {
   IconHash,
   IconLetterCase,
   IconProgressCheck,
-  IconUser,
   IconUserCircle,
 } from '@tabler/icons-react';
 import {
   PanelField,
   PanelSection,
-  SelectMember,
   Skeleton,
   Spinner,
   TextField,
@@ -119,9 +116,11 @@ const TicketFields = ({ ticket }: { ticket: Ticket }) => {
           }}
         />
       </PanelField>
-      <InfoRow icon={IconHash} label={t('number', 'Number')}>
-        {ticket.number}
-      </InfoRow>
+      {ticket.number && (
+        <InfoRow icon={IconHash} label={t('number', 'Number')}>
+          {ticket.number}
+        </InfoRow>
+      )}
       <PanelField icon={IconProgressCheck} label={t('status', 'Status')} cell={false}>
         <StatusSelect
           pipelineId={ticket.pipelineId}
@@ -138,17 +137,6 @@ const TicketFields = ({ ticket }: { ticket: Ticket }) => {
           onChange={(priority) => edit({ priority })}
           label={t('priority', 'Priority')}
           variant="flush"
-        />
-      </PanelField>
-      <PanelField icon={IconUser} label={t('assignee', 'Assignee')} cell={false}>
-        <SelectMember.Linked
-          scope={`${scope}.assignee`}
-          value={ticket.assigneeId}
-          onValueChange={(assigneeId) => edit({ assigneeId })}
-          members={memberQueries}
-          noneLabel={t('no-assignee', 'No assignee')}
-          addLabel={t('add-assignee', 'Add assignee')}
-          changeLabel={t('change-assignee', 'Change assignee')}
         />
       </PanelField>
     </PanelSection>

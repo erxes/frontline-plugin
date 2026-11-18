@@ -16,13 +16,19 @@ import {
 
 const TICKETS = '/frontline/tickets';
 
-// One after the other: every test files tickets in the owner's organisation, and a list without
-// a pipeline filter groups by each pipeline's statuses once two pipelines hold tickets.
+// One after the other: every test files tickets in the owner's organisation.
 test.describe.configure({ mode: 'default' });
 
 /** A ticket's name in the list, which opens it; its number comes first. */
 const ticket = (page: Page, name: string) =>
   page.getByRole('button', { name: new RegExp(`^\\S*\\s?${name}$`) });
+
+/** Opens one pipeline's tickets from its link under Tickets in the sidebar. */
+const openPipeline = async (page: Page, pipeline: string) => {
+  await page.goto(TICKETS);
+  await page.getByRole('link', { name: pipeline, exact: true }).click();
+  await expect(page).toHaveURL(/[?&]pipeline=/);
+};
 
 /** Narrows the list with the filter bar: `field` is one of `option`. */
 const filterBy = async (page: Page, field: string, option: string) => {
@@ -47,7 +53,9 @@ test('a member files, changes and filters tickets in the list', async ({ page })
   const login = `Login ${unique()}`;
 
   // Create ticket drafts one in core's side panel; it then opens there, edited in place.
-  await page.goto(TICKETS);
+  await openPipeline(page, pipeline);
+  const ofPipeline = page.url();
+
   await page.getByRole('button', { name: 'Create ticket' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Pipeline' }), `${channel} › ${pipeline}`);
   await panel.getByLabel('Name').fill(refund);
@@ -65,10 +73,7 @@ test('a member files, changes and filters tickets in the list', async ({ page })
   await expectAccessible(page);
 
   // A status's "+" drafts a ticket in it.
-  await page.goto(TICKETS);
-  await filterBy(page, 'Pipeline', pipeline);
-  const ofPipeline = page.url();
-
+  await page.goto(ofPipeline);
   await page.getByRole('button', { name: 'Add a ticket to New' }).click();
   await panel.getByLabel('Name').fill(login);
   await panel.getByRole('button', { name: 'Create ticket' }).click();
@@ -81,7 +86,6 @@ test('a member files, changes and filters tickets in the list', async ({ page })
   await page.reload();
   await expect(ticket(page, refund)).toBeVisible();
   await expect(ticket(page, login)).toBeHidden();
-  // Back to the pipeline alone: other tests' tickets in other pipelines would regroup the list.
   await page.goto(ofPipeline);
   await expect(ticket(page, login)).toBeVisible();
 });
@@ -97,7 +101,8 @@ test('a member changes tickets in one go, sees them on the board and deletes the
   const refund = `Refund ${unique()}`;
   const names = [refund, `Login ${unique()}`];
 
-  await page.goto(TICKETS);
+  await openPipeline(page, pipeline);
+  const ofPipeline = page.url();
 
   for (const name of names) {
     await page.getByRole('button', { name: 'Create ticket' }).first().click();
@@ -107,7 +112,7 @@ test('a member changes tickets in one go, sees them on the board and deletes the
     await expect(panel.getByRole('button', { name: `Name ${name}` })).toBeVisible();
   }
 
-  // A member of the channel changes tickets but can't delete them.
+  // A member of the channel changes tickets but can't delete them. Its one pipeline shows first.
   await teammate.page.goto(TICKETS);
   await teammate.page.getByRole('button', { name: `Actions for ${refund}` }).click();
   await expect(teammate.page.getByRole('option', { name: 'Archive' })).toBeVisible();
@@ -115,8 +120,7 @@ test('a member changes tickets in one go, sees them on the board and deletes the
   await teammate.page.keyboard.press('Escape');
   await expectAccessible(teammate.page);
 
-  await page.goto(TICKETS);
-  await filterBy(page, 'Pipeline', pipeline);
+  await page.goto(ofPipeline);
 
   // A status's checkbox picks its tickets, and the bar changes them in one go.
   await page.getByRole('checkbox', { name: 'Select all in New' }).click();
@@ -138,8 +142,7 @@ test('a member changes tickets in one go, sees them on the board and deletes the
   await expect(page.getByRole('alertdialog')).toContainText('Delete 2 tickets?');
   await confirmDelete(page);
   await expect(page.getByText('2 tickets deleted')).toBeVisible();
-  // The pipeline filter still applies, so the list says nothing matches.
-  await expect(page.getByText('No results found')).toBeVisible();
+  await expect(page.getByText(`No tickets in ${pipeline} yet`)).toBeVisible();
   await display(page, 'List');
 });
 
@@ -174,7 +177,9 @@ test('a member labels a ticket with tags, a department and a property, and filte
   const channel = await openChannelPipelines(page);
   const pipeline = await createPipeline(page);
 
-  await page.goto(TICKETS);
+  await openPipeline(page, pipeline);
+  const ofPipeline = page.url();
+
   await page.getByRole('button', { name: 'Create ticket' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Pipeline' }), `${channel} › ${pipeline}`);
   await panel.getByLabel('Name').fill(name);
@@ -189,6 +194,9 @@ test('a member labels a ticket with tags, a department and a property, and filte
   await page.getByRole('option', { name: department }).click();
   await page.keyboard.press('Escape');
   await expect(panel.getByRole('button', { name: 'Department' })).toContainText(department);
+  // Empty properties wait behind a button, so the panel shows only what the ticket has.
+  await expect(panel.getByRole('button', { name: property })).toBeHidden();
+  await panel.getByRole('button', { name: /^Show \d+ empty propert/ }).click();
   await panel.getByRole('button', { name: property }).click();
   await page.getByPlaceholder(property, { exact: true }).fill('Gold');
   await page.keyboard.press('Enter');
@@ -197,8 +205,7 @@ test('a member labels a ticket with tags, a department and a property, and filte
   await expectAccessible(page);
 
   // The filter bar narrows the list by the ticket's tag; its card shows the tag and the value.
-  await page.goto(TICKETS);
-  await filterBy(page, 'Pipeline', pipeline);
+  await page.goto(ofPipeline);
   await filterBy(page, 'Tags', tag);
   await expect(ticket(page, name)).toBeVisible();
   await display(page, 'Board');
@@ -244,7 +251,7 @@ test('a visitor files a ticket from the widget in a pipeline the messenger offer
   await expect(panel.getByRole('list', { name: 'Your tickets' })).toContainText(subject);
   await expectAccessible(shop);
 
-  await page.goto(TICKETS);
+  await openPipeline(page, pipeline);
   await expect(ticket(page, subject)).toBeVisible();
 });
 
