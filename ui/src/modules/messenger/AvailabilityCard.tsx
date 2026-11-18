@@ -43,6 +43,7 @@ const HoursRows = () => {
   const { t } = useTranslation('frontline');
   const { control } = useFormContext<MessengerForm>();
   const { fields, append, remove } = useFieldArray({ control, name: 'onlineHours' });
+  const rows = useWatch({ control, name: 'onlineHours' });
   const days = useDayNames();
 
   return (
@@ -90,6 +91,11 @@ const HoursRows = () => {
               />
             )}
           />
+          {rows[index] && rows[index].to <= rows[index].from && (
+            <span className="text-xs whitespace-nowrap text-muted-foreground">
+              {t('messenger-next-day', 'the next day')}
+            </span>
+          )}
           <Button
             type="button"
             variant="ghost"

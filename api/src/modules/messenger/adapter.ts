@@ -108,14 +108,20 @@ const covers = (day: (typeof HOURS_DAYS)[number], weekday: string) =>
   (day === 'weekend' && (weekday === 'saturday' || weekday === 'sunday')) ||
   (day === 'weekdays' && weekday !== 'saturday' && weekday !== 'sunday');
 
-/** Whether the messenger's team reads as online at `now`. */
+/**
+ * Whether the messenger's team reads as online at `now`. Hours that end at or before they start
+ * run past midnight: Friday 22:00 to 06:00 covers Friday night and Saturday until 06:00.
+ */
 export const isOnlineAt = (config: MessengerConfig, now: Date) => {
   if (config.availability === 'manual') return config.isOnline;
 
   const { day, time } = clockAt(now, config.timezone ?? 'UTC');
+  const yesterday = WEEKDAYS[(WEEKDAYS.indexOf(day) + 6) % 7] ?? day;
 
-  return config.onlineHours.some(
-    (hours) => covers(hours.day, day) && hours.from <= time && time < hours.to,
+  return config.onlineHours.some(({ day: days, from, to }) =>
+    from < to
+      ? covers(days, day) && from <= time && time < to
+      : (covers(days, day) && from <= time) || (covers(days, yesterday) && time < to),
   );
 };
 
