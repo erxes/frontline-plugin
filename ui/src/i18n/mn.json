@@ -212,6 +212,7 @@
   "desktop": "Компьютер",
   "direction": "Чиглэл",
   "discard": "Болих",
+  "discard-draft-confirm": "Бичсэнээ хаях уу?",
   "disconnect": "Салгах",
   "disconnect-account-confirm": "{{name}}-г салгах уу?",
   "discord-add-bot-to-server": "Энэ ботыг сервертээ нэмэх",

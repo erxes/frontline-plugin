@@ -1,7 +1,8 @@
 import { orpc as core } from '@erxes/core-contract/client';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { stored } from 'erxes-ui';
+import { stored, useConfirm } from 'erxes-ui';
 import { useAtom } from 'jotai';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
 
@@ -42,7 +43,7 @@ const pruned = (all: Saved, now: number): Saved =>
  * from nothing, such as a new mail, uses an id like `new`. Another member signed in to the same
  * tab sees none of them.
  */
-export const useDraft = <T>(drafts: Drafts<T>, id: string, initial: T) => {
+export const useDraft = <T>(drafts: Drafts<T>, id: string, initial: NoInfer<T>) => {
   const member = useSuspenseQuery(core.auth.me.queryOptions()).data.user.id;
   const key = `${member}:${id}`;
   const [all, setAll] = useAtom(drafts.atom);
@@ -68,5 +69,26 @@ export const useDraft = <T>(drafts: Drafts<T>, id: string, initial: T) => {
       setAll((current) =>
         Object.fromEntries(Object.entries(current).filter(([other]) => other !== key)),
       ),
+  };
+};
+
+/**
+ * Cancel on a new record's panel: it asks before throwing away a draft the member wrote in
+ * (`dirty`), then drops it and closes. Closing the panel instead keeps the draft for later.
+ */
+export const useDiscard = (dirty: boolean, clear: () => void, onCancel: () => void) => {
+  const { t } = useTranslation('frontline');
+  const { confirm } = useConfirm();
+
+  return async () => {
+    if (dirty) {
+      await confirm({
+        message: t('discard-draft-confirm', 'Throw away what you wrote?'),
+        options: { okLabel: t('discard', 'Discard') },
+      });
+    }
+
+    clear();
+    onCancel();
   };
 };
