@@ -196,7 +196,15 @@ describe('ticket report', () => {
       await move([old.id], { createdAt: at('2026-02-01T02:00:00Z') });
     });
 
-    expect(await teammate.reports.tickets(PERIOD)).toEqual({
+    const report = await teammate.reports.tickets(PERIOD);
+
+    expect(report.statuses.toSorted((a, b) => a.statusId.localeCompare(b.statusId))).toEqual(
+      [
+        { statusId: resolvedStatus, count: 1 },
+        { statusId: question.statusId, count: 1 },
+      ].toSorted((a, b) => a.statusId.localeCompare(b.statusId)),
+    );
+    expect({ ...report, statuses: [] }).toEqual({
       created: 2,
       resolved: 1,
       unresolved: 2,
@@ -216,9 +224,19 @@ describe('ticket report', () => {
         { priority: 0, count: 1 },
       ],
       tags: [{ tagId: bug.id, name: 'Bug', colorCode: null, count: 1 }],
+      statuses: [],
+      sla: [{ clock: 'resolution', state: 'overdue', count: 1 }],
+      assignees: [{ userId: null, count: 2 }],
     });
 
     await expect(owner.reports.tickets(PERIOD)).resolves.toMatchObject({ created: 3, overdue: 2 });
+    // A tile picks one pipeline.
+    await expect(
+      owner.reports.tickets({ ...PERIOD, pipelineId: elsewhere.id }),
+    ).resolves.toMatchObject({ created: 1, statuses: [{ count: 1 }] });
+    await expect(
+      teammate.reports.tickets({ ...PERIOD, pipelineId: elsewhere.id }),
+    ).resolves.toMatchObject({ created: 0, assignees: [] });
   });
 });
 

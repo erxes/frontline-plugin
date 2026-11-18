@@ -16,9 +16,11 @@ import {
   ConversationSummary,
 } from './ConversationTiles.tsx';
 import {
+  TicketsByAssignee,
   TicketsByPriority,
-  TicketsByStage,
+  TicketsByStatus,
   TicketsByTag,
+  TicketSla,
   TicketsOverTime,
   TicketSummary,
 } from './TicketTiles.tsx';
@@ -27,9 +29,11 @@ import {
 export const TILES = {
   'ticket-summary': TicketSummary,
   'tickets-over-time': TicketsOverTime,
-  'tickets-by-stage': TicketsByStage,
+  'tickets-by-stage': TicketsByStatus,
   'tickets-by-priority': TicketsByPriority,
   'tickets-by-tag': TicketsByTag,
+  'ticket-sla': TicketSla,
+  'tickets-by-assignee': TicketsByAssignee,
   'conversation-summary': ConversationSummary,
   'conversations-over-time': ConversationsOverTime,
   'conversations-by-source': ConversationsBySource,

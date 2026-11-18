@@ -22,7 +22,8 @@ const tile = ({
 
 /**
  * The tiles core's home dashboard offers under Frontline. Each picks its own period, 7, 30 or 90
- * days, and counts what the member's channels hold. A tile's `name` is saved in members'
+ * days, and a ticket tile its pipeline, kept in the browser; it counts what the member's
+ * channels hold. A tile's `name` is saved in members'
  * layouts, so renaming one drops it from their dashboards.
  */
 export const DASHBOARD_WIDGETS = [
@@ -43,8 +44,8 @@ export const DASHBOARD_WIDGETS = [
   }),
   tile({
     name: 'tickets-by-stage',
-    title: 'Tickets by stage',
-    description: 'New tickets by the stage they are in now',
+    title: 'Tickets by status',
+    description: 'New tickets by status',
     icon: IconTicket,
     preview: 'bar',
   }),
@@ -61,6 +62,20 @@ export const DASHBOARD_WIDGETS = [
     description: 'The tags on new tickets',
     icon: IconTicket,
     preview: 'bar',
+  }),
+  tile({
+    name: 'ticket-sla',
+    title: 'Ticket SLA',
+    description: 'SLAs met, missed and overdue',
+    icon: IconTicket,
+    preview: 'table',
+  }),
+  tile({
+    name: 'tickets-by-assignee',
+    title: 'Open tickets by assignee',
+    description: 'Who holds open tickets',
+    icon: IconTicket,
+    preview: 'table',
   }),
   tile({
     name: 'conversation-summary',
