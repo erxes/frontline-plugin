@@ -25,38 +25,14 @@ export type { Identity };
 
 declare global {
   interface Window {
-    /** Who the website says the visitor is, set before the messenger's script. */
-    frontlineMessenger?: Partial<Record<keyof Identity, unknown>>;
+    /**
+     * The visitor the website names before the script loads: an `email`, `phone` or `userId`
+     * and its `hash`, signed on the website's server. Unsigned, an email or phone only fills in
+     * the visitor's own contact. `/connect` checks it.
+     */
+    frontlineMessenger?: Identity;
   }
 }
-
-/**
- * The visitor the website names before the script loads, as `window.frontlineMessenger`: an
- * `email`, `phone` or `userId` and its `hash`, signed on the website's server. Unsigned, an
- * email or phone only fills in the visitor's own contact.
- */
-const siteIdentity = (): Identity | undefined => {
-  const given = window.frontlineMessenger;
-
-  if (!given || typeof given !== 'object') return undefined;
-
-  const text = (name: keyof Identity) => {
-    const value = given[name];
-
-    return typeof value === 'string' && value ? value : undefined;
-  };
-
-  const identity = {
-    email: text('email'),
-    phone: text('phone'),
-    userId: text('userId'),
-    firstName: text('firstName'),
-    lastName: text('lastName'),
-    hash: text('hash'),
-  };
-
-  return identity.email || identity.phone || identity.userId ? identity : undefined;
-};
 
 export type TicketForms = Jsonify<TicketFormsReply>;
 
@@ -93,7 +69,7 @@ export const messengerApi = (base: URL, key: string) => {
           {
             key,
             token: token ?? undefined,
-            identity: typed ?? siteIdentity(),
+            identity: typed ?? window.frontlineMessenger,
             browser: {
               url: location.href,
               hostname: location.hostname,
