@@ -158,7 +158,8 @@ describe('tickets', () => {
       names({ filter: rule('createdAt', 'within_last', { amount: 1, unit: 'days' }) }),
     ).resolves.toHaveLength(3);
     await expect(names({ filter: rule('orgId', 'eq', 'x') })).rejects.toMatchObject({
-      code: 'BAD_REQUEST',
+      code: 'INVALID_FILTER',
+      status: 400,
     });
 
     await owner.tickets.bulkUpdate({ ids: [refund?.id ?? ''], state: 'archived' });

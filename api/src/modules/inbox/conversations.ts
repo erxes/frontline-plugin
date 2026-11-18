@@ -14,7 +14,8 @@ import { channelMembers } from '#/db/schema.ts';
 import { logger } from '#/logger.ts';
 import { reads, readsWithCore, writes } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
-import { FilterInput, type FilterFields, filtersBy, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, filtersBy, likeText } from '../filter.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import {
   Conversation,
@@ -32,20 +33,20 @@ import {
 
 /** What the inbox's filter bar narrows conversations by (`ui/src/modules/inbox/InboxFilter.tsx`). */
 const filterFields = (member: PluginMember): FilterFields => ({
-  'subject.channelId': { kind: 'select', expr: conversations.channelId },
-  'subject.integrationId': { kind: 'select', expr: conversations.integrationId },
-  'subject.kind': { kind: 'select', expr: integrations.kind },
-  'subject.customerId': { kind: 'select', expr: conversations.customerId },
-  'subject.status': { kind: 'select', expr: conversations.status },
-  'subject.assigneeId': { kind: 'member', expr: conversations.assigneeId },
-  'subject.participantIds': { kind: 'members', expr: conversations.participantIds },
-  'subject.mentionedUserIds': { kind: 'members', expr: mentionedIdsOf },
-  'subject.tagIds': { kind: 'members', expr: tagIdsOf },
-  'subject.isRead': { kind: 'boolean', expr: readSql(member) },
-  'subject.customerRespondedLast': { kind: 'boolean', expr: conversations.customerRespondedLast },
-  'subject.createdAt': { kind: 'date', expr: conversations.createdAt },
-  'subject.lastMessageAt': { kind: 'date', expr: conversations.lastMessageAt },
-  'subject.resolvedAt': { kind: 'date', expr: conversations.resolvedAt },
+  'subject.channelId': { type: 'select', expr: conversations.channelId },
+  'subject.integrationId': { type: 'select', expr: conversations.integrationId },
+  'subject.kind': { type: 'select', expr: integrations.kind },
+  'subject.customerId': { type: 'select', expr: conversations.customerId },
+  'subject.status': { type: 'select', expr: conversations.status },
+  'subject.assigneeId': { type: 'member', expr: conversations.assigneeId },
+  'subject.participantIds': { type: 'member', array: true, expr: conversations.participantIds },
+  'subject.mentionedUserIds': { type: 'member', array: true, expr: mentionedIdsOf },
+  'subject.tagIds': { type: 'tags', expr: tagIdsOf },
+  'subject.isRead': { type: 'boolean', expr: readSql(member) },
+  'subject.customerRespondedLast': { type: 'boolean', expr: conversations.customerRespondedLast },
+  'subject.createdAt': { type: 'date', expr: conversations.createdAt },
+  'subject.lastMessageAt': { type: 'date', expr: conversations.lastMessageAt },
+  'subject.resolvedAt': { type: 'date', expr: conversations.resolvedAt },
 });
 
 /** The ids of core's first 100 customers whose name, email or phone matches `search`. */
@@ -85,7 +86,7 @@ const list = readsWithCore(
             customerIds.length > 0 ? inArray(conversations.customerId, customerIds) : undefined,
           )
         : undefined,
-      input.filter ? filterSql(filterFields(member), input.filter, member.userId) : undefined,
+      compileFilter(filterFields(member), input.filter, { me: member.userId }),
     );
 
     const order = orderOf(conversations, conversations.lastMessageAt);

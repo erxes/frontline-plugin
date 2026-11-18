@@ -7,7 +7,8 @@ import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { formAnswers, formFields, formSubmissions } from '#/db/forms.ts';
 import { reads, writes } from '#/orpc.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import { Answer, typeError } from './answers.ts';
 import { Ids } from '../fields.ts';
@@ -58,12 +59,12 @@ const filterFields = async (tx: Tx, formId: string): Promise<FilterFields> => {
     .where(eq(formFields.formId, formId));
 
   return {
-    'subject.createdAt': { kind: 'date', expr: formSubmissions.createdAt },
-    'subject.customerId': { kind: 'text', expr: formSubmissions.customerId },
+    'subject.createdAt': { type: 'date', expr: formSubmissions.createdAt },
+    'subject.customerId': { type: 'text', expr: formSubmissions.customerId },
     ...Object.fromEntries(
       fields.map((field) => [
         `subject.answer.${field.id}`,
-        { kind: 'text' as const, expr: answerText(field.id) },
+        { type: 'text' as const, expr: answerText(field.id) },
       ]),
     ),
   };
@@ -107,9 +108,7 @@ const list = reads(PERMISSIONS.channelView)
               and ${formAnswers.value}::text ilike ${likeText(input.search)}
           )`
         : undefined,
-      input.filter
-        ? filterSql(await filterFields(tx, input.formId), input.filter, member.userId)
-        : undefined,
+      compileFilter(await filterFields(tx, input.formId), input.filter, { me: member.userId }),
     );
 
     const rows = await submissionRows(tx)

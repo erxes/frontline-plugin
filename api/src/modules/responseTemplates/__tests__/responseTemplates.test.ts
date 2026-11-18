@@ -107,7 +107,7 @@ describe('response templates', () => {
     ).resolves.toEqual([]);
     await expect(
       names({ rules: [{ path: 'subject.channelId', op: 'eq', value: channel.id }] }),
-    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    ).rejects.toMatchObject({ code: 'INVALID_FILTER', status: 400 });
   });
 
   it('pages newest first by cursor and counts every match', async () => {

@@ -8,7 +8,8 @@ import { channelMembers } from '#/db/schema.ts';
 import { pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
-import { FilterInput, type FilterFields, filtersBy, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, filtersBy, likeText } from '../filter.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import { pipelineFor } from '../pipelines/pipelines.ts';
 import { assertLinks } from './changes.ts';
@@ -29,28 +30,28 @@ import {
 
 /** What the list's filter bar narrows tickets by (`ui/src/modules/tickets/TicketFilter.tsx`). */
 const TICKET_FILTER: FilterFields = {
-  'subject.name': { kind: 'text', expr: tickets.name },
-  'subject.number': { kind: 'text', expr: tickets.number },
-  'subject.channelId': { kind: 'select', expr: tickets.channelId },
-  'subject.statusId': { kind: 'select', expr: tickets.statusId },
-  'subject.priority': { kind: 'select', expr: sql`${tickets.priority}::text` },
-  'subject.assigneeId': { kind: 'member', expr: tickets.assigneeId },
-  'subject.assignedMemberIds': { kind: 'members', expr: tickets.assignedMemberIds },
-  'subject.subscribedUserIds': { kind: 'members', expr: tickets.subscribedUserIds },
-  'subject.tagIds': { kind: 'tags', expr: tickets.tagIds },
-  'subject.branchId': { kind: 'select', expr: tickets.branchId },
-  'subject.departmentId': { kind: 'select', expr: tickets.departmentId },
-  'subject.customerId': { kind: 'select', expr: tickets.customerId },
-  'subject.companyId': { kind: 'select', expr: tickets.companyId },
-  'subject.state': { kind: 'select', expr: tickets.state },
-  'subject.firstResponseSla': { kind: 'select', expr: firstResponseSla },
-  'subject.resolutionSla': { kind: 'select', expr: resolutionSla },
-  'subject.createdBy': { kind: 'member', expr: tickets.createdBy },
-  'subject.createdAt': { kind: 'date', expr: tickets.createdAt },
-  'subject.updatedAt': { kind: 'date', expr: tickets.updatedAt },
-  'subject.startDate': { kind: 'date', expr: tickets.startDate },
-  'subject.targetDate': { kind: 'date', expr: tickets.targetDate },
-  'subject.statusChangedAt': { kind: 'date', expr: tickets.statusChangedAt },
+  'subject.name': { type: 'text', expr: tickets.name },
+  'subject.number': { type: 'text', expr: tickets.number },
+  'subject.channelId': { type: 'select', expr: tickets.channelId },
+  'subject.statusId': { type: 'select', expr: tickets.statusId },
+  'subject.priority': { type: 'select', expr: sql`${tickets.priority}::text` },
+  'subject.assigneeId': { type: 'member', expr: tickets.assigneeId },
+  'subject.assignedMemberIds': { type: 'member', array: true, expr: tickets.assignedMemberIds },
+  'subject.subscribedUserIds': { type: 'member', array: true, expr: tickets.subscribedUserIds },
+  'subject.tagIds': { type: 'tags', expr: tickets.tagIds },
+  'subject.branchId': { type: 'select', expr: tickets.branchId },
+  'subject.departmentId': { type: 'select', expr: tickets.departmentId },
+  'subject.customerId': { type: 'select', expr: tickets.customerId },
+  'subject.companyId': { type: 'select', expr: tickets.companyId },
+  'subject.state': { type: 'select', expr: tickets.state },
+  'subject.firstResponseSla': { type: 'select', expr: firstResponseSla },
+  'subject.resolutionSla': { type: 'select', expr: resolutionSla },
+  'subject.createdBy': { type: 'member', expr: tickets.createdBy },
+  'subject.createdAt': { type: 'date', expr: tickets.createdAt },
+  'subject.updatedAt': { type: 'date', expr: tickets.updatedAt },
+  'subject.startDate': { type: 'date', expr: tickets.startDate },
+  'subject.targetDate': { type: 'date', expr: tickets.targetDate },
+  'subject.statusChangedAt': { type: 'date', expr: tickets.statusChangedAt },
 };
 
 /**
@@ -84,7 +85,7 @@ const list = reads(PERMISSIONS.channelView)
       input.pipelineId ? eq(tickets.pipelineId, input.pipelineId) : undefined,
       filtersBy(input.filter, 'subject.state') ? undefined : eq(tickets.state, 'active'),
       search ? or(ilike(tickets.name, search), ilike(tickets.number, search)) : undefined,
-      input.filter ? filterSql(TICKET_FILTER, input.filter, member.userId) : undefined,
+      compileFilter(TICKET_FILTER, input.filter, { me: member.userId }),
     );
 
     const order = orderOf(tickets, tickets[input.sort], input.ascending);

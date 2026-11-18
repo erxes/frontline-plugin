@@ -67,7 +67,8 @@ describe('knowledge base articles', () => {
     await expect(titles(rule('subject.status', 'eq', 'publish'))).resolves.toEqual(['Card fees']);
     await expect(titles(rule('subject.isPrivate', 'eq', false))).resolves.toHaveLength(2);
     await expect(titles(rule('subject.content', 'contains', 'x'))).rejects.toMatchObject({
-      code: 'BAD_REQUEST',
+      code: 'INVALID_FILTER',
+      status: 400,
     });
     await expect(titles({ search: 'MONEY' })).resolves.toEqual(['Refunds']);
     await expect(titles({ search: '5_d' })).resolves.toEqual(['Refunds']);

@@ -18,7 +18,8 @@ import { PERMISSIONS } from '#/core.ts';
 import { type Tx, uniqueViolation } from '#/db/client.ts';
 import { CHANNEL_NAME_INDEX, CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 import { canChangeSql, channelFor, insertMembers, managesAll, membership } from './access.ts';
 
 const Name = z.string().trim().min(1).max(100);
@@ -88,11 +89,11 @@ const channelById = async (tx: Tx, member: PluginMember, id: string) => {
 
 /** What the list's filter bar narrows channels by (`ui/src/modules/channels/ChannelsPage.tsx`). */
 const CHANNEL_FILTER: FilterFields = {
-  'subject.name': { kind: 'text', expr: channels.name },
-  'subject.description': { kind: 'text', expr: channels.description },
-  'subject.memberIds': { kind: 'members', expr: memberIds },
-  'subject.createdBy': { kind: 'member', expr: channels.createdBy },
-  'subject.createdAt': { kind: 'date', expr: channels.createdAt },
+  'subject.name': { type: 'text', expr: channels.name },
+  'subject.description': { type: 'text', expr: channels.description },
+  'subject.memberIds': { type: 'member', array: true, expr: memberIds },
+  'subject.createdBy': { type: 'member', expr: channels.createdBy },
+  'subject.createdAt': { type: 'date', expr: channels.createdAt },
 };
 
 /**
@@ -114,7 +115,7 @@ const list = reads(PERMISSIONS.channelView)
                 ilike(channels.description, likeText(input.search)),
               )
             : undefined,
-          input.filter ? filterSql(CHANNEL_FILTER, input.filter, member.userId) : undefined,
+          compileFilter(CHANNEL_FILTER, input.filter, { me: member.userId }),
         ),
       )
       .orderBy(asc(sql`lower(${channels.name})`));

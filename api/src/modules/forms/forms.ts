@@ -11,23 +11,24 @@ import { channelFor, membership } from '../channels/access.ts';
 import { assertTags } from '../tags/tags.ts';
 import { changedEvent } from '../events.ts';
 import { Blank, Color, Title } from '../fields.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import { Form, formById, formFor, formRows, newCode, publishFormEvents, seenBy } from './shared.ts';
 
 /** What the forms list's filter bar narrows by (`ui/src/modules/forms`). */
 const FORM_FILTER: FilterFields = {
-  'subject.name': { kind: 'text', expr: forms.name },
-  'subject.title': { kind: 'text', expr: forms.title },
-  'subject.status': { kind: 'select', expr: forms.status },
-  'subject.channelId': { kind: 'select', expr: forms.channelId },
-  'subject.loadType': { kind: 'select', expr: forms.loadType },
-  'subject.viewCount': { kind: 'number', expr: forms.viewCount },
-  'subject.contactsGathered': { kind: 'number', expr: forms.contactsGathered },
-  'subject.tagIds': { kind: 'tags', expr: forms.tagIds },
-  'subject.createdBy': { kind: 'member', expr: forms.createdBy },
-  'subject.createdAt': { kind: 'date', expr: forms.createdAt },
-  'subject.updatedAt': { kind: 'date', expr: forms.updatedAt },
+  'subject.name': { type: 'text', expr: forms.name },
+  'subject.title': { type: 'text', expr: forms.title },
+  'subject.status': { type: 'select', expr: forms.status },
+  'subject.channelId': { type: 'select', expr: forms.channelId },
+  'subject.loadType': { type: 'select', expr: forms.loadType },
+  'subject.viewCount': { type: 'number', expr: forms.viewCount },
+  'subject.contactsGathered': { type: 'number', expr: forms.contactsGathered },
+  'subject.tagIds': { type: 'tags', expr: forms.tagIds },
+  'subject.createdBy': { type: 'member', expr: forms.createdBy },
+  'subject.createdAt': { type: 'date', expr: forms.createdAt },
+  'subject.updatedAt': { type: 'date', expr: forms.updatedAt },
 };
 
 const order = orderOf(forms);
@@ -47,7 +48,7 @@ const list = reads(PERMISSIONS.channelView)
       input.search
         ? or(ilike(forms.name, likeText(input.search)), ilike(forms.title, likeText(input.search)))
         : undefined,
-      input.filter ? filterSql(FORM_FILTER, input.filter, member.userId) : undefined,
+      compileFilter(FORM_FILTER, input.filter, { me: member.userId }),
     );
 
     const rows = await formRows(tx, member)

@@ -8,7 +8,8 @@ import type { Tx } from '#/db/client.ts';
 import { channelMembers, responseTemplates } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { channelFor, managesAll } from '../channels/access.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 import { orderOf, PageInput } from '../paging.ts';
 
 /** The row without `org_id`, which the caller already knows. */
@@ -87,11 +88,11 @@ const templateFor = async (
 
 /** What the list's filter bar narrows templates by (`ui/src/modules/responseTemplates`). */
 const TEMPLATE_FILTER: FilterFields = {
-  'subject.name': { kind: 'text', expr: responseTemplates.name },
-  'subject.content': { kind: 'text', expr: contentText },
-  'subject.createdBy': { kind: 'member', expr: responseTemplates.createdBy },
-  'subject.createdAt': { kind: 'date', expr: responseTemplates.createdAt },
-  'subject.updatedAt': { kind: 'date', expr: responseTemplates.updatedAt },
+  'subject.name': { type: 'text', expr: responseTemplates.name },
+  'subject.content': { type: 'text', expr: contentText },
+  'subject.createdBy': { type: 'member', expr: responseTemplates.createdBy },
+  'subject.createdAt': { type: 'date', expr: responseTemplates.createdAt },
+  'subject.updatedAt': { type: 'date', expr: responseTemplates.updatedAt },
 };
 
 const order = orderOf(responseTemplates);
@@ -121,7 +122,7 @@ const list = reads(PERMISSIONS.channelView)
             ilike(contentText, likeText(input.search)),
           )
         : undefined,
-      input.filter ? filterSql(TEMPLATE_FILTER, input.filter, member.userId) : undefined,
+      compileFilter(TEMPLATE_FILTER, input.filter, { me: member.userId }),
     );
 
     const rows = await templateRows(tx, member)

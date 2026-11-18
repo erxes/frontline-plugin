@@ -8,7 +8,8 @@ import { KB_ARTICLE_STATUSES, kbArticles, kbCategories } from '#/db/schema.ts';
 import { Attachment } from '#/db/table.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Title } from '../fields.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import { categoryFor, topicFor } from './shared.ts';
 
@@ -82,17 +83,17 @@ const categoryPath = sql<string[]>`array(
  * category keeps its subcategories' articles too.
  */
 const ARTICLE_FILTER: FilterFields = {
-  'subject.title': { kind: 'text', expr: kbArticles.title },
-  'subject.summary': { kind: 'text', expr: kbArticles.summary },
-  'subject.status': { kind: 'select', expr: kbArticles.status },
-  'subject.categoryId': { kind: 'members', expr: categoryPath },
-  'subject.isPrivate': { kind: 'boolean', expr: kbArticles.isPrivate },
-  'subject.viewCount': { kind: 'number', expr: kbArticles.viewCount },
-  'subject.createdBy': { kind: 'member', expr: kbArticles.createdBy },
-  'subject.createdAt': { kind: 'date', expr: kbArticles.createdAt },
-  'subject.updatedAt': { kind: 'date', expr: kbArticles.updatedAt },
-  'subject.publishedAt': { kind: 'date', expr: kbArticles.publishedAt },
-  'subject.scheduledAt': { kind: 'date', expr: kbArticles.scheduledAt },
+  'subject.title': { type: 'text', expr: kbArticles.title },
+  'subject.summary': { type: 'text', expr: kbArticles.summary },
+  'subject.status': { type: 'select', expr: kbArticles.status },
+  'subject.categoryId': { type: 'select', array: true, expr: categoryPath },
+  'subject.isPrivate': { type: 'boolean', expr: kbArticles.isPrivate },
+  'subject.viewCount': { type: 'number', expr: kbArticles.viewCount },
+  'subject.createdBy': { type: 'member', expr: kbArticles.createdBy },
+  'subject.createdAt': { type: 'date', expr: kbArticles.createdAt },
+  'subject.updatedAt': { type: 'date', expr: kbArticles.updatedAt },
+  'subject.publishedAt': { type: 'date', expr: kbArticles.publishedAt },
+  'subject.scheduledAt': { type: 'date', expr: kbArticles.scheduledAt },
 };
 
 /**
@@ -171,7 +172,7 @@ const list = reads(PERMISSIONS.kbView)
 
     const matches = and(
       inArray(kbArticles.categoryId, inTopic),
-      input.filter ? filterSql(ARTICLE_FILTER, input.filter, member.userId) : undefined,
+      compileFilter(ARTICLE_FILTER, input.filter, { me: member.userId }),
       input.search
         ? or(
             ilike(kbArticles.title, likeText(input.search)),

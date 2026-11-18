@@ -8,7 +8,8 @@ import { reads, writes } from '#/orpc.ts';
 import { channelFor, membership } from '../channels/access.ts';
 import { changedEvent } from '../events.ts';
 import { Ids, Title } from '../fields.ts';
-import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
+import { FilterInput, likeText } from '../filter.ts';
 import { newCode } from '../forms/shared.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import {
@@ -28,14 +29,14 @@ const questions = sql`(
 
 /** What the surveys list's filter bar narrows by (`ui/src/modules/surveys`). */
 const SURVEY_FILTER: FilterFields = {
-  'subject.title': { kind: 'text', expr: surveys.title },
-  'subject.question': { kind: 'text', expr: questions },
-  'subject.status': { kind: 'select', expr: surveys.status },
-  'subject.channelId': { kind: 'select', expr: surveys.channelId },
-  'subject.sentCount': { kind: 'number', expr: surveys.sentCount },
-  'subject.createdBy': { kind: 'member', expr: surveys.createdBy },
-  'subject.createdAt': { kind: 'date', expr: surveys.createdAt },
-  'subject.updatedAt': { kind: 'date', expr: surveys.updatedAt },
+  'subject.title': { type: 'text', expr: surveys.title },
+  'subject.question': { type: 'text', expr: questions },
+  'subject.status': { type: 'select', expr: surveys.status },
+  'subject.channelId': { type: 'select', expr: surveys.channelId },
+  'subject.sentCount': { type: 'number', expr: surveys.sentCount },
+  'subject.createdBy': { type: 'member', expr: surveys.createdBy },
+  'subject.createdAt': { type: 'date', expr: surveys.createdAt },
+  'subject.updatedAt': { type: 'date', expr: surveys.updatedAt },
 };
 
 const order = orderOf(surveys);
@@ -56,7 +57,7 @@ const list = reads(PERMISSIONS.channelView)
       input.search
         ? or(ilike(surveys.title, likeText(input.search)), ilike(questions, likeText(input.search)))
         : undefined,
-      input.filter ? filterSql(SURVEY_FILTER, input.filter, member.userId) : undefined,
+      compileFilter(SURVEY_FILTER, input.filter, { me: member.userId }),
     );
 
     const rows = await surveyRows(tx, member)
