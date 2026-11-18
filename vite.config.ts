@@ -61,6 +61,8 @@ export default defineConfig({
             META_APP_ID: 'test-meta-app',
             META_APP_SECRET: 'test-meta-app-secret',
             META_VERIFY_TOKEN: 'test-meta-verify',
+            META_RELAY_URL: 'https://relay.example/',
+            META_RELAY_KEY: 'test-relay-key',
             WIDGETS_DOMAIN: 'https://widgets.e2e.test/',
             LOG_LEVEL: 'silent',
           },

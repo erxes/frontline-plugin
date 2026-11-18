@@ -8,6 +8,7 @@ import { inOrder } from '../provider.ts';
 import { metaKey, saveAccount } from '../store.ts';
 import { readToken, signToken } from '../secrets.ts';
 import { GRAPH_VERSION, graph } from './meta.ts';
+import { routeThroughRelay } from './metaRelay.ts';
 
 const STATE = 'meta-login';
 
@@ -29,8 +30,25 @@ const SCOPES = [
   'instagram_manage_comments',
 ];
 
-/** The events Meta posts to frontline for a connected page. */
-const PAGE_FIELDS = ['messages', 'messaging_postbacks', 'message_reactions', 'feed'];
+/**
+ * The events the app gets for a connected page: frontline's own (messages, postbacks,
+ * reactions, feed), and every field the older erxes installs that share the app subscribe. A
+ * page's `subscribed_apps` POST replaces the app's fields, so a shorter list would stop events
+ * those installs read. Fields frontline doesn't read are skipped when they arrive.
+ */
+const PAGE_FIELDS = [
+  'conversations',
+  'feed',
+  'message_deliveries',
+  'message_echoes',
+  'message_reactions',
+  'message_reads',
+  'messages',
+  'messaging_handovers',
+  'messaging_postbacks',
+  'messaging_referrals',
+  'standby',
+];
 
 const State = z.object({ orgId: z.string(), userId: z.string() });
 
@@ -109,7 +127,8 @@ const userTokenOf = async (code: string) => {
 /**
  * Meta's login comes back here with a code. Every page the member granted is connected with its
  * own token and subscribed to the app's webhook, and so is the Instagram account linked to it.
- * The user token is used once and never stored.
+ * With meta-relay set, each is routed through it too. The user token is used once and never
+ * stored.
  */
 export const connectMetaPages = async (code: string, stateToken: string) => {
   const state = await readToken(STATE, stateToken, State);
@@ -121,15 +140,6 @@ export const connectMetaPages = async (code: string, stateToken: string) => {
       query: { fields: 'id,name,access_token,instagram_business_account{id,username}' },
     }),
   ).data;
-
-  await Promise.all(
-    pages.map((page) =>
-      graph(`${page.id}/subscribed_apps`, page.access_token, {
-        method: 'POST',
-        query: { subscribed_fields: PAGE_FIELDS.join(',') },
-      }),
-    ),
-  );
 
   const accounts = pages.flatMap((page) => {
     const secret = { pageToken: page.access_token };
@@ -158,6 +168,17 @@ export const connectMetaPages = async (code: string, stateToken: string) => {
         : []),
     ];
   });
+
+  // Meta and meta-relay first, so a refusal saves nothing and the member sees why.
+  await Promise.all([
+    ...pages.map((page) =>
+      graph(`${page.id}/subscribed_apps`, page.access_token, {
+        method: 'POST',
+        query: { subscribed_fields: PAGE_FIELDS.join(',') },
+      }),
+    ),
+    ...accounts.map((account) => routeThroughRelay(account.provider, account.externalId)),
+  ]);
 
   await withOrg(state.orgId, (tx) =>
     inOrder(accounts, (account) => saveAccount(tx, state, account)),
