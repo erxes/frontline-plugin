@@ -1,5 +1,7 @@
 import {
   IconAlertSquareRounded,
+  IconCalendarCheck,
+  IconCalendarClock,
   IconCalendarPlus,
   IconCalendarUp,
   IconCircles,
@@ -66,7 +68,7 @@ export const TicketTitle = ({ contentId }: TRecordSlotProps) => {
   );
 };
 
-/** The header's menu: archive or unarchive, and delete for its channel's admins. */
+/** The header's menu, a row's (`useTicketActions`). */
 export const TicketActions = ({ contentId }: TRecordSlotProps) => {
   const { data } = useTicket(contentId);
   const act = useTicketRowActions();
@@ -74,7 +76,10 @@ export const TicketActions = ({ contentId }: TRecordSlotProps) => {
   return data ? <TicketMenu ticket={data} act={act} /> : null;
 };
 
-/** Where the ticket is filed and who made it when, read only, at the foot of the tab. */
+/**
+ * Where the ticket is filed, who made it when, and when its status last moved and it was
+ * resolved, read only, at the foot of the tab.
+ */
 const TicketRecord = ({ ticket }: { ticket: Ticket }) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
@@ -98,6 +103,14 @@ const TicketRecord = ({ ticket }: { ticket: Ticket }) => {
       <InfoRow icon={IconCalendarUp} label={t('updated-at', 'Updated at')}>
         {format.dateTime(ticket.updatedAt)}
       </InfoRow>
+      <InfoRow icon={IconCalendarClock} label={t('status-changed-at', 'Status changed')}>
+        {format.dateTime(ticket.statusChangedAt)}
+      </InfoRow>
+      {ticket.resolvedAt && (
+        <InfoRow icon={IconCalendarCheck} label={t('resolved-at', 'Resolved at')}>
+          {format.dateTime(ticket.resolvedAt)}
+        </InfoRow>
+      )}
     </PanelSection>
   );
 };

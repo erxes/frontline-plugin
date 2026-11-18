@@ -40,6 +40,7 @@ import {
   KB_CATEGORY_TYPE,
   KB_TOPIC_TYPE,
   META_BOT_TYPE,
+  pageOf,
   PIPELINE_TYPE,
   PLUGIN,
   RESPONSE_TEMPLATE_TYPE,
@@ -94,9 +95,6 @@ const propertiesOf = (records: 'tickets' | 'conversations') => ({
 
 const helpCenter = withText(() => import('@/helpcenter/slots.ts'));
 const kb = withText(() => import('@/knowledgebase/slots.ts'));
-
-/** A record's own page, `/frontline/<path>/<id>`, where its panel expands to. */
-const pageOf = (path: string) => (id: string) => `/${PLUGIN}/${path}/${encodeURIComponent(id)}`;
 const forms = withText(() => import('@/forms/slots.ts'));
 const surveys = withText(() => import('@/surveys/slots.ts'));
 

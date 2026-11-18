@@ -3,6 +3,10 @@
 /** The plugin's name in core. */
 export const PLUGIN = 'frontline';
 
+/** A record's own page under `/frontline/<path>`: its record type's `detailPath`, and its link. */
+export const pageOf = (path: string) => (id: string) =>
+  `/${PLUGIN}/${path}/${encodeURIComponent(id)}`;
+
 /** The plugin's records core's side panel opens: `useOpenRecord().open({ contentType, contentId })`. */
 export const CHANNEL_TYPE = `${PLUGIN}:channel`;
 

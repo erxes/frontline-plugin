@@ -66,6 +66,7 @@ test('a member files, changes and filters tickets in the list', async ({ page })
   await expect(panel.getByRole('button', { name: `Name ${refund}` })).toBeVisible();
   await pick(page, panel.getByRole('combobox', { name: 'Priority' }), 'High');
   await expect(page.getByRole('combobox', { name: `Priority of ${refund}` })).toHaveText('High');
+  await expect(panel.getByText('Status changed')).toBeVisible();
 
   // Core's Activity tab lists each change, from the events the change published.
   await panel.getByRole('tab', { name: 'Activity' }).click();
@@ -117,6 +118,11 @@ test('a member changes tickets in one go, sees them on the board and deletes the
   await teammate.page.getByRole('button', { name: `Actions for ${refund}` }).click();
   await expect(teammate.page.getByRole('option', { name: 'Archive' })).toBeVisible();
   await expect(teammate.page.getByRole('option', { name: 'Delete' })).toBeHidden();
+
+  // They follow it from the menu, which then offers to unfollow.
+  await teammate.page.getByRole('option', { name: 'Follow' }).click();
+  await teammate.page.getByRole('button', { name: `Actions for ${refund}` }).click();
+  await expect(teammate.page.getByRole('option', { name: 'Unfollow' })).toBeVisible();
   await teammate.page.keyboard.press('Escape');
 
   await page.goto(ofPipeline);

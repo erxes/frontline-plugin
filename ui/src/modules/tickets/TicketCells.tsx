@@ -6,15 +6,20 @@ import {
   IconAntennaBarsOff,
   IconArchive,
   IconDots,
+  IconEye,
+  IconEyeOff,
+  IconLink,
   IconRestore,
   IconTrash,
 } from '@tabler/icons-react';
-import { Button, cn, Select, useOpenRecord } from 'erxes-ui';
+import { orpc as core } from '@erxes/core-contract/client';
+import { useQuery } from '@tanstack/react-query';
+import { Button, cn, Select, toast, useOpenRecord } from 'erxes-ui';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRIORITIES, usePriorityNames } from '@/pipelines/queries.ts';
 import { StageIcon } from '@/pipelines/StageIcon.tsx';
-import { TICKET_TYPE } from '~/plugin.ts';
+import { pageOf, TICKET_TYPE } from '~/plugin.ts';
 import { MemberCell } from '~/shared/MemberPicker.tsx';
 import { ActionsMenu, type RowAction } from '~/shared/Records.tsx';
 import { type Ticket, type TicketRowActions, useChoices } from './queries.ts';
@@ -198,12 +203,41 @@ export const AssigneeCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowAc
   );
 };
 
-/** Archive or unarchive, and delete for its channel's admins. */
+/**
+ * Follow or unfollow it as the signed-in member, copy its page's link, archive or unarchive, and
+ * delete for its channel's admins.
+ */
 export const useTicketActions = (ticket: Ticket, act: TicketRowActions): RowAction[] => {
   const { t } = useTranslation('frontline');
+  const me = useQuery(core.auth.me.queryOptions()).data?.user.id;
   const archived = ticket.state === 'archived';
+  const following = !!me && ticket.subscribedUserIds.includes(me);
 
   return [
+    ...(me
+      ? [
+          {
+            value: 'follow',
+            icon: following ? <IconEyeOff /> : <IconEye />,
+            label: following ? t('unfollow', 'Unfollow') : t('follow', 'Follow'),
+            onSelect: () =>
+              act.edit(ticket.id, {
+                subscribedUserIds: following
+                  ? ticket.subscribedUserIds.filter((id) => id !== me)
+                  : [...ticket.subscribedUserIds, me],
+              }),
+          },
+        ]
+      : []),
+    {
+      value: 'copy-link',
+      icon: <IconLink />,
+      label: t('copy-link', 'Copy link'),
+      onSelect: () =>
+        void navigator.clipboard
+          .writeText(new URL(pageOf('tickets')(ticket.id), location.origin).href)
+          .then(() => toast({ title: t('link-copied', 'Link copied') })),
+    },
     {
       value: 'archive',
       icon: archived ? <IconRestore /> : <IconArchive />,
