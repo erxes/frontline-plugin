@@ -41,7 +41,7 @@ afterAll(() => {
 
 /** The published article's body as visitors get it: no handlers, scripts or script links. */
 const SANITIZED =
-  '<p>Money back</p><a target="_blank" rel="noreferrer">Terms</a><a href="https://acme.test/refunds" target="_blank" rel="noreferrer">Policy</a>';
+  '<p>Money back</p><p>Fees &amp; refunds</p><a target="_blank" rel="noreferrer">Terms</a><a href="https://acme.test/refunds" target="_blank" rel="noreferrer">Policy</a>';
 
 /** A file on core's storage, at the address core gives it. */
 const file = (id: string) => ({ url: `/core/v1/files/${id}/download`, name: `${id}.png` });
@@ -60,7 +60,7 @@ const publishedSite = async (orgId: string) => {
     categoryId: category.id,
     title: 'Refunds',
     content:
-      '<p onclick="steal()">Money back</p><script>steal()</script><a href="javascript:steal()">Terms</a><a href="https://acme.test/refunds">Policy</a>',
+      '<p onclick="steal()">Money back</p><p>Fees &amp; refunds</p><script>steal()</script><a href="javascript:steal()">Terms</a><a href="https://acme.test/refunds">Policy</a>',
     status: 'publish',
   });
 
@@ -104,6 +104,20 @@ describe('help centers', () => {
     const read = await fetch(`${base}/help-centers/${center.publicKey}/articles/${article.id}`);
 
     await expect(read.json()).resolves.toMatchObject({ content: SANITIZED, viewCount: 0 });
+
+    // Search reads the text without its tags or entities, and a draft, a private article or a wildcard in
+    // the words finds nothing.
+    const search = async (q: string) =>
+      (await fetch(`${base}/help-centers/${center.publicKey}/search?q=${q}`)).json();
+
+    await expect(search('fees%20%26%20REFUNDS')).resolves.toEqual([
+      expect.objectContaining({ id: article.id, title: 'Refunds' }),
+    ]);
+
+    for (const missed of ['onclick', 'Draft', 'Internal', 'M_ney'])
+      await expect(search(missed)).resolves.toEqual([]);
+
+    expect((await fetch(`${base}/help-centers/${center.publicKey}/search?q=`)).status).toBe(400);
 
     // The view is written with the others that came meanwhile.
     await flushViews();
@@ -302,6 +316,9 @@ describe('help centers', () => {
     expect(
       (await messenger.get(`/knowledge-base/articles/${article.id}`, offered)).body,
     ).toMatchObject({ title: 'Refunds', content: SANITIZED });
+    expect((await messenger.get('/knowledge-base/search?q=money', offered)).body).toMatchObject([
+      { id: article.id },
+    ]);
     expect((await messenger.get('/knowledge-base', await visitorOf({}))).status).toBe(404);
   });
 

@@ -9,7 +9,7 @@ import type {
   VisitorTicket,
 } from '@frontline/api/messenger';
 import type { Jsonify } from 'type-fest';
-import type { Article, Topic } from '../articles/api.ts';
+import type { Article, ArticleSummary, Topic } from '../articles/api.ts';
 import { bearer, publicApi, uploadFile } from '../shared/http.ts';
 
 /** What `/connect` answers, as JSON carries it. */
@@ -119,6 +119,10 @@ export const messengerApi = (base: URL, key: string) => {
       as(token)
         .get(`knowledge-base/articles/${encodeURIComponent(id)}`)
         .json<Article>(),
+    searchArticles: (token: string, term: string) =>
+      as(token)
+        .get(`knowledge-base/search?q=${encodeURIComponent(term)}`)
+        .json<ArticleSummary[]>(),
   };
 };
 

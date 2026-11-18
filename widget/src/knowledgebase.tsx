@@ -20,7 +20,7 @@ const start = async (center: string) => {
 
   host.id = 'frontline-knowledgebase';
   document.body.append(host);
-  render(<KnowledgeBase site={site} read={api.read} />, mount(host, styles));
+  render(<KnowledgeBase site={site} read={api.read} search={api.search} />, mount(host, styles));
 };
 
 // A help center that is gone shows nothing.

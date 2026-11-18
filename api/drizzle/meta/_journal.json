@@ -211,6 +211,13 @@
       "when": 1795037912234,
       "tag": "0031_message_sending_status",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1795040595395,
+      "tag": "0032_kb_article_text",
+      "breakpoints": true
     }
   ]
 }

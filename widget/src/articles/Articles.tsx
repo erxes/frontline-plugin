@@ -1,15 +1,18 @@
 import { useEffect, useState } from 'preact/hooks';
-import type { Article, ArticleSummary, Category, ReadArticle, Topic } from './api.ts';
+import type {
+  Article,
+  ArticleSummary,
+  Category,
+  ReadArticle,
+  SearchArticles,
+  Topic,
+} from './api.ts';
 
 type View = { name: 'home' } | { name: 'category'; id: string } | { name: 'article'; id: string };
 
 type Open = (view: View) => void;
 
 const countOf = (count: number) => (count === 1 ? '1 article' : `${count} articles`);
-
-/** Whether an article's title or summary holds what the visitor searched for. */
-const matches = (article: ArticleSummary, term: string) =>
-  `${article.title} ${article.summary ?? ''}`.toLowerCase().includes(term.toLowerCase());
 
 const ArticleRows = ({ articles, open }: { articles: ArticleSummary[]; open: Open }) => (
   <ul class="fl-rows">
@@ -55,13 +58,60 @@ const CategoryRows = ({
   </ul>
 );
 
-/** The articles a search found, or that none did. */
-const Found = ({ articles, open }: { articles: ArticleSummary[]; open: Open }) =>
-  articles.length > 0 ? (
+/**
+ * The articles whose title, summary or text holds `term`, asked for once the visitor pauses
+ * typing; the last answer stays up while the next is on its way.
+ */
+const useSearch = (term: string, search: SearchArticles) => {
+  const [articles, setArticles] = useState<ArticleSummary[] | null>(null);
+  const [failure, setFailure] = useState('');
+
+  useEffect(() => {
+    if (!term) return;
+
+    let live = true;
+
+    const ask = async () => {
+      try {
+        const found = await search(term);
+
+        if (!live) return;
+
+        setArticles(found);
+        setFailure('');
+      } catch (error) {
+        if (live) setFailure(error instanceof Error ? error.message : 'Try again');
+      }
+    };
+
+    const asked = setTimeout(() => void ask(), 250);
+
+    return () => {
+      live = false;
+      clearTimeout(asked);
+    };
+  }, [term, search]);
+
+  return { articles, failure };
+};
+
+/** What the search found, that it found nothing, or why it failed. */
+const Found = ({ articles, failure, open }: ReturnType<typeof useSearch> & { open: Open }) => {
+  if (failure)
+    return (
+      <p class="fl-error" role="alert">
+        {failure}
+      </p>
+    );
+
+  if (!articles) return <p class="fl-muted">Searching…</p>;
+
+  return articles.length > 0 ? (
     <ArticleRows articles={articles} open={open} />
   ) : (
     <p class="fl-muted">No articles match</p>
   );
+};
 
 /** One article, read when it opens; its body is HTML the API sanitized. */
 const ArticleView = ({ id, read }: { id: string; read: ReadArticle }) => {
@@ -145,19 +195,23 @@ export const useArticleViews = () => {
 type ArticleViews = ReturnType<typeof useArticleViews>;
 
 /**
- * A knowledge base topic a visitor browses: a search over its articles' titles and summaries,
- * its categories and their articles, and one article at a time.
+ * A knowledge base topic a visitor browses: a search over its articles' titles, summaries and
+ * text, its categories and their articles, and one article at a time.
  */
 export const Articles = ({
   topic,
   read,
+  search,
   views: { view, open },
 }: {
   topic: Topic;
   read: ReadArticle;
+  search: SearchArticles;
   views: ArticleViews;
 }) => {
   const [term, setTerm] = useState('');
+  // The search lives here, so stepping back from an article it found shows its results again.
+  const found = useSearch(term.trim(), search);
   const searching = term.trim() !== '' && view.name !== 'article';
 
   return (
@@ -167,15 +221,13 @@ export const Articles = ({
           type="search"
           aria-label="Search articles"
           placeholder="Search articles"
+          maxLength={100}
           value={term}
           onInput={(event) => setTerm(event.currentTarget.value)}
         />
       )}
       {searching ? (
-        <Found
-          articles={topic.articles.filter((article) => matches(article, term.trim()))}
-          open={open}
-        />
+        <Found {...found} open={open} />
       ) : (
         <Page topic={topic} view={view} open={open} read={read} />
       )}

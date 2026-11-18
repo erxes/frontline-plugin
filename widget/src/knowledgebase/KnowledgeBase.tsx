@@ -1,11 +1,19 @@
 import { useState } from 'preact/hooks';
 import { Articles, useArticleViews } from '../articles/Articles.tsx';
-import type { ReadArticle } from '../articles/api.ts';
+import type { ReadArticle, SearchArticles } from '../articles/api.ts';
 import { BackIcon, BookIcon, CloseIcon } from '../shared/icons.tsx';
 import type { Site } from './api.ts';
 
 /** A help center's knowledge base on a website: a launcher that opens its articles in a panel. */
-export const KnowledgeBase = ({ site, read }: { site: Site; read: ReadArticle }) => {
+export const KnowledgeBase = ({
+  site,
+  read,
+  search,
+}: {
+  site: Site;
+  read: ReadArticle;
+  search: SearchArticles;
+}) => {
   const [open, setOpen] = useState(false);
   const views = useArticleViews();
   const { helpCenter, topic } = site;
@@ -33,7 +41,7 @@ export const KnowledgeBase = ({ site, read }: { site: Site; read: ReadArticle })
             </button>
           </header>
           <div class="fl-scroll">
-            <Articles topic={site} read={read} views={views} />
+            <Articles topic={site} read={read} search={search} views={views} />
           </div>
         </section>
       )}

@@ -178,7 +178,7 @@ const list = reads(PERMISSIONS.kbView)
         ? or(
             ilike(kbArticles.title, likeText(input.search)),
             ilike(kbArticles.summary, likeText(input.search)),
-            ilike(kbArticles.content, likeText(input.search)),
+            ilike(kbArticles.plainText, likeText(input.search)),
           )
         : undefined,
     );

@@ -13,3 +13,6 @@ export type Article = Jsonify<VisitorArticle>;
 
 /** Reads one article, which counts a view. */
 export type ReadArticle = (id: string) => Promise<Article>;
+
+/** The topic's articles whose title, summary or text holds `term`. */
+export type SearchArticles = (term: string) => Promise<ArticleSummary[]>;

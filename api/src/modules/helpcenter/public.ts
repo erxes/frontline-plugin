@@ -1,16 +1,18 @@
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, ilike, inArray, or } from 'drizzle-orm';
 import express, { type Response, type Router } from 'express';
 import sanitizeHtml from 'sanitize-html';
+import { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
 import { forms } from '#/db/forms.ts';
 import { HELP_CENTER_DOMAIN, HELP_CENTER_KEY, helpCenters } from '#/db/helpcenter.ts';
 import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
 import type { Attachment } from '#/db/table.ts';
-import { logger } from '#/logger.ts';
+import { fail } from '../fail.ts';
 import { urlOf } from '../forms/embed.ts';
 import { keyOfOrganization, openedBy, widgetScript } from '../public.ts';
 import { countView } from '../views.ts';
-import { shownFile, shownKeyOf, shownUrl } from '../shownFiles.ts';
+import { likeText } from '../filter.ts';
+import { published, shownFile, shownKeyOf, shownUrl } from '../shownFiles.ts';
 
 /**
  * The help center's organisation and id from the address a signed-out visitor came by: its key,
@@ -67,6 +69,47 @@ const shownAttachment = (key: string, file: Attachment) => ({
   url: shownUrl(key, file.url),
 });
 
+/** An article as a list shows it, without its body. */
+const listed = {
+  id: kbArticles.id,
+  categoryId: kbArticles.categoryId,
+  title: kbArticles.title,
+  summary: kbArticles.summary,
+  viewCount: kbArticles.viewCount,
+  publishedAt: kbArticles.publishedAt,
+};
+
+/** What a visitor searches a topic with: a few words, matched as written. */
+export const SearchQuery = z.object({ q: z.string().trim().min(1).max(100) });
+
+/**
+ * The topic's articles a visitor may read whose title, summary or text holds `term`, ignoring
+ * case and the body's tags, newest first.
+ */
+export const searchOf = (orgId: string, topicId: string, term: string) => {
+  const pattern = likeText(term);
+
+  return withOrg(orgId, (tx) =>
+    tx
+      .select(listed)
+      .from(kbArticles)
+      .innerJoin(kbCategories, eq(kbCategories.id, kbArticles.categoryId))
+      .where(
+        and(
+          eq(kbCategories.topicId, topicId),
+          published,
+          or(
+            ilike(kbArticles.title, pattern),
+            ilike(kbArticles.summary, pattern),
+            ilike(kbArticles.plainText, pattern),
+          ),
+        ),
+      )
+      .orderBy(desc(kbArticles.publishedAt))
+      .limit(50),
+  );
+};
+
 /** A topic's categories and published public articles, as a help center or messenger shows them. */
 export const topicOf = (orgId: string, topicId: string) =>
   withOrg(orgId, async (tx) => {
@@ -85,14 +128,7 @@ export const topicOf = (orgId: string, topicId: string) =>
       .orderBy(asc(kbCategories.title));
 
     const articles = await tx
-      .select({
-        id: kbArticles.id,
-        categoryId: kbArticles.categoryId,
-        title: kbArticles.title,
-        summary: kbArticles.summary,
-        viewCount: kbArticles.viewCount,
-        publishedAt: kbArticles.publishedAt,
-      })
+      .select(listed)
       .from(kbArticles)
       .where(
         and(
@@ -100,8 +136,7 @@ export const topicOf = (orgId: string, topicId: string) =>
             kbArticles.categoryId,
             categories.map((category) => category.id),
           ),
-          eq(kbArticles.status, 'publish'),
-          eq(kbArticles.isPrivate, false),
+          published,
         ),
       )
       .orderBy(desc(kbArticles.publishedAt));
@@ -191,14 +226,7 @@ export const articleOf = async (orgId: string, topicId: string, id: string) => {
       })
       .from(kbArticles)
       .innerJoin(kbCategories, eq(kbCategories.id, kbArticles.categoryId))
-      .where(
-        and(
-          eq(kbArticles.id, id),
-          eq(kbArticles.status, 'publish'),
-          eq(kbArticles.isPrivate, false),
-          eq(kbCategories.topicId, topicId),
-        ),
-      );
+      .where(and(eq(kbArticles.id, id), published, eq(kbCategories.topicId, topicId)));
 
     return article && { article, key: await keyOfOrganization(tx, orgId) };
   });
@@ -255,6 +283,16 @@ export const publicRouter = (): Router => {
     res.json(article);
   });
 
+  router.get('/help-centers/:address/search', async (req, res) => {
+    const found = await centerAt(req.params.address);
+
+    if (!found) return notFound(res, 'No such help center');
+
+    const { q } = SearchQuery.parse(req.query);
+
+    res.json(await searchOf(found.orgId, found.center.kbTopicId ?? '', q));
+  });
+
   router.get('/files/:key/:id', shownFile);
 
   router.get('/custom-domains/resolve', async (req, res) => {
@@ -269,8 +307,7 @@ export const publicRouter = (): Router => {
   });
 
   router.use((error: unknown, req: express.Request, res: Response, _next: express.NextFunction) => {
-    logger.error({ err: error, path: req.path }, 'Public route failed');
-    res.status(500).json({ message: 'Something went wrong' });
+    fail(res, error, `Public route ${req.path}`);
   });
 
   return router;

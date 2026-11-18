@@ -49,6 +49,8 @@ export const ArticlesTab = ({
   const views = useArticleViews();
   const read = useCallback((id: string) => api.article(token ?? '', id), [api, token]);
 
+  const search = useCallback((term: string) => api.searchArticles(token ?? '', term), [api, token]);
+
   if (!settings || !token) return null;
 
   return (
@@ -62,7 +64,11 @@ export const ArticlesTab = ({
             {error}
           </p>
         )}
-        {topic ? <Articles topic={topic} read={read} views={views} /> : !error && <Loading />}
+        {topic ? (
+          <Articles topic={topic} read={read} search={search} views={views} />
+        ) : (
+          !error && <Loading />
+        )}
       </div>
     </div>
   );
