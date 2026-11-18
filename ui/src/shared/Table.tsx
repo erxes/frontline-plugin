@@ -3,8 +3,10 @@ import {
   type RecordTableColumnDef,
   RecordTableInlineCell,
   RelativeDateDisplay,
+  useFormat,
 } from 'erxes-ui';
 import type { ComponentProps, ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import type { Paging } from './paging.ts';
 
 /** A column headed by `label` and its icon, drawing each row with `render`. */
@@ -57,6 +59,19 @@ export const PagedRows = ({ paging, count }: { paging: Paging; count: number }) 
     </RecordTable>
   </RecordTable.CursorProvider>
 );
+
+/** A count that leads to the list of what it counts. */
+export const CountCell = ({ to, count }: { to: string; count: number }) => {
+  const format = useFormat();
+
+  return (
+    <RecordTableInlineCell>
+      <Link to={to} className="tabular-nums hover:underline">
+        {format.number(count)}
+      </Link>
+    </RecordTableInlineCell>
+  );
+};
 
 /** A date as "3 days ago", with the full date on hover. */
 export const DateCell = ({ date }: { date: Date }) => (
