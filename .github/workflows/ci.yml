@@ -133,8 +133,9 @@ jobs:
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
-      - name: Chromium (headless shell) and its system libraries
-        run: pnpm exec playwright install --with-deps --only-shell chromium
+      # The runner image ships Chrome, so its system libraries are there; apt took up to 3 minutes.
+      - name: Chromium (headless shell)
+        run: pnpm exec playwright install --only-shell chromium
       - name: Wait for the stack
         run: |
           for _ in $(seq 150); do [ -f "$RUNNER_TEMP/stack.status" ] && break; sleep 2; done

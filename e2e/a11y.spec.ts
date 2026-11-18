@@ -355,14 +355,13 @@ test("the home dashboard's tiles, and one refused", async ({ newMember }) => {
   await expectAccessible(stranger.page, tileOf(stranger.page, 'Call summary').getByRole('alert'));
 });
 
-test('a member without the permissions is refused each page', async ({ newMember }) => {
-  const { page } = await newMember(['team.view']);
-  const refused = page.getByText(/You need the frontline\.\S+ permission/).first();
+const settings = ['channels', 'help-centers'].map((it) => `${SETTINGS}/${it}`);
 
-  const settings = ['channels', 'help-centers'].map((it) => `${SETTINGS}/${it}`);
+for (const path of [INBOX, '/frontline/tickets', FORMS, SURVEYS, KB, HISTORY, ...settings]) {
+  test(`a member without the permission is refused ${path}`, async ({ newMember }) => {
+    const { page } = await newMember(['team.view']);
 
-  for (const path of [INBOX, '/frontline/tickets', FORMS, SURVEYS, KB, HISTORY, ...settings]) {
     await page.goto(path);
-    await expectAccessible(page, refused);
-  }
-});
+    await expectAccessible(page, page.getByText(/You need the frontline\.\S+ permission/).first());
+  });
+}
