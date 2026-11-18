@@ -16,8 +16,8 @@ const Tile = ({ title, value }: { title: string; value: string }) => (
   </InfoCard>
 );
 
-/** A titled grid of the board's rows, or `empty` when it has none. */
-const Board = ({
+/** A titled table of the queue's rows, or `empty` when it has none. */
+const TableSection = ({
   title,
   heads,
   rows,
@@ -65,7 +65,7 @@ const LiveBoard = ({ live }: { live: QueueLive }) => {
 
   return (
     <>
-      <Board
+      <TableSection
         title={t('agents', 'Agents')}
         heads={[
           t('extension', 'Extension'),
@@ -90,7 +90,7 @@ const LiveBoard = ({ live }: { live: QueueLive }) => {
         }))}
         empty={t('no-agents', 'No agent is in this queue.')}
       />
-      <Board
+      <TableSection
         title={t('waiting', 'Waiting')}
         heads={[t('caller', 'Caller'), t('channel', 'Channel')]}
         rows={live.waiting.map((waiting) => ({
@@ -99,7 +99,7 @@ const LiveBoard = ({ live }: { live: QueueLive }) => {
         }))}
         empty={t('no-one-waiting', 'No one is waiting.')}
       />
-      <Board
+      <TableSection
         title={t('talking', 'Talking')}
         heads={[t('caller', 'Caller'), t('agent', 'Agent'), t('since', 'Since')]}
         rows={live.talking.map((talking) => ({
