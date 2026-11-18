@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { KB_ARTICLE_STATUSES, kbArticles, kbCategories } from '#/db/schema.ts';
-import { Attachment } from '#/db/table.ts';
+import { Attachment, StoredFile } from '#/db/table.ts';
 import { reads, writes } from '#/orpc.ts';
 import { Blank, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
@@ -47,9 +47,9 @@ const Fields = z
 
 /** The row with its files typed, and the topic its category is in, which the query joins. */
 const Detail = createSelectSchema(kbArticles, {
-  image: Attachment.nullable(),
-  attachments: z.array(Attachment),
-  pdfAttachment: z.object({ pdf: Attachment }).nullable(),
+  image: StoredFile.nullable(),
+  attachments: z.array(StoredFile),
+  pdfAttachment: z.object({ pdf: StoredFile }).nullable(),
 })
   .omit({ orgId: true })
   .extend({ topicId: z.string() });

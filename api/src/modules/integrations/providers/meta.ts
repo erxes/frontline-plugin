@@ -2,6 +2,8 @@ import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import type { Tx } from '#/db/client.ts';
+import type { StoredFile } from '#/db/table.ts';
+import { attachedFile } from '#/modules/files.ts';
 import { openSecret } from '../secrets.ts';
 import { accountRow } from '../store.ts';
 import {
@@ -25,7 +27,8 @@ const GraphFailure = z.object({ error: z.object({ message: z.string() }) });
 
 /**
  * A Graph API call with `token` in the Authorization header, so tokens stay out of addresses
- * and logs. Resolves to the parsed body, or fails with Meta's message.
+ * and logs. `body` goes as JSON, or as it is when it's a form with a file. Resolves to the parsed
+ * body, or fails with Meta's message.
  */
 export const graph = async (
   path: string,
@@ -41,14 +44,18 @@ export const graph = async (
   for (const [name, value] of Object.entries(options.query ?? {}))
     url.searchParams.set(name, value);
 
+  const { body: sent } = options;
+  const form = sent instanceof FormData;
+
   const response = await fetch(url, {
     method: options.method ?? 'GET',
     headers: {
       ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...(options.body ? { 'content-type': 'application/json' } : {}),
+      ...(sent && !form ? { 'content-type': 'application/json' } : {}),
     },
-    body: options.body ? JSON.stringify(options.body) : undefined,
-    signal: AbortSignal.timeout(config.outboundMs),
+    body: form ? sent : sent ? JSON.stringify(sent) : undefined,
+    // A file takes longer to go than a call.
+    signal: AbortSignal.timeout((form ? 4 : 1) * config.outboundMs),
   });
 
   const body: unknown = await response.json();
@@ -98,35 +105,57 @@ const Created = z.object({ id: z.string() });
 /** Messenger takes a reply within 24 hours of the customer's message, later only as a person's. */
 const REPLY_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/** Sends the text, then each attachment as a message of its own, as Messenger takes them. */
-const sendMessage = async ({ secret }: MetaAccount, message: OutboundMessage) => {
-  const bodies = [
-    ...(message.text ? [{ text: message.text }] : []),
-    ...message.attachments.map((file) => ({
-      attachment: {
-        type: file.type?.startsWith('image/') ? 'image' : 'file',
-        payload: { url: file.url, is_reusable: false },
-      },
-    })),
-  ];
+/**
+ * A Graph call's `fields` as a multipart form, each object as JSON as Meta reads it, with the
+ * attached file's bytes from core as `fileField`: Meta can't reach core's files by address.
+ */
+const withFile = async (
+  orgId: string,
+  file: StoredFile,
+  fileField: string,
+  fields: Record<string, unknown>,
+) => {
+  const read = await attachedFile(orgId, file);
+  const form = new FormData();
 
+  for (const [name, value] of Object.entries(fields))
+    form.set(name, typeof value === 'string' ? value : JSON.stringify(value));
+
+  form.set(fileField, new Blob([read.bytes], { type: read.contentType }), file.name);
+
+  return form;
+};
+
+/** Sends the text, then each attachment as a message of its own, as Messenger takes them. */
+const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessage) => {
   const late =
     message.replyTo !== null && Date.now() - message.replyTo.createdAt.getTime() > REPLY_WINDOW_MS;
 
-  // Messenger shows the messages in the order they reach it.
+  const fields = {
+    recipient: { id: message.threadId },
+    ...(late
+      ? { messaging_type: 'MESSAGE_TAG', tag: 'HUMAN_AGENT' }
+      : { messaging_type: 'RESPONSE' }),
+  };
+
+  // Messenger shows the messages in the order they reach it; null is the text.
   const [first] = await inOrder(
-    bodies,
-    async (body) =>
+    [...(message.text ? [null] : []), ...message.attachments],
+    async (file) =>
       Sent.parse(
         await graph('me/messages', secret.pageToken, {
           method: 'POST',
-          body: {
-            recipient: { id: message.threadId },
-            ...(late
-              ? { messaging_type: 'MESSAGE_TAG', tag: 'HUMAN_AGENT' }
-              : { messaging_type: 'RESPONSE' }),
-            message: body,
-          },
+          body: file
+            ? await withFile(row.orgId, file, 'filedata', {
+                ...fields,
+                message: {
+                  attachment: {
+                    type: file.type?.startsWith('image/') ? 'image' : 'file',
+                    payload: { is_reusable: false },
+                  },
+                },
+              })
+            : { ...fields, message: { text: message.text } },
         }),
       ).message_id,
   );
@@ -142,7 +171,7 @@ const sendMessage = async ({ secret }: MetaAccount, message: OutboundMessage) =>
  */
 const replyToComment = async (
   provider: ProviderName,
-  { secret }: MetaAccount,
+  { row, secret }: MetaAccount,
   message: OutboundMessage,
 ) => {
   const commentId = message.replyTo?.externalId;
@@ -161,11 +190,12 @@ const replyToComment = async (
   }
 
   const [file] = message.attachments;
+  const fields = { message: `@[${message.to}] ${message.text}` };
 
   return Created.parse(
     await graph(`${commentId}/comments`, secret.pageToken, {
       method: 'POST',
-      body: { message: `@[${message.to}] ${message.text}`, attachment_url: file?.url },
+      body: file ? await withFile(row.orgId, file, 'source', fields) : fields,
     }),
   ).id;
 };

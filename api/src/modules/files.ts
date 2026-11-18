@@ -3,7 +3,7 @@ import express, { type Request, type Response } from 'express';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { core } from '#/core.ts';
-import { Attachment } from '#/db/table.ts';
+import { Attachment, CORE_FILE, type StoredFile } from '#/db/table.ts';
 import { readToken, signToken } from './tokens.ts';
 
 /**
@@ -59,7 +59,20 @@ export const readFile = async (orgId: string, id: string) => {
 };
 
 /** The id of the core file at `url`, the address core gives its files, or null for another address. */
-export const fileIdOf = (url: string) => /\/files\/([\w-]{1,64})\/download$/.exec(url)?.[1] ?? null;
+export const fileIdOf = (url: string) => CORE_FILE.exec(url)?.[1] ?? null;
+
+/**
+ * A file a member attached to what a provider sends, read whole from core: providers get its
+ * bytes, never its address. Throws for a file core doesn't hold or one at any other address.
+ */
+export const attachedFile = async (orgId: string, file: StoredFile) => {
+  const id = fileIdOf(file.url);
+  const read = id ? await readFile(orgId, id) : null;
+
+  if (!read) throw new Error(`No file in core's storage at ${file.url}`);
+
+  return { contentType: read.contentType, bytes: await new Response(read.body).arrayBuffer() };
+};
 
 /**
  * Streams a file read from core to a signed-out visitor, cached as `cacheControl` says: an image

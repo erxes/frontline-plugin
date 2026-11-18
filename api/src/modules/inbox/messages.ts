@@ -7,7 +7,7 @@ import { z } from 'zod';
 import { core, INBOX_NOTIFICATIONS, PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { messages } from '#/db/inbox.ts';
-import { Attachment } from '#/db/table.ts';
+import { Attachment, StoredFile } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import { reads, writes } from '#/orpc.ts';
 import { orderOf, PageInput } from '../paging.ts';
@@ -22,7 +22,7 @@ import {
 } from './shared.ts';
 
 export const Message = createSelectSchema(messages, {
-  attachments: () => z.array(Attachment),
+  attachments: () => z.array(StoredFile),
 }).omit({ orgId: true, providerData: true });
 
 /** The message `id` of a conversation the caller sees, locked, or NOT_FOUND. */

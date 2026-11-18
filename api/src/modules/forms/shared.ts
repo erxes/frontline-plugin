@@ -9,7 +9,7 @@ import { FORM_TIMELINE } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { FormStep, formSubmissions, forms } from '#/db/forms.ts';
 import { channelMembers } from '#/db/schema.ts';
-import { Attachment } from '#/db/table.ts';
+import { StoredFile } from '#/db/table.ts';
 import { canChangeSql, heldInChannels, managesAll, membership } from '../channels/access.ts';
 import { publishEvents, type RecordEvent } from '../events.ts';
 
@@ -25,8 +25,8 @@ const submissionCount = sql<number>`(
 /** The row, whether the caller may change it and how many submissions it has. */
 export const Form = createSelectSchema(forms, {
   steps: () => z.array(FormStep),
-  calloutImage: () => Attachment.nullable(),
-  thankImage: () => Attachment.nullable(),
+  calloutImage: () => StoredFile.nullable(),
+  thankImage: () => StoredFile.nullable(),
 })
   .omit({ orgId: true, appearance: true })
   .extend({
