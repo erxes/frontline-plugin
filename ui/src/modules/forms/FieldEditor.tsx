@@ -26,7 +26,7 @@ const TypeSelect = ({ field }: { field: FormField }) => {
       }}
     >
       <Select.Trigger
-        className="w-40 shrink-0"
+        className="w-36 shrink-0"
         aria-label={t('field-type', 'Type of {{label}}', { label: field.label })}
       >
         <Select.Value />
@@ -37,8 +37,10 @@ const TypeSelect = ({ field }: { field: FormField }) => {
 
           return (
             <Select.Item key={type} value={type}>
-              <TypeIcon />
-              {names[type]}
+              <span className="flex items-center gap-2 truncate">
+                <TypeIcon className="size-4 shrink-0" />
+                {names[type]}
+              </span>
             </Select.Item>
           );
         })}
