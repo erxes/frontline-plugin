@@ -100,12 +100,22 @@ describe('telegram', () => {
     expect((await clientAs('org-tg-b').conversations.list({})).totalCount).toBe(0);
 
     const conversationId = conversations[0]?.id ?? '';
+    const [question] = (await owner.conversations.messages.list({ conversationId })).messages;
 
-    await owner.conversations.messages.create({ conversationId, content: 'It ships today' });
+    // A reply to the customer's message goes out as Telegram's reply to it.
+    await owner.conversations.messages.create({
+      conversationId,
+      content: 'It ships today',
+      replyToId: question?.id ?? null,
+    });
     await runQueued();
 
     expect(calls.at(-1)?.url.pathname).toBe('/bot777:good-token-abc/sendMessage');
-    expect(calls.at(-1)?.body).toEqual({ chat_id: '4242', text: 'It ships today' });
+    expect(calls.at(-1)?.body).toEqual({
+      chat_id: '4242',
+      text: 'It ships today',
+      reply_parameters: { message_id: 41, allow_sending_without_reply: true },
+    });
 
     const { messages } = await owner.conversations.messages.list({ conversationId });
 

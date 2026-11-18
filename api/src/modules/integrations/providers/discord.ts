@@ -64,7 +64,8 @@ export const discord = defineProvider({
   Secret,
   check: async ({ secret }) => botOf(secret.token).then(() => null, why),
   // The text and every file go as one message. Discord refuses more than it takes, and then the
-  // reply fails rather than goes without them.
+  // reply fails rather than goes without them. A quoted message that is gone sends the reply on
+  // its own.
   send: async ({ row, secret }, message) => {
     const files = await Promise.all(
       message.attachments.map((file) => attachedFile(row.orgId, file)),
@@ -77,6 +78,9 @@ export const discord = defineProvider({
       JSON.stringify({
         content: message.text,
         attachments: files.map((file, id) => ({ id, filename: file.name })),
+        ...(message.quotedId && {
+          message_reference: { message_id: message.quotedId, fail_if_not_exists: false },
+        }),
       }),
     );
     files.forEach((file, id) => body.set(`files[${id}]`, file));

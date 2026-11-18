@@ -86,6 +86,11 @@ export interface OutboundMessage {
    * the parts an earlier attempt sent, which it skips, and where it records each part it sends.
    */
   parts: { sent: string[]; record: (sent: string[]) => Promise<void> };
+  /**
+   * The provider's id for the message the member picked to answer, which the reply quotes as the
+   * provider's own reply does; null when they answer the thread.
+   */
+  quotedId: string | null;
   /** The last message the reply answers: the customer's, or a new mail the thread began with. */
   replyTo: {
     externalId: string;
