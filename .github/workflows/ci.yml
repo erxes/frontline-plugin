@@ -141,7 +141,7 @@ jobs:
           cat "$RUNNER_TEMP/stack.log"
           exit "$(cat "$RUNNER_TEMP/stack.status")"
       - name: Shard ${{ matrix.shard }} of the flows in light and every screen in light and dark
-        run: pnpm e2e --shard=${{ matrix.shard }}/3 --reporter=github,list
+        run: pnpm e2e --shard=${{ matrix.shard }}/3 --workers=3 --reporter=github,list
       - name: Traces and screenshots of failed specs
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
