@@ -83,6 +83,21 @@ const buildFields = async (page: Page) => {
     'true',
   );
   await expect(preview.getByLabel('Seats')).toBeVisible();
+
+  // Fields drag into a new order, and the keyboard drags them too: Seats goes above Plan and back.
+  const first = page.getByRole('button', { name: /^Settings of/ }).first();
+
+  const moveSeats = async (key: 'ArrowUp' | 'ArrowDown') => {
+    await page.getByRole('button', { name: 'Move Seats' }).focus();
+    await page.keyboard.press('Space');
+    await page.keyboard.press(key);
+    await page.keyboard.press('Space');
+  };
+
+  await moveSeats('ArrowUp');
+  await expect(first).toHaveAccessibleName('Settings of Seats');
+  await moveSeats('ArrowDown');
+  await expect(first).toHaveAccessibleName('Settings of Plan');
 };
 
 /**

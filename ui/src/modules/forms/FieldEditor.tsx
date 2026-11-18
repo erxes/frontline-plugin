@@ -1,15 +1,12 @@
-import {
-  IconArrowDown,
-  IconArrowUp,
-  IconChevronDown,
-  IconChevronRight,
-  IconForms,
-  IconTrash,
-} from '@tabler/icons-react';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { IconChevronDown, IconChevronRight, IconForms, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import {
   Button,
+  cn,
   Collapsible,
+  DragHandle,
   Input,
   Label,
   Select,
@@ -140,79 +137,89 @@ const FieldSettings = ({ field, fields }: { field: FormField; fields: FormField[
   );
 };
 
-/** Moving the field up or down its step, and removing it. */
-const FieldButtons = ({
-  field,
-  move,
-}: {
-  field: FormField;
-  move: (by: -1 | 1) => (() => void) | undefined;
-}) => {
-  const { t } = useTranslation('frontline');
-  const remove = useMutation(orpc.forms.fields.remove.mutationOptions(useFormChange()));
-  const up = move(-1);
-  const down = move(1);
-
-  return (
-    <>
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={!up}
-        aria-label={t('field-move-up', 'Move {{label}} up', { label: field.label })}
-        onClick={up}
-      >
-        <IconArrowUp />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        disabled={!down}
-        aria-label={t('field-move-down', 'Move {{label}} down', { label: field.label })}
-        onClick={down}
-      >
-        <IconArrowDown />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        aria-label={t('field-remove', 'Remove {{label}}', { label: field.label })}
-        onClick={() => remove.mutate({ ids: [field.id] })}
-      >
-        <IconTrash />
-      </Button>
-    </>
-  );
-};
-
-/**
- * One field of the builder, edited in place: its label and whether it's required in the row,
- * the rest folded under it. Each change saves as it's made.
- */
-export const FieldEditor = ({
-  field,
-  fields,
-  canManage,
-  move,
-}: {
-  field: FormField;
-  fields: FormField[];
-  canManage: boolean;
-  /** Moves it one place up (-1) or down (1) in its step, or nowhere when it can't go. */
-  move: (by: -1 | 1) => (() => void) | undefined;
-}) => {
+/** The end of a field's row: its type, whether it's required, and removing it. */
+const FieldRowEnd = ({ field, canManage }: { field: FormField; canManage: boolean }) => {
   const { t } = useTranslation('frontline');
   const typeName = useFieldTypeName();
-  const [open, setOpen] = useState(false);
-  const update = useMutation(orpc.forms.fields.update.mutationOptions(useFormChange()));
+  const change = useFormChange();
+  const update = useMutation(orpc.forms.fields.update.mutationOptions(change));
+  const remove = useMutation(orpc.forms.fields.remove.mutationOptions(change));
   const requiredId = `frontline-field-${field.id}-required`;
   const known = FIELD_TYPES.find((type) => type === field.type);
   const TypeIcon = known ? FIELD_ICONS[known] : IconForms;
 
   return (
-    <div className="rounded-lg border bg-background">
+    <>
+      <span className="flex w-36 shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
+        <TypeIcon className="size-4 shrink-0" />
+        <span className="truncate">{typeName(field.type)}</span>
+      </span>
+      <div className="flex shrink-0 items-center gap-2">
+        <Switch
+          id={requiredId}
+          checked={field.isRequired}
+          onCheckedChange={(isRequired) => update.mutate({ id: field.id, isRequired })}
+        />
+        <Label htmlFor={requiredId}>{t('field-required', 'Required')}</Label>
+      </div>
+      {canManage && (
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label={t('field-remove', 'Remove {{label}}', { label: field.label })}
+          onClick={() => remove.mutate({ ids: [field.id] })}
+        >
+          <IconTrash />
+        </Button>
+      )}
+    </>
+  );
+};
+
+/**
+ * One field of the builder, edited in place and dragged by its handle, within its step or to
+ * another: its label and whether it's required in the row, the rest folded under it. Each change
+ * saves as it's made.
+ */
+export const FieldEditor = ({
+  field,
+  fields,
+  canManage,
+}: {
+  field: FormField;
+  fields: FormField[];
+  canManage: boolean;
+}) => {
+  const { t } = useTranslation('frontline');
+  const [open, setOpen] = useState(false);
+  const update = useMutation(orpc.forms.fields.update.mutationOptions(useFormChange()));
+
+  const { setNodeRef, attributes, listeners, transform, transition, isDragging } = useSortable({
+    id: field.id,
+    disabled: !canManage,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        '--sortable-transform': CSS.Translate.toString(transform),
+        '--sortable-transition': transition,
+      }}
+      className={cn(
+        'sortable rounded-lg border bg-background',
+        isDragging && 'relative z-10 shadow-lg',
+      )}
+    >
       <Collapsible open={open} onOpenChange={setOpen}>
-        <div className="flex items-center gap-2 p-2">
+        <div className="flex items-center gap-1 p-1.5">
+          {canManage && (
+            <DragHandle
+              aria-label={t('field-move', 'Move {{label}}', { label: field.label })}
+              {...attributes}
+              {...listeners}
+            />
+          )}
           <Collapsible.Trigger
             render={
               <Button
@@ -232,19 +239,7 @@ export const FieldEditor = ({
               onSave={(label) => update.mutate({ id: field.id, label: label.trim() })}
             />
           </span>
-          <span className="flex w-36 shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-            <TypeIcon className="size-4 shrink-0" />
-            <span className="truncate">{typeName(field.type)}</span>
-          </span>
-          <div className="flex shrink-0 items-center gap-2">
-            <Switch
-              id={requiredId}
-              checked={field.isRequired}
-              onCheckedChange={(isRequired) => update.mutate({ id: field.id, isRequired })}
-            />
-            <Label htmlFor={requiredId}>{t('field-required', 'Required')}</Label>
-          </div>
-          {canManage && <FieldButtons field={field} move={move} />}
+          <FieldRowEnd field={field} canManage={canManage} />
         </div>
         <Collapsible.Panel>
           <FieldSettings field={field} fields={fields} />

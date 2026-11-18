@@ -1,3 +1,5 @@
+import { DndContext, useDroppable } from '@dnd-kit/core';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { IconForms, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { Button, PageContainer, ScrollArea, Skeleton, TextField } from 'erxes-ui';
@@ -9,6 +11,7 @@ import { AppHeader } from '~/shared/Header.tsx';
 import { ListError } from '~/shared/List.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { FieldEditor } from './FieldEditor.tsx';
+import { stepZone, useFieldDrag } from './fieldDrag.ts';
 import { FIELD_ICONS, FIELD_TYPES, useFieldTypeNames } from './fieldTypes.ts';
 import { FormPreview } from './FormPreview.tsx';
 import {
@@ -65,36 +68,27 @@ const AddField = ({ formId, pageNumber }: { formId: string; pageNumber: number }
   );
 };
 
-/** One step's card: its name, its fields in order, and adding a field at its end. */
+/**
+ * One step's card: its name, its fields in the order `ids` gives, and adding a field at its end.
+ * Fields drop onto it from other steps, an empty one too.
+ */
 const StepCard = ({
   form,
   fields,
+  ids,
   pageNumber,
 }: {
   form: Form;
   fields: FormField[];
+  ids: string[];
   pageNumber: number;
 }) => {
   const { t } = useTranslation('frontline');
   const edit = useEditForm(form.id);
-  const change = useFormChange();
-  const arrange = useMutation(orpc.forms.fields.arrange.mutationOptions(change));
-  const removeStep = useMutation(orpc.forms.fields.removeStep.mutationOptions(change));
-  const own = fields.filter((field) => field.pageNumber === pageNumber);
+  const removeStep = useMutation(orpc.forms.fields.removeStep.mutationOptions(useFormChange()));
+  const { setNodeRef } = useDroppable({ id: stepZone(pageNumber) });
+  const own = ids.flatMap((id) => fields.find((field) => field.id === id) ?? []);
   const step = form.steps[pageNumber - 1];
-
-  const move = (index: number) => (by: -1 | 1) => {
-    const field = own[index];
-
-    if (!field || !own[index + by]) return undefined;
-
-    const ids = own
-      .toSpliced(index, 1)
-      .toSpliced(index + by, 0, field)
-      .map((each) => each.id);
-
-    return () => arrange.mutate({ formId: form.id, pageNumber, ids });
-  };
 
   return (
     <section className="flex flex-col gap-3 rounded-lg border bg-background p-5">
@@ -124,20 +118,18 @@ const StepCard = ({
           </Button>
         )}
       </div>
-      {own.length === 0 && (
-        <p className="text-sm text-muted-foreground">
-          {t('form-step-empty', 'No fields on this step yet.')}
-        </p>
-      )}
-      {own.map((field, index) => (
-        <FieldEditor
-          key={field.id}
-          field={field}
-          fields={fields}
-          canManage={form.canManage}
-          move={move(index)}
-        />
-      ))}
+      <SortableContext items={ids} strategy={verticalListSortingStrategy}>
+        <div ref={setNodeRef} className="flex min-h-10 flex-col gap-2">
+          {own.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              {t('form-step-empty', 'No fields on this step yet.')}
+            </p>
+          )}
+          {own.map((field) => (
+            <FieldEditor key={field.id} field={field} fields={fields} canManage={form.canManage} />
+          ))}
+        </div>
+      </SortableContext>
       {form.canManage && <AddField formId={form.id} pageNumber={pageNumber} />}
     </section>
   );
@@ -146,15 +138,23 @@ const StepCard = ({
 const Builder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
   const { t } = useTranslation('frontline');
   const edit = useEditForm(form.id);
-  const steps = Math.max(form.steps.length, 1);
+  const { layout, context } = useFieldDrag(form.id, fields, Math.max(form.steps.length, 1));
 
   return (
     <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:flex">
       <fieldset disabled={!form.canManage} className="contents">
         <div className="flex min-w-0 flex-1 flex-col gap-4">
-          {Array.from({ length: steps }, (_, index) => (
-            <StepCard key={index} form={form} fields={fields} pageNumber={index + 1} />
-          ))}
+          <DndContext {...context}>
+            {layout.map((ids, index) => (
+              <StepCard
+                key={stepZone(index + 1)}
+                form={form}
+                fields={fields}
+                ids={ids}
+                pageNumber={index + 1}
+              />
+            ))}
+          </DndContext>
           {form.canManage && (
             <Button
               variant="ghost"
