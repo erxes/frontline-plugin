@@ -39,14 +39,17 @@ const moved = (layout: Layout, id: string, to: number, over: UniqueIdentifier) =
   });
 
 /**
- * Dragging fields within a step and across steps. While a field is held, the layout follows the
- * pointer from step to step; on drop, the step it lands on saves its new order, and the layout
- * holds until the fields show it, so nothing jumps back for a frame.
+ * Dragging fields within a step and across steps. A drag starts from the layout on screen, and
+ * while a field is held the layout follows the pointer from step to step. On drop, the step it
+ * lands on saves its new order, and the layout holds until the fields show it, so nothing jumps
+ * back for a frame, nor for a second drag started before the save's update lands.
  */
 export const useFieldDrag = (formId: string, fields: FormField[], steps: number) => {
   const arrange = useArrangeFields(formId);
-  const [held, setHeld] = useState<{ fields: FormField[]; layout: Layout } | null>(null);
-  const layout = held?.fields === fields ? held.layout : layoutOf(fields, steps);
+  const [dropped, setDropped] = useState<{ fields: FormField[]; layout: Layout } | null>(null);
+  const [held, setHeld] = useState<Layout | null>(null);
+  const shown = dropped?.fields === fields ? dropped.layout : layoutOf(fields, steps);
+  const layout = held ?? shown;
   const { t } = useTranslation('frontline');
 
   const drag = useListDrag((id) => {
@@ -63,12 +66,12 @@ export const useFieldDrag = (formId: string, fields: FormField[], steps: number)
     setHeld((current) => {
       if (!current) return current;
 
-      const from = stepOf(current.layout, active.id);
-      const to = stepOf(current.layout, over.id);
+      const from = stepOf(current, active.id);
+      const to = stepOf(current, over.id);
 
       if (from === -1 || to === -1 || from === to) return current;
 
-      return { ...current, layout: moved(current.layout, String(active.id), to, over.id) };
+      return moved(current, String(active.id), to, over.id);
     });
   };
 
@@ -76,14 +79,16 @@ export const useFieldDrag = (formId: string, fields: FormField[], steps: number)
     const to = over ? stepOf(layout, over.id) : -1;
     const ids = layout[to];
 
-    if (!over || !ids) return setHeld(null);
+    setHeld(null);
+
+    if (!over || !ids) return;
 
     const at = ids.indexOf(String(over.id));
     const next = at === -1 ? ids : arrayMove(ids, ids.indexOf(String(active.id)), at);
 
-    if (next.join() === layoutOf(fields, steps)[to]?.join()) return setHeld(null);
+    if (next.join() === shown[to]?.join()) return;
 
-    setHeld({ fields, layout: layout.with(to, next) });
+    setDropped({ fields, layout: layout.with(to, next) });
     arrange(to + 1, next);
   };
 
@@ -91,7 +96,7 @@ export const useFieldDrag = (formId: string, fields: FormField[], steps: number)
     layout,
     context: {
       ...drag,
-      onDragStart: () => setHeld({ fields, layout: layoutOf(fields, steps) }),
+      onDragStart: () => setHeld(shown),
       onDragOver: dragOver,
       onDragEnd: dragEnd,
       onDragCancel: () => setHeld(null),
