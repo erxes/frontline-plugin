@@ -1,0 +1,2 @@
+ALTER TABLE "frontline_knowledgebase_articles" ADD COLUMN "plain_text" text GENERATED ALWAYS AS (replace(replace(replace(replace(replace(replace(regexp_replace("content", '<[^>]*>', ' ', 'g'), '&nbsp;', ' '), '&lt;', '<'), '&gt;', '>'), '&quot;', '"'), '&#39;', ''''), '&amp;', '&')) STORED NOT NULL;--> statement-breakpoint
+CREATE INDEX "frontline_knowledgebase_articles_text_trgm_idx" ON "frontline_knowledgebase_articles" USING gin ("plain_text" gin_trgm_ops);
