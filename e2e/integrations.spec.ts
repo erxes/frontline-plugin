@@ -1,4 +1,4 @@
-import { expect, expectAccessible, recordPanel, test } from './fixtures.ts';
+import { expect, recordPanel, test } from './fixtures.ts';
 
 const INTEGRATIONS = '/frontline/settings/integrations';
 
@@ -11,7 +11,6 @@ test('the owner sees the accounts page, what Meta’s login reported, and a prov
 
   // Other specs connect phone lines in the same organisation, so the list may not be empty.
   await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible();
-  await expectAccessible(page);
 
   await page.getByRole('button', { name: 'Connect' }).click();
   await page.getByRole('menuitem', { name: 'Facebook and Instagram' }).click();
@@ -26,7 +25,7 @@ test('the owner sees the accounts page, what Meta’s login reported, and a prov
   const panel = recordPanel(page);
 
   await panel.getByLabel('Bot token').fill('123456:not-a-real-token');
-  await expectAccessible(page);
+
   await panel.getByRole('button', { name: 'Connect', exact: true }).click();
   await expect(panel.getByRole('alert')).toContainText('Telegram refused the token');
 

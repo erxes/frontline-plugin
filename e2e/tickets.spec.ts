@@ -59,18 +59,16 @@ test('a member files, changes and filters tickets in the list', async ({ page })
   await page.getByRole('button', { name: 'Create ticket' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Pipeline' }), `${channel} › ${pipeline}`);
   await panel.getByLabel('Name').fill(refund);
-  await expectAccessible(page);
+
   await panel.getByRole('button', { name: 'Create ticket' }).click();
   await expect(panel.getByRole('button', { name: `Name ${refund}` })).toBeVisible();
   await pick(page, panel.getByRole('combobox', { name: 'Priority' }), 'High');
   await expect(page.getByRole('combobox', { name: `Priority of ${refund}` })).toHaveText('High');
-  await expectAccessible(page);
 
   // Core's Activity tab lists each change, from the events the change published.
   await panel.getByRole('tab', { name: 'Activity' }).click();
   await expect(panel.getByText('Changed priority')).toBeVisible();
   await expect(panel.getByText(`Created ${refund} in New`)).toBeVisible();
-  await expectAccessible(page);
 
   // A status's "+" drafts a ticket in it.
   await page.goto(ofPipeline);
@@ -118,7 +116,6 @@ test('a member changes tickets in one go, sees them on the board and deletes the
   await expect(teammate.page.getByRole('option', { name: 'Archive' })).toBeVisible();
   await expect(teammate.page.getByRole('option', { name: 'Delete' })).toBeHidden();
   await teammate.page.keyboard.press('Escape');
-  await expectAccessible(teammate.page);
 
   await page.goto(ofPipeline);
 
@@ -133,7 +130,6 @@ test('a member changes tickets in one go, sees them on the board and deletes the
   // The board lays the pipeline's statuses out as columns.
   await display(page, 'Board');
   await expect(page.getByRole('region', { name: 'New' })).toContainText(refund);
-  await expectAccessible(page);
 
   // The table's bar deletes both.
   await display(page, 'Table');
@@ -201,8 +197,8 @@ test('a member labels a ticket with tags, a department and a property, and filte
   await page.getByPlaceholder(property, { exact: true }).fill('Gold');
   await page.keyboard.press('Enter');
   await expect(panel.getByRole('button', { name: property })).toContainText('Gold');
-  await expect(panel.getByText('Contacts')).toBeVisible();
-  await expectAccessible(page);
+  // The panel with tags, a department and a property filled in.
+  await expectAccessible(page, panel.getByText('Contacts'));
 
   // The filter bar narrows the list by the ticket's tag; its card shows the tag and the value.
   await page.goto(ofPipeline);
@@ -230,7 +226,7 @@ test('a visitor files a ticket from the widget in a pipeline the messenger offer
   await recordPanel(page).getByRole('button', { name: 'Integration actions' }).click();
   await page.getByRole('option', { name: 'Messenger settings' }).click();
   await page.getByRole('checkbox', { name: pipeline }).click();
-  await expectAccessible(page);
+
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Messenger saved')).toBeVisible();
 
@@ -246,10 +242,11 @@ test('a visitor files a ticket from the widget in a pipeline the messenger offer
   await panel.getByRole('button', { name: 'Continue' }).click();
   await panel.getByRole('textbox', { name: 'Subject' }).fill(subject);
   await panel.getByRole('textbox', { name: 'What happened' }).fill('The zip came off on day one.');
-  await expectAccessible(shop);
+  // The widget's ticket form and list show only for a messenger that offers a pipeline.
+  await expectAccessible(shop, panel.getByRole('textbox', { name: 'What happened' }));
   await panel.getByRole('button', { name: 'Send ticket' }).click();
   await expect(panel.getByRole('list', { name: 'Your tickets' })).toContainText(subject);
-  await expectAccessible(shop);
+  await expectAccessible(shop, panel.getByRole('list', { name: 'Your tickets' }));
 
   await openPipeline(page, pipeline);
   await expect(ticket(page, subject)).toBeVisible();
@@ -260,5 +257,4 @@ test('a member without frontline permissions is refused the tickets', async ({ n
 
   await page.goto(TICKETS);
   await expect(page.getByText('You need the frontline.channel.view permission')).toBeVisible();
-  await expectAccessible(page);
 });

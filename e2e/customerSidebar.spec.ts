@@ -58,8 +58,8 @@ test('the customer, their tickets and their other conversations show beside the 
   await expect(sidebar.getByText(name)).toBeVisible();
   await expect(sidebar.getByText(email)).toBeVisible();
   await rail.getByRole('button', { name: 'Tickets', exact: true }).click();
-  await expect(sidebar.getByRole('button', { name: new RegExp(ticket) })).toBeVisible();
-  await expectAccessible(page);
+  // The Tickets panel lists only a customer's tickets, which this flow files.
+  await expectAccessible(page, sidebar.getByRole('button', { name: new RegExp(ticket) }));
 
   // Another conversation of the customer opens in its place.
   await rail.getByRole('button', { name: 'Other conversations', exact: true }).click();
@@ -106,7 +106,6 @@ test('a conversation opens on its own page with its customer and status, resolve
   await page.goto(path);
   await expect(page.getByText(name).first()).toBeVisible();
   await expect(page.getByText('New', { exact: true })).toBeVisible();
-  await expectAccessible(page);
 
   await page.getByRole('button', { name: 'Conversation actions' }).click();
   await page.getByRole('option', { name: 'Resolve' }).click();

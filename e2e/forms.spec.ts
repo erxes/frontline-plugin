@@ -71,7 +71,6 @@ const buildFields = async (page: Page) => {
   await expect(preview.getByLabel('Seats')).toBeHidden();
   await pick(page, preview.getByRole('combobox', { name: 'Plan' }), 'Team');
   await expect(preview.getByLabel('Seats')).toBeVisible();
-  await expectAccessible(page);
 };
 
 /**
@@ -95,7 +94,7 @@ const sendAsVisitor = async (page: Page, request: APIRequestContext, name: strin
     await expect(form.getByLabel('Seats')).toBeHidden();
     await form.getByLabel('Plan').selectOption('Team');
     await form.getByLabel('Seats').fill('5');
-    await expectAccessible(site.shop);
+
     await form.getByRole('button', { name: 'Ask' }).click();
     await expect(site.shop.getByRole('heading', { name: 'Thank you' })).toBeVisible();
   }
@@ -129,7 +128,7 @@ test('an admin builds a form, a visitor sends it, and the admin corrects and del
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
   await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
   await panel.getByLabel('Form title').fill('Book a demo');
-  await expectAccessible(page);
+
   await panel.getByRole('button', { name: 'Create form' }).click();
   await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
   await retype(page, panel.getByRole('button', { name: /^Button text/ }), 'Button text', 'Ask');
@@ -137,7 +136,6 @@ test('an admin builds a form, a visitor sends it, and the admin corrects and del
   await expect(
     page.getByRole('region', { name: 'Active' }).getByRole('button', { name, exact: true }),
   ).toBeVisible();
-  await expectAccessible(page);
 
   await panel.getByRole('tab', { name: 'Activity' }).click();
   await expect(panel.getByText(`Created ${name}`)).toBeVisible();
@@ -168,7 +166,7 @@ test('an admin builds a form, a visitor sends it, and the admin corrects and del
   await page.keyboard.press('Enter');
   await expect(page).toHaveURL(/subject\.answer\./);
   await expect(free).toBeHidden();
-  await expectAccessible(page);
+
   await page.getByRole('button', { name: 'Remove Plan filter' }).click();
   await expect(free).toBeVisible();
 
@@ -179,7 +177,7 @@ test('an admin builds a form, a visitor sends it, and the admin corrects and del
   await retype(page, panel.getByRole('button', { name: 'Seats 5' }), 'Seats', '7');
   await expect(panel.getByRole('button', { name: 'Seats 7' })).toBeVisible();
   await expect(team.getByRole('cell', { name: '7', exact: true })).toBeVisible();
-  await expectAccessible(page);
+  await expectAccessible(page, panel.getByRole('button', { name: 'Seats 7' }));
   await panel.getByRole('button', { name: 'Submission actions' }).click();
   await page.getByRole('option', { name: 'Delete' }).click();
   await confirmDelete(page);
@@ -212,7 +210,6 @@ test('a channel member reads a form and its submissions but changes neither', as
 
   await expect(theirs.getByRole('button', { name: `Name ${name}`, exact: true })).toBeDisabled();
   await expect(theirs.getByRole('combobox', { name: 'Channel' })).toHaveText(channel);
-  await expectAccessible(teammate.page);
 });
 
 test('an admin duplicates, archives and deletes forms', async ({ page }) => {
@@ -238,7 +235,6 @@ test('an admin duplicates, archives and deletes forms', async ({ page }) => {
       .getByRole('region', { name: 'Archived' })
       .getByRole('button', { name: `${name} (copy)`, exact: true }),
   ).toBeVisible();
-  await expectAccessible(page);
 
   // Narrowed to its channel, the table's bar deletes both.
   await filterBy(page, 'Channel', channel);
@@ -287,8 +283,8 @@ test('an admin tags a form and narrows the forms by its tag', async ({ page }) =
   await row.getByText('No tags').click();
   await page.getByRole('option', { name: tag, exact: true }).click();
   await page.keyboard.press('Escape');
-  await expect(row.getByText(tag)).toBeVisible();
-  await expectAccessible(page);
+  // The table display, with a tag on a row.
+  await expectAccessible(page, row.getByText(tag));
 
   await filterBy(page, 'Tags', tag);
   await expect(page.getByRole('row', { name: new RegExp(name) })).toBeVisible();
@@ -302,5 +298,4 @@ test('a member without frontline permissions is refused the forms', async ({ new
 
   await page.goto(FORMS);
   await expect(page.getByText('You need the frontline.channel.view permission')).toBeVisible();
-  await expectAccessible(page);
 });

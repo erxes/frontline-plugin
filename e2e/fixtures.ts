@@ -129,11 +129,13 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
   return client;
 };
 
-/** Fails on serious or critical axe violations, listing each rule with the elements that break it. */
-export const expectAccessible = async (page: Page) => {
-  // Colours are checked at rest: once the page's data is in, so nothing fades in under axe, and
-  // its animations end. Spinners loop forever, so only finite animations are waited for.
-  await page.waitForLoadState('networkidle');
+/**
+ * Fails on serious or critical axe violations, listing each rule with the elements that break it.
+ * Colours are checked at rest: once `shown`, which the page draws from its data, is visible, and
+ * the page's animations end. Spinners loop forever, so only finite animations are waited for.
+ */
+export const expectAccessible = async (page: Page, shown: Locator) => {
+  await expect(shown).toBeVisible();
   await page.waitForFunction(() =>
     document
       .getAnimations()
@@ -214,6 +216,22 @@ export const pluginApi = async (api: ReturnType<typeof coreClient>, request: API
 
     return Output.parse(Answer.parse(await response.json()).json);
   };
+};
+
+const Messenger = z.object({ publicKey: z.string() });
+
+/** The messenger settings the specs set when they add one through the API. */
+type MessengerConfig = { welcome?: string; knowledgeBaseTopicId?: string };
+
+/** A website messenger in `channelId`, added through the API with `config`. Returns its key. */
+export const messengerIn = async (
+  rpc: Awaited<ReturnType<typeof pluginApi>>,
+  channelId: string,
+  config: MessengerConfig,
+) => {
+  const input = { channelId, kind: 'messenger', name: 'Website', config };
+
+  return (await rpc('integrations/create', input, Messenger)).publicKey;
 };
 
 const CallSettings = z.object({ webhookUrl: z.string() });
@@ -323,17 +341,36 @@ export const addMessenger = async (page: Page, channel: string) => {
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
   await panel.getByLabel('Name').fill(name);
   await panel.getByLabel('Welcome message').fill('Hi, how can we help?');
-  await expectAccessible(page);
   await panel.getByRole('button', { name: 'Add messenger' }).click();
 
   // The key is 32 random bytes, base64url.
   const key = panel.getByText(/^[\w-]{43}$/);
 
   await expect(key).toBeVisible();
-  await expectAccessible(page);
 
   return (await key.textContent()) ?? '';
 };
+
+/** Adds Frontline's `titles` to core's home dashboard from its widget catalog, and saves. */
+export const addTiles = async (page: Page, titles: string[]) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Customize' }).click();
+
+  const catalog = page.locator('aside').filter({
+    has: page.getByRole('heading', { name: 'Add widget' }),
+  });
+
+  for (const title of titles) {
+    await catalog.getByPlaceholder('Search widgets').fill(title);
+    await catalog.getByRole('button', { name: new RegExp(`^${title}`) }).click();
+  }
+
+  await page.getByRole('button', { name: 'Done' }).click();
+};
+
+/** A tile on the home dashboard, by the title core draws over it. */
+export const tileOf = (page: Page, title: string) =>
+  page.locator('section').filter({ has: page.getByRole('heading', { name: title, exact: true }) });
 
 /**
  * A shop on another origin than the plugin, with the install code a member copied below its

@@ -11,11 +11,13 @@ for what no spec can drive.
    once, then `pnpm e2e --project=light <spec>`, and leave the stack up
    between runs.
 2. Once, before filing: `pnpm check:rls`, `pnpm image` then `pnpm budgets`, and
-   the whole `pnpm e2e`. CI runs it again in light and dark, so don't rerun it
+   the whole `pnpm e2e`. CI runs it again in three shards, so don't rerun it
    locally after it passes. Run `pnpm e2e:stack down` when you're done.
 3. A screen a member can reach has a spec that walks every old action, field
    and filter, plus the refusal for a member without the permission. That spec
-   is the parity check. Don't run old erxes beside it.
+   is the parity check. Don't run old erxes beside it. The flow specs don't run
+   axe; `e2e/a11y.spec.ts` opens each screen, panel and sheet once with data on
+   it and runs axe in light and dark, so a new screen gets a stop there.
 4. When a failure traces to erxes-ui or core, such as an axe contrast hit on
    core's button or a label core draws, file it on erxes/erxes, add a
    `DECISIONS.md` row with the link, and assert only what the plugin draws.

@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { callProLine, expect, expectAccessible, recordPanel, test, unique } from './fixtures.ts';
+import { callProLine, expect, recordPanel, test, unique } from './fixtures.ts';
 
 const HISTORY = '/frontline/calls/history';
 
@@ -35,7 +35,6 @@ test('calls from a phone line show in the call history as they happen, and open 
 
   await expect(rowOf(answered)).toContainText('Answered');
   await expect(rowOf(missed)).toContainText('Missed');
-  await expectAccessible(page);
 
   // A call that comes in while the page is open shows without a reload.
   await post(`c-${unique()}`, later, 'RINGING');
@@ -62,7 +61,6 @@ test('calls from a phone line show in the call history as they happen, and open 
   await expect(panel).toContainText('Incoming');
   await expect(panel).toContainText('No recording');
   await expect(panel.getByRole('link', { name: 'Open in inbox' })).toBeVisible();
-  await expectAccessible(page);
 
   await panel.getByRole('link', { name: 'Open in inbox' }).click();
   await expect(page).toHaveURL(/\/frontline\/inbox\?conversationId=/);
@@ -74,7 +72,6 @@ test('the queues dashboard lists the queues of the PBXs the member answers', asy
   await page.goto('/frontline/calls/dashboard');
   await expect(page).toHaveURL(/\/frontline\/calls\/queues$/);
   await expect(page.getByText('No queues yet')).toBeVisible();
-  await expectAccessible(page);
 });
 
 /** The softphone's ask for the member's SIP lines, which core's floating widget makes on load. */
@@ -105,7 +102,6 @@ test('a member without the call permission is refused the calls', async ({ newMe
 
   await page.goto(HISTORY);
   await expect(page.getByText('You need the frontline.call.view permission')).toBeVisible();
-  await expectAccessible(page);
 
   await page.goto('/frontline/calls/queues');
   await expect(page.getByText('You need the frontline.call.view permission')).toBeVisible();
