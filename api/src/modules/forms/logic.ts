@@ -20,6 +20,13 @@ const textOf = (value: unknown) =>
       ? String(value)
       : '';
 
+/** Orders two answers as numbers, or as text when either isn't one, so ISO dates order too. */
+const order = (text: string, wanted: string) => {
+  const [a, b] = [Number(text), Number(wanted)];
+
+  return Number.isNaN(a) || Number.isNaN(b) ? text.localeCompare(wanted) : a - b;
+};
+
 const holds = ({ operator, value = '' }: Logic, answer: unknown) => {
   const text = textOf(answer).toLowerCase();
   const wanted = value.toLowerCase();
@@ -40,9 +47,9 @@ const holds = ({ operator, value = '' }: Logic, answer: unknown) => {
     case 'endsWith':
       return text.endsWith(wanted);
     case 'greaterThan':
-      return text !== '' && Number(text) > Number(wanted);
+      return text !== '' && order(text, wanted) > 0;
     case 'lessThan':
-      return text !== '' && Number(text) < Number(wanted);
+      return text !== '' && order(text, wanted) < 0;
     case 'isUnknown':
       return text === '';
     case 'hasAnyValue':
