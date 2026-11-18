@@ -1,5 +1,5 @@
 import { addPluginStyles, RecordPage } from 'erxes-ui';
-import { lazy, type ReactNode, Suspense } from 'react';
+import { lazy } from 'react';
 import { Navigate, Route, Routes, useParams } from 'react-router-dom';
 import {
   CALL_TYPE,
@@ -31,86 +31,103 @@ const RecordRoute = ({ contentType }: { contentType: string }) => (
   <RecordPage contentType={contentType} contentId={useParams().id ?? ''} />
 );
 
-// A module's screens load on first visit, so what web loads on every page stays small.
-const ResponseTemplatesPage = lazy(async () => ({
-  default: (await import('@/responseTemplates/ResponseTemplatesPage.tsx')).ResponseTemplatesPage,
-}));
+// A module's screens load on first visit, so what web loads on every page stays small. Each
+// brings the Mongolian text, its own chunk, beside it, so no screen shows in English first.
+const ResponseTemplatesPage = lazy(
+  withText(async () => ({
+    default: (await import('@/responseTemplates/ResponseTemplatesPage.tsx')).ResponseTemplatesPage,
+  })),
+);
 
-const TopicsPage = lazy(async () => ({
-  default: (await import('@/knowledgebase/pages.ts')).TopicsPage,
-}));
+const TopicsPage = lazy(
+  withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).TopicsPage })),
+);
 
-const ArticlesPage = lazy(async () => ({
-  default: (await import('@/knowledgebase/pages.ts')).ArticlesPage,
-}));
+const ArticlesPage = lazy(
+  withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).ArticlesPage })),
+);
 
-const CategoriesPage = lazy(async () => ({
-  default: (await import('@/knowledgebase/pages.ts')).CategoriesPage,
-}));
+const CategoriesPage = lazy(
+  withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).CategoriesPage })),
+);
 
-const TopicSettingsPage = lazy(async () => ({
-  default: (await import('@/knowledgebase/pages.ts')).TopicSettingsPage,
-}));
+const TopicSettingsPage = lazy(
+  withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).TopicSettingsPage })),
+);
 
-const PipelinesPage = lazy(async () => ({
-  default: (await import('@/pipelines/PipelinesPage.tsx')).PipelinesPage,
-}));
+const PipelinesPage = lazy(
+  withText(async () => ({
+    default: (await import('@/pipelines/PipelinesPage.tsx')).PipelinesPage,
+  })),
+);
 
-const TagsPage = lazy(async () => ({
-  default: (await import('@/settings/TagsPage.tsx')).TagsPage,
-}));
+const TagsPage = lazy(
+  withText(async () => ({ default: (await import('@/settings/TagsPage.tsx')).TagsPage })),
+);
 
-const PropertiesPage = lazy(async () => ({
-  default: (await import('@/settings/PropertiesPage.tsx')).PropertiesPage,
-}));
+const PropertiesPage = lazy(
+  withText(async () => ({
+    default: (await import('@/settings/PropertiesPage.tsx')).PropertiesPage,
+  })),
+);
 
-const HelpCentersPage = lazy(async () => ({
-  default: (await import('@/helpcenter/HelpCentersPage.tsx')).HelpCentersPage,
-}));
+const HelpCentersPage = lazy(
+  withText(async () => ({
+    default: (await import('@/helpcenter/HelpCentersPage.tsx')).HelpCentersPage,
+  })),
+);
 
-const InboxPage = lazy(async () => ({
-  default: (await import('@/inbox/InboxPage.tsx')).InboxPage,
-}));
+const InboxPage = lazy(
+  withText(async () => ({ default: (await import('@/inbox/InboxPage.tsx')).InboxPage })),
+);
 
-const MessengerSettingsPage = lazy(async () => ({
-  default: (await import('@/messenger/MessengerSettingsPage.tsx')).MessengerSettingsPage,
-}));
+const MessengerSettingsPage = lazy(
+  withText(async () => ({
+    default: (await import('@/messenger/MessengerSettingsPage.tsx')).MessengerSettingsPage,
+  })),
+);
 
-const IntegrationsPage = lazy(async () => ({
-  default: (await import('@/integrations/IntegrationsPage.tsx')).IntegrationsPage,
-}));
+const IntegrationsPage = lazy(
+  withText(async () => ({
+    default: (await import('@/integrations/IntegrationsPage.tsx')).IntegrationsPage,
+  })),
+);
 
-const ChannelsPage = lazy(async () => ({
-  default: (await import('@/channels/pages.ts')).ChannelsPage,
-}));
+const ChannelsPage = lazy(
+  withText(async () => ({ default: (await import('@/channels/pages.ts')).ChannelsPage })),
+);
 
-const ChannelMembersPage = lazy(async () => ({
-  default: (await import('@/channels/pages.ts')).ChannelMembersPage,
-}));
+const ChannelMembersPage = lazy(
+  withText(async () => ({ default: (await import('@/channels/pages.ts')).ChannelMembersPage })),
+);
 
-const PersonalChannel = lazy(async () => ({
-  default: (await import('@/channels/pages.ts')).PersonalChannel,
-}));
+const PersonalChannel = lazy(
+  withText(async () => ({ default: (await import('@/channels/pages.ts')).PersonalChannel })),
+);
 
-const TicketsPage = lazy(async () => ({
-  default: (await import('@/tickets/TicketsPage.tsx')).TicketsPage,
-}));
+const TicketsPage = lazy(
+  withText(async () => ({ default: (await import('@/tickets/TicketsPage.tsx')).TicketsPage })),
+);
 
-const FormsPage = lazy(async () => ({
-  default: (await import('@/forms/FormsPage.tsx')).FormsPage,
-}));
+const FormsPage = lazy(
+  withText(async () => ({ default: (await import('@/forms/FormsPage.tsx')).FormsPage })),
+);
 
-const FormBuilderPage = lazy(async () => ({
-  default: (await import('@/forms/FormBuilderPage.tsx')).FormBuilderPage,
-}));
+const FormBuilderPage = lazy(
+  withText(async () => ({
+    default: (await import('@/forms/FormBuilderPage.tsx')).FormBuilderPage,
+  })),
+);
 
-const SubmissionsPage = lazy(async () => ({
-  default: (await import('@/forms/SubmissionsPage.tsx')).SubmissionsPage,
-}));
+const SubmissionsPage = lazy(
+  withText(async () => ({
+    default: (await import('@/forms/SubmissionsPage.tsx')).SubmissionsPage,
+  })),
+);
 
-const SurveysPage = lazy(async () => ({
-  default: (await import('@/surveys/SurveysPage.tsx')).SurveysPage,
-}));
+const SurveysPage = lazy(
+  withText(async () => ({ default: (await import('@/surveys/SurveysPage.tsx')).SurveysPage })),
+);
 
 /** The old `/forms/submissions/:formId` link opens that form's submissions. */
 const SubmissionsRedirect = () => (
@@ -120,17 +137,17 @@ const SubmissionsRedirect = () => (
   />
 );
 
-const CallHistoryPage = lazy(async () => ({
-  default: (await import('@/calls/pages.ts')).CallHistoryPage,
-}));
+const CallHistoryPage = lazy(
+  withText(async () => ({ default: (await import('@/calls/pages.ts')).CallHistoryPage })),
+);
 
-const QueuesPage = lazy(async () => ({
-  default: (await import('@/calls/pages.ts')).QueuesPage,
-}));
+const QueuesPage = lazy(
+  withText(async () => ({ default: (await import('@/calls/pages.ts')).QueuesPage })),
+);
 
-const QueuePage = lazy(async () => ({
-  default: (await import('@/calls/pages.ts')).QueuePage,
-}));
+const QueuePage = lazy(
+  withText(async () => ({ default: (await import('@/calls/pages.ts')).QueuePage })),
+);
 
 /** The old calls dashboard's queue links open that queue's board. */
 const QueueRedirect = () => (
@@ -180,15 +197,7 @@ const settingsRoutes = (
   </Route>
 );
 
-// The Mongolian text is its own chunk: the module waits for it before its first render, so
-// what web loads on every page stays small and no screen shows in English first.
-const loadText = withText(async () => ({
-  default: ({ children }: { children: ReactNode }) => children,
-}));
-
-const WithText = lazy(loadText);
-
-const FrontlineRoutes = () => (
+export const Frontline = () => (
   <Routes>
     <Route element={<FrontlineLayout />}>
       <Route index element={<Navigate to="inbox" replace />} />
@@ -245,12 +254,4 @@ const FrontlineRoutes = () => (
       element={<Navigate to={`/${PLUGIN}/settings/integrations`} replace />}
     />
   </Routes>
-);
-
-export const Frontline = () => (
-  <Suspense fallback={null}>
-    <WithText>
-      <FrontlineRoutes />
-    </WithText>
-  </Suspense>
 );

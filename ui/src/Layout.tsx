@@ -25,9 +25,10 @@ import {
   Sidebar,
   Skeleton,
 } from 'erxes-ui';
-import { lazy, Suspense, useState } from 'react';
+import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { withText } from '~/i18n/withText.ts';
 import { PLUGIN, STRUCTURE_PATH } from '~/plugin.ts';
 
 const ROOT = `/${PLUGIN}`;
@@ -90,12 +91,21 @@ const CallsGroup = () => {
   );
 };
 
-/**
- * Frontline's pages, as core's Contacts and Products draw theirs: the app sidebar, Settings
- * pinned at its foot, and the open page. The icons members pick for channels and categories
- * load in the background.
- */
-export const FrontlineLayout = () => {
+// The Mongolian text is its own chunk, loaded beside the page's. Words the text holds wait for it,
+// so none shows in English first; the page and its chunk don't wait behind it.
+const Texted = lazy(
+  withText(async () => ({ default: ({ children }: { children: ReactNode }) => children })),
+);
+
+/** `children` once the Mongolian text is in, nothing before. */
+const WithText = ({ children }: { children: ReactNode }) => (
+  <Suspense fallback={null}>
+    <Texted>{children}</Texted>
+  </Suspense>
+);
+
+/** The app sidebar: the inbox and tickets with their counts, the other modules, and Calls. */
+const FrontlineSidebar = () => {
   const { t } = useTranslation('frontline');
 
   const items = [
@@ -105,56 +115,80 @@ export const FrontlineLayout = () => {
   ];
 
   return (
+    <>
+      <Sidebar.Group variant="flush">
+        <Sidebar.GroupContent>
+          <Sidebar.Menu>
+            <Suspense
+              fallback={
+                <NavigationMenuLinkItem
+                  to={`${ROOT}/inbox`}
+                  name={t('inbox', 'Inbox')}
+                  icon={IconInbox}
+                />
+              }
+            >
+              <InboxNav />
+            </Suspense>
+            <Suspense
+              fallback={
+                <NavigationMenuLinkItem
+                  to={`${ROOT}/tickets`}
+                  name={t('tickets', 'Tickets')}
+                  icon={IconTicket}
+                />
+              }
+            >
+              <TicketsNav />
+            </Suspense>
+            {items.map((item) => (
+              <NavigationMenuLinkItem
+                key={item.to}
+                to={item.to}
+                name={item.name}
+                icon={item.icon}
+              />
+            ))}
+            <CallsGroup />
+          </Sidebar.Menu>
+        </Sidebar.GroupContent>
+      </Sidebar.Group>
+      <Suspense fallback={null}>
+        <InboxGroups />
+      </Suspense>
+    </>
+  );
+};
+
+/** Settings, pinned at the foot of the app sidebar. */
+const SettingsLink = () => {
+  const { t } = useTranslation('frontline');
+
+  return <AppLayoutFooterLink to={SETTINGS} name={t('settings', 'Settings')} icon={IconSettings} />;
+};
+
+/**
+ * Frontline's pages, as core's Contacts and Products draw theirs: the app sidebar, Settings
+ * pinned at its foot, and the open page. The icons members pick for channels and categories
+ * load in the background. The title is `./config`'s word, so it shows at once.
+ */
+export const FrontlineLayout = () => {
+  const { t } = useTranslation('frontline');
+
+  return (
     <IconsProvider>
       <AppLayout
         id={PLUGIN}
         title={t('frontline', 'Frontline')}
         footer={
-          <AppLayoutFooterLink to={SETTINGS} name={t('settings', 'Settings')} icon={IconSettings} />
+          <WithText>
+            <SettingsLink />
+          </WithText>
         }
         sidebar={
-          <>
-            <Sidebar.Group variant="flush">
-              <Sidebar.GroupContent>
-                <Sidebar.Menu>
-                  <Suspense
-                    fallback={
-                      <NavigationMenuLinkItem
-                        to={`${ROOT}/inbox`}
-                        name={t('inbox', 'Inbox')}
-                        icon={IconInbox}
-                      />
-                    }
-                  >
-                    <InboxNav />
-                  </Suspense>
-                  <Suspense
-                    fallback={
-                      <NavigationMenuLinkItem
-                        to={`${ROOT}/tickets`}
-                        name={t('tickets', 'Tickets')}
-                        icon={IconTicket}
-                      />
-                    }
-                  >
-                    <TicketsNav />
-                  </Suspense>
-                  {items.map((item) => (
-                    <NavigationMenuLinkItem
-                      key={item.to}
-                      to={item.to}
-                      name={item.name}
-                      icon={item.icon}
-                    />
-                  ))}
-                  <CallsGroup />
-                </Sidebar.Menu>
-              </Sidebar.GroupContent>
-            </Sidebar.Group>
-            <Suspense fallback={null}>
-              <InboxGroups />
-            </Suspense>
-          </>
+          <WithText>
+            <FrontlineSidebar />
+          </WithText>
         }
       >
         <Page />
@@ -163,11 +197,8 @@ export const FrontlineLayout = () => {
   );
 };
 
-/**
- * Frontline's settings, as core's `AppSettingsLayout` draws an app's: a sidebar of only them,
- * with Exit settings back to the app. Its title names the settings, so no group heading.
- */
-export const SettingsLayout = () => {
+/** The settings sidebar: Exit settings back to the app, then each settings page. */
+const SettingsSidebar = () => {
   const { t } = useTranslation('frontline');
 
   const items = [
@@ -197,41 +228,62 @@ export const SettingsLayout = () => {
   ];
 
   return (
-    <AppLayout
-      id={`${PLUGIN}-settings`}
-      title={t('frontline-settings', 'Frontline settings')}
-      sidebar={
-        <>
-          <Sidebar.Header variant="sticky">
+    <>
+      <Sidebar.Header variant="sticky">
+        <Sidebar.Menu>
+          <Sidebar.MenuItem>
+            <Sidebar.MenuButton render={<Link to={`${ROOT}/inbox`} />}>
+              <IconChevronLeft />
+              <span>{t('exit-settings', 'Exit settings')}</span>
+            </Sidebar.MenuButton>
+          </Sidebar.MenuItem>
+        </Sidebar.Menu>
+      </Sidebar.Header>
+      <Sidebar.Content>
+        <Sidebar.Group>
+          <Sidebar.GroupContent>
             <Sidebar.Menu>
-              <Sidebar.MenuItem>
-                <Sidebar.MenuButton render={<Link to={`${ROOT}/inbox`} />}>
-                  <IconChevronLeft />
-                  <span>{t('exit-settings', 'Exit settings')}</span>
-                </Sidebar.MenuButton>
-              </Sidebar.MenuItem>
+              {items.map((item) => (
+                <NavigationMenuLinkItem
+                  key={item.to}
+                  to={item.to}
+                  name={item.name}
+                  icon={item.icon}
+                />
+              ))}
             </Sidebar.Menu>
-          </Sidebar.Header>
-          <Sidebar.Content>
-            <Sidebar.Group>
-              <Sidebar.GroupContent>
-                <Sidebar.Menu>
-                  {items.map((item) => (
-                    <NavigationMenuLinkItem
-                      key={item.to}
-                      to={item.to}
-                      name={item.name}
-                      icon={item.icon}
-                    />
-                  ))}
-                </Sidebar.Menu>
-              </Sidebar.GroupContent>
-            </Sidebar.Group>
-          </Sidebar.Content>
-        </>
-      }
-    >
-      <Page />
-    </AppLayout>
+          </Sidebar.GroupContent>
+        </Sidebar.Group>
+      </Sidebar.Content>
+    </>
   );
 };
+
+/** The settings title, in the member's language. */
+const SettingsTitle = () => {
+  const { t } = useTranslation('frontline');
+
+  return t('frontline-settings', 'Frontline settings');
+};
+
+/**
+ * Frontline's settings, as core's `AppSettingsLayout` draws an app's: a sidebar of only them,
+ * with Exit settings back to the app. Its title names the settings, so no group heading.
+ */
+export const SettingsLayout = () => (
+  <AppLayout
+    id={`${PLUGIN}-settings`}
+    title={
+      <WithText>
+        <SettingsTitle />
+      </WithText>
+    }
+    sidebar={
+      <WithText>
+        <SettingsSidebar />
+      </WithText>
+    }
+  >
+    <Page />
+  </AppLayout>
+);
