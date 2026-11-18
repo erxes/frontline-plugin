@@ -148,7 +148,15 @@ export const MailNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
       }}
       className="flex min-h-0 flex-1 flex-col"
     >
-      <PanelFormLayout onCancel={onCancel} saving={compose.isPending} saveLabel={t('send', 'Send')}>
+      <PanelFormLayout
+        // Cancel throws the mail away; closing the panel keeps it for later.
+        onCancel={() => {
+          draft.clear();
+          onCancel();
+        }}
+        saving={compose.isPending}
+        saveLabel={t('send', 'Send')}
+      >
         <FromRow
           value={integrationId}
           onChange={(id) => draft.save((current) => ({ ...current, integrationId: id }))}
