@@ -206,7 +206,7 @@ describe('inbox', () => {
     await teammate.conversations.messages.create({
       conversationId: id,
       content: '',
-      attachments: [{ url: 'https://files.test/leg.png', name: 'leg.png', type: 'image/png' }],
+      attachments: [{ url: '/core/v1/files/leg-1/download', name: 'leg.png', type: 'image/png' }],
     });
     expect(await teammate.conversations.get({ id })).toMatchObject({
       content: '',
