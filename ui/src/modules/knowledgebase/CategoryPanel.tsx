@@ -12,6 +12,7 @@ import {
   IconUser,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
+import { CATEGORY_ICON } from '~/shared/icons.ts';
 import {
   Button,
   IconPicker,
@@ -136,7 +137,7 @@ const CategoryFields = ({ category }: { category: Category }) => {
       <PanelField icon={IconIcons} label={t('icon', 'Icon')} cell={false}>
         <IconPicker
           aria-label={t('icon', 'Icon')}
-          value={category.icon ?? 'IconFolder'}
+          value={category.icon ?? CATEGORY_ICON}
           onValueChange={(icon) => edit({ icon })}
           className="w-min"
         />

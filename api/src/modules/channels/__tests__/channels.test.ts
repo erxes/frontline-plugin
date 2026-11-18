@@ -12,14 +12,14 @@ describe('channels', () => {
 
     const support = await owner.channels.create({
       name: 'Support',
-      icon: 'IconHeadset',
+      icon: 'IconHeadphones',
       memberIds: ['teammate', 'user-org-a'],
     });
 
     expect(support).toMatchObject({
       name: 'Support',
       description: '',
-      icon: 'IconHeadset',
+      icon: 'IconHeadphones',
       createdBy: 'user-org-a',
       memberIds: ['user-org-a', 'teammate'],
       role: 'admin',
@@ -34,7 +34,11 @@ describe('channels', () => {
     });
     await expect(
       owner.channels.update({ id: support.id, name: 'Help', description: 'Customer help' }),
-    ).resolves.toMatchObject({ name: 'Help', description: 'Customer help', icon: 'IconHeadset' });
+    ).resolves.toMatchObject({
+      name: 'Help',
+      description: 'Customer help',
+      icon: 'IconHeadphones',
+    });
     await expect(owner.channels.remove({ ids: [support.id] })).resolves.toEqual({
       ids: [support.id],
     });

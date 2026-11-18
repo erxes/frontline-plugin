@@ -11,6 +11,7 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
+import { CHANNEL_ICON } from '~/shared/icons.ts';
 import {
   Button,
   IconPicker,
@@ -171,7 +172,7 @@ const ChannelFields = ({ channel }: { channel: Channel }) => {
         <PanelField icon={IconIcons} label={t('icon', 'Icon')} cell={false}>
           <IconPicker
             aria-label={t('icon', 'Icon')}
-            value={channel.icon ?? 'IconInbox'}
+            value={channel.icon ?? CHANNEL_ICON}
             onValueChange={(icon) => edit({ icon })}
             className="w-min"
           />
