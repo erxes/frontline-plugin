@@ -27,7 +27,8 @@ const follow = writes(PERMISSIONS.channelView)
       .where(eq(tickets.id, id));
 
     await publish(tx, member, changeEvents(before, await snapshot(tx, [id])));
-    await signalTickets(tx, member);
+    // Who follows a ticket is the team's: its screens refetch, the customer's tab has nothing new.
+    await signalTickets(tx, member, []);
 
     return ticketById(tx, member, id);
   });
