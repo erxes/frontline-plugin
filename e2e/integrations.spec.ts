@@ -51,11 +51,13 @@ test("the Meta tile on core's Integrations asks for the organisation's app", asy
   await page.goto(META_TILE);
 
   await expect(page.getByText('Set a Meta app before you connect')).toBeVisible();
-  await expect(page.getByText('/api/public/webhooks/meta')).toBeVisible();
+  await expect(page.getByText(/\/api\/public\/webhooks\/meta$/)).toBeVisible();
+  await expect(page.getByText(/\/api\/public\/webhooks\/meta\/callback$/)).toBeVisible();
 
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByText('Enter the app id')).toBeVisible();
   await expect(page.getByText('Enter the app secret')).toBeVisible();
+  await expect(page.getByText('Enter a verify token')).toBeVisible();
   await expectAccessible(page, page.getByLabel('Verify token'));
 });
 
