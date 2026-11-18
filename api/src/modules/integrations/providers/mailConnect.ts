@@ -2,7 +2,7 @@ import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { writesWithCore } from '#/orpc.ts';
-import { Account, saveAccount } from '../store.ts';
+import { Account, Into, intoChannel, saveAccount } from '../store.ts';
 import { checkMail, pullMail, ServerInput } from './mail.ts';
 import { composeProcedures } from './mailCompose.ts';
 import { servers } from './mailServers.ts';
@@ -23,6 +23,7 @@ const connect = writesWithCore(
     name: z.string().trim().min(1).max(200),
     imap: Login,
     smtp: Login,
+    ...Into,
   }),
   async (_member, input) => {
     const { password: imapPassword, ...imap } = input.imap;
@@ -43,15 +44,20 @@ const connect = writesWithCore(
   },
 )
   .output(Account)
-  .handler(({ input, context: { tx, member, fromCore } }) =>
-    saveAccount(tx, member, {
-      provider: 'mail',
-      externalId: fromCore.address,
-      name: input.name,
-      config: fromCore.config,
-      secret: fromCore.secret,
-      syncState: fromCore.syncState,
-    }),
+  .handler(async ({ input, context: { tx, member, fromCore } }) =>
+    saveAccount(
+      tx,
+      member,
+      {
+        provider: 'mail',
+        externalId: fromCore.address,
+        name: input.name,
+        config: fromCore.config,
+        secret: fromCore.secret,
+        syncState: fromCore.syncState,
+      },
+      await intoChannel(tx, member, input.channelId),
+    ),
   );
 
 export const mailProcedures = {

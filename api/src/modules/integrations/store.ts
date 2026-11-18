@@ -2,9 +2,13 @@ import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
+import { z } from 'zod';
 import { type Tx, withOrg } from '#/db/client.ts';
+import { integrations } from '#/db/inbox.ts';
 import { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
 import { publicKeys } from '#/db/public.ts';
+import { channelFor } from '../channels/access.ts';
+import { insertIntegration } from '../inbox/insertIntegration.ts';
 import { openedBy, removeKeys } from '../public.ts';
 import type { AccountRow, ProviderName, Routed } from './provider.ts';
 import { sealSecret } from './secrets.ts';
@@ -31,14 +35,52 @@ interface Connected {
   webhookKey?: string;
 }
 
+/** A connect's channel: the one its form was opened from, which the account joins. */
+export const Into = { channelId: z.string().optional() };
+
+/** `channelId` once `member` is shown to be its admin, for `saveAccount` to join. */
+export const intoChannel = async (tx: Tx, member: PluginMember, channelId: string | undefined) => {
+  if (channelId) await channelFor(tx, member, channelId, { change: true });
+
+  return channelId;
+};
+
+/** Adds the account to the channel as an integration, unless it is in it already. */
+const joinChannel = async (
+  tx: Tx,
+  by: Pick<PluginMember, 'orgId' | 'userId'>,
+  account: { id: string; provider: ProviderName; name: string },
+  channelId: string,
+) => {
+  const [joined] = await tx
+    .select({ id: integrations.id })
+    .from(integrations)
+    .where(
+      and(
+        eq(integrations.channelId, channelId),
+        sql`${integrations.config}->>'accountId' = ${account.id}`,
+      ),
+    );
+
+  if (!joined)
+    await insertIntegration(tx, by, {
+      channelId,
+      kind: account.provider,
+      name: account.name,
+      config: { accountId: account.id },
+    });
+};
+
 /**
  * Stores what a provider connected for `member`, or refreshes the account when it was connected
- * before, and points its webhook routes at it. Returns the account as `Account` shows it.
+ * before, and points its webhook routes at it. With `channelId`, checked by `intoChannel`, the
+ * account joins that channel too. Returns the account as `Account` shows it.
  */
 export const saveAccount = async (
   tx: Tx,
   member: Pick<PluginMember, 'orgId' | 'userId'>,
   connected: Connected,
+  channelId?: string,
 ) => {
   const sealed = sealSecret(member.orgId, connected.secret);
   const syncState = connected.syncState ?? {};
@@ -93,6 +135,8 @@ export const saveAccount = async (
         set: { orgOf: member.orgId, kind: connected.provider, targetId: row.id },
       });
   }
+
+  if (channelId) await joinChannel(tx, member, row, channelId);
 
   return row;
 };

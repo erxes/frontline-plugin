@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, asc, eq, getTableColumns } from 'drizzle-orm';
@@ -14,11 +13,9 @@ import { canChangeSql, channelFor, membership } from '../channels/access.ts';
 import { Title } from '../fields.ts';
 import { integrationChanges } from '../messenger/adapter.ts';
 import { removeKeys } from '../public.ts';
+import { INTEGRATION_KEY, insertIntegration } from './insertIntegration.ts';
 import { ADAPTERS } from './adapters.ts';
 import { seenBy } from './shared.ts';
-
-/** What a public key opens when it names an integration. */
-export const INTEGRATION_KEY = 'integration';
 
 /** The row without `org_id`, which the caller already knows. */
 const { orgId, ...integrationColumns } = getTableColumns(integrations);
@@ -102,23 +99,9 @@ const create = writes(PERMISSIONS.channelView)
   .handler(async ({ input, context: { tx, member } }) => {
     await channelFor(tx, member, input.channelId, { change: true });
 
-    const [created] = await tx
-      .insert(integrations)
-      .values({
-        ...input,
-        config: configOf(input.kind, input.config),
-        orgId: member.orgId,
-        createdBy: member.userId,
-      })
-      .returning({ id: integrations.id });
-
-    if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
-
-    await tx.insert(publicKeys).values({
-      key: randomBytes(32).toString('base64url'),
-      orgOf: member.orgId,
-      kind: INTEGRATION_KEY,
-      targetId: created.id,
+    const created = await insertIntegration(tx, member, {
+      ...input,
+      config: configOf(input.kind, input.config),
     });
 
     return integrationById(tx, member, created.id);
