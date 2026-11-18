@@ -6,9 +6,9 @@ import { type Tx, withOrg } from '#/db/client.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { logger } from '#/logger.ts';
 import { checkAccount, recordCheck } from './accounts.ts';
-import { deliverInbound } from './adapters.ts';
+import { deliverInbound } from './inbound.ts';
 import type { AccountRow } from './provider.ts';
-import { mail, pullMail, SyncState } from './providers/mail.ts';
+import { mail, pullMail, SyncState, syncFailure } from './providers/mail.ts';
 import { suppress } from './providers/mailSuppressions.ts';
 
 const accountsOf = (orgId: string, provider?: 'mail') =>
@@ -39,14 +39,10 @@ const saveSyncState = (tx: Tx, accountId: string, state: z.infer<typeof SyncStat
     .set({ syncState: state, status: 'healthy', error: null, checkedAt: sql`now()` })
     .where(eq(integrationAccounts.id, accountId));
 
-/** How many runs in a row a mailbox may fail to sync before it shows as broken. */
-const FAILED_RUNS = 5;
-
-const FailedRuns = z.object({ failedRuns: z.number().int() });
-
 /**
- * Logs a failed sync of `row` and counts it in its sync state; the `FAILED_RUNS`th failure in a
- * row marks the account broken. A run that gets anywhere starts the count over.
+ * Logs a failed sync of `row` and counts it, with its error, in its sync state; once the mailbox
+ * has failed too many runs in a row (`syncFailure`) it is marked broken. A run that gets anywhere
+ * starts the count over.
  */
 const failedSync = async (row: AccountRow, error: unknown) => {
   logger.error({ err: error, accountId: row.id }, 'mail sync failed');
@@ -55,19 +51,15 @@ const failedSync = async (row: AccountRow, error: unknown) => {
     tx
       .update(integrationAccounts)
       .set({
-        syncState: sql`${integrationAccounts.syncState} || jsonb_build_object('failedRuns', coalesce((${integrationAccounts.syncState}->>'failedRuns')::int, 0) + 1)`,
+        syncState: sql`${integrationAccounts.syncState} || jsonb_build_object('failedRuns', coalesce((${integrationAccounts.syncState}->>'failedRuns')::int, 0) + 1, 'failure', ${error instanceof Error ? error.message : String(error)}::text)`,
       })
       .where(eq(integrationAccounts.id, row.id))
       .returning({ syncState: integrationAccounts.syncState }),
   );
 
-  const runs = FailedRuns.safeParse(counted?.syncState).data?.failedRuns ?? 0;
+  const failure = syncFailure(counted?.syncState);
 
-  if (runs >= FAILED_RUNS)
-    await recordCheck(
-      row,
-      `The last ${runs} mail syncs failed: ${error instanceof Error ? error.message : String(error)}`,
-    );
+  if (failure) await recordCheck(row, failure);
 };
 
 /**
@@ -75,8 +67,8 @@ const failedSync = async (row: AccountRow, error: unknown) => {
  * run and hands it to the inbox, and notes the addresses its reports said to stop mailing. Each
  * message is kept with the mailbox's place after it, so a failure leaves the messages before it
  * in place and the next run starts at it; a mail the inbox can never store is skipped. A mailbox
- * that refuses the login is marked broken at once, and one that fails `FAILED_RUNS` runs in a row
- * for any other reason, such as a server that doesn't answer, after them. The rest go on.
+ * that refuses the login is marked broken at once, and one that keeps failing for any
+ * other reason, such as a server that doesn't answer, after five runs. The rest go on.
  */
 export const syncMail = async (job: PluginJobDelivery) => {
   const sync = async (row: AccountRow) => {

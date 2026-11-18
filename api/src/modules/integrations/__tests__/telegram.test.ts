@@ -178,6 +178,51 @@ describe('telegram', () => {
     const sent = (await owner.conversations.messages.list({ conversationId })).messages;
 
     expect(sent.find((message) => message.id === id)).toMatchObject({ deliveryStatus: 'failed' });
+
+    // Text too long for a caption goes first; Telegram refuses the file after it. The reply fails
+    // at once, without a retry, so the customer doesn't get the text again.
+    const partly = await owner.conversations.messages.create({
+      conversationId,
+      content: 'Long instructions. '.repeat(60),
+      attachments: [{ url: '/core/v1/files/file-refused/download', name: 'refused.txt' }],
+    });
+
+    await runQueued();
+    expect(calls.at(-2)?.url.pathname).toBe('/bot777:good-token-abc/sendMessage');
+    expect(calls.at(-1)?.url.pathname).toBe('/bot777:good-token-abc/sendDocument');
+
+    const after = (await owner.conversations.messages.list({ conversationId })).messages;
+
+    expect(after.find((message) => message.id === partly.id)).toMatchObject({
+      deliveryStatus: 'failed',
+    });
+  });
+
+  it('reads a sticker as its emoji and keeps its picture', async () => {
+    const calls = fakeProviders(telegramApi);
+    const owner = clientAs('org-tg-sticker');
+    const account = await owner.integrations.telegram.connect({ token: '777:good-token-abc' });
+    const { path, signed } = webhookOf(calls);
+
+    await channelFor('org-tg-sticker', 'telegram', account.id);
+
+    const sticker = fixture('telegram-update.json').replace(
+      '"text": "Hello, is my order on its way?"',
+      '"sticker": { "file_id": "sticker-1", "file_unique_id": "AgADst", "type": "regular", "width": 512, "height": 512, "is_animated": false, "is_video": false, "emoji": "😀", "set_name": "Animals" }',
+    );
+
+    expect(await deliver(path, sticker, signed)).toBe(200);
+
+    const [conversation] = (await owner.conversations.list({})).conversations;
+
+    const [received] = (
+      await owner.conversations.messages.list({ conversationId: conversation?.id ?? '' })
+    ).messages;
+
+    expect(received).toMatchObject({
+      content: 'Sticker 😀',
+      attachments: [{ name: 'sticker.webp', type: 'image/webp' }],
+    });
   });
 
   it('skips a message the inbox cannot store, so Telegram stops sending it', async () => {

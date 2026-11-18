@@ -4,20 +4,29 @@ import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import express, { type Request, type Response } from 'express';
 import { z } from 'zod';
 import { config } from '#/config.ts';
-import { core } from '#/core.ts';
+import { core, refusedByCore } from '#/core.ts';
 import { Attachment, CORE_FILE, type StoredFile } from '#/db/table.ts';
 import { readToken, signToken } from './tokens.ts';
 
+/** A file that whoever holds it, or core's storage, won't give or take: trying again won't help. */
+export class FileRefused extends Error {}
+
 /**
  * Stores `bytes` as a file of the organisation in core, and gives it as records keep their files
- * (`Attachment`). Core refuses a type or a size the organisation's file settings don't allow.
+ * (`Attachment`). Core refuses a type or a size the organisation's file settings don't allow, as
+ * `FileRefused`; any other failure may pass on a later try.
  */
 export const storeFile = async (
   orgId: string,
   { name, contentType, bytes }: { name: string; contentType: string; bytes: Uint8Array },
 ) => {
   const files = core.forOrg(orgId).files;
-  const { file, upload } = await files.createUpload({ name, contentType, size: bytes.length });
+
+  const { file, upload } = await files
+    .createUpload({ name, contentType, size: bytes.length })
+    .catch((error: unknown) => {
+      throw refusedByCore(error) && error instanceof Error ? new FileRefused(error.message) : error;
+    });
 
   const sent = await fetch(new URL(upload.url, config.coreUrl), {
     method: upload.method,
@@ -27,7 +36,10 @@ export const storeFile = async (
     signal: AbortSignal.timeout(4 * config.outboundMs),
   });
 
-  if (!sent.ok) throw new Error(`Core's storage refused the file: ${sent.status}`);
+  if (!sent.ok)
+    throw new (sent.status < 500 ? FileRefused : Error)(
+      `Core's storage refused the file: ${sent.status}`,
+    );
 
   const ready = await files.complete({ id: file.id });
 

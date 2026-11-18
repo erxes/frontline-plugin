@@ -19,7 +19,7 @@ const uploads = new Map<string, { name: string; contentType: string; size: numbe
 /** A file in core's storage as core describes it; one the test didn't upload is a 4-byte text file. */
 const fileOf = (id: string) => ({
   id,
-  name: 'notes.txt',
+  name: `${id.replace('file-', '')}.txt`,
   contentType: 'text/plain',
   size: 4,
   ...uploads.get(id),
