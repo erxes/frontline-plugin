@@ -13,6 +13,10 @@ import { z } from 'zod';
 const GROWTH = 0.02;
 const HEADROOM = 0.05;
 
+// A local build can measure a few bytes off CI's (remoteEntry.js varied by 1 between runs of the
+// same code), so a raise made on a laptop passes when CI checks it.
+const DRIFT = 0.01;
+
 const Assets = z.object({
   js: z.object({ sync: z.array(z.string()), async: z.array(z.string()) }),
 });
@@ -150,7 +154,7 @@ for (const [name, ceiling] of Object.entries(budgets)) {
   if (raised && !allowed)
     failures.push(`${name}'s ceiling rises to ${ceiling}. Add the budget-increase label.`);
 
-  if (raised && value !== undefined && ceiling > headroom(value))
+  if (raised && value !== undefined && ceiling > Math.ceil(value * (1 + HEADROOM + DRIFT)))
     failures.push(
       `${name}'s ceiling of ${ceiling} sits over ${value} plus ${HEADROOM * 100}%. Run pnpm budgets --raise.`,
     );
