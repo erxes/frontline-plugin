@@ -6,7 +6,7 @@ import { withOrg } from '#/db/client.ts';
 import { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
 import { logger } from '#/logger.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
-import type { AccountRow } from './provider.ts';
+import { AccountRefused, type AccountRow } from './provider.ts';
 import { providerOf } from './providers/index.ts';
 import { Account, accountColumns, accountRow, removeWebhookKeys, webhookKeyOf } from './store.ts';
 
@@ -26,20 +26,29 @@ export const checkAccount = async (row: AccountRow, repair?: { webhookKey: strin
 
 /**
  * Records in its own transaction whether `row` works: healthy, or broken with `error`. Whoever
- * connected an account that just broke hears of it.
+ * connected an account that just broke hears of it once: the row stays locked while it changes,
+ * so of two replies that find the token refused at once, only the first tells.
  */
 export const recordCheck = async (row: AccountRow, error: string | null) => {
-  const [checked] = await withOrg(row.orgId, (tx) =>
-    tx
+  const { checked, wasHealthy } = await withOrg(row.orgId, async (tx) => {
+    const [locked] = await tx
+      .select({ status: integrationAccounts.status })
+      .from(integrationAccounts)
+      .where(eq(integrationAccounts.id, row.id))
+      .for('update');
+
+    const [updated] = await tx
       .update(integrationAccounts)
       .set({ status: error ? 'broken' : 'healthy', error, checkedAt: sql`now()` })
       .where(eq(integrationAccounts.id, row.id))
-      .returning(accountColumns),
-  );
+      .returning(accountColumns);
+
+    return { checked: updated, wasHealthy: locked?.status === 'healthy' };
+  });
 
   if (!checked) throw new ORPCError('NOT_FOUND', { message: 'No such integration account' });
 
-  if (error && row.status === 'healthy')
+  if (error && wasHealthy)
     await core
       .forOrg(row.orgId)
       .notifications.create({
@@ -55,6 +64,22 @@ export const recordCheck = async (row: AccountRow, error: string | null) => {
       });
 
   return checked;
+};
+
+/**
+ * Marks `row` broken when `error` is the provider refusing its token, or wraps one, as a reply
+ * the provider took part of does. A failure to record it is logged, so `error` stays the one the
+ * caller sees.
+ */
+export const markRefused = async (row: AccountRow, error: unknown) => {
+  const refused =
+    error instanceof Error && error.cause instanceof AccountRefused ? error.cause : error;
+
+  if (!(refused instanceof AccountRefused)) return;
+
+  await recordCheck(row, refused.message).catch((failure: unknown) => {
+    logger.error({ err: failure, accountId: row.id }, 'refused account not marked broken');
+  });
 };
 
 /** The organisation's connected accounts, one provider's or all, by provider then name. */

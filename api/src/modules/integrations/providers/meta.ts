@@ -223,18 +223,18 @@ const reactThrough = async ({ secret }: MetaAccount, reaction: OutboundReaction)
   if (postOfThread(reaction.threadId) || reaction.emoji.replaceAll('️', '') !== LOVE)
     throw new ORPCError('BAD_REQUEST', { message: 'Meta takes only ❤️ on a message' });
 
-  await askMeta(
-    graph('me/messages', secret.pageToken, {
-      method: 'POST',
-      body: {
-        recipient: { id: reaction.to },
-        sender_action: loved ? 'react' : 'unreact',
-        payload: loved
-          ? { message_id: reaction.message.externalId, reaction: 'love' }
-          : { message_id: reaction.message.externalId },
-      },
-    }),
-  );
+  // Not through askMeta: the inbox names the provider in its refusal, and the adapter needs a
+  // refused token as it is to mark the page broken.
+  await graph('me/messages', secret.pageToken, {
+    method: 'POST',
+    body: {
+      recipient: { id: reaction.to },
+      sender_action: loved ? 'react' : 'unreact',
+      payload: loved
+        ? { message_id: reaction.message.externalId, reaction: 'love' }
+        : { message_id: reaction.message.externalId },
+    },
+  });
 };
 
 /**
