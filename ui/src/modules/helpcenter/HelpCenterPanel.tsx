@@ -3,12 +3,14 @@ import {
   IconBook,
   IconBrush,
   IconDots,
+  IconExternalLink,
   IconForms,
   IconKey,
   IconLanguage,
   IconLetterCase,
   IconTag,
   IconTrash,
+  IconWorld,
 } from '@tabler/icons-react';
 import {
   Button,
@@ -183,6 +185,17 @@ const Content = ({ center }: { center: HelpCenter }) => {
         value={center.kbLabel}
         onSave={(kbLabel) => edit({ kbLabel })}
       />
+      <InfoRow icon={IconWorld} label={t('hc-site', 'Site')}>
+        <a
+          href={center.siteUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex min-w-0 items-center gap-1 text-primary hover:underline"
+        >
+          <span className="truncate">{t('hc-open-site', 'Open the site')}</span>
+          <IconExternalLink className="size-3.5 shrink-0" />
+        </a>
+      </InfoRow>
       <InfoRow icon={IconKey} label={t('public-key', 'Public key')}>
         <CopyText value={center.publicKey}>{center.publicKey}</CopyText>
       </InfoRow>

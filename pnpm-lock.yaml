@@ -298,6 +298,9 @@ importers:
       cloudflare:
         specifier: ^7.3.0
         version: 7.3.0
+      color2k:
+        specifier: ^2.0.4
+        version: 2.0.4
       cors:
         specifier: ^2.8.6
         version: 2.8.6
@@ -313,6 +316,9 @@ importers:
       express:
         specifier: ^5.3.0
         version: 5.3.0
+      hono:
+        specifier: ^4.13.19
+        version: 4.13.19
       html-to-text:
         specifier: ^10.0.1
         version: 10.0.1
@@ -4637,6 +4643,10 @@ packages:
 
   hermes-parser@0.25.1:
     resolution: {integrity: sha512-6pEjquH3rqaI6cYAXYPcz9MS4rY6R4ngRgrgfDshRptUZIc3lw0MCIJIGDj9++mfySOuPTHB4nrSW99BCvOPIA==}
+
+  hono@4.13.19:
+    resolution: {integrity: sha512-KmXvQAXwcAHV+muzbIwoJ23niEB5nMoDVr9WcRkU8mvjUECm/1+7v4Jgp7P7a+H6MLFrh+vXrGonGrGS+RQfkA==}
+    engines: {node: '>=16.9.0'}
 
   hookified@1.15.1:
     resolution: {integrity: sha512-MvG/clsADq1GPM2KGo2nyfaWVyn9naPiXrqIe4jYjXNZQt238kWyOGrsyc/DmRAQ+Re6yeo6yX/yoNCG5KAEVg==}
@@ -9967,6 +9977,8 @@ snapshots:
   hermes-parser@0.25.1:
     dependencies:
       hermes-estree: 0.25.1
+
+  hono@4.13.19: {}
 
   hookified@1.15.1: {}
 
