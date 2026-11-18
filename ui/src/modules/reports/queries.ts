@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { storedFamily } from 'erxes-ui';
 import { useAtom } from 'jotai';
 import { z } from 'zod';
@@ -13,6 +13,9 @@ const tilePipeline = storedFamily({
   initial: null,
 });
 
+/** A tile keeps its numbers while the next minute or pick loads, instead of a skeleton. */
+const stayOnScreen = { placeholderData: keepPreviousData };
+
 /** The tile's period and pipeline, and the ticket report over them. */
 export const useTicketReport = (tile: string) => {
   const period = usePeriod(tile);
@@ -24,6 +27,7 @@ export const useTicketReport = (tile: string) => {
     query: useQuery(
       orpc.reports.tickets.queryOptions({
         input: { ...period.range, pipelineId: pipelineId ?? undefined },
+        ...stayOnScreen,
       }),
     ),
   };
@@ -35,7 +39,9 @@ export const useConversationReport = (tile: string) => {
 
   return {
     period,
-    query: useQuery(orpc.reports.conversations.queryOptions({ input: period.range })),
+    query: useQuery(
+      orpc.reports.conversations.queryOptions({ input: period.range, ...stayOnScreen }),
+    ),
   };
 };
 
@@ -43,5 +49,8 @@ export const useConversationReport = (tile: string) => {
 export const useCallReport = (tile: string) => {
   const period = usePeriod(tile);
 
-  return { period, query: useQuery(orpc.reports.calls.queryOptions({ input: period.range })) };
+  return {
+    period,
+    query: useQuery(orpc.reports.calls.queryOptions({ input: period.range, ...stayOnScreen })),
+  };
 };

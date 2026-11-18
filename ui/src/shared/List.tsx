@@ -1,4 +1,5 @@
-import { IconAlertTriangle, IconPlus, IconSearchOff } from '@tabler/icons-react';
+import { IconAlertTriangle, IconPlus, IconRefresh, IconSearchOff } from '@tabler/icons-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { Button, Empty, Kbd, useListFilterParams, useScopedHotkeys } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -34,6 +35,30 @@ export const ListEmpty = ({
   );
 };
 
+/** Refetches every query on screen that failed, for a "Try again" button. */
+const useRetryFailed = () => {
+  const queryClient = useQueryClient();
+
+  return () =>
+    void queryClient.refetchQueries({
+      type: 'active',
+      predicate: (query) => query.state.status === 'error',
+    });
+};
+
+/** "Try again" under a failed load; it refetches what failed on screen. */
+export const RetryButton = () => {
+  const { t } = useTranslation('frontline');
+  const retry = useRetryFailed();
+
+  return (
+    <Button variant="outline" size="sm" onClick={retry}>
+      <IconRefresh />
+      {t('try-again', 'Try again')}
+    </Button>
+  );
+};
+
 /** What a page shows when its query failed: the API's message in an outlined empty state. */
 export const ListError = ({ error }: { error: Error }) => {
   const { t } = useTranslation('frontline');
@@ -47,6 +72,9 @@ export const ListError = ({ error }: { error: Error }) => {
         <Empty.Title>{t('could-not-load', 'Could not load this page')}</Empty.Title>
         <Empty.Description>{error.message}</Empty.Description>
       </Empty.Header>
+      <Empty.Content>
+        <RetryButton />
+      </Empty.Content>
     </Empty>
   );
 };
