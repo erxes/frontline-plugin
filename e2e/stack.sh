@@ -30,8 +30,9 @@ case "${1:-}" in
     "${compose[@]}" pull --quiet postgres migrate api ui
     # Core migrates before its API starts; the plugin role needs core's schema.
     "${compose[@]}" up --detach --wait api ui
-    # Core prints the new role's password on its own indented line.
-    password=$("${compose[@]}" run --rm --no-deps migrate node dist/plugin-role.js frontline | awk '/^  [^ ]+$/ { print $1; exit }')
+    # Core prints the new role's password on its own indented line. awk reads to the end, since
+    # quitting early breaks compose's pipe and pipefail fails the stack.
+    password=$("${compose[@]}" run --rm --no-deps migrate node dist/plugin-role.js frontline | awk '/^  [^ ]+$/ && !found { print $1; found = 1 }')
     [ -n "$password" ] || { echo "plugin-role printed no password" >&2; exit 1; }
     PLUGIN_DATA_PASSWORD=$password "${compose[@]}" up --detach --wait frontline
     echo "web http://localhost:8080, plugin http://localhost:3399"
