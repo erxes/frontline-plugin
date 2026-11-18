@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { CustomFieldsPatch } from '@erxes/core-contract';
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -7,50 +8,69 @@ import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations } from '#/db/inbox.ts';
 import { type BrowserInfo, visitors } from '#/db/messenger.ts';
 import { logger } from '#/logger.ts';
+import { customerFor } from '../inbox/receive.ts';
 import { messenger } from './adapter.ts';
+import type { Identity } from './identity.ts';
 import type { Visitor } from './session.ts';
 
-/** The email or phone a visitor leaves, and their name if they give it. */
-export const Identity = z
-  .object({
-    email: z.email().max(320).optional(),
-    phone: z.string().trim().min(3).max(50).optional(),
-    firstName: z.string().trim().max(100).optional(),
-    lastName: z.string().trim().max(100).optional(),
-  })
-  .refine((identity) => identity.email ?? identity.phone, {
-    message: 'Leave an email or a phone number',
-    path: ['email'],
-  });
+type Messenger = Pick<Visitor, 'orgId' | 'integrationId'>;
+
+/** A new anonymous visitor: a core lead linked by a visitor id only the server makes. */
+export const newVisitor = async (found: Messenger): Promise<Visitor> => ({
+  ...found,
+  identified: false,
+  verified: false,
+  customerId: await customerFor(found.orgId, {
+    source: messenger.kind,
+    externalId: randomUUID(),
+    firstName: 'Visitor',
+  }),
+});
 
 /**
- * The core customer with the visitor's email or phone, made a lead when there is none. Their
- * conversations so far, written as an anonymous visitor, move to that customer.
+ * The visitor as the customer the website signed. An anonymous visitor's conversations so far
+ * move to that customer; a verified visitor's stay with the customer they belong to.
  */
-export const identify = async (visitor: Visitor, identity: z.infer<typeof Identity>) => {
-  const { customer, created } = await core.forOrg(visitor.orgId).customers.findOrCreate({
-    primaryEmail: identity.email,
-    primaryPhone: identity.phone,
-    firstName: identity.firstName,
-    lastName: identity.lastName,
-    state: 'lead',
-    source: messenger.kind,
-  });
-
-  if (customer.id !== visitor.customerId)
-    await withOrg(visitor.orgId, (tx) =>
+export const verify = async (from: Visitor | null, found: Messenger, customerId: string) => {
+  if (from && !from.verified && from.customerId !== customerId)
+    await withOrg(from.orgId, (tx) =>
       tx
         .update(conversations)
-        .set({ customerId: customer.id })
+        .set({ customerId })
         .where(
           and(
-            eq(conversations.integrationId, visitor.integrationId),
-            eq(conversations.customerId, visitor.customerId),
+            eq(conversations.integrationId, from.integrationId),
+            eq(conversations.customerId, from.customerId),
           ),
         ),
     );
 
-  return { ...visitor, customerId: customer.id, identified: true, owns: created };
+  return { ...found, customerId, identified: true, verified: true };
+};
+
+/**
+ * Saves the contact an anonymous visitor typed on the lead the messenger made for them. An
+ * unsigned email or phone never finds another customer. Core refusing it, as when another
+ * customer has it, is logged and the visit goes on.
+ */
+export const fillIn = async (visitor: Visitor, identity: Identity) => {
+  await core
+    .forOrg(visitor.orgId)
+    .customers.update({
+      id: visitor.customerId,
+      primaryEmail: identity.email,
+      primaryPhone: identity.phone,
+      firstName: identity.firstName,
+      lastName: identity.lastName,
+    })
+    .catch((error: unknown) =>
+      logger.warn(
+        { err: error, orgId: visitor.orgId, integrationId: visitor.integrationId },
+        "the visitor's contact was not saved",
+      ),
+    );
+
+  return { ...visitor, identified: true };
 };
 
 /** What the website tells about the visitor beside who they are. */
@@ -104,13 +124,11 @@ const saveOn = async (visitor: Visitor, { customFields, company }: VisitorData) 
 };
 
 /**
- * Saves the website's data on a customer the messenger made, never on one an unchecked email or
- * phone found. An existing company never takes the website's data. Core checks the values; a
- * refusal is logged and the visit goes on.
+ * Saves the website's data on the visitor's customer: their own lead, or the customer the website
+ * signed them in as. An existing company never takes the website's data. Core checks the values;
+ * a refusal is logged and the visit goes on.
  */
 export const saveVisitorData = async (visitor: Visitor, data: VisitorData) => {
-  if (!visitor.owns) return;
-
   await saveOn(visitor, data).catch((error: unknown) =>
     logger.warn(
       { err: error, orgId: visitor.orgId, integrationId: visitor.integrationId },

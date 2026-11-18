@@ -364,10 +364,14 @@ export const openShop = async (context: BrowserContext, installCode: string) => 
   };
 };
 
-/** The shop with the messenger of `key` on it, opened by the visitor. */
-export const openMessenger = async (context: BrowserContext, key: string) => {
+/** The shop with the messenger of `key` on it, after the page's own `before`, opened by the visitor. */
+export const openMessenger = async (context: BrowserContext, key: string, before = '') => {
   const script = new URL(`/widget/messenger.js?key=${key}`, MESSENGER);
-  const site = await openShop(context, `<script type="module" src="${script.href}"></script>`);
+
+  const site = await openShop(
+    context,
+    `${before}<script type="module" src="${script.href}"></script>`,
+  );
 
   await site.shop.getByRole('button', { name: 'Open the messenger' }).click();
 

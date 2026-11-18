@@ -124,7 +124,7 @@ describe('help centers', () => {
         integrationId: integration.id,
         customerId: 'ann',
         identified: false,
-        owns: false,
+        verified: false,
       });
     };
 

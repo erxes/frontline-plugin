@@ -1,5 +1,6 @@
 import type {
   Connected as ConnectReply,
+  Identity,
   TicketForms as TicketFormsReply,
   VisitorConversation,
   VisitorMessage,
@@ -20,7 +21,18 @@ export type Message = Jsonify<VisitorMessage>;
 
 export type Attachment = Message['attachments'][number];
 
-export type Identity = { email?: string; phone?: string; firstName?: string };
+export type { Identity };
+
+declare global {
+  interface Window {
+    /**
+     * The visitor the website names before the script loads: an `email`, `phone` or `userId`
+     * and its `hash`, signed on the website's server. Unsigned, an email or phone only fills in
+     * the visitor's own contact. `/connect` checks it.
+     */
+    frontlineMessenger?: Identity;
+  }
+}
 
 export type TicketForms = Jsonify<TicketFormsReply>;
 
@@ -50,13 +62,14 @@ export const messengerApi = (base: URL, key: string) => {
     key,
     settings: () =>
       http.get(`settings?key=${encodeURIComponent(key)}`).json<Pick<Connected, 'messenger'>>(),
-    connect: (token: string | null, identity?: Identity) =>
+    /** Connects the visitor, as who they typed, else as whom the website names. */
+    connect: (token: string | null, typed?: Identity) =>
       http
         .post(
           {
             key,
             token: token ?? undefined,
-            identity,
+            identity: typed ?? window.frontlineMessenger,
             browser: {
               url: location.href,
               hostname: location.hostname,

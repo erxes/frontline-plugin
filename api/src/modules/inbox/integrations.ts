@@ -123,7 +123,7 @@ const create = writes(PERMISSIONS.channelView)
   });
 
 /** The integration `id` a channel admin may change, locked. */
-const integrationFor = async (tx: Tx, member: PluginMember, id: string) => {
+export const integrationFor = async (tx: Tx, member: PluginMember, id: string) => {
   const [row] = await tx
     .select({ channelId: integrations.channelId, kind: integrations.kind })
     .from(integrations)

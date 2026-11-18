@@ -14,7 +14,7 @@ type Values = Record<string, unknown>;
 const created = vi.hoisted(() => ({
   customers: 0,
   searches: new Map<string, string[]>(),
-  updates: [] as { id: string; customFields?: Values }[],
+  updates: [] as { id: string; primaryEmail?: string; customFields?: Values }[],
   companies: [] as { primaryName: string; customFields?: Values }[],
   links: [] as { id: string; companyId: string }[],
 }));
@@ -40,7 +40,7 @@ vi.mock('#/core.ts', async (importOriginal) => {
             primaryEmail === 'ada@e2e.test'
               ? { customer: { id: 'customer-ada' }, created: false }
               : { customer: { id: `lead-${primaryEmail}` }, created: true },
-          update: async (input: { id: string; customFields?: Values }) => {
+          update: async (input: { id: string; primaryEmail?: string; customFields?: Values }) => {
             created.updates.push(input);
 
             return { id: input.id };
@@ -267,7 +267,7 @@ describe('inbox list', () => {
     });
   });
 
-  it("saves a visitor's custom fields and company on the lead the messenger made", async () => {
+  it("saves a visitor's contact, custom fields and company on their own lead", async () => {
     const { key } = await setUp('org-ib-visitor', []);
 
     created.updates.length = 0;
@@ -281,7 +281,7 @@ describe('inbox list', () => {
       customFields: { plan: 'team' },
       company: { name: 'Globex', customFields: { size: 'small' } },
     });
-    // An email anyone can type finds Ada, whom the visitor may not change.
+    // An email anyone can type fills in the visitor's own lead and never finds Ada, who has it.
     await post('/connect', {
       key,
       identity: { email: 'ada@e2e.test' },
@@ -289,19 +289,25 @@ describe('inbox list', () => {
       company: { name: 'Initech' },
     });
 
-    expect(created.updates.map(({ customFields }) => customFields)).toEqual([
-      { plan: 'pro' },
-      { plan: 'team' },
+    const [, typedNew, , typedAda] = created.updates;
+
+    expect(created.updates).toMatchObject([
+      { customFields: { plan: 'pro' } },
+      { primaryEmail: 'new@e2e.test' },
+      { id: typedNew?.id, customFields: { plan: 'team' } },
+      { primaryEmail: 'ada@e2e.test' },
+      { id: typedAda?.id, customFields: { plan: 'free' } },
     ]);
-    expect(created.updates[1]?.id).toBe('lead-new@e2e.test');
+    expect(created.updates.map(({ id }) => id)).not.toContain('customer-ada');
     // Acme is found by its name in any case; Globex is made with the website's fields.
     expect(created.companies).toMatchObject([
       { primaryName: 'Globex', customFields: { size: 'small' } },
+      { primaryName: 'Initech' },
     ]);
-    expect(created.links.map(({ companyId }) => companyId)).toEqual([
-      'company-acme',
-      'company-Globex',
+    expect(created.links).toEqual([
+      { id: created.updates[0]?.id, companyId: 'company-acme' },
+      { id: typedNew?.id, companyId: 'company-Globex' },
+      { id: typedAda?.id, companyId: 'company-Initech' },
     ]);
-    expect(created.links[1]?.id).toBe('lead-new@e2e.test');
   });
 });

@@ -12,7 +12,7 @@ import { isOnlineAt, MessengerConfig } from '../adapter.ts';
 
 // Tests never reach core: customers, members and notifications come from this stand-in, and
 // core's automation calls carry the token `core`.
-const core = vi.hoisted(() => ({ customers: 0, found: new Map<string, string>() }));
+const core = vi.hoisted(() => ({ customers: 0 }));
 
 vi.mock('#/core.ts', async (importOriginal) => {
   const actual = await importOriginal<typeof CoreModule>();
@@ -27,11 +27,6 @@ vi.mock('#/core.ts', async (importOriginal) => {
             core.customers += 1;
 
             return { id: `customer-${core.customers}` };
-          },
-          findOrCreate: async ({ primaryEmail }: { primaryEmail?: string }) => {
-            const id = core.found.get(primaryEmail ?? '') ?? `lead-${primaryEmail}`;
-
-            return { customer: { id }, created: !core.found.has(primaryEmail ?? '') };
           },
         },
         users: {
@@ -90,7 +85,12 @@ const Connected = z.looseObject({
   token: z.string(),
   identified: z.boolean(),
   messenger: z.looseObject({ isOnline: z.boolean(), supporters: z.array(z.unknown()) }),
+  conversations: z.array(z.looseObject({ id: z.string() })),
 });
+
+/** What `/connect` answers a visitor who sends `body`. */
+const connect = async (body: Record<string, unknown>) =>
+  Connected.parse((await messenger.post('/connect', body)).body);
 
 const Sent = z.object({ conversationId: z.string() });
 
@@ -111,7 +111,7 @@ const setUp = async (orgId: string, config: Record<string, unknown> = {}) => {
   });
 
   const key = integration.publicKey ?? '';
-  const connected = Connected.parse((await messenger.post('/connect', { key })).body);
+  const connected = await connect({ key });
 
   return {
     owner,
@@ -141,7 +141,7 @@ describe('messenger', () => {
       owner.integrations.update({ id: integration.id, config: { timezone: 'Mars/Olympus' } }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
 
-    const connected = Connected.parse((await messenger.post('/connect', { key })).body);
+    const connected = await connect({ key });
 
     expect(connected.messenger).toMatchObject({
       greetingTitle: 'Hello',
@@ -187,36 +187,6 @@ describe('messenger', () => {
     );
   });
 
-  it('asks for an email first when it requires one, then moves the visitor’s conversations', async () => {
-    const { owner, teammate, integration, key, token } = await setUp('org-ms-b');
-
-    const before = await write(token, 'Anonymous question');
-
-    await owner.integrations.update({ id: integration.id, config: { requireAuth: true } });
-    expect((await messenger.post('/messages', { content: 'Again' }, token)).status).toBe(403);
-
-    core.found.set('ann@example.com', 'customer-ann');
-
-    const identified = Connected.parse(
-      (
-        await messenger.post('/connect', {
-          key,
-          token,
-          identity: { email: 'ann@example.com', firstName: 'Ann' },
-        })
-      ).body,
-    );
-
-    expect(identified.identified).toBe(true);
-    expect(await teammate.conversations.get({ id: before })).toMatchObject({
-      customerId: 'customer-ann',
-    });
-    expect(await write(identified.token, 'Now with my email', before)).toBe(before);
-    expect(
-      (await messenger.post('/connect', { key, identity: { firstName: 'No contact' } })).status,
-    ).toBe(400);
-  });
-
   it('serves a visitor the files of their conversations, attached only by receipt', async () => {
     const { key, token } = await setUp('org-ms-g');
 
@@ -248,7 +218,7 @@ describe('messenger', () => {
     expect(read.headers.get('content-disposition')).toContain('attachment');
 
     // Another visitor can't attach it, by its receipt or its address, so never reads it.
-    const other = Connected.parse((await messenger.post('/connect', { key })).body).token;
+    const { token: other } = await connect({ key });
 
     expect((await messenger.post('/messages', { files: [file.receipt] }, other)).status).toBe(400);
     expect((await messenger.post('/messages', { files: [other] }, other)).status).toBe(400);
