@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconCalendarUp,
   IconEye,
@@ -8,14 +7,10 @@ import {
   IconProgressCheck,
   IconUser,
 } from '@tabler/icons-react';
-import {
-  MemberInline,
-  RecordTable,
-  type RecordTableColumnDef,
-  RecordTableInlineCell,
-} from 'erxes-ui';
+import { RecordTable, type RecordTableColumnDef, RecordTableInlineCell } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MemberLine } from '~/shared/Person.tsx';
 import { RowActions, TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import { ArticleTitle, CategoryPicker, StatusPicker, useArticleActions } from './ArticleCells.tsx';
@@ -71,7 +66,7 @@ const useColumns = (topicId: string, manage: boolean): RecordTableColumnDef<Arti
     )),
     column('createdBy', t('created-by', 'Created by'), IconUser, 200, (article) => (
       <RecordTableInlineCell>
-        <MemberInline memberId={article.createdBy} members={memberQueries} />
+        <MemberLine id={article.createdBy} />
       </RecordTableInlineCell>
     )),
     column('updatedAt', t('updated-at', 'Updated at'), IconCalendarUp, 140, (article) => (

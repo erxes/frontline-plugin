@@ -15,7 +15,6 @@ import {
   Button,
   IconComponent,
   ListFilter,
-  MemberInline,
   PageContainer,
   RecordTable,
   type RecordTableColumnDef,
@@ -26,6 +25,7 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { MemberLine } from '~/shared/Person.tsx';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { KB_CATEGORY_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
@@ -160,7 +160,7 @@ const useColumns = (): RecordTableColumnDef<CategoryRow>[] => {
       ),
       cell: ({ row }) => (
         <RecordTableInlineCell>
-          <MemberInline memberId={row.original.createdBy} members={memberQueries} />
+          <MemberLine id={row.original.createdBy} />
         </RecordTableInlineCell>
       ),
       size: 180,

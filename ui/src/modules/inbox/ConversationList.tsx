@@ -12,7 +12,7 @@ import {
 } from 'erxes-ui';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PersonAvatar, useCustomer } from '~/shared/PersonAvatar.tsx';
+import { PersonAvatar, useCustomer } from '~/shared/Person.tsx';
 import { KindIcon } from './InboxFilter.tsx';
 import {
   type Conversation,

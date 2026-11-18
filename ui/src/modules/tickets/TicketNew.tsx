@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlertSquareRounded,
   IconAlignLeft,
@@ -17,7 +16,6 @@ import {
   PanelFormLayout,
   PanelFormRow,
   Select,
-  SelectMember,
   type TRecordDraftProps,
 } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
@@ -25,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 import { useChannels } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
 import { textOf } from '~/shared/hooks.ts';
+import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { TagsField } from '~/shared/Pickers.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { PrioritySelect, StatusSelect } from './TicketCells.tsx';
@@ -127,10 +126,9 @@ const PlanRows = ({ plan, onChange }: { plan: Plan; onChange: (patch: Partial<Pl
         />
       </PanelFormRow>
       <PanelFormRow label={t('assignee', 'Assignee')} icon={IconUser}>
-        <SelectMember.Field
+        <MemberSelect
           value={plan.assigneeId}
           onValueChange={(assigneeId) => onChange({ assigneeId })}
-          members={memberQueries}
           noneLabel={t('no-assignee', 'No assignee')}
           placeholder={t('no-assignee', 'No assignee')}
         />

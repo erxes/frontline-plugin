@@ -2,21 +2,14 @@ import { contactQueries } from '@erxes/core-contract/client';
 import { ORPCError } from '@orpc/client';
 import { IconMail, IconMessages, IconPhone, IconTicket, IconUser } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Badge,
-  Button,
-  ContactLink,
-  IconTip,
-  PanelSection,
-  RelativeDateDisplay,
-  stored,
-} from 'erxes-ui';
+import { Badge, Button, IconTip, PanelSection, RelativeDateDisplay, stored } from 'erxes-ui';
 import { useAtom } from 'jotai';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
+import { ContactChip } from '~/shared/Person.tsx';
 import { TicketRelations, useContactTickets } from '@/tickets/TicketRelations.tsx';
 import { useSelectConversation } from './ConversationList.tsx';
 import { VisitorPresence } from './ConversationPresence.tsx';
@@ -34,12 +27,7 @@ export const Customer = ({ conversation }: { conversation: Conversation }) => {
 
   return (
     <PanelSection title={t('customer', 'Customer')} icon={IconUser}>
-      <ContactLink
-        contentType="core:customer"
-        contentId={customerId}
-        contacts={contactQueries}
-        placeholder={t('visitor', 'Visitor')}
-      />
+      <ContactChip contentId={customerId} placeholder={t('visitor', 'Visitor')} />
       <VisitorPresence conversation={conversation} />
       {customer?.primaryEmail && (
         <InfoRow icon={IconMail} label={t('email', 'Email')}>

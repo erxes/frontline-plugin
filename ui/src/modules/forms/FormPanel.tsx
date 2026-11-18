@@ -26,7 +26,7 @@ import { ActionsMenu } from '~/shared/Records.tsx';
 import { StatusBadge, useFormActions } from './FormCells.tsx';
 import { Appearance, Callout, General, ThankYou } from './FormSettings.tsx';
 import { type Form, formPath, type LoadType, useForm, useFormFields } from './useForms.ts';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/Person.tsx';
 
 /** The panel header's title: the form's name. */
 export const FormTitle = ({ contentId }: TRecordSlotProps) => {

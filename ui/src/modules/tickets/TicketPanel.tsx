@@ -27,7 +27,7 @@ import { TicketContacts, TicketLabels, TicketPeople } from './TicketLinks.tsx';
 import { TicketPropertiesSection } from './TicketProperties.tsx';
 import { type Ticket, useChoices, useEditTicket, useTicket } from './queries.ts';
 import { InfoRow } from '~/shared/Panel.tsx';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/Person.tsx';
 
 /** A slot's ticket: a spinner while it loads, the refusal when the API gives one. */
 const WithTicket = ({ id, children }: { id: string; children: (ticket: Ticket) => ReactNode }) => {

@@ -36,7 +36,7 @@ import {
   useKbAccess,
   useKbChange,
 } from './useKnowledgeBase.ts';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/Person.tsx';
 
 /** The panel header's title: the category's title. */
 export const CategoryTitle = ({ contentId }: TRecordSlotProps) => {

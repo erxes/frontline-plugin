@@ -12,7 +12,6 @@ import {
   Button,
   editorText,
   ListFilter,
-  MemberInline,
   PageContainer,
   RecordTable,
   type RecordTableColumnDef,
@@ -22,6 +21,7 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { MemberLine } from '~/shared/Person.tsx';
 import { useParams } from 'react-router-dom';
 import { ChannelsHeader } from '@/channels/ChannelsHeader.tsx';
 import { type Channel, useChannel } from '@/channels/useChannels.ts';
@@ -97,7 +97,7 @@ const useColumns = (canManage: boolean): RecordTableColumnDef<ResponseTemplate>[
     )),
     column('createdBy', t('created-by', 'Created by'), IconUser, 180, (template) => (
       <RecordTableInlineCell>
-        <MemberInline memberId={template.createdBy} members={memberQueries} />
+        <MemberLine id={template.createdBy} />
       </RecordTableInlineCell>
     )),
     column('createdAt', t('created-at', 'Created at'), IconCalendarPlus, 130, (template) => (

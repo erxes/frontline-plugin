@@ -5,7 +5,6 @@ import {
   Button,
   customerTitle,
   ListFilter,
-  MemberLink,
   PageContainer,
   RecordTable,
   type RecordTableColumnDef,
@@ -15,6 +14,7 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { MemberChip, PersonAvatar } from '~/shared/Person.tsx';
 import { CALL_TYPE } from '~/plugin.ts';
 import { ListEmpty, ListError } from '~/shared/List.tsx';
 import { TextCell } from '~/shared/Records.tsx';
@@ -36,6 +36,7 @@ const CallName = ({ call }: { call: Call }) => {
   const customer = useQuery(contactQueries.customer(call.customerId));
   const title = customer.data ? customerTitle(customer.data) : '';
   const named = /\p{L}/u.test(title);
+  const name = named ? title : call.customerPhone;
 
   return (
     <Button
@@ -47,7 +48,10 @@ const CallName = ({ call }: { call: Call }) => {
       {customer.isPending ? (
         <Skeleton className="h-4 w-24" />
       ) : (
-        <span className="truncate">{named ? title : call.customerPhone}</span>
+        <>
+          <PersonAvatar name={name} src={customer.data?.avatarUrl} size="lg" />
+          <span className="truncate">{name}</span>
+        </>
       )}
       {named && <span className="text-muted-foreground">{call.customerPhone}</span>}
     </Button>
@@ -77,7 +81,7 @@ const useColumns = (): RecordTableColumnDef<Call>[] => {
     )),
     column('answeredBy', t('answered-by', 'Answered by'), CALL_ICONS.answeredBy, 180, (call) => (
       <RecordTableInlineCell>
-        {call.answeredBy && <MemberLink memberId={call.answeredBy} members={memberQueries} />}
+        {call.answeredBy && <MemberChip id={call.answeredBy} />}
       </RecordTableInlineCell>
     )),
     column('durationSec', t('duration', 'Duration'), CALL_ICONS.durationSec, 100, (call) => (

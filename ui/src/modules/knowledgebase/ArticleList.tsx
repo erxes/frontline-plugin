@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { ArticleTitle, CategoryPicker, useArticleActions } from './ArticleCells.tsx';
 import { ARTICLE_STATUSES, type Article, useStatusNames } from './useKnowledgeBase.ts';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberLine } from '~/shared/Person.tsx';
 
 const RowMenu = ({ article }: { article: Article }) => {
   const { t } = useTranslation('frontline');

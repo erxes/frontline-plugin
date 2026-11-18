@@ -9,11 +9,9 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import {
-  Avatar,
   Button,
   ListFilter,
   memberName,
-  MemberInline,
   PageContainer,
   RecordTable,
   type RecordTableColumnDef,
@@ -24,6 +22,7 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { MemberLine, PersonAvatar } from '~/shared/Person.tsx';
 import { CHANNEL_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
@@ -84,10 +83,9 @@ const MemberAvatars = ({ ids }: { ids: string[] }) => {
           const name = member ? memberName(member) : '';
 
           return (
-            <Avatar key={id} size="sm" title={name}>
-              {member?.avatarUrl && <Avatar.Image src={member.avatarUrl} alt={name} />}
-              <Avatar.Fallback>{name.charAt(0).toUpperCase()}</Avatar.Fallback>
-            </Avatar>
+            <span key={id} title={name}>
+              <PersonAvatar name={name} src={member?.avatarUrl} size="lg" />
+            </span>
           );
         })}
       </span>
@@ -120,7 +118,7 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
     )),
     column('createdBy', t('created-by', 'Created by'), IconUser, 180, (channel) => (
       <RecordTableInlineCell>
-        <MemberInline memberId={channel.createdBy} members={memberQueries} />
+        <MemberLine id={channel.createdBy} />
       </RecordTableInlineCell>
     )),
     column('createdAt', t('created-at', 'Created at'), IconCalendarPlus, 130, (channel) => (

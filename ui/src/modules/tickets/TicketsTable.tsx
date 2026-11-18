@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlarm,
   IconAlertSquareRounded,
@@ -12,14 +11,10 @@ import {
   IconUser,
   IconUserCircle,
 } from '@tabler/icons-react';
-import {
-  MemberInline,
-  RecordTable,
-  type RecordTableColumnDef,
-  RecordTableInlineCell,
-} from 'erxes-ui';
+import { RecordTable, type RecordTableColumnDef, RecordTableInlineCell } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { MemberLine } from '~/shared/Person.tsx';
 import { RowActions } from '~/shared/Records.tsx';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import {
@@ -107,7 +102,7 @@ const useColumns = (): RecordTableColumnDef<Ticket>[] => {
     )),
     column('createdBy', t('created-by', 'Created by'), IconUserCircle, 180, (ticket) => (
       <RecordTableInlineCell>
-        <MemberInline memberId={ticket.createdBy} members={memberQueries} />
+        <MemberLine id={ticket.createdBy} />
       </RecordTableInlineCell>
     )),
     column('createdAt', t('created-at', 'Created at'), IconCalendarPlus, 130, (ticket) => (

@@ -1,4 +1,4 @@
-import { contactQueries, orpc as core, memberQueries } from '@erxes/core-contract/client';
+import { orpc as core } from '@erxes/core-contract/client';
 import {
   IconBuilding,
   IconBuildingStore,
@@ -14,19 +14,19 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import {
   Button,
   companyTitle,
-  ContactLink,
   customerTitle,
   EntityPicker,
   PanelField,
   PanelSection,
   Popover,
-  SelectMember,
   type TContactContentType,
 } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { MembersField, PickerField, TagBadges, TagsField, tagsOf } from '~/shared/Pickers.tsx';
+import { MembersField } from '~/shared/MemberPicker.tsx';
+import { ContactChip } from '~/shared/Person.tsx';
+import { PickerField, TagBadges, TagsField, tagsOf } from '~/shared/Pickers.tsx';
 import { type Ticket, useEditTicket } from './queries.ts';
 
 /** The organisation's ticket tags, as erxes-ui's tag lookups take them. */
@@ -44,14 +44,12 @@ export const TicketPeople = ({ ticket }: { ticket: Ticket }) => {
   return (
     <PanelSection title={t('people', 'People')}>
       <PanelField icon={IconUser} label={t('assignee', 'Assignee')} cell={false}>
-        <SelectMember.Linked
-          scope={`frontline-ticket.${ticket.id}.assignee`}
-          value={ticket.assigneeId}
-          onValueChange={(assigneeId) => edit({ assigneeId })}
-          members={memberQueries}
+        <MembersField
+          label={t('assignee', 'Assignee')}
+          value={ticket.assigneeId ? [ticket.assigneeId] : []}
+          onValueChange={([assigneeId]) => edit({ assigneeId: assigneeId ?? null })}
           noneLabel={t('no-assignee', 'No assignee')}
-          addLabel={t('add-assignee', 'Add assignee')}
-          changeLabel={t('change-assignee', 'Change assignee')}
+          single
         />
       </PanelField>
       <PanelField icon={IconUsers} label={t('also-assigned', 'Also assigned')} cell={false}>
@@ -128,7 +126,7 @@ const ContactField = ({
   return (
     <span className="flex min-w-0 flex-1 items-center gap-1 px-2">
       {value ? (
-        <ContactLink contentType={contentType} contentId={value} contacts={contactQueries} />
+        <ContactChip contentType={contentType} contentId={value} />
       ) : (
         <span className="truncate text-xs text-muted-foreground">{t('none', 'None')}</span>
       )}

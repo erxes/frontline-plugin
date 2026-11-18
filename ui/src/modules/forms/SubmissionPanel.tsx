@@ -1,4 +1,3 @@
-import { contactQueries } from '@erxes/core-contract/client';
 import {
   IconCalendarPlus,
   IconDots,
@@ -10,7 +9,6 @@ import {
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   Button,
-  ContactLink,
   PanelField,
   PanelSection,
   Skeleton,
@@ -21,6 +19,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { InfoRow, PanelSkeleton, PageLink, ReadOnly } from '~/shared/Panel.tsx';
+import { ContactChip } from '~/shared/Person.tsx';
 import { ActionsMenu, useConfirmDelete } from '~/shared/Records.tsx';
 import { useAnswerText } from './answers.ts';
 import {
@@ -181,13 +180,7 @@ const SubmissionFields = ({ submission }: { submission: Submission }) => {
           count={<IconForms className="size-4" />}
         />
         <PanelField icon={IconUser} label={t('customer', 'Customer')} cell={false}>
-          {submission.customerId && (
-            <ContactLink
-              contentType="core:customer"
-              contentId={submission.customerId}
-              contacts={contactQueries}
-            />
-          )}
+          {submission.customerId && <ContactChip contentId={submission.customerId} />}
         </PanelField>
         <InfoRow icon={IconCalendarPlus} label={t('submitted-at', 'Sent at')}>
           {format.dateTime(submission.createdAt)}

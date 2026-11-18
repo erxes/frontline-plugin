@@ -1,4 +1,3 @@
-import { contactQueries } from '@erxes/core-contract/client';
 import {
   IconCalendarCheck,
   IconCalendarX,
@@ -10,7 +9,6 @@ import {
 } from '@tabler/icons-react';
 import {
   Button,
-  ContactLink,
   PanelField,
   PanelSection,
   Skeleton,
@@ -25,7 +23,7 @@ import { ActionsMenu } from '~/shared/Records.tsx';
 import { CALL_ICONS, CallStatus, queueLabel, useDirectionNames } from './CallFields.tsx';
 import { type Call, durationText, useCall, useFetchRecording } from './queries.ts';
 import { InfoRow, PanelSkeleton } from '~/shared/Panel.tsx';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { ContactChip, MemberChip } from '~/shared/Person.tsx';
 
 /** The panel header's title: who called, or who was called. */
 export const CallTitle = ({ contentId }: TRecordSlotProps) => {
@@ -84,12 +82,7 @@ const Fields = ({ call }: { call: Call }) => {
         {directions[call.direction]}
       </InfoRow>
       <PanelField icon={IconUserCircle} label={t('customer', 'Customer')} cell={false}>
-        <ContactLink
-          contentType="core:customer"
-          contentId={call.customerId}
-          contacts={contactQueries}
-          placeholder={call.customerPhone}
-        />
+        <ContactChip contentId={call.customerId} placeholder={call.customerPhone} />
       </PanelField>
       <InfoRow icon={CALL_ICONS.customerPhone} label={t('customer-phone', 'Customer phone')}>
         {call.customerPhone}

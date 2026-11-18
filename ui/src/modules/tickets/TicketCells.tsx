@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAlertSquareRoundedFilled,
   IconAntennaBars3,
@@ -10,12 +9,13 @@ import {
   IconRestore,
   IconTrash,
 } from '@tabler/icons-react';
-import { Button, cn, Select, SelectMember, useOpenRecord } from 'erxes-ui';
+import { Button, cn, Select, useOpenRecord } from 'erxes-ui';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PRIORITIES, usePriorityNames } from '@/pipelines/queries.ts';
 import { StageIcon } from '@/pipelines/StatusRow.tsx';
 import { TICKET_TYPE } from '~/plugin.ts';
+import { MemberCell } from '~/shared/MemberPicker.tsx';
 import { ActionsMenu, type RowAction } from '~/shared/Records.tsx';
 import { type Ticket, useChoices, useDeleteTickets, useEditTicket } from './queries.ts';
 
@@ -185,11 +185,10 @@ export const AssigneeCell = ({ ticket }: { ticket: Ticket }) => {
   const edit = useEditTicket(ticket.id);
 
   return (
-    <SelectMember.InlineCell
+    <MemberCell
       scope={`frontline-ticket.${ticket.id}.assignee`}
       value={ticket.assigneeId}
       onValueChange={(assigneeId) => edit({ assigneeId })}
-      members={memberQueries}
       noneLabel={t('no-assignee', 'No assignee')}
       // A row without one stays blank, as the old list's did; the cell still opens the picker.
       placeholder=""

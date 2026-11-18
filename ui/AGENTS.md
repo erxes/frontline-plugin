@@ -30,11 +30,11 @@ and renders `./frontline` (the `Frontline` export) under `/frontline/*`.
   plugin's `orpc`: `useQuery(core.users.get.queryOptions({ input: { id } }))`.
   It shares web's query cache, and the member needs the core permission the
   procedure asks for (`team.view` for team members).
-- Members: `SelectMember.Field`, `SelectMember.InlineCell`, `MemberInline` and
-  `useMembersById` from erxes-ui, given `members={memberQueries}` from
-  `@erxes/core-contract/client`. `src/modules/channels/ChannelsPage.tsx` has a member filter
-  and a "Created by" column. erxes-ui's `EntityPicker` is the searchable list
-  under them, for a picker of the plugin's own records.
+- People: every customer and member shows through `src/shared/Person.tsx`
+  (`ContactChip`, `MemberChip`, `MemberLine`, `PersonAvatar`) and is picked with
+  `src/shared/MemberPicker.tsx`, not erxes-ui's `ContactLink`, `MemberInline` or
+  `SelectMember`, whose avatars are one grey letter. erxes-ui's `EntityPicker` is
+  the searchable list under them, for a picker of the plugin's own records.
 - Pages look and behave like core's: follow the `ui-patterns` skill.
 - Lists have core's bar (`src/modules/channels/ChannelsPage.tsx`): erxes-ui's `ViewBar` with
   `ListFilter`, given the list's fields and, for `member` fields, `members={memberQueries}`

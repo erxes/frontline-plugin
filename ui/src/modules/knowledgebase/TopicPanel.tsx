@@ -26,7 +26,7 @@ import { InfoRow, PanelSkeleton, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { useDeleteTopics } from './useKbDeletes.ts';
 import { type Topic, topicPath, useKbAccess, useKbChange, useTopic } from './useKnowledgeBase.ts';
-import { MemberChip } from '~/shared/MemberLine.tsx';
+import { MemberChip } from '~/shared/Person.tsx';
 
 /** The panel header's title: the topic's title. */
 export const TopicTitle = ({ contentId }: TRecordSlotProps) => {

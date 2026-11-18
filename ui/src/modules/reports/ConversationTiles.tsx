@@ -1,6 +1,6 @@
-import { memberQueries } from '@erxes/core-contract/client';
-import { MemberInline, useFormat } from 'erxes-ui';
+import { useFormat } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { MemberLine } from '~/shared/Person.tsx';
 import { useKindNames } from '@/inbox/InboxFilter.tsx';
 import { DayChart } from './Charts.tsx';
 import { useConversationReport } from './queries.ts';
@@ -126,7 +126,7 @@ export const ConversationResponders = () => {
           ]}
           rows={report.members.map((row) => ({
             key: row.userId,
-            lead: <MemberInline memberId={row.userId} members={memberQueries} />,
+            lead: <MemberLine id={row.userId} />,
             numbers: [format.number(row.replies), format.number(row.conversations)],
           }))}
           empty={t('no-replies-in-period', 'No member replied in this period.')}

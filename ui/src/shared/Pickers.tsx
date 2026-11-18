@@ -1,16 +1,4 @@
-import { memberQueries } from '@erxes/core-contract/client';
-import { IconPlus } from '@tabler/icons-react';
-import {
-  Badge,
-  Button,
-  cn,
-  EntityPicker,
-  MemberLink,
-  Popover,
-  RecordTableInlineCell,
-  Tooltip,
-  useMemberOptions,
-} from 'erxes-ui';
+import { Badge, EntityPicker, Popover, RecordTableInlineCell, Tooltip } from 'erxes-ui';
 import type { InferClientInputs } from '@orpc/client';
 import { useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
@@ -151,67 +139,5 @@ export const TagsField = ({
       onValueChange={onChange}
       multiple
     />
-  );
-};
-
-/**
- * Several team members in a panel row, drawn as core's owner field is: each a chip that opens
- * them in core's side panel, then a muted button that shows on hover to change them; with none,
- * "+ Add".
- */
-export const MembersField = ({
-  label,
-  value,
-  onValueChange,
-}: {
-  label: string;
-  value: string[];
-  onValueChange: (ids: string[]) => void;
-}) => {
-  const { t } = useTranslation('frontline');
-  const members = useMemberOptions(memberQueries, true, value);
-  const add = t('add', 'Add');
-
-  return (
-    <div className="group/relations flex min-h-7 min-w-0 flex-wrap items-center gap-1 px-1">
-      {value.map((id) => (
-        <div key={id} className="flex min-w-0 overflow-hidden">
-          <MemberLink memberId={id} members={memberQueries} />
-        </div>
-      ))}
-      <Popover>
-        <Popover.Trigger
-          render={
-            <Button
-              variant="ghost"
-              size="xs"
-              tone="muted"
-              data-panel-inline=""
-              aria-label={value.length ? t('change-label', 'Change {{label}}', { label }) : add}
-              className={cn(
-                'shrink-0 [&>svg]:size-3.5',
-                value.length > 0 &&
-                  'opacity-0 group-hover/relations:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100',
-              )}
-            />
-          }
-        >
-          <IconPlus aria-hidden="true" />
-          {!value.length && <span className="font-normal">{add}</span>}
-        </Popover.Trigger>
-        <RecordTableInlineCell.Content>
-          <EntityPicker
-            items={members.options}
-            itemKey={(option) => ({ id: option.value, label: option.label })}
-            value={value}
-            onValueChange={onValueChange}
-            multiple
-            loading={members.loading}
-            error={members.error}
-            searchPlaceholder={label}
-          />
-        </RecordTableInlineCell.Content>
-      </Popover>
-    </div>
   );
 };

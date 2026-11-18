@@ -1,4 +1,3 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   IconAddressBook,
   IconCalendarUp,
@@ -13,7 +12,6 @@ import {
 } from '@tabler/icons-react';
 import {
   Button,
-  MemberInline,
   RecordList,
   type RecordListGroup,
   RecordTable,
@@ -28,7 +26,7 @@ import { ActionsMenu, RowActions, TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
 import { FormName, StatusBadge, useFormActions } from './FormCells.tsx';
 import { FORM_STATUSES, type Form, formTags, useEditForm, useStatusNames } from './useForms.ts';
-import { MemberLine } from '~/shared/MemberLine.tsx';
+import { MemberLine } from '~/shared/Person.tsx';
 import { TagBadges, TagsField } from '~/shared/Pickers.tsx';
 
 const RowMenu = ({ form }: { form: Form }) => {
@@ -168,7 +166,7 @@ const useColumns = (manage: boolean): RecordTableColumnDef<Form>[] => {
     )),
     column('createdBy', t('created-by', 'Created by'), IconUser, 200, (form) => (
       <RecordTableInlineCell>
-        <MemberInline memberId={form.createdBy} members={memberQueries} />
+        <MemberLine id={form.createdBy} />
       </RecordTableInlineCell>
     )),
     column('updatedAt', t('updated-at', 'Updated at'), IconCalendarUp, 140, (form) => (
