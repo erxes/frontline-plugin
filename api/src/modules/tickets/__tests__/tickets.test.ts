@@ -274,22 +274,6 @@ describe('tickets', () => {
     expect(await followers()).toEqual(['user-org-tk-h']);
   });
 
-  it('takes tickets along when their pipeline moves to another channel', async () => {
-    const { owner, pipeline } = await setUp('org-tk-e');
-    const billing = await owner.channels.create({ name: 'Billing' });
-    const ticket = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Moves' });
-
-    await owner.pipelines.update({ id: pipeline.id, channelId: billing.id });
-
-    await expect(owner.tickets.get({ id: ticket.id })).resolves.toMatchObject({
-      channelId: billing.id,
-    });
-    await owner.channels.remove({ ids: [billing.id] });
-    await expect(owner.tickets.get({ id: ticket.id })).rejects.toMatchObject({
-      code: 'NOT_FOUND',
-    });
-  });
-
   it("publishes each change to the ticket's timeline, only when it commits", async () => {
     const { owner, teammate, pipeline, stage } = await setUp('org-tk-g');
     const ticket = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Login' });

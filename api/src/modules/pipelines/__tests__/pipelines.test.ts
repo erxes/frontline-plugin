@@ -282,6 +282,24 @@ describe('pipelines', () => {
     await expect(names(agent)).resolves.toEqual(['Today', 'Yesterday']);
   });
 
+  it('takes its tickets along when it moves to another channel', async () => {
+    const owner = clientAs('org-pl-j');
+    const support = await owner.channels.create({ name: 'Support' });
+    const billing = await owner.channels.create({ name: 'Billing' });
+    const pipeline = await owner.pipelines.create({ channelId: support.id, name: 'Main' });
+    const ticket = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Moves' });
+
+    await owner.pipelines.update({ id: pipeline.id, channelId: billing.id });
+
+    await expect(owner.tickets.get({ id: ticket.id })).resolves.toMatchObject({
+      channelId: billing.id,
+    });
+    await owner.channels.remove({ ids: [billing.id] });
+    await expect(owner.tickets.get({ id: ticket.id })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+  });
+
   it("doesn't show another organisation's pipelines", async () => {
     const owner = clientAs('org-pl-f');
     const channel = await owner.channels.create({ name: 'Support' });
