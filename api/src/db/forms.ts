@@ -17,7 +17,7 @@ import { type Attachment, id, stamps, table } from './table.ts';
 
 export const FORM_STATUSES = ['active', 'archived'] as const;
 
-/** How the embed shows the form: in the page, or in the messenger. */
+/** Retired with `forms.appearance`: the old plugin stored it, and nothing read it. */
 export const FORM_APPEARANCES = ['iframe', 'messenger'] as const;
 
 /** How the embed opens the form on the visitor's page. */
