@@ -1,6 +1,7 @@
-import { Button, Card } from 'erxes-ui';
-import type { ReactNode } from 'react';
+import { Button, Card, useConfirm } from 'erxes-ui';
+import { type ReactNode, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 
 /** One card of a settings page: a title, a line on what it's for, and its fields in a grid. */
 export const SettingsCard = ({
@@ -23,7 +24,69 @@ export const SettingsCard = ({
   </Card>
 );
 
-/** The bar at the foot of a settings page's one form: Discard, on once it changed, and Save. */
+/** Whether a click on `link` would take the app to another page of its own. */
+const leavesPage = (link: HTMLAnchorElement) =>
+  link.origin === window.location.origin &&
+  (!link.target || link.target === '_self') &&
+  !link.hasAttribute('download') &&
+  `${link.pathname}${link.search}` !== `${window.location.pathname}${window.location.search}`;
+
+/**
+ * While `dirty`, leaving asks first: a reload or closed tab through the browser's prompt, and a
+ * click on a link to another page, core's or the plugin's, through core's confirm. Core's web runs
+ * a plain `BrowserRouter`, so react-router's `useBlocker` isn't there to stop Back or a page change
+ * through `navigate()`, such as core's top bar (erxes/erxes#10802).
+ */
+const useLeaveGuard = (dirty: boolean) => {
+  const { t } = useTranslation('frontline');
+  const { confirm } = useConfirm();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!dirty) return;
+
+    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+
+    const ask = (event: MouseEvent) => {
+      const link = event.target instanceof Element ? event.target.closest('a[href]') : null;
+
+      if (
+        !(link instanceof HTMLAnchorElement) ||
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey ||
+        !leavesPage(link)
+      )
+        return;
+
+      // Before react-router's own handler, so the page stays until the member says so.
+      event.preventDefault();
+      event.stopPropagation();
+
+      const to = `${link.pathname}${link.search}${link.hash}`;
+
+      void confirm({
+        message: t('leave-confirm', 'Discard your unsaved changes?'),
+        options: { okLabel: t('discard', 'Discard'), variants: { ok: 'destructive' } },
+      }).then(() => navigate(to));
+    };
+
+    window.addEventListener('beforeunload', warn);
+    document.addEventListener('click', ask, true);
+
+    return () => {
+      window.removeEventListener('beforeunload', warn);
+      document.removeEventListener('click', ask, true);
+    };
+  }, [dirty, confirm, navigate, t]);
+};
+
+/**
+ * The bar at the foot of a settings page's one form: Discard, on once it changed, and Save. While
+ * the form has changes, leaving the page asks first.
+ */
 export const SaveBar = ({
   dirty,
   saving,
@@ -34,6 +97,8 @@ export const SaveBar = ({
   onDiscard: () => void;
 }) => {
   const { t } = useTranslation('frontline');
+
+  useLeaveGuard(dirty);
 
   return (
     <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-background/95 py-3 backdrop-blur">
