@@ -25,8 +25,6 @@ const PERIODS = ['7', '30', '90'] as const;
 
 type Period = (typeof PERIODS)[number];
 
-const DAY = 86_400_000;
-
 const isPeriod = (value: string | undefined): value is Period =>
   PERIODS.some((period) => period === value);
 
@@ -53,10 +51,20 @@ const tilePeriod = storedFamily({
   initial: '30',
 });
 
+/** The start of the day `days - 1` days before `to`, in the browser's time zone. */
+const firstDay = (to: number, days: number) => {
+  const from = new Date(to);
+
+  from.setHours(0, 0, 0, 0);
+  from.setDate(from.getDate() - days + 1);
+
+  return from;
+};
+
 /**
- * The last 30, 7 or 90 days to the end of the current minute, in the browser's time zone, so a
- * dashboard left open keeps counting; the tile named `tile` keeps its pick. Tiles on the same
- * period share one request.
+ * The last 30, 7 or 90 calendar days, today's to the end of the current minute, in the browser's
+ * time zone, so a dashboard left open keeps counting and a list of the same days shows the same
+ * tickets; the tile named `tile` keeps its pick. Tiles on the same period share one request.
  */
 export const usePeriod = (tile: string) => {
   const [days, setDays] = useAtom(tilePeriod(tile));
@@ -64,7 +72,7 @@ export const usePeriod = (tile: string) => {
 
   const range = useMemo(
     () => ({
-      from: new Date(to - Number(days) * DAY),
+      from: firstDay(to, Number(days)),
       to: new Date(to),
       timeZone: localTimeZone() ?? 'UTC',
     }),
