@@ -136,6 +136,7 @@ describe('inbox', () => {
       content: 'Looks like a refund',
       internal: true,
       mentionedUserIds: ['user-org-ib-b'],
+      replyToId: reply.id,
     });
 
     expect(reply).toMatchObject({ userId: 'teammate', deliveryStatus: 'sent', internal: false });
@@ -168,10 +169,11 @@ describe('inbox', () => {
 
     const { messages } = await teammate.conversations.messages.list({ conversationId: id });
 
-    expect(messages.map((message) => message.content)).toEqual([
-      'Looks like a refund',
-      'Hi, how can we help?',
-      'Hello?',
+    // A message that answers another carries that one's text, for a quote of one not loaded.
+    expect(messages.map(({ content, quotedContent }) => ({ content, quotedContent }))).toEqual([
+      { content: 'Looks like a refund', quotedContent: 'Hi, how can we help?' },
+      { content: 'Hi, how can we help?', quotedContent: null },
+      { content: 'Hello?', quotedContent: null },
     ]);
 
     await expect(

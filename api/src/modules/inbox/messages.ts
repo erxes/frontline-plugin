@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, eq, isNotNull, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { core, INBOX_NOTIFICATIONS, PERMISSIONS } from '#/core.ts';
@@ -41,15 +42,24 @@ const messageFor = async (tx: Tx, member: PluginMember, id: string) => {
   return message;
 };
 
+const quoted = alias(messages, 'quoted');
+
 /**
  * A conversation's messages, newest first, `limit` at a time; the pinned ones only with `pinned`.
- * `canEdit` marks the caller's own; `reactions` are its emojis.
+ * `canEdit` marks the caller's own; `reactions` are its emojis; `quotedContent` is the text of
+ * the message a reply answers, so a quote shows when that one isn't loaded.
  */
 const list = reads(PERMISSIONS.inboxView)
   .input(z.object({ conversationId: z.string(), pinned: z.boolean().default(false), ...PageInput }))
   .output(
     z.object({
-      messages: z.array(Message.extend({ canEdit: z.boolean(), reactions: z.array(Reaction) })),
+      messages: z.array(
+        Message.extend({
+          canEdit: z.boolean(),
+          reactions: z.array(Reaction),
+          quotedContent: z.string().nullable(),
+        }),
+      ),
       nextCursor: z.string().nullable(),
     }),
   )
@@ -63,8 +73,10 @@ const list = reads(PERMISSIONS.inboxView)
         ...messageColumns,
         canEdit: sql<boolean>`coalesce(${messages.userId} = ${member.userId}, false)`,
         reactions: reactionsOf(member),
+        quotedContent: quoted.content,
       })
       .from(messages)
+      .leftJoin(quoted, eq(quoted.id, messages.replyToId))
       .where(
         and(
           eq(messages.conversationId, input.conversationId),
@@ -128,12 +140,12 @@ const create = writes(PERMISSIONS.inboxView)
     if (!conversation) throw new ORPCError('NOT_FOUND', { message: 'No such conversation' });
 
     if (input.replyToId) {
-      const [quoted] = await tx
+      const [answered] = await tx
         .select({ id: messages.id })
         .from(messages)
         .where(and(eq(messages.id, input.replyToId), eq(messages.conversationId, conversation.id)));
 
-      if (!quoted)
+      if (!answered)
         throw new ORPCError('BAD_REQUEST', { message: 'Reply to a message of this conversation' });
     }
 

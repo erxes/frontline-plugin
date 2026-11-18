@@ -193,3 +193,42 @@ test('a conversation keeps its unsent reply and note apart, through a reload, un
   await page.getByRole('tab', { name: 'Internal note' }).click();
   await expect(note).toContainText('Half a thought');
 });
+
+test('a reply answers one message, quoted over the composer and over the reply in the thread', async ({
+  page,
+  request,
+}) => {
+  const channel = await createChannel(page);
+
+  await page.goto(INBOX);
+
+  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const question = `Do you ship to Darkhan ${unique()}`;
+  const conversationId = await visitor.write(question);
+
+  await visitor.write('Also, is it free?', conversationId);
+  await page.goto(`${INBOX}?conversationId=${conversationId}`);
+
+  const thread = page.getByRole('list', { name: 'Messages' });
+  const asked = thread.getByRole('article').filter({ hasText: question });
+  const quoted = page.getByText(`Replying to: ${question}`);
+
+  // Reply on a message, from the reply tab or the note tab, quotes it in the reply tab.
+  await page.getByRole('tab', { name: 'Internal note' }).click();
+  await asked.hover();
+  await asked.getByRole('button', { name: 'Reply to this message' }).click();
+  await expect(quoted).toBeVisible();
+  await page.getByRole('button', { name: 'Remove quote' }).click();
+  await expect(quoted).toBeHidden();
+  await asked.hover();
+  await asked.getByRole('button', { name: 'Reply to this message' }).click();
+  await page.keyboard.type('Yes, in two days');
+  await page.getByRole('button', { name: 'Send', exact: true }).click();
+  await expect(quoted).toBeHidden();
+
+  // The reply carries the quote, which goes to the message it answers.
+  const answer = thread.getByRole('article').filter({ hasText: 'Yes, in two days' });
+
+  await answer.getByRole('button', { name: `Go to the message it answers: ${question}` }).click();
+  await expect(asked).toBeVisible();
+});
