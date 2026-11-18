@@ -49,7 +49,7 @@ export const DiscordFields = () => {
         <>
           {t(
             'discord-token-hint',
-            "In Discord's developer portal, open your app's Bot page, reset and copy the token, and turn on Message Content Intent.",
+            "In Discord's developer portal, open your app's Bot page, reset and copy the token, then add the bot to your server. The inbox gets direct messages to the bot and server messages that mention it or reply to it.",
           )}{' '}
           <a href={DISCORD_PORTAL} target="_blank" rel="noreferrer" className="underline">
             {t('open-discord-portal', 'Open the portal')}
