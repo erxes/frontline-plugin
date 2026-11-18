@@ -63,7 +63,11 @@ const SurveyRow = ({ survey }: { survey: Survey }) => {
         <ChannelLabel id={survey.channelId} />
       </span>
       <span className="w-24 shrink-0 text-muted-foreground">
-        {t('survey-vote-count', { defaultValue: '{{count}} votes', count: survey.voteCount })}
+        {t('survey-vote-count', {
+          defaultValue_one: '{{count}} vote',
+          defaultValue_other: '{{count}} votes',
+          count: survey.voteCount,
+        })}
       </span>
       <span className="hidden w-36 shrink-0 md:block">
         <MemberLine id={survey.createdBy} />
