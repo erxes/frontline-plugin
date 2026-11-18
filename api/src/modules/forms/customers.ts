@@ -39,6 +39,7 @@ const customerAnswers = (fields: Field[], values: Record<string, unknown>) => {
 /**
  * The core customer a submission is from: the one with its email or phone, else a new one from
  * its name, a lead unless the form saves customers. A submission without any of them has none.
+ * A new customer takes every answer; one found takes only the fields it has blank.
  * Called outside the submission's transaction, so a failed core call only loses the link.
  */
 export const customerOfSubmission = async (
@@ -69,8 +70,20 @@ export const customerOfSubmission = async (
             created: true,
           };
 
-    if (Object.values(extra).some((value) => value !== undefined))
-      await customers.update({ id: customer.id, ...extra });
+    // Anyone can type a known customer's email, so on one found the answers only fill what the
+    // customer left blank, never replace what they or the team wrote.
+    const fill = created
+      ? extra
+      : {
+          middleName: customer.middleName ? undefined : extra.middleName,
+          description: customer.description ? undefined : extra.description,
+          birthDate: customer.birthDate ? undefined : extra.birthDate,
+          sex: customer.sex ? undefined : extra.sex,
+          avatarUrl: customer.avatarUrl ? undefined : extra.avatarUrl,
+        };
+
+    if (Object.values(fill).some((value) => value !== undefined))
+      await customers.update({ id: customer.id, ...fill });
 
     return { customerId: customer.id, created };
   } catch (error) {
