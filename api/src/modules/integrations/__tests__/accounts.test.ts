@@ -84,21 +84,35 @@ describe('integration accounts', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
-  it('joins an account connected from a channel to it once, and only for the channel admin', async () => {
-    fakeProviders(telegramApi);
+  it('joins an account connected from a channel to it, and to no second channel', async () => {
+    const calls = fakeProviders(telegramApi);
 
     const owner = clientAs('org-acc-into');
     const channel = await owner.channels.create({ name: 'Sales' });
+    const other = await owner.channels.create({ name: 'Support' });
 
-    const connect = () =>
-      owner.integrations.telegram.connect({ token: '777:good-token-abc', channelId: channel.id });
+    const connect = (channelId: string) =>
+      owner.integrations.telegram.connect({ token: '777:good-token-abc', channelId });
 
-    const account = await connect();
+    const account = await connect(channel.id);
 
-    await connect();
-    expect(await owner.integrations.list({ channelId: channel.id })).toMatchObject([
-      { kind: 'telegram', name: account.name, config: { accountId: account.id } },
+    await connect(channel.id);
+    await connect(other.id);
+    expect(await owner.integrations.list({})).toMatchObject([
+      { channelId: channel.id, kind: 'telegram', config: { accountId: account.id } },
     ]);
+    await expect(
+      owner.integrations.create({
+        channelId: other.id,
+        kind: 'telegram',
+        name: 'Again',
+        config: { accountId: account.id },
+      }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' });
+
+    // A member who doesn't manage the channel is refused before Telegram is asked.
+    const asks = calls.length;
+
     await expect(
       clientAs(
         'org-acc-into',
@@ -106,6 +120,7 @@ describe('integration accounts', () => {
         'user-outsider',
       ).integrations.telegram.connect({ token: '777:good-token-abc', channelId: channel.id }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(calls).toHaveLength(asks);
   });
 
   it('marks an account broken when the provider stops taking it, and tells who connected it', async () => {

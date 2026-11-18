@@ -1,9 +1,4 @@
-import {
-  IconMessageCirclePlus,
-  IconPlugConnected,
-  IconPlus,
-  IconSettings,
-} from '@tabler/icons-react';
+import { IconMessageCirclePlus, IconPlus, IconSettings } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -16,14 +11,12 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import type { Integration } from '@/inbox/queries.ts';
+import { ConnectMenu, useCanConnect } from '@/integrations/ConnectMenu.tsx';
 import { messengerPath } from '@/messenger/queries.ts';
-import { INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
+import { INTEGRATION_TYPE } from '~/plugin.ts';
 import { KindIcon, kindIconOf, useKindNames } from '~/shared/kinds.tsx';
 import { integrationsQuery } from '~/shared/reference.ts';
 import type { Channel } from './useChannels.ts';
-
-/** Where a page, bot or mailbox is connected before it joins a channel. */
-const ACCOUNTS_PATH = `/${PLUGIN}/settings/integrations`;
 
 /** The channel's integrations, grouped by kind in the order they were first added. */
 const useKinds = (channelId: string) => {
@@ -102,13 +95,14 @@ const IntegrationButton = ({ integration }: { integration: Integration }) => {
 /**
  * The Detail tab's Integrations section: each kind the channel takes conversations through, with
  * its pages, bots and mailboxes, as the old channel page's cards showed them. Its admins add a
- * website messenger here, or connect an account to add.
+ * website messenger here, connect an account straight into it, or add one connected before.
  */
 export const ChannelIntegrations = ({ channel }: { channel: Channel }) => {
   const { t } = useTranslation('frontline');
   const names = useKindNames();
   const { openNew } = useOpenRecord();
   const kinds = useKinds(channel.id);
+  const canConnect = useCanConnect();
 
   return (
     <PanelSection title={t('integrations', 'Integrations')}>
@@ -142,10 +136,7 @@ export const ChannelIntegrations = ({ channel }: { channel: Channel }) => {
               <IconMessageCirclePlus />
               {t('add-messenger', 'Add messenger')}
             </Button>
-            <Link to={ACCOUNTS_PATH} className={buttonVariants({ variant: 'ghost', size: 'sm' })}>
-              <IconPlugConnected />
-              {t('connect-account', 'Connect an account')}
-            </Link>
+            {canConnect && <ConnectMenu channelId={channel.id} />}
           </span>
         </PanelField>
       )}

@@ -4,11 +4,11 @@ import { and, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { type Tx, withOrg } from '#/db/client.ts';
-import { integrations } from '#/db/inbox.ts';
 import { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
 import { publicKeys } from '#/db/public.ts';
+import { channels } from '#/db/schema.ts';
 import { channelFor } from '../channels/access.ts';
-import { insertIntegration } from '../inbox/insertIntegration.ts';
+import { channelServing, insertIntegration } from '../inbox/insertIntegration.ts';
 import { openedBy, removeKeys } from '../public.ts';
 import type { AccountRow, ProviderName, Routed } from './provider.ts';
 import { sealSecret } from './secrets.ts';
@@ -45,24 +45,29 @@ export const intoChannel = async (tx: Tx, member: PluginMember, channelId: strin
   return channelId;
 };
 
-/** Adds the account to the channel as an integration, unless it is in it already. */
+/**
+ * `intoChannel` in a transaction of its own, for a connect that changes something at the
+ * provider first, so a refused channel leaves the provider as it was.
+ */
+export const checkInto = (member: PluginMember, channelId: string | undefined) =>
+  withOrg(member.orgId, (tx) => intoChannel(tx, member, channelId));
+
+/**
+ * Adds the account to the channel as an integration, unless it serves a channel already
+ * (`channelServing`) or the channel was deleted since the connect began.
+ */
 const joinChannel = async (
   tx: Tx,
   by: Pick<PluginMember, 'orgId' | 'userId'>,
   account: { id: string; provider: ProviderName; name: string },
   channelId: string,
 ) => {
-  const [joined] = await tx
-    .select({ id: integrations.id })
-    .from(integrations)
-    .where(
-      and(
-        eq(integrations.channelId, channelId),
-        sql`${integrations.config}->>'accountId' = ${account.id}`,
-      ),
-    );
+  const [channel] = await tx
+    .select({ id: channels.id })
+    .from(channels)
+    .where(eq(channels.id, channelId));
 
-  if (!joined)
+  if (channel && !(await channelServing(tx, account.id, channelId)))
     await insertIntegration(tx, by, {
       channelId,
       kind: account.provider,

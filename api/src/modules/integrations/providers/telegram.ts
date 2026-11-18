@@ -7,7 +7,7 @@ import { withOrg } from '#/db/client.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { readsWithCore, writesWithCore } from '#/orpc.ts';
 import { AccountRefused, defineProvider, sendInParts } from '../provider.ts';
-import { Account, accountRow, Into, intoChannel, saveAccount } from '../store.ts';
+import { Account, accountRow, checkInto, Into, intoChannel, saveAccount } from '../store.ts';
 
 const Config = z.object({ username: z.string() });
 
@@ -199,12 +199,15 @@ export const telegram = defineProvider({
 /**
  * Connects a bot by its token from BotFather: Telegram checks the token, then posts the bot's
  * updates to a webhook address only frontline knows, signed with a secret of its own. Telegram
- * is asked before the transaction opens.
+ * is asked before the transaction opens, once the channel it joins is checked, so a refusal
+ * leaves a connected bot's webhook where it was.
  */
 const connect = writesWithCore(
   PERMISSIONS.integrationManage,
   z.object({ token: z.string().trim().min(10).max(200), ...Into }),
-  async (_member, input) => {
+  async (member, input) => {
+    await checkInto(member, input.channelId);
+
     const bot = await call(input.token, 'getMe', User).catch((error: unknown) => {
       throw new ORPCError('BAD_REQUEST', { message: `Telegram refused the token: ${why(error)}` });
     });

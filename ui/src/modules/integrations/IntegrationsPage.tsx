@@ -1,6 +1,5 @@
 import {
   IconCalendarCheck,
-  IconChevronDown,
   IconCircles,
   IconHeartbeat,
   IconLetterCase,
@@ -11,7 +10,6 @@ import {
 } from '@tabler/icons-react';
 import {
   Button,
-  DropdownMenu,
   PageContainer,
   RecordTable,
   type RecordTableColumnDef,
@@ -28,7 +26,7 @@ import { AccountChannels } from './AccountChannels.tsx';
 import { ListEmpty } from '~/shared/List.tsx';
 import { RowActions, TextCell } from '~/shared/Records.tsx';
 import { DateCell, Rows } from '~/shared/Table.tsx';
-import { FORM_PROVIDERS } from './AccountNew.tsx';
+import { ConnectMenu } from './ConnectMenu.tsx';
 import { StatusBadge } from './parts.tsx';
 import {
   type Account,
@@ -37,7 +35,6 @@ import {
   useAccounts,
   useBots,
   useRepairAccount,
-  useConnectMeta,
   useProviderNames,
   useRemoveAccount,
 } from './useIntegrations.ts';
@@ -230,41 +227,6 @@ const LoginResult = () => {
         count: Number(connected),
       })}
     </output>
-  );
-};
-
-/**
- * Connect: Facebook and Instagram through Meta's login, every other provider with its form in
- * core's side panel.
- */
-const ConnectMenu = () => {
-  const { t } = useTranslation('frontline');
-  const { openNew } = useOpenRecord();
-  const meta = useConnectMeta();
-  const names = useProviderNames();
-
-  return (
-    <DropdownMenu>
-      <DropdownMenu.Trigger
-        render={
-          <Button>
-            <IconPlugConnected />
-            {t('connect', 'Connect')}
-            <IconChevronDown />
-          </Button>
-        }
-      />
-      <DropdownMenu.Content align="end">
-        <DropdownMenu.Item disabled={meta.isPending} onClick={() => meta.mutate({})}>
-          {t('facebook-and-instagram', 'Facebook and Instagram')}
-        </DropdownMenu.Item>
-        {FORM_PROVIDERS.map((provider) => (
-          <DropdownMenu.Item key={provider} onClick={() => openNew(ACCOUNT_TYPE, { provider })}>
-            {names[provider]}
-          </DropdownMenu.Item>
-        ))}
-      </DropdownMenu.Content>
-    </DropdownMenu>
   );
 };
 

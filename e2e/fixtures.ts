@@ -282,11 +282,10 @@ export const callProLine = async (
 ) => {
   const rpc = await pluginApi(api, request);
   const channel = await rpc('channels/create', { name: `Phones ${unique()}` }, Id);
-  const { id: accountId } = await rpc('integrations/callpro/connect', { phone }, Id);
 
-  await rpc(
-    'integrations/create',
-    { channelId: channel.id, kind: 'callpro', name: phone, config: { accountId } },
+  const { id: accountId } = await rpc(
+    'integrations/callpro/connect',
+    { phone, channelId: channel.id },
     Id,
   );
 
