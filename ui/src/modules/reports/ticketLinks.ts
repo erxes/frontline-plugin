@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { type TConditionGroup, toIsoDay } from 'erxes-ui';
-import { ticketsPath } from '~/shared/listPath.ts';
+import type { TConditionGroup } from 'erxes-ui';
+import { between, ticketsPath } from '~/shared/listPath.ts';
 import { choicesQuery } from '~/shared/reference.ts';
 import type { useTicketReport } from './queries.ts';
 
@@ -11,11 +11,6 @@ const RESOLVED = 4;
 
 /** Archived tickets too, as the report counts them. */
 const ANY_STATE: Entry = { path: 'subject.state', op: 'in', value: ['active', 'archived'] };
-
-const between = (path: string, { from, to }: { from: Date; to: Date }): Entry[] => [
-  { path, op: 'gte', value: toIsoDay(from) },
-  { path, op: 'lte', value: toIsoDay(to) },
-];
 
 /**
  * Where a ticket tile's numbers lead: the tickets list in the tile's pipeline, narrowed to what

@@ -4,11 +4,13 @@ import {
   callProLine,
   expect,
   Id,
+  messengerIn,
   pick,
   pluginApi,
   test,
   tileOf,
   unique,
+  visitorOf,
 } from './fixtures.ts';
 
 test('call, ticket and conversation tiles on the home dashboard count the period, and keep their place', async ({
@@ -104,6 +106,34 @@ test('a ticket tile number opens the tickets it counts', async ({ page, api, req
   await tileOf(page, 'Ticket summary').getByRole('link', { name: 'Created: 2' }).click();
   await expect(page.getByText(open)).toBeVisible();
   await expect(page.getByText(resolved)).toBeVisible();
+});
+
+test('a conversation tile number opens the conversations it counts in the inbox', async ({
+  page,
+  api,
+  request,
+}) => {
+  const rpc = await pluginApi(api, request);
+  const question = `Counted ${unique()}`;
+  const visitor = await visitorOf(request, await messengerIn(rpc, { welcome: 'Hi' }));
+  const conversationId = await visitor.write(question);
+
+  // Resolved, so it shows only where the link names every status.
+  await rpc('conversations/setStatus', { ids: [conversationId], status: 'resolved' }, z.array(Id));
+
+  await addTiles(page, ['Conversation summary']);
+
+  const tile = tileOf(page, 'Conversation summary');
+
+  await tile.getByRole('link', { name: /^Started: / }).click();
+  await expect(page).toHaveURL(/\/frontline\/inbox\?/);
+  await expect(page.getByText(question)).toBeVisible();
+
+  await page.goBack();
+  await tileOf(page, 'Conversation summary')
+    .getByRole('link', { name: /^Resolved: / })
+    .click();
+  await expect(page.getByText(question)).toBeVisible();
 });
 
 test('a member without the call permission sees the refusal in the call tile', async ({

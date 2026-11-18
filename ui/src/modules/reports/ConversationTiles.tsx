@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { MemberLine } from '~/shared/Person.tsx';
 import { useKindNames } from '~/shared/kinds.tsx';
 import { DayChart } from './Charts.tsx';
+import { useConversationLinks } from './conversationLinks.ts';
 import { useConversationReport } from './queries.ts';
 import { BarList, MiniTable, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
 
@@ -11,7 +12,9 @@ export const ConversationSummary = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
-  const { period, query } = useConversationReport('conversation-summary');
+  const conversationReport = useConversationReport('conversation-summary');
+  const { period, query } = conversationReport;
+  const links = useConversationLinks(conversationReport);
 
   return (
     <Tile period={period} query={query}>
@@ -20,14 +23,17 @@ export const ConversationSummary = () => {
           <Stat
             label={t('conversations-started', 'Started')}
             value={format.number(report.started)}
+            to={links.started()}
           />
           <Stat
             label={t('conversations-resolved', 'Resolved')}
             value={format.number(report.resolved)}
+            to={links.resolved()}
           />
           <Stat
             label={t('conversations-unresolved', 'Unresolved now')}
             value={format.number(report.unresolved)}
+            to={links.unresolved()}
           />
           <Stat
             label={t('average-first-response', 'Average first response')}
@@ -68,7 +74,9 @@ export const ConversationsOverTime = () => {
 export const ConversationsBySource = () => {
   const { t } = useTranslation('frontline');
   const kinds = useKindNames();
-  const { period, query } = useConversationReport('conversations-by-source');
+  const conversationReport = useConversationReport('conversations-by-source');
+  const { period, query } = conversationReport;
+  const links = useConversationLinks(conversationReport);
 
   return (
     <Tile period={period} query={query}>
@@ -77,7 +85,13 @@ export const ConversationsBySource = () => {
           rows={report.sources.map(({ kind, count }) => {
             const name = kinds[kind] ?? kind;
 
-            return { key: kind, label: name, name, value: count };
+            return {
+              key: kind,
+              label: name,
+              name,
+              value: count,
+              to: links.started({ path: 'subject.kind', op: 'in', value: [kind] }),
+            };
           })}
           empty={t('no-conversations-in-period', 'No conversations in this period.')}
         />
@@ -89,7 +103,9 @@ export const ConversationsBySource = () => {
 /** The tags on the period's conversations, the most used first. */
 export const ConversationsByTag = () => {
   const { t } = useTranslation('frontline');
-  const { period, query } = useConversationReport('conversations-by-tag');
+  const conversationReport = useConversationReport('conversations-by-tag');
+  const { period, query } = conversationReport;
+  const links = useConversationLinks(conversationReport);
 
   return (
     <Tile period={period} query={query}>
@@ -101,6 +117,7 @@ export const ConversationsByTag = () => {
             name: tag.name,
             value: tag.count,
             color: tag.colorCode,
+            to: links.started({ path: 'subject.tagIds', op: 'in', value: [tag.tagId] }),
           }))}
           empty={t('no-tagged-conversations', 'No tagged conversations in this period.')}
         />
