@@ -11,7 +11,7 @@ import { underKeyLimit } from '../limits.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import { setOperatorOf } from '../inbox/operator.ts';
 import { receive } from '../inbox/receive.ts';
-import { signalOpen, typingTopic } from '../inbox/shared.ts';
+import { typingTopic } from '../inbox/shared.ts';
 import { MessengerConfig, messenger } from './adapter.ts';
 import { attachmentsOf, type Visitor, visitorOf } from './session.ts';
 
@@ -221,14 +221,16 @@ const send = asVisitor(async (visitor, req, res) => {
   res.status(201).json(reply);
 });
 
-/** The visitor saw the team's replies so far. */
+/**
+ * The visitor saw the team's replies so far. Only the messenger's own unread count reads it, so
+ * no member's screen hears of it.
+ */
 const markRead = asVisitor(async (visitor, req, res) => {
   const { id } = Params.parse(req.params);
 
   await withOrg(visitor.orgId, async (tx) => {
     await ownConversation(tx, visitor, id);
-
-    const read = await tx
+    await tx
       .update(messages)
       .set({ customerReadAt: new Date() })
       .where(
@@ -238,11 +240,7 @@ const markRead = asVisitor(async (visitor, req, res) => {
           isNull(messages.customerId),
           eq(messages.internal, false),
         ),
-      )
-      .returning({ id: messages.id });
-
-    // Only the thread shows what the visitor read; the inbox's lists and counts stay as they are.
-    if (read.length > 0) await signalOpen(tx, visitor.orgId, id);
+      );
   });
 
   res.status(204).end();

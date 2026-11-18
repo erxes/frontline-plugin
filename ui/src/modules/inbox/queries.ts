@@ -154,9 +154,6 @@ export const useConversations = () => {
       orpc.conversations.list.infiniteOptions({
         input: ({ cursor }: PageParam) => ({ ...params, cursor }),
         ...pageOptions,
-        // Every live signal refetches each page the list holds, so it holds 150 rows: three
-        // requests a signal at most, on every screen with the inbox open.
-        maxPages: 3,
         staleTime: FRESH_MS,
       }),
     ),

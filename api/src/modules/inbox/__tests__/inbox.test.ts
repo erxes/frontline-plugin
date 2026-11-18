@@ -349,7 +349,7 @@ describe('inbox', () => {
     controller.abort();
   });
 
-  it('signals the inbox and the conversation once each on a change, the thread alone on a read', async () => {
+  it('signals the inbox and the conversation once each on a change, and no one on a read', async () => {
     const { teammate, token } = await setUp('org-ib-live');
 
     await post('/messages', { content: 'Ping' }, token);
@@ -371,13 +371,11 @@ describe('inbox', () => {
     await teammate.conversations.messages.create({ conversationId: id, content: 'Pong' });
     await vi.waitFor(() => expect(topics.toSorted()).toEqual([own, 'conversations']));
 
-    // The visitor reading the reply tells only the open thread, and reading again tells no one:
-    // typing, signalled after, arrives with nothing between.
+    // The visitor reading the reply tells no member: typing, signalled after, arrives alone.
     topics.length = 0;
     await post(`/conversations/${id}/read`, {}, token);
-    await post(`/conversations/${id}/read`, {}, token);
     await post(`/conversations/${id}/typing`, {}, token);
-    await vi.waitFor(() => expect(topics).toEqual([own, 'typing.' + id.toLowerCase()]));
+    await vi.waitFor(() => expect(topics).toEqual(['typing.' + id.toLowerCase()]));
 
     await listener.query('UNLISTEN core_live');
     listener.removeAllListeners('notification');
