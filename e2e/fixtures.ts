@@ -221,7 +221,7 @@ export const pluginApi = async (api: ReturnType<typeof coreClient>, request: API
   };
 };
 
-type Rpc = Awaited<ReturnType<typeof pluginApi>>;
+export type Rpc = Awaited<ReturnType<typeof pluginApi>>;
 
 /** The text of the article `knowledgeBase` publishes. */
 export const ARTICLE = 'Write to us within 30 days.';
@@ -240,16 +240,6 @@ export const knowledgeBase = async (rpc: Rpc, title: string) => {
   await create('articles', { ...article, categoryId: parentId, status: 'publish' });
 
   return topicId;
-};
-
-/** A channel with one pipeline, made through the API, by name and id. */
-export const pipelineIn = async (rpc: Rpc) => {
-  const channel = { name: `Support ${unique()}` };
-  const { id: channelId } = await rpc('channels/create', channel, Id);
-  const pipeline = { channelId, name: `Returns ${unique()}` };
-  const { id } = await rpc('pipelines/create', pipeline, Id);
-
-  return { channel: channel.name, channelId, name: pipeline.name, id };
 };
 
 const Messenger = z.object({ publicKey: z.string() });

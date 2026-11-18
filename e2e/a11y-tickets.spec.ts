@@ -3,10 +3,10 @@ import {
   expectAccessible,
   Id,
   pick,
-  pipelineIn,
   pluginApi,
   recordPanel,
   recordPath,
+  type Rpc,
   test,
   unique,
 } from './fixtures.ts';
@@ -18,6 +18,16 @@ import {
  */
 
 const SETTINGS = '/frontline/settings';
+
+/** A channel with one pipeline, made through the API, by name and id. */
+const pipelineIn = async (rpc: Rpc) => {
+  const channel = { name: `Support ${unique()}` };
+  const { id: channelId } = await rpc('channels/create', channel, Id);
+  const pipeline = { channelId, name: `Returns ${unique()}` };
+  const { id } = await rpc('pipelines/create', pipeline, Id);
+
+  return { channel: channel.name, channelId, name: pipeline.name, id };
+};
 
 test('a channel and its members', async ({ page }) => {
   const panel = recordPanel(page);
