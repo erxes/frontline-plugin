@@ -20,6 +20,8 @@ const Shown = z.object({ fields: z.array(z.object({ id: z.string(), label: z.str
 const pick = async (page: Page, select: Locator, option: string) => {
   await select.click();
   await page.getByRole('option', { name: option, exact: true }).click();
+  // A click while the menu still closes would only dismiss it.
+  await expect(page.getByRole('option', { name: option, exact: true })).toBeHidden();
 };
 
 /** Opens the in-place text `name`, types `value` and saves it with Enter. */
