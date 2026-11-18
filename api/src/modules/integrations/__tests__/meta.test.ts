@@ -205,6 +205,10 @@ describe('instagram comments', () => {
         attachments: [{ url: 'https://cdn.example.com/story.mp4', name: 'story', type: 'story' }],
       },
     ]);
+    // Instagram's messages carry only the sender's id; their name comes from Instagram's profile.
+    expect(asked.created).toContainEqual(
+      expect.objectContaining({ firstName: 'Saraa', source: 'instagram' }),
+    );
     expect((await clientAs('org-ig-b').conversations.list({})).totalCount).toBe(0);
   });
 });
