@@ -27,11 +27,10 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { MemberLine } from '~/shared/Person.tsx';
-import { Link } from 'react-router-dom';
 import { KB_TOPIC_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
-import { column, DateCell, Rows } from '~/shared/Table.tsx';
+import { column, CountCell, DateCell, Rows } from '~/shared/Table.tsx';
 import { KbHeader } from './KbHeader.tsx';
 import { OldLink } from './OldLink.tsx';
 import { TopicCards } from './TopicCards.tsx';
@@ -61,15 +60,6 @@ const TitleCell = ({ topic }: { topic: Topic }) => {
     </RecordTableInlineCell>
   );
 };
-
-/** A count that leads to the topic's page of those records. */
-const CountCell = ({ to, count }: { to: string; count: number }) => (
-  <RecordTableInlineCell>
-    <Link to={to} className="hover:underline">
-      {count}
-    </Link>
-  </RecordTableInlineCell>
-);
 
 const MoreCell = ({ topic }: { topic: Topic }) => {
   const { t } = useTranslation('frontline');

@@ -246,10 +246,11 @@ test("a survey's draft, panel, questions and results", async ({ page }) => {
   await expectAccessible(page, question);
   await panel.getByRole('button', { name: 'Create survey' }).click();
   await expectAccessible(page, active.getByRole('button', { name: title, exact: true }));
-  await panel.getByRole('tab', { name: 'Questions' }).click();
-  await expectAccessible(page, panel.getByRole('button', { name: 'How did we do?', exact: true }));
   await panel.getByRole('tab', { name: 'Results' }).click();
   await expectAccessible(page, panel.getByRole('tabpanel').getByText('0 voters'));
+  await panel.getByRole('tab', { name: 'Detail' }).click();
+  await panel.getByRole('link', { name: /^Questions/ }).click();
+  await expectAccessible(page, page.getByRole('region', { name: 'How did we do?', exact: true }));
 });
 
 test("a form's draft, panel, builder, embed and submissions", async ({ page, api, request }) => {
@@ -292,11 +293,9 @@ test("a form's draft, panel, builder, embed and submissions", async ({ page, api
   await expectAccessible(page, page.getByRole('row', { name: /Acme/ }));
 });
 
-test('tags, ticket properties and integrations, with their sheets', async ({ page }) => {
+test('tags and integrations, with their sheets', async ({ page }) => {
   const sheet = page.getByRole('dialog');
   const tag = `VIP ${unique()}`;
-  const property = `Plan ${unique()}`;
-  const choice = sheet.getByPlaceholder('Add a choice');
 
   await page.goto(`${SETTINGS}/tags`);
   await page.getByRole('button', { name: 'Add tag' }).click();
@@ -304,16 +303,6 @@ test('tags, ticket properties and integrations, with their sheets', async ({ pag
   await expectAccessible(page, sheet.getByLabel('Name', { exact: true }));
   await sheet.getByRole('button', { name: 'Create' }).click();
   await expectAccessible(page, page.getByRole('row', { name: new RegExp(tag) }));
-
-  await page.goto(`${SETTINGS}/ticket-properties`);
-  await page.getByRole('button', { name: 'Add property' }).click();
-  await sheet.getByLabel('Label', { exact: true }).fill(property);
-  await pick(page, sheet.getByRole('combobox', { name: 'Type' }), 'One choice');
-  await choice.fill('Gold');
-  await choice.press('Enter');
-  await expectAccessible(page, choice);
-  await sheet.getByRole('button', { name: 'Create' }).click();
-  await expectAccessible(page, page.getByRole('row', { name: new RegExp(property) }));
 
   await page.goto(`${SETTINGS}/integrations`);
   await expectAccessible(page, page.getByRole('button', { name: 'Connect' }));

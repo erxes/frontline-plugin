@@ -24,7 +24,7 @@ export const Submission = createSelectSchema(formSubmissions)
  * Submissions with their answers by field id, joined in laterally: a correlated subquery in a
  * one-table select loses its table names, so it would compare the answer's own id.
  */
-const submissionRows = (tx: Tx) => {
+export const submissionRows = (tx: Tx) => {
   const answered = tx
     .select({
       answers: sql<Record<string, unknown>>`coalesce(
@@ -48,9 +48,22 @@ const answerText = (fieldId: string) => sql`(
   where ${formAnswers.submissionId} = ${formSubmissions.id} and ${formAnswers.fieldId} = ${fieldId}
 )`;
 
+/** What narrows submissions of any form: when they came and whether they found a customer. */
+export const SUBMISSION_FILTER: FilterFields = {
+  'subject.createdAt': { type: 'date', expr: formSubmissions.createdAt },
+  'subject.customerId': { type: 'text', expr: formSubmissions.customerId },
+};
+
+/** Submissions with an answer whose text has `search`, ignoring case. */
+export const answered = (search: string) => sql`exists (
+  select 1 from ${formAnswers}
+  where ${formAnswers.submissionId} = ${formSubmissions.id}
+    and ${formAnswers.value}::text ilike ${likeText(search)}
+)`;
+
 /**
- * What the submissions list's filter bar narrows by: when it came, whether it found a customer,
- * and each of the form's fields as `subject.answer.<field id>`.
+ * What the submissions list's filter bar narrows by: `SUBMISSION_FILTER`, and each of the
+ * form's fields as `subject.answer.<field id>`.
  */
 const filterFields = async (tx: Tx, formId: string): Promise<FilterFields> => {
   const fields = await tx
@@ -59,8 +72,7 @@ const filterFields = async (tx: Tx, formId: string): Promise<FilterFields> => {
     .where(eq(formFields.formId, formId));
 
   return {
-    'subject.createdAt': { type: 'date', expr: formSubmissions.createdAt },
-    'subject.customerId': { type: 'text', expr: formSubmissions.customerId },
+    ...SUBMISSION_FILTER,
     ...Object.fromEntries(
       fields.map((field) => [
         `subject.answer.${field.id}`,
@@ -100,13 +112,7 @@ const list = reads(PERMISSIONS.channelView)
 
     const matches = and(
       eq(formSubmissions.formId, input.formId),
-      input.search
-        ? sql`exists (
-            select 1 from ${formAnswers}
-            where ${formAnswers.submissionId} = ${formSubmissions.id}
-              and ${formAnswers.value}::text ilike ${likeText(input.search)}
-          )`
-        : undefined,
+      input.search ? answered(input.search) : undefined,
       compileFilter(await filterFields(tx, input.formId), input.filter, { me: member.userId }),
     );
 

@@ -1,4 +1,5 @@
 import { memberQueries } from '@erxes/core-contract/client';
+import { CHANNEL_ICON } from '~/shared/icons.ts';
 import { isDefinedError } from '@orpc/client';
 import { IconAlignLeft, IconIcons, IconLetterCase, IconUsers } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
@@ -54,7 +55,7 @@ export const MemberPicker = ({
  */
 export const ChannelNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
-  const [icon, setIcon] = useState<string | null>('IconInbox');
+  const [icon, setIcon] = useState<string | null>(CHANNEL_ICON);
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const { onSuccess } = useChannelChange();
 
@@ -95,7 +96,7 @@ export const ChannelNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
         <PanelFormRow label={t('icon', 'Icon')} icon={IconIcons}>
           <IconPicker
             aria-label={t('icon', 'Icon')}
-            value={icon ?? 'IconInbox'}
+            value={icon ?? CHANNEL_ICON}
             onValueChange={setIcon}
             className="w-min"
           />

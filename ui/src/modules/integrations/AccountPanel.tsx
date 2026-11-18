@@ -40,7 +40,7 @@ import { AddRow, ItemRow, StatusBadge } from './parts.tsx';
 import {
   type Account,
   useAccount,
-  useCheckAccount,
+  useRepairAccount,
   useProviderNames,
   useRemoveAccount,
 } from './useIntegrations.ts';
@@ -54,12 +54,12 @@ export const AccountTitle = ({ contentId }: TRecordSlotProps) => {
   return <span className="truncate">{account.data?.name ?? account.error?.message}</span>;
 };
 
-/** The header's menu: add the account to a channel, check it, or disconnect it. */
+/** The header's menu: add the account to a channel, repair it, or disconnect it. */
 export const AccountActions = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
   const account = useAccount(contentId).data;
-  const check = useCheckAccount();
+  const repair = useRepairAccount();
   const remove = useRemoveAccount();
 
   if (!account) return null;
@@ -84,10 +84,10 @@ export const AccountActions = ({ contentId }: TRecordSlotProps) => {
             }),
         },
         {
-          value: 'check',
+          value: 'repair',
           icon: <IconRefresh />,
-          label: t('check-connection', 'Check connection'),
-          onSelect: () => check.mutate({ id: account.id }),
+          label: t('repair', 'Repair'),
+          onSelect: () => repair.mutate({ id: account.id }),
         },
         {
           value: 'remove',

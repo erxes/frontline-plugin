@@ -1,10 +1,10 @@
 import type { InferClientOutputs } from '@orpc/client';
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
-import { addPluginStyles, listFilterQuery, useListFilterParams } from 'erxes-ui';
-import { createSerializer } from 'nuqs';
+import { addPluginStyles, useListFilterParams } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
+import { listPath } from '~/shared/listPath.ts';
 import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
@@ -34,15 +34,12 @@ export const KB_PATH = '/frontline/knowledgebase';
 export const topicPath = (topicId: string, page: 'articles' | 'categories' | 'kbsettings') =>
   `${KB_PATH}/${encodeURIComponent(topicId)}/${page}`;
 
-const filterLink = createSerializer(listFilterQuery);
-
 /** The topic's articles, narrowed to a category and the ones under it, as the filter bar holds it. */
 export const categoryArticlesPath = (topicId: string, categoryId: string) =>
-  filterLink(topicPath(topicId, 'articles'), {
-    advanced: {
-      match: 'all',
-      rules: [{ path: 'subject.categoryId', op: 'eq', value: categoryId }],
-    },
+  listPath(topicPath(topicId, 'articles'), {
+    path: 'subject.categoryId',
+    op: 'eq',
+    value: categoryId,
   });
 
 /** The statuses in the order the list groups them. */

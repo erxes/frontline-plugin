@@ -1221,7 +1221,6 @@ export const IMPORT_MAP: {
       buttonText: 'button_text',
       code: 'code',
       status: 'status',
-      'leadData.appearance': 'appearance',
       'leadData.loadType': 'load_type',
       'leadData.primaryColor': 'primary_color',
       'leadData.saveAsCustomer': 'save_as_customer',

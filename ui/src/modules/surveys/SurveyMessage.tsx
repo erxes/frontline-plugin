@@ -63,7 +63,11 @@ export const SentSurvey = ({ surveyId }: { surveyId: string }) => {
       <IconChecklist />
       {survey.title}{' '}
       <span className="text-muted-foreground">
-        {t('survey-vote-count', { defaultValue: '{{count}} votes', count: survey.voteCount })}
+        {t('survey-vote-count', {
+          defaultValue_one: '{{count}} vote',
+          defaultValue_other: '{{count}} votes',
+          count: survey.voteCount,
+        })}
       </span>
     </Button>
   );

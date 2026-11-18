@@ -1,4 +1,5 @@
 import { memberQueries } from '@erxes/core-contract/client';
+import { CATEGORY_ICON } from '~/shared/icons.ts';
 import {
   IconArticle,
   IconCalendarPlus,
@@ -96,7 +97,7 @@ const TitleCell = ({ category }: { category: CategoryRow }) => {
         className="min-w-0 flex-1 justify-start"
         onClick={() => open({ contentType: KB_CATEGORY_TYPE, contentId: category.id })}
       >
-        <IconComponent name={category.icon ?? 'IconFolder'} className="size-4 shrink-0" />
+        <IconComponent name={category.icon ?? CATEGORY_ICON} className="size-4 shrink-0" />
         <span className="truncate">{category.title}</span>
       </Button>
     </RecordTableInlineCell>

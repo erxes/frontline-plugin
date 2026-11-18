@@ -29,7 +29,7 @@ import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { withText } from '~/i18n/withText.ts';
-import { PLUGIN, STRUCTURE_PATH } from '~/plugin.ts';
+import { PLUGIN, TICKET_FIELDS } from '~/plugin.ts';
 
 const ROOT = `/${PLUGIN}`;
 const CALLS = `${ROOT}/calls`;
@@ -122,9 +122,9 @@ const MODULES: NavLink[] = [
 const SETTINGS_PAGES: NavLink[] = [
   [`${SETTINGS}/channels`, 'channels', 'Channels', IconCircles],
   [`${SETTINGS}/tags`, 'tags', 'Tags', IconTag],
-  // Core keeps them, at its own Settings › Structure.
-  [STRUCTURE_PATH, 'branches-and-departments', 'Branches and departments', IconSitemap],
-  [`${SETTINGS}/ticket-properties`, 'ticket-properties', 'Ticket properties', IconForms],
+  // Core keeps them and ticket fields, at its own Settings › Structure and › Properties.
+  ['/settings/structure', 'branches-and-departments', 'Branches and departments', IconSitemap],
+  [`/settings/properties/${TICKET_FIELDS}`, 'ticket-properties', 'Ticket properties', IconForms],
   [`${SETTINGS}/integrations`, 'integrations', 'Integrations', IconPlugConnected],
 ];
 

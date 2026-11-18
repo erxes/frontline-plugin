@@ -22,7 +22,7 @@ import {
   IconTicket,
   IconWorldWww,
 } from '@tabler/icons-react';
-import type { IUIConfig, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
+import type { IUIConfig, TPropertyValue, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
 import { type ComponentType, lazy } from 'react';
 import { addConfigText } from '~/i18n/configText.ts';
 import { withText } from '~/i18n/withText.ts';
@@ -80,6 +80,18 @@ const slots = (loadSlots: () => Promise<Slots>) => {
 
 const pipeline = withText(() => import('@/pipelines/slots.ts'));
 const ticket = withText(() => import('@/tickets/slots.ts'));
+
+/** Custom fields core keeps; the API client loads only when the Properties tab does. */
+const propertiesOf = (records: 'tickets' | 'conversations') => ({
+  type: `${PLUGIN}.${records.slice(0, -1)}`,
+  values: (id: string) => ({
+    queryKey: [PLUGIN, records, 'properties', id],
+    queryFn: async () => (await import('~/orpc.ts')).orpc[records].properties.values.call({ id }),
+  }),
+  save: async (id: string, patch: Record<string, TPropertyValue | null>) =>
+    (await import('~/orpc.ts')).orpc[records].properties.save.call({ id, patch }),
+});
+
 const helpCenter = withText(() => import('@/helpcenter/slots.ts'));
 const kb = withText(() => import('@/knowledgebase/slots.ts'));
 
@@ -181,6 +193,24 @@ export const CONFIG: IUIConfig = {
       }),
       // The manifest's timeline (`api/src/core.ts`): core's Activity tab shows its events.
       activity: `${PLUGIN}.ticket`,
+      // Its field groups can be limited to pipelines.
+      properties: {
+        ...propertiesOf('tickets'),
+        limits: [
+          {
+            key: 'pipeline',
+            label: 'Pipelines',
+            options: {
+              queryKey: [PLUGIN, 'pipeline-limits'],
+              queryFn: async () => (await ticket()).pipelineLimits(),
+            },
+          },
+        ],
+        appliesTo: (id) => ({
+          queryKey: [PLUGIN, 'ticket-applies-to', id],
+          queryFn: async () => (await ticket()).ticketAppliesTo(id),
+        }),
+      },
     },
     {
       contentType: HELP_CENTER_TYPE,
@@ -219,12 +249,6 @@ export const CONFIG: IUIConfig = {
       detailPath: pageOf('surveys'),
       ...slots(async () => (await surveys()).SurveySlots),
       tabs: [
-        {
-          value: 'questions',
-          label: 'Questions',
-          icon: IconChecklist,
-          component: lazy(async () => ({ default: (await surveys()).SurveyQuestions })),
-        },
         {
           value: 'results',
           label: 'Results',
@@ -271,17 +295,7 @@ export const CONFIG: IUIConfig = {
       detailPath: pageOf('inbox/conversations'),
       ...slots(() => import('@/inbox/conversationSlots.ts')),
       activity: `${PLUGIN}.conversation`,
-      // Core keeps the fields; the API client loads only when the Properties tab does.
-      properties: {
-        type: `${PLUGIN}.conversation`,
-        values: (id) => ({
-          queryKey: [PLUGIN, 'conversation-properties', id],
-          queryFn: async () =>
-            (await import('~/orpc.ts')).orpc.conversations.properties.values.call({ id }),
-        }),
-        save: async (id, patch) =>
-          (await import('~/orpc.ts')).orpc.conversations.properties.save.call({ id, patch }),
-      },
+      properties: propertiesOf('conversations'),
     },
   ],
   // The softphone on every page, for a member with a SIP line.

@@ -52,6 +52,11 @@ export const fakeProviders = (answer: (call: ProviderCall) => unknown) => {
   return calls;
 };
 
+/**
+ * A payload a provider really sends, field for field, from `fixtures/`. Don't add a field it
+ * leaves out: Messenger and Instagram messages carry only the sender's page-scoped id, so a name
+ * in a fixture hid that frontline never looked the sender up.
+ */
 export const fixture = (name: string) =>
   readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
 
@@ -234,6 +239,9 @@ export const graphApi = (call: ProviderCall) => {
 
   // The profile of the person behind psid-1, which Messenger's events leave out.
   if (path === 'psid-1') return { id: 'psid-1', first_name: 'Bat', last_name: 'Erdene' };
+
+  // Instagram's profile of igsid-6, who wrote with only their id.
+  if (path === 'igsid-6') return { id: 'igsid-6', name: 'Saraa', username: 'saraa.mn' };
 
   if (path.endsWith('/comments') || path.endsWith('/replies'))
     return call.method === 'POST' ? { id: `reply-to-${path.split('/')[0]}` } : { data: [] };

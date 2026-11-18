@@ -217,6 +217,7 @@ const update = writes(PERMISSIONS.channelView)
         isCheckUser: true,
         isCheckDepartment: true,
         isCheckBranch: true,
+        isCheckDate: true,
         excludeCheckUserIds: true,
       })
       .extend({ id: z.string() }),

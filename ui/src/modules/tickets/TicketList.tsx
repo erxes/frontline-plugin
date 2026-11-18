@@ -20,13 +20,16 @@ import {
   useTicketRowActions,
 } from './queries.ts';
 
-/** One ticket: its number and name, tags, SLA, priority, assignee, last change, and its menu. */
+/**
+ * One ticket: its number and name, tags, SLA, priority, assignee, last change, and its menu. The
+ * tags show only on a row wide enough to keep the name readable beside them.
+ */
 const TicketRow = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => (
-  <div className="flex min-w-0 flex-1 items-center gap-3 text-xs">
+  <div className="@container flex min-w-0 flex-1 items-center gap-3 text-xs">
     <span className="flex min-w-0 flex-1">
       <TicketName ticket={ticket} />
     </span>
-    <span className="hidden max-w-48 lg:flex">
+    <span className="hidden max-w-48 @3xl:flex">
       <TicketTags tagIds={ticket.tagIds} />
     </span>
     <SlaBadge ticket={ticket} />
@@ -45,15 +48,23 @@ const TicketRow = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) =
   </div>
 );
 
-/** The shown pipeline's statuses by stage and order, each with its tickets. */
-export const useStatusGroups = (tickets: Ticket[]) => {
+/** The shown pipeline's statuses by stage and order. */
+export const usePipelineStatuses = () => {
   const { statuses } = useChoices();
   const pipelineId = useTicketPipeline()?.id;
+
+  return statuses.filter((status) => status.pipelineId === pipelineId);
+};
+
+/** The shown pipeline's statuses, each with its tickets. */
+const useStatusGroups = (tickets: Ticket[]) => {
   const byStatus = Map.groupBy(tickets, (ticket) => ticket.statusId);
 
-  return statuses
-    .filter((status) => status.pipelineId === pipelineId)
-    .map((status) => ({ status, label: status.name, rows: byStatus.get(status.id) ?? [] }));
+  return usePipelineStatuses().map((status) => ({
+    status,
+    label: status.name,
+    rows: byStatus.get(status.id) ?? [],
+  }));
 };
 
 /**

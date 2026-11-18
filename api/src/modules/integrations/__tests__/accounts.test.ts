@@ -5,6 +5,7 @@ import {
   channelFor,
   fakeProviders,
   fixture,
+  graphApi,
   runJob,
   serve,
   telegramApi,
@@ -20,7 +21,7 @@ vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
   (await import('./standIns.ts')).sdkStandIn(await importOriginal()),
 );
 
-const { deliver } = serve();
+const { get, deliver } = serve();
 
 describe('integration accounts', () => {
   it('shows accounts to their organisation and members allowed to see them', async () => {
@@ -70,6 +71,51 @@ describe('integration accounts', () => {
     expect(asked.notifications).toMatchObject([
       { kind: INTEGRATION_BROKEN, userIds: ['user-org-acc-c'], body: '401: Unauthorized' },
     ]);
+  });
+
+  it('repairs a bot by pointing Telegram at the same webhook again', async () => {
+    const calls = fakeProviders(telegramApi);
+    const owner = clientAs('org-acc-f');
+    const account = await owner.integrations.telegram.connect({ token: '777:good-token-abc' });
+    const hook = calls.find((call) => call.url.pathname.endsWith('/setWebhook'))?.body;
+
+    calls.length = 0;
+
+    await expect(owner.integrations.accounts.repair({ id: account.id })).resolves.toMatchObject({
+      status: 'healthy',
+    });
+    expect(calls.map((call) => call.url.pathname)).toEqual([
+      '/bot777:good-token-abc/setWebhook',
+      '/bot777:good-token-abc/getMe',
+    ]);
+    expect(calls[0]?.body).toEqual(hook);
+    await expect(
+      clientAs('org-acc-f', [PERMISSIONS.integrationView]).integrations.accounts.repair({
+        id: account.id,
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  });
+
+  it('repairs an Instagram account by subscribing the app to its page and routing it again', async () => {
+    const calls = fakeProviders(graphApi);
+    const owner = clientAs('org-acc-g');
+    const state = new URL((await owner.integrations.meta.loginUrl()).url).searchParams.get('state');
+
+    await get(`/meta/callback?code=login-code&state=${state ?? ''}`);
+
+    const { accounts } = await owner.integrations.accounts.list({ provider: 'instagram' });
+
+    calls.length = 0;
+
+    await expect(
+      owner.integrations.accounts.repair({ id: accounts[0]?.id ?? '' }),
+    ).resolves.toMatchObject({ status: 'healthy' });
+    expect(calls.map((call) => `${call.method} ${call.url.pathname}`)).toEqual([
+      'POST /v23.0/page-1/subscribed_apps',
+      'PUT /v1/routes/instagram/ig-1',
+      'GET /v23.0/me',
+    ]);
+    expect(calls[0]?.authorization).toBe('Bearer page-token-1');
   });
 
   it('removes an account, so its webhook stops leading anywhere', async () => {

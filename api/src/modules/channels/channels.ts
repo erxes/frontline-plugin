@@ -16,7 +16,15 @@ import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { type Tx, uniqueViolation } from '#/db/client.ts';
-import { CHANNEL_NAME_INDEX, CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
+import { forms } from '#/db/forms.ts';
+import {
+  CHANNEL_NAME_INDEX,
+  CHANNEL_ROLES,
+  channelMembers,
+  channels,
+  responseTemplates,
+} from '#/db/schema.ts';
+import { pipelines } from '#/db/tickets.ts';
 import { reads, writes } from '#/orpc.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
@@ -46,6 +54,9 @@ const Channel = createSelectSchema(channels)
     role: z.enum(CHANNEL_ROLES).nullable(),
     /** Whether the caller may rename it, delete it and change its members. */
     canManage: z.boolean(),
+    pipelineCount: z.number(),
+    formCount: z.number(),
+    templateCount: z.number(),
   });
 
 /** The failures a client can branch on: `isDefinedError(error) && error.code === ...`. */
@@ -72,7 +83,18 @@ const memberIds = sql<string[]>`coalesce((
   from ${channelMembers} listed where listed.channel_id = ${channels.id}
 ), '{}')`;
 
-/** Channels with their member ids, the caller's role and whether they manage it, visible to `member`. */
+/** How many rows of `table` belong to the channel, as the old channel list counted them. */
+const countIn = (table: typeof pipelines | typeof forms | typeof responseTemplates) =>
+  sql<number>`(select count(*)::int from ${table} where ${table.channelId} = ${channels.id})`;
+
+const pipelineCount = countIn(pipelines);
+const formCount = countIn(forms);
+const templateCount = countIn(responseTemplates);
+
+/**
+ * Channels with their member ids, the caller's role, whether they manage it and how many
+ * pipelines, forms and response templates it has, visible to `member`.
+ */
 const channelRows = (tx: Tx, member: PluginMember) =>
   tx
     .select({
@@ -80,6 +102,9 @@ const channelRows = (tx: Tx, member: PluginMember) =>
       memberIds,
       role: channelMembers.role,
       canManage: canChangeSql(member),
+      pipelineCount,
+      formCount,
+      templateCount,
     })
     .from(channels)
     .leftJoin(channelMembers, membership(member, channels.id))
@@ -100,6 +125,9 @@ const CHANNEL_FILTER: FilterFields = {
   'subject.description': { type: 'text', expr: channels.description },
   'subject.memberIds': { type: 'member', array: true, expr: memberIds },
   'subject.createdBy': { type: 'member', expr: channels.createdBy },
+  'subject.pipelineCount': { type: 'number', expr: pipelineCount },
+  'subject.formCount': { type: 'number', expr: formCount },
+  'subject.templateCount': { type: 'number', expr: templateCount },
   'subject.createdAt': { type: 'date', expr: channels.createdAt },
 };
 

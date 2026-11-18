@@ -3,8 +3,7 @@ import type { MessengerApi } from './api.ts';
 import { Home } from './Home.tsx';
 import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
 import { Thread } from './Thread.tsx';
-import type { ArticlesTab } from './articles/ArticlesTab.tsx';
-import type { Tickets } from './tickets/Tickets.tsx';
+import { useLazy } from './lazy.ts';
 import { type MessengerState, useMessenger } from './useMessenger.ts';
 
 /** A website opens a messenger it hides the launcher of with this event on `window`. */
@@ -16,24 +15,10 @@ type View =
   | { name: 'tickets' }
   | { name: 'articles' };
 
-type Tab = typeof Tickets | typeof ArticlesTab;
-
+// Each tab is a chunk of its own, fetched once the visitor opens it.
 const loadTickets = async () => (await import('./tickets/Tickets.tsx')).Tickets;
 
 const loadArticles = async () => (await import('./articles/ArticlesTab.tsx')).ArticlesTab;
-
-/** A tab in its own chunk, fetched once the visitor opens it. */
-const useLazyTab = <T extends Tab>(wanted: boolean, load: () => Promise<T>) => {
-  const [tab, setTab] = useState<T | null>(null);
-
-  useEffect(() => {
-    if (!wanted || tab) return;
-
-    void load().then((component) => setTab(() => component));
-  }, [wanted, tab, load]);
-
-  return tab;
-};
 
 /** The panel's page: the greeting, a conversation, or the tickets or help articles tab. */
 const Page = ({
@@ -47,8 +32,8 @@ const Page = ({
   view: View;
   onView: (view: View) => void;
 }) => {
-  const TicketsTab = useLazyTab(view.name === 'tickets', loadTickets);
-  const HelpTab = useLazyTab(view.name === 'articles', loadArticles);
+  const TicketsTab = useLazy(view.name === 'tickets', loadTickets);
+  const HelpTab = useLazy(view.name === 'articles', loadArticles);
   const home = () => onView({ name: 'home' });
 
   if (!messenger.settings) return null;

@@ -2,15 +2,16 @@ import type { Page } from '@playwright/test';
 import {
   addMessenger,
   confirmDelete,
+  createPipeline,
   expect,
   expectAccessible,
   INBOX,
   openChannelPipelines,
+  openMessenger,
   pick,
   recordPanel,
   test,
   unique,
-  visitorOf,
 } from './fixtures.ts';
 
 const SURVEYS = '/frontline/surveys';
@@ -42,23 +43,61 @@ test('an admin writes a survey, edits its questions and reads its results, which
   const channel = await openChannelPipelines(page, teammate.fullName);
   const panel = recordPanel(page);
   const title = `After the call ${unique()}`;
+  const pipeline = await createPipeline(page);
 
   await newSurvey(page, channel, title);
   await expect(
     page.getByRole('region', { name: 'Active' }).getByRole('button', { name: title, exact: true }),
   ).toBeVisible();
 
-  // Its Questions tab adds and edits questions in place.
-  await panel.getByRole('tab', { name: 'Questions' }).click();
-  await expect(panel.getByRole('button', { name: 'How did we do?', exact: true })).toBeVisible();
-  await panel.getByRole('button', { name: 'Add question' }).click();
-  await panel.getByRole('button', { name: 'New question', exact: true }).click();
-  await page.getByPlaceholder('Question', { exact: true }).fill('Would you call again?');
-  await page.keyboard.press('Enter');
-  await expect(
-    panel.getByRole('button', { name: 'Would you call again?', exact: true }),
-  ).toBeVisible();
+  // Its builder adds and edits questions in place, beside the survey as a voter reads it.
+  await panel.getByRole('link', { name: /^Questions/ }).click();
+  await expect(page).toHaveURL(/\/builder$/);
 
+  const first = page.getByRole('region', { name: 'How did we do?', exact: true });
+  const added = page.getByRole('region', { name: 'Would you call again?', exact: true });
+  const preview = page.getByRole('region', { name: 'Preview' });
+
+  await page.getByRole('button', { name: 'Add question' }).click();
+  await page
+    .getByRole('region', { name: 'New question', exact: true })
+    .getByRole('textbox', { name: 'Question', exact: true })
+    .fill('Would you call again?');
+  await page.keyboard.press('Enter');
+  await expect(preview.getByText('Would you call again?')).toBeVisible();
+
+  // Three voters picking Great open a ticket in the channel's pipeline, at its first status.
+  await first.getByRole('button', { name: 'Open a ticket from Great' }).click();
+  await expect(page.getByRole('combobox', { name: 'Pipeline' })).toHaveText(pipeline);
+  await page.getByRole('spinbutton', { name: 'Voters' }).fill('3');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(first.getByRole('button', { name: 'Ticket for Great at 3 voters' })).toBeVisible();
+
+  // The keyboard moves the new question above the first. Each key waits for the screen reader
+  // announcement, since dnd-kit listens for the next key only after it.
+  const handle = added.getByRole('button', { name: 'Move Would you call again?', exact: true });
+  const announcement = page.getByText(/was moved over droppable area/);
+
+  await handle.press('Space');
+  await expect(handle).toHaveAttribute('aria-pressed', 'true');
+  const overItself = await announcement.textContent();
+
+  await page.keyboard.press('ArrowUp');
+  await expect(announcement).not.toHaveText(overItself ?? '');
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('textbox', { name: 'Question', exact: true }).first()).toHaveValue(
+    'Would you call again?',
+  );
+
+  await page.getByRole('button', { name: 'Tablet', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Tablet', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(preview.getByRole('radio', { name: 'Great' })).toBeVisible();
+
+  await page.goto(SURVEYS);
+  await page.getByRole('button', { name: title, exact: true }).click();
   await panel.getByRole('tab', { name: 'Results' }).click();
   const results = panel.getByRole('tabpanel', { name: 'Results' });
 
@@ -67,8 +106,8 @@ test('an admin writes a survey, edits its questions and reads its results, which
 
   await panel.getByRole('tab', { name: 'Activity' }).click();
   await expect(panel.getByText(`Created ${title}`)).toBeVisible();
-  // One entry for the added question, one for its new wording.
-  await expect(panel.getByText('Changed questions')).toHaveCount(2);
+  // One entry each for the added question, its wording, the ticket rule and the move.
+  await expect(panel.getByText('Changed questions')).toHaveCount(4);
 
   // The filter bar narrows by question, and the filter lives in the address.
   await page.getByRole('button', { name: 'Filter', exact: true }).click();
@@ -125,9 +164,8 @@ test('an admin archives, reactivates and deletes surveys', async ({ page }) => {
   await page.getByRole('button', { name: 'List', exact: true }).click();
 });
 
-test('a member sends a survey into a messenger conversation and the visitor gets it', async ({
+test('a member sends a survey into a messenger conversation and the visitor votes in the widget', async ({
   page,
-  request,
 }) => {
   const channel = await openChannelPipelines(page);
   const title = `Rate us ${unique()}`;
@@ -136,8 +174,13 @@ test('a member sends a survey into a messenger conversation and the visitor gets
   await newSurvey(page, channel, title);
   await page.goto(INBOX);
 
-  const visitor = await visitorOf(request, await addMessenger(page, channel));
-  const conversationId = await visitor.write(hello);
+  await using site = await openMessenger(page.context(), await addMessenger(page, channel));
+  const widget = site.panel;
+
+  await widget.getByRole('button', { name: 'Send us a message' }).click();
+  await widget.getByRole('textbox', { name: 'Message' }).fill(hello);
+  await widget.getByRole('button', { name: 'Send' }).click();
+  await expect(widget).toContainText(hello);
 
   await page.goto(INBOX);
   await page
@@ -151,7 +194,21 @@ test('a member sends a survey into a messenger conversation and the visitor gets
 
   // A survey's card in the thread.
   await expectAccessible(page, thread.getByRole('button', { name: `${title} 0 votes` }));
-  await expect.poll(() => visitor.read(conversationId)).toContain('How did we do?');
+
+  // The widget shows the ballot; the visitor votes, then changes the vote.
+  const ballot = widget.getByRole('form', { name: title });
+
+  await ballot.getByRole('radio', { name: 'Great' }).check();
+  await ballot.getByRole('button', { name: 'Vote' }).click();
+  await expect(ballot.getByRole('status')).toContainText('your vote is in');
+  await expectAccessible(site.shop, ballot);
+  await ballot.getByRole('radio', { name: 'Fine' }).check();
+  await ballot.getByRole('button', { name: 'Change vote' }).click();
+  await expect(ballot.getByRole('status')).toBeVisible();
+
+  // One visitor, one vote, however often they change it.
+  await page.reload();
+  await expect(thread.getByRole('button', { name: `${title} 1 vote` })).toBeVisible();
 });
 
 test('a member without frontline permissions is refused the surveys', async ({ newMember }) => {

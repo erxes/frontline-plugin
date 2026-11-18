@@ -53,6 +53,10 @@ export const PERMISSIONS = {
   integrationManage: 'frontline.integration.manage',
   /** See the calls of your channels, and the queues of the PBXs you answer. */
   callView: 'frontline.call.view',
+  /** Export the tickets and form submissions of your channels in core's Import & export. */
+  recordsExport: 'frontline.records.export',
+  /** Import tickets and form submissions into your channels there. */
+  recordsImport: 'frontline.records.import',
 } as const;
 
 /** The conversation's record type in core: its Activity tab's events and its custom fields. */

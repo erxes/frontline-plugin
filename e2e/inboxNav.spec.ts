@@ -107,12 +107,15 @@ test('My inbox and Team inbox split the member’s channels; quiet ones fold, a 
   const first = quiet.at(0) ?? '';
   const last = quiet.at(-1) ?? '';
 
-  // The personal inbox is made on the member's first visit to it, which then opens it.
-  await member.goto('/frontline/personal-channel');
+  const mine = member.getByRole('list', { name: 'My inbox' });
+
+  // My inbox offers to make the member's personal inbox, then opens it.
+  await member.goto(INBOX);
+  await mine.getByRole('button', { name: 'Create my inbox' }).click();
   await expect(member).toHaveURL(/settings\/channels\/.+/);
   await member.goto(INBOX);
+  await expect(mine.getByRole('button', { name: 'Create my inbox' })).toBeHidden();
 
-  const mine = member.getByRole('list', { name: 'My inbox' });
   const team = member.getByRole('list', { name: 'Team inbox' });
   const link = (name: string) => team.getByRole('link', { name: new RegExp(`^${name}`) });
 

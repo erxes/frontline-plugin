@@ -6,6 +6,9 @@ import { Composer, Identify } from './Composer.tsx';
 import { statusOf, timeOf } from './hours.ts';
 import { BackIcon, FileIcon } from '../shared/icons.tsx';
 import type { MessengerState } from './useMessenger.ts';
+import { useLazy } from './lazy.ts';
+
+const loadSurvey = async () => (await import('./survey/SurveyCard.tsx')).SurveyCard;
 
 /** A message from the team, the bot or the messenger itself, on the left. */
 const TeamNote = ({ children }: { children: ComponentChildren }) => (
@@ -56,6 +59,36 @@ const Bubble = ({
     <time dateTime={message.createdAt}>{timeOf(message.createdAt, language)}</time>
   </div>
 );
+
+/** The conversation's messages; a survey shows as the visitor's ballot, from a chunk of its own. */
+const Messages = ({
+  api,
+  token,
+  messages,
+  language,
+}: {
+  api: MessengerApi;
+  token: string;
+  messages: Message[];
+  language: string;
+}) => {
+  const Survey = useLazy(
+    messages.some((message) => message.surveyId),
+    loadSurvey,
+  );
+
+  const urlOf = (url: string) => api.fileUrl(token, url);
+
+  return messages.map((message) =>
+    message.surveyId ? (
+      <div key={message.id} class="fl-message">
+        {Survey && <Survey api={api} token={token} messageId={message.id} urlOf={urlOf} />}
+      </div>
+    ) : (
+      <Bubble key={message.id} message={message} language={language} urlOf={urlOf} />
+    ),
+  );
+};
 
 /** The bar over a page of the panel: back to the start, and the messenger's name and status. */
 export const Bar = ({ settings, onBack }: { settings: Settings; onBack: () => void }) => (
@@ -215,7 +248,6 @@ export const Thread = ({
 
   if (!settings || !token) return null;
 
-  const urlOf = (url: string) => api.fileUrl(token, url);
   const hasBot = Boolean(settings.botGreeting) || settings.botMenu.length > 0;
   const withBot = hasBot && (conversation?.operator ?? 'bot') === 'bot';
   const resolved = conversation?.status === 'resolved';
@@ -231,9 +263,7 @@ export const Thread = ({
         )}
         {settings.welcome && !hasEarlier && <TeamNote>{settings.welcome}</TeamNote>}
         {withBot && settings.botGreeting && <TeamNote>{settings.botGreeting}</TeamNote>}
-        {messages.map((message) => (
-          <Bubble key={message.id} message={message} language={settings.language} urlOf={urlOf} />
-        ))}
+        <Messages api={api} token={token} messages={messages} language={settings.language} />
         {withBot && <BotMenu settings={settings} onPick={(text) => void send(text, [])} />}
         {withBot && conversationId && (
           <button

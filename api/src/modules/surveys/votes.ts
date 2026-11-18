@@ -146,23 +146,25 @@ const openTickets = async (tx: Tx, survey: typeof surveys.$inferSelect, optionId
 };
 
 /** The survey in the visitor's message: its questions, whether voting is open, and their picks. */
+const visitorSurvey = async (tx: Tx, visitor: Visitor, messageId: string) => {
+  const { survey, closesAt, open } = await sentSurvey(tx, visitor, messageId);
+
+  return {
+    messageId,
+    title: survey.title,
+    steps: z.array(VisitorStep).parse(survey.steps),
+    closesAt,
+    open,
+    optionIds: await picksOf(tx, visitor, messageId),
+  };
+};
+
+export type VisitorSurvey = Awaited<ReturnType<typeof visitorSurvey>>;
+
 const read = asVisitor(async (visitor, req, res) => {
   const { messageId } = Params.parse(req.params);
 
-  res.json(
-    await withOrg(visitor.orgId, async (tx) => {
-      const { survey, closesAt, open } = await sentSurvey(tx, visitor, messageId);
-
-      return {
-        messageId,
-        title: survey.title,
-        steps: z.array(VisitorStep).parse(survey.steps),
-        closesAt,
-        open,
-        optionIds: await picksOf(tx, visitor, messageId),
-      };
-    }),
-  );
+  res.json(await withOrg(visitor.orgId, (tx) => visitorSurvey(tx, visitor, messageId)));
 });
 
 /**

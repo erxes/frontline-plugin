@@ -6,7 +6,7 @@ import { type Tx, withOrg } from '#/db/client.ts';
 import { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
 import { publicKeys } from '#/db/public.ts';
 import { openedBy, removeKeys } from '../public.ts';
-import type { ProviderName, Routed } from './provider.ts';
+import type { AccountRow, ProviderName, Routed } from './provider.ts';
 import { sealSecret } from './secrets.ts';
 
 /** The row without `org_id`, which the caller knows, and the sealed secret, which nobody reads. */
@@ -104,6 +104,16 @@ export const removeWebhookKeys = (tx: Tx, organizationId: string, accountIds: st
     organizationId,
     and(inArray(publicKeys.kind, PROVIDERS), inArray(publicKeys.targetId, accountIds)),
   );
+
+/** The key the account's webhook deliveries name it by, or null for one that takes none. */
+export const webhookKeyOf = async (tx: Tx, row: Pick<AccountRow, 'id' | 'provider'>) => {
+  const [found] = await tx
+    .select({ key: publicKeys.key })
+    .from(publicKeys)
+    .where(and(eq(publicKeys.kind, row.provider), eq(publicKeys.targetId, row.id)));
+
+  return found?.key ?? null;
+};
 
 /** The account a delivery's key opens, with its secret. */
 export const accountOf = async ({ provider, key }: Pick<Routed, 'provider' | 'key'>) => {

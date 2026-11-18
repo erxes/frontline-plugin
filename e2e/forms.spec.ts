@@ -71,6 +71,13 @@ const buildFields = async (page: Page) => {
   await expect(preview.getByLabel('Seats')).toBeHidden();
   await pick(page, preview.getByRole('combobox', { name: 'Plan' }), 'Team');
   await expect(preview.getByLabel('Seats')).toBeVisible();
+  // The preview narrows to a phone's width and keeps what was typed.
+  await page.getByRole('button', { name: 'Mobile', exact: true }).click();
+  await expect(page.getByRole('button', { name: 'Mobile', exact: true })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await expect(preview.getByLabel('Seats')).toBeVisible();
 };
 
 /**

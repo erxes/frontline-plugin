@@ -1,5 +1,6 @@
 import {
   IconBuildingStore,
+  IconCalendar,
   IconEye,
   IconLock,
   IconPencil,
@@ -23,7 +24,7 @@ import {
   useStatuses,
 } from './queries.ts';
 
-type Check = 'isCheckUser' | 'isCheckDepartment' | 'isCheckBranch';
+type Check = 'isCheckUser' | 'isCheckDepartment' | 'isCheckBranch' | 'isCheckDate';
 
 /** Who sees the pipeline's tickets beyond its channel: their own, their team's. */
 const VisibilityFields = ({ pipeline }: { pipeline: Pipeline }) => {
@@ -45,6 +46,11 @@ const VisibilityFields = ({ pipeline }: { pipeline: Pipeline }) => {
       field: 'isCheckBranch',
       icon: IconBuildingStore,
       label: t('check-branch', "Members see only their branches' tickets"),
+    },
+    {
+      field: 'isCheckDate',
+      icon: IconCalendar,
+      label: t('check-date', 'Members see only tickets created today'),
     },
   ];
 

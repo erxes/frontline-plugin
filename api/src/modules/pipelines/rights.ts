@@ -27,7 +27,8 @@ export const statusRights = (member: PluginMember) => {
  * Whether `member` sees the ticket under its status's and pipeline's rules: the status isn't
  * private to others, and where the pipeline checks people, the ticket is theirs (created,
  * assigned), one they follow or nobody holds (`isCheckUser`), or their departments' or
- * branches' (`isCheckDepartment`, `isCheckBranch`). The channel's admins see every ticket; the
+ * branches' (`isCheckDepartment`, `isCheckBranch`), and with `isCheckDate` it was created today
+ * by UTC. The channel's admins and `excludeCheckUserIds` see every ticket; the
  * query joins the member's `membership` row of the ticket's channel.
  */
 export const ticketVisible = (member: PluginMember) => {
@@ -54,6 +55,10 @@ export const ticketVisible = (member: PluginMember) => {
         ))
         or (${pipelines.isCheckDepartment} and ${tickets.departmentId} in ${teamsOf(user)})
         or (${pipelines.isCheckBranch} and ${tickets.branchId} in ${teamsOf(user)})
+      ) and (
+        not ${pipelines.isCheckDate}
+        or ${user} = any(${pipelines.excludeCheckUserIds})
+        or ${tickets.createdAt} >= date_trunc('day', now(), 'UTC')
       )
     )
   ))`;

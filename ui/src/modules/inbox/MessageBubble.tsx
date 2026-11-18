@@ -34,6 +34,12 @@ const Author = ({ message, customerName }: { message: Message; customerName: str
   return <MemberLine id={message.userId} size="sm" />;
 };
 
+/**
+ * Scrolls the edit box's buttons into view as it opens. On the newest message the taller box
+ * would end below the thread, and Save would move under the pointer as the list scrolled to it.
+ */
+const reveal = (buttons: HTMLDivElement | null) => buttons?.scrollIntoView({ block: 'nearest' });
+
 /** The member's own message in the editor, saved with Save or Ctrl or ⌘ with Enter. */
 const EditBox = ({ message, onDone }: { message: Message; onDone: () => void }) => {
   const { t } = useTranslation('frontline');
@@ -61,7 +67,7 @@ const EditBox = ({ message, onDone }: { message: Message; onDone: () => void }) 
         className="min-h-16"
         onChange={setHtml}
       />
-      <div className="flex justify-end gap-2">
+      <div ref={reveal} className="flex justify-end gap-2">
         <Button type="button" variant="ghost" size="sm" onClick={onDone}>
           {t('cancel', 'Cancel')}
         </Button>

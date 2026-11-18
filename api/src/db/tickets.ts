@@ -1,3 +1,4 @@
+import type { CustomValue } from '@erxes/core-contract';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
@@ -77,6 +78,8 @@ export const pipelines = table(
     isCheckUser: boolean().notNull().default(false),
     isCheckDepartment: boolean().notNull().default(false),
     isCheckBranch: boolean().notNull().default(false),
+    /** Members see only tickets created today, by UTC; channel admins and `excludeCheckUserIds` see every one. */
+    isCheckDate: boolean().notNull().default(false),
     excludeCheckUserIds: text()
       .array()
       .notNull()
@@ -174,6 +177,9 @@ export const pipelineStatuses = table(
 
 export const TICKET_STATES = ['active', 'archived'] as const;
 
+/** A ticket's `priority` in words, by its number. */
+export const PRIORITY_NAMES = ['No priority', 'Minor', 'Medium', 'High', 'Critical'];
+
 /** Numbers are unique per pipeline; a write that breaks one fails with 23505. */
 export const TICKET_NUMBER_INDEX = 'frontline_tickets_org_pipeline_number_key';
 
@@ -213,8 +219,8 @@ export const tickets = table(
       .array()
       .notNull()
       .default(sql`'{}'`),
-    /** Values of the organisation's ticket properties, by property id. */
-    propertiesData: jsonb().$type<Record<string, unknown>>().notNull().default({}),
+    /** Values of the ticket's custom fields, by core field id (`frontline.ticket`). */
+    propertiesData: jsonb().$type<Record<string, CustomValue>>().notNull().default({}),
     /** `frontline_teams` of each kind, core's units; a unit deleted in core clears them. */
     branchId: text(),
     departmentId: text(),
@@ -313,8 +319,9 @@ export const PROPERTY_TYPES = [
 ] as const;
 
 /**
- * A field the organisation adds to its tickets, valued in each ticket's `propertiesData`. It
- * shows on the tickets of `pipelineIds`, or of every pipeline while that is empty.
+ * Retired: ticket fields are core's custom fields on `frontline.ticket` now. Only
+ * `scripts/move-ticket-properties.ts` reads these rows, to make them in core; the table stays
+ * until every organisation's are moved.
  */
 export const ticketProperties = table(
   'ticket_properties',

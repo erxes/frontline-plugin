@@ -24,7 +24,6 @@ import { useChannel } from '@/channels/useChannels.ts';
 import { PrioritySelect, StatusSelect, TicketMenu } from './TicketCells.tsx';
 import { TicketContent, TicketPlan, TicketSla } from './TicketFields.tsx';
 import { TicketContacts, TicketLabels, TicketPeople } from './TicketLinks.tsx';
-import { TicketPropertiesSection } from './TicketProperties.tsx';
 import {
   type Ticket,
   useChoices,
@@ -162,7 +161,6 @@ export const TicketDetail = ({ contentId }: TRecordSlotProps) => (
         <TicketPeople ticket={ticket} />
         <TicketContacts ticket={ticket} />
         <TicketLabels ticket={ticket} />
-        <TicketPropertiesSection ticket={ticket} />
         <TicketPlan ticket={ticket} />
         <TicketSla ticket={ticket} />
         <TicketContent ticket={ticket} />

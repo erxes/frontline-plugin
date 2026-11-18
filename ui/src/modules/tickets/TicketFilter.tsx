@@ -26,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { PRIORITIES, usePriorityNames } from '@/pipelines/queries.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { useTeams } from './TicketLinks.tsx';
+import { usePropertyFilterFields } from './TicketProperties.tsx';
 import { useChoices, useSlaNames, useTicketPipeline, useTicketSort } from './queries.ts';
 
 /** The status field, over the shown pipeline's statuses: the sidebar picks the pipeline. */
@@ -104,8 +105,8 @@ const useDateFields = () => {
 };
 
 /**
- * Every field the shown pipeline's tickets narrow by, as the old page's filters had them; the
- * API applies them (`api/src/modules/tickets/tickets.ts`).
+ * Every field the shown pipeline's tickets narrow by, as the old page's filters had them, and
+ * the custom fields core keeps; the API applies them (`api/src/modules/tickets/tickets.ts`).
  */
 export const useTicketFields = (): TListFilterField[] => {
   const { t } = useTranslation('frontline');
@@ -160,6 +161,7 @@ export const useTicketFields = (): TListFilterField[] => {
     },
     { path: 'subject.createdBy', label: t('created-by', 'Created by'), type: 'member' },
     ...useDateFields(),
+    ...usePropertyFilterFields(),
   ];
 };
 

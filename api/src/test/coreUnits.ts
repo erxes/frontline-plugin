@@ -130,7 +130,62 @@ const importUnits = (orgId: string, units: Required<UnitInput>[]) => {
   return { ids, skippedMembers: 0 };
 };
 
-/** `#/core.ts` with core's units answered by `coreUnits`: `vi.mock('#/core.ts', …unitsStandIn)`. */
+/**
+ * Core's fields of `frontline.ticket` in a test: Size and Labels in a group on every pipeline,
+ * Seats in one on `seatsPipelineIds`.
+ */
+export const coreTicketFields = { seatsPipelineIds: [] as string[] };
+
+const ticketField = (id: string, label: string, type: string, groupId: string) => ({
+  id,
+  label,
+  type,
+  groupId,
+  isVisible: true,
+  description: null,
+  options: type === 'number' ? [] : ['S', 'M', 'vip'],
+});
+
+const ticketFields = [
+  ticketField('size', 'Size', 'select', 'every'),
+  ticketField('seats', 'Seats', 'number', 'some'),
+  ticketField('labels', 'Labels', 'multiselect', 'every'),
+];
+
+const ticketGroups = () => [
+  { id: 'every', appliesTo: {} },
+  { id: 'some', appliesTo: { pipeline: coreTicketFields.seatsPipelineIds } },
+];
+
+type Values = Record<string, unknown>;
+
+/** Core's check: each field's group applies to the ticket's pipeline; null clears a value. */
+const checkFields = async (input: {
+  current: Values;
+  patch: Values;
+  appliesTo: { pipeline: string[] };
+}) => {
+  const { ORPCError } = await import('@orpc/server');
+
+  for (const id of Object.keys(input.patch)) {
+    const field = ticketFields.find((one) => one.id === id);
+    const pipelines = ticketGroups().find((one) => one.id === field?.groupId)?.appliesTo.pipeline;
+
+    if (!field || (pipelines && !pipelines.some((one) => input.appliesTo.pipeline.includes(one))))
+      throw new ORPCError('BAD_REQUEST', { message: `${field?.label ?? id} doesn't apply` });
+  }
+
+  return {
+    values: Object.fromEntries(
+      Object.entries({ ...input.current, ...input.patch }).filter(([, value]) => value !== null),
+    ),
+  };
+};
+
+/**
+ * `#/core.ts` with core's units answered by `coreUnits` and ticket fields by `coreTicketFields`:
+ * `vi.mock('#/core.ts', …unitsStandIn)`.
+ */
 export const unitsStandIn = (actual: typeof CoreModule) => ({
   ...actual,
   core: {
@@ -140,6 +195,8 @@ export const unitsStandIn = (actual: typeof CoreModule) => ({
         list: async () => list(orgId),
         import: async ({ units }: { units: Required<UnitInput>[] }) => importUnits(orgId, units),
       },
+      fields: { list: async () => ({ data: ticketFields }), check: checkFields },
+      fieldGroups: { list: async () => ({ data: ticketGroups() }) },
     }),
   },
 });

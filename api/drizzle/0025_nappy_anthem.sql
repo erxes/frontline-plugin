@@ -1,0 +1,1 @@
+ALTER TABLE "frontline_pipelines" ADD COLUMN "is_check_date" boolean DEFAULT false NOT NULL;

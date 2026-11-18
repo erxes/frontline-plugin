@@ -106,3 +106,6 @@ export const config = {
         : null,
   },
 };
+
+/** What checks a token core signed for this plugin: its session, job, event and call tokens. */
+export const signedByCore = { coreUrl: config.coreUrl, plugin: PLUGIN };

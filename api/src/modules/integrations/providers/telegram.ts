@@ -68,6 +68,14 @@ const call = async <T>(
 
 const why = (error: unknown) => (error instanceof Error ? error.message : 'Telegram failed');
 
+/** Has Telegram post the bot's updates to its address under `key`, signed with `secret`. */
+const setWebhook = (token: string, key: string, secret: string) =>
+  call(token, 'setWebhook', z.boolean(), {
+    url: `${config.publicUrl}/api/public/webhooks/telegram/${key}`,
+    secret_token: secret,
+    allowed_updates: ['message', 'message_reaction'],
+  });
+
 export const telegram = defineProvider({
   name: 'telegram',
   Config,
@@ -93,6 +101,11 @@ export const telegram = defineProvider({
   },
   disconnect: async ({ secret }) => {
     await call(secret.token, 'deleteWebhook', z.boolean());
+  },
+  repair: async ({ secret }, webhookKey) => {
+    if (!webhookKey) throw new Error('The bot has no webhook address: connect it again');
+
+    await setWebhook(secret.token, webhookKey, secret.webhookSecret);
   },
 });
 
@@ -187,11 +200,7 @@ const connect = writesWithCore(
     const key = randomBytes(24).toString('base64url');
     const webhookSecret = randomBytes(32).toString('base64url');
 
-    await call(input.token, 'setWebhook', z.boolean(), {
-      url: `${config.publicUrl}/api/public/webhooks/telegram/${key}`,
-      secret_token: webhookSecret,
-      allowed_updates: ['message', 'message_reaction'],
-    });
+    await setWebhook(input.token, key, webhookSecret);
 
     return { bot, key, webhookSecret };
   },

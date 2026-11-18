@@ -163,6 +163,13 @@ describe('tickets', () => {
       'Refund',
     ]);
     await expect(names({ filter: rule('statusId', 'eq', stage(3)) })).resolves.toEqual(['Refund']);
+    // A board column asks for its status, and counts it.
+    await expect(
+      owner.tickets.list({ pipelineId: pipeline.id, statusId: stage(1) }),
+    ).resolves.toMatchObject({
+      totalCount: 2,
+      tickets: [{ name: 'Invoice copy' }, { name: 'Login fails' }],
+    });
     await expect(names({ filter: rule('number', 'exists') })).resolves.toEqual([]);
     await expect(names({ filter: rule('firstResponseSla', 'eq', 'due') })).resolves.toEqual([]);
     await expect(
@@ -318,7 +325,6 @@ describe('tickets', () => {
     const { owner, channel, pipeline } = await setUp('org-tk-visitor');
     const elsewhere = await owner.channels.create({ name: 'Sales' });
     const foreign = await owner.pipelines.create({ channelId: elsewhere.id, name: 'Leads' });
-    const size = await owner.tickets.properties.create({ label: 'Size', type: 'text' });
     const tag = await owner.tags.create({ type: 'ticket', name: 'Shipping' });
 
     const integration = await owner.integrations.create({
@@ -335,9 +341,7 @@ describe('tickets', () => {
 
     // Only the pipeline of the messenger's own channel is offered.
     expect((await messenger.get('/tickets/forms', ann)).body).toEqual({
-      pipelines: [
-        { id: pipeline.id, name: 'Main', properties: [expect.objectContaining({ id: size.id })] },
-      ],
+      pipelines: [{ id: pipeline.id, name: 'Main', properties: [] }],
       tags: [{ id: tag.id, name: 'Shipping', colorCode: null }],
     });
     expect((await messenger.post('/tickets', file, anonymous)).status).toBe(403);
@@ -345,11 +349,7 @@ describe('tickets', () => {
       (await messenger.post('/tickets', { ...file, pipelineId: foreign.id }, ann)).status,
     ).toBe(400);
 
-    const filed = await messenger.post(
-      '/tickets',
-      { ...file, propertiesData: { [size.id]: 'XL' } },
-      ann,
-    );
+    const filed = await messenger.post('/tickets', file, ann);
 
     expect(filed).toMatchObject({ status: 201, body: { name: 'Broken zip', status: 'New' } });
     expect(await owner.tickets.list({})).toMatchObject({
