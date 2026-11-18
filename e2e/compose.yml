@@ -26,5 +26,8 @@ services:
       SECRETS_KEY: ZTJlLXNlY3JldHMta2V5LTMyLWJ5dGVzLWxvbmchISE=
       PUBLIC_URL: http://localhost:3399
       CORE_UI_URL: http://localhost:8080
+      # Each test visitor sends its own X-Forwarded-For (fixtures.ts visitorOf), as visitors
+      # reach a real site from their own addresses; one shared address would hit the IP limits.
+      TRUST_PROXY: 'true'
     depends_on:
       api: { condition: service_healthy }
