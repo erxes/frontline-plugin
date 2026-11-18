@@ -84,6 +84,19 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
   await page.goto(`${SETTINGS}/response-templates`);
   await expect(page).toHaveURL(`${SETTINGS}/channels`);
   await expect(page.getByRole('button', { name: 'Create channel' })).toBeVisible();
+
+  // The old channel pages' links open their record's new place.
+  const old = {
+    'channels/c-1/pipelines/p-1/statuses': `${SETTINGS}/pipelines/p-1`,
+    'channels/c-1/forms/create': '/frontline/forms',
+    'channels/c-1/surveys/s-1': '/frontline/surveys/s-1',
+    'config/meta': `${SETTINGS}/integrations`,
+  };
+
+  for (const [from, to] of Object.entries(old)) {
+    await page.goto(`${SETTINGS}/${from}`);
+    await expect(page).toHaveURL(to);
+  }
 });
 
 test('a channel member reads the settings, and a member without frontline permissions is refused', async ({

@@ -173,7 +173,36 @@ const settingsRoutes = (
         element={<Redirect path="settings/response-templates" param="responseId" />}
       />
       <Route path=":id/pipelines" element={<PipelinesPage />} />
+      {/* The old channel pages' links open their record's new place. */}
+      <Route path=":id/general" element={<Redirect path="settings/channels" />} />
+      <Route
+        path=":id/pipelines/:pipelineId/*"
+        element={<Redirect path="settings/pipelines" param="pipelineId" />}
+      />
+      {[':id/forms/*', ':id/forms/create'].map((path) => (
+        <Route key={path} path={path} element={<Navigate to={`/${PLUGIN}/forms`} replace />} />
+      ))}
+      <Route path=":id/forms/:formId" element={<Redirect path="forms" param="formId" />} />
+      <Route
+        path=":id/forms/submissions/:formId"
+        element={<Redirect path="forms" param="formId" rest="/submissions" />}
+      />
+      {[':id/surveys/*', ':id/surveys/create'].map((path) => (
+        <Route key={path} path={path} element={<Navigate to={`/${PLUGIN}/surveys`} replace />} />
+      ))}
+      <Route path=":id/surveys/:surveyId" element={<Redirect path="surveys" param="surveyId" />} />
+      {/* The old integration detail page, one per channel and kind, is now the accounts list. */}
+      <Route
+        path="details/:id/:integrationType"
+        element={<Navigate to={`/${PLUGIN}/settings/integrations`} replace />}
+      />
     </Route>
+    <Route
+      path="personal-channel/*"
+      element={<Navigate to={`/${PLUGIN}/personal-channel`} replace />}
+    />
+    {/* The old integrations config, Meta's app among it, is core's now; accounts stay here. */}
+    <Route path="config/*" element={<Navigate to={`/${PLUGIN}/settings/integrations`} replace />} />
     <Route path="pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
     <Route
       path="response-templates/:id"
@@ -265,11 +294,6 @@ export const Frontline = () => (
       </Route>
       {settingsRoutes}
       <Route path="helpcenter" element={<Navigate to="../help-centers" replace />} />
-      {/* The old integration detail page, one per channel and kind, is now the accounts list. */}
-      <Route
-        path="details/:id/:integrationType"
-        element={<Navigate to={`/${PLUGIN}/settings/integrations`} replace />}
-      />
     </Routes>
   </IconsProvider>
 );

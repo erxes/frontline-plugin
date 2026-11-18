@@ -38,7 +38,7 @@ test('the owner sees the accounts page, what Meta’s login reported, and a prov
   await page.goto(`${INTEGRATIONS}?error=Meta did not finish the login`);
   await expect(page.getByRole('alert').getByText('Meta did not finish the login')).toBeVisible();
 
-  await page.goto('/frontline/details/channel-1/telegram');
+  await page.goto('/frontline/settings/channels/details/channel-1/telegram');
   await expect(page).toHaveURL(new RegExp(`${INTEGRATIONS}$`));
 });
 
