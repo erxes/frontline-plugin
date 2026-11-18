@@ -217,6 +217,7 @@
   "discard": "Болих",
   "discard-draft-confirm": "Бичсэнээ хаях уу?",
   "discard-ticket": "Энэ шинэ тикетийг хаях уу?",
+  "discard-ticket-elsewhere": "Өөр газар эхлүүлсэн шинэ тикетээ хаях уу?",
   "disconnect": "Салгах",
   "disconnect-account-confirm": "{{name}}-г салгах уу?",
   "discord-add-bot-to-server": "Энэ ботыг сервертээ нэмэх",

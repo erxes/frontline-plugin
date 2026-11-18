@@ -9,7 +9,6 @@ import {
   IconTag,
   IconUser,
 } from '@tabler/icons-react';
-import { CustomFieldsPatch } from '@erxes/core-contract';
 import { useMutation } from '@tanstack/react-query';
 import {
   DatePicker,
@@ -19,14 +18,11 @@ import {
   Select,
   type TRecordDraftProps,
   textOf,
-  useConfirm,
 } from 'erxes-ui';
 import type { SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
-import { z } from 'zod';
 import { useChannels } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
-import { draftsOf, useDraft } from '~/shared/drafts.ts';
 import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { TagsField } from '~/shared/Pickers.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
@@ -35,6 +31,7 @@ import { dayOf } from './TicketFields.tsx';
 import { ticketTags } from './TicketLinks.tsx';
 import { PropertyRows } from './TicketProperties.tsx';
 import { useChoices, useTicketChange } from './queries.ts';
+import { type TicketDraft, useDiscard, useOpener, useTicketDraft } from './ticketDraft.ts';
 
 /** The pipelines of the member's channels, each after its channel's name. */
 const PipelineSelect = ({
@@ -106,41 +103,6 @@ const FilingRows = ({
   );
 };
 
-/**
- * The new ticket being written, kept per member in the tab until it is created or discarded. An
- * empty pipeline takes the opener's, an empty status the pipeline's first.
- */
-const ticketDrafts = draftsOf(
-  'ticket',
-  z.object({
-    pipelineId: z.string(),
-    statusId: z.string(),
-    name: z.string(),
-    description: z.string(),
-    priority: z.number(),
-    assigneeId: z.string().nullable(),
-    startDate: z.coerce.date().nullable(),
-    targetDate: z.coerce.date().nullable(),
-    tagIds: z.array(z.string()),
-    propertiesData: CustomFieldsPatch,
-  }),
-);
-
-type TicketDraft = z.infer<typeof ticketDrafts.schema>;
-
-const NO_TICKET: TicketDraft = {
-  pipelineId: '',
-  statusId: '',
-  name: '',
-  description: '',
-  priority: 0,
-  assigneeId: null,
-  startDate: null,
-  targetDate: null,
-  tagIds: [],
-  propertiesData: {},
-};
-
 /** What a new ticket is planned with, beside its filing and name. */
 type Plan = Pick<TicketDraft, 'priority' | 'assigneeId' | 'startDate' | 'targetDate'>;
 
@@ -188,38 +150,6 @@ const PlanRows = ({ plan, onChange }: { plan: Plan; onChange: (patch: Partial<Pl
 /** A new ticket's tags and the properties its pipeline shows. */
 type Labels = Pick<TicketDraft, 'tagIds' | 'propertiesData'>;
 
-/**
- * Cancel throws the draft away, after asking once something is in it. Closing the panel keeps
- * it for later, so only Cancel asks.
- */
-/**
- * Whether the member wrote anything into the draft. Its filing doesn't count, and a description
- * the editor emptied again holds blocks without a `"text"` in them.
- */
-const written = (draft: TicketDraft) =>
-  /"text":"[^"]/.test(draft.description) ||
-  JSON.stringify({ ...draft, pipelineId: '', statusId: '', description: '' }) !==
-    JSON.stringify(NO_TICKET);
-
-const useDiscard = (draft: { value: TicketDraft; clear: () => void }, onCancel: () => void) => {
-  const { t } = useTranslation('frontline');
-  const { confirm } = useConfirm();
-
-  return () =>
-    void (
-      !written(draft.value)
-        ? Promise.resolve()
-        : confirm({
-            message: t('discard-ticket', 'Discard this new ticket?'),
-            options: { okLabel: t('discard', 'Discard') },
-          })
-    ).then(() => {
-      draft.clear();
-
-      return onCancel();
-    });
-};
-
 const LabelRows = ({
   pipelineId,
   labels,
@@ -259,10 +189,11 @@ const LabelRows = ({
 export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
   const { pipelines } = useChoices();
-  // One draft per place it opens from, so "+" on a status never brings back another's draft.
-  const opener = textOf(defaults.statusId) || textOf(defaults.pipelineId);
-  const draft = useDraft(ticketDrafts, opener || 'new', NO_TICKET);
+  const draft = useTicketDraft();
   const discard = useDiscard(draft, onCancel);
+
+  useOpener(draft, textOf(defaults.pipelineId), textOf(defaults.statusId));
+
   const { pipelineId: picked, statusId: pickedStatus, name, description, ...fields } = draft.value;
   const pipelineId = picked || textOf(defaults.pipelineId) || (pipelines[0]?.id ?? '');
   const statusId = picked ? pickedStatus : textOf(defaults.statusId);
