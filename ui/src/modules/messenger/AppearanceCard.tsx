@@ -1,5 +1,6 @@
+import { getContrast } from 'color2k';
 import { Button, ColorPicker, Form } from 'erxes-ui';
-import { type FieldPathByValue, useFormContext } from 'react-hook-form';
+import { type FieldPathByValue, useFormContext, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { ImageField } from '~/shared/Files.tsx';
 import { SettingsCard } from '~/shared/Settings.tsx';
@@ -84,6 +85,35 @@ const Themes = () => {
   );
 };
 
+/** The contrast small text needs to be read by everyone (WCAG AA). */
+const READABLE = 4.5;
+
+const parses = (color: string) => CSS.supports('color', color);
+
+/** A warning when the header's text is hard to read on its colour. */
+const ContrastNote = () => {
+  const { t } = useTranslation('frontline');
+
+  const [color, textColor] = useWatch<MessengerForm, ['color', 'textColor']>({
+    name: ['color', 'textColor'],
+  });
+
+  // A colour typed halfway doesn't parse yet; it gets its note once it does.
+  const ratio = parses(color) && parses(textColor) ? getContrast(color, textColor) : READABLE;
+
+  if (ratio >= READABLE) return null;
+
+  return (
+    <p className="text-sm text-warning-text sm:col-span-2">
+      {t(
+        'messenger-contrast-low',
+        'Text on this colour reads at {{ratio}}:1. Visitors need {{needed}}:1 to read it easily.',
+        { ratio: ratio.toFixed(1), needed: READABLE },
+      )}
+    </p>
+  );
+};
+
 /** How the messenger looks: colours, logos and the header's style. */
 export const AppearanceCard = () => {
   const { t } = useTranslation('frontline');
@@ -99,6 +129,7 @@ export const AppearanceCard = () => {
       <Themes />
       <ColorRow name="color" label={t('messenger-color', 'Color')} />
       <ColorRow name="textColor" label={t('messenger-text-color', 'Text color')} />
+      <ContrastNote />
       <ColorRow name="backgroundColor" label={t('messenger-background', 'Background')} />
       <ChoiceRow
         name="heroStyle"

@@ -36,6 +36,7 @@ test('a member finds a customer by email, then tags, resolves and assigns their 
   await grace.write(`Wrong size ${suffix}`);
   await grace.write(`Late refund ${suffix}`);
   await (await visitorOf(request, key)).write(`Another visitor ${suffix}`);
+  await page.goto(INBOX);
 
   // The search matches the customer's email through core, so only Grace's two show.
   const conversations = page.getByRole('list', { name: 'Conversations' });

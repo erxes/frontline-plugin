@@ -244,8 +244,6 @@ test('a visitor files a ticket from the widget in a pipeline the messenger offer
 
   const key = await addMessenger(page, channel);
 
-  await recordPanel(page).getByRole('button', { name: 'Integration actions' }).click();
-  await page.getByRole('option', { name: 'Messenger settings' }).click();
   await page.getByRole('checkbox', { name: pipeline }).click();
 
   await page.getByRole('button', { name: 'Save', exact: true }).click();

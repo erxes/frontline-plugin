@@ -360,7 +360,10 @@ export const pick = async (page: Page, select: Locator, option: string) => {
   await page.getByRole('option', { name: option, exact: true }).click();
 };
 
-/** Adds a website messenger to `channel` from the inbox's header and returns its key. */
+/**
+ * Adds a website messenger to `channel` from the inbox's header, which opens its settings page,
+ * and returns its key.
+ */
 export const addMessenger = async (page: Page, channel: string) => {
   const panel = recordPanel(page);
   const name = `Website ${unique()}`;
@@ -370,13 +373,14 @@ export const addMessenger = async (page: Page, channel: string) => {
   await panel.getByLabel('Name').fill(name);
   await panel.getByLabel('Welcome message').fill('Hi, how can we help?');
   await panel.getByRole('button', { name: 'Add messenger' }).click();
+  await expect(page).toHaveURL(/\/frontline\/inbox\/messengers\/[\w-]+$/);
 
-  // The key is 32 random bytes, base64url.
-  const key = panel.getByText(/^[\w-]{43}$/);
+  // The key is 32 random bytes, base64url, in the Install card's script line.
+  const install = page.getByLabel('Messenger install code');
 
-  await expect(key).toBeVisible();
+  await expect(install).toContainText('/widget/messenger.js?key=');
 
-  return (await key.textContent()) ?? '';
+  return /key=([\w-]{43})/.exec((await install.textContent()) ?? '')?.[1] ?? '';
 };
 
 /** Adds Frontline's `titles` to core's home dashboard from its widget catalog, and saves. */

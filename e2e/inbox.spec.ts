@@ -133,9 +133,17 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await page.goto(INBOX);
 
   const key = await addMessenger(page, channel);
+  const settingsUrl = page.url();
   const panel = recordPanel(page);
 
+  // The channel's panel lists the messenger with a link to its settings.
+  await page.goto('/frontline/settings/channels');
+  await page.getByText(channel, { exact: true }).click();
+  await panel.getByRole('link', { name: /^Settings of Website / }).click();
+  await expect(page).toHaveURL(settingsUrl);
+
   // Archived, it takes no visitors until an admin unarchives it.
+  await page.goto(`${INBOX}?panel=/detail/frontline:integration/${settingsUrl.split('/').pop()}`);
   await panel.getByRole('button', { name: 'Integration actions' }).click();
   await page.getByRole('option', { name: 'Archive' }).click();
   await expect(panel.getByText('Archived', { exact: true })).toBeVisible();
@@ -143,9 +151,9 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await page.getByRole('option', { name: 'Unarchive' }).click();
   await expect(panel.getByText('Active', { exact: true })).toBeVisible();
 
-  await panel.getByRole('button', { name: 'Integration actions' }).click();
-  await page.getByRole('option', { name: 'Messenger settings' }).click();
-  await expect(page).toHaveURL(/\/frontline\/inbox\/messengers\/[\w-]+$/);
+  // The messenger's own panel leads back to the settings page too.
+  await panel.getByRole('link', { name: 'Look, hours and install code' }).click();
+  await expect(page).toHaveURL(settingsUrl);
   await expect(page.getByRole('textbox', { name: 'Welcome message' })).toHaveValue(
     'Hi, how can we help?',
   );
@@ -188,7 +196,7 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   const connected = await request.post(`${MESSENGER}/connect`, { data: { key } });
 
   expect(await connected.json()).toMatchObject({
-    messenger: { greetingTitle: title, color: '#0D9488', requireAuth: true },
+    messenger: { greetingTitle: title, color: '#0F766E', requireAuth: true },
   });
 
   // A visitor the shop signs in writes at once, though the messenger asks others for an email.

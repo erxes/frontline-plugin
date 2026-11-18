@@ -110,7 +110,7 @@ const setUp = async (orgId: string, config: Record<string, unknown> = {}) => {
     config,
   });
 
-  const key = integration.publicKey ?? '';
+  const key = integration.publicKey;
   const connected = await connect({ key });
 
   return {
