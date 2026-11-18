@@ -55,6 +55,7 @@
     "lru-cache": "^11.5.3",
     "mailparser": "^3.14.3",
     "nodemailer": "^10.5.0",
+    "p-limit": "^7.3.3",
     "pg": "^8.23.1",
     "pino": "^10.4.0",
     "pino-http": "^11.0.0",

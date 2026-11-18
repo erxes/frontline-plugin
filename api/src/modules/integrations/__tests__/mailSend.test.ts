@@ -42,11 +42,21 @@ vi.mock('imapflow', () => ({
       return { release: () => undefined };
     }
 
+    // Like a server, `n:*` past the newest uid still names the newest.
+    async search({ uid }: { uid: string }) {
+      const from = Number(uid.split(':')[0]);
+      const uids = mailbox.inbox.map((_, index) => index + 1);
+      const found = uids.filter((each) => each >= from);
+
+      return found.length > 0 ? found : uids.slice(-1);
+    }
+
     async *fetch(range: string) {
-      const from = Number(range.split(':')[0]);
+      const uids = new Set(range.split(',').map(Number));
 
       for (const [index, source] of mailbox.inbox.entries())
-        if (index + 1 >= from) yield { uid: index + 1, source: Buffer.from(source) };
+        if (uids.has(index + 1))
+          yield { uid: index + 1, size: source.length, source: Buffer.from(source) };
     }
   },
 }));
@@ -161,6 +171,40 @@ describe('mail', () => {
     expect(events.rows).toEqual([
       { type: 'frontline.mail.received', entity_id: conversationId, summary: null },
     ]);
+  });
+
+  it('reads 50 mails a run and goes on from the last one it kept', async () => {
+    mailbox.inbox.length = 0;
+
+    const owner = clientAs('org-mail-c');
+
+    await mailChannel('org-mail-c');
+
+    for (let n = 1; n <= 51; n += 1)
+      mailbox.inbox.push(
+        [
+          'From: Bat <bat@example.mn>',
+          'To: support@shop.mn',
+          'Subject: Order',
+          `Message-ID: <bat-${n}@example.mn>`,
+          // One thread, so one conversation.
+          `References: <bat-1@example.mn>`,
+          '',
+          `Mail ${n}`,
+        ].join('\r\n'),
+      );
+
+    const counted = async () =>
+      (await owner.conversations.list({})).conversations.map(({ messageCount }) => messageCount);
+
+    await sync('org-mail-c');
+    expect(await counted()).toEqual([50]);
+
+    await sync('org-mail-c');
+    expect(await counted()).toEqual([51]);
+
+    await sync('org-mail-c');
+    expect(await counted()).toEqual([51]);
   });
 
   it('stops mailing an address that bounced until a member lets it through', async () => {

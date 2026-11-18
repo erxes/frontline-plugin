@@ -1,5 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { and, desc, eq, isNotNull, or, sql } from 'drizzle-orm';
+import pLimit from 'p-limit';
 import { z } from 'zod';
 import { MESSAGE_RECEIVED } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
@@ -12,8 +13,8 @@ import {
 } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
 import type { Adapter } from '../inbox/adapters.ts';
-import { customerFor, receive } from '../inbox/receive.ts';
-import { signalMembers } from '../inbox/shared.ts';
+import { customerFor, receiveIn } from '../inbox/receive.ts';
+import { signalConversations, signalMembers } from '../inbox/shared.ts';
 import {
   type AccountRow,
   type InboundMessage,
@@ -166,13 +167,44 @@ const integrationOf = async (row: AccountRow) => {
   return found?.id;
 };
 
+/** How many of a delivery's authors are found or made in core at once. */
+const AUTHORS_AT_ONCE = 4;
+
+/** The core customer of each author of `inbound`, by their provider id, each asked for once. */
+const customersOf = async (row: AccountRow, inbound: InboundMessage[]) => {
+  const authors = [...new Map(inbound.map(({ author }) => [author.externalId, author])).values()];
+  const limit = pLimit(AUTHORS_AT_ONCE);
+
+  return new Map(
+    await Promise.all(
+      authors.map((author) =>
+        limit(async () => {
+          const customerId = await customerFor(row.orgId, {
+            source: row.provider,
+            externalId: author.externalId,
+            firstName: author.name || author.externalId,
+            email: author.email,
+          });
+
+          return [author.externalId, customerId] as const;
+        }),
+      ),
+    ),
+  );
+};
+
 /**
- * Hands what reached an account to the inbox: each sender is found or made a core customer, and
- * each message joins its thread's conversation. A failure throws, so the provider or the job
- * delivers again; a message delivered twice adds nothing. An account no channel uses keeps
- * nothing.
+ * Hands what reached an account to the inbox: each author is found or made a core customer once,
+ * and each message joins its thread's conversation in order, in a transaction of its own that
+ * also runs `saved`, so a caller can note how far it got. The inbox hears once, at the end. A
+ * failure throws after the messages before it are kept, so the provider or the job delivers the
+ * rest again; a message delivered twice adds nothing. An account no channel uses keeps nothing.
  */
-export const deliverInbound = async (row: AccountRow, inbound: InboundMessage[]) => {
+export const deliverInbound = async <T extends InboundMessage>(
+  row: AccountRow,
+  inbound: T[],
+  saved?: (tx: Tx, message: T) => Promise<unknown>,
+) => {
   if (!inbound.length) return;
 
   const integrationId = await integrationOf(row);
@@ -186,30 +218,36 @@ export const deliverInbound = async (row: AccountRow, inbound: InboundMessage[])
     return;
   }
 
-  // A thread has one author. Authors go at once and each one's messages in order, so the first
-  // makes the customer and opens the conversation the rest join.
-  await Promise.all(
-    Object.values(Object.groupBy(inbound, (message) => message.author.externalId)).map(
-      (written = []) =>
-        inOrder(written, async (message) =>
-          receive(row.orgId, {
-            integrationId,
-            customerId: await customerFor(row.orgId, {
-              source: row.provider,
-              externalId: message.author.externalId,
-              firstName: message.author.name || message.author.externalId,
-              email: message.author.email,
-            }),
-            externalConversationId: message.threadId,
-            externalId: message.messageId,
-            content: message.text,
-            attachments: message.attachments,
-            providerData: message.providerData,
-            event: message.event ?? RECEIVED[row.provider]?.type,
-          }),
-        ),
-    ),
-  );
+  const customers = await customersOf(row, inbound);
+  const changed: { id: string; customerId: string }[] = [];
+
+  try {
+    await inOrder(inbound, (message) =>
+      withOrg(row.orgId, async (tx) => {
+        const customerId = customers.get(message.author.externalId);
+
+        if (!customerId) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+        const received = await receiveIn(tx, row.orgId, {
+          integrationId,
+          customerId,
+          externalConversationId: message.threadId,
+          externalId: message.messageId,
+          content: message.text,
+          attachments: message.attachments,
+          providerData: message.providerData,
+          event: message.event ?? RECEIVED[row.provider]?.type,
+        });
+
+        await saved?.(tx, message);
+
+        if (received.changed) changed.push(received.changed);
+      }),
+    );
+  } finally {
+    if (changed.length > 0)
+      await withOrg(row.orgId, (tx) => signalConversations(tx, row.orgId, changed));
+  }
 };
 
 /**

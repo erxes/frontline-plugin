@@ -1,6 +1,8 @@
 import type { PluginJobDelivery } from '@erxes/core-contract';
 import { eq, sql } from 'drizzle-orm';
-import { withOrg } from '#/db/client.ts';
+import pLimit from 'p-limit';
+import type { z } from 'zod';
+import { type Tx, withOrg } from '#/db/client.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { logger } from '#/logger.ts';
 import { checkAccount } from './accounts.ts';
@@ -17,11 +19,29 @@ const accountsOf = (orgId: string, provider?: 'mail') =>
       .where(provider ? eq(integrationAccounts.provider, provider) : undefined),
   );
 
+/** How many of an organisation's accounts are read or checked at once. */
+const ACCOUNTS_AT_ONCE = 4;
+
+/** Runs `step` on each account, `ACCOUNTS_AT_ONCE` at a time. */
+const eachAccount = async (rows: AccountRow[], step: (row: AccountRow) => Promise<unknown>) => {
+  const limit = pLimit(ACCOUNTS_AT_ONCE);
+
+  await Promise.all(rows.map((row) => limit(() => step(row))));
+};
+
+/** Notes that the mailbox was read up to `state`, so the next run starts after it. */
+const saveSyncState = (tx: Tx, accountId: string, state: z.infer<typeof SyncState>) =>
+  tx
+    .update(integrationAccounts)
+    .set({ syncState: state, status: 'healthy', error: null, checkedAt: sql`now()` })
+    .where(eq(integrationAccounts.id, accountId));
+
 /**
- * Reads what reached each of the organisation's mailboxes since the last run and hands it to the
- * inbox, notes the addresses its reports said to stop mailing, then where it left off. A mailbox
- * that refuses the login is marked broken and the rest go on; a failure handing mail to the inbox
- * throws, so the next run reads it again.
+ * Reads up to a run's worth of what reached each of the organisation's mailboxes since the last
+ * run and hands it to the inbox, and notes the addresses its reports said to stop mailing. Each
+ * message is kept with the mailbox's place after it, so a failure leaves the messages before it
+ * in place and the next run starts at it. A mailbox that refuses the login is marked broken, and
+ * one that fails is logged, while the rest go on.
  */
 export const syncMail = async (job: PluginJobDelivery) => {
   const sync = async (row: AccountRow) => {
@@ -44,20 +64,25 @@ export const syncMail = async (job: PluginJobDelivery) => {
       return;
     }
 
-    await deliverInbound(row, pulled.messages);
-    await withOrg(job.orgId, async (tx) => {
-      await suppress(tx, job.orgId, row.id, pulled.suppressed);
-      await tx
-        .update(integrationAccounts)
-        .set({ syncState: pulled.state, status: 'healthy', error: null, checkedAt: sql`now()` })
-        .where(eq(integrationAccounts.id, row.id));
-    });
+    const { uidValidity } = pulled.state;
+
+    await withOrg(job.orgId, (tx) => suppress(tx, job.orgId, row.id, pulled.suppressed));
+    await deliverInbound(
+      row,
+      pulled.messages.map(({ uid, message }) => ({ ...message, uid })),
+      (tx, { uid }) => saveSyncState(tx, row.id, { uidValidity, lastUid: uid }),
+    );
+    await withOrg(job.orgId, (tx) => saveSyncState(tx, row.id, pulled.state));
   };
 
-  await Promise.all((await accountsOf(job.orgId, 'mail')).map(sync));
+  await eachAccount(await accountsOf(job.orgId, 'mail'), (row) =>
+    sync(row).catch((error: unknown) => {
+      logger.error({ err: error, accountId: row.id }, 'mail sync failed');
+    }),
+  );
 };
 
 /** Asks each provider whether the organisation's accounts still work, once a day. */
 export const checkAccounts = async (job: PluginJobDelivery) => {
-  await Promise.all((await accountsOf(job.orgId)).map(checkAccount));
+  await eachAccount(await accountsOf(job.orgId), checkAccount);
 };
