@@ -209,6 +209,9 @@ export const useMessageChange = () => {
 export const usePinMessage = () =>
   useMutation(orpc.conversations.messages.pin.mutationOptions(useMessageChange()));
 
+export const useRetryMessage = () =>
+  useMutation(orpc.conversations.messages.retry.mutationOptions(useMessageChange()));
+
 export const useReact = () =>
   useMutation(orpc.conversations.messages.react.mutationOptions(useMessageChange()));
 

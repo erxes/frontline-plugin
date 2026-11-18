@@ -1,34 +1,13 @@
-import { IconArrowDown, IconPin } from '@tabler/icons-react';
+import { IconArrowDown } from '@tabler/icons-react';
 import { Button, cn, ScrollArea, Skeleton, Spinner, toIsoDay, useFormat } from 'erxes-ui';
 import { Fragment, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type CustomContainerComponentProps, Virtualizer, type VirtualizerHandle } from 'virtua';
-import { type Conversation, type Message, useMessages, usePinnedMessages } from './queries.ts';
+import { type Conversation, type Message, useMessages } from './queries.ts';
 import { LoadPage } from '~/shared/List.tsx';
 import { useCustomer } from '~/shared/Person.tsx';
 import { Bubble, continues } from './MessageBubble.tsx';
-
-/** The conversation's pinned messages, above its thread, as the old inbox kept them. */
-const Pinned = ({ conversationId }: { conversationId: string }) => {
-  const { t } = useTranslation('frontline');
-  const pinned = usePinnedMessages(conversationId).data?.messages ?? [];
-
-  if (pinned.length === 0) return null;
-
-  return (
-    <section
-      aria-label={t('pinned-messages', 'Pinned messages')}
-      className="flex flex-col gap-1 border-b bg-muted px-4 py-2"
-    >
-      {pinned.map((message) => (
-        <p key={message.id} className="flex items-center gap-2 truncate text-xs">
-          <IconPin className="size-3 shrink-0" aria-hidden />
-          {message.content}
-        </p>
-      ))}
-    </section>
-  );
-};
+import { PinnedBar } from './PinnedBar.tsx';
 
 /** The day a run of messages was sent: Today, Yesterday or its date. */
 const DayDivider = ({ date }: { date: Date }) => {
@@ -228,7 +207,19 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
 
   return (
     <>
-      <Pinned conversationId={conversation.id} />
+      <PinnedBar
+        conversationId={conversation.id}
+        // A pinned message not loaded yet is further up: the top loads the earlier ones.
+        onJump={(id) =>
+          rows.current?.scrollToIndex(
+            Math.max(
+              0,
+              messages.findIndex((message) => message.id === id),
+            ),
+            { align: 'center', smooth: true },
+          )
+        }
+      />
       <ScrollArea.Root className="relative min-h-0 flex-1">
         <ScrollArea.Viewport ref={viewport}>
           {thread.error && messages.length === 0 ? (
