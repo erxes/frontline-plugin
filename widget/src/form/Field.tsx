@@ -92,6 +92,36 @@ const TextInput = ({ field, value, onChange }: InputProps) => {
   }
 };
 
+/**
+ * A long list's input: the visitor types and the browser offers the options that match. Text
+ * that isn't one of them can't be sent.
+ */
+const SearchSelect = ({ field, value, onChange }: InputProps) => (
+  <>
+    <input
+      id={field.id}
+      list={`${field.id}-options`}
+      required={field.isRequired}
+      autocomplete="off"
+      placeholder={field.placeholder || 'Type to search'}
+      value={textOf(value)}
+      onInput={(event) => {
+        const input = event.currentTarget;
+
+        input.setCustomValidity(
+          input.value && !field.options.includes(input.value) ? 'Pick one of the options' : '',
+        );
+        onChange(input.value);
+      }}
+    />
+    <datalist id={`${field.id}-options`}>
+      {field.options.map((option) => (
+        <option key={option} value={option} />
+      ))}
+    </datalist>
+  </>
+);
+
 /** The input a field of its type takes. */
 const Input = ({ field, value, onChange }: InputProps) => {
   const common = { id: field.id, required: field.isRequired, placeholder: field.placeholder ?? '' };
@@ -128,7 +158,9 @@ const Input = ({ field, value, onChange }: InputProps) => {
     case 'select':
     case 'select:countries':
     case 'core:customer:sex':
-      return (
+      return field.allowSearch ? (
+        <SearchSelect field={field} value={value} onChange={onChange} />
+      ) : (
         <select
           id={field.id}
           required={field.isRequired}

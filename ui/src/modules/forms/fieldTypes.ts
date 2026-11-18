@@ -158,17 +158,6 @@ export const useFieldTypeNames = (): Record<FieldType, string> => {
   };
 };
 
-/** A type's name, or the stored type itself for one this list lacks. */
-export const useFieldTypeName = () => {
-  const names = useFieldTypeNames();
-
-  return (type: string) => {
-    const known = FIELD_TYPES.find((each) => each === type);
-
-    return known ? names[known] : type;
-  };
-};
-
 /** A preset validator as members read it. */
 export const usePresetNames = (): Record<(typeof PRESETS)[number], string> => {
   const { t } = useTranslation('frontline');

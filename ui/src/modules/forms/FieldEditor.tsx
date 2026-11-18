@@ -1,160 +1,64 @@
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { IconChevronDown, IconChevronRight, IconForms, IconTrash } from '@tabler/icons-react';
+import { IconChevronDown, IconChevronRight, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import {
-  Button,
-  cn,
-  Collapsible,
-  DragHandle,
-  Input,
-  Label,
-  Select,
-  StringArrayInput,
-  Switch,
-  TextField,
-} from 'erxes-ui';
+import { Button, cn, Collapsible, DragHandle, Label, Select, Switch, TextField } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { FieldRules } from './FieldRules.tsx';
-import {
-  FIELD_ICONS,
-  FIELD_TYPES,
-  PICK_TYPES,
-  PRESETS,
-  takesValidator,
-  useFieldTypeName,
-  usePresetNames,
-} from './fieldTypes.ts';
+import { FieldSettings } from './FieldSettings.tsx';
+import { FIELD_ICONS, FIELD_TYPES, useFieldTypeNames } from './fieldTypes.ts';
 import { type FormField, useFormChange } from './useForms.ts';
 
-type Validator = FormField['validator'];
-
-/** How the field's text answers are checked: not at all, by a preset, or by a pattern. */
-const ValidatorSetting = ({
-  validator,
-  save,
-}: {
-  validator: Validator;
-  save: (validator: Validator) => void;
-}) => {
+/** The field's type, changed in place; its label, settings and answers stay. */
+const TypeSelect = ({ field }: { field: FormField }) => {
   const { t } = useTranslation('frontline');
-  const presets = usePresetNames();
-  const picked = validator?.type === 'custom' ? 'custom' : (validator?.preset ?? 'none');
-
-  return (
-    <div className="flex flex-col gap-2">
-      <Label>{t('field-validation', 'Validation')}</Label>
-      <Select
-        value={picked}
-        onValueChange={(next) => {
-          const preset = PRESETS.find((each) => each === next);
-
-          if (preset) save({ type: 'preset', preset });
-          else if (next === 'custom') save({ type: 'custom', pattern: '.*' });
-          else save(null);
-        }}
-      >
-        <Select.Trigger aria-label={t('field-validation', 'Validation')}>
-          <Select.Value />
-        </Select.Trigger>
-        <Select.Content>
-          <Select.Item value="none">{t('field-validation-none', 'None')}</Select.Item>
-          {PRESETS.map((preset) => (
-            <Select.Item key={preset} value={preset}>
-              {presets[preset]}
-            </Select.Item>
-          ))}
-          <Select.Item value="custom">{t('field-validation-custom', 'Pattern')}</Select.Item>
-        </Select.Content>
-      </Select>
-      {validator?.type === 'custom' && (
-        <Input
-          aria-label={t('field-pattern', 'Pattern')}
-          defaultValue={validator.pattern}
-          onBlur={(event) => {
-            const pattern = event.currentTarget.value;
-
-            if (pattern && pattern !== validator.pattern) save({ ...validator, pattern });
-          }}
-        />
-      )}
-    </div>
-  );
-};
-
-/** The settings a field folds open to: its help text, choices, validation and rules. */
-const FieldSettings = ({ field, fields }: { field: FormField; fields: FormField[] }) => {
-  const { t } = useTranslation('frontline');
+  const names = useFieldTypeNames();
   const update = useMutation(orpc.forms.fields.update.mutationOptions(useFormChange()));
-  // Held here as typed, so an option entered before the last one's save returns isn't lost.
-  const [options, setOptions] = useState(() => field.options);
-
-  const save = (change: Omit<Parameters<typeof update.mutate>[0], 'id'>) =>
-    update.mutate({ id: field.id, ...change });
 
   return (
-    <div className="grid grid-cols-1 gap-4 border-t p-3 sm:grid-cols-2">
-      <div className="flex flex-col gap-2">
-        <Label>{t('description', 'Description')}</Label>
-        <TextField
-          scope={`frontline-field.${field.id}.description`}
-          value={field.description ?? ''}
-          placeholder={t('field-description-hint', 'Help text under the field')}
-          onSave={(description) => save({ description: description.trim() })}
-        />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Label>{t('field-placeholder', 'Placeholder')}</Label>
-        <TextField
-          scope={`frontline-field.${field.id}.placeholder`}
-          value={field.placeholder ?? ''}
-          placeholder={t('field-placeholder', 'Placeholder')}
-          onSave={(placeholder) => save({ placeholder: placeholder.trim() })}
-        />
-      </div>
-      {PICK_TYPES.includes(field.type) && (
-        <div className="flex flex-col gap-2 sm:col-span-2">
-          <Label>{t('field-options', 'Options')}</Label>
-          <StringArrayInput
-            value={options}
-            onValueChange={(next) => {
-              setOptions(next);
-              save({ options: next });
-            }}
-            placeholder={t('field-add-option', 'Type an option and press Enter')}
-          />
-        </div>
-      )}
-      {takesValidator(field) && (
-        <ValidatorSetting validator={field.validator} save={(validator) => save({ validator })} />
-      )}
-      <div className="sm:col-span-2">
-        <FieldRules field={field} fields={fields} save={save} />
-      </div>
-    </div>
+    <Select
+      value={field.type}
+      onValueChange={(type) => {
+        const known = FIELD_TYPES.find((each) => each === type);
+
+        if (known && known !== field.type) update.mutate({ id: field.id, type: known });
+      }}
+    >
+      <Select.Trigger
+        className="w-40 shrink-0"
+        aria-label={t('field-type', 'Type of {{label}}', { label: field.label })}
+      >
+        <Select.Value />
+      </Select.Trigger>
+      <Select.Content>
+        {FIELD_TYPES.map((type) => {
+          const TypeIcon = FIELD_ICONS[type];
+
+          return (
+            <Select.Item key={type} value={type}>
+              <TypeIcon />
+              {names[type]}
+            </Select.Item>
+          );
+        })}
+      </Select.Content>
+    </Select>
   );
 };
 
 /** The end of a field's row: its type, whether it's required, and removing it. */
 const FieldRowEnd = ({ field, canManage }: { field: FormField; canManage: boolean }) => {
   const { t } = useTranslation('frontline');
-  const typeName = useFieldTypeName();
   const change = useFormChange();
   const update = useMutation(orpc.forms.fields.update.mutationOptions(change));
   const remove = useMutation(orpc.forms.fields.remove.mutationOptions(change));
   const requiredId = `frontline-field-${field.id}-required`;
-  const known = FIELD_TYPES.find((type) => type === field.type);
-  const TypeIcon = known ? FIELD_ICONS[known] : IconForms;
 
   return (
     <>
-      <span className="flex w-36 shrink-0 items-center gap-1.5 text-xs text-muted-foreground">
-        <TypeIcon className="size-4 shrink-0" />
-        <span className="truncate">{typeName(field.type)}</span>
-      </span>
-      <div className="flex shrink-0 items-center gap-2">
+      <TypeSelect field={field} />
+      <div className="flex shrink-0 items-center gap-2 px-1">
         <Switch
           id={requiredId}
           checked={field.isRequired}
@@ -178,8 +82,8 @@ const FieldRowEnd = ({ field, canManage }: { field: FormField; canManage: boolea
 
 /**
  * One field of the builder, edited in place and dragged by its handle, within its step or to
- * another: its label and whether it's required in the row, the rest folded under it. Each change
- * saves as it's made.
+ * another: its label, type and whether it's required in the row, the rest folded under it. Each
+ * change saves as it's made.
  */
 export const FieldEditor = ({
   field,

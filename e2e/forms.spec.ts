@@ -59,9 +59,13 @@ const buildFields = async (page: Page) => {
   await page.keyboard.press('Enter');
   await page.getByPlaceholder('Type an option and press Enter').fill('Team');
   await page.keyboard.press('Enter');
+  // Visitors type to find a plan instead of opening a list.
+  await page.getByRole('switch', { name: 'Visitors type to find one' }).click();
+  await expect(page.getByRole('switch', { name: 'Visitors type to find one' })).toBeChecked();
   await page.getByRole('button', { name: 'Settings of Plan' }).click();
   await addField(page, 'Number', 'Seats');
   await page.getByRole('button', { name: 'Settings of Seats' }).click();
+  await pick(page, page.getByRole('combobox', { name: 'Width' }), 'Half width');
   await pick(page, page.getByRole('combobox', { name: 'Shows' }), 'Only when every rule holds');
   await page.getByRole('button', { name: 'Add rule' }).click();
   // A rule on a dropdown compares a picked option, so it offers is and is not, and Plan's options.
@@ -114,7 +118,7 @@ const sendAsVisitor = async (page: Page, request: APIRequestContext, name: strin
     const form = site.shop.getByRole('form', { name: 'Book a demo' });
 
     await expect(form.getByLabel('Seats')).toBeHidden();
-    await form.getByLabel('Plan').selectOption('Team');
+    await form.getByLabel('Plan').fill('Team');
     await form.getByLabel('Seats').fill('5');
 
     await form.getByRole('button', { name: 'Ask' }).click();
