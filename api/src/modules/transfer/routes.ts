@@ -5,6 +5,7 @@ import { signedByCore } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { logger } from '#/logger.ts';
 import { fail, verifiedBy } from '../fail.ts';
+import { exportSubmissions, importSubmissions, SUBMISSION_COLUMNS } from './submissions.ts';
 import { exportTickets, importTickets, TICKET_COLUMNS } from './tickets.ts';
 
 /** What the plugin offers core's Import & export: each record type with its two halves. */
@@ -15,6 +16,13 @@ const TYPES = [
     columns: TICKET_COLUMNS,
     exports: exportTickets,
     imports: importTickets,
+  },
+  {
+    type: 'frontline:form_submission',
+    label: 'Form submissions',
+    columns: SUBMISSION_COLUMNS,
+    exports: exportSubmissions,
+    imports: importSubmissions,
   },
 ] as const;
 

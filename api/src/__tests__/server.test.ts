@@ -80,7 +80,7 @@ describe('server', () => {
     expect(await response.json()).toMatchObject({ channels: [] });
   });
 
-  it('imports and exports tickets for core, once per request', async () => {
+  it('imports and exports tickets and form submissions for core, once per request', async () => {
     const orgId = `org-${randomUUID()}`;
     const owner = clientAs(orgId);
     const channel = await owner.channels.create({ name: 'Support', memberIds: ['user-1'] });
@@ -154,6 +154,45 @@ describe('server', () => {
     const forged = await post('import', { ...batch, dryRun: false }, randomUUID(), '{}');
 
     expect(forged.status).toBe(401);
+
+    const form = await owner.forms.create({ channelId: channel.id, name: 'Contact' });
+    const field = await owner.forms.fields.add({ formId: form.id, type: 'text', label: 'Topic' });
+    const submission = { type: 'frontline:form_submission' };
+
+    const imported = await post('import', {
+      ...submission,
+      importId: randomUUID(),
+      mode: 'create',
+      dryRun: false,
+      rows: [
+        { rowNumber: 2, values: { form: 'contact', answers: 'Topic: refund; still waiting' } },
+        { rowNumber: 3, values: { form: 'Elsewhere' } },
+      ],
+    });
+
+    expect(await imported.json()).toMatchObject({
+      rows: [
+        { rowNumber: 2, action: 'create' },
+        { rowNumber: 3, action: 'error', error: 'No form Elsewhere in your channels' },
+      ],
+    });
+
+    const { submissions } = await owner.forms.submissions.list({ formId: form.id });
+
+    expect(submissions).toMatchObject([{ answers: { [field.id]: 'refund; still waiting' } }]);
+
+    const exported = await post('export', {
+      ...submission,
+      columns: ['form', 'answers'],
+      query: {},
+      cursor: null,
+      limit: 10,
+    });
+
+    expect(await exported.json()).toEqual({
+      cursor: null,
+      rows: [{ form: 'Contact', answers: ['Topic: refund; still waiting'] }],
+    });
   });
 
   it.each(['/api/rpc', '/api/v1', '/ui'])(
