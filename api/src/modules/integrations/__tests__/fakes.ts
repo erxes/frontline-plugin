@@ -1,4 +1,4 @@
-import { createHmac } from 'node:crypto';
+import { createHmac, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, vi } from 'vite-plus/test';
 import { z } from 'zod';
@@ -326,7 +326,8 @@ export const graphApi = (call: ProviderCall) => {
       ],
     };
 
-  if (path === 'me/messages') return { recipient_id: 'psid-1', message_id: 'm_sent' };
+  // Each message Messenger takes gets an id of its own, as Meta gives one.
+  if (path === 'me/messages') return { recipient_id: 'psid-1', message_id: `m_${randomUUID()}` };
 
   // The profile of the person behind psid-1, which Messenger's events leave out.
   if (path === 'psid-1') return { id: 'psid-1', first_name: 'Bat', last_name: 'Erdene' };

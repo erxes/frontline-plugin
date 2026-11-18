@@ -14,6 +14,7 @@ import { orderOf, PageInput } from '../paging.ts';
 import { Content, Html, writtenText } from './html.ts';
 import { messageColumns, postMessage, queueSend } from './post.ts';
 import { Reaction, reactionsOf } from './reactions.ts';
+import { withoutParts } from './send.ts';
 import {
   conversationById,
   conversationsFor,
@@ -168,7 +169,12 @@ const update = writes(PERMISSIONS.inboxView)
 
     const [updated] = await tx
       .update(messages)
-      .set({ content: text.content, html: text.html, editedAt: new Date() })
+      .set({
+        content: text.content,
+        html: text.html,
+        editedAt: new Date(),
+        providerData: withoutParts,
+      })
       .where(eq(messages.id, input.id))
       .returning(messageColumns);
 

@@ -43,13 +43,16 @@ describe('messenger replies', () => {
     await withOrg('org-fb-b', (tx) =>
       tx.execute(sql`update frontline_messages set created_at = now() - interval '2 days'`),
     );
+    const late = { messaging_type: 'MESSAGE_TAG', tag: 'HUMAN_AGENT' };
+
     await owner.conversations.messages.create({ conversationId, content: 'Sorry for the wait' });
     await runQueued();
+    expect(lastPost(calls)?.body).toMatchObject(late);
 
-    expect(lastPost(calls)?.body).toMatchObject({
-      messaging_type: 'MESSAGE_TAG',
-      tag: 'HUMAN_AGENT',
-    });
+    // The window runs from the customer's message, not from the team's last reply.
+    await owner.conversations.messages.create({ conversationId, content: 'It ships today' });
+    await runQueued();
+    expect(lastPost(calls)?.body).toMatchObject(late);
   });
 
   it('sends a reply and its files once, however often its job runs', async () => {

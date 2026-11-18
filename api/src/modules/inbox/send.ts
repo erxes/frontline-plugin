@@ -1,5 +1,5 @@
 import type { PluginJobDelivery } from '@erxes/core-contract';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { SEND_ATTEMPTS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
@@ -39,16 +39,20 @@ const outgoingOf = (orgId: string, messageId: string) =>
     return row;
   });
 
-/** Takes the queued reply for this attempt as `sending`; false when another attempt has it. */
+/**
+ * Takes the queued reply for this attempt as `sending`, and returns what its provider stored on
+ * it as of the claim, or nothing when another attempt has it. An attempt sends from this, not
+ * from a read before the claim, which another attempt may have outdated since.
+ */
 const claim = (orgId: string, messageId: string) =>
   withOrg(orgId, async (tx) => {
-    const claimed = await tx
+    const [claimed] = await tx
       .update(messages)
       .set({ deliveryStatus: 'sending' })
       .where(and(eq(messages.id, messageId), eq(messages.deliveryStatus, 'queued')))
-      .returning({ id: messages.id });
+      .returning({ providerData: messages.providerData });
 
-    return claimed.length > 0;
+    return claimed;
   });
 
 /** Changes the reply's delivery, only while it is `from` when that is given, and says so. */
@@ -56,7 +60,11 @@ const settle = (
   orgId: string,
   messageId: string,
   conversation: { id: string; customerId: string },
-  change: { deliveryStatus: 'queued' | 'sent' | 'failed'; externalId?: string | null },
+  change: {
+    deliveryStatus: 'queued' | 'sent' | 'failed';
+    externalId?: string | null;
+    providerData?: SQL;
+  },
   from?: 'sending',
 ) =>
   withOrg(orgId, async (tx) => {
@@ -66,6 +74,13 @@ const settle = (
       .where(and(eq(messages.id, messageId), from ? eq(messages.deliveryStatus, from) : undefined));
     await signalConversations(tx, orgId, [conversation]);
   });
+
+/**
+ * The reply's provider data without the parts sent so far, and null when nothing else is left.
+ * A sent reply drops them, so the next reply never takes it for the message it answers, and an
+ * edited one drops them, so Send again sends the edited text too.
+ */
+export const withoutParts = sql`nullif(${messages.providerData} - 'parts', '{}'::jsonb)`;
 
 /** Keeps the provider's ids of the parts of the reply sent so far, for an attempt after this. */
 const recordParts = (orgId: string, messageId: string) => (sent: string[]) =>
@@ -97,16 +112,19 @@ export const sendReply = async (job: PluginJobDelivery) => {
   if (row?.message.deliveryStatus === 'sending')
     return settle(job.orgId, messageId, row.conversation, { deliveryStatus: 'failed' }, 'sending');
 
-  if (row?.message.deliveryStatus !== 'queued' || !(await claim(job.orgId, messageId))) return;
+  const claimed = row?.message.deliveryStatus === 'queued' && (await claim(job.orgId, messageId));
+
+  if (!row || !claimed) return;
 
   const send = ADAPTERS.get(row.integration.kind)?.send;
 
   if (!send) return settle(job.orgId, messageId, row.conversation, { deliveryStatus: 'sent' });
 
+  const outgoing = { ...row, message: { ...row.message, providerData: claimed.providerData } };
   let externalId: string | null;
 
   try {
-    const deliver = await withOrg(job.orgId, (tx) => send(tx, row));
+    const deliver = await withOrg(job.orgId, (tx) => send(tx, outgoing));
 
     ({ externalId } = await deliver(recordParts(job.orgId, messageId)));
   } catch (error) {
@@ -129,5 +147,9 @@ export const sendReply = async (job: PluginJobDelivery) => {
     throw error;
   }
 
-  await settle(job.orgId, messageId, row.conversation, { deliveryStatus: 'sent', externalId });
+  await settle(job.orgId, messageId, row.conversation, {
+    deliveryStatus: 'sent',
+    externalId,
+    providerData: withoutParts,
+  });
 };
