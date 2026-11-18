@@ -121,18 +121,28 @@ test('a conversation tile number opens the conversations it counts in the inbox'
   // Resolved, so it shows only where the link names every status.
   await rpc('conversations/setStatus', { ids: [conversationId], status: 'resolved' }, z.array(Id));
 
-  await addTiles(page, ['Conversation summary']);
+  await addTiles(page, ['Conversation summary', 'Conversations by source']);
 
-  const tile = tileOf(page, 'Conversation summary');
+  const opens = async (tile: string, link: RegExp) => {
+    await tileOf(page, tile).getByRole('link', { name: link }).click();
+    await expect(page).toHaveURL(/\/frontline\/inbox/);
+  };
 
-  await tile.getByRole('link', { name: /^Started: / }).click();
-  await expect(page).toHaveURL(/\/frontline\/inbox\?/);
+  await opens('Conversation summary', /^Started: /);
   await expect(page.getByText(question)).toBeVisible();
 
   await page.goBack();
-  await tileOf(page, 'Conversation summary')
-    .getByRole('link', { name: /^Resolved: / })
-    .click();
+  await opens('Conversation summary', /^Resolved: /);
+  await expect(page.getByText(question)).toBeVisible();
+
+  // Unresolved now is the inbox as it opens, which leaves the resolved question out.
+  await page.goBack();
+  await opens('Conversation summary', /^Unresolved now: /);
+  await expect(page.getByText(/^\d+ records?$/)).toBeVisible();
+  await expect(page.getByText(question)).toHaveCount(0);
+
+  await page.goBack();
+  await opens('Conversations by source', /^Messenger/);
   await expect(page.getByText(question)).toBeVisible();
 });
 

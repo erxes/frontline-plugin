@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { MemberLine } from '~/shared/Person.tsx';
 import { useKindNames } from '~/shared/kinds.tsx';
 import { DayChart } from './Charts.tsx';
-import { useConversationLinks } from './conversationLinks.ts';
+import { conversationLinks } from './conversationLinks.ts';
 import { useConversationReport } from './queries.ts';
 import { BarList, MiniTable, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
 
@@ -12,9 +12,8 @@ export const ConversationSummary = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
-  const conversationReport = useConversationReport('conversation-summary');
-  const { period, query } = conversationReport;
-  const links = useConversationLinks(conversationReport);
+  const { period, query } = useConversationReport('conversation-summary');
+  const links = conversationLinks(period.range);
 
   return (
     <Tile period={period} query={query}>
@@ -74,9 +73,8 @@ export const ConversationsOverTime = () => {
 export const ConversationsBySource = () => {
   const { t } = useTranslation('frontline');
   const kinds = useKindNames();
-  const conversationReport = useConversationReport('conversations-by-source');
-  const { period, query } = conversationReport;
-  const links = useConversationLinks(conversationReport);
+  const { period, query } = useConversationReport('conversations-by-source');
+  const links = conversationLinks(period.range);
 
   return (
     <Tile period={period} query={query}>
@@ -103,9 +101,8 @@ export const ConversationsBySource = () => {
 /** The tags on the period's conversations, the most used first. */
 export const ConversationsByTag = () => {
   const { t } = useTranslation('frontline');
-  const conversationReport = useConversationReport('conversations-by-tag');
-  const { period, query } = conversationReport;
-  const links = useConversationLinks(conversationReport);
+  const { period, query } = useConversationReport('conversations-by-tag');
+  const links = conversationLinks(period.range);
 
   return (
     <Tile period={period} query={query}>

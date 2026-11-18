@@ -7,6 +7,8 @@ export const PIPELINE_PARAM = 'pipeline';
 
 export const TICKETS_PATH = `/${PLUGIN}/tickets`;
 
+export const INBOX_PATH = `/${PLUGIN}/inbox`;
+
 const serialize = createSerializer({ ...listFilterQuery, [PIPELINE_PARAM]: parseAsString });
 
 /** The rules that keep a date field `path` within the days from `from` to `to`, both included. */

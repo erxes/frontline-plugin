@@ -10,16 +10,13 @@ import {
   useFormat,
 } from 'erxes-ui';
 import { useAtom } from 'jotai';
-import { createSerializer, useQueryStates } from 'nuqs';
+import { useQueryStates } from 'nuqs';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
-
-export const INBOX = `/${PLUGIN}/inbox`;
-
-const inboxLink = createSerializer(listFilterQuery);
+import { INBOX_PATH, listPath } from '~/shared/listPath.ts';
 
 /** Whether each sidebar group is open, remembered in the browser as the old sidebar did. */
 const groupOpen = storedFamily({
@@ -56,13 +53,13 @@ export const Count = ({ count, beforeAction }: { count: number; beforeAction?: b
   );
 };
 
-/** Whether the inbox shows `filter` now, and the link that turns it on, or off when it is. */
-export const useFilterLink = (filter: TConditionGroup) => {
+/** Whether the inbox shows `rules` now, and the link that turns them on, or off when they are. */
+export const useFilterLink = (...rules: TConditionRule[]) => {
   const { pathname } = useLocation();
   const open = useOpenFilter();
-  const active = pathname === INBOX && open === JSON.stringify(filter);
+  const active = pathname === INBOX_PATH && open === JSON.stringify(filterOf(...rules));
 
-  return { active, to: active ? INBOX : inboxLink(INBOX, { advanced: filter }) };
+  return { active, to: active ? INBOX_PATH : listPath(INBOX_PATH, ...rules) };
 };
 
 /**
@@ -85,7 +82,7 @@ export const FilterLink = ({
   action?: ReactNode;
   children?: ReactNode;
 }) => {
-  const { active, to } = useFilterLink(filterOf(rule));
+  const { active, to } = useFilterLink(rule);
 
   return (
     <Sidebar.MenuItem>

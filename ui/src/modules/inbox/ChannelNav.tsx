@@ -50,7 +50,7 @@ const KindLink = ({
   count: number;
 }) => {
   const kinds = useKindNames();
-  const { active, to } = useFilterLink(filterOf(channelRule(channelId), kindRule(kind)));
+  const { active, to } = useFilterLink(channelRule(channelId), kindRule(kind));
 
   return (
     <Sidebar.SubItem>
