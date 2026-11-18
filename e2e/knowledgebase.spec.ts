@@ -1,5 +1,13 @@
 import type { Page } from '@playwright/test';
-import { confirmDelete, expect, newRecordPath, recordPanel, test, unique } from './fixtures.ts';
+import {
+  confirmDelete,
+  expect,
+  expectPage,
+  newRecordPath,
+  recordPanel,
+  test,
+  unique,
+} from './fixtures.ts';
 
 const KB = '/frontline/knowledgebase';
 
@@ -15,9 +23,7 @@ const newTopic = async (page: Page, title: string) => {
   // The topic takes the draft's place in the panel, and joins the cards; its card opens its articles.
   await expect(panel.getByRole('button', { name: `Title ${title}`, exact: true })).toBeVisible();
   await page.getByRole('link', { name: title, exact: true }).click();
-  await expect(page).toHaveURL(/\/knowledgebase\/[^/]+\/articles$/);
-  // The topic cards say "No articles yet" too, and stay on screen until the articles page renders.
-  await expect(page.getByText('Write the first article of this topic.')).toBeVisible();
+  await expectPage(page, 'Articles');
 
   return page.url();
 };

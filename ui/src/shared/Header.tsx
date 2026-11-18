@@ -7,7 +7,8 @@ export type Crumb = { label: string; to?: string };
 
 /**
  * One level of the breadcrumb: a ghost link, or the page itself when it has no `to`, its icon
- * sized as a ghost button sizes it.
+ * sized as a ghost button sizes it. The page is the screen's one heading, so a reader can jump
+ * to it and a spec can tell this page from the one before it.
  */
 const Level = ({ to, children }: { to?: string; children: ReactNode }) =>
   to ? (
@@ -15,9 +16,9 @@ const Level = ({ to, children }: { to?: string; children: ReactNode }) =>
       {children}
     </Link>
   ) : (
-    <span className="flex h-8 min-w-0 items-center gap-1.5 px-3 text-sm font-medium [&_svg]:size-4 [&_svg]:shrink-0">
+    <h1 className="flex h-8 min-w-0 items-center gap-1.5 px-3 text-sm font-medium [&_svg]:size-4 [&_svg]:shrink-0">
       {children}
-    </span>
+    </h1>
   );
 
 /**

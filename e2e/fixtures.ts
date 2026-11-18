@@ -33,6 +33,14 @@ export const unique = () => randomBytes(3).toString('hex');
 /** Core's side panel, where records open and new ones are drafted. */
 export const recordPanel = (page: Page) => page.locator('aside[data-record-side-panel]');
 
+/**
+ * Waits for the page called `name`: the last crumb of its header, its one heading. A link
+ * keeps the page it leaves on screen until the next one renders, so text both pages show
+ * proves nothing about where the browser is.
+ */
+export const expectPage = (page: Page, name: string) =>
+  expect(page.getByRole('heading', { level: 1, name, exact: true })).toBeVisible();
+
 /** A list page with a new record of `contentType` drafted in core's side panel. */
 export const newRecordPath = (list: string, contentType: string) =>
   `${list}?${new URLSearchParams({ panel: `/detail/${contentType}/new` }).toString()}`;
