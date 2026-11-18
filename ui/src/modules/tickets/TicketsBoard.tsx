@@ -13,8 +13,8 @@ import { type Ticket, type TicketRowActions, useTicketRowActions, useTickets } f
 type Status = ReturnType<typeof usePipelineStatuses>[number];
 
 /**
- * A ticket on the board, as the old board's card: its number and name, its SLA, tags and
- * properties, and under them its priority, target date and assignee, each changed on the card.
+ * A ticket on the board, as the old board's card: its number and name, its target date, SLA,
+ * tags and properties, and under them its priority and assignee, each changed on the card.
  * Drag it anywhere on it to another status; click it to open it.
  */
 const TicketCard = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
@@ -27,15 +27,9 @@ const TicketCard = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) 
       title={ticket.name}
       onOpen={() => open({ contentType: TICKET_TYPE, contentId: ticket.id })}
       footer={
-        <div className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground">
+        <div className="flex min-w-0 items-center gap-1 text-xs">
           <PriorityCell ticket={ticket} act={act} />
-          {ticket.targetDate && (
-            <span className="flex shrink-0 items-center gap-1">
-              <IconCalendarX className="size-3.5" />
-              {format.date(ticket.targetDate)}
-            </span>
-          )}
-          <span className="ml-auto min-w-0 max-w-36">
+          <span className="ml-auto min-w-0 max-w-40">
             <AssigneeCell ticket={ticket} act={act} />
           </span>
           <TicketMenu ticket={ticket} act={act} />
@@ -49,6 +43,12 @@ const TicketCard = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) 
         {ticket.name}
       </span>
       <span className="flex flex-wrap items-center gap-1.5 text-xs empty:hidden">
+        {ticket.targetDate && (
+          <span className="flex items-center gap-1 text-muted-foreground">
+            <IconCalendarX className="size-3.5" />
+            {format.date(ticket.targetDate)}
+          </span>
+        )}
         <SlaBadge ticket={ticket} />
         <TicketTags tagIds={ticket.tagIds} max={3} />
       </span>
