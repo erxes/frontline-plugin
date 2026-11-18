@@ -1,7 +1,15 @@
 import { contactQueries } from '@erxes/core-contract/client';
 import { IconMail, IconMessages, IconPhone, IconTicket, IconUser } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { Badge, Button, IconTip, PanelSection, RelativeDateDisplay, stored } from 'erxes-ui';
+import {
+  Badge,
+  Button,
+  IconTip,
+  PanelSection,
+  RelativeDateDisplay,
+  stored,
+  useOpenRecord,
+} from 'erxes-ui';
 import { useAtom } from 'jotai';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -108,10 +116,14 @@ const openPanel = stored({
  * Beside the open conversation, as the old inbox's side widget: a thin rail of icons, each
  * opening one panel, the customer, their tickets or their other conversations. Tickets shows
  * only to a member who may read them, and asks for the customer's tickets only once opened.
+ * While core's panel beside the page holds a record, such as the conversation's details, this
+ * one folds to its rail so the conversation keeps its width; a rail button closes core's panel.
  */
 export const CustomerSidebar = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const [panel, setPanel] = useAtom(openPanel);
+  const { current, dismiss } = useOpenRecord();
+  const shown = current ? null : panel;
   const contacts = { customerIds: [conversation.customerId], companyIds: [] };
   const ticketsAllowed = useTicketsReadable();
 
@@ -129,18 +141,18 @@ export const CustomerSidebar = ({ conversation }: { conversation: Conversation }
 
   return (
     <>
-      {panel && (panel !== 'tickets' || ticketsAllowed) && (
+      {shown && (shown !== 'tickets' || ticketsAllowed) && (
         <aside
           aria-label={t('customer-details', 'Customer details')}
           className="flex w-72 shrink-0 flex-col overflow-y-auto border-l"
         >
-          {panel === 'customer' && <Customer conversation={conversation} />}
-          {panel === 'tickets' && (
+          {shown === 'customer' && <Customer conversation={conversation} />}
+          {shown === 'tickets' && (
             <PanelSection title={t('tickets', 'Tickets')} icon={IconTicket}>
               <TicketRelations {...contacts} />
             </PanelSection>
           )}
-          {panel === 'conversations' && <OtherConversations conversation={conversation} />}
+          {shown === 'conversations' && <OtherConversations conversation={conversation} />}
         </aside>
       )}
       <div
@@ -152,11 +164,14 @@ export const CustomerSidebar = ({ conversation }: { conversation: Conversation }
         {rail.map(({ id, icon: Icon, label }) => (
           <IconTip key={id} label={label}>
             <Button
-              variant={panel === id ? 'secondary' : 'ghost'}
+              variant={shown === id ? 'secondary' : 'ghost'}
               size="icon"
               aria-label={label}
-              aria-pressed={panel === id}
-              onClick={() => setPanel(panel === id ? null : id)}
+              aria-pressed={shown === id}
+              onClick={() => {
+                if (current) dismiss(current);
+                setPanel(shown === id ? null : id);
+              }}
             >
               <Icon />
             </Button>

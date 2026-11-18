@@ -54,7 +54,7 @@ export const TagEditor = ({
                 {children}
               </>
             ) : (
-              label
+              <span className="truncate">{label}</span>
             )}
           </Button>
         }
@@ -171,7 +171,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
   const { open } = useOpenRecord();
 
   return (
-    <header className="flex h-12 shrink-0 items-center gap-2 border-b px-3">
+    <header className="@container flex h-12 shrink-0 items-center gap-2 border-b px-3">
       <ListToggle />
       <span className="flex min-w-0">
         <ContactChip contentId={conversation.customerId} placeholder={t('visitor', 'Visitor')} />
@@ -221,7 +221,10 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         }
       >
         {resolved ? <IconRefresh /> : <IconCheck />}
-        {resolved ? t('reopen', 'Reopen') : t('resolve', 'Resolve')}
+        {/* A narrow header keeps the icon, so the customer and the assignee keep their names. */}
+        <span className="sr-only @xl:not-sr-only">
+          {resolved ? t('reopen', 'Reopen') : t('resolve', 'Resolve')}
+        </span>
       </Button>
       {conversation.kind === 'messenger' && <ConversationMenu conversation={conversation} />}
     </header>
