@@ -1,6 +1,6 @@
 import type { z } from 'zod';
 import type { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
-import type { Attachment } from '#/db/table.ts';
+import type { StoredFile } from '#/db/table.ts';
 import { openSecret } from './secrets.ts';
 
 export type ProviderName = (typeof PROVIDERS)[number];
@@ -25,7 +25,7 @@ export interface InboundMessage {
   text: string;
   /** What only the provider's own code reads back, such as a mail's subject. */
   providerData?: Record<string, unknown>;
-  attachments: Attachment[];
+  attachments: StoredFile[];
   /** The manifest event automations start from, published with the message when it is new. */
   event?: string;
 }
@@ -69,7 +69,7 @@ export interface OutboundMessage {
   text: string;
   /** The member's rich text, for a provider that sends HTML; the others send `text`. */
   html: string | null;
-  attachments: Attachment[];
+  attachments: StoredFile[];
   /** What the provider's own code stored on this message, such as a new mail's subject. */
   providerData: Record<string, unknown> | null;
   /** The last message the reply answers: the customer's, or a new mail the thread began with. */

@@ -2,7 +2,7 @@ import { createHmac } from 'node:crypto';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { COMMENT_RECEIVED } from '#/core.ts';
-import type { Attachment } from '#/db/table.ts';
+import type { StoredFile } from '#/db/table.ts';
 import type { InboundMessage, InboundReaction, ProviderName, WebhookSource } from '../provider.ts';
 import { sameText } from '../secrets.ts';
 import { metaKey } from '../store.ts';
@@ -95,7 +95,7 @@ const signedByMeta = (raw: string, signature: unknown) => {
 };
 
 const filesOf = (attachments: z.infer<typeof Messaging>['message'] = { mid: '' }) =>
-  (attachments.attachments ?? []).flatMap(({ type, payload }): Attachment[] =>
+  (attachments.attachments ?? []).flatMap(({ type, payload }): StoredFile[] =>
     payload?.url ? [{ url: payload.url, name: payload.title ?? type, type }] : [],
   );
 

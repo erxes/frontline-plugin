@@ -15,7 +15,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { channels } from './schema.ts';
 import { tags } from './tags.ts';
-import { type Attachment, id, stamps, table } from './table.ts';
+import { type StoredFile, id, stamps, table } from './table.ts';
 
 /**
  * Where a channel's conversations come from: a messenger on a website, a Facebook page, a
@@ -161,7 +161,7 @@ export const messages = table(
     content: text().notNull().default(''),
     /** A member's rich text, sanitized, or null for plain text; `content` is its text. */
     html: text(),
-    attachments: jsonb().$type<Attachment[]>().notNull().default([]),
+    attachments: jsonb().$type<StoredFile[]>().notNull().default([]),
     internal: boolean().notNull().default(false),
     /** A core customer id. */
     customerId: text(),

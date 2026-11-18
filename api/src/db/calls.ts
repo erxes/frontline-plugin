@@ -12,7 +12,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { conversations } from './inbox.ts';
 import { integrationAccounts } from './integrations.ts';
-import { type Attachment, id, table } from './table.ts';
+import { type StoredFile, id, table } from './table.ts';
 
 /**
  * Phone calls through a connected PBX (provider `call`) or CallPro line (`callpro`). The
@@ -158,7 +158,7 @@ export const calls = table(
     endedAt: timestamp({ withTimezone: true }),
     durationSec: integer(),
     /** The recording on core's storage, once fetched from the PBX. */
-    recording: jsonb().$type<Attachment>(),
+    recording: jsonb().$type<StoredFile>(),
     /** The PBX's name for the recording, until it is fetched. */
     recordingFile: text(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),

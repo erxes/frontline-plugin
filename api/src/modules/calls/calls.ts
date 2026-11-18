@@ -9,7 +9,7 @@ import { CALL_DIRECTIONS, CALL_STATUSES, callQueues, calls } from '#/db/calls.ts
 import { conversations } from '#/db/inbox.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { channelMembers } from '#/db/schema.ts';
-import { Attachment } from '#/db/table.ts';
+import { StoredFile } from '#/db/table.ts';
 import { reads, writes } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
@@ -24,7 +24,7 @@ const { orgId: _orgId, ...callColumns } = getTableColumns(calls);
 const Call = createSelectSchema(calls, {
   direction: z.enum(CALL_DIRECTIONS),
   status: z.enum(CALL_STATUSES),
-  recording: () => Attachment.nullable(),
+  recording: () => StoredFile.nullable(),
 })
   .omit({ orgId: true })
   .extend({ accountName: z.string(), provider: z.string(), queueName: z.string().nullable() });

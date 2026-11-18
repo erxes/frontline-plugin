@@ -4,7 +4,7 @@ import { PLUGIN } from '#/config.ts';
 import { CONVERSATION_EVENTS, core, MESSAGE_RECEIVED_EVENT } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations, customerLinks, integrations, messages } from '#/db/inbox.ts';
-import type { Attachment } from '#/db/table.ts';
+import type { StoredFile } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import type { Person } from '../integrations/provider.ts';
 import { publishConversationEvents, signalConversations } from './shared.ts';
@@ -110,7 +110,7 @@ export type Incoming = {
   externalConversationId?: string;
   externalId?: string;
   content: string;
-  attachments?: Attachment[];
+  attachments?: StoredFile[];
   /** What only the adapter reads back, such as a mail's subject. */
   providerData?: Record<string, unknown>;
   /** The event type a new message publishes for automations to start from. */

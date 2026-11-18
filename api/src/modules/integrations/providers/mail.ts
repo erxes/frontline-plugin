@@ -1,9 +1,11 @@
+import { Readable } from 'node:stream';
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { createTransport } from 'nodemailer';
 import { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
 import { logger } from '#/logger.ts';
+import { attachedFile } from '#/modules/files.ts';
 import { defineProvider, type InboundMessage } from '../provider.ts';
 import { type Suppressed, suppressedAmong } from './mailSuppressions.ts';
 
@@ -37,6 +39,9 @@ const smtpTransport = (smtp: z.infer<typeof Server>, password: string) =>
     port: smtp.port,
     secure: smtp.secure,
     auth: { user: smtp.user, pass: password },
+    // Attachments go as the bytes core holds, so nodemailer reads no path or address itself.
+    disableFileAccess: true,
+    disableUrlAccess: true,
   });
 
 const firstAddress = (value: string | string[] | undefined) =>
@@ -310,6 +315,18 @@ export const mail = defineProvider({
 
     const answered = message.replyTo?.externalId;
 
+    const attachments = await Promise.all(
+      message.attachments.map(async (file) => {
+        const read = await attachedFile(row.orgId, file);
+
+        return {
+          filename: file.name,
+          contentType: read.contentType,
+          content: Readable.fromWeb(read.body),
+        };
+      }),
+    );
+
     const sent = await smtpTransport(config.smtp, secret.smtpPassword).sendMail({
       from: { name: row.name, address: row.externalId },
       to: message.to,
@@ -319,7 +336,7 @@ export const mail = defineProvider({
       html: message.html ?? undefined,
       inReplyTo: answered,
       references: [...new Set([root, answered].filter((id) => id !== undefined))],
-      attachments: message.attachments.map((file) => ({ filename: file.name, path: file.url })),
+      attachments,
     });
 
     return sent.messageId;

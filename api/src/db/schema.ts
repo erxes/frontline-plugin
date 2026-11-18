@@ -13,7 +13,7 @@ import {
   unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
-import { type Attachment, id, stamps, table } from './table.ts';
+import { id, type StoredFile, stamps, table } from './table.ts';
 
 // Pipelines, their statuses and tickets are in tickets.ts.
 
@@ -193,9 +193,9 @@ export const kbArticles = table(
       .notNull()
       .default(sql`'{}'`),
     viewCount: integer().notNull().default(0),
-    image: jsonb().$type<Attachment>(),
-    attachments: jsonb().$type<Attachment[]>().notNull().default([]),
-    pdfAttachment: jsonb().$type<{ pdf: Attachment }>(),
+    image: jsonb().$type<StoredFile>(),
+    attachments: jsonb().$type<StoredFile[]>().notNull().default([]),
+    pdfAttachment: jsonb().$type<{ pdf: StoredFile }>(),
     ...stamps(),
   },
   (t) => [

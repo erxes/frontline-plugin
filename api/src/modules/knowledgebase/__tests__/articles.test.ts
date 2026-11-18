@@ -35,8 +35,18 @@ describe('knowledge base articles', () => {
       categoryId: category.id,
       title: 'Refunds',
       content: '<p>Money back in 5_days</p>',
-      attachments: [{ url: 'files/terms.pdf', name: 'terms.pdf', size: 120 }],
+      attachments: [{ url: '/core/v1/files/terms-1/download', name: 'terms.pdf', size: 120 }],
     });
+
+    // A file attaches only at the address core's storage gave it.
+    for (const url of ['/proc/self/environ', 'http://169.254.169.254/latest', 'javascript:alert(1)'])
+      await expect(
+        owner.knowledgebase.articles.create({
+          categoryId: category.id,
+          title: 'Leak',
+          attachments: [{ url, name: 'x' }],
+        }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
 
     expect(refunds).toMatchObject({
       topicId: topic.id,
