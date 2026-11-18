@@ -1,3 +1,4 @@
+import { showsCallout } from '@frontline/api/logic';
 import { readImage, ToggleGroup } from 'erxes-ui';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -42,7 +43,7 @@ const Message = ({
 export const FormScreens = ({ form, fields }: { form: Form; fields: FormField[] }) => {
   const { t } = useTranslation('frontline');
   const [picked, setScreen] = useState<Screen>('form');
-  const screens = SCREENS.filter((screen) => screen !== 'callout' || !form.calloutSkip);
+  const screens = SCREENS.filter((screen) => screen !== 'callout' || showsCallout(form));
   const screen = screens.includes(picked) ? picked : 'form';
 
   const names: Record<Screen, string> = {
@@ -73,7 +74,11 @@ export const FormScreens = ({ form, fields }: { form: Form; fields: FormField[] 
       </ToggleGroup>
       {screen === 'callout' && (
         <Message image={form.calloutImage} title={form.calloutTitle} text={form.calloutBody}>
-          <FormButton form={form} label={form.calloutButtonText || t('form-start', 'Start')} />
+          <FormButton
+            form={form}
+            label={form.calloutButtonText || t('form-start', 'Start')}
+            onClick={() => setScreen('form')}
+          />
         </Message>
       )}
       {/* Hidden rather than gone, so the answers tried in it are there on the way back. */}

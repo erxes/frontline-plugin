@@ -1,7 +1,8 @@
 import { isShown } from '@frontline/api/logic';
-import { Button, Checkbox, cn, Input, Label, RadioGroup, Select, Switch, Textarea } from 'erxes-ui';
+import { Button, Checkbox, Input, Label, RadioGroup, Select, Switch, Textarea } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { COLOR_THEMES } from '~/modules/messenger/queries.ts';
 import { PICK_TYPES } from './fieldTypes.ts';
 import type { Form, FormField } from './useForms.ts';
 
@@ -134,19 +135,26 @@ const PreviewField = ({
  * is typed here: the same rules the API checks a submission by (`api/src/modules/forms/logic.ts`).
  */
 /**
- * The button a visitor presses, in the form's colour with white text as the embed draws it, or
- * the theme's primary when the form has none. It only shows, so it is no button here.
+ * A button a visitor presses, in the form's colour with white text as the embed draws it. A form
+ * with no colour gets the embed's own, the messenger's first: indigo.
  */
-export const FormButton = ({ form, label }: { form: Form; label: string }) => (
-  <span
-    style={form.primaryColor ? { '--form-color': form.primaryColor } : undefined}
-    className={cn(
-      'inline-flex h-8 items-center self-start rounded-md px-3 text-sm font-medium',
-      form.primaryColor ? 'bg-(--form-color) text-white' : 'bg-primary text-primary-foreground',
-    )}
+export const FormButton = ({
+  form,
+  label,
+  onClick,
+}: {
+  form: Form;
+  label: string;
+  onClick?: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    style={{ '--form-color': form.primaryColor ?? COLOR_THEMES[0].color }}
+    className="inline-flex h-8 items-center self-start rounded-md bg-(--form-color) px-3 text-sm font-medium text-white"
   >
     {label}
-  </span>
+  </button>
 );
 
 export const FormPreview = ({ form, fields }: { form: Form; fields: FormField[] }) => {
@@ -186,9 +194,7 @@ export const FormPreview = ({ form, fields }: { form: Form; fields: FormField[] 
           {t('back', 'Back')}
         </Button>
         {step < steps ? (
-          <Button variant="secondary" onClick={() => setStep(step + 1)}>
-            {t('next', 'Next')}
-          </Button>
+          <FormButton form={form} label={t('next', 'Next')} onClick={() => setStep(step + 1)} />
         ) : (
           <FormButton form={form} label={form.buttonText || t('form-send', 'Send')} />
         )}

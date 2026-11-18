@@ -1,4 +1,4 @@
-import { isShown } from '@frontline/api/logic';
+import { isShown, showsCallout } from '@frontline/api/logic';
 import { useCallback, useState } from 'preact/hooks';
 import { messageOf } from '../shared/uploads.tsx';
 import type { Answer, Field, FormApi, VisitorForm } from './api.ts';
@@ -109,7 +109,7 @@ export const FormView = ({
   visitorForm: VisitorForm;
   onSent: (submissionId: string) => void;
 }) => {
-  const callout = !form.calloutSkip && Boolean(form.calloutTitle || form.calloutBody);
+  const callout = showsCallout(form);
   const [stage, setStage] = useState<'callout' | 'form' | 'thanks'>(callout ? 'callout' : 'form');
 
   const state = useAnswers(api, fields, (submissionId) => {
