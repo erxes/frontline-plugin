@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import type { MessengerApi } from './api.ts';
 import { Home } from './Home.tsx';
 import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
@@ -25,11 +25,13 @@ const Page = ({
   api,
   messenger,
   view,
+  open,
   onView,
 }: {
   api: MessengerApi;
   messenger: MessengerState;
   view: View;
+  open: boolean;
   onView: (view: View) => void;
 }) => {
   const TicketsTab = useLazy(view.name === 'tickets', loadTickets);
@@ -59,22 +61,37 @@ const Page = ({
       api={api}
       messenger={messenger}
       conversationId={view.id}
+      open={open}
       onStarted={(id) => onView({ name: 'thread', id })}
       onBack={home}
     />
   );
 };
 
-/** The launcher in the page's corner and the panel it opens: the greeting, then a conversation. */
+/**
+ * The launcher in the page's corner and the panel it opens: the greeting, then a conversation.
+ * Closing only hides the panel, so what the visitor was writing and where they were wait for them.
+ */
 export const Messenger = ({ api }: { api: MessengerApi }) => {
   const messenger = useMessenger(api);
-  const [open, setOpen] = useState(false);
+  // Null until the visitor first opens the panel, which mounts it from then on.
+  const [shown, setOpen] = useState<boolean | null>(null);
+  const open = shown === true;
   const [view, setView] = useState<View>({ name: 'home' });
   const { settings, session, conversations, connect } = messenger;
+  const panel = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (open && !session) void connect().catch(() => setOpen(false));
   }, [open, session, connect]);
+
+  // Focus follows the panel: into it as it opens, back to the launcher once it closes. On a phone
+  // the launcher hides while the panel is open, so focus would otherwise drop to the page.
+  useEffect(() => {
+    if (shown) panel.current?.focus();
+    else if (shown === false) toggle.current?.focus();
+  }, [shown]);
 
   useEffect(() => {
     const show = () => setOpen(true);
@@ -99,8 +116,15 @@ export const Messenger = ({ api }: { api: MessengerApi }) => {
         ...(settings.backgroundColor ? { '--fl-page': settings.backgroundColor } : {}),
       }}
     >
-      {open && (
-        <section class="fl-panel" role="dialog" aria-label={settings.name}>
+      {shown !== null && (
+        <section
+          ref={panel}
+          class="fl-panel"
+          role="dialog"
+          aria-label={settings.name}
+          tabIndex={-1}
+          hidden={!open}
+        >
           <button
             type="button"
             class="fl-icon-button fl-close"
@@ -109,11 +133,12 @@ export const Messenger = ({ api }: { api: MessengerApi }) => {
           >
             <CloseIcon />
           </button>
-          <Page api={api} messenger={messenger} view={view} onView={setView} />
+          <Page api={api} messenger={messenger} view={view} open={open} onView={setView} />
         </section>
       )}
       {launcher && (
         <button
+          ref={toggle}
           type="button"
           class="fl-launcher"
           aria-label={open ? 'Close the messenger' : 'Open the messenger'}

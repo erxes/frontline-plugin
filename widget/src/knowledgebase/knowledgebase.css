@@ -46,8 +46,3 @@
 .fl-bar .fl-icon-button:hover {
   background: rgb(255 255 255 / 0.15);
 }
-
-.fl-scroll {
-  flex: 1;
-  overflow-y: auto;
-}

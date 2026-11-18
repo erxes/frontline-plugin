@@ -66,6 +66,38 @@
   box-shadow: 0 6px 20px rgb(0 0 0 / 0.2);
 }
 
+/* A closed panel stays mounted, so it keeps what the visitor typed. */
+.fl-panel[hidden] {
+  display: none;
+}
+
+/* The panel takes focus as it opens; the controls inside it show where focus goes next. */
+.fl-panel:focus {
+  outline: none;
+}
+
+/* A panel's scrolling part, which doesn't hand its scroll on to the page behind. */
+.fl-scroll {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* On a phone the messenger's and knowledge base's open panel fills the screen, so its own Close
+   stands in for the launcher, which would cover the panel's corner. */
+@media (max-width: 480px) {
+  .fl:not(.fl-shoutbox) .fl-launcher[aria-expanded='true'] {
+    display: none;
+  }
+}
+
+/* Fields are 16 px on a touch screen, in either orientation, so iOS Safari doesn't zoom in. */
+@media (max-width: 480px), (pointer: coarse) {
+  :where(.fl) :where(input, textarea, select) {
+    font-size: 16px;
+  }
+}
+
 .fl-launcher svg {
   width: 26px;
   height: 26px;
