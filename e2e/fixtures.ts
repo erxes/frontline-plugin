@@ -118,12 +118,13 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
         }
 
         // A 204 must have no body at all, not an empty one.
-        const body = await response.text();
+        const [body, status, headers] = [
+          await response.text(),
+          response.status(),
+          response.headers(),
+        ];
 
-        return new Response(body || null, {
-          status: response.status(),
-          headers: response.headers(),
-        });
+        return new Response(body || null, { status, headers });
       },
     }),
   );
@@ -270,19 +271,15 @@ export const callProLine = async (
 ) => {
   const rpc = await pluginApi(api, request);
   const channel = await rpc('channels/create', { name: `Phones ${unique()}` }, Id);
-  const account = await rpc('integrations/callpro/connect', { phone }, Id);
+  const { id: accountId } = await rpc('integrations/callpro/connect', { phone }, Id);
 
   await rpc(
     'integrations/create',
-    { channelId: channel.id, kind: 'callpro', name: phone, config: { accountId: account.id } },
+    { channelId: channel.id, kind: 'callpro', name: phone, config: { accountId } },
     Id,
   );
 
-  const { webhookUrl } = await rpc(
-    'integrations/call/settings',
-    { accountId: account.id },
-    CallSettings,
-  );
+  const { webhookUrl } = await rpc('integrations/call/settings', { accountId }, CallSettings);
 
   return async (callID: string, numberFrom: string, disp: string) => {
     const posted = await request.post(webhookUrl, {
@@ -361,6 +358,23 @@ export const pick = async (page: Page, select: Locator, option: string) => {
 };
 
 /**
+ * Moves `item` by keyboard with its drag `handle`: Space picks it up, `key` takes it over `to`,
+ * Space drops it. Each key waits for the screen reader's announcement of the step before, which
+ * names where the row is: dnd-kit listens for keys a moment after the pickup, so an arrow sent
+ * as soon as the handle is pressed can be lost.
+ */
+export const moveByKeys = async (handle: Locator, key: string, item: string, to: string) => {
+  const page = handle.page();
+
+  await handle.press('Space');
+  await expect(page.getByText(`${item} is held.`, { exact: true })).toBeAttached();
+  await page.keyboard.press(key);
+  await expect(page.getByText(`${item} is over ${to}.`, { exact: true })).toBeAttached();
+  await page.keyboard.press('Space');
+  await expect(page.getByText(`${item} dropped on ${to}.`, { exact: true })).toBeAttached();
+};
+
+/**
  * Adds a website messenger to `channel` from the inbox's header, which opens its settings page,
  * and returns its key.
  */
@@ -436,11 +450,8 @@ export const openShop = async (context: BrowserContext, installCode: string) => 
 /** The shop with the messenger of `key` on it, after the page's own `before`, opened by the visitor. */
 export const openMessenger = async (context: BrowserContext, key: string, before = '') => {
   const script = new URL(`/widget/messenger.js?key=${key}`, MESSENGER);
-
-  const site = await openShop(
-    context,
-    `${before}<script type="module" src="${script.href}"></script>`,
-  );
+  const tag = `<script type="module" src="${script.href}"></script>`;
+  const site = await openShop(context, before + tag);
 
   await site.shop.getByRole('button', { name: 'Open the messenger' }).click();
 

@@ -5,6 +5,7 @@ import {
   createPipeline,
   expect,
   expectAccessible,
+  moveByKeys,
   INBOX,
   openChannelPipelines,
   openMessenger,
@@ -73,18 +74,13 @@ test('an admin writes a survey, edits its questions and reads its results, which
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(first.getByRole('button', { name: 'Ticket for Great at 3 voters' })).toBeVisible();
 
-  // The keyboard moves the new question above the first. Each key waits for the screen reader
-  // announcement, since dnd-kit listens for the next key only after it.
-  const handle = added.getByRole('button', { name: 'Move Would you call again?', exact: true });
-  const announcement = page.getByText(/was moved over droppable area/);
-
-  await handle.press('Space');
-  await expect(handle).toHaveAttribute('aria-pressed', 'true');
-  const overItself = await announcement.textContent();
-
-  await page.keyboard.press('ArrowUp');
-  await expect(announcement).not.toHaveText(overItself ?? '');
-  await page.keyboard.press('Space');
+  // The keyboard moves the new question above the first.
+  await moveByKeys(
+    added.getByRole('button', { name: 'Move Would you call again?', exact: true }),
+    'ArrowUp',
+    'Would you call again?',
+    'How did we do?',
+  );
   await expect(page.getByRole('textbox', { name: 'Question', exact: true }).first()).toHaveValue(
     'Would you call again?',
   );

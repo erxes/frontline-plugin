@@ -3,6 +3,7 @@ import {
   confirmDelete,
   createPipeline,
   expect,
+  moveByKeys,
   openChannelPipelines,
   recordPanel,
   test,
@@ -84,18 +85,10 @@ test("a channel admin adds, reorders, edits and deletes a pipeline's statuses", 
   await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(open.getByRole('listitem').last()).toContainText('Waiting on customer');
 
-  // The keyboard moves a status up its stage, and the order is saved. Each key waits for the
-  // screen reader announcement, since dnd-kit listens for the next key only after it.
+  // The keyboard moves a status up its stage, and the order is saved.
   const handle = open.getByRole('button', { name: 'Reorder Waiting on customer' });
-  const announcement = page.getByText(/was moved over droppable area/);
 
-  await handle.press('Space');
-  await expect(handle).toHaveAttribute('aria-pressed', 'true');
-  const overItself = await announcement.textContent();
-
-  await page.keyboard.press('ArrowUp');
-  await expect(announcement).not.toHaveText(overItself ?? '');
-  await page.keyboard.press('Space');
+  await moveByKeys(handle, 'ArrowUp', 'Waiting on customer', 'Open');
   await expect(open.getByRole('listitem').first()).toContainText('Waiting on customer');
   await page.reload();
   await panel.getByRole('tab', { name: 'Ticket statuses' }).click();
