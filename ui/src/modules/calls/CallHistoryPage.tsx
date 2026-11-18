@@ -1,14 +1,16 @@
 import { contactQueries, memberQueries } from '@erxes/core-contract/client';
 import { IconPhone, IconUserCircle } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Button,
-  ContactLink,
+  customerTitle,
   ListFilter,
   MemberLink,
   PageContainer,
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
+  Skeleton,
   useOpenRecord,
   ViewBar,
 } from 'erxes-ui';
@@ -17,7 +19,7 @@ import { CALL_TYPE } from '~/plugin.ts';
 import { ListEmpty, ListError } from '~/shared/List.tsx';
 import { TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
-import { CALL_ICONS, CallStatus, DirectionIcon, useCallFields } from './CallFields.tsx';
+import { CALL_ICONS, CallStatus, DirectionIcon, queueLabel, useCallFields } from './CallFields.tsx';
 import { CallsHeader } from './CallsHeader.tsx';
 import { type Call, durationText, useCalls } from './queries.ts';
 
@@ -25,9 +27,15 @@ const LIST = 'frontline-calls';
 
 const column = columnOf<Call>;
 
-/** The customer's phone, opening the call in core's side panel. */
+/**
+ * Who called or was called, opening the call in core's side panel: the customer's name with
+ * their phone after it, or the phone alone while core knows them by nothing more.
+ */
 const CallName = ({ call }: { call: Call }) => {
   const { open } = useOpenRecord();
+  const customer = useQuery(contactQueries.customer(call.customerId));
+  const title = customer.data ? customerTitle(customer.data) : '';
+  const named = /\p{L}/u.test(title);
 
   return (
     <Button
@@ -36,7 +44,12 @@ const CallName = ({ call }: { call: Call }) => {
       onClick={() => open({ contentType: CALL_TYPE, contentId: call.id })}
     >
       <DirectionIcon direction={call.direction} />
-      <span className="truncate">{call.customerPhone}</span>
+      {customer.isPending ? (
+        <Skeleton className="h-4 w-24" />
+      ) : (
+        <span className="truncate">{named ? title : call.customerPhone}</span>
+      )}
+      {named && <span className="text-muted-foreground">{call.customerPhone}</span>}
     </Button>
   );
 };
@@ -46,37 +59,21 @@ const useColumns = (): RecordTableColumnDef<Call>[] => {
   const { t } = useTranslation('frontline');
 
   return [
-    column(
-      'customerPhone',
-      t('customer-phone', 'Customer phone'),
-      CALL_ICONS.customerPhone,
-      200,
-      (call) => (
-        <RecordTableInlineCell>
-          <CallName call={call} />
-        </RecordTableInlineCell>
-      ),
-    ),
-    column('status', t('status', 'Status'), CALL_ICONS.status, 130, (call) => (
+    column('customerPhone', t('customer', 'Customer'), IconUserCircle, 280, (call) => (
+      <RecordTableInlineCell>
+        <CallName call={call} />
+      </RecordTableInlineCell>
+    )),
+    column('status', t('status', 'Status'), CALL_ICONS.status, 120, (call) => (
       <RecordTableInlineCell>
         <CallStatus status={call.status} />
       </RecordTableInlineCell>
     )),
-    column('customer', t('customer', 'Customer'), IconUserCircle, 200, (call) => (
-      <RecordTableInlineCell>
-        <ContactLink
-          contentType="core:customer"
-          contentId={call.customerId}
-          contacts={contactQueries}
-          placeholder={call.customerPhone}
-        />
-      </RecordTableInlineCell>
-    )),
-    column('number', t('line', 'Line'), CALL_ICONS.number, 160, (call) => (
+    column('number', t('line', 'Line'), CALL_ICONS.number, 120, (call) => (
       <TextCell value={call.number} />
     )),
-    column('queue', t('queue', 'Queue'), CALL_ICONS.queue, 100, (call) => (
-      <TextCell value={call.queue} />
+    column('queue', t('queue', 'Queue'), CALL_ICONS.queue, 180, (call) => (
+      <TextCell value={queueLabel(call)} />
     )),
     column('answeredBy', t('answered-by', 'Answered by'), CALL_ICONS.answeredBy, 180, (call) => (
       <RecordTableInlineCell>
