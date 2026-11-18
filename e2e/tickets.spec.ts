@@ -47,6 +47,8 @@ const display = async (page: Page, name: 'List' | 'Board' | 'Table') => {
 
 test('a member files, changes and filters tickets in the list', async ({ page }) => {
   const channel = await openChannelPipelines(page);
+  // The sidebar lists pipelines once there are two, and a shard starts on a fresh database.
+  await createPipeline(page);
   const pipeline = await createPipeline(page);
   const panel = recordPanel(page);
   const refund = `Refund ${unique()}`;

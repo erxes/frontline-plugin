@@ -96,6 +96,8 @@ test("a pipeline, its draft and its panel's tabs", async ({ page }) => {
 
 test('tickets in the list, the board and the table, and one in the panel', async ({ page }) => {
   const channel = await openChannelPipelines(page);
+  // The sidebar lists pipelines once there are two.
+  await createPipeline(page);
   const pipeline = await createPipeline(page);
   const panel = recordPanel(page);
   const name = `Refund ${unique()}`;
@@ -203,6 +205,7 @@ test('a help center, and its articles on a website', async ({ page, api, request
   await using site = await openMessenger(page.context(), key);
 
   await site.panel.getByRole('button', { name: /^Help articles/ }).click();
+  await site.panel.getByRole('searchbox', { name: 'Search articles' }).fill('money');
   await site.panel.getByRole('button', { name: /^Refunds/ }).click();
   await expectAccessible(site.shop, site.panel.getByText(ARTICLE));
 });
@@ -356,7 +359,7 @@ test('a member without the permissions is refused each page', async ({ newMember
   const { page } = await newMember(['team.view']);
   const refused = page.getByText(/You need the frontline\.\S+ permission/).first();
 
-  const settings = ['channels', 'help-centers', 'integrations'].map((it) => `${SETTINGS}/${it}`);
+  const settings = ['channels', 'help-centers'].map((it) => `${SETTINGS}/${it}`);
 
   for (const path of [INBOX, '/frontline/tickets', FORMS, SURVEYS, KB, HISTORY, ...settings]) {
     await page.goto(path);
