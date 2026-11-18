@@ -16,16 +16,18 @@ import {
 } from '#/db/helpcenter.ts';
 import { publicKeys } from '#/db/public.ts';
 import { kbTopics } from '#/db/schema.ts';
-import { reads, writes } from '#/orpc.ts';
+import { reads, writes, writesWithCore } from '#/orpc.ts';
 import { Blank, Color, Title } from '../fields.ts';
 import { FilterInput, type FilterFields, filterSql, likeText } from '../filter.ts';
-import { widgetScript } from '../public.ts';
+import { removeKeys, widgetScript } from '../public.ts';
 import {
+  clearDomain,
   cnameTarget,
   connectDomain,
   domainsAvailable,
-  resetDomain,
-  syncDomain,
+  dropHostname,
+  recheckDomain,
+  recordDomain,
 } from './domains.ts';
 
 const { orgId, ...centerColumns } = getTableColumns(helpCenters);
@@ -174,55 +176,64 @@ const update = writes(PERMISSIONS.helpCenterManage)
 const remove = writes(PERMISSIONS.helpCenterManage)
   .input(z.object({ ids: z.array(z.string()).min(1).max(100) }))
   .output(z.object({ ids: z.array(z.string()) }))
-  .handler(async ({ input, context: { tx } }) => {
+  .handler(async ({ input, context: { tx, member, afterCommit } }) => {
     const rows = await tx
       .select(centerColumns)
       .from(helpCenters)
       .where(inArray(helpCenters.id, input.ids));
 
-    await Promise.all(rows.map((row) => resetDomain(tx, row)));
-
     const ids = rows.map((row) => row.id);
 
     if (ids.length > 0) {
-      await tx
-        .delete(publicKeys)
-        .where(
-          and(
-            inArray(publicKeys.kind, [HELP_CENTER_KEY, HELP_CENTER_DOMAIN]),
-            inArray(publicKeys.targetId, ids),
-          ),
-        );
+      await removeKeys(
+        tx,
+        member.orgId,
+        and(
+          inArray(publicKeys.kind, [HELP_CENTER_KEY, HELP_CENTER_DOMAIN]),
+          inArray(publicKeys.targetId, ids),
+        ),
+      );
       await tx.delete(helpCenters).where(inArray(helpCenters.id, ids));
     }
+
+    for (const row of rows) afterCommit(() => dropHostname(row));
 
     return { ids };
   });
 
 /** Connects a domain, or checks the one connected again. */
-const saveDomain = writes(PERMISSIONS.helpCenterManage)
-  .input(z.object({ id: z.string(), hostname: z.string().max(300) }))
+const saveDomain = writesWithCore(
+  PERMISSIONS.helpCenterManage,
+  z.object({ id: z.string(), hostname: z.string().max(300) }),
+  (member, input) => connectDomain(member.orgId, input.id, input.hostname),
+)
   .output(HelpCenter)
-  .handler(async ({ input, context: { tx, member } }) => {
-    await connectDomain(tx, member.orgId, await centerById(tx, input.id), input.hostname);
+  .handler(async ({ context: { tx, member, fromCore } }) => {
+    await recordDomain(tx, member.orgId, fromCore, { restart: true });
 
-    return withTarget(await centerById(tx, input.id));
+    return withTarget(await centerById(tx, fromCore.id));
   });
 
-const refreshDomain = writes(PERMISSIONS.helpCenterManage)
-  .input(z.object({ id: z.string() }))
+const refreshDomain = writesWithCore(
+  PERMISSIONS.helpCenterManage,
+  z.object({ id: z.string() }),
+  (member, input) => recheckDomain(member.orgId, input.id),
+)
   .output(HelpCenter)
-  .handler(async ({ input, context: { tx } }) => {
-    await syncDomain(tx, await centerById(tx, input.id), { restart: true });
+  .handler(async ({ context: { tx, member, fromCore } }) => {
+    await recordDomain(tx, member.orgId, fromCore, { restart: true });
 
-    return withTarget(await centerById(tx, input.id));
+    return withTarget(await centerById(tx, fromCore.id));
   });
 
 const removeDomain = writes(PERMISSIONS.helpCenterManage)
   .input(z.object({ id: z.string() }))
   .output(HelpCenter)
-  .handler(async ({ input, context: { tx } }) => {
-    await resetDomain(tx, await centerById(tx, input.id));
+  .handler(async ({ input, context: { tx, member, afterCommit } }) => {
+    const center = await centerById(tx, input.id);
+
+    await clearDomain(tx, member.orgId, center);
+    afterCommit(() => dropHostname(center));
 
     return withTarget(await centerById(tx, input.id));
   });

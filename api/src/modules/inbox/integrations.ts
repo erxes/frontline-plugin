@@ -12,6 +12,7 @@ import { channelMembers } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
 import { canChangeSql, channelFor, membership } from '../channels/access.ts';
 import { Title } from '../fields.ts';
+import { removeKeys } from '../public.ts';
 import { ADAPTERS } from './adapters.ts';
 import { seenBy } from './shared.ts';
 
@@ -166,9 +167,11 @@ const remove = writes(PERMISSIONS.channelView)
   .handler(async ({ input, context: { tx, member } }) => {
     await integrationFor(tx, member, input.id);
     await tx.delete(integrations).where(eq(integrations.id, input.id));
-    await tx
-      .delete(publicKeys)
-      .where(and(eq(publicKeys.kind, INTEGRATION_KEY), eq(publicKeys.targetId, input.id)));
+    await removeKeys(
+      tx,
+      member.orgId,
+      and(eq(publicKeys.kind, INTEGRATION_KEY), eq(publicKeys.targetId, input.id)),
+    );
 
     return { id: input.id };
   });

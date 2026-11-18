@@ -103,7 +103,9 @@ export const helpCenters = table(
   },
   (t) => [
     unique('frontline_help_centers_public_key_key').on(t.publicKey),
-    unique('frontline_help_centers_hostname_key').on(t.hostname),
+    // Per organisation: a domain is anyone's to enter, and only DNS decides whose it is
+    // (`frontline_public_keys`), so one organisation can't hold another's while it is pending.
+    unique('frontline_help_centers_org_hostname_key').on(t.orgId, t.hostname),
     index('frontline_help_centers_org_title_idx').on(t.orgId, t.title),
     check(
       'frontline_help_centers_status_check',

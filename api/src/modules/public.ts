@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, type SQL } from 'drizzle-orm';
 import { config } from '#/config.ts';
 import { db, type Tx } from '#/db/client.ts';
 import { publicKeys } from '#/db/public.ts';
@@ -24,6 +24,13 @@ export const openedBy = async (key: string, kinds: string[]) => {
 
   return row;
 };
+
+/**
+ * Deletes the organisation's keys that `where` matches. Row-level security can't scope this
+ * table, which public routes read before they know the organisation, so this names it.
+ */
+export const removeKeys = (tx: Tx, organizationId: string, where: SQL | undefined) =>
+  tx.delete(publicKeys).where(and(eq(publicKeys.orgOf, organizationId), where));
 
 /** The organisation a signed-out request's key names, or undefined for a key frontline never gave. */
 export const organizationOfKey = async (key: string) =>
