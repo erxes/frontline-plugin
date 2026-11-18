@@ -45,6 +45,13 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await expect(panel.getByText(`Another channel is already called ${name}.`)).toBeVisible();
   await expect(panel.getByLabel('Name')).toHaveValue(name);
 
+  // Its Connect menu opens a provider's form that connects straight into the channel.
+  await page.goto(CHANNELS);
+  await page.getByRole('button', { name, exact: true }).click();
+  await panel.getByRole('button', { name: 'Connect', exact: true }).click();
+  await page.getByRole('menuitem', { name: 'Telegram bot' }).click();
+  await expect(panel.getByLabel('Bot token')).toBeVisible();
+
   const theirPanel = recordPanel(teammate.page);
 
   await teammate.page.goto(CHANNELS);
@@ -52,6 +59,7 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await teammate.page.getByRole('button', { name, exact: true }).click();
   await expect(theirPanel.getByRole('button', { name })).toBeDisabled();
   await expect(theirPanel.getByRole('button', { name: 'Channel actions' })).toBeHidden();
+  await expect(theirPanel.getByRole('button', { name: 'Connect', exact: true })).toBeHidden();
 
   await theirPanel.getByRole('link', { name: /Manage channel members/ }).click();
   // Without core's team.view the teammate can't read names, but sees both members and their roles.
