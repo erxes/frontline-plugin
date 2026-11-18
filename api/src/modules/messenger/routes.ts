@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { BrowserInfo } from '#/db/messenger.ts';
 import { logger } from '#/logger.ts';
 import { fail } from '../fail.ts';
+import { shownKeyOf, shownUrl } from '../shownFiles.ts';
 import { voteRoutes } from '../surveys/votes.ts';
 import { integrationChanges, isOnlineAt } from './adapter.ts';
 import { articleRoutes } from './articles.ts';
@@ -49,7 +50,12 @@ const opened = async (key: string) => {
 
   if (!found || !settings) throw new ORPCError('NOT_FOUND', { message: 'No such messenger' });
 
-  return { ...found, settings, supporters: await supportersOf(found.orgId, settings.supporterIds) };
+  return {
+    ...found,
+    settings,
+    supporters: await supportersOf(found.orgId, settings.supporterIds),
+    shownKey: await shownKeyOf(found.orgId),
+  };
 };
 
 /**
@@ -68,14 +74,17 @@ integrationChanges.on('changed', (integrationId) => {
 });
 
 /**
- * What a visitor sees of the messenger: its settings with its team in place of the team's ids,
- * whether that team is online now, and whether it takes tickets.
+ * What a visitor sees of the messenger: its settings with its team in place of the team's ids and
+ * its logos where a visitor loads them, whether that team is online now, and whether it takes
+ * tickets.
  */
-const messengerView = ({ settings, supporters }: Awaited<ReturnType<typeof opened>>) => {
+const messengerView = ({ settings, supporters, shownKey }: Awaited<ReturnType<typeof opened>>) => {
   const { supporterIds, channelId, ticketPipelineIds, ...shown } = settings;
 
   return {
     ...shown,
+    logo: shown.logo && shownUrl(shownKey, shown.logo),
+    launcherLogo: shown.launcherLogo && shownUrl(shownKey, shown.launcherLogo),
     isOnline: isOnlineAt(settings, new Date()),
     supporters,
     tickets: ticketPipelineIds.length > 0,

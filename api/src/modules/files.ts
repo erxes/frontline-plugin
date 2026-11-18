@@ -1,4 +1,6 @@
 import { Readable } from 'node:stream';
+import { type SQL, sql } from 'drizzle-orm';
+import type { AnyPgColumn } from 'drizzle-orm/pg-core';
 import express, { type Request, type Response } from 'express';
 import { z } from 'zod';
 import { config } from '#/config.ts';
@@ -60,6 +62,20 @@ export const readFile = async (orgId: string, id: string) => {
 
 /** The id of the core file at `url`, the address core gives its files, or null for another address. */
 export const fileIdOf = (url: string) => /\/files\/([\w-]{1,64})\/download$/.exec(url)?.[1] ?? null;
+
+/** How the address core gives its file `id` ends. */
+export const downloadPath = (id: string) => `/files/${id}/download`;
+
+/** Whether the text `value` ends with `ending`. */
+export const endsWith = (value: SQL, ending: string) =>
+  sql`right(${value}, ${ending.length}) = ${ending}`;
+
+/** Whether the attachments in `column` name the core file `id`, at the address core gives it. */
+export const carries = (column: AnyPgColumn, id: string) =>
+  sql`exists (
+    select 1 from jsonb_array_elements(${column}) file
+    where ${endsWith(sql`file->>'url'`, downloadPath(id))}
+  )`;
 
 /**
  * Streams a file read from core to a signed-out visitor, cached as `cacheControl` says: an image
