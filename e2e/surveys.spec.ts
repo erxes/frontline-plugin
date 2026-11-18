@@ -128,6 +128,18 @@ test('an admin writes a survey, edits its questions and reads its results, which
 test('an admin archives, reactivates and deletes surveys', async ({ page }) => {
   const channel = await openChannelPipelines(page);
   const title = `Poll ${unique()}`;
+  const panel = recordPanel(page);
+
+  // An option typed into a new survey stays when the member leaves, until Cancel throws it away.
+  await page.goto(SURVEYS);
+  await page.getByRole('button', { name: 'New survey' }).first().click();
+  await panel.getByPlaceholder('Type an option and press Enter').fill('Maybe');
+  await page.keyboard.press('Enter');
+  await page.goto(SURVEYS);
+  await page.getByRole('button', { name: 'New survey' }).first().click();
+  await expect(panel.getByText('Maybe', { exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'Cancel' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Discard' }).click();
 
   await newSurvey(page, channel, title);
   await page.getByRole('button', { name: `Actions for ${title}` }).click();
