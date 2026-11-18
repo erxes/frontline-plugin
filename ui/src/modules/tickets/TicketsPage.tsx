@@ -21,7 +21,7 @@ import { SortMenu, useTicketFields } from './TicketFilter.tsx';
 import { TicketList } from './TicketList.tsx';
 import { TicketsBoard } from './TicketsBoard.tsx';
 import { TicketsTable } from './TicketsTable.tsx';
-import { type Ticket, useTicketPipeline, useTickets } from './queries.ts';
+import { type Ticket, useTicketPipeline, useTickets, useTicketsLive } from './queries.ts';
 
 const LIST = 'frontline-tickets';
 
@@ -77,6 +77,7 @@ export const TicketsPage = () => {
   const canCreate = Boolean(pipeline);
   const create = () => openNew(TICKET_TYPE, { pipelineId: pipeline?.id });
 
+  useTicketsLive();
   const list = useTickets();
   const { rows: tickets, totalCount, isPending, error } = list;
 
@@ -119,11 +120,7 @@ export const TicketsPage = () => {
           <SelectionBar>{bulkOf(tickets)}</SelectionBar>
         </TicketsTable>
       ) : display === 'board' ? (
-        <>
-          <LoadPage paging={list} newer />
-          <TicketsBoard tickets={tickets} />
-          <LoadPage paging={list} />
-        </>
+        <TicketsBoard />
       ) : (
         <RecordList.Provider listId={LIST}>
           <LoadPage paging={list} newer />

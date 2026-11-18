@@ -129,9 +129,23 @@ test('a member changes tickets in one go, sees them on the board and deletes the
     await expect(page.getByRole('combobox', { name: `Priority of ${name}` })).toHaveText('Medium');
   }
 
-  // The board lays the pipeline's statuses out as columns.
+  // The board lays the pipeline's statuses out as columns, each counting its own; Space picks a
+  // card up and the arrow keys carry it to the next column, each step said aloud.
   await display(page, 'Board');
   await expect(page.getByRole('region', { name: 'New' })).toContainText(refund);
+  await page
+    .getByRole('region', { name: 'New' })
+    .locator('[aria-roledescription="movable card"]', { hasText: refund })
+    .focus();
+  await page.keyboard.press('Space');
+  await expect(page.getByText(`${refund} is in New.`)).toBeAttached();
+  // dnd-kit listens for the arrow keys from the next timer tick after the pick-up.
+  await page.evaluate(() => new Promise((resolve) => setTimeout(resolve)));
+  await page.keyboard.press('ArrowRight');
+  await expect(page.getByText(`${refund} is in Open.`)).toBeAttached();
+  await page.keyboard.press('Space');
+  await expect(page.getByRole('region', { name: 'Open' })).toContainText(refund);
+  await expect(page.getByRole('region', { name: 'New' })).not.toContainText(refund);
 
   // The table's bar deletes both.
   await display(page, 'Table');

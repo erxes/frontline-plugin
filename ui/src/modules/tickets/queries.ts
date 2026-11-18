@@ -1,6 +1,7 @@
 import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
 import {
   type InfiniteData,
+  type QueryClient,
   useInfiniteQuery,
   useMutation,
   useQuery,
@@ -56,10 +57,10 @@ export const useTicketPipeline = () => {
 };
 
 /**
- * The shown pipeline's tickets the filter bar keeps, in the chosen order, a page at a time.
- * Another member's change refetches them, and the open ticket.
+ * The shown pipeline's tickets the filter bar keeps, in the chosen order, a page at a time; a
+ * board column's in its `statusId`. Another member's change refetches them, and the open ticket.
  */
-export const useTickets = () => {
+export const useTickets = (statusId?: string) => {
   const params = useListFilterParams();
   const [{ sort, direction }] = useTicketSort();
   const [picked] = useQueryState(PIPELINE_PARAM);
@@ -68,18 +69,18 @@ export const useTickets = () => {
   // The sidebar's pick asks at once, beside the choices, and holds unless they don't have it.
   const pipelineId = choices.isPending ? (picked ?? undefined) : shown;
   const ascending = direction === 'asc';
-  const queryClient = useQueryClient();
-
-  useLiveSignal(
-    PLUGIN,
-    'tickets',
-    () => void queryClient.invalidateQueries({ queryKey: orpc.tickets.key() }),
-  );
 
   const query = usePaged(
     useInfiniteQuery(
       orpc.tickets.list.infiniteOptions({
-        input: ({ cursor }: PageParam) => ({ ...params, pipelineId, sort, ascending, cursor }),
+        input: ({ cursor }: PageParam) => ({
+          ...params,
+          pipelineId,
+          statusId,
+          sort,
+          ascending,
+          cursor,
+        }),
         ...pageOptions,
         enabled: Boolean(pipelineId),
       }),
@@ -96,6 +97,17 @@ export const useTickets = () => {
   };
 };
 
+/** Another member's change to a ticket refetches the open lists, columns and ticket. */
+export const useTicketsLive = () => {
+  const queryClient = useQueryClient();
+
+  useLiveSignal(
+    PLUGIN,
+    'tickets',
+    () => void queryClient.invalidateQueries({ queryKey: orpc.tickets.key() }),
+  );
+};
+
 /** One ticket: every slot of its panel reads this query. */
 export const useTicket = (id: string) => useQuery(orpc.tickets.get.queryOptions({ input: { id } }));
 
@@ -107,19 +119,103 @@ type TicketPages = InfiniteData<Outputs['list'], PageParam>;
 /** The queries a ticket's edit writes into before the API answers: the lists and each ticket. */
 const TICKET_ROWS = [orpc.tickets.list.key(), orpc.tickets.get.key()];
 
+/** A board column's pages: the list asked for one status. */
+const columnKey = (statusId: string) =>
+  orpc.tickets.list.key({ type: 'infinite', input: { statusId } });
+
+/** A loaded ticket, from any list that holds it. */
+const cachedTicket = (queryClient: QueryClient, id: string) =>
+  queryClient
+    .getQueriesData<TicketPages>({ queryKey: orpc.tickets.list.key({ type: 'infinite' }) })
+    .flatMap(([, data]) => data?.pages ?? [])
+    .flatMap((page) => page.tickets)
+    .find((ticket) => ticket.id === id);
+
+/** The first page's count moved by `by`; later pages carry none. */
+const recount = (pages: TicketPages['pages'], by: number) =>
+  pages.map((page, index) =>
+    index === 0 && page.totalCount !== undefined
+      ? { ...page, totalCount: Math.max(0, page.totalCount + by) }
+      : page,
+  );
+
+const withoutTicket = (data: TicketPages, id: string): TicketPages =>
+  data.pages.some((page) => page.tickets.some((ticket) => ticket.id === id))
+    ? {
+        ...data,
+        pages: recount(data.pages, -1).map((page) => ({
+          ...page,
+          tickets: page.tickets.filter((ticket) => ticket.id !== id),
+        })),
+      }
+    : data;
+
+/**
+ * Puts the ticket where the API will list it among the loaded rows, `comesFirst` saying which of
+ * two goes first; past the last loaded row of a longer list it comes with a later page.
+ */
+const withTicket = (
+  data: TicketPages,
+  moved: Ticket,
+  comesFirst: (a: Ticket, b: Ticket) => boolean,
+): TicketPages => {
+  const pages = recount(data.pages, 1);
+  const at = pages.findIndex((page) => page.tickets.some((row) => comesFirst(moved, row)));
+
+  if (at === -1 && pages.at(-1)?.nextCursor) return { ...data, pages };
+
+  const target = at === -1 ? pages.length - 1 : at;
+
+  return {
+    ...data,
+    pages: pages.map((page, index) => {
+      if (index !== target) return page;
+
+      const before = page.tickets.findIndex((row) => comesFirst(moved, row));
+      const tickets = [...page.tickets];
+
+      tickets.splice(before === -1 ? tickets.length : before, 0, moved);
+
+      return { ...page, tickets };
+    }),
+  };
+};
+
 /**
  * Saves the given fields of a ticket, or moves it to another status of its pipeline. The list,
- * the board and the open ticket show the change at once; a property waits for the API, which
- * parses it.
+ * the board and the open ticket show the change at once, and a moved card leaves its column for
+ * its new one, in the place the sort gives it; a property waits for the API, which parses it.
  */
-const useUpdateTicket = () =>
-  useMutation(
+const useUpdateTicket = () => {
+  const [{ sort, direction }] = useTicketSort();
+
+  const comesFirst = (a: Ticket, b: Ticket) =>
+    direction === 'asc'
+      ? a[sort].getTime() < b[sort].getTime()
+      : a[sort].getTime() > b[sort].getTime();
+
+  return useMutation(
     orpc.tickets.update.mutationOptions(
       useOptimistic(TICKET_ROWS, (queryClient, change: TicketChange & { id: string }) => {
         const apply = (ticket: Ticket) =>
           ticket.id === change.id
             ? { ...ticket, ...change, propertiesData: ticket.propertiesData }
             : ticket;
+
+        const from = cachedTicket(queryClient, change.id);
+
+        if (from && change.statusId && change.statusId !== from.statusId) {
+          const moved = { ...apply(from), updatedAt: new Date() };
+
+          queryClient.setQueriesData<TicketPages>(
+            { queryKey: columnKey(from.statusId) },
+            (data) => data && withoutTicket(data, from.id),
+          );
+          queryClient.setQueriesData<TicketPages>(
+            { queryKey: columnKey(change.statusId) },
+            (data) => data && withTicket(data, moved, comesFirst),
+          );
+        }
 
         queryClient.setQueriesData<TicketPages>(
           { queryKey: orpc.tickets.list.key({ type: 'infinite' }) },
@@ -136,6 +232,7 @@ const useUpdateTicket = () =>
       }),
     ),
   );
+};
 
 /** `useUpdateTicket` for one ticket. */
 export const useEditTicket = (id: string) => {

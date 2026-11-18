@@ -163,6 +163,13 @@ describe('tickets', () => {
       'Refund',
     ]);
     await expect(names({ filter: rule('statusId', 'eq', stage(3)) })).resolves.toEqual(['Refund']);
+    // A board column asks for its status, and counts it.
+    await expect(
+      owner.tickets.list({ pipelineId: pipeline.id, statusId: stage(1) }),
+    ).resolves.toMatchObject({
+      totalCount: 2,
+      tickets: [{ name: 'Invoice copy' }, { name: 'Login fails' }],
+    });
     await expect(names({ filter: rule('number', 'exists') })).resolves.toEqual([]);
     await expect(names({ filter: rule('firstResponseSla', 'eq', 'due') })).resolves.toEqual([]);
     await expect(
