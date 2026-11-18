@@ -1,9 +1,10 @@
 import { ORPCError } from '@orpc/server';
-import { desc, getTableColumns, inArray } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, inArray, isNull, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
+import { conversations, customerLinks, integrations, messages } from '#/db/inbox.ts';
 import { emailSuppressions } from '#/db/mail.ts';
 import { reads, writes } from '#/orpc.ts';
 
@@ -13,8 +14,46 @@ export type Suppressed = Pick<
   'address' | 'reason' | 'detail'
 >;
 
-/** Notes the addresses `accountId`'s reports named; one already suppressed stays as it was. */
-export const suppress = async (tx: Tx, orgId: string, accountId: string, found: Suppressed[]) => {
+/** An address a report said to stop mailing, and the Message-ID of the mail it reports on. */
+export type Reported = Suppressed & { about: string | null };
+
+/**
+ * Notes the addresses `accountId`'s reports named, each only when its report is about a mail the
+ * team sent through that account to that address. Anyone can mail the mailbox a report, so one
+ * about any other mail, or naming another recipient, changes nothing. An address already
+ * suppressed stays as it was.
+ */
+export const suppress = async (tx: Tx, orgId: string, accountId: string, reported: Reported[]) => {
+  const about = [...new Set(reported.flatMap((row) => (row.about ? [row.about] : [])))];
+
+  if (about.length === 0) return;
+
+  const sent = await tx
+    .select({
+      messageId: messages.externalId,
+      address: sql<string>`lower(${customerLinks.externalId})`,
+    })
+    .from(messages)
+    .innerJoin(conversations, eq(conversations.id, messages.conversationId))
+    .innerJoin(integrations, eq(integrations.id, conversations.integrationId))
+    .innerJoin(
+      customerLinks,
+      and(eq(customerLinks.source, 'mail'), eq(customerLinks.customerId, conversations.customerId)),
+    )
+    .where(
+      and(
+        inArray(messages.externalId, about),
+        isNull(messages.customerId),
+        sql`${integrations.config}->>'accountId' = ${accountId}`,
+      ),
+    );
+
+  const real = new Set(sent.map((row) => `${row.messageId} ${row.address}`));
+
+  const found = reported.flatMap(({ about: messageId, ...row }) =>
+    messageId && real.has(`${messageId} ${row.address}`) ? [row] : [],
+  );
+
   if (found.length === 0) return;
 
   await tx

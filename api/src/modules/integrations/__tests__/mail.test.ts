@@ -41,6 +41,8 @@ describe('mail', () => {
           address: 'gone@example.mn',
           reason: 'bounce',
           detail: 'smtp; 550 5.1.1 <gone@example.mn>: Recipient address rejected: User unknown',
+          // The copy it returns names the mail it is about.
+          about: '<sent-5@shop.mn>',
         },
       ],
     });
@@ -76,7 +78,14 @@ describe('mail', () => {
 
   it('reads a spam report as the recipient who sent it', async () => {
     await expect(readMail(fixture('mail-complaint.eml'), 'support@shop.mn')).resolves.toEqual({
-      suppressed: [{ address: 'annoyed@example.mn', reason: 'complaint', detail: 'abuse' }],
+      suppressed: [
+        {
+          address: 'annoyed@example.mn',
+          reason: 'complaint',
+          detail: 'abuse',
+          about: '<offer-9@shop.mn>',
+        },
+      ],
     });
   });
 });

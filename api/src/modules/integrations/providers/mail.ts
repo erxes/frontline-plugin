@@ -6,7 +6,7 @@ import { withOrg } from '#/db/client.ts';
 import { logger } from '#/logger.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { defineProvider, type InboundMessage } from '../provider.ts';
-import { type Suppressed, suppressedAmong } from './mailSuppressions.ts';
+import { type Reported, type Suppressed, suppressedAmong } from './mailSuppressions.ts';
 
 export const Server = z.object({
   host: z.string().trim().min(1).max(255),
@@ -101,11 +101,20 @@ const suppressedBy = (reportType: unknown, text: string): Suppressed[] =>
     return [];
   });
 
+/** The Message-ID of the mail a report is about: the first one `parts` name in a header line. */
+const reportedMessageId = (parts: string[]) =>
+  parts
+    .map((part) => /^message-id:[ \t]*(<[^>\s]+>)/im.exec(part)?.[1])
+    .find((id) => id !== undefined) ?? null;
+
+/** Whether a report's part is the copy of the mail it is about. */
+const isCopy = (part: { contentType: string }) => part.contentType === 'message/rfc822';
+
 /** A parsed `Content-Type` header. */
 const ContentType = z.object({ value: z.string(), params: z.record(z.string(), z.string()) });
 
 /** What one fetched mail is to frontline: a customer's message, or a report on what it sent. */
-type ReadMail = { message: InboundMessage } | { suppressed: Suppressed[] };
+type ReadMail = { message: InboundMessage } | { suppressed: Reported[] };
 
 /**
  * One mail as frontline reads it, or null for one without a sender or id, or one the mailbox sent
@@ -121,19 +130,25 @@ export const readMail = async (
   const mail = await simpleParser(source);
   const type = ContentType.safeParse(mail.headers.get('content-type')).data;
 
-  // mailparser folds some report parts into the text and keeps others as attachments.
-  if (type?.value === 'multipart/report')
+  // mailparser folds some report parts into the text and keeps others as attachments. The copy of
+  // the mail a report returns names the Message-ID it is about, which `suppress` checks.
+  if (type?.value === 'multipart/report') {
+    const copies = mail.attachments.filter(isCopy).map((part) => part.content.toString());
+
+    const fields = [
+      mail.text ?? '',
+      ...mail.attachments.filter((part) => !isCopy(part)).map((part) => part.content.toString()),
+    ];
+
+    const about = reportedMessageId([...copies, ...fields]);
+
     return {
-      suppressed: suppressedBy(
-        type.params['report-type'],
-        [
-          mail.text ?? '',
-          ...mail.attachments
-            .filter((part) => part.contentType !== 'message/rfc822')
-            .map((part) => part.content.toString()),
-        ].join('\n\n'),
-      ),
+      suppressed: suppressedBy(type.params['report-type'], fields.join('\n\n')).map((row) => ({
+        ...row,
+        about,
+      })),
     };
+  }
 
   const from = mail.from?.value[0];
   const sender = from?.address?.toLowerCase();
@@ -217,7 +232,7 @@ export const pullMail = async (
         };
 
       const messages: { uid: number; message: InboundMessage }[] = [];
-      const suppressed: Suppressed[] = [];
+      const suppressed: Reported[] = [];
       // `n:*` names the newest mail even when its uid is below n, so only higher uids count.
       const found = await client.search({ uid: `${state.lastUid + 1}:*` }, { uid: true });
 
