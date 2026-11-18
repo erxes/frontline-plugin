@@ -257,7 +257,8 @@ const create = writesWithCore(
       attachments: true,
     })
     .extend({ propertiesData: CustomFieldsPatch.default({}) }),
-  (member, input) => checkProperties(member.orgId, input.pipelineId, {}, input.propertiesData),
+  (member, input) =>
+    checkProperties(member.orgId, input.pipelineId, {}, input.propertiesData, { create: true }),
 )
   .output(Ticket)
   .handler(async ({ input, context: { tx, member, fromCore } }) => {

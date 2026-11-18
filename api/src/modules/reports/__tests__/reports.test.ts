@@ -1,5 +1,5 @@
 import { inArray } from 'drizzle-orm';
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
 import { calls } from '#/db/calls.ts';
 import { withOrg } from '#/db/client.ts';
@@ -7,6 +7,11 @@ import { conversations, conversationTags, messages } from '#/db/inbox.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { tickets } from '#/db/tickets.ts';
 import { clientAs } from '#/test/member.ts';
+
+// Core checks a new ticket's fields.
+vi.mock('#/core.ts', async (importOriginal) =>
+  (await import('#/test/coreUnits.ts')).unitsStandIn(await importOriginal()),
+);
 
 /** 1 to 3 March 2026 in Ulaanbaatar, UTC+8: 1 March is a Sunday. */
 const PERIOD = {

@@ -182,9 +182,7 @@ const LabelRows = ({
       <PropertyRows
         pipelineId={pipelineId}
         values={labels.propertiesData}
-        onChange={(id, value) =>
-          onChange({ propertiesData: { ...labels.propertiesData, [id]: value } })
-        }
+        onChange={(propertiesData) => onChange({ propertiesData })}
       />
     </>
   );

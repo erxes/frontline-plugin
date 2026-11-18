@@ -1,8 +1,13 @@
 import { sql } from 'drizzle-orm';
-import { describe, expect, it } from 'vite-plus/test';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { clientAs } from '#/test/member.ts';
+
+// Core checks a new ticket's fields.
+vi.mock('#/core.ts', async (importOriginal) =>
+  (await import('#/test/coreUnits.ts')).unitsStandIn(await importOriginal()),
+);
 
 describe('pipelines', () => {
   it('creates a pipeline with a status per stage, edits it, moves it and deletes it', async () => {

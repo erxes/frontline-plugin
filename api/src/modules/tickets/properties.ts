@@ -18,15 +18,18 @@ import { ticketById, ticketsFor } from './shared.ts';
 
 /**
  * The values core keeps after `patch` on a ticket of `pipelineId`, checked against the fields of
- * `frontline.ticket` whose groups apply to that pipeline. Called outside the transaction.
+ * `frontline.ticket` whose groups apply to that pipeline. With `create`, a member is filing it
+ * from the new ticket form, so each required field that form shows needs a value. Called
+ * outside the transaction.
  */
 export const checkProperties = async (
   orgId: string,
   pipelineId: string,
   current: z.infer<typeof CustomFields>,
   patch: z.infer<typeof CustomFieldsPatch>,
+  { create = false } = {},
 ) =>
-  Object.keys(patch).length === 0
+  Object.keys(patch).length === 0 && !create
     ? current
     : (
         await core.forOrg(orgId).fields.check({
@@ -34,6 +37,7 @@ export const checkProperties = async (
           current,
           patch,
           appliesTo: { pipeline: [pipelineId] },
+          create,
         })
       ).values;
 
