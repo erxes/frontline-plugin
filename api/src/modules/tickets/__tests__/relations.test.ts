@@ -4,7 +4,7 @@ import { withOrg } from '#/db/client.ts';
 import { formSubmissions, forms } from '#/db/forms.ts';
 import { CONVERSATION_STATUSES, conversations, integrations } from '#/db/inbox.ts';
 import { channels } from '#/db/schema.ts';
-import { pipelineStatuses, pipelines, STATUS_TYPES, tickets } from '#/db/tickets.ts';
+import { pipelineStatuses, pipelines, Priority, STATUS_TYPES, tickets } from '#/db/tickets.ts';
 import { RELATIONS } from '#/relations.ts';
 
 // Core's customer filter reads these views (the manifest's `relations`) and refuses one whose
@@ -111,7 +111,7 @@ const seed = async (orgId: string) =>
       pipelineId,
       statusId: statuses[i % statuses.length]?.id ?? '',
       name: `Ticket ${i}`,
-      priority: i % 5,
+      priority: Priority.parse(i % 5),
       customerId: 'bat',
       assigneeId: 'saraa',
     });

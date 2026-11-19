@@ -17,7 +17,7 @@ import { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { Attachment, StoredFile } from '#/db/table.ts';
-import { pipelineStatuses, pipelines, STATUS_TYPES, tickets } from '#/db/tickets.ts';
+import { pipelineStatuses, pipelines, Priority, STATUS_TYPES, tickets } from '#/db/tickets.ts';
 import { canChangeSql, heldInChannels, membership, seenBy } from '../channels/access.ts';
 import { Title } from '../fields.ts';
 import { notifyVisitors } from '../inbox/shared.ts';
@@ -50,6 +50,7 @@ const SlaState = z.enum(SLA_STATES).nullable();
 export const Ticket = createSelectSchema(tickets, {
   attachments: () => z.array(StoredFile),
   propertiesData: () => CustomFields,
+  priority: () => Priority,
 })
   .omit({ orgId: true })
   .extend({
@@ -126,8 +127,7 @@ export const refine = {
   name: () => Title,
   /** BlockNote blocks as JSON, from erxes-ui's Editor. */
   description: (schema: z.ZodString) => schema.max(100_000),
-  /** 0 no priority, 1 minor, 2 medium, 3 high, 4 critical. */
-  priority: (schema: z.ZodNumber) => schema.min(0).max(4),
+  priority: () => Priority,
   attachments: () => z.array(Attachment).max(50),
   assignedMemberIds: () => UserIds,
   subscribedUserIds: () => UserIds,

@@ -56,7 +56,7 @@ const filterFields = (member: PluginMember): FilterFields => ({
   },
   'subject.handedOff': {
     type: 'boolean',
-    expr: sql<boolean>`${conversations.operator} = 'person'`,
+    expr: eq(conversations.operator, 'person'),
   },
   'subject.createdAt': { type: 'date', expr: conversations.createdAt },
   'subject.lastMessageAt': { type: 'date', expr: conversations.lastMessageAt },

@@ -3,7 +3,7 @@ import { and, eq, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { SEND_ATTEMPTS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
-import { conversations, integrations, messages } from '#/db/inbox.ts';
+import { conversations, type DELIVERY_STATUSES, integrations, messages } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
 import { AccountRefused } from '../integrations/provider.ts';
 import { ADAPTERS } from './adapters.ts';
@@ -61,7 +61,7 @@ const settle = (
   messageId: string,
   conversation: { id: string; customerId: string },
   change: {
-    deliveryStatus: 'queued' | 'sent' | 'failed';
+    deliveryStatus: Exclude<(typeof DELIVERY_STATUSES)[number], 'sending'>;
     externalId?: string | null;
     providerData?: SQL;
   },

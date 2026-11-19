@@ -5,6 +5,7 @@ import { WithPipeline } from './PipelinePanel.tsx';
 import {
   type Pipeline,
   type PipelineFields,
+  type Priority,
   PRIORITIES,
   useEditPipeline,
   usePriorityNames,
@@ -53,7 +54,7 @@ const SlaFields = ({ pipeline }: { pipeline: Pipeline }) => {
 
   const save = (patch: Partial<SlaPolicy>) => edit({ slaPolicy: { ...policy, ...patch } });
 
-  const saveRule = (priority: number, patch: Partial<SlaRule>) =>
+  const saveRule = (priority: Priority, patch: Partial<SlaRule>) =>
     save({
       rules: [
         ...policy.rules.filter((rule) => rule.priority !== priority),

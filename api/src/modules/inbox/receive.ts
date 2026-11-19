@@ -12,6 +12,7 @@ import {
   publishConversationEvents,
   signalArrival,
   signalConversations,
+  statusFrom,
 } from './shared.ts';
 
 /**
@@ -270,7 +271,7 @@ export const receiveIn = async (tx: Tx, orgId: string, incoming: Incoming) => {
       lastMessageAt: message.createdAt,
       customerRespondedLast: true,
       readBy: sql`'{}'`,
-      status: sql`case when ${conversations.status} = 'resolved' then 'open' else ${conversations.status} end`,
+      status: statusFrom('resolved', 'open'),
       resolvedAt: null,
       resolvedBy: null,
     })
