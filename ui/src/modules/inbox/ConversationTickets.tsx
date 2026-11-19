@@ -1,4 +1,4 @@
-import { IconTicket } from '@tabler/icons-react';
+import { IconPlus, IconTicket } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, IconTip, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
@@ -80,10 +80,19 @@ export const ConversationTickets = ({ conversation }: { conversation: Conversati
           </Button>
         </IconTip>
       ))}
-      <Button variant="outline" size="sm" className="shrink-0" onClick={create}>
-        <IconTicket />
-        {t('create-ticket', 'Create ticket')}
-      </Button>
+      {/* "Ticket" on the button leaves the crowded header room for the customer's name. */}
+      <IconTip label={t('create-ticket', 'Create ticket')}>
+        <Button
+          variant="outline"
+          size="sm"
+          className="shrink-0"
+          aria-label={t('create-ticket', 'Create ticket')}
+          onClick={create}
+        >
+          <IconPlus />
+          {t('ticket', 'Ticket')}
+        </Button>
+      </IconTip>
     </>
   );
 };
