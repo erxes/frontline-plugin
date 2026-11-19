@@ -79,6 +79,7 @@ export const MN = {
   'Too many requests: try again in a minute':
     'Хэт олон хүсэлт илгээлээ, нэг минутын дараа дахин оролдоно уу',
   Topic: 'Сэдэв',
+  'Try again': 'Дахин оролдох',
   Tuesday: 'Мягмар',
   'Typically replies in a day': 'Ихэвчлэн нэг өдрийн дотор хариулдаг',
   'Typically replies in a few hours': 'Ихэвчлэн хэдэн цагийн дотор хариулдаг',

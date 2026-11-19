@@ -92,6 +92,14 @@ export const useThread = (
     put(conversationId, page.items, page.nextCursor, true);
   };
 
+  /** Hands the conversation from the bot to the team. */
+  const askForPerson = async () => {
+    if (!token || !conversationId) return;
+
+    await api.askForPerson(token, conversationId);
+    await refresh();
+  };
+
   return {
     token,
     conversation,
@@ -99,6 +107,7 @@ export const useThread = (
     hasEarlier: shown.earlier !== null,
     loadEarlier,
     send,
+    askForPerson,
   };
 };
 

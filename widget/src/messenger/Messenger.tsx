@@ -1,15 +1,36 @@
 import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
+import { useReplyAlert } from './alert.ts';
 import type { MessengerApi, Settings } from './api.ts';
 import { Home } from './Home.tsx';
 import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
-import { languageOf, TextProvider, useTextIn } from '../shared/text.ts';
+import { languageOf, TextProvider, useText, useTextIn } from '../shared/text.ts';
 import { Loading, Thread } from './Thread.tsx';
 import { useLazy } from './lazy.ts';
 import { type MessengerState, useMessenger } from './useMessenger.ts';
 
 /** A website opens a messenger it hides the launcher of with this event on `window`. */
 const OPEN_EVENT = 'frontline:open-messenger';
+
+/** How much each of red, green and blue adds to a colour's WCAG relative luminance. */
+const WEIGHTS = [0.2126, 0.7152, 0.0722];
+
+/** The WCAG relative luminance of `hex`, a `#rrggbb` colour as the API stores them. */
+const luminanceOf = (hex: string) =>
+  WEIGHTS.reduce((sum, weight, index) => {
+    const channel = Number.parseInt(hex.slice(1 + index * 2, 3 + index * 2), 16) / 255;
+
+    return (
+      sum + weight * (channel <= 0.040_45 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4)
+    );
+  }, 0);
+
+/**
+ * The colour scheme a configured background reads in: light above the luminance where dark and
+ * light text contrast equally, dark below it. Without one, the visitor's system picks.
+ */
+const schemeOf = (background: string | null) =>
+  background ? (luminanceOf(background) > 0.179 ? 'fl-light' : 'fl-dark') : '';
 
 type View =
   | { name: 'home' }
@@ -71,6 +92,37 @@ const Page = ({
 };
 
 /**
+ * Connects the visitor as the panel opens. When that fails, it says why under the page, with a
+ * way to try again, rather than leaving the visitor a panel that can't send.
+ */
+const Connection = ({
+  messenger: { session, connect },
+  open,
+}: {
+  messenger: MessengerState;
+  open: boolean;
+}) => {
+  const { t, messageOf } = useText();
+  const [failure, setFailure] = useState<{ error: unknown } | null>(null);
+
+  useEffect(() => {
+    if (open && !session && !failure)
+      void connect().catch((error: unknown) => setFailure({ error }));
+  }, [open, session, connect, failure]);
+
+  if (!failure || session) return null;
+
+  return (
+    <p class="fl-retry" role="alert">
+      <span class="fl-error">{messageOf(failure.error)}</span>
+      <button type="button" class="fl-link" onClick={() => setFailure(null)}>
+        {t('Try again')}
+      </button>
+    </p>
+  );
+};
+
+/**
  * The launcher in the page's corner and the panel it opens: the greeting, then a conversation.
  * Closing only hides the panel, so what the visitor was writing and where they were wait for them.
  */
@@ -80,11 +132,9 @@ export const Messenger = ({ api, language }: { api: MessengerApi; language?: str
   const [shown, setOpen] = useState<boolean | null>(null);
   const open = shown === true;
   const [view, setView] = useState<View>({ name: 'home' });
-  const { settings, session, conversations, connect } = messenger;
-
-  useEffect(() => {
-    if (open && !session) void connect().catch(() => setOpen(false));
-  }, [open, session, connect]);
+  const { settings, session, conversations } = messenger;
+  const reading = open && view.name === 'thread' ? view.id : null;
+  const unread = useReplyAlert(conversations, Boolean(session), reading, settings?.name ?? '');
 
   useEffect(() => {
     const show = () => setOpen(true);
@@ -97,13 +147,9 @@ export const Messenger = ({ api, language }: { api: MessengerApi; language?: str
   if (!settings) return null;
 
   return (
-    <Shell
-      settings={settings}
-      shown={shown}
-      unread={conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0)}
-      onOpen={setOpen}
-    >
+    <Shell settings={settings} shown={shown} unread={unread} onOpen={setOpen}>
       <Page api={api} messenger={messenger} view={view} open={open} onView={setView} />
+      <Connection messenger={messenger} open={open} />
     </Shell>
   );
 };
@@ -164,7 +210,7 @@ export const Shell = ({
   return (
     <TextProvider value={text}>
       <div
-        class={`fl fl-hero-${settings.heroStyle}`}
+        class={`fl fl-hero-${settings.heroStyle} ${schemeOf(settings.backgroundColor)}`}
         lang={settings.language}
         style={{
           '--fl-color': settings.color,

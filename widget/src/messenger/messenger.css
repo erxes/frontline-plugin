@@ -72,6 +72,17 @@
   text-align: center;
 }
 
+/* Why the visitor couldn't connect, under the page, with a way to try again. */
+.fl-retry {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+  margin: 0;
+  padding: 12px 16px;
+  border-top: 1px solid var(--fl-line);
+}
+
 .fl-hero {
   padding: 28px 24px 56px;
   background: var(--fl-color);
