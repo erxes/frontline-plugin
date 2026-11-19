@@ -25,28 +25,49 @@ export const trackRequests = (context: BrowserContext) => {
 /**
  * Runs axe on the page held still: CSS transitions and animations are off, and the finite script
  * animations left, such as auto-animate's fades, have ended. A colour mid-transition reads as low
- * contrast, so each is measured at its end. The page moves again afterwards.
+ * contrast, so each is measured at its end. The rule goes into the document and every open shadow
+ * root, where the messenger widget draws, and comes out afterwards.
  */
 const scan = async (page: Page) => {
-  const still = await page.addStyleTag({
-    content: '*, *::before, *::after { transition: none !important; animation: none !important; }',
+  const still = await page.evaluateHandle(() => {
+    const sheet = new CSSStyleSheet();
+
+    const rootsOf = (root: Document | ShadowRoot): (Document | ShadowRoot)[] => [
+      root,
+      ...[...root.querySelectorAll('*')].flatMap((element) =>
+        element.shadowRoot ? rootsOf(element.shadowRoot) : [],
+      ),
+    ];
+
+    const roots = rootsOf(document);
+
+    sheet.replaceSync(
+      '*, *::before, *::after { transition: none !important; animation: none !important; }',
+    );
+
+    for (const root of roots) root.adoptedStyleSheets = [...root.adoptedStyleSheets, sheet];
+
+    return { sheet, roots };
   });
 
   try {
-    await page.waitForFunction(() =>
-      document
-        .getAnimations()
-        .every(
-          (animation) =>
-            animation.playState !== 'running' ||
-            animation.effect?.getTiming().iterations === Infinity,
-        ),
+    await page.waitForFunction(
+      ({ roots }) =>
+        roots
+          .flatMap((root) => root.getAnimations())
+          .every(
+            (animation) =>
+              animation.playState !== 'running' ||
+              animation.effect?.getTiming().iterations === Infinity,
+          ),
+      still,
     );
 
     return await new AxeBuilder({ page }).analyze();
   } finally {
-    await still.evaluate((style) => {
-      style.parentNode?.removeChild(style);
+    await still.evaluate(({ sheet, roots }) => {
+      for (const root of roots)
+        root.adoptedStyleSheets = root.adoptedStyleSheets.filter((adopted) => adopted !== sheet);
     });
   }
 };
