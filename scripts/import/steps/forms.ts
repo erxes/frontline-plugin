@@ -403,7 +403,10 @@ const submissionStep = (
 
     if (!formId) return skip('its form is not imported');
 
-    const answers: unknown[] = Array.isArray(doc.answers) ? doc.answers : [];
+    // An older submission document names no field: its answers sat in the lead conversation.
+    const answers = (Array.isArray(doc.answers) ? doc.answers : []).filter((answer: unknown) =>
+      idOf(entriesOf(answer).get('formFieldId')),
+    );
 
     if (answers.length === 0)
       return skip(
