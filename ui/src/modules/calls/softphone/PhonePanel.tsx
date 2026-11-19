@@ -141,9 +141,12 @@ const useCallConversation = (line: Line, talking: boolean) => {
  * The Phone page's phone: the line and whether it's signed in, then the dial pad, or the call
  * with its tools and, once the PBX reports it, its note.
  */
-export const PhonePanel = ({ live: { phone, line, lines, pickLine } }: { live: LivePhone }) => {
+export const PhonePanel = ({
+  live: { phone, line, lines, pickLine, closedNote, closeNote },
+}: {
+  live: LivePhone;
+}) => {
   const { t } = useTranslation('frontline');
-  const [closedNote, setClosedNote] = useState<string | null>(null);
   const current = useCallConversation(line, Boolean(phone.call?.talking));
   const note = current && current.id !== closedNote ? current : null;
 
@@ -192,7 +195,7 @@ export const PhonePanel = ({ live: { phone, line, lines, pickLine } }: { live: L
         <CallNote
           key={note.id}
           conversationId={note.conversationId}
-          onClose={() => setClosedNote(note.id)}
+          onClose={() => closeNote(note.id)}
         />
       )}
     </section>

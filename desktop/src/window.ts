@@ -6,9 +6,19 @@ import { textIn } from './text.ts';
 /** What the page may ask for, and only from erxes's own address. */
 const PERMISSIONS = new Set(['media', 'notifications', 'clipboard-sanitized-write', 'fullscreen']);
 
-/** A number from a `tel:` link, as the phone dials it. */
+/**
+ * A number from a `tel:` link, as the phone dials it. Escapes decode byte by byte, which can't
+ * throw on a broken one, and a non-ASCII byte is no digit, so the filter drops it.
+ */
 export const telNumber = (url: string) =>
-  url.startsWith('tel:') ? decodeURIComponent(url.slice(4)).replace(/[^\d+*#]/g, '') : null;
+  url.startsWith('tel:')
+    ? url
+        .slice(4)
+        .replace(/%([\da-f]{2})/gi, (_escape, hex: string) =>
+          String.fromCharCode(Number.parseInt(hex, 16)),
+        )
+        .replace(/[^\d+*#]/g, '')
+    : null;
 
 /** Whether `url` is on erxes's saved address. */
 const onServer = (url: string) => {
@@ -57,6 +67,7 @@ const fence = (contents: WebContents, onDial: (number: string) => void) => {
     (_contents, permission, origin) => PERMISSIONS.has(permission) && onServer(origin),
   );
 
+  // A popup of erxes's own, such as a print view, gets the same fence.
   contents.setWindowOpenHandler(({ url }) => {
     if (onServer(url)) return { action: 'allow' };
 
@@ -64,8 +75,9 @@ const fence = (contents: WebContents, onDial: (number: string) => void) => {
 
     return { action: 'deny' };
   });
+  contents.on('did-create-window', (child) => fence(child.webContents, onDial));
   contents.on('will-navigate', (event) => {
-    if (onServer(event.url) || event.url.startsWith('file:')) return;
+    if (onServer(event.url)) return;
 
     event.preventDefault();
     away(event.url);
@@ -75,6 +87,8 @@ const fence = (contents: WebContents, onDial: (number: string) => void) => {
 type Options = {
   /** Whether the app is quitting, so closing the window really closes it. */
   quitting: () => boolean;
+  /** The member chose to stay on a call the page held. */
+  onStay: () => void;
   /** The member's language, for the dialog that guards a call. */
   language: () => string;
   /** Started with the computer: the window waits in the tray. */
@@ -87,7 +101,7 @@ type Options = {
  * it to the tray, so the phone keeps ringing; it never throttles in the background. It opens
  * where the member last left it.
  */
-export const createWindow = ({ quitting, language, hidden, onDial }: Options) => {
+export const createWindow = ({ quitting, onStay, language, hidden, onDial }: Options) => {
   const { bounds, maximized } = settings();
 
   const window = new BrowserWindow({
@@ -131,6 +145,7 @@ export const createWindow = ({ quitting, language, hidden, onDial }: Options) =>
     });
 
     if (choice === 1) event.preventDefault();
+    else onStay();
   });
 
   window.on('close', (event) => {

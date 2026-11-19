@@ -46,6 +46,8 @@ export const DesktopLink = ({
     });
   }, [bridge, i18n.language, status, call, agents]);
 
+  useEffect(() => () => bridge.phone(null), [bridge]);
+
   const run = useEffectEvent((command: PhoneCommand) => {
     switch (command.type) {
       case 'answer':

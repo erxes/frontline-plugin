@@ -105,9 +105,13 @@ const LinePhone = ({
   const phone = useSip(line, audio);
   const navigate = useNavigate();
   const onPhonePage = useLocation().pathname === PHONE_PATH;
+  const [closedNote, closeNote] = useState<string | null>(null);
   const { call } = phone;
 
-  useEffect(() => publishPhone({ phone, line, lines, pickLine }));
+  useEffect(
+    () => publishPhone({ phone, line, lines, pickLine, closedNote, closeNote }),
+    [phone, line, lines, pickLine, closedNote],
+  );
   useEffect(() => () => publishPhone(null), []);
 
   return (

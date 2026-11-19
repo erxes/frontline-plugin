@@ -18,7 +18,13 @@ if (!app.requestSingleInstanceLock()) app.exit();
 let quitting = false;
 let language = app.getLocale();
 let window: BrowserWindow | null = null;
-let dial = (_number: string) => {};
+
+// A number that comes before the app is ready, as a tel: link that launches it on macOS, waits.
+let pending: string | null = null;
+
+let dial = (number: string) => {
+  pending = number;
+};
 
 /** The tel: link in a launch's arguments, as Windows and Linux pass it. */
 const dialFrom = (argv: string[]) => {
@@ -57,6 +63,10 @@ app.on('activate', () => {
 app.on('ready', () => {
   const opened = createWindow({
     quitting: () => quitting,
+    // Stay on a call cancels the quit too.
+    onStay: () => {
+      quitting = false;
+    },
     language: () => language,
     hidden: process.argv.includes('--hidden') || app.getLoginItemSettings().wasOpenedAtLogin,
     onDial: (number) => dial(number),
@@ -80,6 +90,8 @@ app.on('ready', () => {
   });
 
   dial = phone.dial;
+
+  if (pending) dial(pending);
   dialFrom(process.argv);
 
   ipcMain.on(CHANNELS.connect, (event, typed: unknown) => {

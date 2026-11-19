@@ -39,8 +39,8 @@ export type PhoneCommand =
   | { type: 'queue'; accountId: string; paused: boolean };
 
 export type DesktopBridge = {
-  /** Tells the app the phone's state, on every change. */
-  phone: (state: PhoneState) => void;
+  /** Tells the app the phone's state, on every change, and null once the page has no phone. */
+  phone: (state: PhoneState | null) => void;
   /** Runs `listener` on each command the app sends, until the returned function is called. */
   onCommand: (listener: (command: PhoneCommand) => void) => () => void;
 };
