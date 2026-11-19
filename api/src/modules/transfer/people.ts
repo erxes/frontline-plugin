@@ -1,15 +1,6 @@
 import { z } from 'zod';
-import { core } from '#/core.ts';
+import { chunks, core } from '#/core.ts';
 import { refuse } from './shared.ts';
-
-/** Core lists at most 100 ids at a time. */
-const chunks = (ids: Iterable<string>) => {
-  const unique = [...new Set(ids)];
-
-  return Array.from({ length: Math.ceil(unique.length / 100) }, (_, at) =>
-    unique.slice(at * 100, at * 100 + 100),
-  );
-};
 
 /**
  * How an export names the people its rows point at: members by email, customers by their email,

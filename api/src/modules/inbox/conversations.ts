@@ -1,8 +1,10 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, count, eq, ilike, inArray, ne, or, sql } from 'drizzle-orm';
+import pLimit from 'p-limit';
 import { z } from 'zod';
-import { CONVERSATION_EVENTS, core, INBOX_NOTIFICATIONS, PERMISSIONS } from '#/core.ts';
+import { chunks, CONVERSATION_EVENTS, core, INBOX_NOTIFICATIONS, PERMISSIONS } from '#/core.ts';
+import { withOrg } from '#/db/client.ts';
 import {
   CONVERSATION_STATUSES,
   conversations,
@@ -60,13 +62,52 @@ const filterFields = (member: PluginMember): FilterFields => ({
   'subject.resolvedAt': { type: 'date', expr: conversations.resolvedAt },
 });
 
-/** The ids of core's first 100 customers whose name, email or phone matches `search`. */
-const customersMatching = async (member: PluginMember, { search }: { search?: string }) => {
+const ListInput = z.object({ ...FilterInput, ...PageInput });
+
+/**
+ * The conversations the caller sees under the filter bar, before its search: resolved ones only
+ * when it asks for a status. The query joins their integration and `membership`.
+ */
+const shown = (member: PluginMember, filter: z.infer<typeof ListInput>['filter']) =>
+  and(
+    seenBy(member, conversations.channelId),
+    filtersBy(filter, 'subject.status') ? undefined : ne(conversations.status, 'resolved'),
+    compileFilter(filterFields(member), filter, { me: member.userId }),
+  );
+
+/**
+ * The ids of the customers whose name, email or phone matches `search`. Core answers 100 at a
+ * time, so past 100 matches it is asked about the customers of the conversations `shown`, by
+ * id, ten requests at a time.
+ */
+const customersMatching = async (member: PluginMember, input: z.infer<typeof ListInput>) => {
+  const { search } = input;
+
   if (!search) return [];
 
-  const { data } = await core.forOrg(member.orgId).customers.list({ search, limit: 100 });
+  const customers = core.forOrg(member.orgId).customers;
+  const first = await customers.list({ search, limit: 100 });
 
-  return data.map((customer) => customer.id);
+  if (!first.pageInfo.hasNextPage) return first.data.map((customer) => customer.id);
+
+  const theirs = await withOrg(member.orgId, (tx) =>
+    tx
+      .selectDistinct({ id: conversations.customerId })
+      .from(conversations)
+      .innerJoin(integrations, eq(integrations.id, conversations.integrationId))
+      .leftJoin(channelMembers, membership(member, conversations.channelId))
+      .where(shown(member, input.filter)),
+  );
+
+  const limit = pLimit(10);
+
+  const pages = await Promise.all(
+    chunks(theirs.map((row) => row.id)).map((ids) =>
+      limit(() => customers.list({ ids: ids.join(','), search, limit: ids.length })),
+    ),
+  );
+
+  return pages.flatMap((page) => page.data.map((customer) => customer.id));
 };
 
 /**
@@ -75,11 +116,7 @@ const customersMatching = async (member: PluginMember, { search }: { search?: st
  * `search` matches the last message or the customer's name, email or phone; resolved ones show
  * only when the filter asks for a status.
  */
-const list = readsWithCore(
-  PERMISSIONS.inboxView,
-  z.object({ ...FilterInput, ...PageInput }),
-  customersMatching,
-)
+const list = readsWithCore(PERMISSIONS.inboxView, ListInput, customersMatching)
   .output(
     z.object({
       conversations: z.array(Conversation),
@@ -88,15 +125,15 @@ const list = readsWithCore(
   )
   .handler(async ({ input, context: { tx, member, fromCore: customerIds } }) => {
     const matches = and(
-      seenBy(member, conversations.channelId),
-      filtersBy(input.filter, 'subject.status') ? undefined : ne(conversations.status, 'resolved'),
+      shown(member, input.filter),
       input.search
         ? or(
             ilike(conversations.content, likeText(input.search)),
-            customerIds.length > 0 ? inArray(conversations.customerId, customerIds) : undefined,
+            customerIds.length > 0
+              ? sql`${conversations.customerId} = any(${sql.param(customerIds)}::text[])`
+              : undefined,
           )
         : undefined,
-      compileFilter(filterFields(member), input.filter, { me: member.userId }),
     );
 
     const order = orderOf(conversations, conversations.lastMessageAt);
