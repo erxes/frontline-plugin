@@ -1,15 +1,15 @@
 import type { Page } from '@playwright/test';
-import { callProLine, expect, expectPage, recordPanel, test, unique } from './fixtures.ts';
+import {
+  callProLine,
+  expect,
+  expectPage,
+  filterBy,
+  recordPanel,
+  test,
+  unique,
+} from './fixtures.ts';
 
 const HISTORY = '/frontline/calls/history';
-
-/** Narrows the list with the filter bar: `field` is `option`. */
-const filterBy = async (page: Page, field: string, option: string) => {
-  await page.getByRole('button', { name: 'Filter', exact: true }).click();
-  await page.getByRole('option', { name: field, exact: true }).click();
-  await page.getByRole('option', { name: option, exact: true }).click();
-  await page.keyboard.press('Escape');
-};
 
 test('calls from a phone line show in the call history as they happen, and open in the side panel', async ({
   page,

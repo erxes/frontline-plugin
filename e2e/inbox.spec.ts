@@ -1,15 +1,19 @@
 import { createHmac } from 'node:crypto';
-import type { Locator, Page } from '@playwright/test';
+import type { Locator } from '@playwright/test';
+import { z } from 'zod';
 import {
   addMessenger,
   createChannel,
   expect,
   expectAccessible,
+  filterBy,
+  Id,
   INBOX,
   MESSENGER,
   openMessenger,
   OWNER,
   pick,
+  pluginApi,
   recordPanel,
   test,
   unique,
@@ -18,14 +22,6 @@ import {
 
 /** Where a control starts from the left of the page, to check the order of a row. */
 const left = async (control: Locator) => (await control.boundingBox())?.x ?? Number.NaN;
-
-/** Narrows the inbox with the filter bar: `field` is one of `option`. */
-const filterBy = async (page: Page, field: string, option: string) => {
-  await page.getByRole('button', { name: 'Filter', exact: true }).click();
-  await page.getByRole('option', { name: field, exact: true }).click();
-  await page.getByRole('option', { name: option, exact: true }).click();
-  await page.keyboard.press('Escape');
-};
 
 test('a visitor writes through the messenger and a member answers, assigns, tags, pins and resolves it', async ({
   page,
@@ -167,7 +163,6 @@ test('the thread follows new messages at its end, and counts them for a reader u
 test('an admin sets up the messenger on its settings page and visitors get it', async ({
   page,
   request,
-  newMember,
 }) => {
   const channel = await createChannel(page);
   const title = `Hello from ${unique()}`;
@@ -240,28 +235,43 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   expect(await connected.json()).toMatchObject({
     messenger: { greetingTitle: title, color: '#0F766E', requireAuth: true },
   });
+});
 
-  // A visitor the shop signs in writes at once, though the messenger asks others for an email.
-  const email = `${unique()}@e2e.test`;
+test('a visitor the shop signs in writes at once, and a member outside the channel misses the messenger', async ({
+  page,
+  api,
+  request,
+  newMember,
+}) => {
+  const rpc = await pluginApi(api, request);
+  const channel = await rpc('channels/create', { name: `Site ${unique()}` }, Id);
 
-  const hash = createHmac('sha256', (await secret.textContent()) ?? '')
-    .update(email)
-    .digest('hex');
-
-  await using site = await openMessenger(
-    page.context(),
-    key,
-    `<script>window.frontlineMessenger = { email: '${email}', hash: '${hash}' };</script>`,
+  // It asks visitors for an email or phone before they write.
+  const messenger = await rpc(
+    'integrations/create',
+    { channelId: channel.id, kind: 'messenger', name: 'Website', config: { requireAuth: true } },
+    z.object({ id: z.string(), publicKey: z.string() }),
   );
+
+  const { identitySecret } = await rpc(
+    'integrations/messenger/rotateSecret',
+    { id: messenger.id },
+    z.object({ identitySecret: z.string() }),
+  );
+
+  const email = `${unique()}@e2e.test`;
+  const hash = createHmac('sha256', identitySecret).update(email).digest('hex');
+  const signedIn = `<script>window.frontlineMessenger = { email: '${email}', hash: '${hash}' };</script>`;
+
+  await using site = await openMessenger(page.context(), messenger.publicKey, signedIn);
 
   await site.panel.getByRole('button', { name: 'Send us a message' }).click();
   await expect(site.panel.getByRole('textbox', { name: 'Message' })).toBeVisible();
   await expect(site.panel).not.toContainText('Leave your email or phone number');
 
-  // A member outside the messenger's channel doesn't find it.
   const outsider = await newMember(['frontline.channel.view']);
 
-  await outsider.page.goto(new URL(page.url()).pathname);
+  await outsider.page.goto(`${INBOX}/messengers/${messenger.id}`);
   await expect(outsider.page.getByRole('alert')).toContainText('No such integration');
   await expectAccessible(outsider.page, outsider.page.getByRole('alert'));
 });

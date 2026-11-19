@@ -5,6 +5,7 @@ import {
   createPipeline,
   expect,
   expectAccessible,
+  filterBy,
   INBOX,
   openChannelPipelines,
   openMessenger,
@@ -28,14 +29,6 @@ const openPipeline = async (page: Page, pipeline: string) => {
   await page.goto(TICKETS);
   await page.getByRole('link', { name: pipeline, exact: true }).click();
   await expect(page).toHaveURL(/[?&]pipeline=/);
-};
-
-/** Narrows the list with the filter bar: `field` is one of `option`. */
-const filterBy = async (page: Page, field: string, option: string) => {
-  await page.getByRole('button', { name: 'Filter', exact: true }).click();
-  await page.getByRole('option', { name: field, exact: true }).click();
-  await page.getByRole('option', { name: option, exact: true }).click();
-  await page.keyboard.press('Escape');
 };
 
 /** Picks the list's display in its Display menu. */
