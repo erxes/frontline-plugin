@@ -1,4 +1,3 @@
-import { AxeBuilder } from '@axe-core/playwright';
 import { CORE_API_PREFIX, coreContract } from '@erxes/core-contract';
 import { createORPCClient } from '@orpc/client';
 import type { ContractRouterClient } from '@orpc/contract';
@@ -10,13 +9,15 @@ import {
   type BrowserContext,
   type Locator,
   type Page,
-  type Request,
 } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { z } from 'zod';
+import { trackRequests } from './accessible.ts';
 import { MESSENGER } from './visitor.ts';
+
+export { expectAccessible } from './accessible.ts';
 
 export { MESSENGER, visitorOf } from './visitor.ts';
 
@@ -142,64 +143,6 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
   );
 
   return client;
-};
-
-/** Each browser context's requests still in flight, but live streams, which never end. */
-const inFlight = new WeakMap<BrowserContext, Set<Request>>();
-
-/** Starts counting `context`'s requests for `expectAccessible`. */
-const trackRequests = (context: BrowserContext) => {
-  const requests = new Set<Request>();
-
-  inFlight.set(context, requests);
-  context.on('request', (request) => {
-    if (request.resourceType() !== 'eventsource') requests.add(request);
-  });
-  context.on('requestfinished', (request) => requests.delete(request));
-  context.on('requestfailed', (request) => requests.delete(request));
-};
-
-/**
- * Fails on serious or critical axe violations, listing each rule with the elements that break it.
- * Colours are checked at rest: once `shown`, which the page draws from its data, is visible, every
- * request has answered and drawn, and the page's animations end. Data that lands mid-scan changes
- * what axe measures: the list's record count fades in under its leaving skeleton
- * (erxes/erxes#10812). Spinners loop forever, so only finite animations are waited for.
- */
-export const expectAccessible = async (page: Page, shown: Locator) => {
-  await expect(shown).toBeVisible();
-  await expect
-    .poll(() => [...(inFlight.get(page.context()) ?? [])].map((request) => request.url()), {
-      message: 'requests still in flight',
-      timeout: 15_000,
-    })
-    .toEqual([]);
-  // The last answer renders on a later frame.
-  await page.evaluate(
-    () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
-  );
-  await page.waitForFunction(() =>
-    document
-      .getAnimations()
-      .every(
-        (animation) =>
-          animation.playState !== 'running' ||
-          animation.effect?.getTiming().iterations === Infinity,
-      ),
-  );
-
-  const { violations } = await new AxeBuilder({ page }).analyze();
-
-  const blocking = violations
-    .filter((violation) => violation.impact === 'serious' || violation.impact === 'critical')
-    .map(
-      (violation) =>
-        `${violation.id} (${violation.impact}): ${violation.help}\n${violation.nodes
-          .map((node) => `  ${node.target.join(' ')}\n    ${node.html.slice(0, 200)}`)
-          .join('\n')}`,
-    );
-
-  expect(blocking, `axe on ${page.url()}`).toEqual([]);
 };
 
 /** A member of the owner's organisation, signed in on their own page, whose role holds `permissions`. */
