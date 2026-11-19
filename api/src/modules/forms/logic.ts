@@ -1,4 +1,4 @@
-// Whether a form field shows, from the answers so far. The UI's live preview imports this file
+// Whether a form field, or the callout, shows. The UI's live preview imports this file
 // (`@frontline/api/logic`), so it imports types only.
 import type { z } from 'zod';
 import type { FieldLogic, LOGIC_ACTIONS } from '#/db/forms.ts';
@@ -68,3 +68,11 @@ export const isShown = (field: LogicField, answers: Record<string, unknown>) => 
 
   return field.logicAction === 'show' ? all : !all;
 };
+
+/** Whether the form opens on its callout: not skipped, and it has a title, text or image. */
+export const showsCallout = (form: {
+  calloutSkip: boolean;
+  calloutTitle: string | null;
+  calloutBody: string | null;
+  calloutImage: unknown;
+}) => !form.calloutSkip && Boolean(form.calloutTitle || form.calloutBody || form.calloutImage);

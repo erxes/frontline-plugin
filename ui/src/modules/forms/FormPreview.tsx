@@ -2,8 +2,15 @@ import { isShown } from '@frontline/api/logic';
 import { Button, Checkbox, cn, Input, Label, RadioGroup, Select, Switch, Textarea } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { COLOR_THEMES } from '~/modules/messenger/queries.ts';
 import { PICK_TYPES } from './fieldTypes.ts';
 import type { Form, FormField } from './useForms.ts';
+
+declare module 'react' {
+  interface CSSProperties {
+    '--form-color'?: string;
+  }
+}
 
 type Answers = Record<string, unknown>;
 
@@ -127,6 +134,29 @@ const PreviewField = ({
  * The form as a visitor sees it, a step at a time, with the show and hide rules applied to what
  * is typed here: the same rules the API checks a submission by (`api/src/modules/forms/logic.ts`).
  */
+/**
+ * A button a visitor presses, in the form's colour with white text as the embed draws it. A form
+ * with no colour gets the embed's own, the messenger's first: indigo.
+ */
+export const FormButton = ({
+  form,
+  label,
+  onClick,
+}: {
+  form: Form;
+  label: string;
+  onClick?: () => void;
+}) => (
+  <button
+    type="button"
+    onClick={onClick}
+    style={{ '--form-color': form.primaryColor ?? COLOR_THEMES[0].color }}
+    className="inline-flex h-8 items-center self-start rounded-md bg-(--form-color) px-3 text-sm font-medium text-white"
+  >
+    {label}
+  </button>
+);
+
 export const FormPreview = ({ form, fields }: { form: Form; fields: FormField[] }) => {
   const { t } = useTranslation('frontline');
   const [answers, setAnswers] = useState<Answers>({});
@@ -164,11 +194,9 @@ export const FormPreview = ({ form, fields }: { form: Form; fields: FormField[] 
           {t('back', 'Back')}
         </Button>
         {step < steps ? (
-          <Button variant="secondary" onClick={() => setStep(step + 1)}>
-            {t('next', 'Next')}
-          </Button>
+          <FormButton form={form} label={t('next', 'Next')} onClick={() => setStep(step + 1)} />
         ) : (
-          <Button disabled>{form.buttonText ?? t('form-send', 'Send')}</Button>
+          <FormButton form={form} label={form.buttonText || t('form-send', 'Send')} />
         )}
       </div>
     </section>
