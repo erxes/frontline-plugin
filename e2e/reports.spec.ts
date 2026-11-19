@@ -80,11 +80,19 @@ test('call, ticket and conversation tiles on the home dashboard count the period
   await expect(
     tileOf(page, 'Top numbers').getByRole('row').filter({ hasText: caller }).getByRole('cell'),
   ).toHaveText([caller, '3', '2', '1']);
-  // The missed call was never called back, so it is a breach, and the reason it was missed shows.
+  // The missed call ended as it rang, so it was never offered to an agent: no breach, and its
+  // reason says so.
+  await pick(
+    page,
+    tileOf(page, 'Why calls were missed').getByRole('combobox', { name: 'Chart type' }),
+    'Table',
+  );
+  await expect(
+    tileOf(page, 'Why calls were missed').getByRole('row').filter({ hasText: 'Hung up within' }),
+  ).toBeVisible();
   await expect(
     tileOf(page, 'Calls nobody served').getByRole('row').filter({ hasText: caller }),
-  ).toHaveCount(1);
-  await expect(tileOf(page, 'Why calls were missed')).toBeVisible();
+  ).toHaveCount(0);
   await expect(
     page.getByRole('region', { name: 'Calls', exact: true }).getByRole('row').filter({
       hasText: caller,
@@ -265,31 +273,35 @@ test('a ticket report card changes its chart, downloads, lists its tickets and s
   await expect(page).toHaveURL(new RegExp(ticket.id));
   await page.keyboard.press('Escape');
 
-  // A card draws as another chart, and downloads its numbers.
+  // A card draws as another chart, and downloads its numbers. Charts saved before this run sit
+  // after the built-in card, so it is the first.
   const cards = page.getByRole('region', { name: 'Tickets by priority', exact: true });
+  const card = cards.first();
 
-  await pick(page, cards.getByRole('combobox', { name: 'Chart type' }), 'Table');
-  await expect(cards.getByRole('table')).toBeVisible();
+  await pick(page, card.getByRole('combobox', { name: 'Chart type' }), 'Table');
+  await expect(card.getByRole('table')).toBeVisible();
 
   const download = page.waitForEvent('download');
 
-  await cards.getByRole('button', { name: 'Download', exact: true }).click();
+  await card.getByRole('button', { name: 'Download', exact: true }).click();
   await page.getByRole('option', { name: 'Download CSV' }).click();
   expect((await download).suggestedFilename()).toBe('Tickets by priority.csv');
 
-  // Saved, it is a second card that outlives a reload, until a member removes it.
-  await cards.getByRole('button', { name: 'Tickets by priority actions' }).click();
+  // Saved, it is one more card that outlives a reload, until a member removes it.
+  const before = await cards.count();
+
+  await card.getByRole('button', { name: 'Tickets by priority actions' }).click();
   await page.getByRole('option', { name: 'Save as a chart' }).click();
-  await expect(cards).toHaveCount(2);
+  await expect(cards).toHaveCount(before + 1);
 
   await page.reload();
-  await expect(cards).toHaveCount(2);
+  await expect(cards).toHaveCount(before + 1);
   await expect(cards.last().getByRole('table')).toBeVisible();
 
   await cards.last().getByRole('button', { name: 'Tickets by priority actions' }).click();
   await page.getByRole('option', { name: 'Remove chart' }).click();
   await confirmDelete(page);
-  await expect(cards).toHaveCount(1);
+  await expect(cards).toHaveCount(before);
 });
 
 test('a member without the permissions is refused each report card', async ({ newMember }) => {
