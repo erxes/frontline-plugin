@@ -12,6 +12,7 @@ import {
   openMessenger,
   OWNER,
   pluginApi,
+  recordPanel,
   test,
   unique,
   visitorOf,
@@ -274,13 +275,11 @@ test('a member takes over from the bot, sees the visitor typing and edits a repl
   const header = page.getByRole('region', { name: 'Conversation' }).locator('header');
   const presence = page.getByLabel('Visitor presence');
 
-  // The visitor's presence is a line in the customer panel, which the rail opens; typing shows
-  // beside their name.
-  await page
-    .getByRole('toolbar', { name: 'Customer panels' })
-    .getByRole('button', { name: 'Customer', exact: true })
-    .click();
+  // The visitor's presence is a line in the conversation's details, which core's panel opens;
+  // typing shows beside their name.
+  await header.getByRole('button', { name: 'Details and properties' }).click();
   await expect(presence).toContainText('1 visit');
+  await recordPanel(page).getByRole('button', { name: 'Close', exact: true }).click();
   await visitor.tell(conversationId, 'typing');
   await expect(header).toContainText('Typing…');
 

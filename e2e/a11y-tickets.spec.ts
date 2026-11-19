@@ -2,6 +2,8 @@ import {
   createChannel,
   expectAccessible,
   Id,
+  INBOX,
+  messengerIn,
   pick,
   pluginApi,
   recordPanel,
@@ -9,6 +11,7 @@ import {
   type Rpc,
   test,
   unique,
+  visitorOf,
 } from './fixtures.ts';
 
 /*
@@ -110,6 +113,27 @@ test("a ticket's comments for its customer", async ({ page, api, request }) => {
   await page.goto(recordPath('/frontline/tickets', 'frontline:ticket', id));
   await panel.getByRole('tab', { name: 'Comments' }).click();
   await expectAccessible(page, panel.getByText('A new zip is on its way.'));
+});
+
+test('a ticket drafted from a conversation', async ({ page, api, plugin, request }) => {
+  const rpc = await pluginApi(api, request);
+  const pipeline = await pipelineIn(rpc);
+  const key = await messengerIn(rpc, { welcome: 'Hi' }, pipeline.channelId);
+  const panel = recordPanel(page);
+
+  const visitor = await visitorOf(request, plugin, key, {
+    email: `${unique()}@e2e.test`,
+    firstName: `Ada ${unique()}`,
+  });
+
+  const conversationId = await visitor.write(`Where is my order ${unique()}`);
+
+  await page.goto(`${INBOX}?conversationId=${conversationId}`);
+  await page
+    .getByRole('region', { name: 'Conversation' })
+    .getByRole('button', { name: 'Create ticket' })
+    .click();
+  await expectAccessible(page, panel.getByLabel('Name'));
 });
 
 test('tickets in the list, the board and the table', async ({ page, api, request }) => {
