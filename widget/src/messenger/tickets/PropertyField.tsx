@@ -1,3 +1,4 @@
+import { useText } from '../../shared/text.ts';
 import type { Property } from '../api.ts';
 
 type FieldProps = { property: Property; value: unknown; onChange: (value: unknown) => void };
@@ -10,13 +11,15 @@ export const toggled = (list: string[], item: string, on: boolean) =>
 
 /** A choice property: one of its options, or several. */
 const Choices = ({ property, value, onChange }: FieldProps) => {
+  const { t } = useText();
+
   if (property.type === 'select')
     return (
       <select
         value={textOf(value)}
         onChange={(event) => onChange(event.currentTarget.value || null)}
       >
-        <option value="">Pick one</option>
+        <option value="">{t('Pick one')}</option>
         {property.options.map((option) => (
           <option key={option} value={option}>
             {option}

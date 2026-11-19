@@ -142,7 +142,12 @@ export const topicOf = (orgId: string, topicId: string) =>
       .orderBy(desc(kbArticles.publishedAt));
 
     return {
-      topic: topic && { title: topic.title, description: topic.description, color: topic.color },
+      topic: topic && {
+        title: topic.title,
+        description: topic.description,
+        color: topic.color,
+        languageCode: topic.languageCode,
+      },
       categories,
       articles,
     };

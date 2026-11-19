@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { MessengerApi, Settings } from './api.ts';
 import { Home } from './Home.tsx';
 import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
+import { languageOf, TextProvider, useTextIn } from '../shared/text.ts';
 import { Loading, Thread } from './Thread.tsx';
 import { useLazy } from './lazy.ts';
 import { type MessengerState, useMessenger } from './useMessenger.ts';
@@ -73,8 +74,8 @@ const Page = ({
  * The launcher in the page's corner and the panel it opens: the greeting, then a conversation.
  * Closing only hides the panel, so what the visitor was writing and where they were wait for them.
  */
-export const Messenger = ({ api }: { api: MessengerApi }) => {
-  const messenger = useMessenger(api);
+export const Messenger = ({ api, language }: { api: MessengerApi; language?: string }) => {
+  const messenger = useMessenger(api, language);
   // Null until the visitor first opens the panel, which mounts it from then on.
   const [shown, setOpen] = useState<boolean | null>(null);
   const open = shown === true;
@@ -112,9 +113,31 @@ export const hasLauncher = (settings: Settings) =>
   settings.showLauncher && !(settings.hideWhenOffline && !settings.isOnline);
 
 /**
- * The messenger in the page's corner, in its settings' colours: the launcher, and once `shown`,
- * the panel holding `children`, hidden while `shown` is false. The settings page's preview draws
- * the same.
+ * Focus follows the panel: into it as it opens, back to the launcher once it closes. On a phone
+ * the launcher hides while the panel is open, so focus would otherwise drop to the page. A panel
+ * that mounts open, as the settings page's preview does, leaves focus on the page.
+ */
+const useFollowingFocus = (shown: boolean | null) => {
+  const panel = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const was = useRef(shown);
+
+  useEffect(() => {
+    if (was.current === shown) return;
+
+    was.current = shown;
+
+    if (shown) panel.current?.focus();
+    else if (shown === false) toggle.current?.focus();
+  }, [shown]);
+
+  return { panel, toggle };
+};
+
+/**
+ * The messenger in the page's corner, in its settings' colours and language: the launcher, and
+ * once `shown`, the panel holding `children`, hidden while `shown` is false. The settings page's
+ * preview draws the same.
  */
 export const Shell = ({
   settings,
@@ -130,73 +153,65 @@ export const Shell = ({
   children: ComponentChildren;
 }) => {
   const open = shown === true;
-  const panel = useRef<HTMLElement>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
-  const was = useRef(shown);
+  const { panel, toggle } = useFollowingFocus(shown);
+  const text = useTextIn(languageOf(settings.language));
 
-  // Focus follows the panel: into it as it opens, back to the launcher once it closes. On a phone
-  // the launcher hides while the panel is open, so focus would otherwise drop to the page. A panel
-  // that mounts open, as the settings page's preview does, leaves focus on the page.
-  useEffect(() => {
-    if (was.current === shown) return;
+  if (!text) return null;
 
-    was.current = shown;
-
-    if (shown) panel.current?.focus();
-    else if (shown === false) toggle.current?.focus();
-  }, [shown]);
-
+  const { t } = text;
   const launcher = hasLauncher(settings);
 
   return (
-    <div
-      class={`fl fl-hero-${settings.heroStyle}`}
-      lang={settings.language}
-      style={{
-        '--fl-color': settings.color,
-        '--fl-text': settings.textColor,
-        ...(settings.backgroundColor ? { '--fl-page': settings.backgroundColor } : {}),
-      }}
-    >
-      {shown !== null && (
-        <section
-          ref={panel}
-          class="fl-panel"
-          role="dialog"
-          aria-label={settings.name}
-          tabIndex={-1}
-          hidden={!open}
-        >
-          <button
-            type="button"
-            class="fl-icon-button fl-close"
-            aria-label="Close"
-            onClick={() => onOpen(false)}
+    <TextProvider value={text}>
+      <div
+        class={`fl fl-hero-${settings.heroStyle}`}
+        lang={settings.language}
+        style={{
+          '--fl-color': settings.color,
+          '--fl-text': settings.textColor,
+          ...(settings.backgroundColor ? { '--fl-page': settings.backgroundColor } : {}),
+        }}
+      >
+        {shown !== null && (
+          <section
+            ref={panel}
+            class="fl-panel"
+            role="dialog"
+            aria-label={settings.name}
+            tabIndex={-1}
+            hidden={!open}
           >
-            <CloseIcon />
+            <button
+              type="button"
+              class="fl-icon-button fl-close"
+              aria-label={t('Close')}
+              onClick={() => onOpen(false)}
+            >
+              <CloseIcon />
+            </button>
+            {children}
+          </section>
+        )}
+        {launcher && (
+          <button
+            ref={toggle}
+            type="button"
+            class="fl-launcher"
+            aria-label={t(open ? 'Close the messenger' : 'Open the messenger')}
+            aria-expanded={open}
+            onClick={() => onOpen(!open)}
+          >
+            {open ? (
+              <CloseIcon />
+            ) : settings.launcherLogo ? (
+              <img src={settings.launcherLogo} alt="" />
+            ) : (
+              <ChatIcon />
+            )}
+            {!open && unread > 0 && <span class="fl-badge">{unread}</span>}
           </button>
-          {children}
-        </section>
-      )}
-      {launcher && (
-        <button
-          ref={toggle}
-          type="button"
-          class="fl-launcher"
-          aria-label={open ? 'Close the messenger' : 'Open the messenger'}
-          aria-expanded={open}
-          onClick={() => onOpen(!open)}
-        >
-          {open ? (
-            <CloseIcon />
-          ) : settings.launcherLogo ? (
-            <img src={settings.launcherLogo} alt="" />
-          ) : (
-            <ChatIcon />
-          )}
-          {!open && unread > 0 && <span class="fl-badge">{unread}</span>}
-        </button>
-      )}
-    </div>
+        )}
+      </div>
+    </TextProvider>
   );
 };

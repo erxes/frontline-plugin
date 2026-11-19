@@ -17,8 +17,8 @@ import { messenger } from './adapter.ts';
  */
 export const Identity = z
   .object({
-    email: z.email().max(320).optional(),
-    phone: z.string().trim().min(3).max(50).optional(),
+    email: z.email({ error: 'Leave a valid email' }).max(320).optional(),
+    phone: z.string().trim().min(3, { error: 'Leave a longer phone number' }).max(50).optional(),
     /** The website's own id for the visitor; counts only when signed. */
     userId: z.string().trim().min(1).max(200).optional(),
     firstName: z.string().trim().max(100).optional(),

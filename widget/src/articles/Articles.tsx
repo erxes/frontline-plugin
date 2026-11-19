@@ -7,12 +7,11 @@ import type {
   SearchArticles,
   Topic,
 } from './api.ts';
+import { useText } from '../shared/text.ts';
 
 type View = { name: 'home' } | { name: 'category'; id: string } | { name: 'article'; id: string };
 
 type Open = (view: View) => void;
-
-const countOf = (count: number) => (count === 1 ? '1 article' : `${count} articles`);
 
 const ArticleRows = ({ articles, open }: { articles: ArticleSummary[]; open: Open }) => (
   <ul class="fl-rows">
@@ -39,24 +38,30 @@ const CategoryRows = ({
   categories: Category[];
   topic: Topic;
   open: Open;
-}) => (
-  <ul class="fl-rows">
-    {categories.map((category) => (
-      <li key={category.id}>
-        <button
-          type="button"
-          class="fl-row"
-          onClick={() => open({ name: 'category', id: category.id })}
-        >
-          <span>{category.title}</span>
-          <small>
-            {countOf(topic.articles.filter((article) => article.categoryId === category.id).length)}
-          </small>
-        </button>
-      </li>
-    ))}
-  </ul>
-);
+}) => {
+  const { t } = useText();
+
+  return (
+    <ul class="fl-rows">
+      {categories.map((category) => {
+        const count = topic.articles.filter((article) => article.categoryId === category.id).length;
+
+        return (
+          <li key={category.id}>
+            <button
+              type="button"
+              class="fl-row"
+              onClick={() => open({ name: 'category', id: category.id })}
+            >
+              <span>{category.title}</span>
+              <small>{t(count === 1 ? '1 article' : '{count} articles', { count })}</small>
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+};
 
 /**
  * The articles whose title, summary or text holds `term`, asked for once the visitor pauses
@@ -65,6 +70,7 @@ const CategoryRows = ({
 const useSearch = (term: string, search: SearchArticles) => {
   const [articles, setArticles] = useState<ArticleSummary[] | null>(null);
   const [failure, setFailure] = useState('');
+  const { messageOf } = useText();
 
   useEffect(() => {
     if (!term) return;
@@ -80,7 +86,7 @@ const useSearch = (term: string, search: SearchArticles) => {
         setArticles(found);
         setFailure('');
       } catch (error) {
-        if (live) setFailure(error instanceof Error ? error.message : 'Try again');
+        if (live) setFailure(messageOf(error));
       }
     };
 
@@ -90,13 +96,15 @@ const useSearch = (term: string, search: SearchArticles) => {
       live = false;
       clearTimeout(asked);
     };
-  }, [term, search]);
+  }, [term, search, messageOf]);
 
   return { articles, failure };
 };
 
 /** What the search found, that it found nothing, or why it failed. */
 const Found = ({ articles, failure, open }: ReturnType<typeof useSearch> & { open: Open }) => {
+  const { t } = useText();
+
   if (failure)
     return (
       <p class="fl-error" role="alert">
@@ -104,12 +112,12 @@ const Found = ({ articles, failure, open }: ReturnType<typeof useSearch> & { ope
       </p>
     );
 
-  if (!articles) return <p class="fl-muted">Searching…</p>;
+  if (!articles) return <p class="fl-muted">{t('Searching…')}</p>;
 
   return articles.length > 0 ? (
     <ArticleRows articles={articles} open={open} />
   ) : (
-    <p class="fl-muted">No articles match</p>
+    <p class="fl-muted">{t('No articles match')}</p>
   );
 };
 
@@ -117,19 +125,20 @@ const Found = ({ articles, failure, open }: ReturnType<typeof useSearch> & { ope
 const ArticleView = ({ id, read }: { id: string; read: ReadArticle }) => {
   const [article, setArticle] = useState<Article | null>(null);
   const [failure, setFailure] = useState('');
+  const { t, messageOf } = useText();
 
   useEffect(() => {
     let live = true;
 
     read(id).then(
       (found) => live && setArticle(found),
-      (error: unknown) => live && setFailure(error instanceof Error ? error.message : 'Try again'),
+      (error: unknown) => live && setFailure(messageOf(error)),
     );
 
     return () => {
       live = false;
     };
-  }, [id, read]);
+  }, [id, read, messageOf]);
 
   if (failure)
     return (
@@ -138,7 +147,7 @@ const ArticleView = ({ id, read }: { id: string; read: ReadArticle }) => {
       </p>
     );
 
-  if (!article) return <p class="fl-muted">Loading…</p>;
+  if (!article) return <p class="fl-muted">{t('Loading…')}</p>;
 
   return (
     <article class="fl-article">
@@ -160,6 +169,8 @@ const Page = ({
   open: Open;
   read: ReadArticle;
 }) => {
+  const { t } = useText();
+
   if (view.name === 'article') return <ArticleView id={view.id} read={read} />;
 
   const parentId = view.name === 'category' ? view.id : null;
@@ -173,7 +184,9 @@ const Page = ({
       {category?.description && <p class="fl-muted">{category.description}</p>}
       <CategoryRows categories={children} topic={topic} open={open} />
       <ArticleRows articles={articles} open={open} />
-      {children.length === 0 && articles.length === 0 && <p class="fl-muted">No articles yet</p>}
+      {children.length === 0 && articles.length === 0 && (
+        <p class="fl-muted">{t('No articles yet')}</p>
+      )}
     </>
   );
 };
@@ -213,14 +226,15 @@ export const Articles = ({
   // The search lives here, so stepping back from an article it found shows its results again.
   const found = useSearch(term.trim(), search);
   const searching = term.trim() !== '' && view.name !== 'article';
+  const { t } = useText();
 
   return (
     <div class="fl-articles">
       {view.name !== 'article' && (
         <input
           type="search"
-          aria-label="Search articles"
-          placeholder="Search articles"
+          aria-label={t('Search articles')}
+          placeholder={t('Search articles')}
           maxLength={100}
           value={term}
           onInput={(event) => setTerm(event.currentTarget.value)}

@@ -1,6 +1,7 @@
 import type { Conversation, Settings } from './api.ts';
 import { hoursOf, statusOf, timeOf } from './hours.ts';
 import { ChatIcon } from '../shared/icons.tsx';
+import { useText } from '../shared/text.ts';
 
 /** A supporter's picture, or their initials when it has none or it won't load. */
 const Avatar = ({ name, url }: { name: string; url: string | null }) => (
@@ -15,25 +16,29 @@ const Avatar = ({ name, url }: { name: string; url: string | null }) => (
 );
 
 /** The greeting over the panel: logo, title, message, team and whether they're online. */
-const Hero = ({ settings }: { settings: Settings }) => (
-  <header class="fl-hero">
-    {settings.logo && <img class="fl-logo" src={settings.logo} alt="" />}
-    <h2>{settings.greetingTitle || settings.name}</h2>
-    {settings.greetingMessage && <p>{settings.greetingMessage}</p>}
-    <div class="fl-team">
-      {settings.supporters.length > 0 && (
-        <span class="fl-avatars">
-          {settings.supporters.slice(0, 5).map((supporter) => (
-            <Avatar key={supporter.id} name={supporter.name ?? ''} url={supporter.avatarUrl} />
-          ))}
+const Hero = ({ settings }: { settings: Settings }) => {
+  const { t } = useText();
+
+  return (
+    <header class="fl-hero">
+      {settings.logo && <img class="fl-logo" src={settings.logo} alt="" />}
+      <h2>{settings.greetingTitle || settings.name}</h2>
+      {settings.greetingMessage && <p>{settings.greetingMessage}</p>}
+      <div class="fl-team">
+        {settings.supporters.length > 0 && (
+          <span class="fl-avatars">
+            {settings.supporters.slice(0, 5).map((supporter) => (
+              <Avatar key={supporter.id} name={supporter.name ?? ''} url={supporter.avatarUrl} />
+            ))}
+          </span>
+        )}
+        <span class={settings.isOnline ? 'fl-status fl-online' : 'fl-status'}>
+          {statusOf(settings, t)}
         </span>
-      )}
-      <span class={settings.isOnline ? 'fl-status fl-online' : 'fl-status'}>
-        {statusOf(settings)}
-      </span>
-    </div>
-  </header>
-);
+      </div>
+    </header>
+  );
+};
 
 /** A button to write, and the visitor's conversations with their unread replies. */
 const Chats = ({
@@ -44,31 +49,35 @@ const Chats = ({
   settings: Settings;
   conversations: Conversation[];
   onOpen: (id: string | null) => void;
-}) => (
-  <div class="fl-card">
-    <button type="button" class="fl-primary" onClick={() => onOpen(null)}>
-      <ChatIcon />
-      Send us a message
-    </button>
-    {conversations.length > 0 && (
-      <ul class="fl-list" aria-label="Your conversations">
-        {conversations.map((conversation) => (
-          <li key={conversation.id}>
-            <button type="button" onClick={() => onOpen(conversation.id)}>
-              <span class="fl-preview">{conversation.content || 'Attachment'}</span>
-              <span class="fl-meta">
-                {timeOf(conversation.lastMessageAt, settings.language)}
-                {conversation.unreadCount > 0 && (
-                  <span class="fl-count">{conversation.unreadCount}</span>
-                )}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    )}
-  </div>
-);
+}) => {
+  const { t } = useText();
+
+  return (
+    <div class="fl-card">
+      <button type="button" class="fl-primary" onClick={() => onOpen(null)}>
+        <ChatIcon />
+        {t('Send us a message')}
+      </button>
+      {conversations.length > 0 && (
+        <ul class="fl-list" aria-label={t('Your conversations')}>
+          {conversations.map((conversation) => (
+            <li key={conversation.id}>
+              <button type="button" onClick={() => onOpen(conversation.id)}>
+                <span class="fl-preview">{conversation.content || t('Attachment')}</span>
+                <span class="fl-meta">
+                  {timeOf(conversation.lastMessageAt, settings.language, t)}
+                  {conversation.unreadCount > 0 && (
+                    <span class="fl-count">{conversation.unreadCount}</span>
+                  )}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+};
 
 /**
  * The messenger's first page: the greeting, a button to write, the visitor's conversations,
@@ -85,7 +94,8 @@ export const Home = ({
   onOpen: (id: string | null) => void;
   onTab: (name: 'tickets' | 'articles') => void;
 }) => {
-  const hours = hoursOf(settings);
+  const { t } = useText();
+  const hours = hoursOf(settings, t);
 
   return (
     <div class="fl-scroll">
@@ -96,19 +106,19 @@ export const Home = ({
         )}
         {settings.tickets && (
           <button type="button" class="fl-card fl-app" onClick={() => onTab('tickets')}>
-            <strong>Tickets</strong>
-            <span>File a ticket and follow how it goes.</span>
+            <strong>{t('Tickets')}</strong>
+            <span>{t('File a ticket and follow how it goes.')}</span>
           </button>
         )}
         {settings.knowledgeBaseTopicId && (
           <button type="button" class="fl-card fl-app" onClick={() => onTab('articles')}>
-            <strong>Help articles</strong>
-            <span>Search our answers to common questions.</span>
+            <strong>{t('Help articles')}</strong>
+            <span>{t('Search our answers to common questions.')}</span>
           </button>
         )}
         {hours.length > 0 && (
           <div class="fl-card">
-            <h3>Online hours</h3>
+            <h3>{t('Online hours')}</h3>
             <dl class="fl-hours">
               {hours.map((row) => (
                 <div key={row.day + row.time}>
@@ -126,7 +136,7 @@ export const Home = ({
           </a>
         ))}
         {settings.links.length > 0 && (
-          <nav class="fl-links" aria-label="Links">
+          <nav class="fl-links" aria-label={t('Links')}>
             {settings.links.map((link) => (
               <a key={link} href={link} target="_blank" rel="noopener">
                 {new URL(link).hostname.replace(/^www\./, '')}

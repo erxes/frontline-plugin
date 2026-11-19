@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'preact/hooks';
 import { Articles, useArticleViews } from '../../articles/Articles.tsx';
 import type { Topic } from '../../articles/api.ts';
 import styles from '../../articles/articles.css?inline';
-import { messageOf } from '../../shared/uploads.tsx';
+import { useText } from '../../shared/text.ts';
 import type { MessengerApi } from '../api.ts';
 import { Bar, Loading } from '../Thread.tsx';
 import type { MessengerState } from '../useMessenger.ts';
@@ -11,6 +11,7 @@ import type { MessengerState } from '../useMessenger.ts';
 const useTopic = (api: MessengerApi, token: string | undefined) => {
   const [topic, setTopic] = useState<Topic | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { messageOf } = useText();
 
   useEffect(() => {
     if (!token) return;
@@ -25,7 +26,7 @@ const useTopic = (api: MessengerApi, token: string | undefined) => {
     return () => {
       live = false;
     };
-  }, [api, token]);
+  }, [api, token, messageOf]);
 
   return { topic, error };
 };

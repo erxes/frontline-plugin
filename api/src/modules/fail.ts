@@ -6,7 +6,9 @@ import { logger } from '#/logger.ts';
 
 /**
  * Answers a plain Express route's refused request with its status (a typed oRPC error, or 400
- * for input zod refused), or logs anything unexpected as `what` failing and answers 500.
+ * for input zod refused), or logs anything unexpected as `what` failing and answers 500. Refused
+ * input answers with its first issue's own words, which the widgets show visitors as they are or
+ * in the embed's language.
  */
 export const fail = (res: Response, error: unknown, what: string) => {
   if (error instanceof ORPCError) {
@@ -16,7 +18,7 @@ export const fail = (res: Response, error: unknown, what: string) => {
   }
 
   if (error instanceof z.ZodError) {
-    res.status(400).json({ message: z.prettifyError(error) });
+    res.status(400).json({ message: error.issues[0]?.message ?? 'Input validation failed' });
 
     return;
   }

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { MessengerApi, Survey } from '../api.ts';
 import { Files } from '../Thread.tsx';
-import { messageOf } from '../../shared/uploads.tsx';
+import { useText } from '../../shared/text.ts';
 import styles from './survey.css?inline';
 
 type Step = Survey['steps'][number];
@@ -63,6 +63,7 @@ const Question = ({
 const useSurvey = (api: MessengerApi, token: string, messageId: string) => {
   const [survey, setSurvey] = useState<Survey | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { messageOf } = useText();
 
   useEffect(() => {
     let live = true;
@@ -79,7 +80,7 @@ const useSurvey = (api: MessengerApi, token: string, messageId: string) => {
     return () => {
       live = false;
     };
-  }, [api, token, messageId]);
+  }, [api, token, messageId, messageOf]);
 
   return { survey, error };
 };
@@ -101,6 +102,7 @@ const Ballot = ({
   const [sending, setSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const voted = saved.length > 0;
+  const { t, messageOf } = useText();
 
   const vote = async (event: SubmitEvent) => {
     event.preventDefault();
@@ -135,14 +137,14 @@ const Ballot = ({
       ))}
       {error && <p class="fl-error">{error}</p>}
       {!survey.open ? (
-        <p class="fl-note">Voting has closed.</p>
+        <p class="fl-note">{t('Voting has closed.')}</p>
       ) : voted && same(picked, saved) ? (
         <p class="fl-note" role="status">
-          Thanks, your vote is in. Pick again to change it.
+          {t('Thanks, your vote is in. Pick again to change it.')}
         </p>
       ) : (
         <button type="submit" class="fl-primary" disabled={sending || picked.length === 0}>
-          {voted ? 'Change vote' : 'Vote'}
+          {t(voted ? 'Change vote' : 'Vote')}
         </button>
       )}
     </form>

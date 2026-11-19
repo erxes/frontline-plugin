@@ -3,7 +3,7 @@ import type { MessengerApi, Settings, Ticket, TicketForms } from '../api.ts';
 import { Identify } from '../Composer.tsx';
 import { timeOf } from '../hours.ts';
 import { Bar, Files, Loading } from '../Thread.tsx';
-import { messageOf } from '../../shared/uploads.tsx';
+import { useText } from '../../shared/text.ts';
 import type { MessengerState } from '../useMessenger.ts';
 import { TicketForm } from './TicketForm.tsx';
 import styles from './tickets.css?inline';
@@ -21,11 +21,13 @@ const TicketList = ({
   tickets: Ticket[];
   settings: Settings;
   urlOf: (url: string) => string;
-}) =>
-  tickets.length === 0 ? (
-    <p class="fl-empty">You have no tickets yet.</p>
+}) => {
+  const { t } = useText();
+
+  return tickets.length === 0 ? (
+    <p class="fl-empty">{t('You have no tickets yet.')}</p>
   ) : (
-    <ul class="fl-tickets" aria-label="Your tickets">
+    <ul class="fl-tickets" aria-label={t('Your tickets')}>
       {tickets.map((ticket) => (
         <li key={ticket.id}>
           <details>
@@ -38,16 +40,16 @@ const TicketList = ({
             </summary>
             <dl class="fl-hours">
               <div>
-                <dt>Topic</dt>
+                <dt>{t('Topic')}</dt>
                 <dd>{ticket.pipeline}</dd>
               </div>
               <div>
-                <dt>Filed</dt>
-                <dd>{timeOf(ticket.createdAt, settings.language)}</dd>
+                <dt>{t('Filed')}</dt>
+                <dd>{timeOf(ticket.createdAt, settings.language, t)}</dd>
               </div>
               <div>
-                <dt>Updated</dt>
-                <dd>{timeOf(ticket.statusChangedAt, settings.language)}</dd>
+                <dt>{t('Updated')}</dt>
+                <dd>{timeOf(ticket.statusChangedAt, settings.language, t)}</dd>
               </div>
             </dl>
             {ticket.description && <p>{ticket.description}</p>}
@@ -57,17 +59,19 @@ const TicketList = ({
       ))}
     </ul>
   );
+};
 
 /** What the visitor reads once they filed a ticket: its number, to copy, and where it goes on. */
 const Filed = ({ ticket }: { ticket: Ticket }) => {
   const [copied, setCopied] = useState(false);
   const { number } = ticket;
+  const { t } = useText();
 
   return (
     <div class="fl-filed" role="status">
       <p>
-        {number ? `Ticket ${number} is filed.` : 'Your ticket is filed.'} Its status shows here as
-        the team works on it.
+        {number ? t('Ticket {number} is filed.', { number }) : t('Your ticket is filed.')}{' '}
+        {t('Its status shows here as the team works on it.')}
       </p>
       {/* A page served over plain http has no clipboard; the number above is there to select. */}
       {number && window.isSecureContext && (
@@ -81,7 +85,7 @@ const Filed = ({ ticket }: { ticket: Ticket }) => {
             )
           }
         >
-          {copied ? 'Copied' : 'Copy the number'}
+          {t(copied ? 'Copied' : 'Copy the number')}
         </button>
       )}
     </div>
@@ -96,6 +100,7 @@ const useTickets = (api: MessengerApi, token: string | undefined, version: numbe
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [forms, setForms] = useState<TicketForms | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const { messageOf } = useText();
 
   useEffect(() => {
     if (!token) return;
@@ -121,7 +126,7 @@ const useTickets = (api: MessengerApi, token: string | undefined, version: numbe
     return () => {
       live = false;
     };
-  }, [api, token, version]);
+  }, [api, token, version, messageOf]);
 
   const filed = (ticket: Ticket) =>
     setTickets((list) => [ticket, ...list.filter((each) => each.id !== ticket.id)]);
@@ -147,6 +152,7 @@ export const Tickets = ({
   const { tickets, forms, error, filed } = useTickets(api, token, ticketsChanged);
   const [filing, setFiling] = useState(false);
   const [justFiled, setJustFiled] = useState<Ticket | null>(null);
+  const { t } = useText();
 
   if (!settings || !token) return null;
 
@@ -188,7 +194,7 @@ export const Tickets = ({
                   setFiling(true);
                 }}
               >
-                File a ticket
+                {t('File a ticket')}
               </button>
             )}
             <TicketList
