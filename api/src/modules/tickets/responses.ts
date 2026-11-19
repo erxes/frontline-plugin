@@ -1,13 +1,11 @@
-import { ORPCError } from '@orpc/server';
 import { and, desc, eq, isNotNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS, TICKET_TIMELINE } from '#/core.ts';
 import { forms, formSubmissions } from '#/db/forms.ts';
 import { channelMembers } from '#/db/schema.ts';
-import { tickets } from '#/db/tickets.ts';
 import { reads } from '#/orpc.ts';
 import { managesAll, membership } from '../channels/access.ts';
-import { seenBy } from './shared.ts';
+import { seenTicket } from './shared.ts';
 
 /** One answer sent about the ticket: when, by whom, and its form's name. */
 const Response = z.object({
@@ -27,13 +25,7 @@ const responses = reads(PERMISSIONS.channelView)
   .input(z.object({ id: z.string() }))
   .output(z.array(Response))
   .handler(async ({ input, context: { tx, member } }) => {
-    const [ticket] = await tx
-      .select({ id: tickets.id })
-      .from(tickets)
-      .leftJoin(channelMembers, membership(member, tickets.channelId))
-      .where(and(eq(tickets.id, input.id), seenBy(member)));
-
-    if (!ticket) throw new ORPCError('NOT_FOUND', { message: 'No such ticket' });
+    await seenTicket(tx, member, input.id);
 
     return tx
       .select({
