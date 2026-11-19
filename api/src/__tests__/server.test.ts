@@ -98,6 +98,24 @@ describe('server', () => {
     expect(Object.keys(doc.paths)).toContain('/v1/channels/list');
   });
 
+  it('describes the Facebook page post, so an agent searching for it finds it', async () => {
+    const response = await fetch(`${base}/api/openapi/member.json`);
+
+    const doc = z
+      .object({
+        paths: z.record(
+          z.string(),
+          z.record(z.string(), z.object({ summary: z.string() }).partial()),
+        ),
+      })
+      .parse(await response.json());
+
+    expect(doc.paths['/v1/integrations/meta/posts/create']?.post?.summary).toBe(
+      'Publish a Facebook page post',
+    );
+    expect(doc.paths['/v1/integrations/accounts/list']?.post?.summary).toMatch(/Facebook pages/);
+  });
+
   it('serves the procedures as REST to a member with a session token', async () => {
     const url = `${base}/api/v1/channels/list`;
     const token = await tokens.session(`org-${randomUUID()}`, 'user-1', [PERMISSIONS.channelView]);
