@@ -291,7 +291,7 @@ test("the home dashboard's tiles, and one refused", async ({ newMember }) => {
 
 const refused = [INBOX, '/frontline/tickets', FORMS, SURVEYS, KB, HELP_CENTERS, HISTORY];
 
-for (const path of [...refused, `${SETTINGS}/channels`]) {
+for (const path of [...refused, `${SETTINGS}/channels`, `${SETTINGS}/integrations`]) {
   test(`a member without the permission is refused ${path}`, async ({ newMember }) => {
     const { page } = await newMember(['team.view']);
 
