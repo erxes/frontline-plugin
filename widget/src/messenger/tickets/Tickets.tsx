@@ -54,6 +54,18 @@ const TicketList = ({
             </dl>
             {ticket.description && <p>{ticket.description}</p>}
             {ticket.attachments.length > 0 && <Files files={ticket.attachments} urlOf={urlOf} />}
+            {ticket.comments.length > 0 && (
+              <ol class="fl-comments" aria-label={t('From the team')}>
+                {ticket.comments.map((comment) => (
+                  <li key={comment.id}>
+                    <small>
+                      {t('The team')} · {timeOf(comment.createdAt, settings.language, t)}
+                    </small>
+                    <p>{comment.body}</p>
+                  </li>
+                ))}
+              </ol>
+            )}
           </details>
         </li>
       ))}

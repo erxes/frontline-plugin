@@ -8,6 +8,7 @@ import { formProcedures } from '#/modules/forms/forms.ts';
 import { submissionProcedures } from '#/modules/forms/submissions.ts';
 import { helpCenterProcedures } from '#/modules/helpcenter/helpCenters.ts';
 import { articleProcedures } from '#/modules/knowledgebase/articles.ts';
+import { reactionProcedures as articleReactionProcedures } from '#/modules/knowledgebase/reactions.ts';
 import { categoryProcedures } from '#/modules/knowledgebase/categories.ts';
 import { topicProcedures } from '#/modules/knowledgebase/topics.ts';
 import { pipelineProcedures } from '#/modules/pipelines/pipelines.ts';
@@ -49,6 +50,7 @@ import { surveyProcedures } from '#/modules/surveys/surveys.ts';
 import { tagProcedures } from '#/modules/tags/tags.ts';
 import { teamProcedures } from '#/modules/teams/teams.ts';
 import { changeProcedures } from '#/modules/tickets/changes.ts';
+import { commentProcedures } from '#/modules/tickets/comments.ts';
 import { followProcedures } from '#/modules/tickets/follow.ts';
 import { propertyProcedures } from '#/modules/tickets/properties.ts';
 import { responseProcedures } from '#/modules/tickets/responses.ts';
@@ -63,6 +65,7 @@ export const router = {
     ...ticketProcedures,
     ...changeProcedures,
     ...followProcedures,
+    ...commentProcedures,
     ...responseProcedures,
     properties: propertyProcedures,
   },
@@ -111,7 +114,7 @@ export const router = {
   knowledgebase: {
     topics: topicProcedures,
     categories: categoryProcedures,
-    articles: articleProcedures,
+    articles: { ...articleProcedures, ...articleReactionProcedures },
   },
   reports: {
     tickets: ticketReport,

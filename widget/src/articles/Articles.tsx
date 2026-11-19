@@ -9,6 +9,8 @@ import type {
 } from './api.ts';
 import { useText } from '../shared/text.ts';
 
+const loadReactions = async () => (await import('./reactions/Reactions.tsx')).Reactions;
+
 type View = { name: 'home' } | { name: 'category'; id: string } | { name: 'article'; id: string };
 
 type Open = (view: View) => void;
@@ -124,16 +126,38 @@ const Found = ({ articles, failure, open }: ReturnType<typeof useSearch> & { ope
 /** One article, read when it opens; its body is HTML the API sanitized. */
 const ArticleView = ({ id, read }: { id: string; read: ReadArticle }) => {
   const [article, setArticle] = useState<Article | null>(null);
+  const [Reactions, setReactions] = useState<Awaited<ReturnType<typeof loadReactions>>>();
   const [failure, setFailure] = useState('');
   const { t, messageOf } = useText();
 
   useEffect(() => {
     let live = true;
 
-    read(id).then(
-      (found) => live && setArticle(found),
-      (error: unknown) => live && setFailure(messageOf(error)),
-    );
+    const open = async () => {
+      try {
+        const found = await read(id);
+
+        if (live) setArticle(found);
+
+        // Only an article that offers reactions loads them, so the help center's embed never does.
+        if (!found.reactable) return;
+      } catch (error) {
+        if (live) setFailure(messageOf(error));
+
+        return;
+      }
+
+      // The article reads without its reactions when their chunk doesn't load.
+      try {
+        const reactions = await loadReactions();
+
+        if (live) setReactions(() => reactions);
+      } catch {
+        // Nothing to show: the visitor still has the article.
+      }
+    };
+
+    void open();
 
     return () => {
       live = false;
@@ -153,6 +177,7 @@ const ArticleView = ({ id, read }: { id: string; read: ReadArticle }) => {
     <article class="fl-article">
       <h3>{article.title}</h3>
       <div class="fl-article-body" dangerouslySetInnerHTML={{ __html: article.content }} />
+      {Reactions && article.reactable && <Reactions reactable={article.reactable} />}
     </article>
   );
 };

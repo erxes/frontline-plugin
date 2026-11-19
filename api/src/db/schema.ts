@@ -238,6 +238,32 @@ export const kbArticles = table(
   ],
 );
 
+/** A reader's reaction to an article: one of its `reactionChoices`, one per customer. */
+export const kbArticleReactions = table(
+  'knowledgebase_article_reactions',
+  {
+    id: id(),
+    orgId: text().notNull(),
+    articleId: text().notNull(),
+    /** The core customer who reacted, a messenger visitor. */
+    customerId: text().notNull(),
+    choice: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'frontline_knowledgebase_article_reactions_article_fkey',
+      columns: [t.articleId],
+      foreignColumns: [kbArticles.id],
+    }).onDelete('cascade'),
+    uniqueIndex('frontline_knowledgebase_article_reactions_org_article_customer_idx').on(
+      t.orgId,
+      t.articleId,
+      t.customerId,
+    ),
+  ],
+);
+
 /**
  * Each import batch core sent, by its `requestId`, with what its rows did: a retried batch
  * answers this instead of writing its rows twice.

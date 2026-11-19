@@ -100,6 +100,18 @@ test("a ticket's draft, the ticket it saves and its activity", async ({ page, ap
   await expectAccessible(page, panel.getByText(`Created ${name} in New`));
 });
 
+test("a ticket's comments for its customer", async ({ page, api, request }) => {
+  const rpc = await pluginApi(api, request);
+  const pipeline = await pipelineIn(rpc);
+  const { id } = await rpc('tickets/create', { pipelineId: pipeline.id, name: unique() }, Id);
+  const panel = recordPanel(page);
+
+  await rpc('tickets/addComment', { ticketId: id, body: 'A new zip is on its way.' }, Id);
+  await page.goto(recordPath('/frontline/tickets', 'frontline:ticket', id));
+  await panel.getByRole('tab', { name: 'Comments' }).click();
+  await expectAccessible(page, panel.getByText('A new zip is on its way.'));
+});
+
 test('tickets in the list, the board and the table', async ({ page, api, request }) => {
   const rpc = await pluginApi(api, request);
   const pipeline = await pipelineIn(rpc);

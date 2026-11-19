@@ -1,5 +1,6 @@
 import {
   IconCalendarTime,
+  IconChartBar,
   IconFile,
   IconFileTypePdf,
   IconLock,
@@ -15,10 +16,14 @@ import {
   Select,
   Switch,
   TimeField,
+  useLiveSignal,
 } from 'erxes-ui';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { StatusBadge } from './ArticleCells.tsx';
+import { orpc } from '~/orpc.ts';
+import { PLUGIN } from '~/plugin.ts';
 import { FileList, FilePicker, ImageField } from '~/shared/Files.tsx';
 import {
   ARTICLE_STATUSES,
@@ -85,6 +90,9 @@ export const Publishing = ({ article, edit }: Props) => {
     label: t(key, reaction.label),
   }));
 
+  const labelOf = (choice: string) =>
+    reactions.find((reaction) => reaction.value === choice)?.label ?? choice;
+
   return (
     <PanelSection title={t('kb-publishing', 'Publishing')}>
       <PanelField icon={IconProgressCheck} label={t('status', 'Status')}>
@@ -128,12 +136,47 @@ export const Publishing = ({ article, edit }: Props) => {
           options={reactions}
           value={article.reactionChoices.map((choice) => ({
             value: choice,
-            label: reactions.find((reaction) => reaction.value === choice)?.label ?? choice,
+            label: labelOf(choice),
           }))}
           onChange={(options) => edit({ reactionChoices: options.map((option) => option.value) })}
         />
       </PanelField>
+      {article.reactionChoices.length > 0 && (
+        <ReactionCounts articleId={article.id} labelOf={labelOf} />
+      )}
     </PanelSection>
+  );
+};
+
+/** How many readers picked each reaction the article offers, in the messenger. */
+const ReactionCounts = ({
+  articleId,
+  labelOf,
+}: {
+  articleId: string;
+  labelOf: (choice: string) => string;
+}) => {
+  const { t } = useTranslation('frontline');
+
+  const queryClient = useQueryClient();
+  const counts = orpc.knowledgebase.articles.reactions.queryOptions({ input: { id: articleId } });
+  const { data } = useQuery(counts);
+
+  // A visitor's reaction signals the article's topic, so the counts stay current while it's open.
+  useLiveSignal(PLUGIN, [`kb-article.${articleId.toLowerCase()}`], () => {
+    void queryClient.invalidateQueries({ queryKey: counts.queryKey });
+  });
+
+  const picked = data?.filter((reaction) => reaction.count > 0) ?? [];
+
+  return (
+    <PanelField icon={IconChartBar} label={t('kb-reaction-counts', 'Readers reacted')} cell={false}>
+      <span className="px-2 text-xs text-muted-foreground">
+        {picked.length === 0
+          ? t('kb-reaction-none', 'No reactions yet')
+          : picked.map(({ choice, count }) => `${labelOf(choice)} ${count}`).join(' · ')}
+      </span>
+    </PanelField>
   );
 };
 

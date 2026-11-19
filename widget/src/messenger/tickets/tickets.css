@@ -56,6 +56,29 @@
   white-space: pre-wrap;
 }
 
+.fl-comments {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 12px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fl-comments li {
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: var(--fl-soft);
+}
+
+.fl-comments small {
+  color: var(--fl-muted);
+}
+
+.fl-tickets .fl-comments p {
+  margin: 2px 0 0;
+}
+
 .fl-pill {
   flex: none;
   padding: 2px 8px;

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vite-plus/test';
+import { PERMISSIONS } from '#/core.ts';
 import { serve } from '#/test/http.ts';
 import { coreTicketFields } from '#/test/coreUnits.ts';
 import { clientAs } from '#/test/member.ts';
@@ -79,5 +80,65 @@ describe("a messenger visitor's tickets", () => {
     await vi.waitFor(() => expect(heard.toSorted()).toEqual(['ann ticket', 'bob ticket']));
 
     for (const stop of stops) stop();
+  });
+
+  it("shows the visitor the comments the ticket's members write to them, and takes back one", async () => {
+    const orgId = 'org-tk-comments';
+    const owner = clientAs(orgId);
+    const channel = await owner.channels.create({ name: 'Support', memberIds: ['teammate'] });
+    const pipeline = await owner.pipelines.create({ channelId: channel.id, name: 'Main' });
+    const teammate = clientAs(orgId, [PERMISSIONS.channelView], 'teammate');
+    const outsider = clientAs(orgId, [PERMISSIONS.channelView], 'outsider');
+
+    const integration = await owner.integrations.create({
+      channelId: channel.id,
+      kind: 'messenger',
+      name: 'Website',
+      config: { ticketPipelineIds: [pipeline.id] },
+    });
+
+    const ann = await tokenOf({
+      orgId,
+      integrationId: integration.id,
+      verified: false,
+      customerId: 'customer-ann',
+      identified: true,
+    });
+
+    const filed = await messenger.post('/tickets', { pipelineId: pipeline.id, name: 'Zip' }, ann);
+    const ticketId = (await owner.tickets.list({})).tickets[0]?.id ?? '';
+
+    expect(filed.body).toMatchObject({ comments: [] });
+
+    const heard: string[] = [];
+    const stop = await subscribe(orgId, 'customer-ann', (n) => heard.push(n.event));
+    const comment = await teammate.tickets.addComment({ ticketId, body: 'Sent a new one today.' });
+
+    await vi.waitFor(() => expect(heard).toEqual(['ticket']));
+    stop();
+
+    expect((await messenger.get('/tickets', ann)).body).toMatchObject([
+      { comments: [{ id: comment.id, body: 'Sent a new one today.' }] },
+    ]);
+    await expect(owner.tickets.comments({ ticketId })).resolves.toMatchObject([
+      { body: 'Sent a new one today.', createdBy: 'teammate', mine: false },
+    ]);
+
+    // Only the channel's members write on its tickets, and only the author takes one back.
+    await expect(outsider.tickets.addComment({ ticketId, body: 'Hi' })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+    await expect(owner.tickets.removeComment({ id: comment.id })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+    await expect(clientAs('org-tk-other').tickets.comments({ ticketId })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    });
+
+    await teammate.tickets.removeComment({ id: comment.id });
+
+    expect((await messenger.get('/tickets', ann)).body).toEqual([
+      expect.objectContaining({ comments: [] }),
+    ]);
   });
 });

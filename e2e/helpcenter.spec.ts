@@ -56,6 +56,18 @@ test('a visitor reads the knowledge base from its script on a website and in the
   await site.panel.getByRole('button', { name: /^Refunds/ }).click();
   await expect(site.panel.getByText(ARTICLE)).toBeVisible();
 
+  // The visitor reacts once; their pick counts, and pressing it again takes it off.
+  await site.panel.getByRole('button', { name: 'Like 0' }).click();
+  await expect(site.panel.getByRole('button', { name: 'Like 1' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
+  await site.panel.getByRole('button', { name: 'Like 1' }).click();
+  await expect(site.panel.getByRole('button', { name: 'Like 0' })).toHaveAttribute(
+    'aria-pressed',
+    'false',
+  );
+
   await site.panel.getByRole('button', { name: 'Back' }).click();
   await expect(search).toHaveValue('money');
 });

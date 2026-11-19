@@ -1,10 +1,11 @@
 import { CustomFieldsPatch, type FieldLogic, groupApplies } from '@erxes/core-contract';
 import { ORPCError } from '@orpc/server';
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { core, TICKET_TIMELINE } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { tags } from '#/db/tags.ts';
+import { ticketComments } from '#/db/ticketComments.ts';
 import { pipelineStatuses, pipelines, tickets } from '#/db/tickets.ts';
 import { logger } from '#/logger.ts';
 import type { LogicOperator } from '../forms/logic.ts';
@@ -147,6 +148,17 @@ const ticketForms = asVisitor(async (visitor, _req, res) => {
   res.json(await withOrg(visitor.orgId, (tx) => formsOf(tx, settings, fields)));
 });
 
+/**
+ * What the team wrote to the visitor on the ticket, oldest first: only `frontline_ticket_comments`,
+ * never core's notes, which are the team's own. The old app showed the visitor every note.
+ */
+const commentsOf = sql<{ id: string; body: string; createdAt: string }[]>`coalesce((
+  select jsonb_agg(jsonb_build_object('id', said.id, 'body', said.body, 'createdAt', said.created_at)
+    order by said.created_at, said.id)
+  from ${ticketComments} said
+  where said.ticket_id = ${tickets}.id
+), '[]'::jsonb)`;
+
 /** The visitor's tickets through this messenger's channel, newest first, with no member's ids. */
 const ticketsOf = (tx: Tx, visitor: Visitor, channelId: string, id?: string) =>
   tx
@@ -161,6 +173,7 @@ const ticketsOf = (tx: Tx, visitor: Visitor, channelId: string, id?: string) =>
       statusType: pipelineStatuses.type,
       statusChangedAt: tickets.statusChangedAt,
       createdAt: tickets.createdAt,
+      comments: commentsOf,
     })
     .from(tickets)
     .innerJoin(pipelines, eq(pipelines.id, tickets.pipelineId))

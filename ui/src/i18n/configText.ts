@@ -17,6 +17,7 @@ export const addConfigText = () =>
       Call: 'Дуудлага',
       Category: 'Ангилал',
       Channel: 'Суваг',
+      Comments: 'Сэтгэгдэл',
       Content: 'Агуулга',
       Conversation: 'Харилцан яриа',
       Domain: 'Домэйн',

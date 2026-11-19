@@ -9,7 +9,7 @@ import type {
   VisitorTicket,
 } from '@frontline/api/messenger';
 import type { Jsonify } from 'type-fest';
-import type { Article, ArticleSummary, Topic } from '../articles/api.ts';
+import type { Article, ArticleSummary, Reactions, Topic } from '../articles/api.ts';
 import { bearer, publicApi, uploadFile } from '../shared/http.ts';
 
 /** What `/connect` answers, as JSON carries it. */
@@ -115,10 +115,19 @@ export const messengerApi = (base: URL, key: string) => {
     /** The API as the visitor with `token`, for the calls a lazy chunk makes itself. */
     as,
     knowledgeBase: (token: string) => as(token).get('knowledge-base').json<Topic>(),
-    article: (token: string, id: string) =>
-      as(token)
-        .get(`knowledge-base/articles/${encodeURIComponent(id)}`)
-        .json<Article>(),
+    /** One article, with its reactions and how the visitor sets theirs. */
+    article: async (token: string, id: string): Promise<Article> => {
+      const path = `knowledge-base/articles/${encodeURIComponent(id)}`;
+
+      const { reactions, ...article } = await as(token)
+        .get(path)
+        .json<Article & { reactions: Reactions }>();
+
+      const react = (choice: string | null) =>
+        as(token).post({ choice }, `${path}/reaction`).json<Reactions>();
+
+      return reactions.length > 0 ? { ...article, reactable: { reactions, react } } : article;
+    },
     searchArticles: (token: string, term: string) =>
       as(token)
         .get(`knowledge-base/search?q=${encodeURIComponent(term)}`)

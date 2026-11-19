@@ -1,8 +1,12 @@
 import { setTimeout } from 'node:timers/promises';
 import { describe, expect, it } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
+import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
+import { tokenOf } from '../../messenger/session.ts';
 import { publishScheduled } from '../articles.ts';
+
+const messenger = serve('/api/public/messenger');
 
 const topicWithCategory = async (orgId: string) => {
   const owner = clientAs(orgId);
@@ -258,5 +262,71 @@ describe('knowledge base articles', () => {
     await expect(other.knowledgebase.articles.remove({ ids: [article.id] })).resolves.toEqual({
       ids: [],
     });
+  });
+
+  it("counts each messenger visitor's one reaction to an article it offers", async () => {
+    const orgId = 'org-kba-react';
+    const { owner, topic, category } = await topicWithCategory(orgId);
+    const [like = '', sad = ''] = ['like', 'sad'].map((name) => `https://icons.test/${name}.svg`);
+
+    const article = await owner.knowledgebase.articles.create({
+      categoryId: category.id,
+      title: 'Refunds',
+      status: 'publish',
+      reactionChoices: [like, sad],
+    });
+
+    const channel = await owner.channels.create({ name: 'Support' });
+
+    const integration = await owner.integrations.create({
+      channelId: channel.id,
+      kind: 'messenger',
+      name: 'Website',
+      config: { knowledgeBaseTopicId: topic.id },
+    });
+
+    const visitor = (customerId: string) =>
+      tokenOf({
+        orgId,
+        integrationId: integration.id,
+        customerId,
+        identified: false,
+        verified: false,
+      });
+
+    const [ann, bob] = await Promise.all([visitor('ann'), visitor('bob')]);
+    const path = `/knowledge-base/articles/${article.id}`;
+
+    const react = (token: string, choice: string | null) =>
+      messenger.post(`${path}/reaction`, { choice }, token);
+
+    expect((await messenger.get(path, ann)).body).toMatchObject({
+      reactions: [
+        { choice: like, count: 0, mine: false },
+        { choice: sad, count: 0, mine: false },
+      ],
+    });
+
+    await react(bob, like);
+    // Ann changes her mind: one reaction each, the last one counts.
+    await react(ann, sad);
+
+    expect((await react(ann, like)).body).toEqual([
+      { choice: like, count: 2, mine: true },
+      { choice: sad, count: 0, mine: false },
+    ]);
+    expect((await react(bob, null)).body).toEqual([
+      { choice: like, count: 1, mine: false },
+      { choice: sad, count: 0, mine: false },
+    ]);
+    expect((await react(ann, 'https://icons.test/heart.svg')).status).toBe(400);
+    await expect(owner.knowledgebase.articles.reactions({ id: article.id })).resolves.toEqual([
+      { choice: like, count: 1 },
+      { choice: sad, count: 0 },
+    ]);
+
+    // A draft takes no reactions.
+    await owner.knowledgebase.articles.update({ id: article.id, status: 'draft' });
+    expect((await react(ann, sad)).status).toBe(404);
   });
 });
