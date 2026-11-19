@@ -4,8 +4,8 @@ import { PERMISSIONS } from '#/core.ts';
 import { conversations, integrations } from '#/db/inbox.ts';
 import { channelMembers, channels } from '#/db/schema.ts';
 import { reads } from '#/orpc.ts';
-import { membership } from '../channels/access.ts';
-import { readSql, seenBy } from './shared.ts';
+import { membership, seenBy } from '../channels/access.ts';
+import { readSql } from './shared.ts';
 
 /**
  * How many open conversations wait unread by the caller: all they see, and each queue of the

@@ -1,17 +1,6 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { type ORPCErrorConstructorMap, ORPCError } from '@orpc/server';
-import {
-  and,
-  asc,
-  eq,
-  getTableColumns,
-  ilike,
-  inArray,
-  isNotNull,
-  isNull,
-  or,
-  sql,
-} from 'drizzle-orm';
+import { and, asc, eq, getTableColumns, ilike, inArray, isNull, or, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { CHANNEL_EVENTS, CHANNEL_REMOVED, PERMISSIONS } from '#/core.ts';
@@ -39,6 +28,7 @@ import {
   managesAll,
   membership,
   publishChannelEvents,
+  seenBy,
 } from './access.ts';
 
 const Name = z.string().trim().min(1).max(100);
@@ -151,7 +141,7 @@ const list = reads(PERMISSIONS.channelView)
       .where(
         and(
           isNull(channels.ownerId),
-          managesAll(member) ? undefined : isNotNull(channelMembers.userId),
+          seenBy(member, channels.id),
           input.search
             ? or(
                 ilike(channels.name, likeText(input.search)),

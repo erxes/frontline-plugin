@@ -7,8 +7,7 @@ import type { Tx } from '#/db/client.ts';
 import { conversations } from '#/db/inbox.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { reads } from '#/orpc.ts';
-import { membership } from '../channels/access.ts';
-import { seenBy } from '../inbox/shared.ts';
+import { membership, seenBy } from '../channels/access.ts';
 import {
   averageSeconds,
   ChannelRangeInput,

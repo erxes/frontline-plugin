@@ -24,7 +24,7 @@ import {
   refine,
   refreshSla,
   resolutionSla,
-  seenBy,
+  ticketsSeenBy,
   seenTicket,
   signalTickets,
   Ticket,
@@ -82,7 +82,7 @@ export const ticketsMatching = (
   const filter = input.filter ?? undefined;
 
   return and(
-    seenBy(member),
+    ticketsSeenBy(member),
     input.pipelineId ? eq(tickets.pipelineId, input.pipelineId) : undefined,
     input.statusId ? eq(tickets.statusId, input.statusId) : undefined,
     input.everyState || filtersBy(filter, 'subject.state')

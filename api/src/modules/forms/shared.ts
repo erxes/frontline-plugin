@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { asc, count, eq, getTableColumns, inArray, isNotNull, sql } from 'drizzle-orm';
+import { asc, count, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PLUGIN } from '#/config.ts';
@@ -10,7 +10,7 @@ import type { Tx } from '#/db/client.ts';
 import { FormStep, formSubmissions, forms } from '#/db/forms.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { StoredFile } from '#/db/table.ts';
-import { canChangeSql, heldInChannels, managesAll, membership } from '../channels/access.ts';
+import { canChangeSql, heldInChannels, membership } from '../channels/access.ts';
 import { publishEvents, type RecordEvent } from '../events.ts';
 
 /** The row without `org_id`, which the caller already knows. */
@@ -42,10 +42,6 @@ export const formRows = (tx: Tx, member: PluginMember) =>
     .from(forms)
     .leftJoin(channelMembers, membership(member, forms.channelId))
     .$dynamic();
-
-/** The forms `member` sees: their channels', or every channel's for one who manages them all. */
-export const seenBy = (member: PluginMember) =>
-  managesAll(member) ? undefined : isNotNull(channelMembers.userId);
 
 /** One form as the caller sees it. */
 export const formById = async (tx: Tx, member: PluginMember, id: string) => {

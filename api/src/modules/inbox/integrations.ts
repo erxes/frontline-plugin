@@ -9,13 +9,12 @@ import { integrations } from '#/db/inbox.ts';
 import { publicKeys } from '#/db/public.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { canChangeSql, channelFor, membership } from '../channels/access.ts';
+import { canChangeSql, channelFor, membership, seenBy } from '../channels/access.ts';
 import { Title } from '../fields.ts';
 import { integrationChanges } from '../messenger/adapter.ts';
 import { removeKeys } from '../public.ts';
 import { channelServing, INTEGRATION_KEY, insertIntegration } from './insertIntegration.ts';
 import { ADAPTERS } from './adapters.ts';
-import { seenBy } from './shared.ts';
 
 /** The row without `org_id`, which the caller already knows. */
 const { orgId, ...integrationColumns } = getTableColumns(integrations);

@@ -1,6 +1,6 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, asc, count, eq, getTableColumns, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, count, eq, getTableColumns, inArray, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PLUGIN } from '#/config.ts';
@@ -9,7 +9,7 @@ import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { SurveyStep, surveys, surveyVotes } from '#/db/surveys.ts';
 import { pipelineStatuses, pipelines } from '#/db/tickets.ts';
-import { canChangeSql, heldInChannels, managesAll, membership } from '../channels/access.ts';
+import { canChangeSql, heldInChannels, membership } from '../channels/access.ts';
 import { publishEvents, type RecordEvent } from '../events.ts';
 
 const { orgId, ...surveyColumns } = getTableColumns(surveys);
@@ -31,10 +31,6 @@ export const surveyRows = (tx: Tx, member: PluginMember) =>
     .from(surveys)
     .leftJoin(channelMembers, membership(member, surveys.channelId))
     .$dynamic();
-
-/** The surveys `member` sees: their channels', or every channel's for one who manages them all. */
-export const seenBy = (member: PluginMember) =>
-  managesAll(member) ? undefined : isNotNull(channelMembers.userId);
 
 export const surveyById = async (tx: Tx, member: PluginMember, id: string) => {
   const [row] = await surveyRows(tx, member).where(eq(surveys.id, id));

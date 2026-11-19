@@ -1,15 +1,6 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import {
-  and,
-  type Column,
-  eq,
-  getTableColumns,
-  inArray,
-  isNotNull,
-  type SQL,
-  sql,
-} from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray, type SQL, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { CONVERSATION_TIMELINE } from '#/core.ts';
@@ -17,7 +8,7 @@ import { PLUGIN } from '#/config.ts';
 import type { Tx } from '#/db/client.ts';
 import { conversations, conversationTags, integrations, messages } from '#/db/inbox.ts';
 import { channelMembers, channels } from '#/db/schema.ts';
-import { managesAll, membership, ownsOrSharedSql } from '../channels/access.ts';
+import { membership, seenBy } from '../channels/access.ts';
 import { publishEvents } from '../events.ts';
 
 /** The row without `org_id`, which the caller already knows. */
@@ -66,17 +57,6 @@ export const Conversation = createSelectSchema(conversations)
     /** The type of the last message's file, such as `image/png`, when that message has no text. */
     attachmentType: z.string().nullable(),
   });
-
-/**
- * The conversations or integrations `member` sees, by `channelId`, the channel the query joined
- * their `membership` of: their channels', or every channel's for one who manages them all, but no
- * one else's personal inbox.
- */
-export const seenBy = (member: PluginMember, channelId: Column) =>
-  and(
-    managesAll(member) ? undefined : isNotNull(channelMembers.userId),
-    ownsOrSharedSql(member, channelId),
-  );
 
 /** Conversations as the caller sees them. Callers narrow them with `seenBy`. */
 export const conversationRows = (tx: Tx, member: PluginMember) => {

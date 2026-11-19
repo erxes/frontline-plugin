@@ -5,7 +5,7 @@ import { PERMISSIONS, SURVEY_EVENTS } from '#/core.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { SurveyStep, surveys, surveyVotes } from '#/db/surveys.ts';
 import { reads, writes } from '#/orpc.ts';
-import { channelFor, membership } from '../channels/access.ts';
+import { channelFor, membership, seenBy } from '../channels/access.ts';
 import { changedEvent } from '../events.ts';
 import { Ids, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
@@ -19,7 +19,6 @@ import {
   surveyById,
   surveyRows,
   surveysFor,
-  seenBy,
 } from './shared.ts';
 
 /** Every step's question, for search. */
@@ -52,7 +51,7 @@ const list = reads(PERMISSIONS.channelView)
   )
   .handler(async ({ input, context: { tx, member } }) => {
     const matches = and(
-      seenBy(member),
+      seenBy(member, surveys.channelId),
       input.search
         ? or(ilike(surveys.title, likeText(input.search)), ilike(questions, likeText(input.search)))
         : undefined,

@@ -11,10 +11,9 @@ import { integrationAccounts } from '#/db/integrations.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { StoredFile } from '#/db/table.ts';
 import { reads, writes } from '#/orpc.ts';
-import { membership } from '../channels/access.ts';
+import { membership, seenBy } from '../channels/access.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
-import { seenBy } from '../inbox/shared.ts';
 import { queueRecording } from '../integrations/providers/call/record.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 

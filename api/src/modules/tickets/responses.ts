@@ -1,10 +1,10 @@
-import { and, desc, eq, isNotNull } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS, TICKET_TIMELINE } from '#/core.ts';
 import { forms, formSubmissions } from '#/db/forms.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { reads } from '#/orpc.ts';
-import { managesAll, membership } from '../channels/access.ts';
+import { membership, seenBy } from '../channels/access.ts';
 import { seenTicket } from './shared.ts';
 
 /** One answer sent about the ticket: when, by whom, and its form's name. */
@@ -42,7 +42,7 @@ const responses = reads(PERMISSIONS.channelView)
         and(
           eq(formSubmissions.referenceType, TICKET_TIMELINE),
           eq(formSubmissions.referenceId, input.id),
-          managesAll(member) ? undefined : isNotNull(channelMembers.userId),
+          seenBy(member, forms.channelId),
         ),
       )
       .orderBy(desc(formSubmissions.createdAt), desc(formSubmissions.id));

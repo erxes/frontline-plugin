@@ -1,6 +1,7 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, asc, type Column, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, type Column, eq, inArray, isNotNull, ne, notExists, sql } from 'drizzle-orm';
+import { alias, QueryBuilder } from 'drizzle-orm/pg-core';
 import { PLUGIN } from '#/config.ts';
 import { CHANNEL_EVENTS, CHANNEL_TIMELINE, PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
@@ -34,15 +35,28 @@ export const managesAll = (member: PluginMember) => member.can(PERMISSIONS.chann
 const ownsOrShared = (ownerId: string | null, member: PluginMember) =>
   ownerId === null || ownerId === member.userId;
 
-/** `ownsOrShared` for the channel `channelId` names, in a query: even a manager sees no one else's inbox. */
-export const ownsOrSharedSql = (member: PluginMember, channelId: Column) =>
-  sql<boolean>`not exists (
-    select 1 from ${channels} where ${channels.id} = ${channelId} and ${channels.ownerId} <> ${member.userId}
-  )`;
-
 /** Joins `member`'s own row of `channelMembers` for the channel `channelId` names. */
 export const membership = (member: PluginMember, channelId: Column) =>
   and(eq(channelMembers.channelId, channelId), eq(channelMembers.userId, member.userId));
+
+/** `channels` under its own name, so `seenBy` reads it beside a query on `channels`. */
+const owned = alias(channels, 'frontline_owned_channels');
+
+/**
+ * The rows `member` sees, by `channelId`, the channel the query joined their `membership` of:
+ * their channels', or every channel's for one who manages them all, but no one else's personal
+ * inbox, as `ownsOrShared` says.
+ */
+export const seenBy = (member: PluginMember, channelId: Column) =>
+  and(
+    managesAll(member) ? undefined : isNotNull(channelMembers.userId),
+    notExists(
+      new QueryBuilder()
+        .select({ id: owned.id })
+        .from(owned)
+        .where(and(eq(owned.id, channelId), ne(owned.ownerId, member.userId))),
+    ),
+  );
 
 /** Whether `member` may change the channel whose `membership` row the query joined. */
 export const canChangeSql = (member: PluginMember) =>

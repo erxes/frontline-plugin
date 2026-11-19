@@ -14,7 +14,7 @@ import { tags } from '#/db/tags.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { logger } from '#/logger.ts';
 import { reads, readsWithCore, writes } from '#/orpc.ts';
-import { membership } from '../channels/access.ts';
+import { membership, seenBy } from '../channels/access.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, filtersBy, likeText } from '../filter.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
@@ -26,7 +26,6 @@ import {
   Ids,
   publishConversationEvents,
   readSql,
-  seenBy,
   signalConversations,
   signalMembers,
   tagIdsOf,

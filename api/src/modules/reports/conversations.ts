@@ -17,8 +17,7 @@ import { conversations, conversationTags, integrations, messages } from '#/db/in
 import { channelMembers } from '#/db/schema.ts';
 import { tags } from '#/db/tags.ts';
 import { reads } from '#/orpc.ts';
-import { membership } from '../channels/access.ts';
-import { seenBy } from '../inbox/shared.ts';
+import { membership, seenBy } from '../channels/access.ts';
 import {
   averageSeconds,
   ChannelRangeInput,
