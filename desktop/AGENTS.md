@@ -20,3 +20,7 @@ address form. Every feature is a web feature first.
   builds (`build.ts`) and runs it; `dist` packages it with electron-builder for
   the system it runs on (`electron-builder.yml`). On Linux without a working
   SUID sandbox, pass `--no-sandbox` to try it locally.
+- `.github/workflows/desktop.yml` packages it on macOS, Windows and Linux for a
+  pull request that changes `desktop/`. To release, bump `version` in
+  `package.json` and push the tag `desktop-v<version>`: the installers go up
+  as a GitHub release. They aren't signed yet.
