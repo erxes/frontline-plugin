@@ -41,6 +41,8 @@ describe('facebook comments and postbacks', () => {
     expect(await deliver('/meta', raw, signedByMeta(raw))).toBe(200);
     // Meta delivers again until it hears 200; the repeat adds nothing.
     expect(await deliver('/meta', raw, signedByMeta(raw))).toBe(200);
+    // A job copies the comment's photo off Meta's CDN once Meta has its answer.
+    await runQueued();
 
     const threadId = await conversationWith('org-fb-a', 'comment:page-1_post-9:asid-7');
     const { messages } = await owner.conversations.messages.list({ conversationId: threadId });
@@ -179,8 +181,13 @@ describe('instagram comments', () => {
     expect(messages.map(({ content, attachments }) => ({ content, attachments }))).toEqual([
       {
         content: 'Love this!',
+        // The story's link had expired before the copy, so the message keeps the link.
         attachments: [
-          { url: '/core/v1/files/file-story/download', name: 'story', type: 'image/jpeg', size: 4 },
+          {
+            url: 'https://lookaside.fbsbx.com/ig_messaging_cdn/?asset_id=story-1&signature=expired',
+            name: 'story',
+            type: 'story',
+          },
         ],
       },
     ]);
@@ -309,6 +316,7 @@ describe('automation replies', () => {
     const raw = fixture('meta-delivery.json');
 
     await deliver('/meta', raw, signedByMeta(raw));
+    await runQueued();
 
     const conversationId = await conversationWith('org-meta-auto-a', 'psid-1');
 

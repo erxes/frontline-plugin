@@ -122,13 +122,9 @@ const withFiles = async (row: AccountRow, integrationId: string, message: Inboun
   const kept = await Promise.all(
     files.map(async (file) =>
       file
-        .read()
-        .then(async (blob) =>
-          storeFile(row.orgId, {
-            name: file.name,
-            contentType: file.contentType ?? (blob.type || 'application/octet-stream'),
-            bytes: await blob.bytes(),
-          }),
+        .bytes()
+        .then((bytes) =>
+          storeFile(row.orgId, { name: file.name, contentType: file.contentType, bytes }),
         )
         .catch(async (error: unknown) => {
           if (!(error instanceof FileRefused)) throw error;
@@ -213,7 +209,10 @@ export const deliverInbound = async <T extends InboundMessage>(
 
         await saved?.(tx, message);
 
-        if (received.changed) changed.push(received.changed);
+        if (!received.changed) return;
+
+        changed.push(received.changed);
+        await message.kept?.(tx, received.message);
       }).catch(async (error: unknown) => {
         if (!refusedData(error)) throw error;
 

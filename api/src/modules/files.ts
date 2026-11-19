@@ -12,15 +12,18 @@ import { readToken, signToken } from './tokens.ts';
 /** A file that whoever holds it, or core's storage, won't give or take: trying again won't help. */
 export class FileRefused extends Error {}
 
+/** The answers that may pass on a later try: a timeout, too many requests, or a server's fault. */
+const passesLater = (status: number) => status === 408 || status === 429 || status >= 500;
+
 /**
- * The file a provider holds at `url`, typed as the provider answers. A 4xx is `FileRefused`; any
- * other failure may pass on a later try.
+ * The file a provider holds at `url`, typed as the provider answers. Any other 4xx is
+ * `FileRefused`.
  */
 export const downloadFile = async (url: string, from: string) => {
   const response = await fetch(url, { signal: AbortSignal.timeout(4 * config.outboundMs) });
 
   if (!response.ok)
-    throw new (response.status < 500 ? FileRefused : Error)(
+    throw new (passesLater(response.status) ? Error : FileRefused)(
       `${from} did not send the file: ${response.status}`,
     );
 

@@ -229,6 +229,11 @@ export const JOBS = {
   discordGateway: { name: 'integrations.discord-gateway', cron: '* * * * *' },
   /** Copies a call's recording from the PBX to core's storage. */
   recording: { name: 'calls.recording', retry: { attempts: 5, delay: 60, maxDelay: 1800 } },
+  /** Copies a Facebook or Instagram message's files from Meta's CDN to core's storage. */
+  metaFiles: {
+    name: 'integrations.meta-files',
+    retry: { attempts: 5, delay: 60, maxDelay: 1800 },
+  },
   /**
    * Brings the organisation's own teams to core once, then copies core's branches and
    * departments (`modules/teams/sync.ts`): on install, when the owner approves the units scopes,

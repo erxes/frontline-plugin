@@ -61,8 +61,8 @@ export const inboundOf = (
     attachments: [],
     files: message.attachments.map((file) => ({
       name: file.filename,
-      contentType: file.content_type,
-      read: () => downloadFile(file.url, 'Discord'),
+      contentType: file.content_type ?? 'application/octet-stream',
+      bytes: async () => (await downloadFile(file.url, 'Discord')).bytes(),
     })),
   };
 };

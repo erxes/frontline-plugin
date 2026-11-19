@@ -301,9 +301,15 @@ const POST = {
 export const graphApi = (call: ProviderCall) => {
   const path = call.url.pathname.replace('/v23.0/', '');
 
-  // A file on Meta's CDN, through the signed link a message carries.
+  // A file on Meta's CDN, through the signed link a message carries, unless it has expired.
   if (/\.(fbcdn\.net|fbsbx\.com)$/.test(call.url.hostname))
-    return new Response(FILE_BYTES, { headers: { 'content-type': 'image/jpeg' } });
+    return call.url.searchParams.get('signature') === 'expired'
+      ? new Response(null, { status: 403 })
+      : new Response(FILE_BYTES, {
+          headers: {
+            'content-type': call.url.pathname.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
+          },
+        });
 
   if (JSON.stringify(call.body ?? null).includes('refused'))
     return Response.json({ error: { message: 'Invalid parameter' } }, { status: 400 });

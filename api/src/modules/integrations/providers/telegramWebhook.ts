@@ -56,7 +56,9 @@ const download = async (token: string, fileId: string) => {
     },
   );
 
-  return downloadFile(`https://api.telegram.org/file/bot${token}/${path}`, 'Telegram');
+  return (
+    await downloadFile(`https://api.telegram.org/file/bot${token}/${path}`, 'Telegram')
+  ).bytes();
 };
 
 /** The file a sticker is: a picture, an animation or a video. */
@@ -85,7 +87,7 @@ const filesOf = (token: string, message: z.infer<typeof Message>): InboundFile[]
           {
             name: file.file_name ?? name,
             contentType: file.mime_type ?? contentType,
-            read: () => download(token, file.file_id),
+            bytes: () => download(token, file.file_id),
           },
         ]
       : [],

@@ -1,4 +1,5 @@
 import type { z } from 'zod';
+import type { Tx } from '#/db/client.ts';
 import type { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
 import type { StoredFile } from '#/db/table.ts';
 import { openSecret } from './secrets.ts';
@@ -32,16 +33,15 @@ export interface InboundMessage {
   quotedId?: string;
   /** The manifest event automations start from, published with the message when it is new. */
   event?: string;
+  /** Runs in the transaction that keeps the message when it is new, with the row it got. */
+  kept?: (tx: Tx, message: { id: string; orgId: string }) => Promise<unknown>;
 }
 
-/**
- * A file in a message the provider holds: read only to keep it. Without a `contentType` it keeps
- * the type it reads as.
- */
+/** A file in a message the provider holds: read only to keep it. */
 export interface InboundFile {
   name: string;
-  contentType?: string;
-  read: () => Promise<Blob>;
+  contentType: string;
+  bytes: () => Promise<Uint8Array>;
 }
 
 /** A customer's reactions on one message, as they stand now after a change at the provider. */
