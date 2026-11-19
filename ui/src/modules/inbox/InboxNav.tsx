@@ -14,9 +14,10 @@ import { useTranslation } from 'react-i18next';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { useChange } from '~/shared/hooks.ts';
+import { INBOX_PATH } from '~/shared/listPath.ts';
 import { CHANNELS_PATH } from '@/channels/useChannels.ts';
 import { ChannelLink, TeamChannels } from './ChannelNav.tsx';
-import { Count, FilterLink, INBOX, NavGroup } from './navLinks.tsx';
+import { Count, FilterLink, NavGroup } from './navLinks.tsx';
 import { useInboxCounts, useInboxSignal } from './queries.ts';
 import { useArrivalSound } from './useArrivalSound.ts';
 
@@ -108,7 +109,10 @@ export const InboxNav = () => {
 
   return (
     <Sidebar.MenuItem>
-      <Sidebar.MenuButton isActive={pathname.startsWith(INBOX)} render={<Link to={INBOX} />}>
+      <Sidebar.MenuButton
+        isActive={pathname.startsWith(INBOX_PATH)}
+        render={<Link to={INBOX_PATH} />}
+      >
         <IconInbox />
         <span className="min-w-0 flex-1 truncate">{t('inbox', 'Inbox')}</span>
         <Count count={counts?.unread ?? 0} />

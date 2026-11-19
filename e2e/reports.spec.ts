@@ -4,11 +4,13 @@ import {
   callProLine,
   expect,
   Id,
+  messengerIn,
   pick,
   pluginApi,
   test,
   tileOf,
   unique,
+  visitorOf,
 } from './fixtures.ts';
 
 test('call, ticket and conversation tiles on the home dashboard count the period, and keep their place', async ({
@@ -104,6 +106,44 @@ test('a ticket tile number opens the tickets it counts', async ({ page, api, req
   await tileOf(page, 'Ticket summary').getByRole('link', { name: 'Created: 2' }).click();
   await expect(page.getByText(open)).toBeVisible();
   await expect(page.getByText(resolved)).toBeVisible();
+});
+
+test('a conversation tile number opens the conversations it counts in the inbox', async ({
+  page,
+  api,
+  request,
+}) => {
+  const rpc = await pluginApi(api, request);
+  const question = `Counted ${unique()}`;
+  const visitor = await visitorOf(request, await messengerIn(rpc, { welcome: 'Hi' }));
+  const conversationId = await visitor.write(question);
+
+  // Resolved, so it shows only where the link names every status.
+  await rpc('conversations/setStatus', { ids: [conversationId], status: 'resolved' }, z.array(Id));
+
+  await addTiles(page, ['Conversation summary', 'Conversations by source']);
+
+  const opens = async (tile: string, link: RegExp) => {
+    await tileOf(page, tile).getByRole('link', { name: link }).click();
+    await expect(page).toHaveURL(/\/frontline\/inbox/);
+  };
+
+  await opens('Conversation summary', /^Started: /);
+  await expect(page.getByText(question)).toBeVisible();
+
+  await page.goBack();
+  await opens('Conversation summary', /^Resolved: /);
+  await expect(page.getByText(question)).toBeVisible();
+
+  // Unresolved now is the inbox as it opens, which leaves the resolved question out.
+  await page.goBack();
+  await opens('Conversation summary', /^Unresolved now: /);
+  await expect(page.getByText(/^\d+ records?$/)).toBeVisible();
+  await expect(page.getByText(question)).toHaveCount(0);
+
+  await page.goBack();
+  await opens('Conversations by source', /^Messenger/);
+  await expect(page.getByText(question)).toBeVisible();
 });
 
 test('a member without the call permission sees the refusal in the call tile', async ({

@@ -1,4 +1,4 @@
-import { listFilterQuery, type TConditionGroup, type TConditionRule } from 'erxes-ui';
+import { listFilterQuery, type TConditionGroup, type TConditionRule, toIsoDay } from 'erxes-ui';
 import { createSerializer, parseAsString } from 'nuqs';
 import { PLUGIN } from '~/plugin.ts';
 
@@ -7,7 +7,15 @@ export const PIPELINE_PARAM = 'pipeline';
 
 export const TICKETS_PATH = `/${PLUGIN}/tickets`;
 
+export const INBOX_PATH = `/${PLUGIN}/inbox`;
+
 const serialize = createSerializer({ ...listFilterQuery, [PIPELINE_PARAM]: parseAsString });
+
+/** The rules that keep a date field `path` within the days from `from` to `to`, both included. */
+export const between = (path: string, { from, to }: { from: Date; to: Date }): TConditionRule[] => [
+  { path, op: 'gte', value: toIsoDay(from) },
+  { path, op: 'lte', value: toIsoDay(to) },
+];
 
 /** The list at `path` narrowed to `rules`, as its filter bar keeps them in the address. */
 export const listPath = (path: string, ...rules: TConditionRule[]) =>
