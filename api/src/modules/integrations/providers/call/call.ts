@@ -4,7 +4,7 @@ import { defineProvider, type OpenAccount } from '../../provider.ts';
 import { checkPbx } from './pbx.ts';
 
 /** A Grandstream UCM's settings, without secrets. */
-export const PbxConfig = z.object({
+const PbxConfig = z.object({
   /** Its HTTPS API: `pbx.example.com` or `pbx.example.com:8089`. */
   host: z.string(),
   /** The organisation's number on it. */
@@ -13,11 +13,12 @@ export const PbxConfig = z.object({
   timeZone: z.string(),
   /**
    * The TURN server softphones relay their audio through when the PBX or the member is behind
-   * NAT (`turn:turn.example.com:3478`), and its login. Every operator's softphone gets them.
+   * NAT (`turn:turn.example.com:3478`), and its login. Every operator's softphone gets them; the
+   * password stays sealed in the secret, and settings show only whether there is one.
    */
   turnUrl: z.string().default(''),
   turnUsername: z.string().default(''),
-  turnPassword: z.string().default(''),
+  hasTurnPassword: z.boolean().default(false),
 });
 
 const PbxSecret = z.object({
@@ -25,6 +26,7 @@ const PbxSecret = z.object({
   apiPassword: z.string(),
   /** Signs what the PBX's bridge posts: `x-erxes-signature` over `<timestamp>.<body>`. */
   webhookSecret: z.string(),
+  turnPassword: z.string().default(''),
 });
 
 /** The PBX an account's calls go through, signed in as its API user. */

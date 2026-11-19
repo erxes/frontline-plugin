@@ -230,6 +230,11 @@ describe('calls through a PBX', () => {
       expect.objectContaining({ extension: '1002', hasSipPassword: true }),
     ]);
     expect(JSON.stringify(settings)).not.toContain('sip-1002');
+    expect(JSON.stringify(settings)).not.toContain('relay-secret');
+    expect(settings.account.config).toMatchObject({ hasTurnPassword: true });
+    expect(
+      JSON.stringify(await owner.integrations.accounts.list({})).includes('relay-secret'),
+    ).toBe(false);
 
     const saraa = clientAs('org-call-e', [PERMISSIONS.callView], 'user-saraa');
 

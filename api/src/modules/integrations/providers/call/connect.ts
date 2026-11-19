@@ -20,7 +20,7 @@ import {
   intoChannel,
   saveAccount,
 } from '../../store.ts';
-import { call, PbxConfig } from './call.ts';
+import { call } from './call.ts';
 import { checkPbx } from './pbx.ts';
 
 const Host = z
@@ -45,7 +45,8 @@ const PbxInput = z.object({
     .regex(/^(turns?:\S+)?$/, 'A TURN address, such as turn:turn.example.com:3478')
     .default(''),
   turnUsername: z.string().trim().max(200).default(''),
-  turnPassword: z.string().max(200).default(''),
+  /** A new TURN password: none or an empty one keeps the stored one, and null clears it. */
+  turnPassword: z.string().max(200).nullish(),
 });
 
 const newKey = () => randomBytes(24).toString('base64url');
@@ -76,7 +77,7 @@ const connect = writesWithCore(
 )
   .output(Account)
   .handler(async ({ input, context: { tx, member } }) => {
-    const { apiUser, apiPassword, channelId, ...settings } = input;
+    const { apiUser, apiPassword, turnPassword, channelId, ...settings } = input;
 
     return saveAccount(
       tx,
@@ -85,8 +86,13 @@ const connect = writesWithCore(
         provider: 'call',
         externalId: input.host.toLowerCase(),
         name: input.phone,
-        config: settings,
-        secret: { apiUser, apiPassword, webhookSecret: randomBytes(32).toString('hex') },
+        config: { ...settings, hasTurnPassword: Boolean(turnPassword) },
+        secret: {
+          apiUser,
+          apiPassword,
+          webhookSecret: randomBytes(32).toString('hex'),
+          turnPassword: turnPassword ?? '',
+        },
         webhookKey: newKey(),
       },
       await intoChannel(tx, member, channelId),
@@ -213,15 +219,22 @@ const saveSettings = writes(PERMISSIONS.integrationManage)
   )
   .output(Account)
   .handler(async ({ input, context: { tx, member } }) => {
-    const { accountId, queues, operators, ...changes } = input;
+    const { accountId, queues, operators, turnPassword, ...changes } = input;
     const row = await phoneAccount(tx, accountId);
 
     if (row.provider !== 'call')
       throw new ORPCError('BAD_REQUEST', { message: 'A CallPro line has no queues or operators' });
 
+    const { config: stored, secret } = call.open(row).account;
+    const turn = turnPassword === null ? '' : turnPassword || secret.turnPassword;
+
     const [saved] = await tx
       .update(integrationAccounts)
-      .set({ config: { ...PbxConfig.parse(row.config), ...changes }, name: changes.phone })
+      .set({
+        config: { ...stored, ...changes, hasTurnPassword: turn !== '' },
+        secret: sealSecret(member.orgId, { ...secret, turnPassword: turn }),
+        name: changes.phone,
+      })
       .where(eq(integrationAccounts.id, accountId))
       .returning(accountColumns);
 
