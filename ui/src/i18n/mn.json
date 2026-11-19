@@ -817,6 +817,8 @@
   "no-one-waiting": "Хэн ч хүлээгээгүй байна.",
   "no-open-tickets": "Шийдвэрлэгдээгүй тикет алга.",
   "no-other-conversations": "Өөр харилцан яриа алга",
+  "no-phone-line": "Танд утасны шугам алга",
+  "no-phone-line-description": "Админ PBX-ийн операторууд дээр таны дотуур дугаарт SIP нууц үг өгнө.",
   "no-pipelines-description": "Урсгал нь сувгийн тикетийг ажиллуулах төлөв ба SLA-г агуулна.",
   "no-pipelines-yet": "Урсгал алга",
   "no-priority": "Зэрэглэлгүй",

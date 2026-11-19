@@ -48,6 +48,9 @@ export const Transfer = ({ accountId, onDone }: { accountId: string; onDone: () 
   );
 };
 
+/** Each conversation's unsaved note, so leaving the Phone page mid-call keeps it. */
+const drafts = new Map<string, string>();
+
 /**
  * An internal note on the call's conversation, while the call lasts and after it, until the
  * member closes it.
@@ -61,11 +64,17 @@ export const CallNote = ({
 }) => {
   const { t } = useTranslation('frontline');
   const { open } = useOpenRecord();
-  const [content, setContent] = useState('');
+  const [content, setContent] = useState(() => drafts.get(conversationId) ?? '');
+
+  const write = (next: string) => {
+    drafts.set(conversationId, next);
+    setContent(next);
+  };
 
   const save = useMutation(
     orpc.conversations.messages.create.mutationOptions({
       onSuccess: () => {
+        drafts.delete(conversationId);
         setContent('');
         toast({ title: t('note-saved', 'Note saved on the call') });
       },
@@ -109,7 +118,7 @@ export const CallNote = ({
         rows={3}
         aria-label={t('call-note', 'Call note')}
         placeholder={t('call-note-placeholder', 'What the caller needs')}
-        onChange={(event) => setContent(event.target.value)}
+        onChange={(event) => write(event.target.value)}
       />
       <Button type="submit" variant="secondary" disabled={!content.trim() || save.isPending}>
         {t('save-note', 'Save note')}

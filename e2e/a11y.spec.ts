@@ -269,7 +269,7 @@ test("a form's builder, embed and submissions", async ({ page, api, request }) =
   await expectAccessible(page, page.getByRole('row', { name: /Acme/ }));
 });
 
-test('the call history, a call in the panel and the queues', async ({ page, api }) => {
+test('the call history, a call in the panel, the queues and the phone', async ({ page, api }) => {
   const caller = `9912${String(Date.now()).slice(-4)}`;
   const post = await callProLine(api, page.request, `7556${String(Date.now()).slice(-4)}`);
   const call = `a-${unique()}`;
@@ -286,6 +286,8 @@ test('the call history, a call in the panel and the queues', async ({ page, api 
   await expectAccessible(page, recordPanel(page).getByRole('link', { name: 'Open in inbox' }));
   await page.goto('/frontline/calls/queues');
   await expectAccessible(page, page.getByText('No queues yet'));
+  await page.goto('/frontline/calls/phone');
+  await expectAccessible(page, page.getByText('You have no phone line'));
 });
 
 test("the home dashboard's tiles, and one refused", async ({ newMember }) => {

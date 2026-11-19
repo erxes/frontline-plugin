@@ -1,0 +1,23 @@
+{
+  "name": "@frontline/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Frontline on the desktop: erxes web in a window that keeps the phone on",
+  "type": "module",
+  "main": "dist/main.cjs",
+  "exports": {
+    ".": "./src/bridge.ts"
+  },
+  "scripts": {
+    "build": "node build.ts",
+    "dist": "node build.ts && electron-builder",
+    "start": "install-electron && node build.ts && electron ."
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "electron": "^45.3.4",
+    "electron-builder": "^26.18.0",
+    "vite-plus": "catalog:",
+    "zod": "^4.6.7"
+  }
+}

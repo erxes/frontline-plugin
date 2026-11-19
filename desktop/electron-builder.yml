@@ -1,0 +1,23 @@
+# `pnpm --filter @frontline/desktop dist` packages the app for the system it runs on, into release/.
+appId: io.erxes.frontline
+productName: Frontline
+directories:
+  output: release
+files:
+  - dist/**
+  - package.json
+icon: static/icon.png
+# The system offers the app for phone number links.
+protocols:
+  - name: Phone numbers
+    schemes: [tel]
+mac:
+  target: dmg
+  category: public.app-category.business
+  extendInfo:
+    NSMicrophoneUsageDescription: Frontline uses the microphone for your calls.
+win:
+  target: nsis
+linux:
+  target: AppImage
+  category: Network

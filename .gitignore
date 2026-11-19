@@ -1,5 +1,6 @@
 node_modules/
 dist/
+desktop/release/
 .runtime/
 coverage/
 e2e/test-results/

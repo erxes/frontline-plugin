@@ -1,225 +1,136 @@
 import {
-  IconArrowForwardUp,
-  IconDialpad,
   IconMicrophone,
   IconMicrophoneOff,
   IconPhone,
+  IconPhoneIncoming,
   IconPhoneOff,
-  IconPlayerPause,
-  IconPlayerPlay,
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
-import { addPluginStyles, Button, Select, cn } from 'erxes-ui';
+import { addPluginStyles, Button } from 'erxes-ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { durationText, useCallsSignal } from '@/calls/queries.ts';
-import { orpc } from '~/orpc.ts';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { PHONE_PATH } from '@/calls/queries.ts';
 import { PLUGIN } from '~/plugin.ts';
-import { CallNote, Transfer } from './CallTools.tsx';
-import { DialPad, Dialer } from './DialPad.tsx';
+import { DesktopLink, desktop } from './DesktopLink.tsx';
+import { publishPhone } from './live.ts';
+import { StatusDot, useCallText } from './PhonePanel.tsx';
 import css from './styles.css?inline';
-import { type Line, type Phone, type PhoneCall, type PhoneStatus, useSip } from './useSip.ts';
+import { type Line, type Phone, type PhoneCall, useSip } from './useSip.ts';
 
-// The phone shows on pages the plugin's stylesheet never loads on.
+// The ring card and the call bar show on pages the plugin's stylesheet never loads on.
 addPluginStyles(`${PLUGIN}:softphone`, css);
 
-/** Seconds since `since`, ticking while it is set. */
-const useSeconds = (since: Date | null) => {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!since) return;
-
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-
-    return () => clearInterval(timer);
-  }, [since]);
-
-  return since ? Math.max(0, (now - since.getTime()) / 1000) : null;
-};
-
-const StatusDot = ({ status }: { status: PhoneStatus }) => (
-  <span
-    className={cn(
-      'size-2 rounded-full',
-      status === 'ready' && 'bg-success',
-      status === 'connecting' && 'bg-warning',
-      status === 'offline' && 'bg-destructive',
-    )}
-  />
-);
-
-/** The call the phone is on: who, how long, and what the member can do with it. */
-const OnCall = ({ phone, call, line }: { phone: Phone; call: PhoneCall; line: Line }) => {
+/** An incoming call over whatever page the member is on: who, and Answer or Decline. */
+const RingCard = ({ phone, call }: { phone: Phone; call: PhoneCall }) => {
   const { t } = useTranslation('frontline');
-  const [tool, setTool] = useState<'keys' | 'transfer' | null>(null);
-  const seconds = useSeconds(call.since);
-  const incoming = call.direction === 'incoming';
-
-  const toggle = (next: 'keys' | 'transfer') => setTool(tool === next ? null : next);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="text-center">
-        <div className="text-lg font-semibold">{call.number}</div>
-        <div className="text-sm text-muted-foreground">
-          {call.talking
-            ? durationText(seconds)
-            : incoming
-              ? t('incoming-call', 'Incoming call')
-              : t('calling', 'Calling')}
+    <section
+      aria-label={t('incoming-call', 'Incoming call')}
+      className="flex w-72 flex-col gap-3 rounded-lg border bg-background p-3 shadow-lg"
+    >
+      <div className="flex items-center gap-3">
+        <span className="flex size-9 items-center justify-center rounded-full bg-primary/10 text-primary">
+          <IconPhoneIncoming className="size-5" />
+        </span>
+        <div className="min-w-0">
+          <div className="truncate font-semibold tabular-nums">{call.number}</div>
+          <div className="text-sm text-muted-foreground">{t('incoming-call', 'Incoming call')}</div>
         </div>
       </div>
-      {call.talking ? (
-        <div className="grid grid-cols-4 gap-1">
-          <Button
-            variant={call.muted ? 'default' : 'secondary'}
-            size="icon"
-            aria-pressed={call.muted}
-            aria-label={t('mute', 'Mute')}
-            onClick={phone.toggleMute}
-          >
-            {call.muted ? <IconMicrophoneOff /> : <IconMicrophone />}
-          </Button>
-          <Button
-            variant={call.held ? 'default' : 'secondary'}
-            size="icon"
-            aria-pressed={call.held}
-            aria-label={t('hold', 'Hold')}
-            onClick={phone.toggleHold}
-          >
-            {call.held ? <IconPlayerPlay /> : <IconPlayerPause />}
-          </Button>
-          <Button
-            variant={tool === 'keys' ? 'default' : 'secondary'}
-            size="icon"
-            aria-pressed={tool === 'keys'}
-            aria-label={t('keypad', 'Keypad')}
-            onClick={() => toggle('keys')}
-          >
-            <IconDialpad />
-          </Button>
-          <Button
-            variant={tool === 'transfer' ? 'default' : 'secondary'}
-            size="icon"
-            aria-pressed={tool === 'transfer'}
-            aria-label={t('transfer', 'Transfer')}
-            onClick={() => toggle('transfer')}
-          >
-            <IconArrowForwardUp />
-          </Button>
-        </div>
-      ) : null}
-      {tool === 'keys' && <DialPad onPress={phone.press} />}
-      {tool === 'transfer' && <Transfer accountId={line.accountId} onDone={() => setTool(null)} />}
       <div className="flex gap-2">
-        {incoming && !call.talking && (
-          <Button className="flex-1" onClick={phone.answer}>
-            <IconPhone />
-            {t('answer', 'Answer')}
-          </Button>
-        )}
+        <Button className="flex-1" onClick={phone.answer}>
+          <IconPhone />
+          {t('answer', 'Answer')}
+        </Button>
         <Button variant="destructive" className="flex-1" onClick={phone.hangUp}>
           <IconPhoneOff />
-          {incoming && !call.talking ? t('decline', 'Decline') : t('hang-up', 'Hang up')}
+          {t('decline', 'Decline')}
         </Button>
       </div>
+    </section>
+  );
+};
+
+/** The call the member is on, while they work on another page: back to the phone, mute, hang up. */
+const CallBar = ({ phone, call }: { phone: Phone; call: PhoneCall }) => {
+  const { t } = useTranslation('frontline');
+  const navigate = useNavigate();
+
+  return (
+    <div className="flex items-center gap-1 rounded-lg border bg-background p-1 shadow-lg">
+      <Button variant="ghost" onClick={() => void navigate(PHONE_PATH)}>
+        <StatusDot status={phone.status} />
+        <span className="font-medium tabular-nums">{call.number}</span>
+        <span className="text-muted-foreground tabular-nums">{useCallText(call)}</span>
+      </Button>
+      {call.talking && (
+        <Button
+          variant={call.muted ? 'default' : 'ghost'}
+          size="icon"
+          aria-pressed={call.muted}
+          aria-label={t('mute', 'Mute')}
+          onClick={phone.toggleMute}
+        >
+          {call.muted ? <IconMicrophoneOff /> : <IconMicrophone />}
+        </Button>
+      )}
+      <Button
+        variant="destructive"
+        size="icon"
+        aria-label={t('hang-up', 'Hang up')}
+        onClick={phone.hangUp}
+      >
+        <IconPhoneOff />
+      </Button>
     </div>
   );
 };
 
-/** The call's conversation, once the PBX has reported the call, for its note. */
-const useCallConversation = (line: Line, talking: boolean) => {
-  useCallsSignal();
-
-  const current = useQuery({
-    ...orpc.calls.phone.current.queryOptions({ input: { accountId: line.accountId } }),
-    enabled: talking,
-  });
-
-  return current.data ?? null;
-};
-
+/**
+ * The phone signed in on one line, for as long as the member is in erxes. It draws nothing
+ * while idle: the Phone page draws it. Over other pages a call rings as a card, and a call on
+ * shows as a bar.
+ */
 const LinePhone = ({
   line,
   lines,
-  onLine,
+  pickLine,
 }: {
   line: Line;
   lines: Line[];
-  onLine: (id: string) => void;
+  pickLine: (accountId: string) => void;
 }) => {
-  const { t } = useTranslation('frontline');
   const audio = useRef<HTMLAudioElement>(null);
   const phone = useSip(line, audio);
-  const [open, setOpen] = useState(false);
-  const [closedNote, setClosedNote] = useState<string | null>(null);
-  const current = useCallConversation(line, Boolean(phone.call?.talking));
-  const ringing = phone.call?.direction === 'incoming' && !phone.call.talking;
-  const note = current && current.id !== closedNote ? current : null;
+  const navigate = useNavigate();
+  const onPhonePage = useLocation().pathname === PHONE_PATH;
+  const [closedNote, closeNote] = useState<string | null>(null);
+  const { call } = phone;
 
-  const statusText: Record<PhoneStatus, string> = {
-    connecting: t('phone-connecting', 'Connecting'),
-    ready: t('phone-ready', 'Ready'),
-    offline: t('phone-offline', 'Offline'),
-  };
-
-  const lineName = ({ name, extension }: Line) =>
-    t('phone-line-name', '{{name}}, ext. {{extension}}', { name, extension });
+  useEffect(
+    () => publishPhone({ phone, line, lines, pickLine, closedNote, closeNote }),
+    [phone, line, lines, pickLine, closedNote],
+  );
+  useEffect(() => () => publishPhone(null), []);
 
   return (
-    <div className="flex flex-col items-end gap-2">
-      {(open || ringing) && (
-        <section
-          aria-label={t('softphone', 'Phone')}
-          className="flex w-72 flex-col gap-3 rounded-lg border bg-background p-3 shadow-lg"
-        >
-          <div className="flex items-center justify-between gap-2">
-            {lines.length > 1 ? (
-              <Select value={line.accountId} onValueChange={(next) => next && onLine(next)}>
-                <Select.Trigger aria-label={t('phone-line', 'Line')}>
-                  <Select.Value>{() => lineName(line)}</Select.Value>
-                </Select.Trigger>
-                <Select.Content>
-                  {lines.map((other) => (
-                    <Select.Item key={other.accountId} value={other.accountId}>
-                      {lineName(other)}
-                    </Select.Item>
-                  ))}
-                </Select.Content>
-              </Select>
-            ) : (
-              <p className="text-sm font-medium">{lineName(line)}</p>
-            )}
-            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <StatusDot status={phone.status} />
-              {statusText[phone.status]}
-            </span>
-          </div>
-          {phone.call ? (
-            <OnCall phone={phone} call={phone.call} line={line} />
-          ) : (
-            <Dialer ready={phone.status === 'ready'} onDial={phone.dial} />
-          )}
-          {note && (
-            <CallNote
-              key={note.id}
-              conversationId={note.conversationId}
-              onClose={() => setClosedNote(note.id)}
-            />
-          )}
-        </section>
+    <>
+      {call &&
+        !onPhonePage &&
+        (call.direction === 'incoming' && !call.talking ? (
+          <RingCard phone={phone} call={call} />
+        ) : (
+          <CallBar phone={phone} call={call} />
+        ))}
+      {desktop && (
+        <DesktopLink bridge={desktop} phone={phone} onOpen={() => void navigate(PHONE_PATH)} />
       )}
-      <Button size="lg" aria-expanded={open || ringing} onClick={() => setOpen(!open)}>
-        <StatusDot status={phone.status} />
-        <IconPhone />
-        {phone.call ? phone.call.number : t('softphone', 'Phone')}
-      </Button>
       {/* The other side's voice. */}
       <audio ref={audio} hidden>
         <track kind="captions" />
       </audio>
-    </div>
+    </>
   );
 };
 
@@ -229,5 +140,5 @@ export const SipPhone = ({ lines }: { lines: [Line, ...Line[]] }) => {
   const [accountId, setAccountId] = useState(first.accountId);
   const line = lines.find((other) => other.accountId === accountId) ?? first;
 
-  return <LinePhone key={line.accountId} line={line} lines={lines} onLine={setAccountId} />;
+  return <LinePhone key={line.accountId} line={line} lines={lines} pickLine={setAccountId} />;
 };

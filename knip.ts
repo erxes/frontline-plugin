@@ -21,6 +21,11 @@ const config: KnipConfig = {
       entry: ['src/config.tsx', 'src/Frontline.tsx'],
       project: ['src/**/*.{ts,tsx,css}'],
     },
+    // The main process and the preload Electron loads (build.ts).
+    desktop: {
+      entry: ['src/main.ts', 'src/preload.ts'],
+      project: ['*.ts', 'src/**/*.ts'],
+    },
     // Each file in src/ is an embed a website loads (build.ts).
     widget: {
       entry: ['src/*.tsx'],

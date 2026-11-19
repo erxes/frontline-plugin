@@ -18,6 +18,19 @@ export type QueueLive = NonNullable<Outputs['queues']['get']['live']>;
 /** The pages under `/frontline/calls`. */
 export const CALLS_PATH = `/${PLUGIN}/calls`;
 
+/** The member's phone: the dial pad, the call they are on and its note. */
+export const PHONE_PATH = `${CALLS_PATH}/phone`;
+
+/**
+ * The member's SIP lines, which the softphone signs in to. A refetch would sign the phone in
+ * again, so they last as long as the page.
+ */
+export const phoneLinesQuery = {
+  ...orpc.calls.phone.lines.queryOptions({ input: {} }),
+  retry: false,
+  staleTime: Infinity,
+};
+
 /**
  * What a call changes: the history, each call, the queues' boards and the member's extensions.
  * Not the softphone's lines, whose refetch would sign the phone in again.
@@ -80,6 +93,9 @@ export const useQueue = (id: string) => {
   return useQuery(orpc.calls.queues.get.queryOptions({ input: { id } }));
 };
 
+/** One empty list while the extensions load, so effects that read them don't rerun each render. */
+const NO_AGENTS: never[] = [];
+
 /** The member's extensions, and pausing or resuming them in their PBX's queues. */
 export const useAgents = () => {
   const mine = useQuery(orpc.calls.agents.mine.queryOptions({ input: {} }));
@@ -88,7 +104,7 @@ export const useAgents = () => {
     orpc.calls.agents.setStatus.mutationOptions(useChange(...CALL_KEYS)),
   );
 
-  return { agents: mine.data ?? [], setStatus };
+  return { agents: mine.data ?? NO_AGENTS, setStatus };
 };
 
 const pad = (value: number) => String(value).padStart(2, '0');

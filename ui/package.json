@@ -36,6 +36,7 @@
   },
   "devDependencies": {
     "@frontline/api": "workspace:*",
+    "@frontline/desktop": "workspace:*",
     "@module-federation/rsbuild-plugin": "2.9.3",
     "@rsbuild/core": "^2.3.2",
     "@rsbuild/plugin-babel": "^2.1.0",
