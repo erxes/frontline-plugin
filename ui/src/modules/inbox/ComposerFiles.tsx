@@ -77,9 +77,6 @@ const PendingFile = ({
   );
 };
 
-/** The files a paste or a drop carries, if any. */
-const filesOf = (data: DataTransfer | null) => Array.from(data?.files ?? []);
-
 /**
  * The composer's files: picked from the paperclip, pasted, or dropped on the card. Each shows with
  * a spinner while it uploads and lands in the tab it was added in, `note` or reply, even when the
@@ -92,6 +89,8 @@ export const useComposerFiles = (
   onUploaded: (note: boolean, file: Attachment) => void,
 ) => {
   const [pending, setPending] = useState<Pending[]>([]);
+  // BlockNote passes a drop beside its text on to the editor again, with the same data.
+  const [taken] = useState(() => new WeakSet<DataTransfer>());
 
   const add = (files: File[]) =>
     setPending((current) => [
@@ -99,11 +98,17 @@ export const useComposerFiles = (
       ...files.map((file) => ({ id: crypto.randomUUID(), file, note })),
     ]);
 
-  const take = (event: ClipboardEvent | DragEvent, files: File[]) => {
-    if (files.length === 0) return;
+  const take = (event: ClipboardEvent | DragEvent, data: DataTransfer | null) => {
+    const files = Array.from(data?.files ?? []);
+
+    if (!data || files.length === 0) return;
 
     event.preventDefault();
     event.stopPropagation();
+
+    if (taken.has(data)) return;
+
+    taken.add(data);
     add(files);
   };
 
@@ -118,11 +123,11 @@ export const useComposerFiles = (
     },
     remove: (id: string) => setPending((current) => current.filter((other) => other.id !== id)),
     cardHandlers: {
-      onPasteCapture: (event: ClipboardEvent) => take(event, filesOf(event.clipboardData)),
+      onPasteCapture: (event: ClipboardEvent) => take(event, event.clipboardData),
       onDragOver: (event: DragEvent) => {
         if (event.dataTransfer.types.includes('Files')) event.preventDefault();
       },
-      onDropCapture: (event: DragEvent) => take(event, filesOf(event.dataTransfer)),
+      onDropCapture: (event: DragEvent) => take(event, event.dataTransfer),
     },
   };
 };
