@@ -1,6 +1,8 @@
 # `pnpm --filter @frontline/desktop dist` packages the app for the system it runs on, into release/.
+# The Desktop workflow runs it on each system, and publishes a desktop-v<version> tag's installers.
 appId: io.erxes.frontline
 productName: Frontline
+artifactName: ${productName}-${version}-${os}-${arch}.${ext}
 directories:
   output: release
 files:
@@ -12,7 +14,10 @@ protocols:
   - name: Phone numbers
     schemes: [tel]
 mac:
-  target: dmg
+  # Apple silicon and Intel Macs.
+  target:
+    - target: dmg
+      arch: [arm64, x64]
   category: public.app-category.business
   extendInfo:
     NSMicrophoneUsageDescription: Frontline uses the microphone for your calls.
@@ -20,4 +25,5 @@ win:
   target: nsis
 linux:
   target: AppImage
+  executableName: frontline
   category: Network
