@@ -15,6 +15,7 @@ import {
 
 test('the customer, their tickets and their other conversations show beside the open one', async ({
   page,
+  plugin,
   request,
   newMember,
 }) => {
@@ -31,7 +32,7 @@ test('the customer, their tickets and their other conversations show beside the 
   await page.goto(INBOX);
 
   const key = await addMessenger(page, channel);
-  const visitor = await visitorOf(request, key, { email, firstName: name });
+  const visitor = await visitorOf(request, plugin, key, { email, firstName: name });
   const earlier = `Where is my order ${suffix}`;
   const earlierId = await visitor.write(earlier);
   const openId = await visitor.write(`Can I change my address ${suffix}`);
@@ -82,6 +83,7 @@ test('the customer, their tickets and their other conversations show beside the 
 
 test('a conversation opens on its own page with its customer and status, resolves from its menu, and shows its properties', async ({
   page,
+  plugin,
   request,
   newMember,
 }) => {
@@ -95,7 +97,7 @@ test('a conversation opens on its own page with its customer and status, resolve
 
   const key = await addMessenger(page, channel);
 
-  const visitor = await visitorOf(request, key, {
+  const visitor = await visitorOf(request, plugin, key, {
     email: `bat-${suffix}@e2e.test`,
     firstName: name,
   });

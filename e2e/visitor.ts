@@ -2,8 +2,8 @@ import { expect, type APIRequestContext } from '@playwright/test';
 import { randomInt } from 'node:crypto';
 import { z } from 'zod';
 
-/** The messenger's signed-out API, as a website's widget calls it. */
-export const MESSENGER = 'http://localhost:3399/api/public/messenger';
+/** The messenger's signed-out API on the plugin's `api`, as a website's widget calls it. */
+export const messengerApi = (api: string) => `${api}/public/messenger`;
 
 const Connected = z.object({ token: z.string() });
 
@@ -15,19 +15,21 @@ const VisitorMessages = z.object({
 });
 
 /**
- * A website visitor: connects with the messenger's key, as the customer with `identity`'s email
- * when given, then writes and reads as the widget does. Each visitor comes from its own address,
- * which the e2e stack trusts (`TRUST_PROXY` in compose.yml), so the API's per-IP limits count
- * each apart, as they would visitors of a real site.
+ * A website visitor of the plugin at `plugin`: connects with the messenger's key, as the customer
+ * with `identity`'s email when given, then writes and reads as the widget does. Each visitor comes
+ * from its own address, which the e2e stack trusts (`TRUST_PROXY` in compose.yml), so the API's
+ * per-IP limits count each apart, as they would visitors of a real site.
  */
 export const visitorOf = async (
   request: APIRequestContext,
+  plugin: string,
   key: string,
   identity?: { email: string; firstName: string },
 ) => {
   const from = { 'x-forwarded-for': `10.0.${randomInt(256)}.${randomInt(1, 255)}` };
+  const messenger = messengerApi(plugin);
 
-  const connected = await request.post(`${MESSENGER}/connect`, {
+  const connected = await request.post(`${messenger}/connect`, {
     headers: from,
     data: { key, identity },
   });
@@ -39,7 +41,7 @@ export const visitorOf = async (
 
   return {
     write: async (content: string, conversationId?: string) => {
-      const sent = await request.post(`${MESSENGER}/messages`, {
+      const sent = await request.post(`${messenger}/messages`, {
         headers,
         data: { content, conversationId },
       });
@@ -50,14 +52,14 @@ export const visitorOf = async (
     },
     /** Posts to one of the conversation's routes: `typing`, `person` or `read`. */
     tell: async (conversationId: string, route: string) => {
-      const told = await request.post(`${MESSENGER}/conversations/${conversationId}/${route}`, {
+      const told = await request.post(`${messenger}/conversations/${conversationId}/${route}`, {
         headers,
       });
 
       expect(told.ok()).toBe(true);
     },
     read: async (conversationId: string) => {
-      const listed = await request.get(`${MESSENGER}/conversations/${conversationId}/messages`, {
+      const listed = await request.get(`${messenger}/conversations/${conversationId}/messages`, {
         headers,
       });
 

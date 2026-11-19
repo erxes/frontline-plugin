@@ -15,11 +15,10 @@ import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { z } from 'zod';
 import { trackRequests } from './accessible.ts';
-import { MESSENGER } from './visitor.ts';
 
 export { expectAccessible } from './accessible.ts';
 
-export { MESSENGER, visitorOf } from './visitor.ts';
+export { messengerApi, visitorOf } from './visitor.ts';
 
 export const OWNER_STATE = resolve(import.meta.dirname, 'test-results/.auth/owner.json');
 
@@ -148,13 +147,33 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
 /** A member of the owner's organisation, signed in on their own page, whose role holds `permissions`. */
 type NewMember = (permissions: string[]) => Promise<{ page: Page; id: string; fullName: string }>;
 
-export const test = base.extend<{ api: ReturnType<typeof coreClient>; newMember: NewMember }>({
+/**
+ * A plugin session core issues the owner, with the plugin's API address as core has it: the
+ * plugin's public address and `/api`. That's the e2e stack's plugin, or a shot slot's on one.
+ */
+const sessionOf = async (api: ReturnType<typeof coreClient>) => {
+  const { token, apiUrl } = await api.plugins.session({ name: 'frontline' });
+
+  if (!apiUrl) throw new Error('Core has no API address for frontline');
+
+  return { token, apiUrl };
+};
+
+export const test = base.extend<{
+  api: ReturnType<typeof coreClient>;
+  newMember: NewMember;
+  plugin: string;
+}>({
   context: async ({ context }, use) => {
     trackRequests(context);
     await use(context);
   },
   api: async ({ page, baseURL }, use) => {
     await use(coreClient(page.request, baseURL));
+  },
+  /** The plugin's API address, which the messenger and its visitors call. */
+  plugin: async ({ api }, use) => {
+    await use((await sessionOf(api)).apiUrl);
   },
   newMember: async ({ api, browser, baseURL, colorScheme }, use) => {
     const contexts: BrowserContext[] = [];
@@ -185,19 +204,19 @@ export const test = base.extend<{ api: ReturnType<typeof coreClient>; newMember:
   },
 });
 
-/** The plugin's member API, as its UI calls it with the member's session. */
-const RPC = 'http://localhost:3399/api/rpc';
-
 const Answer = z.object({ json: z.unknown() });
 
 export const Id = z.object({ id: z.string() });
 
-/** Calls the plugin's `path` procedure as the owner, with a plugin session core issued them. */
+/**
+ * Calls the plugin's `path` procedure as the owner, with a plugin session core issued them, on the
+ * member API its UI calls.
+ */
 export const pluginApi = async (api: ReturnType<typeof coreClient>, request: APIRequestContext) => {
-  const { token } = await api.plugins.session({ name: 'frontline' });
+  const { token, apiUrl } = await sessionOf(api);
 
   return async <T extends z.ZodType>(path: string, input: unknown, Output: T) => {
-    const response = await request.post(`${RPC}/${path}`, {
+    const response = await request.post(`${apiUrl}/rpc/${path}`, {
       headers: { authorization: `Bearer ${token}` },
       data: { json: input },
     });
@@ -387,9 +406,17 @@ export const openShop = async (context: BrowserContext, installCode: string) => 
   };
 };
 
-/** The shop with the messenger of `key` on it, after the page's own `before`, opened by the visitor. */
-export const openMessenger = async (context: BrowserContext, key: string, before = '') => {
-  const script = new URL(`/widget/messenger.js?key=${key}`, MESSENGER);
+/**
+ * The shop with the messenger of `key`, served by the plugin at `plugin`, on it after the page's
+ * own `before`, opened by the visitor.
+ */
+export const openMessenger = async (
+  context: BrowserContext,
+  plugin: string,
+  key: string,
+  before = '',
+) => {
+  const script = new URL(`/widget/messenger.js?key=${key}`, plugin);
   const tag = `<script type="module" src="${script.href}"></script>`;
   const site = await openShop(context, before + tag);
 

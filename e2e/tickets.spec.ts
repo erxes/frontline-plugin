@@ -264,6 +264,7 @@ test('a member labels a ticket with tags, a department and a property, and filte
 
 test('a visitor files a ticket from the widget in a pipeline the messenger offers', async ({
   page,
+  plugin,
 }) => {
   const channel = await openChannelPipelines(page);
   const pipeline = await createPipeline(page);
@@ -278,7 +279,7 @@ test('a visitor files a ticket from the widget in a pipeline the messenger offer
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Messenger saved')).toBeVisible();
 
-  await using site = await openMessenger(page.context(), key);
+  await using site = await openMessenger(page.context(), plugin, key);
   const { shop, panel } = site;
 
   await panel.getByRole('button', { name: /^Tickets/ }).click();
@@ -304,6 +305,7 @@ test("the widget's ticket form asks for a required field, and shows one only as 
   page,
   api,
   request,
+  plugin,
 }) => {
   const rpc = await pluginApi(api, request);
   const { id: channelId } = await rpc('channels/create', { name: `Support ${unique()}` }, Id);
@@ -336,7 +338,7 @@ test("the widget's ticket form asks for a required field, and shows one only as 
   });
 
   const key = await messengerIn(rpc, { ticketPipelineIds: [pipelineId] }, channelId);
-  await using site = await openMessenger(page.context(), key);
+  await using site = await openMessenger(page.context(), plugin, key);
   const { shop, panel } = site;
 
   await panel.getByRole('button', { name: /^Tickets/ }).click();

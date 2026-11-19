@@ -18,6 +18,7 @@ const HELP_CENTERS = '/frontline/help-centers';
 test('a visitor reads the knowledge base from its script on a website and in the messenger', async ({
   page,
   api,
+  plugin,
   request,
 }) => {
   const rpc = await pluginApi(api, request);
@@ -47,7 +48,7 @@ test('a visitor reads the knowledge base from its script on a website and in the
   // A messenger that offers the topic has a Help articles tab, searched in place.
   const key = await messengerIn(rpc, { knowledgeBaseTopicId: kbTopicId });
 
-  await using site = await openMessenger(page.context(), key);
+  await using site = await openMessenger(page.context(), plugin, key);
   const search = site.panel.getByRole('searchbox', { name: 'Search articles' });
 
   await site.panel.getByRole('button', { name: /^Help articles/ }).click();

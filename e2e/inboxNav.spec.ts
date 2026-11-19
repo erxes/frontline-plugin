@@ -16,6 +16,7 @@ const MEMBER = ['frontline.inbox.view', 'frontline.channel.view', 'team.view'];
 
 test('the sidebar’s queues and channels filter the inbox and count what waits unread, live', async ({
   page,
+  plugin,
   request,
   newMember,
 }) => {
@@ -25,7 +26,7 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
 
   await page.goto(INBOX);
 
-  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const visitor = await visitorOf(request, plugin, await addMessenger(page, channel));
 
   const refundId = await visitor.write(refund);
 
@@ -95,6 +96,7 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
 });
 
 test('My inbox and Team inbox split the member’s channels; quiet ones fold, a filter finds any, and a folded group stays folded', async ({
+  plugin,
   request,
   api,
   newMember,
@@ -118,7 +120,7 @@ test('My inbox and Team inbox split the member’s channels; quiet ones fold, a 
 
   const key = await messengerIn(rpc, { welcome: 'Hi' }, busyId);
 
-  await (await visitorOf(request, key)).write(`Hello ${unique()}`);
+  await (await visitorOf(request, plugin, key)).write(`Hello ${unique()}`);
 
   const member = teammate.page;
   const first = quiet.at(0) ?? '';

@@ -17,6 +17,7 @@ const search = (page: Page, value: string, status?: string) => {
 
 test('a member finds a customer by email, then tags, resolves and assigns their conversations together', async ({
   page,
+  plugin,
   request,
   newMember,
 }) => {
@@ -31,11 +32,11 @@ test('a member finds a customer by email, then tags, resolves and assigns their 
   await page.goto(INBOX);
 
   const key = await addMessenger(page, channel);
-  const grace = await visitorOf(request, key, { email, firstName: name });
+  const grace = await visitorOf(request, plugin, key, { email, firstName: name });
 
   await grace.write(`Wrong size ${suffix}`);
   await grace.write(`Late refund ${suffix}`);
-  await (await visitorOf(request, key)).write(`Another visitor ${suffix}`);
+  await (await visitorOf(request, plugin, key)).write(`Another visitor ${suffix}`);
   await page.goto(INBOX);
 
   // The search matches the customer's email through core, so only Grace's two show.
