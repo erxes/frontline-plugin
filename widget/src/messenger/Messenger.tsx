@@ -74,8 +74,8 @@ const Page = ({
  * The launcher in the page's corner and the panel it opens: the greeting, then a conversation.
  * Closing only hides the panel, so what the visitor was writing and where they were wait for them.
  */
-export const Messenger = ({ api }: { api: MessengerApi }) => {
-  const messenger = useMessenger(api);
+export const Messenger = ({ api, language }: { api: MessengerApi; language?: string }) => {
+  const messenger = useMessenger(api, language);
   // Null until the visitor first opens the panel, which mounts it from then on.
   const [shown, setOpen] = useState<boolean | null>(null);
   const open = shown === true;
@@ -113,9 +113,31 @@ export const hasLauncher = (settings: Settings) =>
   settings.showLauncher && !(settings.hideWhenOffline && !settings.isOnline);
 
 /**
- * The messenger in the page's corner, in its settings' colours: the launcher, and once `shown`,
- * the panel holding `children`, hidden while `shown` is false. The settings page's preview draws
- * the same.
+ * Focus follows the panel: into it as it opens, back to the launcher once it closes. On a phone
+ * the launcher hides while the panel is open, so focus would otherwise drop to the page. A panel
+ * that mounts open, as the settings page's preview does, leaves focus on the page.
+ */
+const useFollowingFocus = (shown: boolean | null) => {
+  const panel = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const was = useRef(shown);
+
+  useEffect(() => {
+    if (was.current === shown) return;
+
+    was.current = shown;
+
+    if (shown) panel.current?.focus();
+    else if (shown === false) toggle.current?.focus();
+  }, [shown]);
+
+  return { panel, toggle };
+};
+
+/**
+ * The messenger in the page's corner, in its settings' colours and language: the launcher, and
+ * once `shown`, the panel holding `children`, hidden while `shown` is false. The settings page's
+ * preview draws the same.
  */
 export const Shell = ({
   settings,
@@ -131,22 +153,7 @@ export const Shell = ({
   children: ComponentChildren;
 }) => {
   const open = shown === true;
-  const panel = useRef<HTMLElement>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
-  const was = useRef(shown);
-
-  // Focus follows the panel: into it as it opens, back to the launcher once it closes. On a phone
-  // the launcher hides while the panel is open, so focus would otherwise drop to the page. A panel
-  // that mounts open, as the settings page's preview does, leaves focus on the page.
-  useEffect(() => {
-    if (was.current === shown) return;
-
-    was.current = shown;
-
-    if (shown) panel.current?.focus();
-    else if (shown === false) toggle.current?.focus();
-  }, [shown]);
-
+  const { panel, toggle } = useFollowingFocus(shown);
   const text = useTextIn(languageOf(settings.language));
 
   if (!text) return null;
