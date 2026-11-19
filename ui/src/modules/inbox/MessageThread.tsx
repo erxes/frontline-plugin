@@ -1,6 +1,6 @@
 import { IconArrowDown } from '@tabler/icons-react';
 import { Button, cn, ScrollArea, Skeleton, Spinner, toast, toIsoDay, useFormat } from 'erxes-ui';
-import { Fragment, type RefObject, useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type CustomContainerComponentProps, Virtualizer, type VirtualizerHandle } from 'virtua';
 import { type Conversation, type Message, threadOf, useMessages } from './queries.ts';
@@ -79,6 +79,9 @@ const FOLLOW_PX = 120;
 /** How near the top the reader has to scroll for the earlier messages to load. */
 const EARLIER_PX = 400;
 
+/** How long virtua keeps scrolling back to its target, 150 ms, with room for a late timer. */
+const HOLD_MS = 200;
+
 /**
  * Below the thread while the reader is up in its history: how many messages came since, or a way
  * back to the newest. It fades in, so it doesn't jump at a reader who scrolled up a line.
@@ -143,9 +146,10 @@ const EarlierMessages = ({ thread }: { thread: ReturnType<typeof useMessages> })
 /**
  * Where the reader is in the thread. A new message scrolls into view while they sit at the end,
  * or when the member sent it; a reader up in the history stays put, and `unseen` counts what came
- * below. Earlier messages load as the reader nears the top.
+ * below. Earlier messages load as the reader nears the top, and `jumpedTo`, a message's index,
+ * scrolls to it.
  */
-const useReader = (thread: ReturnType<typeof useMessages>) => {
+const useReader = (thread: ReturnType<typeof useMessages>, jumpedTo: number) => {
   const { messages } = thread;
   const rows = useRef<VirtualizerHandle>(null);
   // While the newest messages are dropped for older ones, the last shown is no new arrival.
@@ -155,6 +159,19 @@ const useReader = (thread: ReturnType<typeof useMessages>) => {
   const sentByMe = Boolean(last && !last.customerId && last.canEdit);
   const [atEnd, setAtEnd] = useState(true);
   const following = useRef(true);
+  /**
+   * What virtua's last scroll call holds in place, the end of the thread or the row the reader
+   * scrolled to, and when it last scrolled there or saw a row resize: it scrolls there again on
+   * every row it measures, until HOLD_MS pass with neither.
+   */
+  const hold = useRef<{ on: 'end' | 'reader'; at: number }>(undefined);
+
+  const held = () => {
+    const { current } = hold;
+
+    return current && performance.now() - current.at < HOLD_MS ? current.on : undefined;
+  };
+
   // The newest message the reader has had in view; what came after it counts as new.
   const [seenId, setSeenId] = useState(lastId);
 
@@ -163,11 +180,26 @@ const useReader = (thread: ReturnType<typeof useMessages>) => {
   const seenAt = messages.findIndex((message) => message.id === seenId);
   const unseen = atEnd || seenAt === -1 ? 0 : messages.length - 1 - seenAt;
 
-  // virtua clamps the index to the last message and scrolls again once it measured the rows.
+  // virtua clamps the index to the last message.
+  const toEnd = () => {
+    hold.current = { on: 'end', at: performance.now() };
+    rows.current?.scrollToIndex(Infinity, { align: 'end' });
+  };
+
   useEffect(() => {
-    if (lastId && (following.current || sentByMe))
-      rows.current?.scrollToIndex(Infinity, { align: 'end' });
+    if (!lastId || !(following.current || sentByMe)) return;
+
+    hold.current = { on: 'end', at: performance.now() };
+    rows.current?.scrollToIndex(Infinity, { align: 'end' });
   }, [lastId, sentByMe]);
+
+  // A message jumped to centres once its page rendered, and the smooth scroll holds no row.
+  useEffect(() => {
+    if (jumpedTo === -1) return;
+
+    hold.current = undefined;
+    rows.current?.scrollToIndex(jumpedTo, { align: 'center', smooth: true });
+  }, [jumpedTo]);
 
   const onScroll = (offset: number) => {
     const handle = rows.current;
@@ -175,6 +207,17 @@ const useReader = (thread: ReturnType<typeof useMessages>) => {
     if (!handle) return;
 
     const end = handle.scrollSize - offset - handle.viewportSize < FOLLOW_PX;
+
+    // A reader who scrolls while virtua holds the end moves its hold to the row they reached, so
+    // it no longer pulls them back; the virtualizer starts at the scroller's top, so offsets agree.
+    const on = held();
+
+    if (on && !end) {
+      const row = handle.findItemIndex(offset);
+
+      hold.current = { on: 'reader', at: performance.now() };
+      handle.scrollToIndex(row, { offset: offset - handle.getItemOffset(row) });
+    } else if (on === 'reader') toEnd();
 
     following.current = end;
     setAtEnd(end);
@@ -186,9 +229,13 @@ const useReader = (thread: ReturnType<typeof useMessages>) => {
   return {
     rows,
     onScroll,
+    // A row's resize keeps virtua's hold going, though nothing scrolls.
+    onResize: () => {
+      if (hold.current) hold.current.at = performance.now();
+    },
     atEnd,
     unseen,
-    toEnd: () => rows.current?.scrollToIndex(Infinity, { align: 'end' }),
+    toEnd,
   };
 };
 
@@ -200,24 +247,19 @@ const MARK_MS = 1500;
  * when the reader went back so far that the newest were dropped, then centres it and marks it for
  * a moment. One no longer in the thread says so.
  */
-const useJump = (
-  thread: ReturnType<typeof useMessages>,
-  rows: RefObject<VirtualizerHandle | null>,
-) => {
+const useJump = (thread: ReturnType<typeof useMessages>) => {
   const { t } = useTranslation('frontline');
   const [marked, setMarked] = useState<string>();
+  // The page that holds it renders before the thread can scroll there.
   const index = marked ? thread.messages.findIndex((message) => message.id === marked) : -1;
 
-  // The page that holds it renders before it can scroll there.
   useEffect(() => {
     if (index === -1) return;
-
-    rows.current?.scrollToIndex(index, { align: 'center', smooth: true });
 
     const unmark = setTimeout(() => setMarked(undefined), MARK_MS);
 
     return () => clearTimeout(unmark);
-  }, [index, rows]);
+  }, [index]);
 
   const jump = async (target: Pick<Message, 'id' | 'createdAt'>) => {
     let state: Pick<typeof thread, 'data' | 'hasNextPage' | 'hasPreviousPage'> = thread;
@@ -243,7 +285,7 @@ const useJump = (
     }
   };
 
-  return { marked, jump };
+  return { marked, markedAt: index, jump };
 };
 
 /**
@@ -257,8 +299,8 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
   const customer = useCustomer(conversation.customerId);
   const viewport = useRef<HTMLDivElement>(null);
   const shift = usePrepended(messages);
-  const { rows, onScroll, atEnd, unseen, toEnd } = useReader(thread);
-  const { marked, jump } = useJump(thread, rows);
+  const { marked, markedAt, jump } = useJump(thread);
+  const { rows, onScroll, onResize, atEnd, unseen, toEnd } = useReader(thread, markedAt);
 
   return (
     <>
@@ -285,6 +327,7 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
                 as={MessageList}
                 item="li"
                 onScroll={onScroll}
+                onResize={onResize}
               >
                 {(message, index) => (
                   <Fragment key={message.id}>

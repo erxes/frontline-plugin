@@ -149,7 +149,9 @@ test('the thread follows new messages at its end, and counts them for a reader u
   await visitor.write(filler, conversationId);
   await expect(thread.getByText(filler)).toBeInViewport();
   await thread.hover();
-  await page.mouse.wheel(0, -10_000);
+
+  // Notch by notch, as the rows the reader passes measure, and the thread lets them stay up.
+  for (let notch = 0; notch < 10; notch++) await page.mouse.wheel(0, -200);
 
   const below = `Below ${unique()}`;
   const newer = page.getByRole('button', { name: '1 new message' });
