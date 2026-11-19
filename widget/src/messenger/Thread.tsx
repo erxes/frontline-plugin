@@ -11,7 +11,7 @@ import { useNewestInView, useThread } from './useThread.ts';
 const loadSurvey = async () => (await import('./survey/SurveyCard.tsx')).SurveyCard;
 
 /** A message from the team, the bot or the messenger itself, on the left. */
-const TeamNote = ({ children }: { children: ComponentChildren }) => (
+export const TeamNote = ({ children }: { children: ComponentChildren }) => (
   <div class="fl-message">
     <div class="fl-bubble">{children}</div>
   </div>
@@ -113,7 +113,13 @@ export const Loading = () => (
 );
 
 /** The bot's menu: a link opens, anything else is sent as the visitor's message. */
-const BotMenu = ({ settings, onPick }: { settings: Settings; onPick: (text: string) => void }) => (
+export const BotMenu = ({
+  settings,
+  onPick,
+}: {
+  settings: Settings;
+  onPick: (text: string) => void;
+}) => (
   <div class="fl-menu">
     {settings.botMenu.map((item) =>
       item.link ? (
@@ -177,6 +183,7 @@ export const Thread = ({
               Earlier messages
             </button>
           )}
+          {/* The settings page's preview draws a new conversation in this order too: `NewConversation`. */}
           {settings.welcome && !hasEarlier && <TeamNote>{settings.welcome}</TeamNote>}
           {withBot && settings.botGreeting && <TeamNote>{settings.botGreeting}</TeamNote>}
           <Messages api={api} token={token} messages={messages} language={settings.language} />

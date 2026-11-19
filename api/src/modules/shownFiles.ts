@@ -2,12 +2,13 @@ import { and, eq, or, type SQL, sql } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { config } from '#/config.ts';
+import { fileIdOf } from '#/coreFile.ts';
 import { withOrg } from '#/db/client.ts';
 import { helpCenters } from '#/db/helpcenter.ts';
 import { integrations } from '#/db/inbox.ts';
 import { kbArticles } from '#/db/schema.ts';
 import { fail } from './fail.ts';
-import { carries, downloadPath, endsWith, fileIdOf, readFile, sendFile } from './files.ts';
+import { carries, downloadPath, endsWith, readFile, sendFile } from './files.ts';
 import { keyOfOrganization, organizationOfKey } from './public.ts';
 
 /**

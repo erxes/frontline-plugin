@@ -208,17 +208,19 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await page.getByRole('alertdialog').getByRole('button', { name: 'Rotate secret' }).click();
   await expect(secret).not.toHaveText(first ?? '');
 
-  // Each change shows in the preview before it saves.
-  const preview = page.getByLabel('Preview');
+  // Each change shows in the preview, the real widget in a frame, before it saves.
+  const preview = page.frameLocator('iframe[title="Messenger preview"]');
 
   await page.getByRole('textbox', { name: 'Greeting title' }).fill(title);
-  await expect(preview).toContainText(title);
+  await expect(preview.getByRole('heading', { name: title })).toBeVisible();
   await page.getByRole('button', { name: 'Teal', exact: true }).click();
   await pick(page, page.getByRole('combobox', { name: 'Set availability' }), 'By online hours');
   await page.getByRole('button', { name: 'Add hours' }).click();
   await page.getByRole('switch', { name: 'Ask for an email or phone' }).click();
   await page.getByRole('textbox', { name: 'Bot greeting' }).fill('I am the bot. Ask me anything.');
-  await expect(preview).toContainText('I am the bot.');
+  await preview.getByRole('button', { name: 'Send us a message' }).click();
+  await expect(preview.getByText('I am the bot. Ask me anything.')).toBeVisible();
+  await expect(preview.getByRole('button', { name: 'Back' })).toBeVisible();
   // Online hours and the bot's fields show only once switched on.
   await expectAccessible(page, page.getByRole('button', { name: 'Add hours' }));
   await page.getByRole('button', { name: 'Save', exact: true }).click();

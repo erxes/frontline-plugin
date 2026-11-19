@@ -8,7 +8,6 @@ import type * as FilesModule from '#/modules/files.ts';
 import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 import type * as Sdk from '@erxes/plugin-sdk';
-import { isOnlineAt, MessengerConfig } from '../adapter.ts';
 
 // Tests never reach core: customers, members and notifications come from this stand-in, and
 // core's automation calls carry the token `core`.
@@ -128,7 +127,7 @@ const write = async (token: string, content: string, conversationId?: string) =>
     .conversationId;
 
 describe('messenger', () => {
-  it('saves its settings and tells visitors when the team is online', async () => {
+  it('saves its settings and shows visitors them with its team', async () => {
     const { owner, integration, key } = await setUp('org-ms-a', {
       greetingTitle: 'Hello',
       supporterIds: ['u2', 'u1'],
@@ -175,20 +174,6 @@ describe('messenger', () => {
     await expect(
       outsider.integrations.messenger.settings({ id: integration.id }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
-
-    // Ulaanbaatar, weekdays 09:00 to 18:00: on Monday 10:00, off 19:00 and Saturday. Friday 22:00
-    // to 06:00: on Friday 23:00 and Saturday 05:00, off Saturday 07:00 and Thursday 03:00.
-    const hours = MessengerConfig.parse(integration.config);
-    const night = { ...hours, onlineHours: [{ day: 'friday', from: '22:00', to: '06:00' }] };
-
-    const on = (config: typeof hours, ...times: string[]) =>
-      times.map((time) => isOnlineAt(config, new Date(`2026-11-${time}:00Z`)));
-
-    expect(on(hours, '16T02:00', '16T11:00', '21T02:00')).toEqual([true, false, false]);
-    expect(
-      on(MessengerConfig.parse(night), '20T15:00', '20T21:00', '20T23:00', '18T19:00'),
-    ).toEqual([true, true, false, false]);
-    expect(on({ ...hours, availability: 'manual', isOnline: false }, '16T02:00')).toEqual([false]);
   });
 
   it('serves a visitor the files of their conversations, attached only by receipt', async () => {

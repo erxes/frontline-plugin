@@ -23,6 +23,8 @@ const settings = reads(PERMISSIONS.channelView)
       channelId: z.string(),
       publicKey: z.string(),
       scriptUrl: z.string(),
+      /** The settings page's preview of the widget, which draws the settings the page posts. */
+      previewUrl: z.string(),
       canManage: z.boolean(),
       identitySecret: z.string().nullable(),
       config: MessengerConfig,
@@ -36,6 +38,7 @@ const settings = reads(PERMISSIONS.channelView)
     return {
       ...row,
       scriptUrl: widgetScript('messenger', { key: row.publicKey }),
+      previewUrl: widgetScript('messenger-preview'),
       identitySecret: row.canManage ? await identitySecretOf(tx, member.orgId, row.id) : null,
       config: MessengerConfig.parse(row.config),
     };
