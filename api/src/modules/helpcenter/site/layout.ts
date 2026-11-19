@@ -139,7 +139,6 @@ const Footer = (site: Site) => {
   </footer>`;
 };
 
-/** A whole page of the site: `<head>`, the header, `main`, then the footer. */
 /** What an address that opens no help center shows: the site's default look, no header. */
 export const noCenterPage = async () =>
   String(
@@ -162,6 +161,7 @@ export const noCenterPage = async () =>
       </html>`,
   );
 
+/** A whole page of the site: `<head>`, the header, `main`, then the footer. */
 export const page = async (site: Site, title: string, main: Html, description?: string | null) => {
   const { helpCenter, copy } = site;
   const heading = title === helpCenter.title ? title : `${title} · ${helpCenter.title}`;

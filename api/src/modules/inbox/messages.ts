@@ -278,7 +278,7 @@ const retry = writes(PERMISSIONS.inboxView)
 
     const [updated] = await tx
       .update(messages)
-      .set({ deliveryStatus: 'queued', queuedAt: new Date() })
+      .set({ deliveryStatus: 'queued', queuedAt: sql`now()` })
       .where(eq(messages.id, input.id))
       .returning(messageColumns);
 

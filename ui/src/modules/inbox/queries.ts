@@ -237,11 +237,18 @@ export const useConversation = (id: string) =>
 export const useOpenedConversation = (id: string) =>
   useSuspenseQuery(listedConversation(useQueryClient(), id));
 
+/** How often a thread with a reply on its way reads it again, so a send that never settles fails. */
+const PENDING_MS = 60_000;
+
 export const messagesOptions = (conversationId: string) =>
   orpc.conversations.messages.list.infiniteOptions({
     input: ({ cursor }: PageParam) => ({ conversationId, cursor }),
     ...pageOptions,
     staleTime: FRESH_MS,
+    refetchInterval: (query) =>
+      threadOf(query.state.data).some(
+        ({ deliveryStatus }) => deliveryStatus === 'queued' || deliveryStatus === 'sending',
+      ) && PENDING_MS,
   });
 
 const pinnedOptions = (conversationId: string) =>

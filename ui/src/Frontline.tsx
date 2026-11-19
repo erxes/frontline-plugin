@@ -130,7 +130,10 @@ const SurveyBuilderPage = lazy(
   })),
 );
 
-/** An old link's new place: `/frontline/<path>/<the link's param>`, then `rest`. */
+/**
+ * An old link's new place: `/frontline/<path>/<the link's param>`, then `rest`. The param `*`
+ * carries the rest of the old address, each of its segments kept.
+ */
 const Redirect = ({
   path,
   param = 'id',
@@ -139,12 +142,11 @@ const Redirect = ({
   path: string;
   param?: string;
   rest?: string;
-}) => (
-  <Navigate
-    to={`/${PLUGIN}/${path}/${encodeURIComponent(useParams()[param] ?? '')}${rest}`}
-    replace
-  />
-);
+}) => {
+  const value = (useParams()[param] ?? '').split('/').map(encodeURIComponent).join('/');
+
+  return <Navigate to={`/${PLUGIN}/${path}/${value}${rest}`} replace />;
+};
 
 const CallHistoryPage = lazy(
   withText(async () => ({ default: (await import('@/calls/pages.ts')).CallHistoryPage })),
@@ -304,10 +306,7 @@ export const Frontline = () => (
           <Route path=":topicId/kbsettings" element={<TopicSettingsPage />} />
         </Route>
         <Route path="help-centers/*" element={<HelpCenterRoutes />} />
-        <Route
-          path="knowledge-base/*"
-          element={<Navigate to={`/${PLUGIN}/knowledgebase`} replace />}
-        />
+        <Route path="knowledge-base/*" element={<Redirect path="knowledgebase" param="*" />} />
         {/* Any other address opens the inbox rather than an empty page. */}
         <Route path="*" element={<Navigate to={`/${PLUGIN}/inbox`} replace />} />
       </Route>

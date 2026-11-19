@@ -4,7 +4,7 @@ import { Button, Checkbox, cn, Input, Label, RadioGroup, Select, Switch, Textare
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { COLOR_THEMES } from '~/modules/messenger/queries.ts';
-import { PICK_TYPES } from './fieldTypes.ts';
+import { PICK_TYPES, SELECT_TYPES } from './fieldTypes.ts';
 import type { Form, FormField } from './useForms.ts';
 
 declare module 'react' {
@@ -14,9 +14,6 @@ declare module 'react' {
 }
 
 type Answers = Record<string, unknown>;
-
-/** The types a visitor picks one option of from a list, as the embed draws them. */
-const SELECT_TYPES: readonly string[] = ['select', 'select:countries', 'core:customer:sex'];
 
 type PreviewProps = { field: FormField; value: unknown; onChange: (value: unknown) => void };
 

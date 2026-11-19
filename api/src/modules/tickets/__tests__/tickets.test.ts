@@ -271,10 +271,9 @@ describe('tickets', () => {
 
     const refused = { message: "The target date can't be before the start date" };
 
-    // The client in tests skips the server's wording of refused input; the code still says it.
-    await expect(owner.tickets.create({ ...plan, targetDate: before })).rejects.toMatchObject({
-      code: 'BAD_REQUEST',
-    });
+    await expect(owner.tickets.create({ ...plan, targetDate: before })).rejects.toMatchObject(
+      refused,
+    );
 
     const { id } = await owner.tickets.create(plan);
 

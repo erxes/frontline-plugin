@@ -179,7 +179,9 @@ export const messages = table(
     surveyId: text(),
     externalId: text(),
     deliveryStatus: text({ enum: DELIVERY_STATUSES }),
-    /** When the reply last went to the send queue: when it was written, and on each Send again. */
+    /**
+     * When the reply's send last started: written, sent again, or claimed by a send attempt.
+     */
     queuedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     providerData: jsonb().$type<Record<string, unknown>>(),
     customerReadAt: timestamp({ withTimezone: true }),

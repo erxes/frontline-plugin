@@ -244,6 +244,8 @@ test('the builder previews a phone and the thank-you screen, and drags fields by
   await pick(page, preview.getByRole('combobox', { name: 'Country' }), 'Mongolia');
   await pick(page, preview.getByRole('combobox', { name: 'Sex' }), 'Female');
   await expect(preview.getByRole('button', { name: 'Resume' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Settings of Country' }).click();
+  await expect(page.getByRole('switch', { name: 'Visitors type to find one' })).toBeVisible();
 
   // Removing a field asks first, since its rules go with it.
   await page.getByRole('button', { name: 'Remove Resume' }).click();

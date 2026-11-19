@@ -43,14 +43,15 @@ const outgoingOf = (orgId: string, messageId: string) =>
 /**
  * Takes the queued reply for this attempt as `sending`, and returns what its provider stored on
  * it as of the claim, or nothing when another attempt has it or it is overdue, which a member
- * already sees as failed. An attempt sends from this, not from a read before the claim, which
- * another attempt may have outdated since.
+ * already sees as failed. The claim starts the attempt's own `SEND_DEADLINE`, so a slow send
+ * never reads as failed, and offers Send again, while it may still go through. An attempt sends
+ * from this, not from a read before the claim, which another attempt may have outdated since.
  */
 const claim = (orgId: string, messageId: string) =>
   withOrg(orgId, async (tx) => {
     const [claimed] = await tx
       .update(messages)
-      .set({ deliveryStatus: 'sending' })
+      .set({ deliveryStatus: 'sending', queuedAt: sql`now()` })
       .where(and(eq(messages.id, messageId), eq(messages.deliveryStatus, 'queued'), not(overdue)))
       .returning({ providerData: messages.providerData });
 
