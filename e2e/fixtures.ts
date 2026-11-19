@@ -167,17 +167,25 @@ const trackRequests = (context: BrowserContext) => {
  * (erxes/erxes#10812). Spinners loop forever, so only finite animations are waited for.
  */
 export const expectAccessible = async (page: Page, shown: Locator) => {
+  const pending = () => [...(inFlight.get(page.context()) ?? [])].map((request) => request.url());
+
   await expect(shown).toBeVisible();
+  // An answer renders on a later frame and can start the next request, so the page is settled
+  // only when none is in flight on both sides of two frames.
   await expect
-    .poll(() => [...(inFlight.get(page.context()) ?? [])].map((request) => request.url()), {
-      message: 'requests still in flight',
-      timeout: 15_000,
-    })
+    .poll(
+      async () => {
+        if (pending().length > 0) return pending();
+
+        await page.evaluate(
+          () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+        );
+
+        return pending();
+      },
+      { message: 'requests still in flight', timeout: 15_000 },
+    )
     .toEqual([]);
-  // The last answer renders on a later frame.
-  await page.evaluate(
-    () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
-  );
   await page.waitForFunction(() =>
     document
       .getAnimations()
