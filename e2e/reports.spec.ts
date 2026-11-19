@@ -183,7 +183,9 @@ test('a conversation tile counts the one channel a member picks, keeps the pick 
   ).toHaveText(name);
 
   // Its numbers open the inbox narrowed to that channel too.
-  await tileOf(page, 'Conversation summary').getByRole('link', { name: /^Started: / }).click();
+  await tileOf(page, 'Conversation summary')
+    .getByRole('link', { name: /^Started: / })
+    .click();
   await expect(page).toHaveURL(new RegExp(id));
   await expect(page.getByText(hello)).toBeVisible();
 });
