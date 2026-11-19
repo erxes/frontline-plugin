@@ -95,11 +95,26 @@ const Input = ({ property, value, onChange }: FieldProps) => {
   }
 };
 
-/** One of the pipeline's properties, labelled, with its description under it. */
-export const PropertyField = (props: FieldProps) => (
-  <label class={props.property.type === 'boolean' ? 'fl-field fl-check' : 'fl-field'}>
-    <span>{props.property.label}</span>
-    <Input {...props} />
-    {props.property.description && <small>{props.property.description}</small>}
-  </label>
-);
+/**
+ * One of the pipeline's properties, labelled, with its description under it, and a note when the
+ * visitor left it empty though it is required.
+ */
+export const PropertyField = ({ missing, ...props }: FieldProps & { missing: boolean }) => {
+  const { t } = useText();
+
+  return (
+    <label class={props.property.type === 'boolean' ? 'fl-field fl-check' : 'fl-field'}>
+      <span>
+        {props.property.label}
+        {props.property.isRequired && ' *'}
+      </span>
+      <Input {...props} />
+      {props.property.description && <small>{props.property.description}</small>}
+      {missing && (
+        <span class="fl-error" role="alert">
+          {t('This field is required')}
+        </span>
+      )}
+    </label>
+  );
+};

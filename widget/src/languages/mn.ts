@@ -73,6 +73,7 @@ export const MN = {
   'Talk to a person': 'Ажилтантай ярих',
   'Thanks, your vote is in. Pick again to change it.':
     'Баярлалаа, таны санал бүртгэгдлээ. Өөрчлөх бол дахин сонгоно уу.',
+  'This field is required': 'Энэ талбарыг бөглөнө үү',
   Thursday: 'Пүрэв',
   'Ticket {number} is filed.': '{number} дугаартай тикет үүслээ.',
   Tickets: 'Тикет',

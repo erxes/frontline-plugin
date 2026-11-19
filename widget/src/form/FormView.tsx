@@ -1,11 +1,8 @@
-import { isShown, showsCallout } from '@frontline/api/logic';
+import { isShown, showsCallout, unanswered } from '@frontline/api/logic';
 import { useCallback, useState } from 'preact/hooks';
 import { useText } from '../shared/text.ts';
 import type { Answer, Field, FormApi, VisitorForm } from './api.ts';
 import { FieldRow, searches } from './Field.tsx';
-
-const empty = (value: Answer | undefined) =>
-  value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
 
 /** What the visitor reads before the form, unless the form skips it. */
 const Callout = ({ form, onStart }: { form: VisitorForm['form']; onStart: () => void }) => (
@@ -80,7 +77,7 @@ const useAnswers = (api: FormApi, fields: Field[], onSent: (submissionId: string
     const refused = shown.flatMap((field): [string, string][] => {
       const answer = answers[field.id];
 
-      if (empty(answer)) return field.isRequired ? [[field.id, 'This field is required']] : [];
+      if (unanswered(answer)) return field.isRequired ? [[field.id, 'This field is required']] : [];
 
       return searches(field) && typeof answer === 'string' && !field.options.includes(answer)
         ? [[field.id, 'Pick one of the options']]

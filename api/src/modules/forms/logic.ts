@@ -1,9 +1,12 @@
-// Whether a form field, or the callout, shows. The UI's live preview imports this file
+// Whether a field shows and is answered enough, for a form and the messenger's ticket form, and
+// whether a form's callout shows. The widget and the UI's live preview import this file
 // (`@frontline/api/logic`), so it imports types only.
 import type { z } from 'zod';
 import type { FieldLogic, LOGIC_ACTIONS } from '#/db/forms.ts';
 
 type Logic = z.infer<typeof FieldLogic>;
+
+export type LogicOperator = Logic['operator'];
 
 /** What a field's show and hide rules need of it. */
 export type LogicField = {
@@ -27,7 +30,8 @@ const order = (text: string, wanted: string) => {
   return Number.isNaN(a) || Number.isNaN(b) ? text.localeCompare(wanted) : a - b;
 };
 
-const holds = ({ operator, value = '' }: Logic, answer: unknown) => {
+const holds = (logic: Logic, answer: unknown): boolean => {
+  const { operator, value = '' } = logic;
   const text = textOf(answer).toLowerCase();
   const wanted = value.toLowerCase();
 
@@ -36,8 +40,9 @@ const holds = ({ operator, value = '' }: Logic, answer: unknown) => {
       return Array.isArray(answer)
         ? answer.some((item) => textOf(item).toLowerCase() === wanted)
         : text === wanted;
+    // A list that holds the value is it, whatever else it holds.
     case 'isNot':
-      return text !== wanted;
+      return !holds({ ...logic, operator: 'is' }, answer);
     case 'contains':
       return text.includes(wanted);
     case 'doesNotContain':
@@ -68,6 +73,16 @@ export const isShown = (field: LogicField, answers: Record<string, unknown>) => 
 
   return field.logicAction === 'show' ? all : !all;
 };
+
+/**
+ * Whether `value` leaves its field unanswered, so a shown required field asks for it: none, blank
+ * text or no picks. A box left unticked is an answer.
+ */
+export const unanswered = (value: unknown) =>
+  value === undefined ||
+  value === null ||
+  value === '' ||
+  (Array.isArray(value) && value.length === 0);
 
 /** Whether the form opens on its callout: not skipped, and it has a title, text or image. */
 export const showsCallout = (form: {

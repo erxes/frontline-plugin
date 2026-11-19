@@ -19,7 +19,8 @@ type Modules = { getModuleInfo: (id: string) => { importers: readonly string[] }
  * The chunk a module goes in: packages, Vite's helpers and `src/shared` in `shared`, an embed's
  * own files in a chunk named after it. An embed's subfolder loads lazily, in a chunk of its own.
  * A file from another workspace package, such as the API's form logic, goes with the one embed
- * that imports it, or in `shared` when several do.
+ * that imports it, or in `shared` when several do. One a lazy chunk imports too gets a chunk of
+ * its own, so the embeds that never load it don't carry it.
  */
 const chunkOf = (id: string, modules: Modules): string | null => {
   if (/^\0|\/node_modules\/|\/widget\/src\/shared\//.test(id)) return 'shared';
@@ -29,6 +30,8 @@ const chunkOf = (id: string, modules: Modules): string | null => {
   const importers = new Set(
     modules.getModuleInfo(id)?.importers.map((importer) => chunkOf(importer, modules)),
   );
+
+  if (importers.has(null)) return null;
 
   return importers.size === 1 ? ([...importers][0] ?? null) : 'shared';
 };
