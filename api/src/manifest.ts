@@ -39,6 +39,12 @@ const activityTypes = (events: Record<string, { type: string; label: string }>, 
   Object.values(events).map(({ type, label }) => ({ type, label, icon }));
 
 /**
+ * Where the desktop app waits for its sign-in code. Core sends codes only to an address listed
+ * here, exactly, so the app listens on this one port of the member's own computer.
+ */
+const DESKTOP_REDIRECT = 'http://127.0.0.1:47823/callback';
+
+/**
  * What the plugin adds to core, sent on every start. Everything it names
  * starts with `frontline.`. A new scope waits for the owner's approval.
  */
@@ -52,6 +58,9 @@ export const manifest = {
     url: `${config.publicUrl}/api`,
     docs: [{ audience: 'member', path: '/openapi/member.json' }],
   },
+  // "Sign in with erxes" for the desktop app, which then asks `/desktop` where this API is.
+  oauth: { redirectUris: [DESKTOP_REDIRECT] },
+  publicPaths: ['/desktop'],
   // Form senders, messenger visitors and provider senders become core customers; members hear
   // of assignments; a messenger shows its team's names and pictures; call recordings and
   // visitors' uploads are core files, which visitors read back through the plugin. Tickets'

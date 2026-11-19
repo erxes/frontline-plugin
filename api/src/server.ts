@@ -1,4 +1,4 @@
-import { bearerOf, verifyCoreEvent, verifyCoreJob, verifyPluginSession } from '@erxes/plugin-sdk';
+import { verifyCoreEvent, verifyCoreJob, verifyPublicCall } from '@erxes/plugin-sdk';
 import { pluginOpenApi } from '@erxes/plugin-sdk/openapi';
 import { OpenAPIHandler } from '@orpc/openapi/node';
 import { onError, ORPCError, ValidationError } from '@orpc/server';
@@ -11,6 +11,7 @@ import { config, PLUGIN, signedByCore } from '#/config.ts';
 import { JOB_RUNS } from '#/jobs.ts';
 import { logger, requestLogger } from '#/logger.ts';
 import { manifest } from '#/manifest.ts';
+import { memberOf } from '#/member.ts';
 import { fail, verifiedBy } from '#/modules/fail.ts';
 import { visitorIpLimit } from '#/modules/limits.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
@@ -64,30 +65,21 @@ const memberDoc = pluginOpenApi(router, {
   title: manifest.title,
   version: manifest.version,
   description: manifest.description,
-  server: `${config.publicUrl}/api`,
+  server: manifest.api.url,
   prefix: '/v1',
 });
 
 const anyOrigin = cors({ origin: true, credentials: false, maxAge: 600 });
 
-/**
- * The member behind a request from the plugin UI, or null once it is answered: 401 with `refused`
- * without a valid session token, 503 while core is out of reach.
- */
-const memberOf = (req: express.Request, res: express.Response, refused: string) =>
-  verifiedBy(res, 'session token', refused, async () => {
-    const token = bearerOf(req.headers.authorization);
-
-    if (!token) throw new Error('no session token');
-
-    return verifyPluginSession(token, signedByCore);
-  });
-
-/** Runs `handler`'s procedures at `prefix` for the member a session token signs in. */
+/** Runs `handler`'s procedures at `prefix` for the member the token signs in (`member.ts`). */
 const signedIn =
   (prefix: `/${string}`, handler: typeof rpc | typeof rest): express.RequestHandler =>
   async (req, res, next) => {
-    const member = await memberOf(req, res, 'Send a session token for this plugin from core');
+    const member = await memberOf(
+      req,
+      res,
+      'Send a plugin session token from core, or an access token from Sign in with erxes',
+    );
 
     if (!member) return;
 
@@ -116,6 +108,20 @@ const automationRoutes = () =>
       }
     });
 
+/**
+ * The desktop app, once a member signed in with erxes, asks through core where this API is
+ * (`/core/v1/plugins/frontline/public/<orgId>/desktop`, the manifest's `publicPaths`).
+ */
+const desktopApi: express.RequestHandler = async (req, res) => {
+  const call = await verifiedBy(res, 'public call', 'Ask through core', () =>
+    verifyPublicCall(req.headers.authorization, '', signedByCore),
+  );
+
+  if (!call) return;
+
+  res.json({ apiUrl: manifest.api.url });
+};
+
 export const createApp = () => {
   const app = express();
 
@@ -134,6 +140,7 @@ export const createApp = () => {
   // scripts.
   app.use('/api/public', cors({ maxAge: 600 }), visitorIpLimit);
   app.use('/api/public/messenger', messengerRoutes());
+  app.get('/api/public/desktop', desktopApi);
   app.use('/api/public', publicRouter());
   app.use('/api/public/:key', formsPublicRouter);
 

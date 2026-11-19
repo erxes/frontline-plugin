@@ -1,12 +1,38 @@
 import { randomUUID } from 'node:crypto';
 import { PLUGIN_SESSION_SCHEME } from '@erxes/core-contract';
-import { afterAll, beforeAll, describe, expect, it } from 'vite-plus/test';
+import { afterAll, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
 import { z } from 'zod';
 import { config } from '#/config.ts';
+import type * as CoreModule from '#/core.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { createApp } from '#/server.ts';
 import { clientAs } from '#/test/member.ts';
 import { fakeCoreSessions } from '#/test/session.ts';
+
+/** The plugin's plan as core answers it for an organisation; a test changes it. */
+const plan = vi.hoisted(() => ({ access: 'full' as 'full' | 'off' | 'read_only' }));
+
+vi.mock('#/core.ts', async (importOriginal) => {
+  const actual = await importOriginal<typeof CoreModule>();
+
+  return {
+    ...actual,
+    core: {
+      ...actual.core,
+      forOrg: () => ({
+        saas: {
+          pluginPlan: async () => ({
+            saas: true,
+            tier: 'pro',
+            status: null,
+            access: plan.access,
+            readOnlyUntil: null,
+          }),
+        },
+      }),
+    },
+  };
+});
 
 /** The parts of the OpenAPI document these tests read. */
 const OpenApiDoc = z.object({
@@ -17,10 +43,10 @@ const OpenApiDoc = z.object({
 
 let base = '';
 let server: ReturnType<ReturnType<typeof createApp>['listen']>;
-let core: Awaited<ReturnType<typeof fakeCoreSessions>>;
+let tokens: Awaited<ReturnType<typeof fakeCoreSessions>>;
 
 beforeAll(async () => {
-  core = await fakeCoreSessions();
+  tokens = await fakeCoreSessions();
 
   await new Promise<void>((resolve) => {
     server = createApp().listen(0, () => resolve());
@@ -36,6 +62,14 @@ beforeAll(async () => {
 afterAll(() => {
   server.close();
 });
+
+/** A REST call of a procedure with `token`. */
+const call = async (path: string, token: string, body = '{}') =>
+  fetch(`${base}/api/v1/${path}`, {
+    method: 'POST',
+    headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' },
+    body,
+  });
 
 describe('server', () => {
   it('answers health checks', async () => {
@@ -66,7 +100,7 @@ describe('server', () => {
 
   it('serves the procedures as REST to a member with a session token', async () => {
     const url = `${base}/api/v1/channels/list`;
-    const token = await core.session(`org-${randomUUID()}`, 'user-1', [PERMISSIONS.channelView]);
+    const token = await tokens.session(`org-${randomUUID()}`, 'user-1', [PERMISSIONS.channelView]);
 
     expect((await fetch(url, { method: 'POST' })).status).toBe(401);
 
@@ -78,6 +112,57 @@ describe('server', () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ channels: [] });
+  });
+
+  it('serves the procedures to the desktop app, by its access token and the plan core answers', async () => {
+    const granted = [PERMISSIONS.channelView, PERMISSIONS.channelManage];
+
+    const list = await call(
+      'channels/list',
+      await tokens.access(`org-${randomUUID()}`, 'u', granted),
+    );
+
+    expect(list.status).toBe(200);
+    expect(await list.json()).toMatchObject({ channels: [] });
+    expect((await call('channels/list', 'forged')).status).toBe(401);
+    // The member's permissions hold as they do in web.
+    expect(
+      (await call('channels/list', await tokens.access(`org-${randomUUID()}`, 'u', []))).status,
+    ).toBe(403);
+
+    // An organisation whose plan is read-only reads and changes nothing.
+    plan.access = 'read_only';
+    const readOnly = await tokens.access(`org-${randomUUID()}`, 'u', granted);
+
+    expect((await call('channels/list', readOnly)).status).toBe(200);
+    expect((await call('channels/create', readOnly, '{"name":"Support"}')).status).toBe(403);
+
+    // One the plugin is off in signs no one in.
+    plan.access = 'off';
+    expect(
+      (await call('channels/list', await tokens.access(`org-${randomUUID()}`, 'u', granted)))
+        .status,
+    ).toBe(401);
+    plan.access = 'full';
+  });
+
+  it('tells the desktop app where the API is, only when core forwards the call', async () => {
+    const url = `${base}/api/public/desktop`;
+    const token = await tokens.publicCall(`org-${randomUUID()}`);
+    const response = await fetch(url, { headers: { authorization: `Bearer ${token}` } });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ apiUrl: `${config.publicUrl}/api` });
+    expect((await fetch(url)).status).toBe(401);
+    expect((await fetch(url, { headers: { authorization: 'Bearer forged' } })).status).toBe(401);
+    // A member's own token is not core's forwarding token.
+    expect(
+      (
+        await fetch(url, {
+          headers: { authorization: `Bearer ${await tokens.session('org', 'u', [])}` },
+        })
+      ).status,
+    ).toBe(401);
   });
 
   it('imports and exports tickets and form submissions for core, once per request', async () => {
@@ -102,7 +187,7 @@ describe('server', () => {
         ...request,
       });
 
-      const token = await core.transfer(signed ?? body, { requestId, orgId });
+      const token = await tokens.transfer(signed ?? body, { requestId, orgId });
 
       return fetch(`${base}/api/transfer/${kind}`, {
         method: 'POST',
