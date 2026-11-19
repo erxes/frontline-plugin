@@ -1,6 +1,6 @@
 import { memberQueries } from '@erxes/core-contract/client';
 import { IconInbox, IconMail, IconMessages } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
+import { usePrefetchInfiniteQuery, useQuery } from '@tanstack/react-query';
 import {
   Button,
   Empty,
@@ -10,36 +10,38 @@ import {
   Resizable,
   Skeleton,
   stored,
-  useListFilterParams,
   useOpenRecord,
   usePageHotkey,
   ViewBar,
 } from 'erxes-ui';
 import { useAtom, useAtomValue } from 'jotai';
-import { Fragment, type ReactNode, useEffect, useRef, useSyncExternalStore } from 'react';
+import { type ReactNode, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { channelsQuery } from '~/shared/reference.ts';
 import { CONVERSATION_TYPE, INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
-import { CreateButton, ListEmpty } from '~/shared/List.tsx';
+import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
+import { useListParams } from '~/shared/listPath.ts';
+import { QueryBoundary } from '~/shared/QueryBoundary.tsx';
 import { BulkBar } from './BulkBar.tsx';
 import { sendingTo, useMarkRead, useSendMessage } from './changes.ts';
 import { Composer } from './Composer.tsx';
 import { ConversationHeader, listShown } from './ConversationHeader.tsx';
-import { ConversationList } from './ConversationList.tsx';
+import { ConversationList, RowSkeletons } from './ConversationList.tsx';
 import { CustomerSidebar } from './CustomerSidebar.tsx';
 import { useInboxFields } from './InboxFilter.tsx';
-import { MessageThread } from './MessageThread.tsx';
+import { MessageThread, ThreadSkeleton } from './MessageThread.tsx';
 import {
   type Conversation,
   conversationTags,
-  useConversation,
+  messagesOptions,
+  useConversationCount,
   useConversationSignal,
   useConversations,
   useIntegrations,
-  useMessages,
   useOpenConversation,
+  useOpenedConversation,
 } from './queries.ts';
 
 const LIST = 'frontline-inbox';
@@ -74,12 +76,12 @@ const onVisibility = (change: () => void) => {
  * it stays unread until the member comes back. Each message is read once while the conversation
  * stays open, so a refused read doesn't retry in a loop; closing it and opening it again does.
  */
-const useReadWhileOpen = (conversation: Conversation | undefined) => {
+const useReadWhileOpen = (conversation: Conversation) => {
   const { mutate } = useMarkRead();
   const visible = useSyncExternalStore(onVisibility, () => document.visibilityState === 'visible');
   const read = useRef('');
-  const id = conversation && !conversation.isRead ? conversation.id : '';
-  const lastAt = conversation?.lastMessageAt.getTime();
+  const id = conversation.isRead ? '' : conversation.id;
+  const lastAt = conversation.lastMessageAt.getTime();
 
   useEffect(() => {
     const message = `${id}@${lastAt}`;
@@ -93,53 +95,69 @@ const useReadWhileOpen = (conversation: Conversation | undefined) => {
   }, [id, lastAt, visible, mutate]);
 };
 
-/**
- * The open conversation on the right, or a hint to pick one. Its messages load beside it, not
- * after it, and Escape closes it.
- */
-const ConversationPane = () => {
+/** The pane before a conversation is picked. */
+const PickConversation = () => {
   const { t } = useTranslation('frontline');
-  const [id, setId] = useOpenConversation();
-  const { data: conversation, error } = useConversation(id);
+
+  return (
+    <Empty className="m-auto">
+      <Empty.Header>
+        <Empty.Media>
+          <IconMessages />
+        </Empty.Media>
+        <Empty.Title>{t('pick-conversation', 'Pick a conversation')}</Empty.Title>
+        <Empty.Description>
+          {t('pick-conversation-description', 'Its messages and reply box show here.')}
+        </Empty.Description>
+      </Empty.Header>
+    </Empty>
+  );
+};
+
+/**
+ * The open conversation: its header, thread and reply box, and its customer beside them. Its
+ * messages load beside it, not after it. The thread waits and fails on its own, so a refused
+ * thread keeps the header and reply box; picking another conversation keeps this one up until
+ * the next one's messages are in. One that can no longer be read, such as after the member
+ * leaves its channel, shows the refusal instead.
+ */
+const OpenConversation = ({ id }: { id: string }) => {
+  usePrefetchInfiniteQuery(messagesOptions(id));
+
+  const { data: conversation, error } = useOpenedConversation(id);
   // One send for the composer and the thread, which shows it while it goes.
   const send = useSendMessage();
 
-  useMessages(id);
   useConversationSignal(id);
   useReadWhileOpen(conversation);
-  usePageHotkey('escape', () => void setId(null), { when: () => Boolean(id) });
 
-  if (error) return <p className="m-4 text-sm text-destructive-text">{error.message}</p>;
+  if (error) return <ListError error={error} />;
 
-  if (id && !conversation) return <PaneSkeleton />;
-
-  if (!conversation)
-    return (
-      <Empty className="m-auto">
-        <Empty.Header>
-          <Empty.Media>
-            <IconMessages />
-          </Empty.Media>
-          <Empty.Title>{t('pick-conversation', 'Pick a conversation')}</Empty.Title>
-          <Empty.Description>
-            {t('pick-conversation-description', 'Its messages and reply box show here.')}
-          </Empty.Description>
-        </Empty.Header>
-      </Empty>
-    );
-
+  // Another conversation gets a new thread and composer, with nothing carried over.
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
         <ConversationHeader conversation={conversation} />
-        {/* Another conversation gets a new thread and composer, with nothing carried over. */}
-        <Fragment key={conversation.id}>
-          <MessageThread conversation={conversation} sending={sendingTo(send, conversation.id)} />
-          <Composer conversation={conversation} send={send} />
-        </Fragment>
+        <QueryBoundary fallback={<ThreadSkeleton />}>
+          <MessageThread key={id} conversation={conversation} sending={sendingTo(send, id)} />
+        </QueryBoundary>
+        <Composer key={id} conversation={conversation} send={send} />
       </div>
       <CustomerSidebar conversation={conversation} />
     </div>
+  );
+};
+
+/** The open conversation on the right, or a hint to pick one; Escape closes it. */
+const ConversationPane = () => {
+  const [id, setId] = useOpenConversation();
+
+  usePageHotkey('escape', () => void setId(null), { when: () => Boolean(id) });
+
+  return (
+    <QueryBoundary fallback={<PaneSkeleton />}>
+      {id ? <OpenConversation id={id} /> : <PickConversation />}
+    </QueryBoundary>
   );
 };
 
@@ -177,7 +195,15 @@ const listWidth = stored({
  * drags the list wider or narrower; the width stays for the next visit. Pixels, not a share of
  * the page, so the list keeps its width when the window grows.
  */
-const InboxColumns = ({ list, showList }: { list: ReactNode; showList: boolean }) => {
+const InboxColumns = ({
+  list,
+  pane,
+  showList,
+}: {
+  list: ReactNode;
+  pane: ReactNode;
+  showList: boolean;
+}) => {
   const { t } = useTranslation('frontline');
   const [width, setWidth] = useAtom(listWidth);
   const dragged = useRef(width);
@@ -210,11 +236,58 @@ const InboxColumns = ({ list, showList }: { list: ReactNode; showList: boolean }
             aria-label={t('conversation', 'Conversation')}
             className="flex h-full min-w-0 flex-col"
           >
-            <ConversationPane />
+            {pane}
           </section>
         </Resizable.Panel>
       </Resizable.PanelGroup>
     </div>
+  );
+};
+
+/** The list's and pane's shape while the first page of conversations loads. */
+const InboxSkeleton = () => {
+  const [openId] = useOpenConversation();
+
+  return <InboxColumns showList list={<RowSkeletons />} pane={openId ? <PaneSkeleton /> : null} />;
+};
+
+/**
+ * The conversations on the left and the open one on the right, or the empty inbox. It suspends
+ * until the first page is in, and a new filter keeps the old rows up until the new ones are.
+ */
+const InboxBody = ({ onConnect }: { onConnect?: () => void }) => {
+  const [openId] = useOpenConversation();
+  // The header's toggle hides the list beside an open conversation only.
+  const shown = useAtomValue(listShown);
+  const list = useConversations();
+  const { rows: conversations } = list;
+  // A conversation the filters no longer match stays open beside the empty list.
+  const empty = conversations.length === 0;
+  // Another filter is another list, so what was picked in the last one goes.
+  const filter = JSON.stringify(useListParams());
+
+  if (empty && !openId) return <InboxEmpty onConnect={onConnect} />;
+
+  return (
+    <InboxColumns
+      showList={shown || !openId}
+      pane={<ConversationPane />}
+      list={
+        empty ? (
+          <InboxEmpty onConnect={onConnect} />
+        ) : (
+          <RecordList.Provider key={filter} listId={LIST}>
+            <ConversationList
+              conversations={conversations}
+              customers={list.customers}
+              paging={list}
+              refresh={() => void list.refetch()}
+            />
+            <BulkBar conversations={conversations} />
+          </RecordList.Provider>
+        )
+      }
+    />
   );
 };
 
@@ -233,19 +306,6 @@ export const InboxPage = () => {
   const mails = (useIntegrations().data ?? []).some(
     (integration) => integration.kind === 'mail' && integration.isActive,
   );
-
-  const [openId] = useOpenConversation();
-
-  // The header's toggle hides the list beside an open conversation only.
-  const shown = useAtomValue(listShown);
-
-  const list = useConversations();
-  const { rows: conversations, isPending } = list;
-
-  // A conversation the filters no longer match stays open beside the empty list.
-  const empty = !isPending && conversations.length === 0;
-  // Another filter is another list, so what was picked in the last one goes.
-  const filter = JSON.stringify(useListFilterParams());
 
   return (
     <PageContainer>
@@ -268,34 +328,13 @@ export const InboxPage = () => {
           fields={useInboxFields()}
           members={memberQueries}
           tags={conversationTags}
-          totalCount={list.totalCount}
+          totalCount={useConversationCount()}
         />
       </ViewBar>
       {/* A later page that fails keeps the rows already shown, and its button to try again. */}
-      {list.error && conversations.length === 0 ? (
-        <p className="m-3 text-sm text-destructive-text">{list.error.message}</p>
-      ) : empty && !openId ? (
-        <InboxEmpty onConnect={canConnect ? connect : undefined} />
-      ) : (
-        <InboxColumns
-          showList={shown || !openId}
-          list={
-            empty ? (
-              <InboxEmpty onConnect={canConnect ? connect : undefined} />
-            ) : (
-              <RecordList.Provider key={filter} listId={LIST}>
-                <ConversationList
-                  conversations={conversations}
-                  customers={list.customers}
-                  paging={list}
-                  refresh={() => void list.refetch()}
-                />
-                <BulkBar conversations={conversations} />
-              </RecordList.Provider>
-            )
-          }
-        />
-      )}
+      <QueryBoundary fallback={<InboxSkeleton />}>
+        <InboxBody onConnect={canConnect ? connect : undefined} />
+      </QueryBoundary>
     </PageContainer>
   );
 };

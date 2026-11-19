@@ -18,7 +18,7 @@ import { INBOX_PATH } from '~/shared/listPath.ts';
 import { NavSkeleton } from '~/shared/NavSkeleton.tsx';
 import { CHANNELS_PATH } from '@/channels/useChannels.ts';
 import { ChannelLink, TeamChannels } from './ChannelNav.tsx';
-import { Count, FilterLink, NavGroup } from './navLinks.tsx';
+import { Count, FilterLink, NavGroup, usePrefetchInbox } from './navLinks.tsx';
 import { type InboxCounts as Counts, useInboxCounts, useInboxSignal } from './queries.ts';
 import { useArrivalSound } from './useArrivalSound.ts';
 
@@ -102,6 +102,7 @@ export const InboxNav = () => {
   const { t } = useTranslation('frontline');
   const { pathname } = useLocation();
   const counts = useInboxCounts().data;
+  const prefetch = usePrefetchInbox();
 
   useInboxSignal();
   useArrivalSound();
@@ -110,7 +111,7 @@ export const InboxNav = () => {
     <Sidebar.MenuItem>
       <Sidebar.MenuButton
         isActive={pathname.startsWith(INBOX_PATH)}
-        render={<Link to={INBOX_PATH} />}
+        render={<Link to={INBOX_PATH} {...prefetch(INBOX_PATH)} />}
       >
         <IconInbox />
         <span className="min-w-0 flex-1 truncate">{t('inbox', 'Inbox')}</span>

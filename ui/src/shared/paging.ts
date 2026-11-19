@@ -1,4 +1,4 @@
-import type { InfiniteData, UseInfiniteQueryResult } from '@tanstack/react-query';
+import type { InfiniteData } from '@tanstack/react-query';
 import { useState } from 'react';
 
 /**
@@ -49,8 +49,8 @@ export type Paging = {
  * A paged list's rows, and how many match. Only the first page counts them, so the count holds
  * while the first page is dropped and comes back.
  */
-export const usePaged = <TPage extends { totalCount?: number | null }, TRow>(
-  query: UseInfiniteQueryResult<InfiniteData<TPage, PageParam>>,
+export const usePaged = <TPage extends { totalCount?: number | null }, TRow, TQuery>(
+  query: TQuery & { isPending: boolean; data?: InfiniteData<TPage, PageParam> },
   rowsOf: (page: TPage) => TRow[],
 ) => {
   const pages = query.data?.pages ?? [];

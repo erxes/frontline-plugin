@@ -41,8 +41,8 @@ const DayDivider = ({ date }: { date: Date }) => {
 };
 
 /** Placeholders shaped like a short exchange while the messages load. */
-const ThreadSkeleton = () => (
-  <div aria-hidden className="flex flex-col gap-4 p-4">
+export const ThreadSkeleton = () => (
+  <div aria-hidden className="flex min-h-0 flex-1 flex-col gap-4 p-4">
     <Skeleton className="h-12 w-2/5" />
     <Skeleton className="h-16 w-1/2 self-end" />
     <Skeleton className="h-10 w-1/3" />
@@ -173,12 +173,13 @@ type ThreadProps = {
 
 /**
  * The open conversation's messages, oldest at the top under a divider for each day, following
- * the newest as `useReader` says. Only the messages in view and a few around them render.
+ * the newest as `useReader` says. Only the messages in view and a few around them render. It
+ * suspends until the latest page is in.
  */
 export const MessageThread = ({ conversation, sending }: ThreadProps) => {
   const { t } = useTranslation('frontline');
   const thread = useMessages(conversation.id);
-  const { messages, isPending } = thread;
+  const { messages } = thread;
   const customer = useCustomer(conversation.customerId);
   const shift = usePrepended(messages);
   const jumps = useJump(thread);
@@ -196,13 +197,7 @@ export const MessageThread = ({ conversation, sending }: ThreadProps) => {
       <PinnedBar conversationId={conversation.id} onJump={(message) => void jump(message)} />
       <ScrollArea.Root className="relative min-h-0 flex-1">
         <ScrollArea.Viewport ref={viewport}>
-          {thread.error && messages.length === 0 ? (
-            <p role="alert" className="p-6 text-center text-sm text-destructive-text">
-              {thread.error.message}
-            </p>
-          ) : isPending ? (
-            <ThreadSkeleton />
-          ) : messages.length === 0 && !sending ? (
+          {messages.length === 0 && !sending ? (
             <p className="p-6 text-center text-sm text-muted-foreground">
               {t('no-messages-yet', 'No messages yet. Write the first one below.')}
             </p>

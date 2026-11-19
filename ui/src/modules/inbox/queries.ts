@@ -5,21 +5,32 @@ import {
   type InfiniteData,
   type QueryClient,
   type QueryKey,
+  queryOptions,
   useInfiniteQuery,
   useMutation,
   useQueries,
   useQuery,
   useQueryClient,
+  useSuspenseInfiniteQuery,
+  useSuspenseQuery,
 } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
-import { useListFilterParams, useLiveSignal } from 'erxes-ui';
+import { useLiveSignal } from 'erxes-ui';
 import { parseAsString, useQueryState } from 'nuqs';
 import { useEffect, useRef, useState } from 'react';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
+import { type FilterParams, listParamsOf, useListParams } from '~/shared/listPath.ts';
 import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
-import { integrationsQuery, REFERENCE_MS, tagsOf } from '~/shared/reference.ts';
+import {
+  channelsQuery,
+  FRESH_MS,
+  integrationsQuery,
+  REFERENCE_MS,
+  tagsOf,
+  templatesQuery,
+} from '~/shared/reference.ts';
 
 type Outputs = InferClientOutputs<Client>;
 
@@ -39,12 +50,6 @@ export type Counts = Outputs['conversations']['counts'];
 export const useOpenConversation = () =>
   useQueryState('conversationId', parseAsString.withDefault(''));
 
-/**
- * How long the inbox's own queries count as fresh, so opening, closing and reopening a
- * conversation asks once. The live signal refetches them as soon as anything changes.
- */
-const FRESH_MS = 30_000;
-
 /** How long the inbox gathers changes before it refetches once. */
 const REFRESH_MS = 1000;
 
@@ -60,8 +65,22 @@ const conversationKeys = (id: string) => [
 /** The member's own change: the lists, and every conversation, since one of them changed. */
 const CHANGED = [...LISTED, orpc.conversations.get.key(), orpc.conversations.messages.list.key()];
 
-let pending = new Map<string, QueryKey>();
-let refreshing: ReturnType<typeof setTimeout> | undefined;
+/** The keys each query client waits to refetch, by hash, until its gathering second ends. */
+const gathering = new WeakMap<QueryClient, Map<string, QueryKey>>();
+
+/** Starts a client's gathering second; at its end, what gathered refetches. */
+const gather = (queryClient: QueryClient) => {
+  const due = new Map<string, QueryKey>();
+
+  gathering.set(queryClient, due);
+  setTimeout(() => {
+    gathering.delete(queryClient);
+
+    for (const queryKey of due.values()) void queryClient.invalidateQueries({ queryKey });
+  }, REFRESH_MS);
+
+  return due;
+};
 
 /**
  * Refetches the queries under `keys`, gathered for a second: a burst of live signals, and the
@@ -69,16 +88,9 @@ let refreshing: ReturnType<typeof setTimeout> | undefined;
  * refetch; the rest wait until they show again.
  */
 const refresh = (queryClient: QueryClient, keys: QueryKey[]) => {
-  for (const key of keys) pending.set(hashKey(key), key);
+  const due = gathering.get(queryClient) ?? gather(queryClient);
 
-  refreshing ??= setTimeout(() => {
-    const due = [...pending.values()];
-
-    pending = new Map();
-    refreshing = undefined;
-
-    for (const queryKey of due) void queryClient.invalidateQueries({ queryKey });
-  }, REFRESH_MS);
+  for (const key of keys) due.set(hashKey(key), key);
 };
 
 /** Refetches what the member's own change to a conversation shows in. */
@@ -110,57 +122,80 @@ export const useConversationSignal = (id: string) => {
 const CUSTOMER_MS = 60_000;
 
 /**
- * The customers of the list's conversations, one request a page. Each lands where a customer's
- * own query reads it, so the open conversation's thread and sidebar ask for none.
+ * The customers of one page's conversations, in one request. Each lands where a customer's own
+ * query reads it, so the open conversation's thread and sidebar ask for none.
  */
+const pageCustomersOptions = (queryClient: QueryClient, page: ListPage) => {
+  const ids = [...new Set(page.conversations.map((row) => row.customerId))].toSorted();
+
+  return queryOptions({
+    queryKey: [PLUGIN, 'page-customers', ids],
+    queryFn: async () => {
+      const { data } = await core.customers.list.call({ ids: ids.join(','), limit: ids.length });
+
+      for (const customer of data)
+        queryClient.setQueryData(contactQueries.customer(customer.id).queryKey, customer);
+
+      return data;
+    },
+    enabled: ids.length > 0,
+    staleTime: CUSTOMER_MS,
+  });
+};
+
+/** The customers of the list's conversations by id, one request a page. */
 const usePageCustomers = (pages: ListPage[]) => {
   const queryClient = useQueryClient();
 
   return useQueries({
-    queries: pages.map((page) => {
-      const ids = [...new Set(page.conversations.map((row) => row.customerId))].toSorted();
-
-      return {
-        queryKey: [PLUGIN, 'page-customers', ids],
-        queryFn: async () => {
-          const { data } = await core.customers.list.call({
-            ids: ids.join(','),
-            limit: ids.length,
-          });
-
-          for (const customer of data)
-            queryClient.setQueryData(contactQueries.customer(customer.id).queryKey, customer);
-
-          return data;
-        },
-        enabled: ids.length > 0,
-        staleTime: CUSTOMER_MS,
-      };
-    }),
+    queries: pages.map((page) => pageCustomersOptions(queryClient, page)),
     combine: (results) =>
       new Map(results.flatMap((result) => result.data ?? []).map((row) => [row.id, row])),
   });
 };
 
+/** The conversations under the filter bar's `params`, latest message first, a page at a time. */
+const conversationsOptions = (params: FilterParams) =>
+  orpc.conversations.list.infiniteOptions({
+    input: ({ cursor }: PageParam) => ({ ...params, cursor }),
+    ...pageOptions,
+    staleTime: FRESH_MS,
+  });
+
+const rowsOf = (page: ListPage) => page.conversations;
+
 /**
- * The conversations the filter bar keeps, latest message first, a page at a time, and their
- * customers by id.
+ * The conversations the filter bar keeps, a page at a time, and their customers by id. It
+ * suspends until the first page is in; a new filter keeps the old rows until the new ones are.
  */
 export const useConversations = () => {
-  const params = useListFilterParams();
+  const query = usePaged(useSuspenseInfiniteQuery(conversationsOptions(useListParams())), rowsOf);
 
-  const query = usePaged(
-    useInfiniteQuery(
-      orpc.conversations.list.infiniteOptions({
-        input: ({ cursor }: PageParam) => ({ ...params, cursor }),
-        ...pageOptions,
-        staleTime: FRESH_MS,
-      }),
-    ),
-    (page) => page.conversations,
-  );
+  return { ...query, customers: usePageCustomers(query.data.pages) };
+};
 
-  return { ...query, customers: usePageCustomers(query.data?.pages ?? []) };
+/**
+ * How many conversations match the filter bar, for its count: read from the query the list
+ * suspends on, without asking it again.
+ */
+export const useConversationCount = () =>
+  usePaged(useInfiniteQuery({ ...conversationsOptions(useListParams()), enabled: false }), rowsOf)
+    .totalCount;
+
+/**
+ * Loads the inbox at `to` before it opens: the first page of its conversations and their
+ * customers, and the channels and integrations its header reads.
+ */
+export const prefetchInbox = async (queryClient: QueryClient, to: string) => {
+  const [list] = await Promise.all([
+    queryClient.infiniteQuery(conversationsOptions(listParamsOf(to).params)),
+    queryClient.query(channelsQuery),
+    queryClient.query(integrationsQuery),
+  ]);
+
+  const page = list.pages[0];
+
+  if (page?.conversations.length) await queryClient.query(pageCustomersOptions(queryClient, page));
 };
 
 export const LISTS = orpc.conversations.list.key({ type: 'infinite' });
@@ -179,68 +214,70 @@ export const listedRow = (queryClient: QueryClient, id: string) => {
 };
 
 export const conversationOptions = (id: string) =>
-  orpc.conversations.get.queryOptions({
-    input: { id },
-    enabled: Boolean(id),
-    staleTime: FRESH_MS,
-  });
+  orpc.conversations.get.queryOptions({ input: { id }, staleTime: FRESH_MS });
 
 /**
- * One conversation. A conversation picked from the list shows at once from the list's row, and
- * asks the API only once that row is older than the inbox's fresh time.
+ * One conversation's options. A conversation picked from the list shows at once from the list's
+ * row, and asks the API only once that row is older than the inbox's fresh time.
  */
-export const useConversation = (id: string) => {
-  const queryClient = useQueryClient();
+const listedConversation = (queryClient: QueryClient, id: string) => ({
+  ...conversationOptions(id),
+  initialData: () => listedRow(queryClient, id)?.row,
+  initialDataUpdatedAt: () => listedRow(queryClient, id)?.updatedAt,
+});
 
-  return useQuery({
-    ...conversationOptions(id),
-    initialData: () => listedRow(queryClient, id)?.row,
-    initialDataUpdatedAt: () => listedRow(queryClient, id)?.updatedAt,
-  });
-};
+/** One conversation, nothing while `id` is empty. */
+export const useConversation = (id: string) =>
+  useQuery({ ...listedConversation(useQueryClient(), id), enabled: Boolean(id) });
+
+/**
+ * The open conversation; it suspends only when the list doesn't hold it. A refetch that fails
+ * keeps the data it had beside its error.
+ */
+export const useOpenedConversation = (id: string) =>
+  useSuspenseQuery(listedConversation(useQueryClient(), id));
 
 export const messagesOptions = (conversationId: string) =>
   orpc.conversations.messages.list.infiniteOptions({
-    enabled: Boolean(conversationId),
     input: ({ cursor }: PageParam) => ({ conversationId, cursor }),
     ...pageOptions,
     staleTime: FRESH_MS,
   });
 
-/**
- * Loads a conversation's messages before it opens, as the pointer rests on its row or the keys
- * move to it, so opening it shows the thread at once.
- */
-export const usePrefetchConversation = () => {
-  const queryClient = useQueryClient();
-
-  return (conversation: Conversation) => {
-    // A failed prefetch is only a slower open; the thread shows its own error.
-    queryClient.infiniteQuery(messagesOptions(conversation.id)).catch(() => undefined);
-  };
-};
+const pinnedOptions = (conversationId: string) =>
+  orpc.conversations.messages.list.queryOptions({
+    input: { conversationId, pinned: true },
+    staleTime: FRESH_MS,
+  });
 
 /**
- * A conversation's messages, oldest first for reading. The older ones load a page at a time as
- * next pages, the newer ones as previous pages once a long read back dropped them.
+ * Loads what a conversation opens with before it opens, as the pointer rests on its row or the
+ * keys move to it: its messages, pinned ones and its channel's response templates.
  */
+export const prefetchConversation = (queryClient: QueryClient, conversation: Conversation) =>
+  Promise.all([
+    queryClient.infiniteQuery(messagesOptions(conversation.id)),
+    queryClient.query(pinnedOptions(conversation.id)),
+    queryClient.query(templatesQuery(conversation.channelId)),
+  ]);
+
 /** The loaded pages of a thread, oldest message first. */
 export const threadOf = (data: { pages: { messages: Message[] }[] } | undefined) =>
   (data?.pages.flatMap((page) => page.messages) ?? []).toReversed();
 
+/**
+ * A conversation's messages, oldest first for reading; it suspends until the latest page is in.
+ * The older ones load a page at a time as next pages, the newer ones as previous pages once a
+ * long read back dropped them.
+ */
 export const useMessages = (conversationId: string) => {
-  const query = useInfiniteQuery(messagesOptions(conversationId));
+  const query = useSuspenseInfiniteQuery(messagesOptions(conversationId));
 
   return { ...query, messages: threadOf(query.data) };
 };
 
 export const usePinnedMessages = (conversationId: string) =>
-  useQuery(
-    orpc.conversations.messages.list.queryOptions({
-      input: { conversationId, pinned: true },
-      staleTime: FRESH_MS,
-    }),
-  );
+  useQuery(pinnedOptions(conversationId));
 
 /**
  * Cards for the web links in a message's text; only one with a link asks, once. Editing the
@@ -282,25 +319,19 @@ const TYPING_MS = 4000;
 
 /** Whether the visitor typed in the last few seconds, from the conversation's typing signal. */
 export const useVisitorTyping = (conversationId: string) => {
-  const [until, setUntil] = useState(0);
-  const [now, setNow] = useState(0);
+  // The conversation a typing signal came from, so another one opened shows none.
+  const [typingIn, setTypingIn] = useState('');
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useLiveSignal(PLUGIN, `typing.${conversationId.toLowerCase()}`, () => {
-    const at = Date.now();
-
-    setNow(at);
-    setUntil(at + TYPING_MS);
+    clearTimeout(timer.current);
+    setTypingIn(conversationId);
+    timer.current = setTimeout(() => setTypingIn(''), TYPING_MS);
   });
 
-  useEffect(() => {
-    if (until <= now) return;
+  useEffect(() => () => clearTimeout(timer.current), []);
 
-    const timer = setTimeout(() => setNow(Date.now()), until - now);
-
-    return () => clearTimeout(timer);
-  }, [until, now]);
-
-  return until > now;
+  return typingIn === conversationId;
 };
 
 /** Tells the visitor the member is typing, at most once every few seconds. */

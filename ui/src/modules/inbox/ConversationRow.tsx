@@ -11,6 +11,7 @@ import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MemberAvatar, PersonAvatar } from '~/shared/Person.tsx';
 import { isChat, KindIcon } from '~/shared/kinds.tsx';
+import type { usePrefetch } from '~/shared/prefetch.ts';
 import type { Conversation } from './queries.ts';
 
 /** The list's row buttons carry the conversation's id, so the keys can move the focus between them. */
@@ -172,13 +173,13 @@ export type RowHandlers = {
   now: number;
   selection: ReturnType<typeof RecordList.useSelection>;
   select: (conversation: Conversation) => void;
-  prefetch: (conversation: Conversation) => void;
+  prefetch: ReturnType<typeof usePrefetch<Conversation>>;
   onKeyDown: (event: KeyboardEvent) => void;
 };
 
 /**
  * One conversation as the old inbox showed it, the customer's avatar beside its summary.
- * Resting the pointer on a row loads its messages, so it opens at once; the arrow keys move on.
+ * Pointing at a row, or moving to it, loads its messages, so it opens at once; the arrow keys move on.
  */
 export const ConversationRow = ({
   conversation,
@@ -214,8 +215,7 @@ export const ConversationRow = ({
         {...{ [ROW]: conversation.id }}
         aria-current={open ? 'true' : undefined}
         onClick={() => select(conversation)}
-        onPointerEnter={() => prefetch(conversation)}
-        onFocus={() => prefetch(conversation)}
+        {...prefetch(conversation)}
         onKeyDown={onKeyDown}
         className="flex min-w-0 flex-1 flex-col gap-1 py-2.5 text-left outline-none"
       >

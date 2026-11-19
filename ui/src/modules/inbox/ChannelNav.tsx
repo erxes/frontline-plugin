@@ -15,6 +15,7 @@ import {
   NavGroup,
   useFilterLink,
   useOpenFilter,
+  usePrefetchInbox,
 } from './navLinks.tsx';
 import type { InboxCounts } from './queries.ts';
 
@@ -45,10 +46,11 @@ const KindLink = ({
 }) => {
   const kinds = useKindNames();
   const { active, to } = useFilterLink(channelRule(channelId), kindRule(kind));
+  const prefetch = usePrefetchInbox();
 
   return (
     <Sidebar.SubItem>
-      <Sidebar.SubButton isActive={active} render={<Link to={to} />}>
+      <Sidebar.SubButton isActive={active} render={<Link to={to} {...prefetch(to)} />}>
         <KindIcon kind={kind} />
         <span className="min-w-0 flex-1 truncate">{kinds[kind] ?? kind}</span>
         <Count count={count} />

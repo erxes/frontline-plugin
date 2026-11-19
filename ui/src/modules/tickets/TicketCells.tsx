@@ -22,19 +22,25 @@ import { StageIcon } from '@/pipelines/StageIcon.tsx';
 import { pageOf, TICKET_TYPE } from '~/plugin.ts';
 import { MemberCell } from '~/shared/MemberPicker.tsx';
 import { ActionsMenu, type RowAction } from '~/shared/Records.tsx';
-import { type TicketRow, type TicketRowActions, useChoices } from './queries.ts';
+import { usePrefetch } from '~/shared/prefetch.ts';
+import { prefetchTicket, type TicketRow, type TicketRowActions, useChoices } from './queries.ts';
 
 type Variant = ComponentProps<typeof Select.Trigger>['variant'];
 
-/** The name opens the ticket in core's side panel, its number before it. */
+/**
+ * The name opens the ticket in core's side panel, its number before it. Pointing at it loads
+ * the panel first, so it opens at once.
+ */
 export const TicketName = ({ ticket }: { ticket: TicketRow }) => {
   const { open } = useOpenRecord();
+  const prefetch = usePrefetch(prefetchTicket);
 
   return (
     <Button
       variant="ghost"
       className="min-w-0 justify-start"
       onClick={() => open({ contentType: TICKET_TYPE, contentId: ticket.id })}
+      {...prefetch(ticket.id)}
     >
       {ticket.number && <span className="text-muted-foreground">{ticket.number}</span>}
       <span className="truncate">{ticket.name}</span>

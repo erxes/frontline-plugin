@@ -164,7 +164,8 @@ export const useJump = (thread: ReturnType<typeof useMessages>) => {
   const gone = () => toast({ title: t('message-gone', 'That message is no longer in the thread') });
 
   const jump = async (target: Pick<Message, 'id' | 'createdAt'>) => {
-    let state: Pick<typeof thread, 'data' | 'hasNextPage' | 'hasPreviousPage'> = thread;
+    let state: Partial<Pick<typeof thread, 'data'>> &
+      Pick<typeof thread, 'hasNextPage' | 'hasPreviousPage'> = thread;
 
     for (;;) {
       const messages = threadOf(state.data);

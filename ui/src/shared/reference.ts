@@ -8,6 +8,13 @@ import { orpc } from '~/orpc.ts';
  */
 export const REFERENCE_MS = 5 * 60_000;
 
+/**
+ * How long the inbox's and tickets' own queries count as fresh, so opening, closing and reopening
+ * one, or pointing at its link first, asks once. Their live signals refetch them as soon as
+ * anything changes.
+ */
+export const FRESH_MS = 30_000;
+
 /** The member's channels. */
 export const channelsQuery = orpc.channels.list.queryOptions({
   input: {},

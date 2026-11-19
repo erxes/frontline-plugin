@@ -1,15 +1,20 @@
-import type { Locator, Page } from '@playwright/test';
+import type { APIRequestContext, Locator, Page } from '@playwright/test';
 import {
   addMessenger,
+  type coreClient,
   createChannel,
   expect,
   expectAccessible,
+  Id,
   INBOX,
-  recordPanel,
+  messengerIn,
+  pluginApi,
   test,
   unique,
   visitorOf,
 } from './fixtures.ts';
+
+type Api = ReturnType<typeof coreClient>;
 
 /** A one-pixel PNG, to attach an image. */
 const PARCEL = {
@@ -55,30 +60,34 @@ const attachFiles = async (page: Page, reply: Locator) => {
     await expect(page.getByRole('button', { name: `Remove ${name}` })).toBeVisible();
 };
 
-test('a member answers with a response template, formats it, attaches a file and mentions a teammate in a note', async ({
+/**
+ * A visitor's question in a new channel, with `memberIds` in it, a response template and a
+ * messenger, all made through the API; the template's screens have their own spec.
+ */
+const askedWithTemplate = async (
+  { api, request, plugin }: { api: Api; request: APIRequestContext; plugin: string },
+  memberIds: string[] = [],
+) => {
+  const rpc = await pluginApi(api, request);
+  const channel = await rpc('channels/create', { name: `Support ${unique()}`, memberIds }, Id);
+  const template = `Refunds ${unique()}`;
+  const content = '<p>Refunds take five days.</p>';
+
+  await rpc('responseTemplates/create', { channelId: channel.id, name: template, content }, Id);
+
+  const visitor = await visitorOf(request, plugin, await messengerIn(rpc, {}, channel.id));
+  const question = `Can I get a refund ${unique()}`;
+
+  return { template, visitor, question, conversationId: await visitor.write(question) };
+};
+
+test('a member answers with a response template, formats it and attaches files', async ({
   page,
+  api,
   plugin,
   request,
-  newMember,
 }) => {
-  // The teammate answers the inbox but can't read the channel's templates.
-  const teammate = await newMember(['frontline.inbox.view']);
-  const channel = await createChannel(page, teammate.fullName);
-  const panel = recordPanel(page);
-  const template = `Refunds ${unique()}`;
-
-  await panel.getByRole('link', { name: /Manage channel response templates/ }).click();
-  await page.getByRole('button', { name: 'Create response template' }).first().click();
-  await panel.getByLabel('Name').fill(template);
-  await panel.getByRole('textbox', { name: 'Content' }).fill('Refunds take five days.');
-  await panel.getByRole('button', { name: 'Create response template' }).click();
-  await expect(page.getByRole('row', { name: new RegExp(template) })).toBeVisible();
-
-  await page.goto(INBOX);
-
-  const visitor = await visitorOf(request, plugin, await addMessenger(page, channel));
-  const question = `Can I get a refund ${unique()}`;
-  const conversationId = await visitor.write(question);
+  const { template, visitor, conversationId } = await askedWithTemplate({ api, request, plugin });
 
   await page.goto(`${INBOX}?conversationId=${conversationId}`);
 
@@ -112,6 +121,25 @@ test('a member answers with a response template, formats it, attaches a file and
   expect(await visitor.read(conversationId)).toContain(
     'Refunds take five days. Sorry for the wait.',
   );
+});
+
+test('a note mentions a teammate, who finds it under Mentions and gets no templates without the channel permission', async ({
+  page,
+  api,
+  plugin,
+  request,
+  newMember,
+}) => {
+  // The teammate answers the inbox but can't read the channel's templates.
+  const teammate = await newMember(['frontline.inbox.view']);
+
+  const { template, question, conversationId } = await askedWithTemplate({ api, request, plugin }, [
+    teammate.id,
+  ]);
+
+  await page.goto(`${INBOX}?conversationId=${conversationId}`);
+
+  const thread = page.getByRole('list', { name: 'Messages' });
 
   // A note tints the composer and its button reads Add note, so it can't pass for a reply.
   const card = page
@@ -147,11 +175,14 @@ test('a member answers with a response template, formats it, attaches a file and
   await teammate.page.goto(INBOX);
   await expect(mentions.getByLabel('1 unread')).toBeVisible();
   await mentions.click();
-  // The row shows the conversation's last reply; notes stay out of the list.
-  await teammate.page
+
+  // The row shows the visitor's question; notes stay out of the list.
+  const row = teammate.page
     .getByRole('list', { name: 'Conversations' })
-    .getByRole('button', { name: /Sorry for the wait/ })
-    .click();
+    .getByRole('button', { name: new RegExp(question) });
+
+  await expect(row).not.toContainText('Please check');
+  await row.click();
   await teammate.page.getByRole('textbox', { name: 'Reply' }).click();
   await teammate.page.keyboard.type(`/${template}`);
   await expect(teammate.page.getByRole('button', { name: template, exact: true })).toBeHidden();

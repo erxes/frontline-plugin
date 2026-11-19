@@ -21,6 +21,7 @@ import {
 } from '~/plugin.ts';
 import { FrontlineLayout, SettingsLayout } from './Layout.tsx';
 import { withText } from '~/i18n/withText.ts';
+import { inboxPage, ticketsPage } from '~/pages.ts';
 import css from './styles.css?inline';
 
 addPluginStyles(PLUGIN, css);
@@ -71,9 +72,7 @@ const HelpCenterRoutes = lazy(
   })),
 );
 
-const InboxPage = lazy(
-  withText(async () => ({ default: (await import('@/inbox/InboxPage.tsx')).InboxPage })),
-);
+const InboxPage = lazy(inboxPage);
 
 const MessengerSettingsPage = lazy(
   withText(async () => ({
@@ -99,9 +98,7 @@ const PersonalChannel = lazy(
   withText(async () => ({ default: (await import('@/channels/pages.ts')).PersonalChannel })),
 );
 
-const TicketsPage = lazy(
-  withText(async () => ({ default: (await import('@/tickets/TicketsPage.tsx')).TicketsPage })),
-);
+const TicketsPage = lazy(ticketsPage);
 
 const FormsPage = lazy(
   withText(async () => ({ default: (await import('@/forms/FormsPage.tsx')).FormsPage })),
