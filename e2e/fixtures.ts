@@ -145,19 +145,24 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
 
 /**
  * Fails on serious or critical axe violations, listing each rule with the elements that break it.
- * Colours are checked at rest: once `shown`, which the page draws from its data, is visible, and
- * the page's animations end. Spinners loop forever, so only finite animations are waited for.
+ * Colours are checked at rest: once `shown`, which the page draws from its data, is visible, no
+ * skeleton is left, and the page's animations end. A skeleton (core's pulsing `Skeleton`) means
+ * something still loads, and what replaces it can land mid-scan: the list's record count fades in
+ * under its leaving skeleton (erxes/erxes#10812). Spinners loop forever, so only finite animations
+ * are waited for.
  */
 export const expectAccessible = async (page: Page, shown: Locator) => {
   await expect(shown).toBeVisible();
-  await page.waitForFunction(() =>
-    document
-      .getAnimations()
-      .every(
-        (animation) =>
-          animation.playState !== 'running' ||
-          animation.effect?.getTiming().iterations === Infinity,
-      ),
+  await page.waitForFunction(
+    () =>
+      !document.querySelector('.animate-pulse') &&
+      document
+        .getAnimations()
+        .every(
+          (animation) =>
+            animation.playState !== 'running' ||
+            animation.effect?.getTiming().iterations === Infinity,
+        ),
   );
 
   const { violations } = await new AxeBuilder({ page }).analyze();
