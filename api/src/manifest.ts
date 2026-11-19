@@ -227,11 +227,32 @@ export const manifest = {
     })),
   ],
   timelines: [
-    { type: TICKET_TIMELINE, label: 'Ticket', permission: PERMISSIONS.channelView },
-    { type: FORM_TIMELINE, label: 'Form', permission: PERMISSIONS.channelView },
-    { type: SURVEY_TIMELINE, label: 'Survey', permission: PERMISSIONS.channelView },
-    { type: CHANNEL_TIMELINE, label: 'Channel', permission: PERMISSIONS.channelView },
-    { type: CONVERSATION_TIMELINE, label: 'Conversation', permission: PERMISSIONS.inboxView },
+    // Core asks `/timelines/access` whether the member sees each record (`modules/timelines.ts`).
+    {
+      type: TICKET_TIMELINE,
+      label: 'Ticket',
+      permission: PERMISSIONS.channelView,
+      recordAccess: true,
+    },
+    { type: FORM_TIMELINE, label: 'Form', permission: PERMISSIONS.channelView, recordAccess: true },
+    {
+      type: SURVEY_TIMELINE,
+      label: 'Survey',
+      permission: PERMISSIONS.channelView,
+      recordAccess: true,
+    },
+    {
+      type: CHANNEL_TIMELINE,
+      label: 'Channel',
+      permission: PERMISSIONS.channelView,
+      recordAccess: true,
+    },
+    {
+      type: CONVERSATION_TIMELINE,
+      label: 'Conversation',
+      permission: PERMISSIONS.inboxView,
+      recordAccess: true,
+    },
   ],
   activityTypes: [
     ...activityTypes(TICKET_EVENTS, 'IconTicket'),

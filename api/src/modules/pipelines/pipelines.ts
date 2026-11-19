@@ -1,17 +1,6 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import {
-  and,
-  asc,
-  count,
-  eq,
-  getTableColumns,
-  ilike,
-  inArray,
-  isNotNull,
-  or,
-  type SQL,
-} from 'drizzle-orm';
+import { and, asc, count, eq, getTableColumns, ilike, inArray, or, type SQL } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
@@ -25,6 +14,7 @@ import {
   heldInChannels,
   managesAll,
   membership,
+  seenBy,
 } from '../channels/access.ts';
 import { Blank, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
@@ -300,7 +290,7 @@ const StatusChoice = createSelectSchema(pipelineStatuses)
 const choices = reads(PERMISSIONS.channelView)
   .output(z.object({ pipelines: z.array(Choice), statuses: z.array(StatusChoice) }))
   .handler(async ({ context: { tx, member } }) => {
-    const seen = managesAll(member) ? undefined : isNotNull(channelMembers.userId);
+    const seen = seenBy(member, pipelines.channelId);
     const rights = statusRights(member);
 
     const pipelineList = await tx

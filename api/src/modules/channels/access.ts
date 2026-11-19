@@ -1,11 +1,35 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, asc, type Column, eq, inArray, sql } from 'drizzle-orm';
+import { and, asc, type Column, eq, inArray, isNotNull, ne, notExists, sql } from 'drizzle-orm';
+import { alias, QueryBuilder } from 'drizzle-orm/pg-core';
 import { PLUGIN } from '#/config.ts';
 import { CHANNEL_EVENTS, CHANNEL_TIMELINE, PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { type CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
 import { publishEvents, type RecordEvent } from '../events.ts';
+
+/** Whether core's role holds every permission, channel management with it: Owner and Admin do. */
+export const holdsEveryPermission = (role: string) => role === 'owner' || role === 'admin';
+
+/**
+ * The member core asks about in a transfer or a timeline check. Core sends no permissions, and a
+ * plugin can't read a role's: Owner and Admin hold every one, and anyone else sees what their
+ * channels hold, as a member without channel management does.
+ */
+export const askedMember = (orgId: string, userId: string, role = 'member') => {
+  const all = holdsEveryPermission(role);
+
+  return {
+    userId,
+    orgId,
+    role,
+    permissions: all ? Object.values(PERMISSIONS) : [PERMISSIONS.channelView],
+    can: (action) => all || action === PERMISSIONS.channelView,
+    tier: null,
+    access: 'full',
+    canChange: () => true,
+  } satisfies PluginMember;
+};
 
 /** Whether `member` sees every channel, not only the ones they belong to. */
 export const managesAll = (member: PluginMember) => member.can(PERMISSIONS.channelManage);
@@ -17,6 +41,25 @@ const ownsOrShared = (ownerId: string | null, member: PluginMember) =>
 /** Joins `member`'s own row of `channelMembers` for the channel `channelId` names. */
 export const membership = (member: PluginMember, channelId: Column) =>
   and(eq(channelMembers.channelId, channelId), eq(channelMembers.userId, member.userId));
+
+/** `channels` under its own name, so `seenBy` reads it beside a query on `channels`. */
+const owned = alias(channels, 'frontline_owned_channels');
+
+/**
+ * The rows `member` sees, by `channelId`, the channel the query joined their `membership` of:
+ * their channels', or every channel's for one who manages them all, but no one else's personal
+ * inbox, as `ownsOrShared` says.
+ */
+export const seenBy = (member: PluginMember, channelId: Column) =>
+  and(
+    managesAll(member) ? undefined : isNotNull(channelMembers.userId),
+    notExists(
+      new QueryBuilder()
+        .select({ id: owned.id })
+        .from(owned)
+        .where(and(eq(owned.id, channelId), ne(owned.ownerId, member.userId))),
+    ),
+  );
 
 /** Whether `member` may change the channel whose `membership` row the query joined. */
 export const canChangeSql = (member: PluginMember) =>

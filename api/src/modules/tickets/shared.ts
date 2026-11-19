@@ -8,7 +8,6 @@ import {
   eq,
   getTableColumns,
   inArray,
-  isNotNull,
   type SQL,
   type SQLWrapper,
   sql,
@@ -19,7 +18,7 @@ import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { Attachment, StoredFile } from '#/db/table.ts';
 import { pipelineStatuses, pipelines, STATUS_TYPES, tickets } from '#/db/tickets.ts';
-import { canChangeSql, heldInChannels, managesAll, membership } from '../channels/access.ts';
+import { canChangeSql, heldInChannels, membership, seenBy } from '../channels/access.ts';
 import { Title } from '../fields.ts';
 import { notifyVisitors } from '../inbox/shared.ts';
 import { statusRights, ticketVisible } from '../pipelines/rights.ts';
@@ -73,10 +72,10 @@ const { description, attachments, ...rowColumns } = ticketColumns;
 
 /**
  * The tickets `member` sees: their channels', or every channel's for one who manages them all,
- * under their statuses' and pipelines' rules (`ticketVisible`).
+ * but no one else's personal inbox, under their statuses' and pipelines' rules (`ticketVisible`).
  */
-export const seenBy = (member: PluginMember) =>
-  and(managesAll(member) ? undefined : isNotNull(channelMembers.userId), ticketVisible(member));
+export const ticketsSeenBy = (member: PluginMember) =>
+  and(seenBy(member, tickets.channelId), ticketVisible(member));
 
 /** Tickets' `columns` with what the caller may do and their SLA states. */
 const rowsOf = <Columns extends typeof rowColumns>(
@@ -101,10 +100,10 @@ const rowsOf = <Columns extends typeof rowColumns>(
     .$dynamic();
 };
 
-/** Tickets as `Ticket`. Callers narrow them with `seenBy`. */
+/** Tickets as `Ticket`. Callers narrow them with `ticketsSeenBy`. */
 const ticketRows = (tx: Tx, member: PluginMember) => rowsOf(tx, member, ticketColumns);
 
-/** Tickets as `TicketRow`, for lists. Callers narrow them with `seenBy`. */
+/** Tickets as `TicketRow`, for lists. Callers narrow them with `ticketsSeenBy`. */
 export const listRows = (tx: Tx, member: PluginMember) => rowsOf(tx, member, rowColumns);
 
 /** The tickets of `ids` as the caller sees them, oldest first. */
@@ -137,9 +136,11 @@ export const refine = {
 
 const UserIds = z.array(z.string()).max(100);
 
-/** One ticket `member` sees (`seenBy`), or NOT_FOUND. */
+/** One ticket `member` sees (`ticketsSeenBy`), or NOT_FOUND. */
 export const seenTicket = async (tx: Tx, member: PluginMember, id: string) => {
-  const [ticket] = await ticketRows(tx, member).where(and(eq(tickets.id, id), seenBy(member)));
+  const [ticket] = await ticketRows(tx, member).where(
+    and(eq(tickets.id, id), ticketsSeenBy(member)),
+  );
 
   if (!ticket) throw new ORPCError('NOT_FOUND', { message: 'No such ticket' });
 
@@ -147,7 +148,7 @@ export const seenTicket = async (tx: Tx, member: PluginMember, id: string) => {
 };
 
 /**
- * The tickets of `ids` the caller sees (`seenBy`), all of them or NOT_FOUND, oldest first, with
+ * The tickets of `ids` the caller sees (`ticketsSeenBy`), all of them or NOT_FOUND, oldest first, with
  * their channels held (`heldInChannels`). Their channels' members change them; with `remove`,
  * only the admins.
  */
@@ -165,7 +166,7 @@ export const ticketsFor = async (
       .select(ticketColumns)
       .from(tickets)
       .leftJoin(channelMembers, membership(member, tickets.channelId))
-      .where(and(inArray(tickets.id, ids), seenBy(member)))
+      .where(and(inArray(tickets.id, ids), ticketsSeenBy(member)))
       .orderBy(asc(tickets.createdAt), asc(tickets.id)),
     { change: remove, noun: 'ticket' },
   );

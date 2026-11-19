@@ -22,6 +22,7 @@ import { runAction } from '#/modules/inbox/automations.ts';
 import { webhookRoutes } from '#/modules/integrations/routes.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';
+import { timelineRoutes } from '#/modules/timelines.ts';
 import { transferRoutes } from '#/modules/transfer/routes.ts';
 import { router } from '#/router.ts';
 
@@ -240,6 +241,7 @@ export const createApp = () => {
 
   app.use('/api/automations', automationRoutes());
   app.use('/api/transfer', transferRoutes());
+  app.use('/api/timelines', timelineRoutes());
 
   if (config.uiDir) app.use('/ui', express.static(config.uiDir));
 

@@ -7,8 +7,7 @@ import type { Tx } from '#/db/client.ts';
 import { conversations } from '#/db/inbox.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { reads } from '#/orpc.ts';
-import { membership } from '../channels/access.ts';
-import { seenBy } from '../inbox/shared.ts';
+import { membership, seenBy } from '../channels/access.ts';
 import {
   averageSeconds,
   ChannelRangeInput,
@@ -203,7 +202,13 @@ export const callReport = reads(PERMISSIONS.callView)
         .from(calls)
         .innerJoin(conversations, eq(conversations.id, calls.conversationId))
         .leftJoin(channelMembers, membership(member, conversations.channelId))
-        .where(and(seenBy(member), inChannel(range), within(calls.startedAt, range))),
+        .where(
+          and(
+            seenBy(member, conversations.channelId),
+            inChannel(range),
+            within(calls.startedAt, range),
+          ),
+        ),
     );
 
     const [totals] = await tx

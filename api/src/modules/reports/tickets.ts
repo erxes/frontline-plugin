@@ -7,7 +7,7 @@ import { tags } from '#/db/tags.ts';
 import { pipelineStatuses, STATUS_TYPES, tickets } from '#/db/tickets.ts';
 import { reads } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
-import { firstResponseSla, resolutionSla, SLA_STATES, seenBy } from '../tickets/shared.ts';
+import { firstResponseSla, resolutionSla, SLA_STATES, ticketsSeenBy } from '../tickets/shared.ts';
 import {
   averageSeconds,
   Count,
@@ -132,7 +132,7 @@ export const ticketReport = reads(PERMISSIONS.channelView)
         .leftJoin(channelMembers, membership(member, tickets.channelId))
         .where(
           and(
-            seenBy(member),
+            ticketsSeenBy(member),
             range.pipelineId ? eq(tickets.pipelineId, range.pipelineId) : undefined,
           ),
         ),

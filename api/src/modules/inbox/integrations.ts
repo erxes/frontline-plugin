@@ -9,13 +9,12 @@ import { integrations } from '#/db/inbox.ts';
 import { publicKeys } from '#/db/public.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
-import { canChangeSql, channelFor, membership } from '../channels/access.ts';
+import { canChangeSql, channelFor, membership, seenBy } from '../channels/access.ts';
 import { Title } from '../fields.ts';
 import { integrationChanges } from '../messenger/adapter.ts';
 import { removeKeys } from '../public.ts';
 import { channelServing, INTEGRATION_KEY, insertIntegration } from './insertIntegration.ts';
 import { ADAPTERS } from './adapters.ts';
-import { seenBy } from './shared.ts';
 
 /** The row without `org_id`, which the caller already knows. */
 const { orgId, ...integrationColumns } = getTableColumns(integrations);
@@ -40,7 +39,7 @@ const integrationRows = (tx: Tx, member: PluginMember) =>
 
 export const integrationById = async (tx: Tx, member: PluginMember, id: string) => {
   const [row] = await integrationRows(tx, member).where(
-    and(eq(integrations.id, id), seenBy(member)),
+    and(eq(integrations.id, id), seenBy(member, integrations.channelId)),
   );
 
   if (!row) throw new ORPCError('NOT_FOUND', { message: 'No such integration' });
@@ -70,7 +69,7 @@ const list = reads(PERMISSIONS.channelView)
     integrationRows(tx, member)
       .where(
         and(
-          seenBy(member),
+          seenBy(member, integrations.channelId),
           input.channelId ? eq(integrations.channelId, input.channelId) : undefined,
         ),
       )

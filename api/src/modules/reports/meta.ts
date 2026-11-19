@@ -4,8 +4,7 @@ import { PERMISSIONS } from '#/core.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { reads } from '#/orpc.ts';
-import { membership } from '../channels/access.ts';
-import { seenBy } from '../inbox/shared.ts';
+import { membership, seenBy } from '../channels/access.ts';
 import { COMMENT_THREAD } from '../integrations/providers/metaWebhook.ts';
 import {
   ChannelRangeInput,
@@ -63,7 +62,7 @@ export const metaReport = reads(PERMISSIONS.inboxView)
       .leftJoin(channelMembers, membership(member, conversations.channelId))
       .where(
         and(
-          seenBy(member),
+          seenBy(member, conversations.channelId),
           inChannel(range),
           inArray(integrations.kind, ['facebook', 'instagram']),
         ),

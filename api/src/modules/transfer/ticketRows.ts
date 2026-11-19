@@ -10,10 +10,11 @@ import {
   tickets,
 } from '#/db/tickets.ts';
 import { membership } from '../channels/access.ts';
-import { seenBy } from '../tickets/shared.ts';
-import { listOf, refuse, type transferMember } from './shared.ts';
+import { ticketsSeenBy } from '../tickets/shared.ts';
+import type { askedMember } from '../channels/access.ts';
+import { listOf, refuse } from './shared.ts';
 
-type Member = ReturnType<typeof transferMember>;
+type Member = ReturnType<typeof askedMember>;
 
 type Row = Record<string, string>;
 
@@ -51,7 +52,7 @@ export const ticketOfRow = async (tx: Tx, member: Member, row: Row) => {
     .from(tickets)
     .innerJoin(pipelines, eq(pipelines.id, tickets.pipelineId))
     .leftJoin(channelMembers, membership(member, tickets.channelId))
-    .where(and(eq(tickets.id, row.id), seenBy(member)))
+    .where(and(eq(tickets.id, row.id), ticketsSeenBy(member)))
     .for('update', { of: tickets });
 
   return found;

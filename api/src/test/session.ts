@@ -1,12 +1,17 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { CORE_API_PREFIX } from '@erxes/core-contract';
 import { exportJWK, generateKeyPair, type JWTPayload, SignJWT } from 'jose';
 import { vi } from 'vite-plus/test';
 import { config, PLUGIN } from '#/config.ts';
 
+/** What core's tokens carry of the body they sign. */
+const sha = (body: string) => createHash('sha256').update(body).digest('base64url');
+
 /**
  * Stands in for core's signing key: core's JWKS address answers with a test key, and every
- * other fetch goes through. Returns signers of the tokens core would issue.
+ * other fetch goes through. Returns signers of the tokens core would issue: a member's session,
+ * the desktop app's access token, and a forwarded call, a transfer request or a timeline access
+ * check over its body.
  */
 export const fakeCoreSessions = async () => {
   const { privateKey, publicKey } = await generateKeyPair('ES256');
@@ -53,21 +58,12 @@ export const fakeCoreSessions = async () => {
       ),
     /** The token core adds to a signed-out call it forwards, over the call's body. */
     publicCall: async (orgId: string, body = '') =>
-      sign(
-        'erxes-core-public+jwt',
-        { org: orgId, public: 'test', sha: createHash('sha256').update(body).digest('base64url') },
-        'public:test',
-      ),
+      sign('erxes-core-public+jwt', { org: orgId, public: 'test', sha: sha(body) }, 'public:test'),
     /** Core's transfer request, signed over its body. */
     transfer: (body: string, { requestId, orgId }: { requestId: string; orgId: string }) =>
-      sign(
-        'erxes-core-transfer+jwt',
-        {
-          org: orgId,
-          transfer: requestId,
-          sha: createHash('sha256').update(body).digest('base64url'),
-        },
-        'core',
-      ),
+      sign('erxes-core-transfer+jwt', { org: orgId, transfer: requestId, sha: sha(body) }, 'core'),
+    /** Core's question whether a member sees a record, signed over its body. */
+    timelineAccess: (body: string, orgId: string) =>
+      sign('erxes-core-access+jwt', { org: orgId, access: randomUUID(), sha: sha(body) }, 'core'),
   };
 };

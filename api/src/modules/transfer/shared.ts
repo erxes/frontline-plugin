@@ -3,11 +3,9 @@ import type {
   PluginImportRequest,
   PluginImportResult,
 } from '@erxes/core-contract';
-import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { eq, lt, sql } from 'drizzle-orm';
 import type { z } from 'zod';
-import { PERMISSIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { transferRequests } from '#/db/schema.ts';
 import { inOrder } from '../integrations/provider.ts';
@@ -15,22 +13,6 @@ import { inOrder } from '../integrations/provider.ts';
 export type ImportRequest = z.infer<typeof PluginImportRequest>;
 
 export type RowResult = PluginImportResult['rows'][number];
-
-/**
- * The member core asks for. Core checked the transfer permission; it doesn't send the rest, so
- * they see and change what their channels hold, as a member without channel management does.
- */
-export const transferMember = (orgId: string, userId: string) =>
-  ({
-    userId,
-    orgId,
-    role: 'member',
-    permissions: [PERMISSIONS.channelView],
-    can: (action) => action === PERMISSIONS.channelView,
-    tier: null,
-    access: 'full',
-    canChange: () => true,
-  }) satisfies PluginMember;
 
 /** Rolls a check back once every row ran. */
 class DryRun extends Error {

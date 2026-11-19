@@ -1,6 +1,6 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, eq, getTableColumns, inArray, isNotNull, type SQL, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, inArray, type SQL, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { CONVERSATION_TIMELINE } from '#/core.ts';
@@ -8,7 +8,7 @@ import { PLUGIN } from '#/config.ts';
 import type { Tx } from '#/db/client.ts';
 import { conversations, conversationTags, integrations, messages } from '#/db/inbox.ts';
 import { channelMembers, channels } from '#/db/schema.ts';
-import { managesAll, membership } from '../channels/access.ts';
+import { membership, seenBy } from '../channels/access.ts';
 import { publishEvents } from '../events.ts';
 
 /** The row without `org_id`, which the caller already knows. */
@@ -58,10 +58,6 @@ export const Conversation = createSelectSchema(conversations)
     attachmentType: z.string().nullable(),
   });
 
-/** The conversations `member` sees: their channels', or every channel's for one who manages them all. */
-export const seenBy = (member: PluginMember) =>
-  managesAll(member) ? undefined : isNotNull(channelMembers.userId);
-
 /** Conversations as the caller sees them. Callers narrow them with `seenBy`. */
 export const conversationRows = (tx: Tx, member: PluginMember) => {
   const { readBy, ...columns } = conversationColumns;
@@ -86,7 +82,7 @@ export const conversationRows = (tx: Tx, member: PluginMember) => {
 /** One conversation as the caller sees it, or NOT_FOUND. */
 export const conversationById = async (tx: Tx, member: PluginMember, id: string) => {
   const [conversation] = await conversationRows(tx, member).where(
-    and(eq(conversations.id, id), seenBy(member)),
+    and(eq(conversations.id, id), seenBy(member, conversations.channelId)),
   );
 
   if (!conversation) throw new ORPCError('NOT_FOUND', { message: 'No such conversation' });
@@ -110,7 +106,7 @@ export const conversationsFor = async (tx: Tx, member: PluginMember, ids: string
     .select(conversationColumns)
     .from(conversations)
     .leftJoin(channelMembers, membership(member, conversations.channelId))
-    .where(and(inArray(conversations.id, ids), seenBy(member)))
+    .where(and(inArray(conversations.id, ids), seenBy(member, conversations.channelId)))
     .orderBy(conversations.id)
     .for('update', { of: conversations });
 

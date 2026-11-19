@@ -7,14 +7,14 @@ import { FormStep, forms } from '#/db/forms.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { Attachment } from '#/db/table.ts';
 import { reads, writes } from '#/orpc.ts';
-import { channelFor, membership } from '../channels/access.ts';
+import { channelFor, membership, seenBy } from '../channels/access.ts';
 import { assertTags } from '../tags/tags.ts';
 import { changedEvent } from '../events.ts';
 import { Blank, Color, LanguageCode, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
-import { Form, formById, formFor, formRows, newCode, publishFormEvents, seenBy } from './shared.ts';
+import { Form, formById, formFor, formRows, newCode, publishFormEvents } from './shared.ts';
 
 /** What the forms list's filter bar narrows by (`ui/src/modules/forms`). */
 const FORM_FILTER: FilterFields = {
@@ -43,7 +43,7 @@ const list = reads(PERMISSIONS.channelView)
   .output(z.object({ forms: z.array(Form), ...PageOutput }))
   .handler(async ({ input, context: { tx, member } }) => {
     const matches = and(
-      seenBy(member),
+      seenBy(member, forms.channelId),
       input.search
         ? or(ilike(forms.name, likeText(input.search)), ilike(forms.title, likeText(input.search)))
         : undefined,
