@@ -1,10 +1,7 @@
 import { useRef, useState } from 'preact/hooks';
 import type { Uploaded } from './http.ts';
 import { AttachIcon } from './icons.tsx';
-
-/** What went wrong, in words a visitor reads. */
-export const messageOf = (failure: unknown) =>
-  failure instanceof Error ? failure.message : 'Something went wrong';
+import { useText } from './text.ts';
 
 /**
  * Files the visitor attaches, each uploaded as they pick it, after the `initial` ones; a refused
@@ -14,6 +11,7 @@ export const useUploads = (upload: (file: File) => Promise<Uploaded>, initial: U
   const [files, setFiles] = useState(initial);
   const [uploading, setUploading] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const { messageOf } = useText();
 
   const attach = async (picked: FileList | null) => {
     setError(null);
@@ -45,6 +43,7 @@ export type Uploads = ReturnType<typeof useUploads>;
 /** The paper clip that opens the file picker. */
 export const AttachButton = ({ uploads }: { uploads: Uploads }) => {
   const picker = useRef<HTMLInputElement>(null);
+  const { t } = useText();
 
   return (
     <>
@@ -53,7 +52,7 @@ export const AttachButton = ({ uploads }: { uploads: Uploads }) => {
         type="file"
         multiple
         hidden
-        aria-label="Attach files"
+        aria-label={t('Attach files')}
         onChange={(event) => {
           void uploads.attach(event.currentTarget.files);
           event.currentTarget.value = '';
@@ -62,7 +61,7 @@ export const AttachButton = ({ uploads }: { uploads: Uploads }) => {
       <button
         type="button"
         class="fl-icon-button"
-        aria-label="Attach a file"
+        aria-label={t('Attach a file')}
         onClick={() => picker.current?.click()}
       >
         <AttachIcon />
@@ -72,29 +71,33 @@ export const AttachButton = ({ uploads }: { uploads: Uploads }) => {
 };
 
 /** The attached files by name, each with a button that takes it off, and why one was refused. */
-export const FileChips = ({ uploads }: { uploads: Uploads }) => (
-  <>
-    {uploads.error && (
-      <p class="fl-error" role="alert">
-        {uploads.error}
-      </p>
-    )}
-    {(uploads.files.length > 0 || uploads.uploading > 0) && (
-      <ul class="fl-chips" aria-label="Attached files">
-        {uploads.files.map((file) => (
-          <li key={file.url}>
-            {file.name}
-            <button
-              type="button"
-              aria-label={`Remove ${file.name}`}
-              onClick={() => uploads.remove(file)}
-            >
-              ×
-            </button>
-          </li>
-        ))}
-        {uploads.uploading > 0 && <li>Uploading…</li>}
-      </ul>
-    )}
-  </>
-);
+export const FileChips = ({ uploads }: { uploads: Uploads }) => {
+  const { t } = useText();
+
+  return (
+    <>
+      {uploads.error && (
+        <p class="fl-error" role="alert">
+          {uploads.error}
+        </p>
+      )}
+      {(uploads.files.length > 0 || uploads.uploading > 0) && (
+        <ul class="fl-chips" aria-label={t('Attached files')}>
+          {uploads.files.map((file) => (
+            <li key={file.url}>
+              {file.name}
+              <button
+                type="button"
+                aria-label={t('Remove {name}', { name: file.name })}
+                onClick={() => uploads.remove(file)}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+          {uploads.uploading > 0 && <li>{t('Uploading…')}</li>}
+        </ul>
+      )}
+    </>
+  );
+};

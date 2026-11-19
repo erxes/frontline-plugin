@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'preact/hooks';
 import type { MessengerApi, Settings } from './api.ts';
 import { Home } from './Home.tsx';
 import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
+import { languageOf, TextProvider, useTextIn } from '../shared/text.ts';
 import { Loading, Thread } from './Thread.tsx';
 import { useLazy } from './lazy.ts';
 import { type MessengerState, useMessenger } from './useMessenger.ts';
@@ -146,57 +147,64 @@ export const Shell = ({
     else if (shown === false) toggle.current?.focus();
   }, [shown]);
 
+  const text = useTextIn(languageOf(settings.language));
+
+  if (!text) return null;
+
+  const { t } = text;
   const launcher = hasLauncher(settings);
 
   return (
-    <div
-      class={`fl fl-hero-${settings.heroStyle}`}
-      lang={settings.language}
-      style={{
-        '--fl-color': settings.color,
-        '--fl-text': settings.textColor,
-        ...(settings.backgroundColor ? { '--fl-page': settings.backgroundColor } : {}),
-      }}
-    >
-      {shown !== null && (
-        <section
-          ref={panel}
-          class="fl-panel"
-          role="dialog"
-          aria-label={settings.name}
-          tabIndex={-1}
-          hidden={!open}
-        >
-          <button
-            type="button"
-            class="fl-icon-button fl-close"
-            aria-label="Close"
-            onClick={() => onOpen(false)}
+    <TextProvider value={text}>
+      <div
+        class={`fl fl-hero-${settings.heroStyle}`}
+        lang={settings.language}
+        style={{
+          '--fl-color': settings.color,
+          '--fl-text': settings.textColor,
+          ...(settings.backgroundColor ? { '--fl-page': settings.backgroundColor } : {}),
+        }}
+      >
+        {shown !== null && (
+          <section
+            ref={panel}
+            class="fl-panel"
+            role="dialog"
+            aria-label={settings.name}
+            tabIndex={-1}
+            hidden={!open}
           >
-            <CloseIcon />
+            <button
+              type="button"
+              class="fl-icon-button fl-close"
+              aria-label={t('Close')}
+              onClick={() => onOpen(false)}
+            >
+              <CloseIcon />
+            </button>
+            {children}
+          </section>
+        )}
+        {launcher && (
+          <button
+            ref={toggle}
+            type="button"
+            class="fl-launcher"
+            aria-label={t(open ? 'Close the messenger' : 'Open the messenger')}
+            aria-expanded={open}
+            onClick={() => onOpen(!open)}
+          >
+            {open ? (
+              <CloseIcon />
+            ) : settings.launcherLogo ? (
+              <img src={settings.launcherLogo} alt="" />
+            ) : (
+              <ChatIcon />
+            )}
+            {!open && unread > 0 && <span class="fl-badge">{unread}</span>}
           </button>
-          {children}
-        </section>
-      )}
-      {launcher && (
-        <button
-          ref={toggle}
-          type="button"
-          class="fl-launcher"
-          aria-label={open ? 'Close the messenger' : 'Open the messenger'}
-          aria-expanded={open}
-          onClick={() => onOpen(!open)}
-        >
-          {open ? (
-            <CloseIcon />
-          ) : settings.launcherLogo ? (
-            <img src={settings.launcherLogo} alt="" />
-          ) : (
-            <ChatIcon />
-          )}
-          {!open && unread > 0 && <span class="fl-badge">{unread}</span>}
-        </button>
-      )}
-    </div>
+        )}
+      </div>
+    </TextProvider>
   );
 };

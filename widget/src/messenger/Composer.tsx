@@ -2,7 +2,8 @@ import { useRef, useState } from 'preact/hooks';
 import type { Uploaded } from '../shared/http.ts';
 import type { Identity } from './api.ts';
 import { SendIcon } from '../shared/icons.tsx';
-import { AttachButton, FileChips, messageOf, useUploads } from '../shared/uploads.tsx';
+import { useText } from '../shared/text.ts';
+import { AttachButton, FileChips, useUploads } from '../shared/uploads.tsx';
 
 /** How often the team hears that the visitor is still typing. */
 const TYPING_EVERY_MS = 3000;
@@ -26,6 +27,7 @@ export const Composer = ({
   const uploads = useUploads(onUpload);
   const typedAt = useRef(0);
   const busy = sending || uploads.uploading > 0;
+  const { t, messageOf } = useText();
 
   const submit = async () => {
     const content = text.trim();
@@ -65,8 +67,8 @@ export const Composer = ({
         <textarea
           rows={1}
           value={text}
-          placeholder="Write a message…"
-          aria-label="Message"
+          placeholder={t('Write a message…')}
+          aria-label={t('Message')}
           onInput={(event) => {
             setText(event.currentTarget.value);
 
@@ -83,7 +85,7 @@ export const Composer = ({
           }}
         />
         <AttachButton uploads={uploads} />
-        <button type="submit" class="fl-icon-button fl-send" aria-label="Send" disabled={busy}>
+        <button type="submit" class="fl-icon-button fl-send" aria-label={t('Send')} disabled={busy}>
           <SendIcon />
         </button>
       </div>
@@ -97,6 +99,7 @@ export const Identify = ({ onSubmit }: { onSubmit: (identity: Identity) => Promi
   const [firstName, setFirstName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const { t, messageOf } = useText();
 
   return (
     <form
@@ -114,18 +117,18 @@ export const Identify = ({ onSubmit }: { onSubmit: (identity: Identity) => Promi
           .finally(() => setSaving(false));
       }}
     >
-      <p>Leave your email or phone number so we can get back to you.</p>
+      <p>{t('Leave your email or phone number so we can get back to you.')}</p>
       <input
         required
         value={contact}
-        aria-label="Email or phone"
-        placeholder="Email or phone"
+        aria-label={t('Email or phone')}
+        placeholder={t('Email or phone')}
         onInput={(event) => setContact(event.currentTarget.value)}
       />
       <input
         value={firstName}
-        aria-label="Your name"
-        placeholder="Your name (optional)"
+        aria-label={t('Your name')}
+        placeholder={t('Your name (optional)')}
         onInput={(event) => setFirstName(event.currentTarget.value)}
       />
       {error && (
@@ -134,7 +137,7 @@ export const Identify = ({ onSubmit }: { onSubmit: (identity: Identity) => Promi
         </p>
       )}
       <button type="submit" class="fl-primary" disabled={saving}>
-        Continue
+        {t('Continue')}
       </button>
     </form>
   );

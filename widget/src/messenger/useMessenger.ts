@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'preact/hooks';
+import { languageOf } from '../shared/text.ts';
 import type { Connected, Conversation, Identity, MessengerApi, Settings } from './api.ts';
 
 /** Where the browser keeps the visitor's token, one per messenger. */
@@ -40,10 +41,19 @@ export type Session = { token: string; identified: boolean };
 /**
  * The messenger as one visitor sees it. A returning visitor (one with a token) connects on load,
  * so their unread replies show; a new one connects when they open the messenger, so a page view
- * alone makes no customer. While connected, the stream says which conversation changed.
+ * alone makes no customer. While connected, the stream says which conversation changed. The
+ * website's `language`, when it names one, wins over the messenger's.
  */
-export const useMessenger = (api: MessengerApi) => {
-  const [settings, setSettings] = useState<Settings | null>(null);
+export const useMessenger = (api: MessengerApi, language: string | undefined) => {
+  const [settings, setAll] = useState<Settings | null>(null);
+
+  const setSettings = useCallback(
+    // A stored language that isn't a tag, such as '' or 'en_US', would break Intl's dates.
+    (messenger: Settings) =>
+      setAll({ ...messenger, language: languageOf(language, messenger.language) ?? 'en' }),
+    [language],
+  );
+
   const [session, setSession] = useState<Session | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [changed, setChanged] = useState<{ id: string; at: number } | null>(null);
@@ -59,7 +69,7 @@ export const useMessenger = (api: MessengerApi) => {
       setSession({ token: reply.token, identified: reply.identified });
       setConversations(reply.conversations);
     },
-    [api],
+    [api, setSettings],
   );
 
   const connect = useCallback(
@@ -75,7 +85,7 @@ export const useMessenger = (api: MessengerApi) => {
     load.catch((failure: unknown) =>
       setError(failure instanceof Error ? failure.message : String(failure)),
     );
-  }, [api, connect]);
+  }, [api, connect, setSettings]);
 
   const token = session?.token;
 

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'preact/hooks';
 import type { MessengerApi, NewTicket, Ticket, TicketForms } from '../api.ts';
 import type { Uploaded } from '../../shared/http.ts';
-import { AttachButton, FileChips, messageOf, useUploads } from '../../shared/uploads.tsx';
+import { AttachButton, FileChips, useUploads } from '../../shared/uploads.tsx';
+import { useText } from '../../shared/text.ts';
 import { PropertyField, toggled } from './PropertyField.tsx';
 
 /** The organisation's ticket tags, each a pill the visitor ticks. */
@@ -13,21 +14,25 @@ const TagPicker = ({
   tags: TicketForms['tags'];
   picked: string[];
   onChange: (ids: string[]) => void;
-}) => (
-  <fieldset class="fl-field fl-tags">
-    <legend>Tags</legend>
-    {tags.map((tag) => (
-      <label key={tag.id} class="fl-tag" style={{ '--fl-tag': tag.colorCode ?? undefined }}>
-        <input
-          type="checkbox"
-          checked={picked.includes(tag.id)}
-          onChange={(event) => onChange(toggled(picked, tag.id, event.currentTarget.checked))}
-        />
-        {tag.name}
-      </label>
-    ))}
-  </fieldset>
-);
+}) => {
+  const { t } = useText();
+
+  return (
+    <fieldset class="fl-field fl-tags">
+      <legend>{t('Tags')}</legend>
+      {tags.map((tag) => (
+        <label key={tag.id} class="fl-tag" style={{ '--fl-tag': tag.colorCode ?? undefined }}>
+          <input
+            type="checkbox"
+            checked={picked.includes(tag.id)}
+            onChange={(event) => onChange(toggled(picked, tag.id, event.currentTarget.checked))}
+          />
+          {tag.name}
+        </label>
+      ))}
+    </fieldset>
+  );
+};
 
 /** Which of the messenger's pipelines the ticket goes in, asked only when it offers several. */
 const TopicSelect = ({
@@ -38,18 +43,22 @@ const TopicSelect = ({
   forms: TicketForms;
   value: string;
   onChange: (id: string) => void;
-}) => (
-  <label class="fl-field">
-    <span>Topic</span>
-    <select value={value} onChange={(event) => onChange(event.currentTarget.value)}>
-      {forms.pipelines.map((pipeline) => (
-        <option key={pipeline.id} value={pipeline.id}>
-          {pipeline.name}
-        </option>
-      ))}
-    </select>
-  </label>
-);
+}) => {
+  const { t } = useText();
+
+  return (
+    <label class="fl-field">
+      <span>{t('Topic')}</span>
+      <select value={value} onChange={(event) => onChange(event.currentTarget.value)}>
+        {forms.pipelines.map((pipeline) => (
+          <option key={pipeline.id} value={pipeline.id}>
+            {pipeline.name}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+};
 
 type Draft = Omit<NewTicket, 'files'>;
 
@@ -80,6 +89,7 @@ const useDraft = (api: MessengerApi, token: string, forms: TicketForms) => {
 
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const { messageOf } = useText();
   const uploads = useUploads((file) => api.upload(token, file), kept?.files);
   const form = forms.pipelines.find((pipeline) => pipeline.id === draft.pipelineId);
   const patch = (change: Partial<Draft>) => setDraft((current) => ({ ...current, ...change }));
@@ -137,6 +147,7 @@ export const TicketForm = ({
   onFiled: (ticket: Ticket) => void;
 }) => {
   const { draft, patch, form, uploads, error, saving, send } = useDraft(api, token, forms);
+  const { t } = useText();
 
   const submit = async () => {
     const ticket = await send();
@@ -160,7 +171,7 @@ export const TicketForm = ({
         />
       )}
       <label class="fl-field">
-        <span>Subject *</span>
+        <span>{t('Subject')} *</span>
         <input
           required
           value={draft.name}
@@ -168,7 +179,7 @@ export const TicketForm = ({
         />
       </label>
       <label class="fl-field">
-        <span>What happened</span>
+        <span>{t('What happened')}</span>
         <textarea
           rows={4}
           value={draft.description}
@@ -201,7 +212,7 @@ export const TicketForm = ({
       <div class="fl-actions">
         <AttachButton uploads={uploads} />
         <button type="submit" class="fl-primary" disabled={saving || uploads.uploading > 0}>
-          {saving ? 'Sending…' : 'Send ticket'}
+          {t(saving ? 'Sending…' : 'Send ticket')}
         </button>
       </div>
     </form>

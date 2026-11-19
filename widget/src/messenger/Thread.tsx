@@ -4,6 +4,7 @@ import type { Attachment, Message, MessengerApi, Settings } from './api.ts';
 import { Composer, Identify } from './Composer.tsx';
 import { statusOf, timeOf } from './hours.ts';
 import { BackIcon, FileIcon } from '../shared/icons.tsx';
+import { useText } from '../shared/text.ts';
 import type { MessengerState } from './useMessenger.ts';
 import { useLazy } from './lazy.ts';
 import { useNewestInView, useThread } from './useThread.ts';
@@ -50,15 +51,19 @@ const Bubble = ({
   message: Message;
   language: string;
   urlOf: (url: string) => string;
-}) => (
-  <div class={message.fromVisitor ? 'fl-message fl-mine' : 'fl-message'}>
-    <div class="fl-bubble">
-      {message.content}
-      {message.attachments.length > 0 && <Files files={message.attachments} urlOf={urlOf} />}
+}) => {
+  const { t } = useText();
+
+  return (
+    <div class={message.fromVisitor ? 'fl-message fl-mine' : 'fl-message'}>
+      <div class="fl-bubble">
+        {message.content}
+        {message.attachments.length > 0 && <Files files={message.attachments} urlOf={urlOf} />}
+      </div>
+      <time dateTime={message.createdAt}>{timeOf(message.createdAt, language, t)}</time>
     </div>
-    <time dateTime={message.createdAt}>{timeOf(message.createdAt, language)}</time>
-  </div>
-);
+  );
+};
 
 /** The conversation's messages; a survey shows as the visitor's ballot, from a chunk of its own. */
 const Messages = ({
@@ -91,26 +96,34 @@ const Messages = ({
 };
 
 /** The bar over a page of the panel: back to the start, and the messenger's name and status. */
-export const Bar = ({ settings, onBack }: { settings: Settings; onBack: () => void }) => (
-  <header class="fl-bar">
-    <button type="button" class="fl-icon-button" aria-label="Back" onClick={onBack}>
-      <BackIcon />
-    </button>
-    <div>
-      <strong>{settings.name}</strong>
-      <span class={settings.isOnline ? 'fl-status fl-online' : 'fl-status'}>
-        {statusOf(settings)}
-      </span>
-    </div>
-  </header>
-);
+export const Bar = ({ settings, onBack }: { settings: Settings; onBack: () => void }) => {
+  const { t } = useText();
+
+  return (
+    <header class="fl-bar">
+      <button type="button" class="fl-icon-button" aria-label={t('Back')} onClick={onBack}>
+        <BackIcon />
+      </button>
+      <div>
+        <strong>{settings.name}</strong>
+        <span class={settings.isOnline ? 'fl-status fl-online' : 'fl-status'}>
+          {statusOf(settings, t)}
+        </span>
+      </div>
+    </header>
+  );
+};
 
 /** In place of a page or list that is still on its way. */
-export const Loading = () => (
-  <p class="fl-loading" role="status">
-    Loading…
-  </p>
-);
+export const Loading = () => {
+  const { t } = useText();
+
+  return (
+    <p class="fl-loading" role="status">
+      {t('Loading…')}
+    </p>
+  );
+};
 
 /** The bot's menu: a link opens, anything else is sent as the visitor's message. */
 export const BotMenu = ({
@@ -156,6 +169,7 @@ export const Thread = ({
   onBack: () => void;
 }) => {
   const { settings, typing, refresh } = messenger;
+  const { t } = useText();
 
   const { token, conversation, messages, hasEarlier, loadEarlier, send } = useThread(
     api,
@@ -180,7 +194,7 @@ export const Thread = ({
         <div ref={content} class="fl-messages" aria-live="polite">
           {hasEarlier && (
             <button type="button" class="fl-link" onClick={() => void loadEarlier()}>
-              Earlier messages
+              {t('Earlier messages')}
             </button>
           )}
           {/* The settings page's preview draws a new conversation in this order too: `NewConversation`. */}
@@ -194,14 +208,14 @@ export const Thread = ({
               class="fl-link"
               onClick={() => void api.askForPerson(token, conversationId).then(refresh)}
             >
-              Talk to a person
+              {t('Talk to a person')}
             </button>
           )}
           {!settings.isOnline && settings.away && <TeamNote>{settings.away}</TeamNote>}
           {resolved && settings.thank && <TeamNote>{settings.thank}</TeamNote>}
           {conversationId && typing === conversationId && (
             <p class="fl-typing" role="status">
-              Typing…
+              {t('Typing…')}
             </p>
           )}
         </div>
@@ -240,6 +254,8 @@ const Footer = ({
   onSend: (content: string, files: Uploaded[]) => Promise<void>;
   onBack: () => void;
 }) => {
+  const { t } = useText();
+
   if (settings?.requireAuth && !session?.identified) return <Identify onSubmit={connect} />;
 
   if (resolved && settings?.forceLogoutWhenResolve)
@@ -253,7 +269,7 @@ const Footer = ({
             onBack();
           }}
         >
-          Start a new conversation
+          {t('Start a new conversation')}
         </button>
       </div>
     );

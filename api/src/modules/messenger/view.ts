@@ -2,7 +2,15 @@
 // widget's settings preview draws it from a member's unsaved settings.
 import type { MessengerConfig } from './adapter.ts';
 
-const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+const WEEKDAYS = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+] as const;
 
 /** The days an online-hours row covers: one weekday, every day, Monday to Friday or the weekend. */
 export const HOURS_DAYS = [...WEEKDAYS, 'everyday', 'weekdays', 'weekend'] as const;
@@ -36,7 +44,8 @@ export const isOnlineAt = (config: MessengerConfig, now: Date) => {
   if (config.availability === 'manual') return config.isOnline;
 
   const { day, time } = clockAt(now, config.timezone ?? 'UTC');
-  const yesterday = WEEKDAYS[(WEEKDAYS.indexOf(day) + 6) % 7] ?? day;
+  const today = WEEKDAYS.findIndex((weekday) => weekday === day);
+  const yesterday = WEEKDAYS[(today + 6) % 7] ?? day;
 
   return config.onlineHours.some(({ day: days, from, to }) =>
     from < to

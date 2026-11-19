@@ -1,6 +1,6 @@
 import { isShown } from '@frontline/api/logic';
 import { useCallback, useState } from 'preact/hooks';
-import { messageOf } from '../shared/uploads.tsx';
+import { useText } from '../shared/text.ts';
 import type { Answer, Field, FormApi, VisitorForm } from './api.ts';
 import { FieldRow, searches } from './Field.tsx';
 
@@ -38,6 +38,7 @@ const useAnswers = (api: FormApi, fields: Field[], onSent: (submissionId: string
   const [step, setStep] = useState(1);
   const [sending, setSending] = useState(false);
   const [failure, setFailure] = useState<string | null>(null);
+  const { messageOf } = useText();
   const steps = Math.max(1, ...fields.map((field) => field.pageNumber));
   const shown = fields.filter((field) => field.pageNumber === step && isShown(field, answers));
 
