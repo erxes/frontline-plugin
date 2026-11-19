@@ -4,7 +4,7 @@ import { Sidebar, Skeleton } from 'erxes-ui';
 export const NavSkeleton = () => (
   <Sidebar.Group variant="compact" aria-hidden>
     <div className="flex flex-col gap-2 px-2 py-1">
-      <Skeleton className="h-4 w-20" />
+      <Skeleton className="h-4 w-24" />
       <Skeleton className="h-4 w-32" />
       <Skeleton className="h-4 w-36" />
       <Skeleton className="h-4 w-28" />
