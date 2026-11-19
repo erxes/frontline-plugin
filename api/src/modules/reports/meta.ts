@@ -1,20 +1,14 @@
-import { and, count, eq, inArray, sql } from 'drizzle-orm';
+import { and, count, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { channelMembers } from '#/db/schema.ts';
+import { compileFilter } from '@erxes/plugin-sdk/filter';
 import { reads } from '#/orpc.ts';
 import { membership, seenBy } from '../channels/access.ts';
+import { conversationFilter } from '../inbox/conversations.ts';
 import { COMMENT_THREAD } from '../integrations/providers/metaWebhook.ts';
-import {
-  ChannelRangeInput,
-  Count,
-  countWhere,
-  dayOf,
-  everyDay,
-  inChannel,
-  within,
-} from './shared.ts';
+import { Count, countWhere, dayOf, everyDay, ReportInput, TOP, within } from './shared.ts';
 
 const MetaReport = z.object({
   /** Messenger and Instagram direct conversations that started in the period. */
@@ -28,6 +22,18 @@ const MetaReport = z.object({
   /** Comments and replies under posts in the period, and the posts they were on. */
   comments: Count,
   posts: Count,
+  /** The posts with the most comments in the period, and a thread under each to read it by. */
+  topPosts: z.array(
+    z.object({
+      postId: z.string(),
+      conversationId: z.string(),
+      /** What customers wrote under it, and what members replied. */
+      comments: Count,
+      replies: Count,
+      commenters: Count,
+      lastActivityAt: z.date(),
+    }),
+  ),
   days: z.array(
     z.object({ day: z.string(), conversations: Count, messages: Count, comments: Count }),
   ),
@@ -47,12 +53,13 @@ const sum = <Row>(rows: Row[], pick: (row: Row) => number) =>
   rows.reduce((total, row) => total + pick(row), 0);
 
 /**
- * The Facebook pages' and Instagram accounts' activity in the member's channels over a period:
+ * The Facebook pages' and Instagram accounts' activity in the member's channels the card's filter
+ * keeps, over a period:
  * direct conversations and who wrote their messages, how many the bot wrote in, and the
  * comments under posts, in total and by day.
  */
 export const metaReport = reads(PERMISSIONS.inboxView)
-  .input(ChannelRangeInput)
+  .input(ReportInput)
   .output(MetaReport)
   .handler(async ({ input: range, context: { tx, member } }) => {
     const theirs = tx
@@ -63,7 +70,7 @@ export const metaReport = reads(PERMISSIONS.inboxView)
       .where(
         and(
           seenBy(member, conversations.channelId),
-          inChannel(range),
+          compileFilter(conversationFilter(member), range.filter, { me: member.userId }),
           inArray(integrations.kind, ['facebook', 'instagram']),
         ),
       );
@@ -107,6 +114,22 @@ export const metaReport = reads(PERMISSIONS.inboxView)
       .innerJoin(conversations, eq(conversations.id, messages.conversationId))
       .where(and(written, commentThread));
 
+    const topPosts = await tx
+      .select({
+        postId: sql<string>`${postOf}`,
+        conversationId: sql<string>`min(${conversations.id})`,
+        comments: countWhere(sql`${messages.customerId} is not null`),
+        replies: countWhere(sql`${messages.userId} is not null`),
+        commenters: sql<number>`count(distinct ${messages.customerId})`.mapWith(Number),
+        lastActivityAt: sql<Date>`max(${messages.createdAt})`.mapWith(messages.createdAt),
+      })
+      .from(messages)
+      .innerJoin(conversations, eq(conversations.id, messages.conversationId))
+      .where(and(written, commentThread))
+      .groupBy(sql`1`)
+      .orderBy(desc(count()), sql`1`)
+      .limit(TOP);
+
     const openedOn = new Map(opened.map((row) => [row.day, row]));
     const wroteOn = new Map(wrote.map((row) => [row.day, row]));
 
@@ -118,6 +141,7 @@ export const metaReport = reads(PERMISSIONS.inboxView)
       bot: sum(wrote, (row) => row.bot),
       comments: sum(wrote, (row) => row.comments),
       posts: commented?.posts ?? 0,
+      topPosts,
       days: everyDay(range).map((day) => ({
         day,
         conversations: openedOn.get(day)?.conversations ?? 0,

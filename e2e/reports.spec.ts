@@ -2,7 +2,9 @@ import { z } from 'zod';
 import {
   addTiles,
   callProLine,
+  confirmDelete,
   expect,
+  expectPage,
   Id,
   messengerIn,
   pick,
@@ -64,17 +66,34 @@ test('call, ticket and conversation tiles on the home dashboard count the period
   ).toBeVisible();
   await expect(tileOf(page, 'Ticket summary')).toBeVisible();
 
-  // The sidebar's Reports page lays out every tile by what it counts, with the same numbers.
+  // The sidebar's Reports group opens the overview: its headline numbers, then a card per report.
   await page.goto('/frontline/inbox');
-  await page.getByRole('link', { name: 'Reports' }).click();
+  await page.getByRole('link', { name: 'Overview', exact: true }).click();
+  await expectPage(page, 'Overview');
+  await expect(page.getByRole('region', { name: 'Summary' })).toContainText('Unresolved now');
+  await expect(tileOf(page, 'Conversations started')).toBeVisible();
 
-  for (const group of ['Tickets', 'Conversations', 'Facebook and Instagram', 'Calls'])
-    await expect(page.getByRole('heading', { level: 2, name: group, exact: true })).toBeVisible();
-
-  await expect(page.getByRole('heading', { level: 3 })).toHaveCount(20);
+  // The call page counts the same calls, and lists them.
+  await page.goto('/frontline/reports/call');
+  await expectPage(page, 'Calls');
+  await expect(page.getByRole('region', { name: 'Summary' })).toContainText('Service level');
   await expect(
     tileOf(page, 'Top numbers').getByRole('row').filter({ hasText: caller }).getByRole('cell'),
   ).toHaveText([caller, '3', '2', '1']);
+  // The missed call was never called back, so it is a breach, and the reason it was missed shows.
+  await expect(
+    tileOf(page, 'Calls nobody served').getByRole('row').filter({ hasText: caller }),
+  ).toHaveCount(1);
+  await expect(tileOf(page, 'Why calls were missed')).toBeVisible();
+  await expect(
+    page.getByRole('region', { name: 'Calls', exact: true }).getByRole('row').filter({
+      hasText: caller,
+    }),
+  ).toHaveCount(3);
+
+  await page.goto('/frontline/reports/facebook');
+  await expectPage(page, 'Facebook and Instagram');
+  await expect(page.getByRole('region', { name: 'Summary' })).toContainText('Direct conversations');
 });
 
 test('a ticket tile number opens the tickets it counts', async ({ page, api, request }) => {
@@ -215,5 +234,74 @@ test('a member without the call permission sees the refusal in the call tile', a
 
   await expect(tileOf(page, 'Call summary').getByRole('alert')).toHaveText(
     'You need the frontline.call.view permission',
+  );
+});
+
+test('a ticket report card changes its chart, downloads, lists its tickets and saves as a chart for everyone', async ({
+  page,
+  api,
+  request,
+}) => {
+  const rpc = await pluginApi(api, request);
+  const channel = await rpc('channels/create', { name: `Charted ${unique()}` }, Id);
+
+  const { id: pipelineId } = await rpc(
+    'pipelines/create',
+    { channelId: channel.id, name: `Charted ${unique()}` },
+    Id,
+  );
+
+  const name = `Charted ${unique()}`;
+  const ticket = await rpc('tickets/create', { pipelineId, name }, Id);
+
+  await page.goto('/frontline/reports/ticket');
+  await expectPage(page, 'Tickets');
+  await expect(page.getByRole('region', { name: 'Summary' })).toContainText('Overdue now');
+
+  // The list card names the period's tickets, and its first cell opens one in the side panel.
+  const list = page.getByRole('region', { name: 'Tickets', exact: true });
+
+  await list.getByRole('button', { name, exact: true }).click();
+  await expect(page).toHaveURL(new RegExp(ticket.id));
+  await page.keyboard.press('Escape');
+
+  // A card draws as another chart, and downloads its numbers.
+  const cards = page.getByRole('region', { name: 'Tickets by priority', exact: true });
+
+  await pick(page, cards.getByRole('combobox', { name: 'Chart type' }), 'Table');
+  await expect(cards.getByRole('table')).toBeVisible();
+
+  const download = page.waitForEvent('download');
+
+  await cards.getByRole('button', { name: 'Download', exact: true }).click();
+  await page.getByRole('option', { name: 'Download CSV' }).click();
+  expect((await download).suggestedFilename()).toBe('Tickets by priority.csv');
+
+  // Saved, it is a second card that outlives a reload, until a member removes it.
+  await cards.getByRole('button', { name: 'Tickets by priority actions' }).click();
+  await page.getByRole('option', { name: 'Save as a chart' }).click();
+  await expect(cards).toHaveCount(2);
+
+  await page.reload();
+  await expect(cards).toHaveCount(2);
+  await expect(cards.last().getByRole('table')).toBeVisible();
+
+  await cards.last().getByRole('button', { name: 'Tickets by priority actions' }).click();
+  await page.getByRole('option', { name: 'Remove chart' }).click();
+  await confirmDelete(page);
+  await expect(cards).toHaveCount(1);
+});
+
+test('a member without the permissions is refused each report card', async ({ newMember }) => {
+  const { page } = await newMember(['team.view']);
+
+  await page.goto('/frontline/reports/call');
+  await expect(tileOf(page, 'Top numbers').getByRole('alert')).toHaveText(
+    'You need the frontline.call.view permission',
+  );
+
+  await page.goto('/frontline/reports/ticket');
+  await expect(tileOf(page, 'Tickets by priority').getByRole('alert')).toContainText(
+    'You need the frontline.channel.view permission',
   );
 });

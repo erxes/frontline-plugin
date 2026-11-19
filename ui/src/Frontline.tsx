@@ -272,7 +272,13 @@ export const Frontline = () => (
           <Route path=":id" element={<RecordRoute contentType={SURVEY_TYPE} />} />
           <Route path=":id/builder" element={<SurveyBuilderPage />} />
         </Route>
-        <Route path="reports" element={<ReportsPage />} />
+        <Route path="reports">
+          <Route index element={<ReportsPage section="conversations" />} />
+          <Route path="ticket" element={<ReportsPage section="tickets" />} />
+          <Route path="facebook" element={<ReportsPage section="meta" />} />
+          <Route path="call" element={<ReportsPage section="calls" />} />
+          <Route path="*" element={<Navigate to={`/${PLUGIN}/reports`} replace />} />
+        </Route>
         <Route path="personal-channel" element={<PersonalChannel />} />
         <Route path="calls">
           <Route index element={<Navigate to="history" replace />} />

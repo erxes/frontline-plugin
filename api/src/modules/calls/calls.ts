@@ -50,8 +50,12 @@ const callRows = (tx: Tx, member: PluginMember) =>
     .leftJoin(channelMembers, membership(member, conversations.channelId))
     .$dynamic();
 
-/** The `subject.<field>` paths the call list's filter bar names. */
-const CALL_FILTER: FilterFields = {
+/**
+ * The `subject.<field>` paths the call list's filter bar names, and a report card's. The query
+ * joins the call's conversation.
+ */
+export const CALL_FILTER: FilterFields = {
+  'subject.channelId': { type: 'select', expr: conversations.channelId },
   'subject.status': { type: 'select', expr: calls.status },
   'subject.direction': { type: 'select', expr: calls.direction },
   'subject.customerPhone': { type: 'text', expr: calls.customerPhone },

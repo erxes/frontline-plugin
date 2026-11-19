@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query';
 import type { TConditionGroup } from 'erxes-ui';
 import { between, ticketsPath } from '~/shared/listPath.ts';
 import { choicesQuery } from '~/shared/reference.ts';
-import type { useTicketReport } from './queries.ts';
 
 type Entry = TConditionGroup['rules'][number];
 
@@ -13,14 +12,14 @@ const RESOLVED = 4;
 const ANY_STATE: Entry = { path: 'subject.state', op: 'in', value: ['active', 'archived'] };
 
 /**
- * Where a ticket tile's numbers lead: the tickets list in the tile's pipeline, narrowed to what
+ * Where a ticket tile's numbers lead, over `range` in the pipeline `picked`, or the only one: the tickets list in the tile's pipeline, narrowed to what
  * the number counts, by whole days. Nothing links while a tile counts several pipelines, since
  * the list shows one at a time.
  */
-export const useTicketLinks = ({ period, pick }: ReturnType<typeof useTicketReport>) => {
+export const useTicketLinks = (range: { from: Date; to: Date }, picked: string | null) => {
   const choices = useQuery(choicesQuery).data;
   const pipelines = choices?.pipelines ?? [];
-  const pipelineId = pick.id ?? (pipelines.length === 1 ? pipelines[0]?.id : null);
+  const pipelineId = picked ?? (pipelines.length === 1 ? pipelines[0]?.id : null);
 
   const openIds = (choices?.statuses ?? [])
     .filter((status) => status.pipelineId === pipelineId && status.type < RESOLVED)
@@ -31,9 +30,8 @@ export const useTicketLinks = ({ period, pick }: ReturnType<typeof useTicketRepo
 
   return {
     /** The period's new tickets, narrowed further by `rules`. */
-    created: (...rules: Entry[]) =>
-      to(ANY_STATE, ...between('subject.createdAt', period.range), ...rules),
-    resolved: () => to(ANY_STATE, ...between('subject.resolvedAt', period.range)),
+    created: (...rules: Entry[]) => to(ANY_STATE, ...between('subject.createdAt', range), ...rules),
+    resolved: () => to(ANY_STATE, ...between('subject.resolvedAt', range)),
     /** The tickets open now, narrowed further by `rules`. */
     open: (...rules: Entry[]) => (openIds.length ? to(open, ...rules) : undefined),
   };

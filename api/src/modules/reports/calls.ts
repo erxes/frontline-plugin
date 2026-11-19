@@ -1,22 +1,23 @@
-import { and, count, desc, eq, gte, inArray, isNotNull, lte, type SQL, sql } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/pg-core';
+import { and, count, desc, eq, inArray, isNotNull, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { calls } from '#/db/calls.ts';
 import type { Tx } from '#/db/client.ts';
 import { conversations } from '#/db/inbox.ts';
 import { channelMembers } from '#/db/schema.ts';
+import { compileFilter } from '@erxes/plugin-sdk/filter';
 import { reads } from '#/orpc.ts';
+import { CALL_FILTER } from '../calls/calls.ts';
 import { membership, seenBy } from '../channels/access.ts';
+import { CallService, incoming, missed, offered, serviceOf } from './callService.ts';
 import {
   averageSeconds,
-  ChannelRangeInput,
   Count,
   countWhere,
   dayOf,
   everyDay,
-  inChannel,
   type Range,
+  ReportInput,
   secondsBetween,
   TOP,
   within,
@@ -25,107 +26,74 @@ import {
 /** An incoming call answered within this many seconds meets the service level. */
 const SERVICE_LEVEL_SECONDS = 20;
 
-const CallReport = z.object({
-  /** Calls that started in the period. */
-  total: Count,
-  incoming: Count,
-  outgoing: Count,
-  answered: Count,
-  /** Incoming calls that ended unanswered: missed, busy, failed or sent to voicemail. */
-  missed: Count,
-  /** From ringing to answer, over the period's answered incoming calls. */
-  waitSeconds: z.number().nullable(),
-  /** The talk time of the period's answered calls. */
-  talkSeconds: z.number().nullable(),
-  /** The share of ended incoming calls answered within `serviceLevelSeconds`, or null with none. */
-  serviceLevel: z.number().nullable(),
-  serviceLevelSeconds: Count,
-  days: z.array(
-    z.object({ day: z.string(), incoming: Count, outgoing: Count, answered: Count, missed: Count }),
-  ),
-  /** Calls by weekday, 1 Monday to 7 Sunday, and hour in the member's time zone. */
-  hours: z.array(
-    z.object({ weekday: z.number().int(), hour: z.number().int(), total: Count, answered: Count }),
-  ),
-  /** The members who answered the most calls, with their talk time. */
-  agents: z.array(z.object({ userId: z.string(), answered: Count, talkSeconds: Count })),
-  /** The numbers that called or were called the most. */
-  numbers: z.array(
-    z.object({ customerPhone: z.string(), total: Count, answered: Count, missed: Count }),
-  ),
-  /** The busiest PBX queues, by their incoming calls. */
-  queues: z.array(
-    z.object({
-      queue: z.string(),
-      total: Count,
-      answered: Count,
-      missed: Count,
-      waitSeconds: z.number().nullable(),
-      talkSeconds: z.number().nullable(),
-    }),
-  ),
-  /** Missed calls the organisation called back within `callbackHours`, and how soon. */
-  calledBack: Count,
-  /** Called back and answered. */
-  reached: Count,
-  callbackSeconds: z.number().nullable(),
-  callbackHours: Count,
-});
+const CallReport = z
+  .object({
+    /** Calls that started in the period. */
+    total: Count,
+    incoming: Count,
+    outgoing: Count,
+    answered: Count,
+    /** Incoming calls an agent answered. */
+    answeredIncoming: Count,
+    /** Incoming calls that ended unanswered: missed, busy, failed or sent to voicemail. */
+    missed: Count,
+    /** From ringing to answer, over the period's answered incoming calls. */
+    waitSeconds: z.number().nullable(),
+    /** The talk time of the period's answered calls. */
+    talkSeconds: z.number().nullable(),
+    /** The share of ended incoming calls answered within `serviceLevelSeconds`, or null with none. */
+    serviceLevel: z.number().nullable(),
+    serviceLevelSeconds: Count,
+    days: z.array(
+      z.object({
+        day: z.string(),
+        incoming: Count,
+        outgoing: Count,
+        answered: Count,
+        missed: Count,
+      }),
+    ),
+    /** Calls by weekday, 1 Monday to 7 Sunday, and hour in the member's time zone. */
+    hours: z.array(
+      z.object({
+        weekday: z.number().int(),
+        hour: z.number().int(),
+        total: Count,
+        answered: Count,
+      }),
+    ),
+    /** The members who answered the most calls, with their talk time. */
+    agents: z.array(
+      z.object({
+        userId: z.string(),
+        answered: Count,
+        talkSeconds: Count,
+        /** The shortest and longest of their answered calls. */
+        shortestSeconds: Count,
+        longestSeconds: Count,
+      }),
+    ),
+    /** The numbers that called or were called the most. */
+    numbers: z.array(
+      z.object({ customerPhone: z.string(), total: Count, answered: Count, missed: Count }),
+    ),
+    /** The busiest PBX queues, by their incoming calls. */
+    queues: z.array(
+      z.object({
+        queue: z.string(),
+        total: Count,
+        answered: Count,
+        missed: Count,
+        waitSeconds: z.number().nullable(),
+        talkSeconds: z.number().nullable(),
+      }),
+    ),
+  })
+  .and(CallService);
 
-const UNANSWERED = ['missed', 'busy', 'failed', 'voicemail'] as const;
-
-/** A missed call counts as called back by an outgoing call to its number within this many hours. */
-const CALLBACK_HOURS = 24;
-
-const incoming = eq(calls.direction, 'incoming');
 const outgoing = eq(calls.direction, 'outgoing');
 const answered = eq(calls.status, 'answered');
-const missed = and(incoming, inArray(calls.status, UNANSWERED));
-const offered = and(incoming, inArray(calls.status, ['answered', ...UNANSWERED]));
 const waited = secondsBetween(calls.startedAt, calls.answeredAt);
-
-/**
- * Of the missed calls `theirs` picks, those an outgoing call on the same PBX reached back within
- * `CALLBACK_HOURS` of their end, those it got an answer from, and the average time to the first.
- */
-const callbacks = async (tx: Tx, theirs: SQL) => {
-  const callback = alias(calls, 'callback');
-  const missedAt = sql`coalesce(${calls.endedAt}, ${calls.startedAt})`;
-
-  const attempts = tx
-    .select({
-      first: sql<Date | null>`min(${callback.startedAt})`.as('first'),
-      reached: sql<boolean | null>`bool_or(${callback.status} = 'answered')`.as('reached'),
-    })
-    .from(callback)
-    .where(
-      and(
-        eq(callback.accountId, calls.accountId),
-        eq(callback.customerPhone, calls.customerPhone),
-        eq(callback.direction, 'outgoing'),
-        gte(callback.startedAt, missedAt),
-        lte(callback.startedAt, sql`${missedAt} + make_interval(hours => ${CALLBACK_HOURS})`),
-      ),
-    )
-    .as('attempts');
-
-  const [row] = await tx
-    .select({
-      calledBack: sql<number>`count(${attempts.first})`.mapWith(Number),
-      reached: countWhere(sql`${attempts.reached}`),
-      callbackSeconds: averageSeconds(sql`extract(epoch from ${attempts.first} - ${missedAt})`),
-    })
-    .from(calls)
-    .leftJoinLateral(attempts, sql`true`)
-    .where(and(theirs, missed));
-
-  return {
-    calledBack: row?.calledBack ?? 0,
-    reached: row?.reached ?? 0,
-    callbackSeconds: row?.callbackSeconds ?? null,
-    callbackHours: CALLBACK_HOURS,
-  };
-};
 
 /** The calls `theirs` picks by weekday and hour, and their busiest agents, numbers and queues. */
 const breakdowns = async (tx: Tx, theirs: SQL, range: Range) => {
@@ -148,6 +116,8 @@ const breakdowns = async (tx: Tx, theirs: SQL, range: Range) => {
       userId: sql<string>`${calls.answeredBy}`,
       answered: count(),
       talkSeconds: sql<number>`coalesce(sum(${calls.durationSec}), 0)::int`,
+      shortestSeconds: sql<number>`coalesce(min(${calls.durationSec}), 0)::int`,
+      longestSeconds: sql<number>`coalesce(max(${calls.durationSec}), 0)::int`,
     })
     .from(calls)
     .where(and(theirs, answered, isNotNull(calls.answeredBy)))
@@ -187,11 +157,11 @@ const breakdowns = async (tx: Tx, theirs: SQL, range: Range) => {
 };
 
 /**
- * The calls of the member's channels, or of one of them, over a period: volume, answers, waits
+ * The calls of the member's channels the card's filter keeps, over a period: volume, answers, waits
  * and talk time, by day and by hour of the week, and the busiest agents and numbers.
  */
 export const callReport = reads(PERMISSIONS.callView)
-  .input(ChannelRangeInput)
+  .input(ReportInput)
   .output(CallReport)
   .handler(async ({ input: range, context: { tx, member } }) => {
     /** The member's calls in the period. */
@@ -205,7 +175,7 @@ export const callReport = reads(PERMISSIONS.callView)
         .where(
           and(
             seenBy(member, conversations.channelId),
-            inChannel(range),
+            compileFilter(CALL_FILTER, range.filter, { me: member.userId }),
             within(calls.startedAt, range),
           ),
         ),
@@ -217,6 +187,7 @@ export const callReport = reads(PERMISSIONS.callView)
         incoming: countWhere(incoming),
         outgoing: countWhere(outgoing),
         answered: countWhere(answered),
+        answeredIncoming: countWhere(and(incoming, answered)),
         missed: countWhere(missed),
         waitSeconds: averageSeconds(waited, and(incoming, answered)),
         talkSeconds: averageSeconds(calls.durationSec, answered),
@@ -246,6 +217,7 @@ export const callReport = reads(PERMISSIONS.callView)
       incoming: totals?.incoming ?? 0,
       outgoing: totals?.outgoing ?? 0,
       answered: totals?.answered ?? 0,
+      answeredIncoming: totals?.answeredIncoming ?? 0,
       missed: totals?.missed ?? 0,
       waitSeconds: totals?.waitSeconds ?? null,
       talkSeconds: totals?.talkSeconds ?? null,
@@ -255,6 +227,6 @@ export const callReport = reads(PERMISSIONS.callView)
         (day) => byDay.get(day) ?? { day, incoming: 0, outgoing: 0, answered: 0, missed: 0 },
       ),
       ...(await breakdowns(tx, theirs, range)),
-      ...(await callbacks(tx, theirs)),
+      ...(await serviceOf(tx, theirs, range)),
     };
   });

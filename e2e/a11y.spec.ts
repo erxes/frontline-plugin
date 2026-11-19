@@ -293,13 +293,31 @@ test("the home dashboard's tiles, the Reports page, and one refused", async ({ n
 
   await addTiles(agent.page, tiles);
   await expectAccessible(agent.page, tileOf(agent.page, 'Call summary').getByText('Service level'));
-  await agent.page.goto('/frontline/reports');
-  await expectAccessible(agent.page, tileOf(agent.page, 'Call summary').getByText('Service level'));
+
+  await agent.page.goto('/frontline/reports/facebook');
+  await expectAccessible(
+    agent.page,
+    agent.page.getByRole('region', { name: 'Summary' }).getByText('Direct conversations'),
+  );
+
   await addTiles(stranger.page, ['Call summary']);
   await expectAccessible(stranger.page, tileOf(stranger.page, 'Call summary').getByRole('alert'));
-  // The Reports page refuses them tile by tile, as the dashboard does.
-  await stranger.page.goto('/frontline/reports');
-  await expect(tileOf(stranger.page, 'Call summary').getByRole('alert')).toBeVisible();
+  // The Reports pages refuse them card by card, as the dashboard does.
+  await stranger.page.goto('/frontline/reports/call');
+  await expect(tileOf(stranger.page, 'Top numbers').getByRole('alert')).toBeVisible();
+});
+
+test('the Reports pages for conversations, tickets and calls', async ({ newMember }) => {
+  const { page } = await newMember(['frontline.call.view', 'frontline.channel.view']);
+
+  for (const [path, shown] of [
+    ['/frontline/reports', 'Unresolved now'],
+    ['/frontline/reports/ticket', 'Overdue now'],
+    ['/frontline/reports/call', 'Service level'],
+  ] as const) {
+    await page.goto(path);
+    await expectAccessible(page, page.getByRole('region', { name: 'Summary' }).getByText(shown));
+  }
 });
 
 const refused = [INBOX, '/frontline/tickets', FORMS, SURVEYS, KB, HELP_CENTERS, HISTORY];

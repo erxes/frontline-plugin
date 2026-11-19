@@ -16,6 +16,7 @@ import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
 import { RetryButton } from '~/shared/List.tsx';
+import { minuteEnd, rangeOf } from './period.ts';
 import css from './styles.css?inline';
 import { type PickState, TilePick } from './TilePick.tsx';
 
@@ -29,17 +30,8 @@ type Period = (typeof PERIODS)[number];
 const isPeriod = (value: string | undefined): value is Period =>
   PERIODS.some((period) => period === value);
 
-/** The end of the current minute, so what happened seconds ago counts. */
-const minuteEnd = () => {
-  const end = new Date();
-
-  end.setSeconds(60, 0);
-
-  return end.getTime();
-};
-
 /** Wakes React every 10 s; `minuteEnd` only changes once a minute, so tiles move then. */
-const everyFewSeconds = (tick: () => void) => {
+export const everyFewSeconds = (tick: () => void) => {
   const timer = setInterval(tick, 10_000);
 
   return () => clearInterval(timer);
@@ -52,16 +44,6 @@ const tilePeriod = storedFamily({
   initial: '30',
 });
 
-/** The start of the day `days - 1` days before `to`, in the browser's time zone. */
-const firstDay = (to: number, days: number) => {
-  const from = new Date(to);
-
-  from.setHours(0, 0, 0, 0);
-  from.setDate(from.getDate() - days + 1);
-
-  return from;
-};
-
 /**
  * The last 30, 7 or 90 calendar days, today's to the end of the current minute, in the browser's
  * time zone, so a dashboard left open keeps counting and a list of the same days shows the same
@@ -72,11 +54,7 @@ export const usePeriod = (tile: string) => {
   const to = useSyncExternalStore(everyFewSeconds, minuteEnd);
 
   const range = useMemo(
-    () => ({
-      from: firstDay(to, Number(days)),
-      to: new Date(to),
-      timeZone: localTimeZone() ?? 'UTC',
-    }),
+    () => ({ ...rangeOf(days, to), timeZone: localTimeZone() ?? 'UTC' }),
     [to, days],
   );
 
@@ -301,10 +279,12 @@ export const MiniTable = ({
       <Table.Body>
         {rows.map((row) => (
           <Table.Row key={row.key}>
-            <Table.Cell>{row.lead}</Table.Cell>
+            <Table.Cell>
+              <span className="block truncate px-3">{row.lead}</span>
+            </Table.Cell>
             {row.numbers.map((value, index) => (
               <Table.Cell key={numbers[index]} className="text-right">
-                <span className="tabular-nums">{value}</span>
+                <span className="block px-3 tabular-nums">{value}</span>
               </Table.Cell>
             ))}
           </Table.Row>

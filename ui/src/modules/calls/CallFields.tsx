@@ -1,6 +1,7 @@
 import {
   IconArrowsExchange,
   IconCalendarBolt,
+  IconCircles,
   IconClock,
   IconHash,
   IconPhone,
@@ -11,8 +12,10 @@ import {
   IconUser,
   IconUsersGroup,
 } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import { Badge, type BadgeProps, type TListFilterField } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { channelsQuery } from '~/shared/reference.ts';
 import type { Call } from './queries.ts';
 
 type Status = Call['status'];
@@ -28,7 +31,7 @@ const BADGES: Record<Status, BadgeProps['variant']> = {
 };
 
 /** Each call status's name. */
-const useStatusNames = (): Record<Status, string> => {
+export const useCallStatusNames = (): Record<Status, string> => {
   const { t } = useTranslation('frontline');
 
   return {
@@ -57,7 +60,7 @@ export const queueLabel = (call: Pick<Call, 'queue' | 'queueName'>) =>
   call.queue && call.queueName ? `${call.queueName} · ${call.queue}` : call.queue;
 
 export const CallStatus = ({ status }: { status: Status }) => (
-  <Badge variant={BADGES[status]}>{useStatusNames()[status]}</Badge>
+  <Badge variant={BADGES[status]}>{useCallStatusNames()[status]}</Badge>
 );
 
 /** The call's direction as its icon, named for screen readers. */
@@ -83,10 +86,18 @@ export const CALL_ICONS = {
 /** Every field the call history narrows by, on the API's `subject.<column>` paths. */
 export const useCallFields = (): TListFilterField[] => {
   const { t } = useTranslation('frontline');
-  const statuses = useStatusNames();
+  const statuses = useCallStatusNames();
   const directions = useDirectionNames();
+  const channels = useQuery(channelsQuery).data?.channels ?? [];
 
   return [
+    {
+      path: 'subject.channelId',
+      label: t('channel', 'Channel'),
+      type: 'select',
+      icon: IconCircles,
+      options: channels.map((channel) => ({ value: channel.id, label: channel.name })),
+    },
     {
       path: 'subject.status',
       label: t('status', 'Status'),

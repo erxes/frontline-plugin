@@ -13,7 +13,7 @@ export const TicketSla = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const report = useTicketReport('ticket-sla');
-  const links = useTicketLinks(report);
+  const links = useTicketLinks(report.period.range, report.pick.id);
 
   const clocks = [
     { clock: 'firstResponse', label: t('first-response', 'First response') },
@@ -74,7 +74,7 @@ export const TicketsByAssignee = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const report = useTicketReport('tickets-by-assignee');
-  const links = useTicketLinks(report);
+  const links = useTicketLinks(report.period.range, report.pick.id);
 
   return (
     <Tile query={report.query} pick={report.pick}>

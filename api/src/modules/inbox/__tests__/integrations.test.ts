@@ -4,6 +4,7 @@ import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { serve } from '#/test/http.ts';
+import { only } from '#/test/filter.ts';
 import { clientAs } from '#/test/member.ts';
 
 // Tests never reach core: the customer a visitor becomes comes from this stand-in.
@@ -154,7 +155,12 @@ describe('integrations', () => {
     // 1 to 3 March in Ulaanbaatar; the teammate sees only the Support channel's page.
     const period = { from: later(-9), to: later(63), timeZone: 'Asia/Ulaanbaatar' };
 
-    expect(await teammate.reports.meta(period)).toEqual({
+    const report = await teammate.reports.meta(period);
+
+    expect({
+      ...report,
+      topPosts: report.topPosts.map(({ conversationId: _, ...row }) => row),
+    }).toEqual({
       conversations: 1,
       botConversations: 1,
       incoming: 1,
@@ -162,6 +168,9 @@ describe('integrations', () => {
       bot: 1,
       comments: 2,
       posts: 1,
+      topPosts: [
+        { postId: 'post-1', comments: 1, replies: 1, commenters: 1, lastActivityAt: start },
+      ],
       days: [
         { day: '2026-03-01', conversations: 1, messages: 2, comments: 2 },
         { day: '2026-03-02', conversations: 0, messages: 1, comments: 0 },
@@ -170,23 +179,29 @@ describe('integrations', () => {
     });
     await expect(owner.reports.meta(period)).resolves.toMatchObject({ conversations: 2 });
 
-    // A tile that counts one channel: Sales holds one direct conversation, Support the rest.
-    await expect(owner.reports.meta({ ...period, channelId: sales.id })).resolves.toMatchObject({
+    // A card that counts one channel: Sales holds one direct conversation, Support the rest.
+    await expect(
+      owner.reports.meta({ ...period, filter: only('subject.channelId', sales.id) }),
+    ).resolves.toMatchObject({
       conversations: 1,
       comments: 0,
     });
     await expect(
-      owner.reports.conversations({ ...period, channelId: channel.id }),
+      owner.reports.conversations({ ...period, filter: only('subject.channelId', channel.id) }),
     ).resolves.toMatchObject({ started: 3 });
-    await expect(owner.reports.calls({ ...period, channelId: sales.id })).resolves.toMatchObject({
+    await expect(
+      owner.reports.calls({ ...period, filter: only('subject.channelId', sales.id) }),
+    ).resolves.toMatchObject({
       total: 0,
     });
 
     // Naming a channel the teammate isn't in shows them nothing of it.
     await expect(
-      teammate.reports.conversations({ ...period, channelId: sales.id }),
+      teammate.reports.conversations({ ...period, filter: only('subject.channelId', sales.id) }),
     ).resolves.toMatchObject({ started: 0, unresolved: 0 });
-    await expect(teammate.reports.meta({ ...period, channelId: sales.id })).resolves.toMatchObject({
+    await expect(
+      teammate.reports.meta({ ...period, filter: only('subject.channelId', sales.id) }),
+    ).resolves.toMatchObject({
       conversations: 0,
       incoming: 0,
     });

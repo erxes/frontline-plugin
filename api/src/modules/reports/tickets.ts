@@ -1,3 +1,5 @@
+import type { PluginMember } from '@erxes/plugin-sdk';
+import type { FilterFields } from '@erxes/plugin-sdk/filter';
 import { and, type Column, count, desc, eq, inArray, lt, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
@@ -5,9 +7,11 @@ import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { tags } from '#/db/tags.ts';
 import { pipelineStatuses, Priority, STATUS_TYPES, tickets } from '#/db/tickets.ts';
-import { reads } from '#/orpc.ts';
+import { readsWithCore } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
-import { firstResponseSla, resolutionSla, SLA_STATES, ticketsSeenBy } from '../tickets/shared.ts';
+import { propertyFilter } from '../tickets/properties.ts';
+import { firstResponseSla, resolutionSla, SLA_STATES } from '../tickets/shared.ts';
+import { ticketsMatching } from '../tickets/tickets.ts';
 import {
   averageSeconds,
   Count,
@@ -15,7 +19,7 @@ import {
   countWhere,
   dayOf,
   everyDay,
-  RangeInput,
+  ReportInput,
   secondsBetween,
   TOP,
   TagCount,
@@ -115,29 +119,41 @@ const breakdowns = async (tx: Tx, created: SQL | undefined) => {
   return { stages, statuses, priorities, tags: tagged, sla };
 };
 
-/**
- * The tickets of the member's channels over a period, in `pipelineId` when given, as their
- * pipelines let them see them: how many came and were resolved, by day, stage, status, priority,
- * tag and SLA state, and what is unresolved and overdue now, and whose it is.
- */
-export const ticketReport = reads(PERMISSIONS.channelView)
-  .input(RangeInput.and(z.object({ pipelineId: z.string().optional() })))
-  .output(TicketReport)
-  .handler(async ({ input: range, context: { tx, member } }) => {
-    const mine = inArray(
-      tickets.id,
-      tx
-        .select({ id: tickets.id })
-        .from(tickets)
-        .leftJoin(channelMembers, membership(member, tickets.channelId))
-        .where(
-          and(
-            ticketsSeenBy(member),
-            range.pipelineId ? eq(tickets.pipelineId, range.pipelineId) : undefined,
-          ),
-        ),
-    );
+/** A ticket card's input: the period and filter, `filter` rules on custom fields included. */
+type TicketReportInput = z.output<typeof ReportInput>;
 
+/** The rules on custom fields in the card's filter, typed by core, outside the transaction. */
+const askCore = (member: PluginMember, input: TicketReportInput) =>
+  propertyFilter(member.orgId, input.filter);
+
+/**
+ * Whether a ticket is one the member sees and the card's filter keeps, archived ones too, as the
+ * tickets list would show it with that filter.
+ */
+const ticketsOf = (
+  tx: Tx,
+  member: PluginMember,
+  range: TicketReportInput,
+  fromCore: FilterFields,
+) =>
+  inArray(
+    tickets.id,
+    tx
+      .select({ id: tickets.id })
+      .from(tickets)
+      .leftJoin(channelMembers, membership(member, tickets.channelId))
+      .where(ticketsMatching(member, { filter: range.filter, everyState: true }, fromCore)),
+  );
+
+/**
+ * The tickets of the member's channels the card's filter keeps, as their pipelines let them see
+ * them, over a period: how many came and were resolved, by day, stage, status, priority, tag and
+ * SLA state, and what is unresolved and overdue now, and whose it is.
+ */
+export const ticketReport = readsWithCore(PERMISSIONS.channelView, ReportInput, askCore)
+  .output(TicketReport)
+  .handler(async ({ input: range, context: { tx, member, fromCore } }) => {
+    const mine = ticketsOf(tx, member, range, fromCore);
     const created = and(mine, within(tickets.createdAt, range));
     const resolved = within(tickets.resolvedAt, range);
 
@@ -196,4 +212,43 @@ export const ticketReport = reads(PERMISSIONS.channelView)
       ...(await breakdowns(tx, created)),
       assignees,
     };
+  });
+
+/**
+ * The period's new tickets the card's filter keeps, by their value of the custom field `fieldId`:
+ * one count per value, each option of a multi-pick field counted apart, the most first.
+ */
+export const ticketPropertyReport = readsWithCore(
+  PERMISSIONS.channelView,
+  ReportInput.and(z.object({ fieldId: z.string().min(1) })),
+  askCore,
+)
+  .output(z.array(z.object({ value: z.string(), count: Count })))
+  .handler(async ({ input: range, context: { tx, member, fromCore } }) => {
+    const value = sql`${tickets.propertiesData} -> ${range.fieldId}`;
+
+    const values = tx
+      .select({
+        value:
+          sql<string>`jsonb_array_elements_text(case jsonb_typeof(${value}) when 'array' then ${value} else jsonb_build_array(${value}) end)`.as(
+            'value',
+          ),
+      })
+      .from(tickets)
+      .where(
+        and(
+          ticketsOf(tx, member, range, fromCore),
+          within(tickets.createdAt, range),
+          sql`jsonb_typeof(${value}) in ('array', 'string', 'number', 'boolean')`,
+        ),
+      )
+      .as('values');
+
+    return tx
+      .select({ value: values.value, count: count() })
+      .from(values)
+      .where(sql`${values.value} <> ''`)
+      .groupBy(values.value)
+      .orderBy(desc(count()), values.value)
+      .limit(TOP);
   });

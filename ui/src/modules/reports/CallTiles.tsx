@@ -4,53 +4,71 @@ import { MemberLine } from '~/shared/Person.tsx';
 import { durationText } from '@/calls/queries.ts';
 import { DayChart, Heatmap } from './Charts.tsx';
 import { useCallReport } from './queries.ts';
-import { MiniTable, percentText, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
+import { MiniTable, percentText, shareOf, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
 
-/** Calls, answers and misses, the service level, and how long callers waited and talked. */
-export const CallSummary = () => {
+type CallReport = NonNullable<ReturnType<typeof useCallReport>['query']['data']>;
+
+/** Calls, answers and misses, the service level, how long callers waited and talked, and callbacks. */
+export const CallStats = ({ report }: { report: CallReport }) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
+
+  return (
+    <Stats>
+      <Stat
+        label={t('calls', 'Calls')}
+        value={format.number(report.total)}
+        hint={t('calls-in-out', '{{incoming}} in, {{outgoing}} out', {
+          incoming: report.incoming,
+          outgoing: report.outgoing,
+        })}
+      />
+      <Stat
+        label={t('answered-calls', 'Answered')}
+        value={format.number(report.answered)}
+        hint={t('answer-rate-of-incoming', '{{share}} of incoming', {
+          share: shareOf(report.answeredIncoming, report.incoming),
+        })}
+      />
+      <Stat
+        label={t('missed-calls', 'Missed')}
+        value={format.number(report.missed)}
+        hint={t('answer-rate-of-incoming', '{{share}} of incoming', {
+          share: shareOf(report.missed, report.incoming),
+        })}
+      />
+      <Stat
+        label={t('service-level', 'Service level')}
+        value={percentText(report.serviceLevel)}
+        hint={t('answered-within', 'Answered within {{count}} s', {
+          count: report.serviceLevelSeconds,
+        })}
+      />
+      <Stat
+        label={t('average-wait', 'Average wait')}
+        value={span(report.waitSeconds)}
+        hint={t('average-talk', 'Talk {{span}}', { span: span(report.talkSeconds) })}
+      />
+      <Stat
+        label={t('called-back', 'Called back within {{count}} h', { count: report.callbackHours })}
+        value={format.number(report.calledBack)}
+        hint={t('callbacks-reached', '{{reached}} reached, after {{span}}', {
+          reached: report.reached,
+          span: span(report.callbackSeconds),
+        })}
+      />
+    </Stats>
+  );
+};
+
+/** The numbers of `CallStats` for the tile's period and phone channel. */
+export const CallSummary = () => {
   const { period, pick, query } = useCallReport('call-summary');
 
   return (
     <Tile period={period} pick={pick} query={query}>
-      {(report) => (
-        <Stats>
-          <Stat
-            label={t('calls', 'Calls')}
-            value={format.number(report.total)}
-            hint={t('calls-in-out', '{{incoming}} in, {{outgoing}} out', {
-              incoming: report.incoming,
-              outgoing: report.outgoing,
-            })}
-          />
-          <Stat label={t('answered-calls', 'Answered')} value={format.number(report.answered)} />
-          <Stat label={t('missed-calls', 'Missed')} value={format.number(report.missed)} />
-          <Stat
-            label={t('service-level', 'Service level')}
-            value={percentText(report.serviceLevel)}
-            hint={t('answered-within', 'Answered within {{count}} s', {
-              count: report.serviceLevelSeconds,
-            })}
-          />
-          <Stat
-            label={t('average-wait', 'Average wait')}
-            value={span(report.waitSeconds)}
-            hint={t('average-talk', 'Talk {{span}}', { span: span(report.talkSeconds) })}
-          />
-          <Stat
-            label={t('called-back', 'Called back within {{count}} h', {
-              count: report.callbackHours,
-            })}
-            value={format.number(report.calledBack)}
-            hint={t('callbacks-reached', '{{reached}} reached, after {{span}}', {
-              reached: report.reached,
-              span: span(report.callbackSeconds),
-            })}
-          />
-        </Stats>
-      )}
+      {(report) => <CallStats report={report} />}
     </Tile>
   );
 };
