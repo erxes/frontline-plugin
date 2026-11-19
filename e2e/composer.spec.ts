@@ -210,7 +210,13 @@ test('a reply answers one message, quoted over the composer and over the reply i
   await page.goto(`${INBOX}?conversationId=${conversationId}`);
 
   const thread = page.getByRole('list', { name: 'Messages' });
-  const asked = thread.getByRole('article').filter({ hasText: question });
+
+  // The reply quotes the question too, so the question is the message that answers none.
+  const asked = thread
+    .getByRole('article')
+    .filter({ hasText: question })
+    .filter({ hasNot: page.getByRole('button', { name: /^Go to the message it answers/ }) });
+
   const quoted = page.getByText(`Replying to: ${question}`);
 
   // Reply on a message, from the reply tab or the note tab, quotes it in the reply tab.
