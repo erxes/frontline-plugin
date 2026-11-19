@@ -195,7 +195,10 @@ const LabelRows = ({
  */
 export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
-  const { draft, starts, pipelineId, statusId, fields, save } = useTicketForm(defaults);
+
+  const { draft, starts, pipelineId, statusId, fields, save, pickPipeline } =
+    useTicketForm(defaults);
+
   const { name, description, ...rest } = fields;
   const discard = useDiscard(written(draft.value), draft.clear, onCancel);
   const [missing, setMissing] = useState(false);
@@ -235,7 +238,7 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
           pipelineId={pipelineId}
           statusId={statusId}
           missing={missing}
-          onPipeline={(next) => save({ pipelineId: next, statusId: '', propertiesData: {} })}
+          onPipeline={pickPipeline}
           onStatus={(next) => save({ statusId: next })}
         />
         <TextRow

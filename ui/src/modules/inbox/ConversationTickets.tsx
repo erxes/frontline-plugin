@@ -1,6 +1,6 @@
 import { IconPlus, IconTicket } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, IconTip, useOpenRecord } from 'erxes-ui';
+import { Button, IconTip, Popover, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { TICKET_TYPE } from '~/plugin.ts';
@@ -21,37 +21,107 @@ const nameOf = (text: string) => {
   return `${cut.slice(0, cut.lastIndexOf(' ') > 0 ? cut.lastIndexOf(' ') : NAME_LENGTH)}…`;
 };
 
-/**
- * The conversation's tickets, as the old inbox showed its `sourceConversationIds`: a chip per
- * ticket with its number, opening it in core's side panel, then Create ticket, which drafts one
- * there with the customer, a name from their latest message and, when the conversation's channel
- * has exactly one, its pipeline. Only a member who may file tickets in some pipeline sees them.
- */
-export const ConversationTickets = ({ conversation }: { conversation: Conversation }) => {
+/** How many of the conversation's tickets show as chips; the older ones fold under +N. */
+const CHIPS = 2;
+
+type Ticket = { id: string; name: string; number: string | null };
+
+/** A ticket by its number, or its name when its pipeline doesn't number tickets; it opens in core's panel. */
+const TicketChip = ({ ticket }: { ticket: Ticket }) => {
   const { t } = useTranslation('frontline');
-  const { open, openNew } = useOpenRecord();
-  const { messages } = useMessages(conversation.id);
-  const pipelines = useQuery(choicesQuery).data?.pipelines ?? [];
+  const { open } = useOpenRecord();
+
+  return (
+    <IconTip label={ticket.name}>
+      <Button
+        variant="secondary"
+        size="xs"
+        className="shrink-0"
+        aria-label={t('open-ticket', 'Open ticket {{name}}', {
+          name: ticket.number ?? ticket.name,
+        })}
+        onClick={() => open({ contentType: TICKET_TYPE, contentId: ticket.id })}
+      >
+        <IconTicket />
+        {ticket.number ?? <span className="max-w-24 truncate">{ticket.name}</span>}
+      </Button>
+    </IconTip>
+  );
+};
+
+/** The conversation's tickets, oldest first: the newest as chips, the rest under +N. */
+const TicketChips = ({ conversationId }: { conversationId: string }) => {
+  const { t } = useTranslation('frontline');
 
   const filter = {
     match: 'all',
     rules: [
-      { path: 'subject.conversationId', op: 'eq', value: conversation.id },
+      { path: 'subject.conversationId', op: 'eq', value: conversationId },
       { path: 'subject.state', op: 'in', value: ['active', 'archived'] },
     ],
   };
 
-  const tickets = useQuery({
-    ...orpc.tickets.list.queryOptions({
-      input: { filter: JSON.stringify(filter), sort: 'createdAt', ascending: true, limit: 20 },
-    }),
-    enabled: pipelines.length > 0,
-  }).data?.tickets;
+  const tickets =
+    useQuery(
+      orpc.tickets.list.queryOptions({
+        input: { filter: JSON.stringify(filter), sort: 'createdAt', ascending: true, limit: 50 },
+      }),
+    ).data?.tickets ?? [];
+
+  const older = tickets.slice(0, -CHIPS);
+
+  return (
+    <>
+      {older.length > 0 && (
+        <Popover>
+          <Popover.Trigger
+            render={
+              <Button
+                variant="secondary"
+                size="xs"
+                className="shrink-0"
+                aria-label={t('more-tickets', '{{count}} more tickets', { count: older.length })}
+              >
+                +{older.length}
+              </Button>
+            }
+          />
+          <Popover.Content align="end" className="w-auto">
+            <div className="flex flex-wrap gap-1">
+              {older.map((ticket) => (
+                <TicketChip key={ticket.id} ticket={ticket} />
+              ))}
+            </div>
+          </Popover.Content>
+        </Popover>
+      )}
+      {tickets.slice(-CHIPS).map((ticket) => (
+        <TicketChip key={ticket.id} ticket={ticket} />
+      ))}
+    </>
+  );
+};
+
+/**
+ * The conversation's tickets, as the old inbox showed its `sourceConversationIds`, each opening
+ * in core's side panel, then Create ticket, which drafts one there with the customer, a name from
+ * their latest message and, when the conversation's channel has exactly one, its pipeline. It
+ * waits for the messages, so the name is there. Only a member who may file tickets in some
+ * pipeline sees them.
+ */
+export const ConversationTickets = ({ conversation }: { conversation: Conversation }) => {
+  const { t } = useTranslation('frontline');
+  const { openNew } = useOpenRecord();
+  const thread = useMessages(conversation.id);
+  const pipelines = useQuery(choicesQuery).data?.pipelines ?? [];
 
   if (pipelines.length === 0) return null;
 
   const create = () => {
-    const latest = messages.findLast((message) => message.customerId && message.content.trim());
+    const latest = thread.messages.findLast(
+      (message) => message.customerId && message.content.trim(),
+    );
+
     const inChannel = pipelines.filter((row) => row.channelId === conversation.channelId);
 
     openNew(TICKET_TYPE, {
@@ -64,22 +134,7 @@ export const ConversationTickets = ({ conversation }: { conversation: Conversati
 
   return (
     <>
-      {tickets?.map((ticket) => (
-        <IconTip key={ticket.id} label={ticket.name}>
-          <Button
-            variant="secondary"
-            size="xs"
-            className="shrink-0"
-            aria-label={t('open-ticket', 'Open ticket {{name}}', {
-              name: ticket.number ?? ticket.name,
-            })}
-            onClick={() => open({ contentType: TICKET_TYPE, contentId: ticket.id })}
-          >
-            <IconTicket />
-            {ticket.number ?? <span className="max-w-24 truncate">{ticket.name}</span>}
-          </Button>
-        </IconTip>
-      ))}
+      <TicketChips conversationId={conversation.id} />
       {/* "Ticket" on the button leaves the crowded header room for the customer's name. */}
       <IconTip label={t('create-ticket', 'Create ticket')}>
         <Button
@@ -87,6 +142,7 @@ export const ConversationTickets = ({ conversation }: { conversation: Conversati
           size="sm"
           className="shrink-0"
           aria-label={t('create-ticket', 'Create ticket')}
+          disabled={thread.isPending}
           onClick={create}
         >
           <IconPlus />

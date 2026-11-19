@@ -168,5 +168,16 @@ export const useTicketForm = (defaults: Record<string, unknown>) => {
     fields,
     save: (patch: Partial<TicketDraft>) =>
       draft.save((last) => ({ ...last, pipelineId, statusId, ...patch })),
+    /**
+     * Files the draft in another pipeline, under its first status. Its properties follow the old
+     * pipeline, so they go; ones typed before any pipeline apply to every pipeline, so they stay.
+     */
+    pickPipeline: (next: string) =>
+      draft.save((last) => ({
+        ...last,
+        pipelineId: next,
+        statusId: '',
+        propertiesData: pipelineId ? {} : last.propertiesData,
+      })),
   };
 };

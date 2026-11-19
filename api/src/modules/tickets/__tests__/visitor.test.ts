@@ -145,11 +145,13 @@ describe("a messenger visitor's tickets", () => {
   it('remembers the conversation a member made a ticket from, one they see', async () => {
     const orgId = 'org-tk-source';
     const owner = clientAs(orgId);
-    const channel = await owner.channels.create({ name: 'Support' });
+    const channel = await owner.channels.create({ name: 'Support', memberIds: ['clerk'] });
     const pipeline = await owner.pipelines.create({ channelId: channel.id, name: 'Main' });
     const sales = await owner.channels.create({ name: 'Sales', memberIds: ['teammate'] });
     const leads = await owner.pipelines.create({ channelId: sales.id, name: 'Leads' });
-    const teammate = clientAs(orgId, [PERMISSIONS.channelView], 'teammate');
+    const teammate = clientAs(orgId, [PERMISSIONS.channelView, PERMISSIONS.inboxView], 'teammate');
+    // In the conversation's channel, but without the inbox.
+    const clerk = clientAs(orgId, [PERMISSIONS.channelView], 'clerk');
 
     const integration = await owner.integrations.create({
       channelId: channel.id,
@@ -193,5 +195,8 @@ describe("a messenger visitor's tickets", () => {
     await expect(
       teammate.tickets.create({ pipelineId: leads.id, name: 'Zip', conversationId }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(
+      clerk.tickets.create({ pipelineId: pipeline.id, name: 'Zip', conversationId }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });

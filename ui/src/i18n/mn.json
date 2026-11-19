@@ -772,6 +772,7 @@
   "more-channels": "Бусад {{count}} суваг",
   "more-channels_one": "Бусад {{count}} суваг",
   "more-channels_other": "Бусад {{count}} суваг",
+  "more-tickets": "Бусад {{count}} тикет",
   "move-ticket": "{{name}}-г зөөх",
   "move-to-channel": "Суваг руу зөөх",
   "move-to-channel-hint": "{{name}}-г зөөх сувгаа сонгоно уу.",

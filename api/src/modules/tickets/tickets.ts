@@ -221,7 +221,7 @@ export const fileTicket = async (
 /**
  * A new ticket in a pipeline of a channel the caller belongs to, in `statusId` or the pipeline's
  * first status, numbered by the pipeline and due by its SLA, made from `conversationId` when the
- * caller sees that conversation. Core checks its custom fields first.
+ * caller reads that conversation in the inbox. Core checks its custom fields first.
  */
 const create = writesWithCore(
   PERMISSIONS.channelView,
@@ -262,7 +262,14 @@ const create = writesWithCore(
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
     const pipeline = await pipelineFor(tx, member, input.pipelineId, { change: false });
 
-    if (input.conversationId) await conversationById(tx, member, input.conversationId);
+    if (input.conversationId) {
+      if (!member.can(PERMISSIONS.inboxView))
+        throw new ORPCError('FORBIDDEN', {
+          message: `You need the ${PERMISSIONS.inboxView} permission to make a ticket from a conversation`,
+        });
+
+      await conversationById(tx, member, input.conversationId);
+    }
 
     return ticketById(
       tx,
