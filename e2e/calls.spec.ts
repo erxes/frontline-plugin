@@ -10,6 +10,7 @@ import {
 } from './fixtures.ts';
 
 const HISTORY = '/frontline/calls/history';
+const PHONE = '/frontline/calls/phone';
 
 test('calls from a phone line show in the call history as they happen, and open in the side panel', async ({
   page,
@@ -91,6 +92,9 @@ test('the softphone asks for the SIP lines of the member on every page, and show
   expect(lines.status()).toBe(200);
   expect(await lines.json()).toMatchObject({ json: [] });
   await expect(page.getByRole('button', { name: 'Phone', exact: true })).toHaveCount(0);
+
+  await page.goto(PHONE);
+  await expect(page.getByText('You have no phone line')).toBeVisible();
 });
 
 test('a member without the call permission is refused the calls', async ({ newMember }) => {
@@ -105,5 +109,8 @@ test('a member without the call permission is refused the calls', async ({ newMe
   await expect(page.getByText('You need the frontline.call.view permission')).toBeVisible();
 
   await page.goto('/frontline/calls/queues');
+  await expect(page.getByText('You need the frontline.call.view permission')).toBeVisible();
+
+  await page.goto(PHONE);
   await expect(page.getByText('You need the frontline.call.view permission')).toBeVisible();
 });
