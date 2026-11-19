@@ -159,7 +159,7 @@ export const useTicketsLive = () => {
   );
 };
 
-const ticketOptions = (id: string) =>
+export const ticketOptions = (id: string) =>
   orpc.tickets.get.queryOptions({ input: { id }, staleTime: FRESH_MS });
 
 /** One ticket: every slot of its panel reads this query. */

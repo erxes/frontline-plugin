@@ -191,7 +191,7 @@ export const CONFIG: IUIConfig = {
       ...slots(ticket),
       contacts: (id) => ({
         queryKey: [PLUGIN, 'ticket-contacts', id],
-        queryFn: async () => (await ticket()).ticketContacts(id),
+        queryFn: async ({ client }) => (await ticket()).ticketContacts(client, id),
       }),
       // The manifest's timeline (`api/src/core.ts`): core's Activity tab shows its events.
       activity: `${PLUGIN}.ticket`,
@@ -219,7 +219,7 @@ export const CONFIG: IUIConfig = {
         ],
         appliesTo: (id) => ({
           queryKey: [PLUGIN, 'ticket-applies-to', id],
-          queryFn: async () => (await ticket()).ticketAppliesTo(id),
+          queryFn: async ({ client }) => (await ticket()).ticketAppliesTo(client, id),
         }),
       },
     },

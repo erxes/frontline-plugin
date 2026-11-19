@@ -1,16 +1,19 @@
 import { ORPCError } from '@orpc/client';
 import { IconTicket } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
+import { type QueryClient, useQuery } from '@tanstack/react-query';
 import { Empty, Spinner, type TRecordContacts, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { TICKET_TYPE } from '~/plugin.ts';
 import { REFERENCE_MS } from '~/shared/reference.ts';
-import { useChoices } from './queries.ts';
+import { ticketOptions, useChoices } from './queries.ts';
 
-/** A ticket's customer and company, as core's relation tabs take them (`contacts` in config). */
-export const ticketContacts = async (id: string) => {
-  const ticket = await orpc.tickets.get.call({ id });
+/**
+ * A ticket's customer and company, as core's relation tabs take them (`contacts` in config),
+ * from the ticket its panel reads.
+ */
+export const ticketContacts = async (queryClient: QueryClient, id: string) => {
+  const ticket = await queryClient.query(ticketOptions(id));
 
   return {
     customerIds: ticket.customerId ? [ticket.customerId] : [],
@@ -19,8 +22,8 @@ export const ticketContacts = async (id: string) => {
 };
 
 /** The ticket's pipeline, which says what its field groups apply to (`properties` in config). */
-export const ticketAppliesTo = async (id: string) => ({
-  pipeline: [(await orpc.tickets.get.call({ id })).pipelineId],
+export const ticketAppliesTo = async (queryClient: QueryClient, id: string) => ({
+  pipeline: [(await queryClient.query(ticketOptions(id))).pipelineId],
 });
 
 /** The pipelines a ticket field group can be limited to, as core's Properties settings list them. */
