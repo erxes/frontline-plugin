@@ -68,6 +68,8 @@ img{max-width:100%;height:auto}
 .hc-files h2{font-size:16px;margin-bottom:8px}
 .hc-aside{position:sticky;top:20px}
 .hc-aside h2{font-size:15px;margin-bottom:10px}
+.hc-pager{display:flex;justify-content:space-between;gap:12px;margin-top:20px}
+.hc-pager a[rel=next]{margin-left:auto}
 .hc-empty{padding:32px;text-align:center;border:1px dashed var(--hc-divider,#cbd5e1);border-radius:14px}
 .hc-footer{margin-top:48px;background:var(--hc-footer);color:var(--hc-footer-text);padding:40px 0 24px;font-size:14px}
 .hc-footer a{color:inherit;opacity:.8}

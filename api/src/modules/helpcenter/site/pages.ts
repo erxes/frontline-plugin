@@ -9,18 +9,8 @@ type Summary = Site['articles'][number];
 /** A page's title, description and `main`, or null for the 404 page. */
 export type Drawn = { title: string; description?: string | null; main: Html } | null;
 
-/** The categories under `parentId`, and every one below them. */
-const below = (site: Site, parentId: string): Category[] =>
-  site.categories
-    .filter((category) => category.parentId === parentId)
-    .flatMap((category) => [category, ...below(site, category.id)]);
-
-/** How many published articles a category and the ones below it hold. */
-const countOf = (site: Site, category: Category) => {
-  const ids = new Set([category.id, ...below(site, category.id).map((child) => child.id)]);
-
-  return site.articles.filter((article) => ids.has(article.categoryId)).length;
-};
+/** How many of a category's articles one page lists. */
+const PAGE_SIZE = 30;
 
 const dateOf = (site: Site, date: Date) =>
   new Intl.DateTimeFormat(site.language, { dateStyle: 'medium' }).format(date);
@@ -53,7 +43,7 @@ const CategoryCards = (site: Site, categories: Category[]) =>
         href(site, `/categories/${category.id}`),
         category.title,
         category.description,
-        site.copy.articles(countOf(site, category)),
+        site.copy.articles(category.articleCount),
       ),
     )}
   </ul>`;
@@ -156,14 +146,27 @@ const Crumbs = (site: Site, category: Category | undefined) => {
   </nav>`;
 };
 
-/** One category: its subcategories and its own articles. Null for a category not on the site. */
-export const categoryPage = (site: Site, id: string): Drawn => {
-  const category = site.categories.find((item) => item.id === id);
+/** Links to the pages before and after `page` of a list `pages` long. */
+const Pager = (site: Site, path: string, page: number, pages: number) =>
+  pages > 1 &&
+  html`<nav class="hc-pager" aria-label="${site.copy.pages}">
+    ${page > 1 && html`<a href="${href(site, `${path}?page=${page - 1}`)}" rel="prev">${site.copy.previous}</a>`}
+    ${page < pages && html`<a href="${href(site, `${path}?page=${page + 1}`)}" rel="next">${site.copy.next}</a>`}
+  </nav>`;
 
-  if (!category) return null;
+/**
+ * One category: its subcategories and one page of its own articles, newest first. Null for a
+ * category not on the site, or a page past its last.
+ */
+export const categoryPage = (site: Site, id: string, page: number): Drawn => {
+  const category = site.categories.find((item) => item.id === id);
+  const own = site.articles.filter((article) => article.categoryId === id);
+  const pages = Math.ceil(own.length / PAGE_SIZE);
+
+  if (!category || (page > 1 && page > pages)) return null;
 
   const children = site.categories.filter((item) => item.parentId === id);
-  const articles = site.articles.filter((article) => article.categoryId === id);
+  const articles = own.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const parent = site.categories.find((item) => item.id === category.parentId);
 
   return {
@@ -175,6 +178,7 @@ export const categoryPage = (site: Site, id: string): Drawn => {
       ${category.description && html`<p class="hc-lede">${category.description}</p>`}
       ${children.length > 0 && CategoryCards(site, children)}
       ${articles.length > 0 && html`<div class="hc-section">${ArticleList(site, articles)}</div>`}
+      ${Pager(site, `/categories/${id}`, page, pages)}
       ${children.length === 0 && articles.length === 0 && Empty(site.copy.empty)}
     </div>`,
   };
