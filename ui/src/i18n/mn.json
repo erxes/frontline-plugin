@@ -896,6 +896,8 @@
   "pipeline-count_one": "{{count}} урсгал",
   "pipeline-count_other": "{{count}} урсгал",
   "pipeline-menu": "Урсгалын үйлдэл",
+  "pipeline-private": "Зөвхөн гишүүддээ",
+  "pipeline-private-of": "{{name}} хаалттай",
   "pipeline-sla": "SLA",
   "pipeline-sla-enabled": "SLA мөрдөх",
   "pipeline-sla-warn-before": "Өмнө нь анхааруулах",

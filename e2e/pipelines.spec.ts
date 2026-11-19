@@ -143,7 +143,7 @@ test("a channel admin sets a pipeline's SLA", async ({ page }) => {
   await expect(panel.getByRole('button', { name: /^Warn before 0\.5 h/ })).toBeVisible();
 });
 
-test("a channel admin sets who sees a pipeline's tickets and who moves them, which a member only reads", async ({
+test('a channel admin sets who sees a pipeline and its tickets and who moves them, which a member only reads', async ({
   page,
   newMember,
 }) => {
@@ -151,7 +151,7 @@ test("a channel admin sets who sees a pipeline's tickets and who moves them, whi
   const panel = recordPanel(page);
 
   await openChannelPipelines(page, teammate.fullName);
-  await createPipeline(page);
+  const pipeline = await createPipeline(page);
   const pipelinePanel = page.url();
 
   await panel.getByRole('tab', { name: 'Permissions' }).click();
@@ -179,6 +179,14 @@ test("a channel admin sets who sees a pipeline's tickets and who moves them, whi
       name: 'Members see only tickets they created, hold or follow',
     }),
   ).toBeDisabled();
+
+  // Made private without them, the pipeline is gone for the member.
+  const isPrivate = panel.getByRole('switch', { name: `${pipeline} is private` });
+
+  await isPrivate.click();
+  await expect(isPrivate).toBeChecked();
+  await teammate.page.reload();
+  await expect(theirPanel.getByRole('heading', { name: 'No such pipeline' })).toBeVisible();
 });
 
 test('a channel admin moves a pipeline to another channel and deletes it there', async ({

@@ -47,6 +47,9 @@ export const SlaPolicy = z.object({
   warnBeforeMinutes: Minutes,
 });
 
+/** Who a pipeline or a status shows to: every member of its channel, or only the ones it lists. */
+const VISIBILITIES = ['public', 'private'] as const;
+
 /**
  * A channel's ticket workflow: its statuses, how its tickets are numbered and
  * named, and its SLA. Deleting the channel deletes its pipelines.
@@ -70,6 +73,15 @@ export const pipelines = table(
     /** The prefix `lastNumber` was given with; a new prefix, such as a new day's, starts over. */
     lastNumberPrefix: text(),
     slaPolicy: jsonb().$type<z.output<typeof SlaPolicy>>(),
+    /**
+     * A private pipeline, with its statuses and tickets, shows only to its `memberIds` and the
+     * channel's admins.
+     */
+    visibility: text({ enum: VISIBILITIES }).notNull().default('public'),
+    memberIds: text()
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
     /**
      * Narrow what members see of its tickets to their own (created or assigned), plus those they
      * follow or nobody holds (`isCheckUser`), their departments' (`isCheckDepartment`) and their
@@ -101,6 +113,7 @@ export const pipelines = table(
       t.createdAt,
       t.id,
     ),
+    check('frontline_pipelines_visibility_check', sql`${t.visibility} in ('public', 'private')`),
   ],
 );
 
@@ -113,8 +126,6 @@ export const STATUS_TYPES = {
   closed: 5,
   cancelled: 6,
 } as const;
-
-export const STATUS_VISIBILITIES = ['public', 'private'] as const;
 
 /**
  * A status of a pipeline: one step of a stage (`type`), placed by `order`
@@ -133,7 +144,7 @@ export const pipelineStatuses = table(
     type: integer().notNull(),
     order: integer().notNull(),
     /** A private status's tickets show only to its `memberIds` and the channel's admins. */
-    visibilityType: text({ enum: STATUS_VISIBILITIES }).notNull().default('public'),
+    visibilityType: text({ enum: VISIBILITIES }).notNull().default('public'),
     memberIds: text()
       .array()
       .notNull()

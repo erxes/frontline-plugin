@@ -29,6 +29,7 @@ import { reads, writes } from '#/orpc.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { auditRemoved, changedEvent } from '../events.ts';
 import { FilterInput, likeText } from '../filter.ts';
+import { pipelineSeen } from '../pipelines/rights.ts';
 import {
   canChangeSql,
   channelFor,
@@ -87,10 +88,14 @@ const memberIds = sql<string[]>`coalesce((
 ), '{}')`;
 
 /** How many rows of `table` belong to the channel, as the old channel list counted them. */
-const countIn = (table: typeof pipelines | typeof forms | typeof responseTemplates) =>
-  sql<number>`(select count(*)::int from ${table} where ${table.channelId} = ${channels.id})`;
+const countIn = (
+  table: typeof pipelines | typeof forms | typeof responseTemplates,
+  seen = sql`true`,
+) =>
+  sql<number>`(select count(*)::int from ${table} where ${table.channelId} = ${channels.id} and ${seen})`;
 
-const pipelineCount = countIn(pipelines);
+/** The channel's pipelines the caller sees, private ones only where they may (`pipelineSeen`). */
+const pipelineCount = (member: PluginMember) => countIn(pipelines, pipelineSeen(member));
 const formCount = countIn(forms);
 const templateCount = countIn(responseTemplates);
 
@@ -105,7 +110,7 @@ const channelRows = (tx: Tx, member: PluginMember) =>
       memberIds,
       role: channelMembers.role,
       canManage: canChangeSql(member),
-      pipelineCount,
+      pipelineCount: pipelineCount(member),
       formCount,
       templateCount,
     })
@@ -123,16 +128,16 @@ const channelById = async (tx: Tx, member: PluginMember, id: string) => {
 };
 
 /** What the list's filter bar narrows channels by (`ui/src/modules/channels/ChannelsPage.tsx`). */
-const CHANNEL_FILTER: FilterFields = {
+const channelFilter = (member: PluginMember): FilterFields => ({
   'subject.name': { type: 'text', expr: channels.name },
   'subject.description': { type: 'text', expr: channels.description },
   'subject.memberIds': { type: 'member', array: true, expr: memberIds },
   'subject.createdBy': { type: 'member', expr: channels.createdBy },
-  'subject.pipelineCount': { type: 'number', expr: pipelineCount },
+  'subject.pipelineCount': { type: 'number', expr: pipelineCount(member) },
   'subject.formCount': { type: 'number', expr: formCount },
   'subject.templateCount': { type: 'number', expr: templateCount },
   'subject.createdAt': { type: 'date', expr: channels.createdAt },
-};
+});
 
 /**
  * The caller's channels, or every channel for a member who manages them all, by name, narrowed
@@ -153,7 +158,7 @@ const list = reads(PERMISSIONS.channelView)
                 ilike(channels.description, likeText(input.search)),
               )
             : undefined,
-          compileFilter(CHANNEL_FILTER, input.filter, { me: member.userId }),
+          compileFilter(channelFilter(member), input.filter, { me: member.userId }),
         ),
       )
       .orderBy(asc(sql`lower(${channels.name})`));

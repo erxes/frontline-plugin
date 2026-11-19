@@ -14,7 +14,7 @@ import { withOrg } from '#/db/client.ts';
 import { tickets } from '#/db/tickets.ts';
 import { reads, writesWithCore } from '#/orpc.ts';
 import { changeTickets } from './changes.ts';
-import { ticketById, ticketsFor } from './shared.ts';
+import { seenTicket, ticketsFor } from './shared.ts';
 
 /**
  * The values core keeps after `patch` on a ticket of `pipelineId`, checked against the fields of
@@ -47,7 +47,7 @@ const values = reads(PERMISSIONS.channelView)
   .output(CustomFields)
   .handler(
     async ({ input, context: { tx, member } }) =>
-      (await ticketById(tx, member, input.id)).propertiesData,
+      (await seenTicket(tx, member, input.id)).propertiesData,
   );
 
 /**
@@ -59,7 +59,7 @@ const save = writesWithCore(
   PERMISSIONS.channelView,
   z.object({ id: z.string(), patch: CustomFieldsPatch }),
   async (member, input) => {
-    const ticket = await withOrg(member.orgId, (tx) => ticketById(tx, member, input.id));
+    const ticket = await withOrg(member.orgId, (tx) => seenTicket(tx, member, input.id));
 
     return {
       current: ticket.propertiesData,

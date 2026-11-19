@@ -51,6 +51,9 @@ describe('pipelines', () => {
       code: 'BAD_REQUEST',
     });
 
+    // A pipeline takes its tickets to the channel it moves to, and goes with that channel.
+    const ticket = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Moves' });
+
     await expect(
       owner.pipelines.update({ id: pipeline.id, channelId: billing.id }),
     ).resolves.toMatchObject({ channelId: billing.id, numberConfig: 'C{year}-' });
@@ -58,16 +61,18 @@ describe('pipelines', () => {
       pipelines: [],
       totalCount: 0,
     });
+    await expect(owner.tickets.get({ id: ticket.id })).resolves.toMatchObject({
+      channelId: billing.id,
+    });
 
-    await expect(owner.pipelines.remove({ ids: [pipeline.id] })).resolves.toEqual({
-      ids: [pipeline.id],
-    });
-    await expect(owner.pipelines.get({ id: pipeline.id })).rejects.toMatchObject({
-      code: 'NOT_FOUND',
-    });
-    await expect(
-      owner.pipelines.statuses.update({ id: statuses[0]?.id ?? '', name: 'Gone' }),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await owner.channels.remove({ ids: [billing.id] });
+
+    for (const gone of [
+      () => owner.pipelines.get({ id: pipeline.id }),
+      () => owner.tickets.get({ id: ticket.id }),
+      () => owner.pipelines.statuses.update({ id: statuses[0]?.id ?? '', name: 'Gone' }),
+    ])
+      await expect(gone()).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it('keeps one SLA rule per priority and drops rules without a clock', async () => {
@@ -282,22 +287,63 @@ describe('pipelines', () => {
     await expect(names(agent)).resolves.toEqual(['Today', 'Yesterday']);
   });
 
-  it('takes its tickets along when it moves to another channel', async () => {
+  it('keeps a private pipeline, its statuses and tickets to the members it lists', async () => {
     const owner = clientAs('org-pl-j');
-    const support = await owner.channels.create({ name: 'Support' });
-    const billing = await owner.channels.create({ name: 'Billing' });
-    const pipeline = await owner.pipelines.create({ channelId: support.id, name: 'Main' });
-    const ticket = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Moves' });
+    const listed = clientAs('org-pl-j', [PERMISSIONS.channelView], 'listed-pl-j');
+    const other = clientAs('org-pl-j', [PERMISSIONS.channelView], 'other-pl-j');
 
-    await owner.pipelines.update({ id: pipeline.id, channelId: billing.id });
+    const channel = await owner.channels.create({
+      name: 'Support',
+      memberIds: ['listed-pl-j', 'other-pl-j'],
+    });
 
-    await expect(owner.tickets.get({ id: ticket.id })).resolves.toMatchObject({
-      channelId: billing.id,
+    const open = await owner.pipelines.create({ channelId: channel.id, name: 'Open' });
+    const secret = await owner.pipelines.create({ channelId: channel.id, name: 'Secret' });
+    await owner.tickets.create({ pipelineId: open.id, name: 'Everyone' });
+    const kept = await owner.tickets.create({ pipelineId: secret.id, name: 'Kept' });
+
+    await expect(
+      owner.pipelines.update({ id: secret.id, visibility: 'private', memberIds: ['listed-pl-j'] }),
+    ).resolves.toMatchObject({ visibility: 'private', memberIds: ['listed-pl-j'] });
+
+    const sees = async (client: typeof owner) => ({
+      pipelines: (await client.pipelines.list({ channelId: channel.id })).pipelines
+        .map((row) => row.name)
+        .toSorted(),
+      choices: (await client.pipelines.choices()).pipelines.map((row) => row.name),
+      statuses: new Set((await client.pipelines.choices()).statuses.map((row) => row.pipelineId)),
+      tickets: (await client.tickets.list({})).tickets.map((row) => row.name).toSorted(),
+      count: (await client.channels.list({})).channels[0]?.pipelineCount,
     });
-    await owner.channels.remove({ ids: [billing.id] });
-    await expect(owner.tickets.get({ id: ticket.id })).rejects.toMatchObject({
-      code: 'NOT_FOUND',
+
+    await expect(sees(listed)).resolves.toEqual({
+      pipelines: ['Open', 'Secret'],
+      choices: ['Open', 'Secret'],
+      statuses: new Set([open.id, secret.id]),
+      tickets: ['Everyone', 'Kept'],
+      count: 2,
     });
+    // Its channel's admins see it too.
+    await expect(sees(owner)).resolves.toMatchObject({ pipelines: ['Open', 'Secret'] });
+
+    // Anyone else in the channel neither sees it nor files, reads or moves a ticket into it.
+    await expect(sees(other)).resolves.toEqual({
+      pipelines: ['Open'],
+      choices: ['Open'],
+      statuses: new Set([open.id]),
+      tickets: ['Everyone'],
+      count: 1,
+    });
+
+    for (const call of [
+      () => other.pipelines.get({ id: secret.id }),
+      () => other.tickets.get({ id: kept.id }),
+      () => other.tickets.properties.values({ id: kept.id }),
+      () => other.tickets.update({ id: kept.id, name: 'Renamed' }),
+      () => other.tickets.bulkUpdate({ ids: [kept.id], pipelineId: open.id }),
+      () => other.tickets.create({ pipelineId: secret.id, name: 'Sneak' }),
+    ])
+      await expect(call()).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it("doesn't show another organisation's pipelines", async () => {
