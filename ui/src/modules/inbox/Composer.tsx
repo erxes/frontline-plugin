@@ -108,7 +108,10 @@ const Actions = ({
         <AttachButton files={files} />
         {!note && <SendSurvey conversationId={conversation.id} />}
         <span className="flex-1" />
-        <Kbd aria-hidden>{SHORTCUT}</Kbd>
+        {/* A narrow card keeps Send whole and drops the hint. */}
+        <span aria-hidden className="hidden @sm:block">
+          <Kbd>{SHORTCUT}</Kbd>
+        </span>
         <Button type="submit" variant={note ? 'outline' : 'default'} disabled={disabled}>
           {note ? <IconLock /> : <IconSend />}
           {note ? t('add-note', 'Add note') : t('send', 'Send')}
@@ -321,7 +324,7 @@ export const Composer = ({ conversation, send }: { conversation: Conversation; s
         onSubmit={submit}
         {...files.cardHandlers}
         className={cn(
-          'flex flex-col rounded-lg border bg-background shadow-xs',
+          '@container flex flex-col rounded-lg border bg-background shadow-xs',
           note && 'border-warning bg-warning/10',
         )}
       >
