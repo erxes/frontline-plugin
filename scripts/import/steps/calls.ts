@@ -121,7 +121,9 @@ const placeOf = (ctx: Context, doc: Document) => {
 
   const customerId = ctx.customer(idOf(doc.customerId)) ?? conversation?.customerId;
 
-  if (!conversationId || !conversation) return 'its conversation is not imported';
+  if (!conversationId) return 'it names no conversation, which a call needs';
+
+  if (!conversation) return 'its conversation is not imported';
 
   if (!accountId) return 'its PBX is not imported';
 

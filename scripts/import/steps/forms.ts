@@ -404,44 +404,146 @@ const submissionStep = (
     if (!formId) return skip('its form is not imported');
 
     const answers: unknown[] = Array.isArray(doc.answers) ? doc.answers : [];
-    const conversationId = idOf(doc.conversationId);
-    const fields = new Set<string>();
 
-    const rows = answers.flatMap((answer) => {
-      const entry = entriesOf(answer);
-      const fieldId = idOf(entry.get('formFieldId'));
-      const value = plain(entry.get('value'));
+    if (answers.length === 0)
+      return skip(
+        "a submission without answers: older forms kept them in the lead conversation's message, imported from there",
+      );
 
-      // One answer per field: a field answered twice in a group keeps its first.
-      if (!fieldId || fields.has(fieldId) || value === undefined || value === null || value === '')
-        return [];
+    return submission(ctx, {
+      id: group,
+      formId,
+      customerId: idOf(doc.customerId),
+      conversationId: idOf(doc.conversationId),
+      createdAt: doc.submittedAt,
+      answers: answers.map((answer) => {
+        const entry = entriesOf(answer);
 
-      fields.add(fieldId);
-
-      return [
-        [
-          'frontline_form_answers',
-          { id: String(idOf(entry.get('_id'))), submission_id: group, field_id: fieldId, value },
-        ] as const,
-      ];
+        return {
+          id: idOf(entry.get('_id')),
+          fieldId: idOf(entry.get('formFieldId')),
+          value: entry.get('value'),
+        };
+      }),
     });
+  },
+});
 
-    if (rows.length === 0) return skip('no answers');
+type Answer = { id: string | null; fieldId: string | null; value: unknown };
 
-    return put(
+/** A submission and its answers, one per field: a field answered twice keeps its first. */
+const submission = (
+  ctx: Context,
+  found: {
+    id: string;
+    formId: string;
+    customerId: string | null;
+    conversationId: string | null;
+    createdAt: unknown;
+    answers: Answer[];
+  },
+) => {
+  const fields = new Set<string>();
+
+  const rows = found.answers.flatMap(({ id, fieldId, value }) => {
+    const answer = plain(value);
+
+    if (!fieldId || fields.has(fieldId) || answer === undefined || answer === null || answer === '')
+      return [];
+
+    fields.add(fieldId);
+
+    return [
       [
-        'frontline_form_submissions',
+        'frontline_form_answers',
         {
-          id: group,
-          form_id: formId,
-          customer_id: ctx.customer(idOf(doc.customerId)),
-          conversation_id:
-            conversationId && ctx.conversations.has(conversationId) ? conversationId : null,
-          created_at: dateOf(doc.submittedAt) ?? undefined,
+          id: id ?? `${found.id}:${fieldId}`,
+          submission_id: found.id,
+          field_id: fieldId,
+          value: answer,
         },
-      ],
-      ...rows,
-    );
+      ] as const,
+    ];
+  });
+
+  if (rows.length === 0) return skip('every answer empty');
+
+  const { conversationId } = found;
+
+  return put(
+    [
+      'frontline_form_submissions',
+      {
+        id: found.id,
+        form_id: found.formId,
+        customer_id: ctx.customer(found.customerId),
+        conversation_id:
+          conversationId && ctx.conversations.has(conversationId) ? conversationId : null,
+        created_at: dateOf(found.createdAt) ?? undefined,
+      },
+    ],
+    ...rows,
+  );
+};
+
+/**
+ * Older lead forms kept a visitor's answers only on the lead conversation's first message
+ * (`formWidgetData`). Each becomes a submission under the conversation's id, the id the newer
+ * answer documents group under, so one kept both ways imports once.
+ */
+const widgetAnswerStep = (database: Database): Step => ({
+  source: `${database}.conversation_messages.formWidgetData`,
+  documents: (ctx) =>
+    dbOf(ctx, database)
+      .collection('conversation_messages')
+      .aggregate(
+        [
+          { $match: { formWidgetData: { $type: 'array', $ne: [] } } },
+          ...(ctx.limit ? [{ $limit: ctx.limit }] : []),
+          {
+            $lookup: {
+              from: 'conversations',
+              localField: 'conversationId',
+              foreignField: '_id',
+              as: 'conversation',
+            },
+          },
+          {
+            $project: {
+              conversationId: 1,
+              customerId: 1,
+              createdAt: 1,
+              formWidgetData: 1,
+              integrationId: { $first: '$conversation.integrationId' },
+            },
+          },
+        ],
+        { allowDiskUse: true },
+      ),
+  transform: (doc, ctx) => {
+    const conversationId = idOf(doc.conversationId);
+    const integration = leadIntegrations.get(String(idOf(doc.integrationId)));
+    const formId = ctx.known('form', idOf(integration?.formId));
+    const answers: unknown[] = Array.isArray(doc.formWidgetData) ? doc.formWidgetData : [];
+
+    if (!conversationId) return skip('no conversation');
+
+    if (!integration) return skip("its conversation's lead form integration is gone");
+
+    if (!formId) return skip('its form is not imported');
+
+    return submission(ctx, {
+      id: conversationId,
+      formId,
+      customerId: idOf(doc.customerId),
+      conversationId,
+      createdAt: doc.createdAt,
+      answers: answers.map((answer) => {
+        const entry = entriesOf(answer);
+
+        return { id: null, fieldId: idOf(entry.get('_id')), value: entry.get('value') };
+      }),
+    });
   },
 });
 
@@ -458,4 +560,5 @@ export const FORM_STEPS: Step[] = [
     submissionStep(database, 'frontline_form_submissions'),
     submissionStep(database, 'form_submissions'),
   ]),
+  ...DATABASES.map(widgetAnswerStep),
 ];

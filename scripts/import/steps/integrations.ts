@@ -177,7 +177,14 @@ const planOf = (doc: Document, ctx: Context): Planned | string => {
     return 'a lead form: imported as a form';
   }
 
-  if (!kind) return `no adapter for ${String(doc.kind)} in the new Frontline`;
+  // Its conversations stay out with it, for the same reason.
+  const leftOut = (reason: string) => {
+    ctx.remember('integration.left-out', id, reason);
+
+    return reason;
+  };
+
+  if (!kind) return leftOut(`no adapter for ${String(doc.kind)} in the new Frontline`);
 
   const channelId = channelFor(ctx, doc);
 
@@ -186,7 +193,7 @@ const planOf = (doc: Document, ctx: Context): Planned | string => {
 
   const accountId = ctx.known('account', id);
 
-  if (!accountId) return 'its page, bot, mailbox or phone is not in the old data';
+  if (!accountId) return leftOut('its page, bot, mailbox or phone is not in the old data');
 
   return {
     id,

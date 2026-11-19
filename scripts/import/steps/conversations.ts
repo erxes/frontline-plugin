@@ -144,7 +144,7 @@ const conversationStep = (database: 'erxes' | 'erxes_office'): Step => {
         return skip(
           ctx.known('lead', idOf(doc.integrationId))
             ? 'a lead form conversation: its answers import as form submissions'
-            : 'its integration is not imported',
+            : `its integration: ${ctx.known('integration.left-out', idOf(doc.integrationId)) ?? 'deleted in old erxes, and nothing records its kind'}`,
         );
 
       if (!customerId) return skip('no customer (an anonymous visitor)');

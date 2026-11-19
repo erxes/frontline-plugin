@@ -20,6 +20,10 @@ import { FALLBACK_CHANNEL } from './structure.ts';
 
 const VISIBILITIES = new Set(['public', 'private']);
 
+/** The pipeline and status for tickets whose stage or status old erxes deleted. */
+export const ORPHAN_PIPELINE = 'officenext-tickets-without-stage';
+export const ORPHAN_STATUS = 'officenext-tickets-without-stage-status';
+
 /** Each pipeline's ticket numbers so far, so a repeated number stays on its first ticket only. */
 const numbers = new Map<string, Set<string>>();
 
@@ -148,6 +152,21 @@ const memberOf = (ctx: Context, value: unknown) => {
   return id && !id.startsWith('cp:') ? ctx.user(id) : null;
 };
 
+const orphanPipelineStep: Step = {
+  source: 'import.tickets-without-stage',
+  documents: () => [{ _id: ORPHAN_PIPELINE }],
+  transform: (_doc, ctx) =>
+    put(
+      pipelineRow(ctx, ORPHAN_PIPELINE, FALLBACK_CHANNEL, {
+        name: 'Old tickets without a stage',
+        description:
+          'Old erxes tickets whose stage, status or pipeline was deleted. Move them to their pipelines.',
+        created_by: ctx.owner,
+      }),
+      statusRow(ctx, ORPHAN_STATUS, ORPHAN_PIPELINE, { name: 'Imported', type: 2, order: 0 }),
+    ),
+};
+
 const ticketStep: Step = {
   source: 'erxes.frontline_tickets',
   documents: async (ctx) => {
@@ -157,14 +176,12 @@ const ticketStep: Step = {
   },
   transform: (doc, ctx) => {
     const id = docId(doc);
-    const statusId = ctx.known('status', idOf(doc.statusId));
-    const pipelineId = statusId ? ctx.known('status.pipeline', statusId) : undefined;
-    const channelId = pipelineId ? ctx.known('pipeline.channel', pipelineId) : undefined;
+    const statusId = ctx.known('status', idOf(doc.statusId)) ?? ORPHAN_STATUS;
+    const pipelineId = ctx.known('status.pipeline', statusId) ?? ORPHAN_PIPELINE;
+    const channelId = ctx.known('pipeline.channel', pipelineId) ?? FALLBACK_CHANNEL;
     const priority = intOf(doc.priority) ?? 0;
 
     if (!id) return skip('no id');
-
-    if (!statusId || !pipelineId || !channelId) return skip('its status is not imported');
 
     if (priority < 0 || priority > 4) return skip(`unknown priority ${String(doc.priority)}`);
 
@@ -247,4 +264,10 @@ const noteStep: Step = {
   },
 };
 
-export const TICKET_STEPS: Step[] = [pipelineStep, statusStep, ticketStep, noteStep];
+export const TICKET_STEPS: Step[] = [
+  pipelineStep,
+  statusStep,
+  orphanPipelineStep,
+  ticketStep,
+  noteStep,
+];

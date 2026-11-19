@@ -87,12 +87,22 @@ const ownerOf = async (ctx: Context) => {
   return owner;
 };
 
-// The tunnel can stall a socket; a read that hears nothing for five minutes (long scans of conformities included) fails the run.
-const mongo = new MongoClient(MONGO_URL, { directConnection: true, socketTimeoutMS: 300_000 });
-const pool = new Pool({ connectionString: DATA_URL });
+// Old mail bodies are most of the bytes, and zlib sends them a fifth the size through a tunnel.
+// A read that hears nothing for five minutes (long scans of conformities included) fails the run.
+const mongo = new MongoClient(MONGO_URL, {
+  directConnection: true,
+  compressors: ['zlib'],
+  socketTimeoutMS: 300_000,
+});
+
+const pool = new Pool({ connectionString: DATA_URL, keepAlive: true });
 const client = await pool.connect();
 const report = new Report();
 const startedAt = new Date();
+let failure: string | null = null;
+
+// A lost connection mid-run reaches the client as an event; the run's next query fails with it.
+client.on('error', (error) => console.error(`Postgres connection lost: ${error.message}`));
 
 try {
   await mongo.connect();
@@ -151,8 +161,8 @@ try {
 
   await client.query(args.write ? 'COMMIT' : 'ROLLBACK');
 } catch (error) {
-  await client.query('ROLLBACK');
-  throw error;
+  failure = error instanceof Error ? error.message : String(error);
+  await client.query('ROLLBACK').catch(() => undefined);
 } finally {
   client.release();
   await pool.end();
@@ -172,6 +182,7 @@ await writeFile(
       limit: args.limit ?? null,
       startedAt,
       endedAt: new Date(),
+      failure,
       sources: report,
     },
     null,
@@ -181,6 +192,10 @@ await writeFile(
 
 console.info(report.lines().join('\n'));
 
-console.info(
-  `\n${args.write ? 'Committed' : 'Dry run, rolled back'}: ${report.copiedTotal()} rows copied. Report: ${file}`,
-);
+if (failure) {
+  console.error(`\nFailed and rolled back: ${failure}. Report so far: ${file}`);
+  process.exitCode = 1;
+} else
+  console.info(
+    `\n${args.write ? 'Committed' : 'Dry run, rolled back'}: ${report.copiedTotal()} rows copied. Report: ${file}`,
+  );

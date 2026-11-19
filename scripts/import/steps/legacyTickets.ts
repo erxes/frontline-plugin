@@ -20,11 +20,9 @@ import {
   docId,
 } from '../values.ts';
 import { already, FALLBACK_CHANNEL } from './structure.ts';
-import { loadNumbers, pipelineRow, statusRow } from './tickets.ts';
+import { loadNumbers, ORPHAN_PIPELINE, ORPHAN_STATUS, pipelineRow, statusRow } from './tickets.ts';
 
 /** The pipeline and status for tickets whose stage old erxes deleted. */
-const ORPHAN_PIPELINE = 'officenext-tickets-without-stage';
-const ORPHAN_STATUS = 'officenext-tickets-without-stage-status';
 
 /** Old stage positions as status types: the first new, the last resolved, the rest in progress. */
 export const statusTypeAt = (index: number, count: number) => {
@@ -250,21 +248,6 @@ const legacyStageStep = (database: Database): Step => ({
   },
 });
 
-const orphanPipelineStep: Step = {
-  source: 'import.tickets-without-stage',
-  documents: () => [{ _id: ORPHAN_PIPELINE }],
-  transform: (_doc, ctx) =>
-    put(
-      pipelineRow(ctx, ORPHAN_PIPELINE, FALLBACK_CHANNEL, {
-        name: 'Old tickets without a stage',
-        description:
-          'Old erxes tickets whose stage or pipeline was deleted. Move them to their pipelines.',
-        created_by: ctx.owner,
-      }),
-      statusRow(ctx, ORPHAN_STATUS, ORPHAN_PIPELINE, { name: 'Imported', type: 2, order: 0 }),
-    ),
-};
-
 /** Labels on old tickets become ticket tags, once per name. */
 const labelTags = (
   ctx: Context,
@@ -425,6 +408,5 @@ const legacyCommentStep = (database: Database): Step => ({
 
 export const LEGACY_TICKET_STEPS: Step[] = [
   ...DATABASES.flatMap((database) => [legacyPipelineStep(database), legacyStageStep(database)]),
-  orphanPipelineStep,
   ...DATABASES.flatMap((database) => [legacyTicketStep(database), legacyCommentStep(database)]),
 ];
