@@ -7,6 +7,7 @@ import { clientAs } from '#/test/member.ts';
 import type * as FilesModule from '../../files.ts';
 import { tokenOf } from '../../messenger/session.ts';
 import { flushViews } from '../../views.ts';
+import { publishedSite, SANITIZED } from './published.ts';
 
 // Core's storage: any file it is asked for, as an image.
 vi.mock('#/modules/files.ts', async (importOriginal) => ({
@@ -39,44 +40,8 @@ afterAll(() => {
   server.close();
 });
 
-/** The published article's body as visitors get it: no handlers, scripts or script links. */
-const SANITIZED =
-  '<p>Money back</p><p>Fees &amp; refunds</p><a target="_blank" rel="noreferrer">Terms</a><a href="https://acme.test/refunds" target="_blank" rel="noreferrer">Policy</a>';
-
 /** A file on core's storage, at the address core gives it. */
 const file = (id: string) => ({ url: `/core/v1/files/${id}/download`, name: `${id}.png` });
-
-/** A help center over a topic with one published article, one draft and one private. */
-const publishedSite = async (orgId: string) => {
-  const owner = clientAs(orgId);
-  const topic = await owner.knowledgebase.topics.create({ title: 'Help' });
-
-  const category = await owner.knowledgebase.categories.create({
-    topicId: topic.id,
-    title: 'Billing',
-  });
-
-  const article = await owner.knowledgebase.articles.create({
-    categoryId: category.id,
-    title: 'Refunds',
-    content:
-      '<p onclick="steal()">Money back</p><p>Fees &amp; refunds</p><script>steal()</script><a href="javascript:steal()">Terms</a><a href="https://acme.test/refunds">Policy</a>',
-    status: 'publish',
-  });
-
-  await owner.knowledgebase.articles.create({ categoryId: category.id, title: 'Draft' });
-
-  await owner.knowledgebase.articles.create({
-    categoryId: category.id,
-    title: 'Internal',
-    status: 'publish',
-    isPrivate: true,
-  });
-
-  const center = await owner.helpCenters.create({ title: 'Acme help', kbTopicId: topic.id });
-
-  return { owner, topic, center, article };
-};
 
 describe('help centers', () => {
   it('serves its published public articles to any website by its key, their HTML sanitized', async () => {

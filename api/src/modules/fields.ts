@@ -19,5 +19,8 @@ export const Ids = z
   .max(100)
   .transform((ids) => [...new Set(ids)]);
 
+/** An ISO 639-1 language such as `mn`, which `Intl` and an HTML `lang` take as they are. */
+export const LanguageCode = z.string().regex(/^[a-z]{2}$/);
+
 /** A hex colour such as `#4F46E5`, as erxes-ui's ColorPicker writes it. */
 export const Color = z.string().regex(/^#[0-9a-f]{6}$/i);

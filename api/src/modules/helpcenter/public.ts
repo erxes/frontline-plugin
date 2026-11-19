@@ -18,7 +18,7 @@ import { published, shownFile, shownKeyOf, shownUrl } from '../shownFiles.ts';
  * The help center's organisation and id from the address a signed-out visitor came by: its key,
  * or its domain once Cloudflare serves it.
  */
-const centerAt = async (address: string) => {
+export const centerAt = async (address: string) => {
   const found = await openedBy(address.toLowerCase(), [HELP_CENTER_KEY, HELP_CENTER_DOMAIN]);
 
   if (!found) return null;
@@ -35,13 +35,13 @@ const centerAt = async (address: string) => {
   });
 };
 
-type Center = NonNullable<Awaited<ReturnType<typeof centerAt>>>;
+export type Center = NonNullable<Awaited<ReturnType<typeof centerAt>>>;
 
 /**
  * An article's HTML as a visitor's page may show it: sanitize-html's default formatting tags,
  * plus images, with links opening in a new tab.
  */
-const visitorHtml = (html: string, key: string) => {
+export const visitorHtml = (html: string, key: string) => {
   /** The tag with its `name` attribute's core file at the address a visitor loads it from. */
   const shown = (attribs: sanitizeHtml.Attributes, name: string) => {
     const url = attribs[name];
@@ -180,7 +180,7 @@ const formsOf = (orgId: string, key: string, ids: string[]) =>
  * What a visitor sees of the help center: its look, with its images where a visitor loads them,
  * its topic's published articles and its forms.
  */
-const siteOf = async ({ orgId, center }: Center) => {
+export const siteOf = async ({ orgId, center }: Center) => {
   const key = await shownKeyOf(orgId);
   const shown = (url: string | null | undefined) => url && shownUrl(key, url);
 

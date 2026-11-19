@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server';
 import { and, count, eq, getTableColumns, ilike, inArray, sql } from 'drizzle-orm';
 import { createInsertSchema, createSelectSchema, createUpdateSchema } from 'drizzle-zod';
 import { z } from 'zod';
+import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import {
@@ -18,7 +19,7 @@ import { forms } from '#/db/forms.ts';
 import { publicKeys } from '#/db/public.ts';
 import { kbTopics } from '#/db/schema.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
-import { Blank, Color, Title } from '../fields.ts';
+import { Blank, Color, LanguageCode, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
@@ -46,7 +47,7 @@ const centerColumns = {
 const refine = {
   title: () => Title,
   description: () => Blank(2000),
-  languageCode: () => z.string().max(10).nullable(),
+  languageCode: () => LanguageCode.nullable(),
   kbLabel: () => Blank(100),
   formIds: () => z.array(z.string()).max(50),
   color: () => Color.nullable(),
@@ -64,6 +65,8 @@ const HelpCenter = createSelectSchema(helpCenters, refine).omit({ orgId: true })
   domainsAvailable: z.boolean(),
   /** The script a website adds to show the knowledge base. */
   scriptUrl: z.string(),
+  /** The help center's site at its key's address, which works before any domain does. */
+  siteUrl: z.string(),
 });
 
 const withTarget = <T extends { publicKey: string }>(row: T) => ({
@@ -71,6 +74,7 @@ const withTarget = <T extends { publicKey: string }>(row: T) => ({
   cnameTarget: cnameTarget(row.publicKey),
   domainsAvailable: domainsAvailable(),
   scriptUrl: widgetScript('knowledgebase', { key: row.publicKey }),
+  siteUrl: `${config.publicUrl}/help/${row.publicKey}`,
 });
 
 const centerById = async (tx: Tx, id: string) => {

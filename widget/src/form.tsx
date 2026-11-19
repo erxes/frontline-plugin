@@ -1,6 +1,7 @@
 // A website's form: `<script type="module" src=".../widget/form.js?key=KEY&code=CODE">`. The
-// script's own address names the organisation's key, the form and where frontline's API is. An
-// embedded form renders into `<div data-frontline-form="CODE">`, or at the end of the page.
+// script's own address names the organisation's key, the form and where frontline's API is. A
+// `<div data-frontline-form="CODE">` on the page draws the form in place, whatever its load type,
+// as a help center's form page does; without one the form opens as its load type says.
 import { render } from 'preact';
 import { formApi } from './form/api.ts';
 import { FormEmbed } from './form/FormEmbed.tsx';
@@ -14,9 +15,13 @@ const code = script.searchParams.get('code');
 const start = async (organization: string, form: string) => {
   const path = `../api/public/${encodeURIComponent(organization)}/forms/${encodeURIComponent(form)}`;
   const api = formApi(new URL(path, script));
-  const visitorForm = await api.form();
+  const found = await api.form();
   const slot = document.querySelector(`[data-frontline-form="${CSS.escape(form)}"]`);
   const host = document.createElement('div');
+
+  const visitorForm = slot
+    ? { ...found, form: { ...found.form, loadType: 'embedded' as const } }
+    : found;
 
   host.className = 'frontline-form';
   (slot ?? document.body).append(host);
