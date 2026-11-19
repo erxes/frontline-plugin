@@ -233,14 +233,23 @@ export type Rpc = Awaited<ReturnType<typeof pluginApi>>;
 export const ARTICLE = 'Write to us within 30 days.';
 
 /**
- * A topic with a Billing category, its Cards subcategory and a published Refunds article, made
- * through the API. Returns the topic's id.
+ * A topic with a Billing category, its Cards subcategory and a published Refunds article that
+ * offers the Like and Sad reactions, made through the API. Returns the topic's id.
  */
 export const knowledgeBase = async (rpc: Rpc, title: string) => {
   const create = (kind: string, input: unknown) => rpc(`knowledgebase/${kind}/create`, input, Id);
   const { id: topicId } = await create('topics', { title });
   const { id: parentId } = await create('categories', { topicId, title: 'Billing' });
-  const article = { title: 'Refunds', summary: 'Money back', content: `<p>${ARTICLE}</p>` };
+
+  const article = {
+    title: 'Refunds',
+    summary: 'Money back',
+    content: `<p>${ARTICLE}</p>`,
+    // The icons the article panel offers, which the widget draws as emoji.
+    reactionChoices: ['like', 'sad'].map(
+      (name) => `https://erxes.s3.amazonaws.com/icons/${name}.svg`,
+    ),
+  };
 
   await create('categories', { topicId, title: 'Cards', parentId });
   await create('articles', { ...article, categoryId: parentId, status: 'publish' });

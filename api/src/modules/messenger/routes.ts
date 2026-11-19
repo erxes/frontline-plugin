@@ -42,6 +42,8 @@ export type { VisitorConversation, VisitorMessage, VisitorMessages } from './thr
 
 export type { TicketForms, VisitorTicket } from './tickets.ts';
 
+export type { ArticleReactions } from '../knowledgebase/reactions.ts';
+
 export type { VisitorSurvey } from '../surveys/votes.ts';
 
 /** The active messenger a key opens, with its settings and its team from core, or NOT_FOUND. */
@@ -269,6 +271,7 @@ export const messengerRoutes = () => {
   router.get('/tickets/forms', ticketRoutes.ticketForms);
   router.get('/knowledge-base', articleRoutes.knowledgeBase);
   router.get('/knowledge-base/articles/:id', articleRoutes.article);
+  router.post('/knowledge-base/articles/:id/reaction', articleRoutes.reactTo);
   router.get('/knowledge-base/search', articleRoutes.search);
 
   return router;

@@ -1078,7 +1078,7 @@ Procedures replace the 337 GraphQL types.
 
 ### Tables
 
-- [x] `frontline_knowledgebase_articles` from collection `knowledgebase_articles` (23 fields) `frontline_api/src/modules/knowledgebase/db/definitions/article.ts:13`. Decision: `topicId`, `code`, `forms`, `reactionCounts`, `publishedUserId`, `modifiedBy`, `modifiedDate` and `createdDate` are gone; the category gives the topic, and deleting the category deletes its articles. `scheduledDate` is `scheduled_at`.
+- [x] `frontline_knowledgebase_articles` from collection `knowledgebase_articles` (23 fields) `frontline_api/src/modules/knowledgebase/db/definitions/article.ts:13`. Decision: `topicId`, `code`, `forms`, `publishedUserId`, `modifiedBy`, `modifiedDate` and `createdDate` are gone; the category gives the topic, and deleting the category deletes its articles. `scheduledDate` is `scheduled_at`. `reactionCounts` is `frontline_knowledgebase_article_reactions`, one per customer.
 - [x] `frontline_knowledgebase_categories` from collection `knowledgebase_categories` (11 fields) `frontline_api/src/modules/knowledgebase/db/definitions/category.ts:4`. Decision: `parentCategoryId` is `parent_id`, a foreign key that lifts children to the top when their parent goes; a category's `code`, like a topic's, is unique in its organisation.
 - [x] `frontline_knowledgebase_topics` from collection `knowledgebase_topics` (13 fields) `frontline_api/src/modules/knowledgebase/db/definitions/topic.ts:4`. Decision: `brandId` goes with brands, `notificationSegmentId` with segments, and `categoryIds` repeated the categories table. Deleting a topic deletes its categories and articles.
 

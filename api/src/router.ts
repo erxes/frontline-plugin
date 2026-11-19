@@ -8,6 +8,7 @@ import { formProcedures } from '#/modules/forms/forms.ts';
 import { submissionProcedures } from '#/modules/forms/submissions.ts';
 import { helpCenterProcedures } from '#/modules/helpcenter/helpCenters.ts';
 import { articleProcedures } from '#/modules/knowledgebase/articles.ts';
+import { reactionProcedures as articleReactionProcedures } from '#/modules/knowledgebase/reactions.ts';
 import { categoryProcedures } from '#/modules/knowledgebase/categories.ts';
 import { topicProcedures } from '#/modules/knowledgebase/topics.ts';
 import { pipelineProcedures } from '#/modules/pipelines/pipelines.ts';
@@ -113,7 +114,7 @@ export const router = {
   knowledgebase: {
     topics: topicProcedures,
     categories: categoryProcedures,
-    articles: articleProcedures,
+    articles: { ...articleProcedures, ...articleReactionProcedures },
   },
   reports: {
     tickets: ticketReport,
