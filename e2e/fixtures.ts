@@ -10,6 +10,7 @@ import {
   type BrowserContext,
   type Locator,
   type Page,
+  type Request,
 } from '@playwright/test';
 import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
@@ -143,13 +144,40 @@ export const coreClient = (request: APIRequestContext, baseURL: string | undefin
   return client;
 };
 
+/** Each browser context's requests still in flight, but live streams, which never end. */
+const inFlight = new WeakMap<BrowserContext, Set<Request>>();
+
+/** Starts counting `context`'s requests for `expectAccessible`. */
+const trackRequests = (context: BrowserContext) => {
+  const requests = new Set<Request>();
+
+  inFlight.set(context, requests);
+  context.on('request', (request) => {
+    if (request.resourceType() !== 'eventsource') requests.add(request);
+  });
+  context.on('requestfinished', (request) => requests.delete(request));
+  context.on('requestfailed', (request) => requests.delete(request));
+};
+
 /**
  * Fails on serious or critical axe violations, listing each rule with the elements that break it.
- * Colours are checked at rest: once `shown`, which the page draws from its data, is visible, and
- * the page's animations end. Spinners loop forever, so only finite animations are waited for.
+ * Colours are checked at rest: once `shown`, which the page draws from its data, is visible, every
+ * request has answered and drawn, and the page's animations end. Data that lands mid-scan changes
+ * what axe measures: the list's record count fades in under its leaving skeleton
+ * (erxes/erxes#10812). Spinners loop forever, so only finite animations are waited for.
  */
 export const expectAccessible = async (page: Page, shown: Locator) => {
   await expect(shown).toBeVisible();
+  await expect
+    .poll(() => [...(inFlight.get(page.context()) ?? [])].map((request) => request.url()), {
+      message: 'requests still in flight',
+      timeout: 15_000,
+    })
+    .toEqual([]);
+  // The last answer renders on a later frame.
+  await page.evaluate(
+    () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+  );
   await page.waitForFunction(() =>
     document
       .getAnimations()
@@ -178,6 +206,10 @@ export const expectAccessible = async (page: Page, shown: Locator) => {
 type NewMember = (permissions: string[]) => Promise<{ page: Page; id: string; fullName: string }>;
 
 export const test = base.extend<{ api: ReturnType<typeof coreClient>; newMember: NewMember }>({
+  context: async ({ context }, use) => {
+    trackRequests(context);
+    await use(context);
+  },
   api: async ({ page, baseURL }, use) => {
     await use(coreClient(page.request, baseURL));
   },
@@ -194,6 +226,7 @@ export const test = base.extend<{ api: ReturnType<typeof coreClient>; newMember:
 
       const context = await browser.newContext({ baseURL, colorScheme });
 
+      trackRequests(context);
       contexts.push(context);
 
       const page = await context.newPage();
