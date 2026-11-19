@@ -1,4 +1,5 @@
 import { useEffect } from 'preact/hooks';
+import { openDatePicker } from '../shared/picker.ts';
 import { useText } from '../shared/text.ts';
 import { AttachButton, FileChips, useUploads } from '../shared/uploads.tsx';
 import type { Answer, Field, FormApi } from './api.ts';
@@ -83,7 +84,7 @@ const TextInput = ({ field, value, onChange }: InputProps) => {
   switch (field.type) {
     case 'date':
     case 'core:customer:birthDate':
-      return <input {...props} type="date" />;
+      return <input {...props} type="date" onClick={openDatePicker} />;
     case 'core:customer:email':
       return <input {...props} type="email" />;
     case 'core:customer:phone':

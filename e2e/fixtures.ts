@@ -404,6 +404,12 @@ export const openShop = async (context: BrowserContext, installCode: string) => 
   const address = site.address();
   const shop = await context.newPage();
 
+  // A date input's calendar marks the input instead of opening (`expectClickOpensCalendar`).
+  await shop.addInitScript((mark) => {
+    HTMLInputElement.prototype.showPicker = function showPicker(this: HTMLInputElement) {
+      this.setAttribute(mark, '');
+    };
+  }, 'data-calendar');
   await shop.goto(`http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}/`);
 
   return {
@@ -413,6 +419,12 @@ export const openShop = async (context: BrowserContext, installCode: string) => 
       await site[Symbol.asyncDispose]();
     },
   };
+};
+
+/** Clicks the text of a shop's date `input`, away from its icon, and expects its calendar open. */
+export const expectClickOpensCalendar = async (input: Locator) => {
+  await input.click({ position: { x: 8, y: 8 } });
+  await expect(input).toHaveAttribute('data-calendar', '');
 };
 
 /**

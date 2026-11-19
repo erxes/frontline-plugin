@@ -1,4 +1,4 @@
-import type { APIRequestContext, Locator, Page } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
 import { z } from 'zod';
 import {
   confirmDelete,
@@ -8,22 +8,13 @@ import {
   Id,
   moveByKeys,
   openChannelPipelines,
-  openShop,
   pluginApi,
   recordPanel,
   recordPath,
   test,
   unique,
 } from './fixtures.ts';
-
-const FORMS = '/frontline/forms';
-
-/** What the public address gives a visitor: the fields, by id. */
-const Shown = z.object({ fields: z.array(z.object({ id: z.string(), label: z.string() })) });
-
-/** Sends `answers` to a form's public address `url`, as its widget does, and gives the status. */
-const answer = async (request: APIRequestContext, url: string, answers: Record<string, unknown>) =>
-  (await request.post(url, { data: { answers } })).status();
+import { answer, FORMS, sendAsVisitor } from './formVisitor.ts';
 
 /** Opens `select` and picks `option` in it. */
 const pick = async (page: Page, select: Locator, option: string) => {
@@ -61,10 +52,11 @@ const addField = async (page: Page, type: string, label: string) => {
 };
 
 /**
- * On the builder: a Plan dropdown, and a Seats number shown only for the Team plan, which the
- * preview hides until Team is picked in it.
+ * On the builder: a Start date, a Plan dropdown, and a Seats number shown only for the Team plan,
+ * which the preview hides until Team is picked in it.
  */
 const buildFields = async (page: Page) => {
+  await addField(page, 'Date', 'Start');
   await addField(page, 'Dropdown', 'Plan');
   await page.getByRole('button', { name: 'Settings of Plan' }).click();
   await page.getByPlaceholder('Type an option and press Enter').fill('Free');
@@ -93,46 +85,6 @@ const buildFields = async (page: Page) => {
   await expect(preview.getByLabel('Seats')).toBeHidden();
   await pick(page, preview.getByRole('combobox', { name: 'Plan' }), 'Team');
   await expect(preview.getByLabel('Seats')).toBeVisible();
-};
-
-/**
- * Sends the form twice: from a shop with the install code the panel gives, where Seats shows
- * once Team is picked, and from its public address, which drops a hidden field's answer.
- */
-const sendAsVisitor = async (page: Page, request: APIRequestContext, name: string) => {
-  const panel = recordPanel(page);
-
-  await page.goto(FORMS);
-  await page.getByRole('button', { name, exact: true }).click();
-  await panel.getByRole('button', { name: 'Show install code' }).click();
-
-  const installCode = (await panel.getByLabel('Install code').textContent()) ?? '';
-  const url = (await panel.getByText(/\/api\/public\//).textContent()) ?? '';
-
-  {
-    await using site = await openShop(page.context(), installCode);
-    const form = site.shop.getByRole('form', { name: 'Book a demo' });
-
-    await expect(form.getByLabel('Seats')).toBeHidden();
-    // Plan searches its options: text that is none is refused, and one but for case becomes it.
-    await form.getByLabel('Plan').fill('Tea');
-    await form.getByRole('button', { name: 'Ask' }).click();
-    await expect(form.getByText('Pick an option')).toBeVisible();
-    await form.getByLabel('Plan').fill('team');
-    await expect(form.getByLabel('Plan')).toHaveValue('Team');
-    await form.getByLabel('Seats').fill('5');
-
-    await form.getByRole('button', { name: 'Ask' }).click();
-    await expect(site.shop.getByRole('heading', { name: 'Thank you' })).toBeVisible();
-  }
-
-  const shown = await request.get(url);
-  const { fields } = Shown.parse(await shown.json());
-  const idOf = (label: string) => fields.find((field) => field.label === label)?.id ?? '';
-
-  expect(shown.status()).toBe(200);
-  expect(await answer(request, url, { [idOf('Plan')]: 'Free', [idOf('Seats')]: 9 })).toBe(201);
-  expect(await answer(request, url, { [idOf('Plan')]: 'Gold' })).toBe(422);
 };
 
 test('an admin builds a form and a visitor sends it from a website and its address', async ({
