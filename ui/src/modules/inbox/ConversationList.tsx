@@ -22,7 +22,7 @@ import { type Conversation, prefetchConversation, useOpenConversation } from './
  * Opens a conversation as a transition: the open one stays in the pane until the next one's
  * messages are in, instead of a skeleton between them.
  */
-export const useSelectConversation = () => {
+const useSelectConversation = () => {
   const [, setOpenId] = useOpenConversation();
 
   return (conversation: Conversation) => startTransition(() => void setOpenId(conversation.id));

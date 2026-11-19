@@ -68,8 +68,6 @@ test('a conversation in the inbox', async ({ page, api, plugin, request }) => {
   const name = `Ada ${unique()}`;
   const thread = page.getByRole('list', { name: 'Messages' });
   const first = thread.getByRole('article', { name: 'Message' }).first();
-  const sidebar = page.getByRole('complementary', { name: 'Customer details' });
-  const rail = page.getByRole('toolbar', { name: 'Customer panels' });
 
   const visitor = await visitorOf(request, plugin, key, {
     email: `${unique()}@e2e.test`,
@@ -78,12 +76,10 @@ test('a conversation in the inbox', async ({ page, api, plugin, request }) => {
 
   const conversationId = await visitor.write(`Where is my order ${unique()}`);
 
-  // The open conversation with a pinned message, the customer's panel and a note's tint.
+  // The open conversation with a pinned message and a note's tint.
   await page.goto(`${INBOX}?conversationId=${conversationId}`);
   await first.hover();
   await first.getByRole('button', { name: 'Pin' }).click();
-  await rail.getByRole('button', { name: 'Customer', exact: true }).click();
-  await expect(sidebar.getByText(name)).toBeVisible();
   await expectAccessible(page, page.getByRole('region', { name: 'Pinned messages' }));
   await page.getByRole('tab', { name: 'Internal note' }).click();
   await expectAccessible(page, page.getByRole('textbox', { name: 'Internal note' }));

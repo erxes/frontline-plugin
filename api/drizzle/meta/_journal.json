@@ -281,6 +281,13 @@
       "when": 1795065920762,
       "tag": "0041_article_reactions",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1795080109662,
+      "tag": "0042_ticket_conversation",
+      "breakpoints": true
     }
   ]
 }

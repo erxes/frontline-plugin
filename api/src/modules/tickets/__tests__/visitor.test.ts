@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vite-plus/test';
+import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { serve } from '#/test/http.ts';
 import { coreTicketFields } from '#/test/coreUnits.ts';
@@ -140,5 +141,62 @@ describe("a messenger visitor's tickets", () => {
     expect((await messenger.get('/tickets', ann)).body).toEqual([
       expect.objectContaining({ comments: [] }),
     ]);
+  });
+  it('remembers the conversation a member made a ticket from, one they see', async () => {
+    const orgId = 'org-tk-source';
+    const owner = clientAs(orgId);
+    const channel = await owner.channels.create({ name: 'Support', memberIds: ['clerk'] });
+    const pipeline = await owner.pipelines.create({ channelId: channel.id, name: 'Main' });
+    const sales = await owner.channels.create({ name: 'Sales', memberIds: ['teammate'] });
+    const leads = await owner.pipelines.create({ channelId: sales.id, name: 'Leads' });
+    const teammate = clientAs(orgId, [PERMISSIONS.channelView, PERMISSIONS.inboxView], 'teammate');
+    // In the conversation's channel, but without the inbox.
+    const clerk = clientAs(orgId, [PERMISSIONS.channelView], 'clerk');
+
+    const integration = await owner.integrations.create({
+      channelId: channel.id,
+      kind: 'messenger',
+      name: 'Website',
+      config: {},
+    });
+
+    const ann = await tokenOf({
+      orgId,
+      integrationId: integration.id,
+      verified: false,
+      customerId: 'customer-ann',
+      identified: true,
+    });
+
+    const { conversationId } = z
+      .object({ conversationId: z.string() })
+      .parse((await messenger.post('/messages', { content: 'My zip is broken' }, ann)).body);
+
+    const ticket = await owner.tickets.create({
+      pipelineId: pipeline.id,
+      name: 'Broken zip',
+      customerId: 'customer-ann',
+      conversationId,
+    });
+
+    expect(ticket).toMatchObject({ conversationId, customerId: 'customer-ann' });
+    await owner.tickets.create({ pipelineId: pipeline.id, name: 'Other' });
+
+    const filter = JSON.stringify({
+      match: 'all',
+      rules: [{ path: 'subject.conversationId', op: 'eq', value: conversationId }],
+    });
+
+    await expect(owner.tickets.list({ filter })).resolves.toMatchObject({
+      tickets: [{ id: ticket.id, conversationId }],
+      totalCount: 1,
+    });
+    // A member outside the conversation's channel can't name it.
+    await expect(
+      teammate.tickets.create({ pipelineId: leads.id, name: 'Zip', conversationId }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(
+      clerk.tickets.create({ pipelineId: pipeline.id, name: 'Zip', conversationId }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });

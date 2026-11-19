@@ -1,0 +1,2 @@
+ALTER TABLE "frontline_tickets" ADD COLUMN "conversation_id" text;--> statement-breakpoint
+CREATE INDEX "frontline_tickets_org_conversation_idx" ON "frontline_tickets" USING btree ("org_id","conversation_id");

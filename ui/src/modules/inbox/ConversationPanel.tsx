@@ -4,21 +4,52 @@ import {
   IconCircleDot,
   IconCircles,
   IconDots,
+  IconMail,
   IconMessage,
+  IconPhone,
   IconUser,
 } from '@tabler/icons-react';
+import { contactQueries } from '@erxes/core-contract/client';
+import { useQuery } from '@tanstack/react-query';
 import { Button, PanelSection, Skeleton, type TRecordSlotProps } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { PLUGIN } from '~/plugin.ts';
+import { conversationPath } from '~/plugin.ts';
 import { ChannelLabel } from '~/shared/ChannelSelect.tsx';
-import { MemberChip, useCustomer } from '~/shared/Person.tsx';
+import { ContactChip, MemberChip, useCustomer } from '~/shared/Person.tsx';
 import { InfoRow, PageLink, PanelSkeleton } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
-import { Customer } from './CustomerSidebar.tsx';
 import { KindIcon } from '~/shared/kinds.tsx';
+import { VisitorPresence } from './ConversationPresence.tsx';
 import { useStatusNames } from './InboxFilter.tsx';
-import { useConversation, useConversationSignal } from './queries.ts';
+import { type Conversation, useConversation, useConversationSignal } from './queries.ts';
 import { useSetStatus } from './changes.ts';
+
+/**
+ * Who the customer is: their chip, which opens them in core's side panel, how to reach them and,
+ * for a messenger visitor, whether they are online.
+ */
+const Customer = ({ conversation }: { conversation: Conversation }) => {
+  const { t } = useTranslation('frontline');
+  const { customerId } = conversation;
+  const customer = useQuery(contactQueries.customer(customerId)).data;
+
+  return (
+    <PanelSection title={t('customer', 'Customer')} icon={IconUser}>
+      <ContactChip contentId={customerId} placeholder={t('visitor', 'Visitor')} />
+      <VisitorPresence conversation={conversation} />
+      {customer?.primaryEmail && (
+        <InfoRow icon={IconMail} label={t('email', 'Email')}>
+          <span className="truncate">{customer.primaryEmail}</span>
+        </InfoRow>
+      )}
+      {customer?.primaryPhone && (
+        <InfoRow icon={IconPhone} label={t('phone', 'Phone')}>
+          {customer.primaryPhone}
+        </InfoRow>
+      )}
+    </PanelSection>
+  );
+};
 
 /** The panel header's title: the customer the conversation is with, and its provider. */
 export const ConversationTitle = ({ contentId }: TRecordSlotProps) => {
@@ -104,7 +135,7 @@ export const ConversationDetail = ({ contentId }: TRecordSlotProps) => {
           </InfoRow>
         )}
         <PageLink
-          to={`/${PLUGIN}/inbox?conversationId=${encodeURIComponent(conversation.id)}`}
+          to={conversationPath(conversation.id)}
           label={t('open-in-inbox', 'Open in the inbox')}
           count={conversation.messageCount}
         />

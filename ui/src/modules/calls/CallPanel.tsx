@@ -18,7 +18,7 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
-import { PLUGIN } from '~/plugin.ts';
+import { conversationPath } from '~/plugin.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { CALL_ICONS, CallStatus, queueLabel, useDirectionNames } from './CallFields.tsx';
 import { type Call, durationText, useCall, useFetchRecording } from './queries.ts';
@@ -113,7 +113,7 @@ const Fields = ({ call }: { call: Call }) => {
       </InfoRow>
       <PanelField icon={IconMessage} label={t('conversation', 'Conversation')} cell={false}>
         <Link
-          to={`/${PLUGIN}/inbox?conversationId=${encodeURIComponent(call.conversationId)}`}
+          to={conversationPath(call.conversationId)}
           className="truncate px-2 text-xs underline-offset-2 hover:underline"
         >
           {t('open-in-inbox', 'Open in inbox')}

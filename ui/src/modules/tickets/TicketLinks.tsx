@@ -109,10 +109,10 @@ const useContactOptions = (contentType: TContactContentType, search: string) => 
 };
 
 /**
- * A customer or company of the ticket: core's link that opens it beside the page, and a button
- * that picks another from core's list.
+ * A customer or company of a ticket or its draft: core's link that opens it beside the page, and
+ * a button that picks another from core's list.
  */
-const ContactField = ({
+export const ContactField = ({
   contentType,
   label,
   value,
