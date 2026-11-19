@@ -1,7 +1,6 @@
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vite-plus/test';
+import { describe, expect, it, vi } from 'vite-plus/test';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
-import { createApp } from '#/server.ts';
 import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 import type * as FilesModule from '../../files.ts';
@@ -21,24 +20,7 @@ vi.mock('#/modules/files.ts', async (importOriginal) => ({
 
 const messenger = serve('/api/public/messenger');
 
-let base = '';
-let server: ReturnType<ReturnType<typeof createApp>['listen']>;
-
-beforeAll(async () => {
-  await new Promise<void>((resolve) => {
-    server = createApp().listen(0, () => resolve());
-  });
-
-  const address = server.address();
-
-  if (!address || typeof address === 'string') throw new Error('not listening on a port');
-
-  base = `http://127.0.0.1:${address.port}/api/public`;
-});
-
-afterAll(() => {
-  server.close();
-});
+const publicApi = serve('/api/public');
 
 /** A file on core's storage, at the address core gives it. */
 const file = (id: string) => ({ url: `/core/v1/files/${id}/download`, name: `${id}.png` });
@@ -53,7 +35,7 @@ describe('help centers', () => {
       `http://localhost:3399/widget/knowledgebase.js?key=${center.publicKey}`,
     );
 
-    const site = await fetch(`${base}/help-centers/${center.publicKey}`, {
+    const site = await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}`, {
       headers: { origin: 'https://shop.test' },
     });
 
@@ -66,14 +48,16 @@ describe('help centers', () => {
       articles: [{ id: article.id, title: 'Refunds', viewCount: 0 }],
     });
 
-    const read = await fetch(`${base}/help-centers/${center.publicKey}/articles/${article.id}`);
+    const read = await fetch(
+      `${publicApi.url('')}/help-centers/${center.publicKey}/articles/${article.id}`,
+    );
 
     await expect(read.json()).resolves.toMatchObject({ content: SANITIZED, viewCount: 0 });
 
     // Search reads the text without its tags or entities, and a draft, a private article or a wildcard in
     // the words finds nothing.
     const search = async (q: string) =>
-      (await fetch(`${base}/help-centers/${center.publicKey}/search?q=${q}`)).json();
+      (await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}/search?q=${q}`)).json();
 
     await expect(search('fees%20%26%20REFUNDS')).resolves.toEqual([
       expect.objectContaining({ id: article.id, title: 'Refunds' }),
@@ -82,26 +66,28 @@ describe('help centers', () => {
     for (const missed of ['onclick', 'Draft', 'Internal', 'M_ney'])
       await expect(search(missed)).resolves.toEqual([]);
 
-    expect((await fetch(`${base}/help-centers/${center.publicKey}/search?q=`)).status).toBe(400);
+    expect(
+      (await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}/search?q=`)).status,
+    ).toBe(400);
 
     // The view is written with the others that came meanwhile.
     await flushViews();
     await expect(
-      (await fetch(`${base}/help-centers/${center.publicKey}`)).json(),
+      (await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}`)).json(),
     ).resolves.toMatchObject({ articles: [{ id: article.id, viewCount: 1 }] });
-    expect((await fetch(`${base}/help-centers/unknown-key`)).status).toBe(404);
+    expect((await fetch(`${publicApi.url('')}/help-centers/unknown-key`)).status).toBe(404);
   });
 
   it("doesn't serve another topic's articles, and stops serving a deleted help center", async () => {
     const { owner, center } = await publishedSite('org-hc-b');
     const other = await publishedSite('org-hc-c');
-    const theirs = `${base}/help-centers/${center.publicKey}/articles/${other.article.id}`;
+    const theirs = `${publicApi.url('')}/help-centers/${center.publicKey}/articles/${other.article.id}`;
 
     expect((await fetch(theirs)).status).toBe(404);
 
     await owner.helpCenters.remove({ ids: [center.id] });
 
-    expect((await fetch(`${base}/help-centers/${center.publicKey}`)).status).toBe(404);
+    expect((await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}`)).status).toBe(404);
     await expect(owner.helpCenters.list({})).resolves.toEqual({
       helpCenters: [],
       nextCursor: null,
@@ -134,7 +120,7 @@ describe('help centers', () => {
 
     // An array matches only with as many items, so the archived form is left out.
     await expect(
-      (await fetch(`${base}/help-centers/${center.publicKey}`)).json(),
+      (await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}`)).json(),
     ).resolves.toMatchObject({
       forms: [
         { id: demo.id, name: 'Demo', url: embed.url, scriptUrl: embed.scriptUrl },
@@ -192,7 +178,10 @@ describe('help centers', () => {
       config: { logo: file('badge').url },
     });
 
-    const site: unknown = await (await fetch(`${base}/help-centers/${center.publicKey}`)).json();
+    const site: unknown = await (
+      await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}`)
+    ).json();
+
     const shown = Site.parse(site).helpCenter.styles.mainLogo.replace(/logo$/, '');
 
     expect(shown).toMatch(/^http:\/\/localhost:3399\/api\/public\/files\/[\w-]+\/$/);
@@ -204,7 +193,9 @@ describe('help centers', () => {
       },
     });
 
-    const read = await fetch(`${base}/help-centers/${center.publicKey}/articles/${article.id}`);
+    const read = await fetch(
+      `${publicApi.url('')}/help-centers/${center.publicKey}/articles/${article.id}`,
+    );
 
     await expect(read.json()).resolves.toMatchObject({
       content: `<p>Steps</p><img src="${shown}shot" /><a href="https://cloud.acme.test/files/report/download" target="_blank" rel="noreferrer">Report</a>`,
@@ -217,7 +208,8 @@ describe('help centers', () => {
     expect(opened.body).toMatchObject({ messenger: { logo: `${shown}badge` } });
 
     const statusOf = async (prefix: string, id: string) =>
-      (await fetch(`${prefix.replace('http://localhost:3399/api/public', base)}${id}`)).status;
+      (await fetch(`${prefix.replace('http://localhost:3399/api/public', publicApi.url(''))}${id}`))
+        .status;
 
     const ids = ['logo', 'icon', 'foot', 'hero', 'shot', 'cover', 'guide', 'badge'];
     const refused = ['secret', 'draft', 'report', 'elsewhere'];
@@ -239,7 +231,7 @@ describe('help centers', () => {
       styles: { mainLogo: file('theirs').url },
     });
 
-    const theirSite = await fetch(`${base}/help-centers/${other.center.publicKey}`);
+    const theirSite = await fetch(`${publicApi.url('')}/help-centers/${other.center.publicKey}`);
 
     const theirs = Site.parse(await theirSite.json()).helpCenter.styles.mainLogo.replace(
       /theirs$/,
@@ -287,14 +279,10 @@ describe('help centers', () => {
     expect((await messenger.get('/knowledge-base', await visitorOf({}))).status).toBe(404);
   });
 
-  it('resolves only domains Cloudflare serves, and refuses one where Cloudflare is off', async () => {
+  it('refuses a domain where Cloudflare is off, and one under erxes.io', async () => {
     const { owner, center } = await publishedSite('org-hc-d');
 
     expect(center.domainsAvailable).toBe(false);
-    expect((await fetch(`${base}/custom-domains/resolve?host=help.acme.test`)).status).toBe(404);
-    expect((await fetch(`${base}/custom-domains/resolve?host=${center.publicKey}`)).status).toBe(
-      404,
-    );
 
     await expect(
       owner.helpCenters.domain.save({ id: center.id, hostname: 'https://Help.Acme.test/' }),

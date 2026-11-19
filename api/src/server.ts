@@ -16,7 +16,7 @@ import { visitorIpLimit } from '#/modules/limits.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
 import { formChoices } from '#/modules/forms/links.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
-import { siteByKey } from '#/modules/helpcenter/site/routes.ts';
+import { siteByHost, siteByKey } from '#/modules/helpcenter/site/routes.ts';
 import { runAction } from '#/modules/inbox/automations.ts';
 import { webhookRoutes } from '#/modules/integrations/routes.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
@@ -122,7 +122,8 @@ export const createApp = () => {
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
   app.use(requestLogger);
-  // A help center's site, at `/help/<key>` on frontline's address.
+  // A help center's site: at its own host first, then at `/help/<key>` on frontline's address.
+  app.use(siteByHost);
   app.use(siteByKey());
   // Providers post webhooks signed out, from their own servers.
   app.use('/api/public/webhooks', webhookRoutes());
