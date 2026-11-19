@@ -1,8 +1,7 @@
-import { app, type BrowserWindow, type IpcMainEvent, ipcMain, Notification } from 'electron';
+import { app, type BrowserWindow, type IpcMainEvent, ipcMain } from 'electron';
 import { type PhoneCommand, PhoneState } from './bridge.ts';
 import { CHANNELS } from './channels.ts';
 import { settings } from './settings.ts';
-import { textIn } from './text.ts';
 import { telNumber } from './window.ts';
 
 /** Brings the window up, from the tray or behind other windows. */
@@ -15,16 +14,16 @@ export const reveal = (window: BrowserWindow) => {
 
 /**
  * The web softphone's side of the app: its state from the page, which `onState` gets (null while
- * the page has no phone), and the commands the app sends it. An incoming call brings the window
- * forward without taking the keyboard, flashes it, bounces the dock and shows a notification
- * until it's answered or gone. A number dialed before the phone is ready waits for it; one dialed
+ * the page has no phone), and the commands the app sends it. An incoming call flashes the window
+ * and bounces the dock until it's answered or gone; the call card (card.ts) shows and rings it.
+ * A number dialed before the phone is ready waits for it; one dialed
  * during a call only opens the Phone page.
  */
 export const connectPhone = (
   window: BrowserWindow,
   onState: (state: PhoneState | null) => void,
 ) => {
-  let ringing: Notification | null = null;
+  let ringing = false;
   let bounce: number | undefined;
   let waiting: string | null = null;
   let current: PhoneState | null = null;
@@ -33,21 +32,16 @@ export const connectPhone = (
 
   const ring = (state: PhoneState | null) => {
     const call = state?.call;
+    const rings = call?.direction === 'incoming' && !call.talking;
 
-    if (state && call?.direction === 'incoming' && !call.talking) {
-      if (ringing) return;
+    if (rings === ringing) return;
 
-      ringing = new Notification({ title: textIn(state.language).incoming, body: call.number });
-      ringing.on('click', () => reveal(window));
-      ringing.show();
+    ringing = rings;
 
-      if (!window.isVisible()) window.showInactive();
-
+    if (ringing) {
       window.flashFrame(true);
       bounce = app.dock?.bounce('critical');
-    } else if (ringing) {
-      ringing.close();
-      ringing = null;
+    } else {
       window.flashFrame(false);
 
       if (bounce !== undefined) app.dock?.cancelBounce(bounce);

@@ -8,12 +8,11 @@ import {
   IconPlayerPause,
   IconPlayerPlay,
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
 import { Button, Select, cn } from 'erxes-ui';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { durationText, useCallsSignal } from '@/calls/queries.ts';
-import { orpc } from '~/orpc.ts';
+import { durationText } from '@/calls/queries.ts';
+import { PersonAvatar } from '~/shared/Person.tsx';
 import { CallNote, Transfer } from './CallTools.tsx';
 import { DialPad, Dialer } from './DialPad.tsx';
 import type { LivePhone } from './live.ts';
@@ -58,7 +57,17 @@ export const useCallText = (call: PhoneCall) => {
 };
 
 /** The call the phone is on: who, how long, and what the member can do with it. */
-const OnCall = ({ phone, call, line }: { phone: Phone; call: PhoneCall; line: Line }) => {
+const OnCall = ({
+  phone,
+  call,
+  line,
+  caller,
+}: {
+  phone: Phone;
+  call: PhoneCall;
+  line: Line;
+  caller: string | null;
+}) => {
   const { t } = useTranslation('frontline');
   const [tool, setTool] = useState<'keys' | 'transfer' | null>(null);
   const ringing = call.direction === 'incoming' && !call.talking;
@@ -67,8 +76,12 @@ const OnCall = ({ phone, call, line }: { phone: Phone; call: PhoneCall; line: Li
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="py-4 text-center">
-        <div className="text-2xl font-semibold tabular-nums">{call.number}</div>
+      <div className="flex flex-col items-center py-4 text-center">
+        {caller && <PersonAvatar name={caller} className="mb-2" />}
+        <div className="max-w-full truncate text-2xl font-semibold tabular-nums">
+          {caller ?? call.number}
+        </div>
+        {caller && <div className="text-sm text-muted-foreground tabular-nums">{call.number}</div>}
         <div className="text-sm text-muted-foreground tabular-nums">{useCallText(call)}</div>
       </div>
       {call.talking ? (
@@ -125,30 +138,19 @@ const OnCall = ({ phone, call, line }: { phone: Phone; call: PhoneCall; line: Li
   );
 };
 
-/** The call's conversation, once the PBX has reported the call, for its note. */
-const useCallConversation = (line: Line, talking: boolean) => {
-  useCallsSignal();
-
-  const current = useQuery({
-    ...orpc.calls.phone.current.queryOptions({ input: { accountId: line.accountId } }),
-    enabled: talking,
-  });
-
-  return current.data ?? null;
-};
-
 /**
  * The Phone page's phone: the line and whether it's signed in, then the dial pad, or the call
  * with its tools and, once the PBX reports it, its note.
  */
 export const PhonePanel = ({
-  live: { phone, line, lines, pickLine, closedNote, closeNote },
+  live: { phone, line, lines, pickLine, current, caller, closedNote, closeNote },
 }: {
   live: LivePhone;
 }) => {
   const { t } = useTranslation('frontline');
-  const current = useCallConversation(line, Boolean(phone.call?.talking));
-  const note = current && current.id !== closedNote ? current : null;
+  // The note comes with the talking, and stays after the call until the member closes it.
+  const talkedTo = !phone.call || phone.call.talking;
+  const note = current && talkedTo && current.id !== closedNote ? current : null;
 
   const statusText: Record<PhoneStatus, string> = {
     connecting: t('phone-connecting', 'Connecting'),
@@ -187,7 +189,7 @@ export const PhonePanel = ({
         </span>
       </div>
       {phone.call ? (
-        <OnCall phone={phone} call={phone.call} line={line} />
+        <OnCall phone={phone} call={phone.call} line={line} caller={caller} />
       ) : (
         <Dialer ready={phone.status === 'ready'} onDial={phone.dial} />
       )}

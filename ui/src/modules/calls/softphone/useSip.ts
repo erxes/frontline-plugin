@@ -53,6 +53,7 @@ const playRemote = (session: RTCSession, audio: RefObject<HTMLAudioElement | nul
 const follow = (
   session: RTCSession,
   setCall: Dispatch<SetStateAction<PhoneCall | null>>,
+  onNew: () => void,
   audio: RefObject<HTMLAudioElement | null>,
   busy: RefObject<boolean>,
 ) => {
@@ -67,6 +68,7 @@ const follow = (
   };
 
   busy.current = true;
+  onNew();
   setCall({
     session,
     number: session.remote_identity.uri.user,
@@ -105,6 +107,8 @@ const follow = (
 export const useSip = (line: Line, audio: RefObject<HTMLAudioElement | null>) => {
   const [status, setStatus] = useState<PhoneStatus>('connecting');
   const [call, setCall] = useState<PhoneCall | null>(null);
+  // How many calls the phone has had: what belongs to one call is kept under its number.
+  const [callCount, setCallCount] = useState(0);
   const agent = useRef<UA | null>(null);
   const busy = useRef(false);
   const host = new URL(line.webSocketUrl).hostname;
@@ -122,9 +126,11 @@ export const useSip = (line: Line, audio: RefObject<HTMLAudioElement | null>) =>
     const offline = () => setStatus('offline');
     const connecting = () => setStatus('connecting');
 
+    const onNew = () => setCallCount((count) => count + 1);
+
     const session = ({ session: next }: RTCSessionEvent) => {
       if (busy.current) next.terminate({ status_code: 486 });
-      else follow(next, setCall, audio, busy);
+      else follow(next, setCall, onNew, audio, busy);
     };
 
     ua.on('registered', ready);
@@ -168,6 +174,7 @@ export const useSip = (line: Line, audio: RefObject<HTMLAudioElement | null>) =>
   return {
     status,
     call,
+    callCount,
     dial: (number: string) => {
       agent.current?.call(`sip:${number}@${host}`, { mediaConstraints: AUDIO_ONLY, pcConfig });
     },

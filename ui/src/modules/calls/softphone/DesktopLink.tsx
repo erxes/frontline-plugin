@@ -22,10 +22,12 @@ export const desktop = window.erxesDesktop;
 export const DesktopLink = ({
   bridge,
   phone,
+  caller,
   onOpen,
 }: {
   bridge: DesktopBridge;
   phone: Phone;
+  caller: string | null;
   onOpen: () => void;
 }) => {
   const { i18n } = useTranslation();
@@ -36,7 +38,15 @@ export const DesktopLink = ({
     bridge.phone({
       language: i18n.language,
       status,
-      call: call && { number: call.number, direction: call.direction, talking: call.talking },
+      call: call && {
+        number: call.number,
+        name: caller,
+        direction: call.direction,
+        talking: call.talking,
+        since: call.since?.getTime() ?? null,
+        muted: call.muted,
+        held: call.held,
+      },
       queues: agents.map((agent) => ({
         accountId: agent.accountId,
         accountName: agent.accountName,
@@ -44,7 +54,7 @@ export const DesktopLink = ({
         paused: agent.status === 'paused',
       })),
     });
-  }, [bridge, i18n.language, status, call, agents]);
+  }, [bridge, i18n.language, status, call, caller, agents]);
 
   useEffect(() => () => bridge.phone(null), [bridge]);
 
@@ -54,6 +64,10 @@ export const DesktopLink = ({
         return phone.answer();
       case 'hangUp':
         return phone.hangUp();
+      case 'mute':
+        return phone.toggleMute();
+      case 'hold':
+        return phone.toggleHold();
       case 'openPhone':
         return onOpen();
       case 'dial':

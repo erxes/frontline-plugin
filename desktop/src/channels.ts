@@ -4,4 +4,6 @@ export const CHANNELS = {
   command: 'frontline:command',
   dial: 'frontline:dial',
   connect: 'frontline:connect',
+  card: 'frontline:card',
+  cardCommand: 'frontline:card-command',
 };

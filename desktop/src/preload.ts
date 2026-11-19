@@ -1,5 +1,5 @@
 import { contextBridge, type IpcRendererEvent, ipcRenderer } from 'electron';
-import type { DesktopBridge, PhoneCommand, SetupBridge } from './bridge.ts';
+import type { CardBridge, CardState, DesktopBridge, PhoneCommand, SetupBridge } from './bridge.ts';
 import { CHANNELS } from './channels.ts';
 
 const desktop: DesktopBridge = {
@@ -30,11 +30,18 @@ document.addEventListener(
   true,
 );
 
-// The setup page is the app's own file; erxes web never gets it.
+// The setup page and the call card are the app's own files; erxes web never gets these.
 if (location.protocol === 'file:') {
   const setup: SetupBridge = {
     connect: (address) => ipcRenderer.send(CHANNELS.connect, address),
   };
 
+  const card: CardBridge = {
+    onState: (listener) =>
+      void ipcRenderer.on(CHANNELS.card, (_event, state: CardState) => listener(state)),
+    send: (command) => ipcRenderer.send(CHANNELS.cardCommand, command),
+  };
+
   contextBridge.exposeInMainWorld('erxesSetup', setup);
+  contextBridge.exposeInMainWorld('erxesCard', card);
 }

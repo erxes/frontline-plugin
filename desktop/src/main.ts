@@ -1,4 +1,5 @@
 import { app, type BrowserWindow, ipcMain } from 'electron';
+import { createCard } from './card.ts';
 import { CHANNELS } from './channels.ts';
 import { connectPhone, reveal } from './phone.ts';
 import { parseServer, saveSettings } from './settings.ts';
@@ -83,10 +84,18 @@ app.on('ready', () => {
     send: (command) => phone.send(command),
   });
 
+  const openPhone = () => {
+    reveal(opened);
+    phone.send({ type: 'openPhone' });
+  };
+
+  const showCall = createCard(opened, { send: (command) => phone.send(command), open: openPhone });
+
   const phone = connectPhone(opened, (state) => {
     if (state) language = state.language;
 
     render(state);
+    showCall(state);
   });
 
   dial = phone.dial;
