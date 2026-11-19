@@ -1,4 +1,15 @@
-import { expect, expectAccessible, recordPanel, test } from './fixtures.ts';
+import {
+  addMessenger,
+  createChannel,
+  expect,
+  expectAccessible,
+  INBOX,
+  messengerApi,
+  pick,
+  recordPanel,
+  test,
+  unique,
+} from './fixtures.ts';
 
 const INTEGRATIONS = '/frontline/settings/integrations';
 
@@ -69,6 +80,86 @@ test('a member without integration management never reaches the Meta tile', asyn
   await page.goto(META_TILE);
   await expect(page).toHaveURL(/\/settings\/integrations$/);
   await expect(page.getByText('Set a Meta app before you connect')).toBeHidden();
+});
+
+test('an admin sets up the messenger on its settings page and visitors get it', async ({
+  page,
+  plugin,
+  request,
+}) => {
+  const channel = await createChannel(page);
+  const title = `Hello from ${unique()}`;
+
+  await page.goto(INBOX);
+
+  const key = await addMessenger(page, channel);
+  const settingsUrl = page.url();
+  const panel = recordPanel(page);
+
+  // The channel's panel lists the messenger with a link to its settings.
+  await page.goto('/frontline/settings/channels');
+  await page.getByText(channel, { exact: true }).click();
+  await panel.getByRole('link', { name: /^Settings of Website / }).click();
+  await expect(page).toHaveURL(settingsUrl);
+
+  // Archived, it takes no visitors until an admin unarchives it.
+  await page.goto(`${INBOX}?panel=/detail/frontline:integration/${settingsUrl.split('/').pop()}`);
+  await panel.getByRole('button', { name: 'Integration actions' }).click();
+  await page.getByRole('option', { name: 'Archive' }).click();
+  await expect(panel.getByText('Archived', { exact: true })).toBeVisible();
+  await panel.getByRole('button', { name: 'Integration actions' }).click();
+  await page.getByRole('option', { name: 'Unarchive' }).click();
+  await expect(panel.getByText('Active', { exact: true })).toBeVisible();
+
+  // The messenger's own panel leads back to the settings page too.
+  await panel.getByRole('link', { name: 'Look, hours and install code' }).click();
+  await expect(page).toHaveURL(settingsUrl);
+  await expect(page.getByRole('textbox', { name: 'Welcome message' })).toHaveValue(
+    'Hi, how can we help?',
+  );
+  await expect(page.getByText(`/widget/messenger.js?key=${key}"></script>`)).toBeVisible();
+
+  // The secret the website signs visitors with: made, then rotated after a confirm.
+  const secret = page.getByLabel('Messenger identity secret');
+
+  await page.getByRole('button', { name: 'Make a secret' }).click();
+  await expect(secret).toHaveText(/^[\w-]{43}$/);
+
+  const first = await secret.textContent();
+
+  await page.getByRole('button', { name: 'Rotate secret' }).click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Rotate secret' }).click();
+  await expect(secret).not.toHaveText(first ?? '');
+
+  // Each change shows in the preview, the real widget in a frame, before it saves.
+  const preview = page.frameLocator('iframe[title="Messenger preview"]');
+
+  await page.getByRole('textbox', { name: 'Greeting title' }).fill(title);
+  await expect(preview.getByRole('heading', { name: title })).toBeVisible();
+  await page.getByRole('button', { name: 'Teal', exact: true }).click();
+  await pick(page, page.getByRole('combobox', { name: 'Set availability' }), 'By online hours');
+  await page.getByRole('button', { name: 'Add hours' }).click();
+  await page.getByRole('switch', { name: 'Ask for an email or phone' }).click();
+  await page.getByRole('textbox', { name: 'Bot greeting' }).fill('I am the bot. Ask me anything.');
+  await preview.getByRole('button', { name: 'Send us a message' }).click();
+  await expect(preview.getByText('I am the bot. Ask me anything.')).toBeVisible();
+  await expect(preview.getByRole('button', { name: 'Back' })).toBeVisible();
+  // Online hours and the bot's fields show only once switched on.
+  await expectAccessible(page, page.getByRole('button', { name: 'Add hours' }));
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Messenger saved')).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: 'Greeting title' })).toHaveValue(title);
+  await expect(page.getByRole('combobox', { name: 'Set availability' })).toContainText(
+    'By online hours',
+  );
+
+  const connected = await request.post(`${messengerApi(plugin)}/connect`, { data: { key } });
+
+  expect(await connected.json()).toMatchObject({
+    messenger: { greetingTitle: title, color: '#0F766E', requireAuth: true },
+  });
 });
 
 test('a member without the integrations permission is refused', async ({ newMember }) => {

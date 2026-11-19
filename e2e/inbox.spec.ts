@@ -9,12 +9,9 @@ import {
   filterBy,
   Id,
   INBOX,
-  MESSENGER,
   openMessenger,
   OWNER,
-  pick,
   pluginApi,
-  recordPanel,
   test,
   unique,
   visitorOf,
@@ -25,6 +22,7 @@ const left = async (control: Locator) => (await control.boundingBox())?.x ?? Num
 
 test('a visitor writes through the messenger and a member answers, assigns, tags, pins and resolves it', async ({
   page,
+  plugin,
   request,
 }) => {
   const channel = await createChannel(page);
@@ -35,7 +33,7 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
   await page.goto('/frontline');
   await expect(page).toHaveURL(new RegExp(`${INBOX}$`));
 
-  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const visitor = await visitorOf(request, plugin, await addMessenger(page, channel));
   const conversationId = await visitor.write(late);
 
   await page.goto(INBOX);
@@ -128,13 +126,14 @@ test('a visitor writes through the messenger and a member answers, assigns, tags
 
 test('the thread follows new messages at its end, and counts them for a reader up in the history', async ({
   page,
+  plugin,
   request,
 }) => {
   const channel = await createChannel(page);
 
   await page.goto(INBOX);
 
-  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const visitor = await visitorOf(request, plugin, await addMessenger(page, channel));
   const conversationId = await visitor.write(`Hello ${unique()}`);
   const thread = page.getByRole('list', { name: 'Messages' });
 
@@ -162,88 +161,10 @@ test('the thread follows new messages at its end, and counts them for a reader u
   await expect(newer).toHaveCount(0);
 });
 
-test('an admin sets up the messenger on its settings page and visitors get it', async ({
-  page,
-  request,
-}) => {
-  const channel = await createChannel(page);
-  const title = `Hello from ${unique()}`;
-
-  await page.goto(INBOX);
-
-  const key = await addMessenger(page, channel);
-  const settingsUrl = page.url();
-  const panel = recordPanel(page);
-
-  // The channel's panel lists the messenger with a link to its settings.
-  await page.goto('/frontline/settings/channels');
-  await page.getByText(channel, { exact: true }).click();
-  await panel.getByRole('link', { name: /^Settings of Website / }).click();
-  await expect(page).toHaveURL(settingsUrl);
-
-  // Archived, it takes no visitors until an admin unarchives it.
-  await page.goto(`${INBOX}?panel=/detail/frontline:integration/${settingsUrl.split('/').pop()}`);
-  await panel.getByRole('button', { name: 'Integration actions' }).click();
-  await page.getByRole('option', { name: 'Archive' }).click();
-  await expect(panel.getByText('Archived', { exact: true })).toBeVisible();
-  await panel.getByRole('button', { name: 'Integration actions' }).click();
-  await page.getByRole('option', { name: 'Unarchive' }).click();
-  await expect(panel.getByText('Active', { exact: true })).toBeVisible();
-
-  // The messenger's own panel leads back to the settings page too.
-  await panel.getByRole('link', { name: 'Look, hours and install code' }).click();
-  await expect(page).toHaveURL(settingsUrl);
-  await expect(page.getByRole('textbox', { name: 'Welcome message' })).toHaveValue(
-    'Hi, how can we help?',
-  );
-  await expect(page.getByText(`/widget/messenger.js?key=${key}"></script>`)).toBeVisible();
-
-  // The secret the website signs visitors with: made, then rotated after a confirm.
-  const secret = page.getByLabel('Messenger identity secret');
-
-  await page.getByRole('button', { name: 'Make a secret' }).click();
-  await expect(secret).toHaveText(/^[\w-]{43}$/);
-
-  const first = await secret.textContent();
-
-  await page.getByRole('button', { name: 'Rotate secret' }).click();
-  await page.getByRole('alertdialog').getByRole('button', { name: 'Rotate secret' }).click();
-  await expect(secret).not.toHaveText(first ?? '');
-
-  // Each change shows in the preview, the real widget in a frame, before it saves.
-  const preview = page.frameLocator('iframe[title="Messenger preview"]');
-
-  await page.getByRole('textbox', { name: 'Greeting title' }).fill(title);
-  await expect(preview.getByRole('heading', { name: title })).toBeVisible();
-  await page.getByRole('button', { name: 'Teal', exact: true }).click();
-  await pick(page, page.getByRole('combobox', { name: 'Set availability' }), 'By online hours');
-  await page.getByRole('button', { name: 'Add hours' }).click();
-  await page.getByRole('switch', { name: 'Ask for an email or phone' }).click();
-  await page.getByRole('textbox', { name: 'Bot greeting' }).fill('I am the bot. Ask me anything.');
-  await preview.getByRole('button', { name: 'Send us a message' }).click();
-  await expect(preview.getByText('I am the bot. Ask me anything.')).toBeVisible();
-  await expect(preview.getByRole('button', { name: 'Back' })).toBeVisible();
-  // Online hours and the bot's fields show only once switched on.
-  await expectAccessible(page, page.getByRole('button', { name: 'Add hours' }));
-  await page.getByRole('button', { name: 'Save', exact: true }).click();
-  await expect(page.getByText('Messenger saved')).toBeVisible();
-
-  await page.reload();
-  await expect(page.getByRole('textbox', { name: 'Greeting title' })).toHaveValue(title);
-  await expect(page.getByRole('combobox', { name: 'Set availability' })).toContainText(
-    'By online hours',
-  );
-
-  const connected = await request.post(`${MESSENGER}/connect`, { data: { key } });
-
-  expect(await connected.json()).toMatchObject({
-    messenger: { greetingTitle: title, color: '#0F766E', requireAuth: true },
-  });
-});
-
 test('a visitor the shop signs in writes at once, and a member outside the channel misses the messenger', async ({
   page,
   api,
+  plugin,
   request,
   newMember,
 }) => {
@@ -267,7 +188,7 @@ test('a visitor the shop signs in writes at once, and a member outside the chann
   const hash = createHmac('sha256', identitySecret).update(email).digest('hex');
   const signedIn = `<script>window.frontlineMessenger = { email: '${email}', hash: '${hash}' };</script>`;
 
-  await using site = await openMessenger(page.context(), messenger.publicKey, signedIn);
+  await using site = await openMessenger(page.context(), plugin, messenger.publicKey, signedIn);
 
   await site.panel.getByRole('button', { name: 'Send us a message' }).click();
   await expect(site.panel.getByRole('textbox', { name: 'Message' })).toBeVisible();
@@ -282,13 +203,14 @@ test('a visitor the shop signs in writes at once, and a member outside the chann
 
 test('a visitor writes from the widget on a phone, keeps a draft and reads the reply in view', async ({
   page,
+  plugin,
 }) => {
   const channel = await createChannel(page);
   const question = `Do you ship ${unique()} abroad?`;
 
   await page.goto(INBOX);
 
-  await using site = await openMessenger(page.context(), await addMessenger(page, channel));
+  await using site = await openMessenger(page.context(), plugin, await addMessenger(page, channel));
   const { panel } = site;
 
   const message = panel.getByRole('textbox', { name: 'Message' });
@@ -330,6 +252,7 @@ test('a visitor writes from the widget on a phone, keeps a draft and reads the r
 
 test('a member takes over from the bot, sees the visitor typing and edits a reply', async ({
   page,
+  plugin,
   request,
 }) => {
   const channel = await createChannel(page);
@@ -337,7 +260,7 @@ test('a member takes over from the bot, sees the visitor typing and edits a repl
 
   await page.goto(INBOX);
 
-  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const visitor = await visitorOf(request, plugin, await addMessenger(page, channel));
   const conversationId = await visitor.write(question);
 
   await page.goto(INBOX);

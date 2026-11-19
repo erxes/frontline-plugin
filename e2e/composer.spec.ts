@@ -57,6 +57,7 @@ const attachFiles = async (page: Page, reply: Locator) => {
 
 test('a member answers with a response template, formats it, attaches a file and mentions a teammate in a note', async ({
   page,
+  plugin,
   request,
   newMember,
 }) => {
@@ -75,7 +76,7 @@ test('a member answers with a response template, formats it, attaches a file and
 
   await page.goto(INBOX);
 
-  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const visitor = await visitorOf(request, plugin, await addMessenger(page, channel));
   const question = `Can I get a refund ${unique()}`;
   const conversationId = await visitor.write(question);
 
@@ -158,13 +159,14 @@ test('a member answers with a response template, formats it, attaches a file and
 
 test('a conversation keeps its unsent reply and note apart, through a reload, until each goes', async ({
   page,
+  plugin,
   request,
 }) => {
   const channel = await createChannel(page);
 
   await page.goto(INBOX);
 
-  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const visitor = await visitorOf(request, plugin, await addMessenger(page, channel));
   const conversationId = await visitor.write(`Where is my parcel ${unique()}`);
   const open = `${INBOX}?conversationId=${conversationId}`;
   const reply = page.getByRole('textbox', { name: 'Reply' });
@@ -199,12 +201,13 @@ test('a conversation keeps its unsent reply and note apart, through a reload, un
 test('a reply answers one message, quoted over the composer and over the reply in the thread', async ({
   page,
   request,
+  plugin,
 }) => {
   const channel = await createChannel(page);
 
   await page.goto(INBOX);
 
-  const visitor = await visitorOf(request, await addMessenger(page, channel));
+  const visitor = await visitorOf(request, plugin, await addMessenger(page, channel));
   const question = `Do you ship to Darkhan ${unique()}`;
   const conversationId = await visitor.write(question);
 

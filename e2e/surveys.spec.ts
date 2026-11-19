@@ -174,6 +174,7 @@ test('an admin archives, reactivates and deletes surveys', async ({ page }) => {
 
 test('a member sends a survey into a messenger conversation and the visitor votes in the widget', async ({
   page,
+  plugin,
 }) => {
   const channel = await openChannelPipelines(page);
   const title = `Rate us ${unique()}`;
@@ -182,7 +183,7 @@ test('a member sends a survey into a messenger conversation and the visitor vote
   await newSurvey(page, channel, title);
   await page.goto(INBOX);
 
-  await using site = await openMessenger(page.context(), await addMessenger(page, channel));
+  await using site = await openMessenger(page.context(), plugin, await addMessenger(page, channel));
   const widget = site.panel;
 
   await widget.getByRole('button', { name: 'Send us a message' }).click();

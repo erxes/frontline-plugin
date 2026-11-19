@@ -117,11 +117,12 @@ test('a ticket tile number opens the tickets it counts', async ({ page, api, req
 test('a conversation tile number opens the conversations it counts in the inbox', async ({
   page,
   api,
+  plugin,
   request,
 }) => {
   const rpc = await pluginApi(api, request);
   const question = `Counted ${unique()}`;
-  const visitor = await visitorOf(request, await messengerIn(rpc, { welcome: 'Hi' }));
+  const visitor = await visitorOf(request, plugin, await messengerIn(rpc, { welcome: 'Hi' }));
   const conversationId = await visitor.write(question);
 
   // Resolved, so it shows only where the link names every status.
@@ -156,6 +157,7 @@ test('a conversation tile counts the one channel a member picks, keeps the pick 
   page,
   api,
   request,
+  plugin,
 }) => {
   const rpc = await pluginApi(api, request);
   const name = `Picked ${unique()}`;
@@ -165,7 +167,9 @@ test('a conversation tile counts the one channel a member picks, keeps the pick 
   // The pick shows once there are two channels to pick from.
   await rpc('channels/create', { name: `Other ${unique()}` }, Id);
 
-  await (await visitorOf(request, await messengerIn(rpc, { welcome: 'Hi' }, id))).write(hello);
+  await (
+    await visitorOf(request, plugin, await messengerIn(rpc, { welcome: 'Hi' }, id))
+  ).write(hello);
 
   await addTiles(page, ['Conversation summary']);
   await pick(

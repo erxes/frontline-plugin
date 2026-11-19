@@ -63,14 +63,19 @@ test('a messenger and its settings', async ({ page }) => {
   await expectAccessible(page, panel.getByText(key, { exact: true }));
 });
 
-test('a conversation in the inbox', async ({ page, api, request }) => {
+test('a conversation in the inbox', async ({ page, api, plugin, request }) => {
   const key = await messengerIn(await pluginApi(api, request), { welcome: 'Hi' });
   const name = `Ada ${unique()}`;
   const thread = page.getByRole('list', { name: 'Messages' });
   const first = thread.getByRole('article', { name: 'Message' }).first();
   const sidebar = page.getByRole('complementary', { name: 'Customer details' });
   const rail = page.getByRole('toolbar', { name: 'Customer panels' });
-  const visitor = await visitorOf(request, key, { email: `${unique()}@e2e.test`, firstName: name });
+
+  const visitor = await visitorOf(request, plugin, key, {
+    email: `${unique()}@e2e.test`,
+    firstName: name,
+  });
+
   const conversationId = await visitor.write(`Where is my order ${unique()}`);
 
   // The open conversation with a pinned message, the customer's panel and a note's tint.
@@ -86,10 +91,10 @@ test('a conversation in the inbox', async ({ page, api, request }) => {
   await expectAccessible(page, page.getByText('New', { exact: true }));
 });
 
-test('the messenger on a website', async ({ page, api, request }) => {
+test('the messenger on a website', async ({ page, api, plugin, request }) => {
   const key = await messengerIn(await pluginApi(api, request), { welcome: 'Hi' });
 
-  await using site = await openMessenger(page.context(), key);
+  await using site = await openMessenger(page.context(), plugin, key);
 
   await site.panel.getByRole('button', { name: 'Send us a message' }).click();
   await expectAccessible(site.shop, site.panel.getByRole('textbox', { name: 'Message' }));
@@ -113,7 +118,12 @@ test("a help center's draft, its install code and its domain", async ({ page, ap
   await expectAccessible(page, panel.getByText('Custom domains are not available'));
 });
 
-test("a help center's look, and its articles on a website", async ({ page, api, request }) => {
+test("a help center's look, and its articles on a website", async ({
+  page,
+  api,
+  plugin,
+  request,
+}) => {
   const rpc = await pluginApi(api, request);
   const answers = `Answers ${unique()}`;
   const kbTopicId = await knowledgeBase(rpc, answers);
@@ -139,7 +149,7 @@ test("a help center's look, and its articles on a website", async ({ page, api, 
 
   const key = await messengerIn(rpc, { knowledgeBaseTopicId: kbTopicId });
 
-  await using site = await openMessenger(page.context(), key);
+  await using site = await openMessenger(page.context(), plugin, key);
 
   await site.panel.getByRole('button', { name: /^Help articles/ }).click();
   await site.panel.getByRole('searchbox', { name: 'Search articles' }).fill('money');
