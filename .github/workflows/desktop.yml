@@ -1,14 +1,20 @@
 name: Desktop
 
 # Builds the desktop app's installers on macOS, Windows and Linux. A desktop-v<version> tag
-# publishes them as a GitHub release; a pull request that changes desktop/, or a manual run,
-# keeps them as the run's artifacts. They aren't signed yet, so macOS and Windows warn on first
-# open.
+# publishes them as a GitHub release; a pull request that changes desktop/ or what builds it, or
+# a manual run, keeps them as the run's artifacts. They have no Developer ID or Windows
+# certificate yet, so macOS and Windows warn on first open.
 on:
   push:
     tags: ['desktop-v*']
   pull_request:
-    paths: ['desktop/**', '.github/workflows/desktop.yml']
+    paths:
+      - desktop/**
+      - pnpm-lock.yaml
+      - pnpm-workspace.yaml
+      - .node-version
+      - .github/actions/setup/**
+      - .github/workflows/desktop.yml
   workflow_dispatch:
 
 permissions: {}
@@ -26,9 +32,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     permissions:
       contents: read
-    env:
-      # No certificate yet: electron-builder skips signing instead of looking for one.
-      CSC_IDENTITY_AUTO_DISCOVERY: 'false'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -60,16 +63,19 @@ jobs:
           pattern: desktop-*
           merge-multiple: true
           path: release
+      # A draft first, so a rerun after a failed upload finishes the same release.
       - name: Publish the installers
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-          REPO: ${{ github.repository }}
         run: |
-          gh release create "$TAG" release/* --repo "$REPO" --title "Frontline desktop ${TAG#desktop-v}" --notes-file - <<'NOTES'
-          The installers aren't signed yet.
+          gh release view "$TAG" > /dev/null 2>&1 || gh release create "$TAG" --draft --title "Frontline desktop ${TAG#desktop-v}" --notes-file - <<'NOTES'
+          The installers have no Developer ID or Windows certificate yet.
 
-          - macOS: open the dmg and drag Frontline to Applications. The first time, right-click Frontline and pick Open, or run `xattr -dr com.apple.quarantine /Applications/Frontline.app`.
+          - macOS: open the dmg and drag Frontline to Applications. The first time, macOS refuses to open it: go to System Settings, Privacy & Security, and pick Open Anyway. Or run `xattr -dr com.apple.quarantine /Applications/Frontline.app`.
           - Windows: when SmartScreen stops the installer, pick More info, then Run anyway.
           - Linux: `chmod +x` the AppImage and run it.
           NOTES
+          gh release upload "$TAG" release/* --clobber
+          gh release edit "$TAG" --draft=false
