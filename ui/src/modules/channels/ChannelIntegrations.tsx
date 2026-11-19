@@ -5,9 +5,11 @@ import {
   buttonVariants,
   PanelField,
   PanelSection,
+  Popover,
   RecordTableInlineCell,
   useOpenRecord,
 } from 'erxes-ui';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import type { Integration } from '@/inbox/queries.ts';
@@ -30,35 +32,66 @@ const useKinds = (channelId: string) => {
 
 /**
  * The list's Integrations cell: one chip per kind, its icon and how many, as the old channel list
- * showed them.
+ * showed them. It opens the integrations themselves, each leading to its side panel, and closes
+ * once one opens there.
  */
 export const IntegrationBadges = ({ channelId }: { channelId: string }) => {
+  const { t } = useTranslation('frontline');
   const names = useKindNames();
   const kinds = useKinds(channelId);
+  const [shown, setShown] = useState(false);
+
+  if (kinds.size === 0) return <RecordTableInlineCell />;
 
   return (
-    <RecordTableInlineCell>
-      <span className="flex gap-1">
-        {[...kinds].map(([kind, integrations]) => (
-          <span
-            key={kind}
-            title={names[kind] ?? kind}
-            className="inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-xs tabular-nums"
-          >
-            <KindIcon kind={kind} className="size-3.5" />
-            {integrations.length}
-          </span>
-        ))}
-      </span>
-    </RecordTableInlineCell>
+    <Popover open={shown} onOpenChange={setShown}>
+      <RecordTableInlineCell.Trigger
+        variant="field"
+        aria-label={t('channel-integrations', 'Integrations: {{kinds}}', {
+          kinds: [...kinds]
+            .map(([kind, integrations]) => `${names[kind] ?? kind} ${integrations.length}`)
+            .join(', '),
+        })}
+      >
+        <span className="flex gap-1">
+          {[...kinds].map(([kind, integrations]) => (
+            <span
+              key={kind}
+              title={names[kind] ?? kind}
+              className="inline-flex h-6 items-center gap-1 rounded-md border px-1.5 text-xs tabular-nums"
+            >
+              <KindIcon kind={kind} className="size-3.5" />
+              {integrations.length}
+            </span>
+          ))}
+        </span>
+      </RecordTableInlineCell.Trigger>
+      <RecordTableInlineCell.Content>
+        <span className="flex flex-col">
+          {[...kinds.values()].flat().map((integration) => (
+            <IntegrationButton
+              key={integration.id}
+              integration={integration}
+              onOpen={() => setShown(false)}
+            />
+          ))}
+        </span>
+      </RecordTableInlineCell.Content>
+    </Popover>
   );
 };
 
 /**
  * One integration of a kind: its tinted icon and name, opening it in the side panel, and for a
- * messenger, a link to its settings page.
+ * messenger, a link to its settings page. `onOpen` runs once it opened.
  */
-const IntegrationButton = ({ integration }: { integration: Integration }) => {
+const IntegrationButton = ({
+  integration,
+  onOpen,
+}: {
+  integration: Integration;
+  onOpen?: () => void;
+}) => {
   const { t } = useTranslation('frontline');
   const { open } = useOpenRecord();
 
@@ -68,7 +101,10 @@ const IntegrationButton = ({ integration }: { integration: Integration }) => {
         variant="ghost"
         size="sm"
         className="min-w-0 flex-1 justify-start"
-        onClick={() => open({ contentType: INTEGRATION_TYPE, contentId: integration.id })}
+        onClick={() => {
+          open({ contentType: INTEGRATION_TYPE, contentId: integration.id });
+          onOpen?.();
+        }}
       >
         <KindIcon kind={integration.kind} />
         <span className="min-w-0 flex-1 truncate text-left">{integration.name}</span>

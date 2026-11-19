@@ -105,6 +105,7 @@
   "change-label": "{{label}} өөрчлөх",
   "channel": "Суваг",
   "channel-actions": "{{name}}-ийн үйлдэл",
+  "channel-integrations": "Интеграциуд: {{kinds}}",
   "channel-kinds": "{{name}}-ийн интеграцууд",
   "channel-menu": "Сувгийн үйлдэл",
   "channel-pages": "Сувгийн тохиргоо",
