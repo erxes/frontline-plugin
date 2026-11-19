@@ -6,7 +6,9 @@ import { type CustomContainerComponentProps, Virtualizer, type VirtualizerHandle
 import { type Conversation, type Message, threadOf, useMessages } from './queries.ts';
 import { LoadPage } from '~/shared/List.tsx';
 import { useCustomer } from '~/shared/Person.tsx';
+import type { Sending } from './changes.ts';
 import { Bubble, continues } from './MessageBubble.tsx';
+import { SendingMessage } from './MessageContent.tsx';
 import { PinnedBar } from './PinnedBar.tsx';
 
 /** The day a run of messages was sent: Today, Yesterday or its date. */
@@ -146,12 +148,17 @@ const EarlierMessages = ({ thread }: { thread: ReturnType<typeof useMessages> })
 /**
  * Where the reader is in the thread. A new message scrolls into view while they sit at the end,
  * or when the member sent it; a reader up in the history stays put, and `unseen` counts what came
- * below. Earlier messages load as the reader nears the top, and `jumpedTo`, a message's index,
- * scrolls to it.
+ * below. Earlier messages load as the reader nears the top, `jumpedTo`, a message's index,
+ * scrolls to it, and a message the member sends shows at once at the end.
  */
-const useReader = (thread: ReturnType<typeof useMessages>, jumpedTo: number) => {
+const useReader = (
+  thread: ReturnType<typeof useMessages>,
+  jumpedTo: number,
+  sending: Sending | undefined,
+) => {
   const { messages } = thread;
   const rows = useRef<VirtualizerHandle>(null);
+  const viewport = useRef<HTMLDivElement>(null);
   // While the newest messages are dropped for older ones, the last shown is no new arrival.
   const last = thread.hasPreviousPage ? undefined : messages.at(-1);
   const lastId = last?.id;
@@ -201,6 +208,10 @@ const useReader = (thread: ReturnType<typeof useMessages>, jumpedTo: number) => 
     rows.current?.scrollToIndex(jumpedTo, { align: 'center', smooth: true });
   }, [jumpedTo]);
 
+  useEffect(() => {
+    if (sending) viewport.current?.scrollTo({ top: viewport.current.scrollHeight });
+  }, [sending]);
+
   const onScroll = (offset: number) => {
     const handle = rows.current;
 
@@ -228,6 +239,7 @@ const useReader = (thread: ReturnType<typeof useMessages>, jumpedTo: number) => 
 
   return {
     rows,
+    viewport,
     onScroll,
     // A row's resize keeps virtua's hold going, though nothing scrolls.
     onResize: () => {
@@ -288,19 +300,29 @@ const useJump = (thread: ReturnType<typeof useMessages>) => {
   return { marked, markedAt: index, jump };
 };
 
+type ThreadProps = {
+  conversation: Conversation;
+  /** The member's message on its way, shown faded under the thread until it is saved. */
+  sending?: Sending;
+};
+
 /**
  * The open conversation's messages, oldest at the top under a divider for each day, following
  * the newest as `useReader` says. Only the messages in view and a few around them render.
  */
-export const MessageThread = ({ conversation }: { conversation: Conversation }) => {
+export const MessageThread = ({ conversation, sending }: ThreadProps) => {
   const { t } = useTranslation('frontline');
   const thread = useMessages(conversation.id);
   const { messages, isPending } = thread;
   const customer = useCustomer(conversation.customerId);
-  const viewport = useRef<HTMLDivElement>(null);
   const shift = usePrepended(messages);
   const { marked, markedAt, jump } = useJump(thread);
-  const { rows, onScroll, onResize, atEnd, unseen, toEnd } = useReader(thread, markedAt);
+
+  const { rows, viewport, onScroll, onResize, atEnd, unseen, toEnd } = useReader(
+    thread,
+    markedAt,
+    sending,
+  );
 
   return (
     <>
@@ -313,7 +335,7 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
             </p>
           ) : isPending ? (
             <ThreadSkeleton />
-          ) : messages.length === 0 ? (
+          ) : messages.length === 0 && !sending ? (
             <p className="p-6 text-center text-sm text-muted-foreground">
               {t('no-messages-yet', 'No messages yet. Write the first one below.')}
             </p>
@@ -348,6 +370,7 @@ export const MessageThread = ({ conversation }: { conversation: Conversation }) 
                   </Fragment>
                 )}
               </Virtualizer>
+              {sending && <SendingMessage sending={sending} />}
             </div>
           )}
           <LoadPage paging={thread} newer />
