@@ -6,7 +6,7 @@ import { logger } from '#/logger.ts';
 import type { InboundMessage, InboundReaction, ProviderName, WebhookSource } from '../provider.ts';
 import { sameText } from '../secrets.ts';
 import { metaKey } from '../store.ts';
-import { knownVerifyToken, metaSecretsOf } from './metaApp.ts';
+import { knownVerifyToken, metaSecretsOf, signedByAnyMetaApp } from './metaApp.ts';
 import { copiesOf } from './metaFiles.ts';
 
 /** How the external id of a comment thread starts, which the reports count apart from chats. */
@@ -96,10 +96,11 @@ const Delivery = z.object({
  * Meta signs the body it sent with the secret of the app the account connected through
  * (`X-Hub-Signature-256`): the organisation's own, or the install's.
  */
+const signedWith = (secret: string, raw: string, signature: unknown) =>
+  sameText(`sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`, signature);
+
 const signedByMeta = async (orgId: string, raw: string, signature: unknown) =>
-  (await metaSecretsOf(orgId)).some((secret) =>
-    sameText(`sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`, signature),
-  );
+  (await metaSecretsOf(orgId)).some((secret) => signedWith(secret, raw, signature));
 
 const filesOf = (attachments: z.infer<typeof Messaging>['message'] = { mid: '' }) =>
   (attachments.attachments ?? []).flatMap(({ type, payload }): StoredFile[] =>
@@ -207,7 +208,9 @@ const MetaEvent = z.union([Messaging, z.object({ change: Change })]);
 /**
  * Meta posts every page's and Instagram account's events to one address, signed with the app
  * secret, and names each account in its entries: each account's organisation's app checks the
- * signature. A change frontline doesn't read, such as a like, is left out.
+ * signature. A delivery no known app signed is refused before its pages are looked up, so a
+ * forged one learns nothing of which pages are connected. A change frontline doesn't read, such
+ * as a like, is left out.
  */
 export const metaWebhook: WebhookSource = {
   confirm: async (query) =>
@@ -217,8 +220,14 @@ export const metaWebhook: WebhookSource = {
     (await knownVerifyToken(query['hub.verify_token']))
       ? query['hub.challenge']
       : null,
-  route: ({ body, headers }) => {
-    if (typeof headers['x-hub-signature-256'] !== 'string') return null;
+  route: async ({ raw, body, headers }) => {
+    const signature = headers['x-hub-signature-256'];
+
+    if (
+      typeof signature !== 'string' ||
+      !(await signedByAnyMetaApp((secret) => signedWith(secret, raw, signature)))
+    )
+      return null;
 
     const delivery = Delivery.parse(body);
 

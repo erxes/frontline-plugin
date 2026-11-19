@@ -1,11 +1,15 @@
 import { createHash } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
+import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { reachableOnly } from '#/modules/outbound.ts';
+import { providerApi, ProviderRefused } from '../../providerApi.ts';
 
 /** Where a Grandstream UCM's HTTPS API answers, and the API user frontline signs in as. */
 export interface Pbx {
+  /** The organisation that connected it: two may share a hosted UCM and its API user. */
+  orgId: string;
   /** `pbx.example.com` or `pbx.example.com:8089`. */
   host: string;
   user: string;
@@ -27,36 +31,47 @@ const STATUS_TEXT: Record<number, string> = {
   [-68]: 'too many logins, try again later',
 };
 
-class PbxError extends Error {
-  readonly status: number;
+const NAME = 'The PBX';
 
-  constructor(status: number) {
-    super(`The PBX refused: ${STATUS_TEXT[status] ?? `status ${status}`}`);
-    this.status = status;
-  }
-}
+/** The UCM's refusal of an action, by the status it answered. */
+const refused = (status: number) =>
+  new ProviderRefused(NAME, status, STATUS_TEXT[status] ?? `status ${status}`);
 
-/** Signed-in sessions by PBX and user. A session lasts until the UCM answers -6. */
-const cookies = new Map<string, string>();
+/**
+ * Signed-in sessions by organisation, PBX and user, with the password each signed in with, so a
+ * wrong password never rides on another's session. The UCM ends a session it hasn't seen for a
+ * while with -6; one unused for 10 minutes goes from here too.
+ */
+const sessions = new LRUCache<string, { password: string; cookie: string }>({
+  max: 1000,
+  ttl: 10 * 60_000,
+  updateAgeOnGet: true,
+});
 
-const keyOf = (pbx: Pbx) => `${pbx.user}@${pbx.host}`;
+const keyOf = (pbx: Pbx) => [pbx.orgId, pbx.user, pbx.host].join(' ');
+
+/** The session `pbx` signed in with, unless its password changed since. */
+const sessionOf = (pbx: Pbx) => {
+  const session = sessions.get(keyOf(pbx));
+
+  return session?.password === pbx.password ? session.cookie : undefined;
+};
+
+const pbxApi = providerApi({
+  name: NAME,
+  // A member names the host, so it may only be a public address, and a UCM's API never
+  // redirects, so neither does this.
+  dispatcher: reachableOnly,
+  redirect: 'error',
+});
 
 const post = (pbx: Pbx, request: Record<string, unknown>) =>
-  fetch(`https://${pbx.host}/api`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ request }),
-    signal: AbortSignal.timeout(config.outboundMs),
-    // A member names the host, so it may only be a public address, and a UCM's API never
-    // redirects, so neither does this.
-    dispatcher: reachableOnly,
-    redirect: 'error',
-  });
+  pbxApi.post(`https://${pbx.host}/api`, { json: { request } });
 
 const ask = async (pbx: Pbx, request: Record<string, unknown>) => {
-  const answer = Answer.parse(await (await post(pbx, request)).json());
+  const answer = await post(pbx, request).json(Answer);
 
-  if (answer.status !== 0) throw new PbxError(answer.status);
+  if (answer.status !== 0) throw refused(answer.status);
 
   return answer.response;
 };
@@ -75,19 +90,19 @@ const login = async (pbx: Pbx) => {
     .object({ cookie: z.string() })
     .parse(await ask(pbx, { action: 'login', user: pbx.user, token }));
 
-  cookies.set(keyOf(pbx), cookie);
+  sessions.set(keyOf(pbx), { password: pbx.password, cookie });
 
   return cookie;
 };
 
 /** Runs `action` with a signed-in session, signing in again once when the session expired. */
 const withSession = async <T>(pbx: Pbx, run: (cookie: string) => Promise<T>) => {
-  const cookie = cookies.get(keyOf(pbx)) ?? (await login(pbx));
+  const cookie = sessionOf(pbx) ?? (await login(pbx));
 
   try {
     return await run(cookie);
   } catch (error) {
-    if (!(error instanceof PbxError) || error.status !== -6) throw error;
+    if (!(error instanceof ProviderRefused) || error.status !== -6) throw error;
 
     return run(await login(pbx));
   }
@@ -111,7 +126,7 @@ export const pbxFailed = (error: unknown): never => {
 
 /** Resolves to why the PBX refuses frontline's API user, or null while it signs in. */
 export const checkPbx = async (pbx: Pbx) => {
-  cookies.delete(keyOf(pbx));
+  sessions.delete(keyOf(pbx));
 
   return login(pbx).then(
     () => null,
@@ -123,13 +138,16 @@ export const checkPbx = async (pbx: Pbx) => {
 export const downloadRecording = (pbx: Pbx, path: string) =>
   withSession(pbx, async (cookie) => {
     const [filedir, filename = ''] = path.split('/');
-    const response = await post(pbx, { action: 'recapi', cookie, filedir, filename });
+
+    // The bytes come after the headers, so the whole download has a limit of its own.
+    const response = await pbxApi.post(`https://${pbx.host}/api`, {
+      json: { request: { action: 'recapi', cookie, filedir, filename } },
+      signal: AbortSignal.timeout(4 * config.outboundMs),
+    });
 
     // The UCM answers a refusal as JSON and a recording as audio.
     if (response.headers.get('content-type')?.includes('json')) {
-      const answer = Answer.parse(await response.json());
-
-      throw new PbxError(answer.status);
+      throw refused(Answer.parse(await response.json()).status);
     }
 
     return {

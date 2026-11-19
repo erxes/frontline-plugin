@@ -22,22 +22,35 @@ const realFetch = globalThis.fetch;
 /** The bytes core's storage holds for every file in a test. */
 export const FILE_BYTES = 'file';
 
-/**
- * What a request sent: the fields of the form frontline gave fetch, a file as its name, type and
- * size; JSON as its value; anything else, such as a file's bytes, as text.
- */
-const bodyOf = async (request: Request, sent: RequestInit['body']) => {
-  if (sent instanceof FormData)
-    return Object.fromEntries(
-      [...sent].map(([key, value]) => [
-        key,
-        typeof value === 'string'
-          ? value
-          : { name: value.name, type: value.type, size: value.size },
-      ]),
-    );
+/** The fields of a multipart form's `text`, a file as its name, type and size. */
+const fieldsOf = (text: string, boundary: string) =>
+  Object.fromEntries(
+    text
+      .split(`--${boundary}`)
+      .slice(1, -1)
+      .map((part) => {
+        const [head = '', ...body] = part.split('\r\n\r\n');
+        const value = body.join('\r\n\r\n').slice(0, -2);
+        const name = /name="([^"]*)"/.exec(head)?.[1] ?? '';
+        const file = /filename="([^"]*)"/.exec(head)?.[1];
+        const type = /content-type: (.+)/i.exec(head)?.[1]?.trim() ?? '';
 
+        return [name, file === undefined ? value : { name: file, type, size: value.length }];
+      }),
+  );
+
+/**
+ * What a request sent: the fields of a form, a file as its name, type and size; JSON as its
+ * value; anything else, such as a file's bytes, as text.
+ */
+const bodyOf = async (request: Request) => {
   const text = await request.text();
+
+  const boundary = /^multipart\/form-data; boundary=(.+)$/.exec(
+    request.headers.get('content-type') ?? '',
+  )?.[1];
+
+  if (boundary) return fieldsOf(text, boundary);
 
   if (!text) return null;
 
@@ -69,7 +82,7 @@ export const fakeProviders = (answer: (call: ProviderCall) => unknown) => {
       url,
       method: request.method,
       authorization: request.headers.get('authorization'),
-      body: await bodyOf(request, init?.body),
+      body: await bodyOf(request),
     };
 
     calls.push(call);

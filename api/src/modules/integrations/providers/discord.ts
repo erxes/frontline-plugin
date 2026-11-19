@@ -2,11 +2,11 @@ import { enqueueJob } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { RouteBases, Routes } from 'discord-api-types/v10';
 import { z } from 'zod';
-import { config } from '#/config.ts';
 import { JOBS, PERMISSIONS } from '#/core.ts';
 import { writesWithCore } from '#/orpc.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { AccountRefused, defineProvider } from '../provider.ts';
+import { providerApi } from '../providerApi.ts';
 import { Account, Into, intoChannel, saveAccount } from '../store.ts';
 
 const Secret = z.object({ token: z.string() });
@@ -19,39 +19,29 @@ const Sent = z.object({ id: z.string(), channel_id: z.string() });
 
 const Failure = z.object({ message: z.string() });
 
+const restApi = providerApi({
+  name: 'Discord',
+  prefix: RouteBases.api,
+  readError: (body, status) => ({
+    why: Failure.safeParse(body).data?.message,
+    deadToken: status === 401,
+  }),
+});
+
 /**
  * One Discord REST call as the bot. Resolves to the parsed body, null for 204 No Content, or
- * fails with Discord's message. A form carries files; it gets longer, since its bytes go up in
- * the one request.
+ * fails with Discord's message.
  */
-export const rest = async (
+export const rest = (
   token: string,
   route: `/${string}`,
   { method = 'GET', body }: { method?: 'GET' | 'POST' | 'PUT' | 'DELETE'; body?: unknown } = {},
-) => {
-  const form = body instanceof FormData;
-
-  const response = await fetch(`${RouteBases.api}${route}`, {
+) =>
+  restApi(route, {
     method,
-    headers: {
-      authorization: `Bot ${token}`,
-      ...(body && !form ? { 'content-type': 'application/json' } : {}),
-    },
-    body: form ? body : body ? JSON.stringify(body) : undefined,
-    signal: AbortSignal.timeout((form ? 4 : 1) * config.outboundMs),
-  });
-
-  const answer: unknown = response.status === 204 ? null : await response.json();
-
-  if (!response.ok) {
-    const message =
-      Failure.safeParse(answer).data?.message ?? `Discord answered ${response.status}`;
-
-    throw response.status === 401 ? new AccountRefused(message) : new Error(message);
-  }
-
-  return answer;
-};
+    headers: { authorization: `Bot ${token}` },
+    ...(body instanceof FormData ? { body } : body ? { json: body } : {}),
+  }).json();
 
 const why = (error: unknown) => (error instanceof Error ? error.message : 'Discord failed');
 
@@ -114,7 +104,10 @@ const connect = writesWithCore(
       botOf(input.token),
       rest(input.token, Routes.currentApplication()).then((answer) => Application.parse(answer)),
     ]).catch((error: unknown) => {
-      throw new ORPCError('BAD_REQUEST', { message: `Discord refused the token: ${why(error)}` });
+      throw new ORPCError('BAD_REQUEST', {
+        message:
+          error instanceof AccountRefused ? `Discord refused the token: ${why(error)}` : why(error),
+      });
     }),
 )
   .output(Account)

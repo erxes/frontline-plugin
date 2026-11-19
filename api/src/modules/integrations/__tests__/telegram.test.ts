@@ -351,4 +351,18 @@ describe('telegram', () => {
       message: 'Telegram refused the token: Unauthorized',
     });
   });
+
+  it("refuses in words when Telegram's gateway answers with an HTML page", async () => {
+    fakeProviders(
+      () =>
+        new Response('<html>502 Bad Gateway</html>', {
+          status: 502,
+          headers: { 'content-type': 'text/html' },
+        }),
+    );
+
+    await expect(
+      clientAs('org-tg-c').integrations.telegram.connect({ token: '1:good-token-abc' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'Telegram refused: it answered 502' });
+  });
 });

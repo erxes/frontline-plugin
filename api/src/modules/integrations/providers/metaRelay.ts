@@ -1,4 +1,5 @@
 import { config } from '#/config.ts';
+import { providerApi, ProviderRefused } from '../providerApi.ts';
 import { accountOf, metaKey } from '../store.ts';
 
 /**
@@ -9,32 +10,22 @@ import { accountOf, metaKey } from '../store.ts';
  */
 type Kind = 'facebook' | 'instagram';
 
-const TIMEOUT_MS = 15_000;
+const relayApi = providerApi({ name: 'The Meta relay', timeout: 15_000 });
 
-const relayCall = async (method: 'PUT' | 'DELETE', kind: Kind, id: string) => {
+const relayCall = (method: 'put' | 'delete', kind: Kind, id: string) => {
   const relay = config.meta.relay;
 
   if (!relay) return null;
 
-  return fetch(`${relay.url}/v1/routes/${kind}/${encodeURIComponent(id)}`, {
-    method,
-    headers: { authorization: `Bearer ${relay.key}`, 'content-type': 'application/json' },
-    body:
-      method === 'PUT'
-        ? JSON.stringify({ url: `${config.publicUrl}/api/public/webhooks/meta` })
-        : undefined,
-    signal: AbortSignal.timeout(TIMEOUT_MS),
-  }).catch((error: unknown) => {
-    throw new Error('The Meta relay did not answer', { cause: error });
+  return relayApi[method](`${relay.url}/v1/routes/${kind}/${encodeURIComponent(id)}`, {
+    headers: { authorization: `Bearer ${relay.key}` },
+    json: method === 'put' ? { url: `${config.publicUrl}/api/public/webhooks/meta` } : undefined,
   });
 };
 
 /** Has meta-relay send the page's or account's deliveries to frontline's webhook. */
 export const routeThroughRelay = async (kind: Kind, id: string) => {
-  const response = await relayCall('PUT', kind, id);
-
-  if (response && !response.ok)
-    throw new Error(`The Meta relay refused the ${kind} account: ${response.status}`);
+  await relayCall('put', kind, id);
 };
 
 /**
@@ -44,8 +35,7 @@ export const routeThroughRelay = async (kind: Kind, id: string) => {
 export const unrouteFromRelay = async (kind: Kind, id: string) => {
   if (!config.meta.relay || (await accountOf({ provider: kind, key: metaKey(kind, id) }))) return;
 
-  const response = await relayCall('DELETE', kind, id);
-
-  if (response && !response.ok && response.status !== 404)
-    throw new Error(`The Meta relay refused to remove the ${kind} account: ${response.status}`);
+  await relayCall('delete', kind, id)?.catch((error: unknown) => {
+    if (!(error instanceof ProviderRefused) || error.status !== 404) throw error;
+  });
 };

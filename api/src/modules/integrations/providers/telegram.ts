@@ -7,6 +7,7 @@ import { withOrg } from '#/db/client.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { readsWithCore, writesWithCore } from '#/orpc.ts';
 import { AccountRefused, defineProvider, sendInParts } from '../provider.ts';
+import { providerApi } from '../providerApi.ts';
 import { Account, accountRow, checkInto, Into, intoChannel, saveAccount } from '../store.ts';
 
 const Config = z.object({ username: z.string() });
@@ -82,14 +83,21 @@ const mediaOf = (file: File) =>
 /** The most text Telegram takes as a file's caption. */
 const CAPTION_CHARS = 1024;
 
-const Answer = z.discriminatedUnion('ok', [
-  z.object({ ok: z.literal(true), result: z.unknown() }),
-  z.object({ ok: z.literal(false), error_code: z.number(), description: z.string() }),
-]);
+const Failure = z.object({ error_code: z.number(), description: z.string() });
+
+const botApi = providerApi({
+  name: 'Telegram',
+  prefix: 'https://api.telegram.org',
+  readError: (body) => {
+    const { data } = Failure.safeParse(body);
+
+    return { why: data?.description, deadToken: data?.error_code === 401 };
+  },
+});
 
 /**
- * One Bot API method as the bot, its result read through `Result`, or Telegram's refusal. A form
- * carries files; it gets longer, since its bytes go up in the one request.
+ * One Bot API method as the bot, its result read through `Result`, or Telegram's refusal, such as
+ * a file too big for bots to fetch.
  */
 export const call = async <T>(
   token: string,
@@ -97,28 +105,12 @@ export const call = async <T>(
   Result: z.ZodType<T>,
   params: Record<string, unknown> | FormData = {},
 ) => {
-  const form = params instanceof FormData;
+  const { result } = await botApi
+    .post(`bot${token}/${method}`, params instanceof FormData ? { body: params } : { json: params })
+    .json(z.object({ result: Result }));
 
-  const response = await fetch(`https://api.telegram.org/bot${token}/${method}`, {
-    method: 'POST',
-    ...(form
-      ? { body: params }
-      : { headers: { 'content-type': 'application/json' }, body: JSON.stringify(params) }),
-    signal: AbortSignal.timeout((form ? 4 : 1) * config.outboundMs),
-  });
-
-  const answer = Answer.parse(await response.json());
-
-  if (!answer.ok)
-    throw answer.error_code === 401
-      ? new AccountRefused(answer.description)
-      : new TelegramRefused(answer.description);
-
-  return Result.parse(answer.result);
+  return result;
 };
-
-/** Telegram's answer that it won't do what the bot asked, such as fetch a file too big for bots. */
-export class TelegramRefused extends Error {}
 
 const why = (error: unknown) => (error instanceof Error ? error.message : 'Telegram failed');
 
@@ -222,7 +214,12 @@ const connect = writesWithCore(
     await checkInto(member, input.channelId);
 
     const bot = await call(input.token, 'getMe', User).catch((error: unknown) => {
-      throw new ORPCError('BAD_REQUEST', { message: `Telegram refused the token: ${why(error)}` });
+      throw new ORPCError('BAD_REQUEST', {
+        message:
+          error instanceof AccountRefused
+            ? `Telegram refused the token: ${why(error)}`
+            : why(error),
+      });
     });
 
     const key = randomBytes(24).toString('base64url');
@@ -306,7 +303,7 @@ const webhookInfo = readsWithCore(
     const { account } = telegram.open(row);
 
     return call(account.secret.token, 'getWebhookInfo', WebhookInfo).catch((error: unknown) => {
-      throw new ORPCError('BAD_GATEWAY', { message: `Telegram refused: ${why(error)}` });
+      throw new ORPCError('BAD_GATEWAY', { message: why(error) });
     });
   },
 )

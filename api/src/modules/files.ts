@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { config } from '#/config.ts';
 import { core, refusedByCore } from '#/core.ts';
 import { fileIdOf } from '#/coreFile.ts';
+import { providerApi, ProviderRefused } from './integrations/providerApi.ts';
 import { Attachment, type StoredFile } from '#/db/table.ts';
 import { readToken, signToken } from './tokens.ts';
 
@@ -15,20 +16,26 @@ export class FileRefused extends Error {}
 /** The answers that may pass on a later try: a timeout, too many requests, or a server's fault. */
 const passesLater = (status: number) => status === 408 || status === 429 || status >= 500;
 
+/** `error` as `FileRefused` when it is a refusal a later try won't change. */
+const refusedFile = (error: unknown) =>
+  error instanceof ProviderRefused && !passesLater(error.status)
+    ? new FileRefused(error.message, { cause: error })
+    : error;
+
 /**
  * The file a provider holds at `url`, typed as the provider answers. Any other 4xx is
  * `FileRefused`.
  */
-export const downloadFile = async (url: string, from: string) => {
-  const response = await fetch(url, { signal: AbortSignal.timeout(4 * config.outboundMs) });
+export const downloadFile = (url: string, from: string) =>
+  providerApi({ name: from, timeout: 4 * config.outboundMs, totalTimeout: 4 * config.outboundMs })
+    .get(url)
+    .blob()
+    .catch((error: unknown) => {
+      throw refusedFile(error);
+    });
 
-  if (!response.ok)
-    throw new (passesLater(response.status) ? Error : FileRefused)(
-      `${from} did not send the file: ${response.status}`,
-    );
-
-  return response.blob();
-};
+/** Core's storage, at the addresses core gives for a file's upload and download. */
+const storage = providerApi({ name: "Core's storage", baseUrl: config.coreUrl });
 
 /**
  * Stores `bytes` as a file of the organisation in core, and gives it as records keep their files
@@ -47,18 +54,11 @@ export const storeFile = async (
       throw refusedByCore(error) && error instanceof Error ? new FileRefused(error.message) : error;
     });
 
-  const sent = await fetch(new URL(upload.url, config.coreUrl), {
-    method: upload.method,
-    headers: upload.headers,
-    body: bytes,
-    // The bytes go in one request, so they get longer than an API call.
-    signal: AbortSignal.timeout(4 * config.outboundMs),
-  });
-
-  if (!sent.ok)
-    throw new (sent.status < 500 ? FileRefused : Error)(
-      `Core's storage refused the file: ${sent.status}`,
-    );
+  await storage(upload.url, { method: upload.method, headers: upload.headers, body: bytes }).catch(
+    (error: unknown) => {
+      throw refusedFile(error);
+    },
+  );
 
   const ready = await files.complete({ id: file.id });
 
@@ -74,19 +74,9 @@ export const readFile = async (orgId: string, id: string) => {
 
   if (!file.downloadUrl) return null;
 
-  const started = new AbortController();
+  const answer = await storage.get(file.downloadUrl);
 
-  const timer = setTimeout(
-    () => started.abort(new Error('Core did not send the file')),
-    config.outboundMs,
-  );
-
-  const answer = await fetch(new URL(file.downloadUrl, config.coreUrl), {
-    signal: started.signal,
-  }).finally(() => clearTimeout(timer));
-
-  if (!answer.ok || !answer.body)
-    throw new Error(`Core's storage refused the file: ${answer.status}`);
+  if (!answer.body) throw new Error("Core's storage sent no file");
 
   return { name: file.name, contentType: file.contentType, size: file.size, body: answer.body };
 };

@@ -73,7 +73,7 @@ const lines = reads(PERMISSIONS.callView)
     return rows.flatMap(({ operator, account }) => {
       if (!operator.sipSecret) return [];
 
-      const { config } = call.open(account).account;
+      const { config, secret } = call.open(account).account;
 
       return {
         accountId: account.id,
@@ -86,7 +86,7 @@ const lines = reads(PERMISSIONS.callView)
               {
                 urls: config.turnUrl,
                 username: config.turnUsername || undefined,
-                credential: config.turnPassword || undefined,
+                credential: secret.turnPassword || undefined,
               },
             ]
           : [],

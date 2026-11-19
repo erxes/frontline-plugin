@@ -103,7 +103,7 @@ export const webhookRoutes = () => {
     try {
       const body: unknown = JSON.parse(raw);
       const request: WebhookRequest = { key: req.params.key, raw, body, headers: req.headers };
-      const routes = webhook.route(request);
+      const routes = await webhook.route(request);
 
       accounts = routes && (await receiveAll(webhook, request, routes));
     } catch (error) {

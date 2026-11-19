@@ -1,10 +1,12 @@
 import { ORPCError } from '@orpc/server';
 import { eq } from 'drizzle-orm';
+import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { PERMISSIONS } from '#/core.ts';
-import { type Tx, uniqueViolation, withOrg } from '#/db/client.ts';
+import { db, type Tx, uniqueViolation, withOrg } from '#/db/client.ts';
 import { metaApps } from '#/db/meta.ts';
+import { logger } from '#/logger.ts';
 import { publicKeys } from '#/db/public.ts';
 import { reads, writes } from '#/orpc.ts';
 import { openedBy, removeKeys } from '../../public.ts';
@@ -49,6 +51,53 @@ export const metaSecretsOf = async (orgId: string) => {
   const own = await withOrg(orgId, (tx) => ownApp(tx, orgId));
 
   return [own?.appSecret, installApp()?.appSecret].filter((secret) => secret !== undefined);
+};
+
+/**
+ * The secrets of the organisations' own apps, read again after 30 s or once one changes here, so
+ * a flood of forged deliveries can't open a transaction per organisation each.
+ */
+const ownSecrets = new LRUCache<'all', string[]>({ max: 1, ttl: 30_000 });
+
+/** `ownSecrets`; an organisation whose secret won't open is logged and left out. */
+const ownAppSecrets = async () => {
+  const cached = ownSecrets.get('all');
+
+  if (cached) return cached;
+
+  const owners = await db
+    .select({ orgId: publicKeys.orgOf })
+    .from(publicKeys)
+    .where(eq(publicKeys.kind, VERIFY_KEY));
+
+  const apps = await Promise.all(
+    owners.map(({ orgId }) =>
+      withOrg(orgId, (tx) => ownApp(tx, orgId)).catch((error: unknown) => {
+        logger.error({ err: error, orgId }, 'Meta app secret not read');
+
+        return null;
+      }),
+    ),
+  );
+
+  const secrets = apps.flatMap((app) => (app ? [app.appSecret] : []));
+
+  ownSecrets.set('all', secrets);
+
+  return secrets;
+};
+
+/**
+ * Whether `signed` holds for the secret of the install's app or of any organisation's: a
+ * delivery none of them signed isn't Meta's, whatever pages it names. The install's goes first,
+ * since most deliveries come through it.
+ */
+export const signedByAnyMetaApp = async (signed: (secret: string) => boolean) => {
+  const install = installApp()?.appSecret;
+
+  if (install !== undefined && signed(install)) return true;
+
+  return (await ownAppSecrets()).some(signed);
 };
 
 /** Whether Meta's address check names a verify token of the install or of an organisation's app. */
@@ -132,6 +181,7 @@ const save = writes(PERMISSIONS.integrationManage)
     if (!row) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
     await removeKeys(tx, member.orgId, eq(publicKeys.kind, VERIFY_KEY));
+    ownSecrets.clear();
     await tx
       .insert(publicKeys)
       .values({
@@ -156,6 +206,7 @@ const remove = writes(PERMISSIONS.integrationManage)
   .handler(async ({ context: { tx, member } }) => {
     await tx.delete(metaApps);
     await removeKeys(tx, member.orgId, eq(publicKeys.kind, VERIFY_KEY));
+    ownSecrets.clear();
 
     return settingsOf(tx, member.orgId);
   });
