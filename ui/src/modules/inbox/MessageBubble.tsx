@@ -1,5 +1,6 @@
 import {
   IconAlertTriangle,
+  IconArrowBackUp,
   IconClock,
   IconCopy,
   IconLock,
@@ -160,11 +161,42 @@ const useCopy = () => {
       );
 };
 
+/** What a quote of the message shows: its text, else the name of its first file. */
+export const quoteText = (message: Pick<Message, 'content' | 'attachments'>) =>
+  message.content || message.attachments[0]?.name || '';
+
+/** The message a reply answers, over the reply; a click goes to it in the thread. */
+export type QuoteLink = { text: string; onJump: () => void };
+
+const QuoteButton = ({ quote }: { quote: QuoteLink }) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <button
+      type="button"
+      className="flex max-w-full items-center gap-1 rounded-md border-l-2 border-primary bg-muted px-2 py-1 text-left text-xs text-muted-foreground hover:text-foreground"
+      aria-label={t('go-to-quoted', 'Go to the message it answers: {{text}}', { text: quote.text })}
+      onClick={quote.onJump}
+    >
+      <IconArrowBackUp className="size-3 shrink-0" aria-hidden />
+      <span className="truncate">{quote.text}</span>
+    </button>
+  );
+};
+
 /**
- * Copy, pin and edit, beside the bubble on hover or focus; a pinned message keeps its unpin
- * button in view.
+ * Reply, copy, pin and edit, beside the bubble on hover or focus; a pinned message keeps its unpin
+ * button in view. Reply shows where a reply can answer one message.
  */
-const MessageTools = ({ message, onEdit }: { message: Message; onEdit: () => void }) => {
+const MessageTools = ({
+  message,
+  onEdit,
+  onReply,
+}: {
+  message: Message;
+  onEdit: () => void;
+  onReply?: () => void;
+}) => {
   const { t } = useTranslation('frontline');
   const pin = usePinMessage();
   const copy = useCopy();
@@ -172,6 +204,17 @@ const MessageTools = ({ message, onEdit }: { message: Message; onEdit: () => voi
 
   return (
     <>
+      {onReply && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-6 opacity-0 group-hover:opacity-100 focus:opacity-100"
+          aria-label={t('reply-to-message', 'Reply to this message')}
+          onClick={onReply}
+        >
+          <IconArrowBackUp />
+        </Button>
+      )}
       {message.content && (
         <Button
           variant="ghost"
@@ -218,6 +261,8 @@ export const Bubble = ({
   kind,
   first,
   marked = false,
+  quote,
+  onReply,
 }: {
   message: Message;
   customer: { name: string; avatarUrl?: string | null };
@@ -225,6 +270,8 @@ export const Bubble = ({
   first: boolean;
   /** The message the member just jumped to, outlined for a moment so they find it. */
   marked?: boolean;
+  quote?: QuoteLink;
+  onReply?: () => void;
 }) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
@@ -235,6 +282,8 @@ export const Bubble = ({
     <article
       aria-label={message.internal ? t('internal-note', 'Internal note') : t('message', 'Message')}
       title={first ? undefined : format.dateTime(message.createdAt)}
+      // The message a jump went to, for a screen reader as for the eye.
+      aria-current={marked || undefined}
       className={cn(
         'group flex gap-2 rounded-md pb-1',
         !fromCustomer && 'flex-row-reverse',
@@ -259,12 +308,13 @@ export const Bubble = ({
             <Marks message={message} />
           </span>
         )}
+        {quote && <QuoteButton quote={quote} />}
         {editing ? (
           <EditBox message={message} onDone={() => setEditing(false)} />
         ) : (
           <span className={cn('flex items-center gap-1', !fromCustomer && 'flex-row-reverse')}>
             <MessageBody message={message} />
-            <MessageTools message={message} onEdit={() => setEditing(true)} />
+            <MessageTools message={message} onEdit={() => setEditing(true)} onReply={onReply} />
           </span>
         )}
         {!fromCustomer && !message.internal && <Delivery message={message} />}
