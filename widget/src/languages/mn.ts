@@ -41,6 +41,7 @@ export const MN = {
   'File a ticket and follow how it goes.': 'Тикет үүсгээд явцыг нь хянаарай.',
   Filed: 'Үүсгэсэн',
   Friday: 'Баасан',
+  'From the team': 'Багийн хариу',
   'Help articles': 'Тусламжийн нийтлэлүүд',
   'Its status shows here as the team works on it.': 'Баг ажиллах явцад төлөв нь энд харагдана.',
   'Leave a longer phone number': 'Утасны дугаараа бүтэн оруулна уу',
@@ -92,6 +93,7 @@ export const MN = {
   'Thanks, your vote is in. Pick again to change it.':
     'Баярлалаа, таны санал бүртгэгдлээ. Өөрчлөх бол дахин сонгоно уу.',
   'The answer does not match the format': 'Хариулт шаардлагатай хэлбэрт таарахгүй байна',
+  'The team': 'Баг',
   'This field is required': 'Энэ талбарыг бөглөнө үү',
   'This link expired or is for another form':
     'Энэ холбоосын хугацаа дууссан эсвэл өөр маягтынх байна',

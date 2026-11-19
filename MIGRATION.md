@@ -697,7 +697,7 @@ Procedures replace the 337 GraphQL types.
 - [x] query `widgetsTicketCustomerDetail` → `/connect`'s `identity` (`api/src/modules/messenger/identity.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `POST /api/public/messenger/connect` with `identity` (decision)
 - [x] query `widgetsGetTicketTags` `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `GET /api/public/messenger/tickets/forms`, with each offered pipeline's properties (`api/src/modules/messenger/tickets.ts`)
 - [x] query `widgetTicketCheckProgress` → the visitor's tickets (`api/src/modules/messenger/tickets.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `GET /api/public/messenger/tickets` shows each ticket's status (decision)
-- [x] query `widgetTicketComments` `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49` (filed https://github.com/erxes/erxes/issues/10657)
+- [x] query `widgetTicketComments` → each ticket's `comments` from GET `/api/public/messenger/tickets` (`api/src/modules/messenger/tickets.ts`), only what members wrote on its Comments tab `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`
 - [x] query `widgetTicketActivityLogs` `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49` (filed https://github.com/erxes/erxes/issues/10657)
 - [x] query `widgetTicketsByCustomer` `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:49`. `GET /api/public/messenger/tickets` (`api/src/modules/messenger/tickets.ts`)
 - [x] mutation `widgetsMessengerConnect` → POST `/api/public/messenger/connect` (`api/src/modules/messenger/routes.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
@@ -711,8 +711,8 @@ Procedures replace the 337 GraphQL types.
 - [x] mutation `widgetsSendTypingInfo` → POST `/api/public/messenger/conversations/:id/typing` (`api/src/modules/messenger/threads.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`
 - [x] mutation `widgetsTicketCustomersEdit` → `/connect`'s `identity` (`api/src/modules/messenger/identity.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`. `POST /api/public/messenger/connect` with `identity` (decision)
 - [x] mutation `widgetTicketCreated` → a visitor's ticket (`api/src/modules/messenger/tickets.ts`) `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`. `POST /api/public/messenger/tickets`, in a pipeline the messenger offers (decision)
-- [x] mutation `widgetTicketCommentAdd` `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66` (filed https://github.com/erxes/erxes/issues/10657)
-- [x] mutation `widgetTicketCommentRemove` `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66` (filed https://github.com/erxes/erxes/issues/10657)
+- [x] mutation `widgetTicketCommentAdd` `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`. Members write to the customer with `tickets.addComment` (`api/src/modules/tickets/comments.ts`); a visitor answers in the chat (the "The widget read a ticket's comments and activity, and a visitor added and removed comments" row in DECISIONS.md)
+- [x] mutation `widgetTicketCommentRemove` `frontline_api/src/modules/inbox/graphql/schemas/widget.ts:66`. The author takes a comment back with `tickets.removeComment` (`api/src/modules/tickets/comments.ts`)
 
 ### Pages
 

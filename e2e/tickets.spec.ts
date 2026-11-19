@@ -298,7 +298,19 @@ test('a visitor files a ticket from the widget in a pipeline the messenger offer
   await expectAccessible(shop, panel.getByRole('list', { name: 'Your tickets' }));
 
   await openPipeline(page, pipeline);
-  await expect(ticket(page, subject)).toBeVisible();
+  await ticket(page, subject).click();
+
+  // A comment on the ticket's Comments tab reaches the visitor's open ticket tab.
+  const record = recordPanel(page);
+  const reply = `A new zip is on its way ${unique()}`;
+
+  await record.getByRole('tab', { name: 'Comments' }).click();
+  await record.getByRole('textbox', { name: 'Comment for the customer' }).fill(reply);
+  await record.getByRole('button', { name: 'Send to customer' }).click();
+  await expect(record.getByRole('listitem').filter({ hasText: reply })).toBeVisible();
+
+  await panel.getByText(subject).click();
+  await expect(panel.getByRole('list', { name: 'From the team' })).toContainText(reply);
 });
 
 test("the widget's ticket form asks for a required field, and shows one only as its Logic says", async ({

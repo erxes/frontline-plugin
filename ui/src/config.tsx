@@ -15,6 +15,7 @@ import {
   IconLock,
   IconMessageCircle,
   IconMessageReply,
+  IconMessageShare,
   IconMessages,
   IconRobot,
   IconPhone,
@@ -82,6 +83,7 @@ const slots = (loadSlots: () => Promise<Slots>) => {
 
 const pipeline = withText(() => import('@/pipelines/slots.ts'));
 const ticket = withText(() => import('@/tickets/slots.ts'));
+const ticketComments = withText(() => import('@/ticketComments/TicketComments.tsx'));
 
 /** Custom fields core keeps; the API client loads only when the Properties tab does. */
 const propertiesOf = (records: 'tickets' | 'conversations') => ({
@@ -193,6 +195,15 @@ export const CONFIG: IUIConfig = {
       }),
       // The manifest's timeline (`api/src/core.ts`): core's Activity tab shows its events.
       activity: `${PLUGIN}.ticket`,
+      tabs: [
+        {
+          value: 'comments',
+          label: 'Comments',
+          after: 'detail',
+          icon: IconMessageShare,
+          component: lazy(async () => ({ default: (await ticketComments()).TicketComments })),
+        },
+      ],
       // Its field groups can be limited to pipelines.
       properties: {
         ...propertiesOf('tickets'),

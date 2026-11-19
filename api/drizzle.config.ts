@@ -7,6 +7,7 @@ export default defineConfig({
   schema: [
     './src/db/schema.ts',
     './src/db/tickets.ts',
+    './src/db/ticketComments.ts',
     './src/db/teams.ts',
     './src/db/tags.ts',
     './src/db/helpcenter.ts',
