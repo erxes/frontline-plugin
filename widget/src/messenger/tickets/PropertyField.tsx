@@ -1,3 +1,4 @@
+import { openDatePicker } from '../../shared/picker.ts';
 import { useText } from '../../shared/text.ts';
 import type { Property } from '../api.ts';
 
@@ -83,6 +84,7 @@ const Input = ({ property, value, aria, onChange }: FieldProps) => {
         <input
           {...aria}
           type="date"
+          onClick={openDatePicker}
           value={textOf(value)}
           onInput={(event) => onChange(event.currentTarget.value || null)}
         />
