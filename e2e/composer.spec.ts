@@ -173,8 +173,9 @@ test('a conversation keeps its unsent reply and note apart, through a reload, un
   await page.goto(open);
   await reply.click();
   await page.keyboard.type('Half a reply');
-  await page.getByRole('tab', { name: 'Internal note' }).click();
-  await note.click();
+  // Tab in the editor switches to the note, and Shift+Tab back to the reply.
+  await page.keyboard.press('Tab');
+  await expect(note).toBeFocused();
   await page.keyboard.type('Half a thought');
 
   // Another page and a reload later, the note tab comes back with its text, the reply with its own.
@@ -183,7 +184,8 @@ test('a conversation keeps its unsent reply and note apart, through a reload, un
   await page.goto(open);
   await page.reload();
   await expect(note).toContainText('Half a thought');
-  await page.getByRole('tab', { name: 'Reply' }).click();
+  await note.click();
+  await page.keyboard.press('Shift+Tab');
   await expect(reply).toContainText('Half a reply');
 
   // The reply goes and its draft with it; the note's stays.

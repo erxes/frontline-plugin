@@ -1,6 +1,6 @@
 import { IconArrowBackUp, IconLock, IconMessage2, IconSend, IconX } from '@tabler/icons-react';
 import { Button, cn, Editor, editorText, Kbd, Tabs } from 'erxes-ui';
-import { type SubmitEvent, useState } from 'react';
+import { type KeyboardEvent, type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SendSurvey } from '~/modules/surveys/SurveyMessage.tsx';
 import type { Attachment } from '~/shared/Files.tsx';
@@ -18,6 +18,33 @@ type Mode = (typeof MODES)[number];
 
 /** The pane's send, which its thread shows while it goes. */
 type Send = ReturnType<typeof useSendMessage>;
+
+/**
+ * Tab in the editor switches to the note and Shift+Tab to the reply, as the old composer did. In
+ * the tab it names already, where there is no reply, or while a `/` menu is open, Tab stays the
+ * editor's.
+ */
+const tabSwitch =
+  (note: boolean, notesOnly: boolean, onSwitch: (note: boolean) => void) =>
+  (event: KeyboardEvent<HTMLFormElement>) => {
+    const next = !event.shiftKey;
+
+    if (
+      event.key !== 'Tab' ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.metaKey ||
+      !(event.target instanceof HTMLElement && event.target.isContentEditable) ||
+      event.currentTarget.querySelector('.bn-suggestion-decorator') ||
+      next === note ||
+      (!next && notesOnly)
+    )
+      return;
+
+    event.preventDefault();
+    event.stopPropagation();
+    onSwitch(next);
+  };
 
 /** The send shortcut, as the member's keyboard labels it. */
 const SHORTCUT = navigator.userAgent.includes('Mac') ? '⌘↵' : 'Ctrl↵';
@@ -103,12 +130,12 @@ const ModeTabs = ({
       <Tabs value={mode} onValueChange={(value: Mode) => onChange(value)}>
         <Tabs.List variant="segment">
           {!notesOnly && (
-            <Tabs.Trigger value="reply">
+            <Tabs.Trigger value="reply" aria-keyshortcuts="Shift+Tab">
               <IconMessage2 />
               {t('reply', 'Reply')}
             </Tabs.Trigger>
           )}
-          <Tabs.Trigger value="note">
+          <Tabs.Trigger value="note" aria-keyshortcuts={notesOnly ? undefined : 'Tab'}>
             <IconLock />
             {t('internal-note', 'Internal note')}
           </Tabs.Trigger>
@@ -214,6 +241,11 @@ export const Composer = ({ conversation, send }: { conversation: Conversation; s
   // The send is the pane's, so one still going in another conversation holds nothing here.
   const held = empty || files.uploading || Boolean(sendingTo(send, conversation.id));
 
+  const switchTab = (toNote: boolean) => {
+    draft.setNote(toNote);
+    focusComposer();
+  };
+
   const restart = (content: string) => {
     setHtml(content);
     setVersion((count) => count + 1);
@@ -250,6 +282,7 @@ export const Composer = ({ conversation, send }: { conversation: Conversation; s
         ref={shortcut}
         data-composer
         onSubmit={submit}
+        onKeyDownCapture={tabSwitch(note, draft.notesOnly, switchTab)}
         {...files.cardHandlers}
         className={cn(
           '@container flex flex-col rounded-lg border bg-background shadow-xs',
@@ -259,10 +292,7 @@ export const Composer = ({ conversation, send }: { conversation: Conversation; s
         <ModeTabs
           mode={mode}
           notesOnly={draft.notesOnly}
-          onChange={(value) => {
-            draft.setNote(value === 'note');
-            focusComposer();
-          }}
+          onChange={(value) => switchTab(value === 'note')}
         />
         {!note && draft.quote && <Quoted quote={draft.quote} onRemove={draft.unquote} />}
         <ReplyEditor
