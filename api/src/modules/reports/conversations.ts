@@ -7,6 +7,7 @@ import {
   eq,
   inArray,
   isNotNull,
+  ne,
   type SQL,
   sql,
 } from 'drizzle-orm';
@@ -126,7 +127,7 @@ export const conversationReport = reads(PERMISSIONS.inboxView)
       .select({
         started: countWhere(started),
         resolved: countWhere(resolved),
-        unresolved: countWhere(sql`${conversations.status} <> 'resolved'`),
+        unresolved: countWhere(ne(conversations.status, 'resolved')),
         firstResponseSeconds: averageSeconds(
           secondsBetween(conversations.createdAt, conversations.firstRespondedAt),
           within(conversations.firstRespondedAt, range),

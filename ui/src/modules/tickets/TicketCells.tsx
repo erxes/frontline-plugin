@@ -17,7 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button, cn, Select, toast, useOpenRecord } from 'erxes-ui';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
-import { PRIORITIES, usePriorityNames } from '@/pipelines/queries.ts';
+import { type Priority, PRIORITIES, usePriorityNames } from '@/pipelines/queries.ts';
 import { StageIcon } from '@/pipelines/StageIcon.tsx';
 import { pageOf, TICKET_TYPE } from '~/plugin.ts';
 import { MemberCell } from '~/shared/MemberPicker.tsx';
@@ -79,7 +79,7 @@ export const StatusSelect = ({
   );
 };
 
-const PRIORITY_ICONS: Record<number, typeof IconAntennaBarsOff> = {
+const PRIORITY_ICONS: Record<Priority, typeof IconAntennaBarsOff> = {
   4: IconAlertSquareRoundedFilled,
   3: IconAntennaBars5,
   2: IconAntennaBars4,
@@ -88,8 +88,8 @@ const PRIORITY_ICONS: Record<number, typeof IconAntennaBarsOff> = {
 };
 
 /** A priority as the old ticket list drew it: signal bars, critical as a filled alert. */
-const PriorityIcon = ({ priority }: { priority: number }) => {
-  const Icon = PRIORITY_ICONS[priority] ?? IconAntennaBarsOff;
+const PriorityIcon = ({ priority }: { priority: Priority }) => {
+  const Icon = PRIORITY_ICONS[priority];
 
   return (
     <Icon
@@ -102,7 +102,7 @@ const PriorityIcon = ({ priority }: { priority: number }) => {
 };
 
 /** A priority's icon and name; `named` false leaves the name to the label. */
-const PriorityLabel = ({ priority, named = true }: { priority: number; named?: boolean }) => {
+const PriorityLabel = ({ priority, named = true }: { priority: Priority; named?: boolean }) => {
   const name = usePriorityNames()[priority];
 
   return (
@@ -124,8 +124,8 @@ export const PrioritySelect = ({
   variant,
   quiet,
 }: {
-  value: number;
-  onChange: (priority: number) => void;
+  value: Priority;
+  onChange: (priority: Priority) => void;
   label: string;
   variant?: Variant;
   quiet?: boolean;

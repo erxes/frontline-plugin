@@ -1,10 +1,10 @@
-import { and, type Column, count, desc, eq, inArray, type SQL, sql } from 'drizzle-orm';
+import { and, type Column, count, desc, eq, inArray, lt, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { tags } from '#/db/tags.ts';
-import { pipelineStatuses, STATUS_TYPES, tickets } from '#/db/tickets.ts';
+import { pipelineStatuses, Priority, STATUS_TYPES, tickets } from '#/db/tickets.ts';
 import { reads } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
 import { firstResponseSla, resolutionSla, SLA_STATES, ticketsSeenBy } from '../tickets/shared.ts';
@@ -37,7 +37,7 @@ const TicketReport = z.object({
   /** The period's new tickets by the stage (`STATUS_TYPES`) of their status now. */
   stages: z.array(z.object({ type: z.number().int(), count: Count })),
   /** The period's new tickets by priority, 0 none to 4 critical. */
-  priorities: z.array(z.object({ priority: z.number().int(), count: Count })),
+  priorities: z.array(z.object({ priority: Priority, count: Count })),
   /** The period's new tickets by tag. */
   tags: z.array(TagCount),
   /** The period's new tickets by the status they are in now. */
@@ -140,7 +140,11 @@ export const ticketReport = reads(PERMISSIONS.channelView)
 
     const created = and(mine, within(tickets.createdAt, range));
     const resolved = within(tickets.resolvedAt, range);
-    const unresolved = sql`${tickets.state} = 'active' and ${pipelineStatuses.type} < ${STATUS_TYPES.resolved}`;
+
+    const unresolved = and(
+      eq(tickets.state, 'active'),
+      lt(pipelineStatuses.type, STATUS_TYPES.resolved),
+    );
 
     const perDay = (column: Column) =>
       tx

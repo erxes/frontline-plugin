@@ -33,9 +33,16 @@ vi.mock('#/core.ts', async (importOriginal) => {
 
             return { id: `customer-${created.customers}` };
           },
-          list: async ({ search }: { search: string }) => ({
-            data: (created.searches.get(search) ?? []).map((id) => ({ id })),
-          }),
+          // Core's matches, `limit` at a time, among `ids` when they're given.
+          list: async ({ search, ids, limit }: { search: string; ids?: string; limit: number }) => {
+            const all = created.searches.get(search) ?? [];
+            const hits = ids ? all.filter((id) => ids.split(',').includes(id)) : all;
+
+            return {
+              data: hits.slice(0, limit).map((id) => ({ id })),
+              pageInfo: { hasNextPage: hits.length > limit },
+            };
+          },
           findOrCreate: async ({ primaryEmail }: { primaryEmail?: string }) =>
             primaryEmail === 'ada@e2e.test'
               ? { customer: { id: 'customer-ada' }, created: false }
@@ -226,6 +233,14 @@ describe('inbox list', () => {
     expect(await found('parcel')).toEqual(ids);
     expect(await found('ada@e2e.test')).toEqual(ids);
     expect(await found('nobody')).toEqual([]);
+
+    // A name 150 customers share finds the conversation of the last one core lists.
+    created.searches.set('Bat', [
+      ...Array.from({ length: 149 }, (_, at) => `customer-bat-${at}`),
+      conversation?.customerId ?? '',
+    ]);
+
+    expect(await found('Bat')).toEqual(ids);
   });
 
   it('previews no link that points into the private network', async () => {

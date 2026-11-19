@@ -3,22 +3,21 @@ import { ORPCError } from '@orpc/server';
 import { eq } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
-import { PLUGIN, signedByCore } from '#/config.ts';
-import {
-  CONVERSATION_EVENTS,
-  core,
-  FORM_ACTIONS,
-  INBOX_ACTIONS,
-  INBOX_NOTIFICATIONS,
-} from '#/core.ts';
+import { signedByCore } from '#/config.ts';
+import { CONVERSATION_EVENTS, FORM_ACTIONS, INBOX_ACTIONS, INBOX_NOTIFICATIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations } from '#/db/inbox.ts';
-import { logger } from '#/logger.ts';
 import { fail, verifiedBy } from '../fail.ts';
 import { createFormLink } from '../forms/links.ts';
 import { sendKindOf, sendMessage } from '../integrations/actions.ts';
 import { addBotMessage, setOperatorOf } from './operator.ts';
-import { publishConversationEvents, signalConversations, signalMembers } from './shared.ts';
+import { notifyMembers } from '../notify.ts';
+import {
+  conversationLink,
+  publishConversationEvents,
+  signalConversations,
+  signalMembers,
+} from './shared.ts';
 
 /** What core POSTs: the step's input, and the event that started the run. */
 const Body = z.object({
@@ -108,21 +107,13 @@ const handOff = async (call: CoreCall, body: Body) => {
   });
 
   if (assigneeId)
-    await core
-      .forOrg(call.orgId)
-      .notifications.create({
-        kind: INBOX_NOTIFICATIONS.assigned,
-        title: 'A conversation was assigned to you',
-        link: `/${PLUGIN}/inbox?conversationId=${encodeURIComponent(conversation.id)}`,
-        userIds: [assigneeId],
-        dedupeKey: `assigned:${assigneeId}:${conversation.id}:${call.runId}`,
-      })
-      .catch((error: unknown) => {
-        logger.error(
-          { err: error, assigneeId, conversationId: conversation.id },
-          'hand-off notification failed',
-        );
-      });
+    await notifyMembers(call.orgId, {
+      kind: INBOX_NOTIFICATIONS.assigned,
+      title: 'A conversation was assigned to you',
+      link: conversationLink(conversation.id),
+      userIds: [assigneeId],
+      dedupeKey: `assigned:${assigneeId}:${conversation.id}:${call.runId}`,
+    });
 
   return { operator: 'person', assigneeId: assigneeId ?? null };
 };

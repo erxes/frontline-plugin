@@ -5,6 +5,7 @@ import { tags } from '#/db/tags.ts';
 import {
   pipelines,
   pipelineStatuses,
+  Priority,
   PRIORITY_NAMES,
   TICKET_STATES,
   tickets,
@@ -21,11 +22,11 @@ type Row = Record<string, string>;
 /** A priority cell: its name in any case, or its number. */
 export const priorityOf = (cell: string) => {
   const at = PRIORITY_NAMES.findIndex((name) => name.toLowerCase() === cell.toLowerCase());
-  const priority = at >= 0 ? at : Number(cell);
+  const priority = Priority.safeParse(at >= 0 ? at : Number(cell));
 
-  if (!PRIORITY_NAMES[priority]) throw refuse(`Priority is one of ${PRIORITY_NAMES.join(', ')}`);
+  if (!priority.success) throw refuse(`Priority is one of ${PRIORITY_NAMES.join(', ')}`);
 
-  return priority;
+  return priority.data;
 };
 
 /** A state cell, active or archived in any case. */

@@ -30,6 +30,15 @@ export const core = createCoreClient({
 });
 
 /** The actions members can be granted in core's roles. */
+/** `ids`, each once, in lists of 100: core lists at most 100 at a time. */
+export const chunks = (ids: Iterable<string>) => {
+  const unique = [...new Set(ids)];
+
+  return Array.from({ length: Math.ceil(unique.length / 100) }, (_, at) =>
+    unique.slice(at * 100, at * 100 + 100),
+  );
+};
+
 export const PERMISSIONS = {
   /** See the channels you belong to; change the ones you are an admin of. */
   channelView: 'frontline.channel.view',

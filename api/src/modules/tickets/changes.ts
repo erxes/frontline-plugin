@@ -28,7 +28,8 @@ import {
   ticketsFor,
 } from './shared.ts';
 
-type TicketRow = Awaited<ReturnType<typeof ticketsFor>>[number];
+/** A ticket as a change reads it before it moves. */
+type TicketRow = { id: string; pipelineId: string };
 
 /** What a change sets on tickets; a field left out stays. */
 const Changes = createUpdateSchema(tickets, refine).pick({
@@ -188,17 +189,17 @@ const onMove = (
 ) => sql`case when ${tickets.statusId} = ${statusId} then ${column} else ${value} end`;
 
 /**
- * Applies one change to tickets the caller may change, in their transaction: the fields, a
- * status move, a pipeline move, the SLA they imply, then each ticket's timeline events.
+ * Applies one change to tickets the caller may change (`ticketsFor`), in their transaction: the
+ * fields, a status move, a pipeline move, the SLA they imply, then each ticket's timeline events.
  */
 export const changeTickets = async (
   tx: Tx,
   member: PluginMember,
-  rows: TicketRow[],
+  held: { id: string }[],
   { statusId, pipelineId, properties, ...fields }: Change,
 ) => {
-  const ids = rows.map((row) => row.id);
-  const before = await snapshot(tx, ids);
+  const ids = held.map((row) => row.id);
+  const rows = await snapshot(tx, ids);
   const edits = Object.keys(fields).length > 0 || properties !== undefined;
 
   const moves = rows.some(
@@ -234,7 +235,7 @@ export const changeTickets = async (
 
   if (statusId || pipelineId || fields.priority !== undefined) await refreshSla(tx, ids);
 
-  await publish(tx, member, changeEvents(before, await snapshot(tx, ids)));
+  await publish(tx, member, changeEvents(rows, await snapshot(tx, ids)));
   // The customers before and after, so a ticket handed to someone else leaves one tab and joins
   // the other.
   const { customerId } = fields;

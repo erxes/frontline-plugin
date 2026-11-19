@@ -20,9 +20,14 @@ import { type StoredFile, id, stamps, table } from './table.ts';
 /** A span in working minutes, up to a year; left out, the clock isn't kept. */
 const Minutes = z.number().int().positive().max(525_600).optional();
 
+/** A ticket's priorities by name, as its column and SLA rules number them. */
+export const TICKET_PRIORITIES = { none: 0, minor: 1, medium: 2, high: 3, critical: 4 } as const;
+
+export const Priority = z.enum(TICKET_PRIORITIES);
+
 /**
- * What a pipeline promises its tickets: a first response and a resolution time per priority
- * (0 no priority, 1 minor, 2 medium, 3 high, 4 critical), at most one rule each. A rule that
+ * What a pipeline promises its tickets: a first response and a resolution time per priority,
+ * at most one rule each. A rule that
  * keeps no clock is dropped. The column's type, and the schema its input and output parse with.
  */
 export const SlaPolicy = z.object({
@@ -30,7 +35,7 @@ export const SlaPolicy = z.object({
   rules: z
     .array(
       z.object({
-        priority: z.number().int().min(0).max(4),
+        priority: Priority,
         firstResponseMinutes: Minutes,
         resolutionMinutes: Minutes,
       }),
@@ -212,8 +217,7 @@ export const tickets = table(
     name: text().notNull(),
     /** BlockNote blocks as JSON, from erxes-ui's Editor. */
     description: text().notNull().default(''),
-    /** 0 no priority, 1 minor, 2 medium, 3 high, 4 critical, as SLA rules name them. */
-    priority: integer().notNull().default(0),
+    priority: integer().$type<z.infer<typeof Priority>>().notNull().default(TICKET_PRIORITIES.none),
     /** A core user id. */
     assigneeId: text(),
     /** Core user ids: who else works it, and who follows its changes. */

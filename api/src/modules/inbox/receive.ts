@@ -7,7 +7,13 @@ import { conversations, customerLinks, integrations, messages } from '#/db/inbox
 import type { StoredFile } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import type { Person } from '../integrations/provider.ts';
-import { publishConversationEvents, signalArrival, signalConversations } from './shared.ts';
+import {
+  conversationLink,
+  publishConversationEvents,
+  signalArrival,
+  signalConversations,
+  statusFrom,
+} from './shared.ts';
 
 /**
  * The provider's user, as an adapter knows them; `email` when the provider gives one. `whoIs`
@@ -35,50 +41,59 @@ const nameOf = async (sender: Sender) => {
   return found ?? { firstName: sender.firstName };
 };
 
-const linkedCustomer = (orgId: string, { source, externalId }: Sender) =>
-  withOrg(orgId, async (tx) => {
-    const [link] = await tx
-      .select({ customerId: customerLinks.customerId })
-      .from(customerLinks)
-      .where(and(eq(customerLinks.source, source), eq(customerLinks.externalId, externalId)));
+/** The customer the sender is linked to, if any. */
+const linkOf = async (tx: Tx, { source, externalId }: Sender) => {
+  const [link] = await tx
+    .select({ customerId: customerLinks.customerId })
+    .from(customerLinks)
+    .where(and(eq(customerLinks.source, source), eq(customerLinks.externalId, externalId)));
 
-    return link?.customerId;
-  });
+  return link?.customerId;
+};
 
 /**
  * The core customer behind a provider's user id: the linked one, else core's customer with that
  * email, else a new lead in core, and its link. Calls core outside any transaction. Two first
- * messages at once make one link; the loser's new customer stays in core unlinked.
+ * messages at once both ask core and the first link stays; the other removes the lead it made, so
+ * no customer is left in core without a link.
  */
 export const customerFor = async (orgId: string, sender: Sender) => {
-  const linked = await linkedCustomer(orgId, sender);
+  const linked = await withOrg(orgId, (tx) => linkOf(tx, sender));
 
   if (linked) return linked;
 
   const lead = { ...(await nameOf(sender)), state: 'lead' as const, source: sender.source };
   const customers = core.forOrg(orgId).customers;
 
-  const created = sender.email
-    ? (await customers.findOrCreate({ ...lead, primaryEmail: sender.email })).customer
-    : await customers.create(lead);
+  const { customer, created } = sender.email
+    ? await customers.findOrCreate({ ...lead, primaryEmail: sender.email })
+    : { customer: await customers.create(lead), created: true };
 
-  await withOrg(orgId, (tx) =>
+  // Returns the link that stays: this one, or the one another first message made meanwhile.
+  const [link] = await withOrg(orgId, (tx) =>
     tx
       .insert(customerLinks)
       .values({
         orgId,
         source: sender.source,
         externalId: sender.externalId,
-        customerId: created.id,
+        customerId: customer.id,
       })
-      .onConflictDoNothing(),
+      .onConflictDoUpdate({
+        target: [customerLinks.orgId, customerLinks.source, customerLinks.externalId],
+        set: { customerId: sql`${customerLinks.customerId}` },
+      })
+      .returning({ customerId: customerLinks.customerId }),
   );
 
-  const customerId = await linkedCustomer(orgId, sender);
+  if (!link) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
-  if (!customerId) throw new ORPCError('INTERNAL_SERVER_ERROR');
+  if (created && link.customerId !== customer.id)
+    await customers.remove({ ids: [customer.id] }).catch((error: unknown) => {
+      logger.error({ err: error, orgId, customerId: customer.id }, 'unlinked lead stays in core');
+    });
 
-  return customerId;
+  return link.customerId;
 };
 
 /**
@@ -96,7 +111,7 @@ const publishMessageReceived = async (
     p_type => ${MESSAGE_RECEIVED_EVENT.type},
     p_payload => ${JSON.stringify(payload)}::jsonb,
     p_summary => 'Sent a message',
-    p_link => ${`/${PLUGIN}/inbox?conversationId=${encodeURIComponent(payload.conversationId)}`},
+    p_link => ${conversationLink(payload.conversationId)},
     p_dedupe_key => ${`message:${payload.messageId}`}
   )`);
 };
@@ -256,7 +271,7 @@ export const receiveIn = async (tx: Tx, orgId: string, incoming: Incoming) => {
       lastMessageAt: message.createdAt,
       customerRespondedLast: true,
       readBy: sql`'{}'`,
-      status: sql`case when ${conversations.status} = 'resolved' then 'open' else ${conversations.status} end`,
+      status: statusFrom('resolved', 'open'),
       resolvedAt: null,
       resolvedBy: null,
     })

@@ -103,11 +103,14 @@ export const useDeletePipelines = () => {
   return { deletePipelines, isPending: remove.isPending };
 };
 
+/** A ticket's priority, 0 none to 4 critical. */
+export type Priority = NonNullable<Pipeline['slaPolicy']>['rules'][number]['priority'];
+
 /** Critical first: the priorities a ticket takes and an SLA rule promises for. */
-export const PRIORITIES = [4, 3, 2, 1, 0] as const;
+export const PRIORITIES = [4, 3, 2, 1, 0] as const satisfies readonly Priority[];
 
 /** Each priority's name, 4 critical to 0 none. */
-export const usePriorityNames = (): Record<number, string> => {
+export const usePriorityNames = (): Record<Priority, string> => {
   const { t } = useTranslation('frontline');
 
   return {

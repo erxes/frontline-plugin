@@ -4,6 +4,7 @@ import { useEffect, useEffectEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { draftsOf, useDraft } from '~/shared/drafts.ts';
+import { PRIORITIES } from '@/pipelines/queries.ts';
 
 /**
  * The new ticket being written, kept per member in the tab until it is created or discarded. An
@@ -16,7 +17,7 @@ const ticketDrafts = draftsOf(
     statusId: z.string(),
     name: z.string(),
     description: z.string(),
-    priority: z.number(),
+    priority: z.literal(PRIORITIES),
     assigneeId: z.string().nullable(),
     startDate: z.coerce.date().nullable(),
     targetDate: z.coerce.date().nullable(),

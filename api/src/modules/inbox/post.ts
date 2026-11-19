@@ -6,7 +6,7 @@ import type { Tx } from '#/db/client.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
 import type { StoredFile } from '#/db/table.ts';
 import { ADAPTERS } from './adapters.ts';
-import { signalConversations, signalMembers } from './shared.ts';
+import { signalConversations, signalMembers, statusFrom } from './shared.ts';
 
 /** The row without `org_id`, which the caller already knows, and what only adapters read. */
 const { orgId: _orgId, providerData: _providerData, ...columns } = getTableColumns(messages);
@@ -93,7 +93,7 @@ export const postMessage = async (
             lastMessageAt: message.createdAt,
             customerRespondedLast: false,
             readBy: sql`array(select distinct unnest(array_append(${conversations.readBy}, ${author.userId})))`,
-            status: sql`case when ${conversations.status} = 'new' then 'open' else ${conversations.status} end`,
+            status: statusFrom('new', 'open'),
             firstRespondedAt: sql`coalesce(${conversations.firstRespondedAt}, now())`,
             firstRespondedBy: sql`coalesce(${conversations.firstRespondedBy}, ${author.userId})`,
           },

@@ -6,7 +6,16 @@ import { z } from 'zod';
 import { CONVERSATION_TIMELINE } from '#/core.ts';
 import { PLUGIN } from '#/config.ts';
 import type { Tx } from '#/db/client.ts';
-import { conversations, conversationTags, integrations, messages } from '#/db/inbox.ts';
+import {
+  type CONVERSATION_STATUSES,
+  conversations,
+  conversationTags,
+  integrations,
+  messages,
+} from '#/db/inbox.ts';
+
+type ConversationStatus = (typeof CONVERSATION_STATUSES)[number];
+
 import { channelMembers, channels } from '#/db/schema.ts';
 import { membership, seenBy } from '../channels/access.ts';
 import { publishEvents } from '../events.ts';
@@ -143,11 +152,19 @@ export const publishConversationEvents = (
       orgId,
       actorUserId: actorId,
       entityType: CONVERSATION_TIMELINE,
-      linkOf: (id) => `/${PLUGIN}/inbox?conversationId=${encodeURIComponent(id)}`,
+      linkOf: conversationLink,
       audited: false,
     },
     events.map(({ conversationId, ...event }) => ({ ...event, entityId: conversationId })),
   );
+
+/** A conversation's status in an update: `to` when it is `from`, else as it was. */
+export const statusFrom = (from: ConversationStatus, to: ConversationStatus) =>
+  sql<ConversationStatus>`case when ${eq(conversations.status, from)} then ${to} else ${conversations.status} end`;
+
+/** Where web opens a conversation. */
+export const conversationLink = (id: string) =>
+  `/${PLUGIN}/inbox?conversationId=${encodeURIComponent(id)}`;
 
 /** The Postgres channel the public messenger stream listens on (`messenger/stream.ts`). */
 export const VISITOR_CHANNEL = 'frontline_visitors';
