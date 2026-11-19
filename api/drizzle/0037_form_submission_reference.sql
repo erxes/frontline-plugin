@@ -1,0 +1,1 @@
+CREATE INDEX "frontline_form_submissions_org_reference_idx" ON "frontline_form_submissions" USING btree ("org_id","reference_type","reference_id");

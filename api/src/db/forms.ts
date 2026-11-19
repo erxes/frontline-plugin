@@ -250,6 +250,11 @@ export const formSubmissions = table(
       t.id,
     ),
     index('frontline_form_submissions_org_customer_idx').on(t.orgId, t.customerId),
+    index('frontline_form_submissions_org_reference_idx').on(
+      t.orgId,
+      t.referenceType,
+      t.referenceId,
+    ),
   ],
 );
 

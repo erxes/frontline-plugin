@@ -1,6 +1,7 @@
 import type * as Sdk from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import type * as CoreModule from '#/core.ts';
+import { ticketFieldCalls } from '#/test/coreUnits.ts';
 
 /**
  * What frontline asked of core in a test: the customers senders become, the notifications
@@ -32,6 +33,7 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
   core: {
     ...actual.core,
     forOrg: () => ({
+      ...ticketFieldCalls,
       customers: {
         create: async (input: unknown) => {
           asked.customers += 1;

@@ -51,6 +51,7 @@ import { teamProcedures } from '#/modules/teams/teams.ts';
 import { changeProcedures } from '#/modules/tickets/changes.ts';
 import { followProcedures } from '#/modules/tickets/follow.ts';
 import { propertyProcedures } from '#/modules/tickets/properties.ts';
+import { responseProcedures } from '#/modules/tickets/responses.ts';
 import { ticketProcedures } from '#/modules/tickets/tickets.ts';
 
 /** Every procedure, served at `/api/rpc/<group>/<name>`. */
@@ -62,6 +63,7 @@ export const router = {
     ...ticketProcedures,
     ...changeProcedures,
     ...followProcedures,
+    ...responseProcedures,
     properties: propertyProcedures,
   },
   settings: settingsProcedures,

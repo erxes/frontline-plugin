@@ -202,6 +202,12 @@ const checkFields = async (input: {
   return { values };
 };
 
+/** Core's calls for ticket fields, answered by `coreTicketFields`, for any stand-in of core. */
+export const ticketFieldCalls = {
+  fields: { list: async () => ({ data: ticketFields }), check: checkFields },
+  fieldGroups: { list: async () => ({ data: ticketGroups() }) },
+};
+
 /**
  * `#/core.ts` with core's units answered by `coreUnits` and ticket fields by `coreTicketFields`:
  * `vi.mock('#/core.ts', …unitsStandIn)`.
@@ -215,8 +221,7 @@ export const unitsStandIn = (actual: typeof CoreModule) => ({
         list: async () => list(orgId),
         import: async ({ units }: { units: Required<UnitInput>[] }) => importUnits(orgId, units),
       },
-      fields: { list: async () => ({ data: ticketFields }), check: checkFields },
-      fieldGroups: { list: async () => ({ data: ticketGroups() }) },
+      ...ticketFieldCalls,
     }),
   },
 });
