@@ -1,4 +1,5 @@
 import { shownFields } from '@frontline/api/logic';
+import { IconPaperclip } from '@tabler/icons-react';
 import { Button, Checkbox, cn, Input, Label, RadioGroup, Select, Switch, Textarea } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -14,16 +15,35 @@ declare module 'react' {
 
 type Answers = Record<string, unknown>;
 
+/** The types a visitor picks one option of from a list, as the embed draws them. */
+const SELECT_TYPES: readonly string[] = ['select', 'select:countries', 'core:customer:sex'];
+
+type PreviewProps = { field: FormField; value: unknown; onChange: (value: unknown) => void };
+
+/** A field's options as check boxes, any number of them picked. */
+const PreviewChecks = ({ field, value, onChange }: PreviewProps) => {
+  const picked = Array.isArray(value) ? value.filter((item) => typeof item === 'string') : [];
+
+  return (
+    <div className="flex flex-col gap-1">
+      {field.options.map((option, index) => (
+        <div key={option} className="flex items-center gap-2">
+          <Checkbox
+            id={`${field.id}-${index}`}
+            checked={picked.includes(option)}
+            onCheckedChange={(checked) =>
+              onChange(checked ? [...picked, option] : picked.filter((item) => item !== option))
+            }
+          />
+          <Label htmlFor={`${field.id}-${index}`}>{option}</Label>
+        </div>
+      ))}
+    </div>
+  );
+};
+
 /** One field as a visitor fills it in, keeping the answer in the preview only. */
-const PreviewInput = ({
-  field,
-  value,
-  onChange,
-}: {
-  field: FormField;
-  value: unknown;
-  onChange: (value: unknown) => void;
-}) => {
+const PreviewInput = ({ field, value, onChange }: PreviewProps) => {
   const text = typeof value === 'string' ? value : '';
   const label = field.label ?? '';
 
@@ -40,7 +60,7 @@ const PreviewInput = ({
   if (field.type === 'boolean')
     return <Switch aria-label={label} checked={value === true} onCheckedChange={onChange} />;
 
-  if (field.type === 'select')
+  if (SELECT_TYPES.includes(field.type))
     return (
       <Select value={text} onValueChange={onChange}>
         <Select.Trigger aria-label={label}>
@@ -68,26 +88,16 @@ const PreviewInput = ({
       </RadioGroup>
     );
 
-  if (field.type === 'check') {
-    const picked = Array.isArray(value) ? value.filter((item) => typeof item === 'string') : [];
+  if (field.type === 'check')
+    return <PreviewChecks field={field} value={value} onChange={onChange} />;
 
+  // The embed's attach button; files are picked on the real form only.
+  if (field.type === 'file' || field.type === 'core:customer:avatar')
     return (
-      <div className="flex flex-col gap-1">
-        {field.options.map((option, index) => (
-          <div key={option} className="flex items-center gap-2">
-            <Checkbox
-              id={`${field.id}-${index}`}
-              checked={picked.includes(option)}
-              onCheckedChange={(checked) =>
-                onChange(checked ? [...picked, option] : picked.filter((item) => item !== option))
-              }
-            />
-            <Label htmlFor={`${field.id}-${index}`}>{option}</Label>
-          </div>
-        ))}
-      </div>
+      <Button variant="outline" size="icon" disabled aria-label={label}>
+        <IconPaperclip />
+      </Button>
     );
-  }
 
   const type = field.type === 'number' ? 'number' : field.type.endsWith('ate') ? 'date' : 'text';
 
@@ -95,7 +105,6 @@ const PreviewInput = ({
     <Input
       aria-label={label}
       type={type}
-      disabled={field.type === 'file' || field.type === 'core:customer:avatar'}
       placeholder={field.placeholder ?? ''}
       value={text}
       onChange={(event) => onChange(event.target.value)}

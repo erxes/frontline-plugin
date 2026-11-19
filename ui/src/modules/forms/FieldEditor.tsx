@@ -2,7 +2,17 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { IconChevronDown, IconChevronRight, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Button, cn, Collapsible, DragHandle, Label, Select, Switch, TextField } from 'erxes-ui';
+import {
+  Button,
+  cn,
+  Collapsible,
+  DragHandle,
+  Label,
+  Select,
+  Switch,
+  TextField,
+  useConfirm,
+} from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
@@ -66,7 +76,17 @@ const FieldRowEnd = ({ field, canManage }: { field: FormField; canManage: boolea
   const change = useFormChange();
   const update = useMutation(orpc.forms.fields.update.mutationOptions(change));
   const remove = useMutation(orpc.forms.fields.remove.mutationOptions(change));
+  const { confirm } = useConfirm();
   const requiredId = `frontline-field-${field.id}-required`;
+
+  // Removing a field also drops the show and hide rules other fields have on it.
+  const confirmRemove = () =>
+    void confirm({
+      message: t('field-remove-confirm', 'Remove {{label}} and the rules that use it?', {
+        label: field.label || t('field-untitled', 'Untitled field'),
+      }),
+      options: { okLabel: t('remove', 'Remove'), variants: { ok: 'destructive' } },
+    }).then(() => remove.mutate({ ids: [field.id] }));
 
   return (
     <>
@@ -84,7 +104,7 @@ const FieldRowEnd = ({ field, canManage }: { field: FormField; canManage: boolea
           variant="ghost"
           size="icon"
           aria-label={t('field-remove', 'Remove {{label}}', { label: field.label })}
-          onClick={() => remove.mutate({ ids: [field.id] })}
+          onClick={confirmRemove}
         >
           <IconTrash />
         </Button>

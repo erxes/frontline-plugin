@@ -182,7 +182,13 @@ const PhoneSettings = ({ account }: { account: Account }) => {
     <>
       <PanelSection title={t('webhook', 'Webhook')}>
         <InfoRow icon={IconLink} label={t('address', 'Address')}>
-          <span className="truncate">{settings.webhookUrl}</span>
+          {settings.webhookUrl ? (
+            <span className="truncate">{settings.webhookUrl}</span>
+          ) : (
+            <span className="text-muted-foreground">
+              {t('webhook-missing', 'None yet: connect the line again for one')}
+            </span>
+          )}
         </InfoRow>
         {settings.webhookSecret && (
           <InfoRow icon={IconKey} label={t('secret', 'Secret')}>

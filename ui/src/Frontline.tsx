@@ -304,6 +304,12 @@ export const Frontline = () => (
           <Route path=":topicId/kbsettings" element={<TopicSettingsPage />} />
         </Route>
         <Route path="help-centers/*" element={<HelpCenterRoutes />} />
+        <Route
+          path="knowledge-base/*"
+          element={<Navigate to={`/${PLUGIN}/knowledgebase`} replace />}
+        />
+        {/* Any other address opens the inbox rather than an empty page. */}
+        <Route path="*" element={<Navigate to={`/${PLUGIN}/inbox`} replace />} />
       </Route>
       {settingsRoutes}
       <Route path="helpcenter" element={<Navigate to="../help-centers" replace />} />

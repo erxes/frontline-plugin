@@ -71,6 +71,9 @@ const TopicRow = () => {
   );
 };
 
+/** Whether `url` is a web page's full address, as the API takes it. */
+const isPageUrl = (url: string) => /^https?:$/.test(URL.parse(url)?.protocol ?? '');
+
 /** Pages of the website the messenger links to, each a button with a line under it. */
 const WebsiteApps = () => {
   const { t } = useTranslation('frontline');
@@ -81,17 +84,48 @@ const WebsiteApps = () => {
     <div className="flex flex-col gap-2 sm:col-span-2">
       <span className="text-sm font-medium">{t('messenger-website-apps', 'Website pages')}</span>
       {fields.map((row, index) => (
-        <div key={row.id} className="flex items-center gap-2">
+        <div key={row.id} className="flex items-start gap-2">
           <div className="grid flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
-            <Input
-              aria-label={t('messenger-app-button', 'Button text')}
-              placeholder={t('messenger-app-button', 'Button text')}
-              {...register(`websiteApps.${index}.buttonText`)}
+            <Form.Field
+              control={control}
+              name={`websiteApps.${index}.buttonText`}
+              rules={{
+                validate: (text) =>
+                  text.trim() !== '' || t('messenger-app-button-required', 'Name the button'),
+              }}
+              render={({ field }) => (
+                <Form.Item>
+                  <Form.Control>
+                    <Input
+                      aria-label={t('messenger-app-button', 'Button text')}
+                      placeholder={t('messenger-app-button', 'Button text')}
+                      {...field}
+                    />
+                  </Form.Control>
+                  <Form.Message />
+                </Form.Item>
+              )}
             />
-            <Input
-              aria-label={t('messenger-app-url', 'Page address')}
-              placeholder="https://"
-              {...register(`websiteApps.${index}.url`)}
+            <Form.Field
+              control={control}
+              name={`websiteApps.${index}.url`}
+              rules={{
+                validate: (url) =>
+                  isPageUrl(url) ||
+                  t('messenger-app-url-required', 'Enter the address, starting with https://'),
+              }}
+              render={({ field }) => (
+                <Form.Item>
+                  <Form.Control>
+                    <Input
+                      aria-label={t('messenger-app-url', 'Page address')}
+                      placeholder="https://"
+                      {...field}
+                    />
+                  </Form.Control>
+                  <Form.Message />
+                </Form.Item>
+              )}
             />
             <Input
               aria-label={t('messenger-app-description', 'Description')}

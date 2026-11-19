@@ -6,7 +6,7 @@ import { logger } from '#/logger.ts';
 type Field = typeof formFields.$inferSelect;
 
 /** How the sex field's options read, as ISO/IEC 5218 codes. */
-const SEX_CODES: Record<string, 0 | 1 | 2 | 9> = { Male: 1, Female: 2, 'Not applicable': 9 };
+export const SEX_CODES: Record<string, 0 | 1 | 2 | 9> = { Male: 1, Female: 2, 'Not applicable': 9 };
 
 /** The customer fields a submission answered, by the name after `core:customer:`. */
 const customerAnswers = (fields: Field[], values: Record<string, unknown>) => {

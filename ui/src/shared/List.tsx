@@ -1,7 +1,14 @@
 import { ORPCError } from '@orpc/client';
 import { IconAlertTriangle, IconPlus, IconRefresh, IconSearchOff } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button, Empty, Kbd, useListFilterParams, usePageHotkey } from 'erxes-ui';
+import {
+  Button,
+  Empty,
+  Kbd,
+  RelativeDateDisplay,
+  useListFilterParams,
+  usePageHotkey,
+} from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Paging } from './paging.ts';
@@ -89,6 +96,15 @@ export const ListError = ({ error, retry }: { error: Error; retry?: () => void }
     </Empty>
   );
 };
+
+/** A row's last change as "3 days ago", cut to fit its column, with the full date on hover. */
+export const RowDate = ({ date }: { date: Date }) => (
+  <span className="flex w-28 shrink-0 text-muted-foreground">
+    <RelativeDateDisplay value={date.toISOString()}>
+      <RelativeDateDisplay.Value value={date.toISOString()} />
+    </RelativeDateDisplay>
+  </span>
+);
 
 /** A list's create button, with C as its shortcut, for members who may create; others see none. */
 export const CreateButton = ({

@@ -1,5 +1,6 @@
 import { IconDots } from '@tabler/icons-react';
-import { Button, RecordList, type RecordListGroup, RelativeDateDisplay } from 'erxes-ui';
+import { Button, RecordList, type RecordListGroup } from 'erxes-ui';
+import { RowDate } from '~/shared/List.tsx';
 import { useTranslation } from 'react-i18next';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { ArticleTitle, CategoryPicker, useArticleActions } from './ArticleCells.tsx';
@@ -40,11 +41,7 @@ const ArticleRow = ({ article, topicId }: { article: Article; topicId: string })
     <span className="hidden w-36 shrink-0 md:block">
       <MemberLine id={article.createdBy} />
     </span>
-    <span className="w-24 shrink-0 text-muted-foreground">
-      <RelativeDateDisplay value={article.updatedAt.toISOString()}>
-        <RelativeDateDisplay.Value value={article.updatedAt.toISOString()} />
-      </RelativeDateDisplay>
-    </span>
+    <RowDate date={article.updatedAt} />
     <RowMenu article={article} />
   </div>
 );

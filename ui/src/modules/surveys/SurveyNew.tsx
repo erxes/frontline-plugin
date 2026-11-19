@@ -103,6 +103,12 @@ export const SurveyNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
     }),
   );
 
+  // A refusal is about what was sent, so it goes once the draft changes.
+  const edit: Save = (update) => {
+    create.reset();
+    draft.save(update);
+  };
+
   return (
     <form
       // onSubmit rather than a form action, which would clear the fields when the API refuses them.
@@ -118,7 +124,7 @@ export const SurveyNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
       onChange={(event) => {
         const form = new FormData(event.currentTarget);
 
-        draft.save((current) => ({
+        edit((current) => ({
           ...current,
           title: textOf(form.get('title')),
           question: textOf(form.get('question')),
@@ -133,7 +139,7 @@ export const SurveyNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
       >
         <ChannelRow
           value={channelId}
-          onChange={(id) => draft.save((current) => ({ ...current, channelId: id }))}
+          onChange={(id) => edit((current) => ({ ...current, channelId: id }))}
           missing={t('survey-channel-first', 'Be an admin of a channel to add a survey.')}
         />
         <TextRow
@@ -144,7 +150,7 @@ export const SurveyNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
           defaultValue={title}
           placeholder={t('survey-title-placeholder', 'Name the survey for your team')}
         />
-        <QuestionRows draft={draft.value} save={draft.save} />
+        <QuestionRows draft={draft.value} save={edit} />
         {create.error && (
           <p role="alert" className="text-xs text-destructive-text">
             {create.error.message}

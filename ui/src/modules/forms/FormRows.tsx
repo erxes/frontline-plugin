@@ -17,11 +17,11 @@ import {
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
-  RelativeDateDisplay,
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChannelLabel } from '~/shared/ChannelSelect.tsx';
+import { RowDate } from '~/shared/List.tsx';
 import { ActionsMenu, RowActions, TextCell } from '~/shared/Records.tsx';
 import type { Paging } from '~/shared/paging.ts';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
@@ -70,11 +70,7 @@ const FormRow = ({ form }: { form: Form }) => {
       <span className="hidden w-36 shrink-0 md:block">
         <MemberLine id={form.createdBy} />
       </span>
-      <span className="w-24 shrink-0 text-muted-foreground">
-        <RelativeDateDisplay value={form.updatedAt.toISOString()}>
-          <RelativeDateDisplay.Value value={form.updatedAt.toISOString()} />
-        </RelativeDateDisplay>
-      </span>
+      <RowDate date={form.updatedAt} />
       <RowMenu form={form} />
     </div>
   );

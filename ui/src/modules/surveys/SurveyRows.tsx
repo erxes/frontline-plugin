@@ -16,11 +16,11 @@ import {
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
-  RelativeDateDisplay,
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChannelLabel } from '~/shared/ChannelSelect.tsx';
+import { RowDate } from '~/shared/List.tsx';
 import { ActionsMenu, RowActions, TextCell } from '~/shared/Records.tsx';
 import type { Paging } from '~/shared/paging.ts';
 import { column as columnOf, DateCell, PagedRows } from '~/shared/Table.tsx';
@@ -72,11 +72,7 @@ const SurveyRow = ({ survey }: { survey: Survey }) => {
       <span className="hidden w-36 shrink-0 md:block">
         <MemberLine id={survey.createdBy} />
       </span>
-      <span className="w-24 shrink-0 text-muted-foreground">
-        <RelativeDateDisplay value={survey.updatedAt.toISOString()}>
-          <RelativeDateDisplay.Value value={survey.updatedAt.toISOString()} />
-        </RelativeDateDisplay>
-      </span>
+      <RowDate date={survey.updatedAt} />
       <RowMenu survey={survey} />
     </div>
   );
