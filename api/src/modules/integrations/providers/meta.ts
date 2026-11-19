@@ -1,9 +1,9 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
-import { config } from '#/config.ts';
 import type { Tx } from '#/db/client.ts';
 import type { StoredFile } from '#/db/table.ts';
 import { attachedFile } from '#/modules/files.ts';
+import { providerApi, ProviderRefused } from '../providerApi.ts';
 import { openSecret } from '../secrets.ts';
 import { accountRow } from '../store.ts';
 import {
@@ -22,9 +22,6 @@ import { postOfThread } from './metaWebhook.ts';
 /** The Graph API version frontline's calls and Meta's login dialog use. */
 export const GRAPH_VERSION = 'v23.0';
 
-/** Why the Graph API refused a call, in its own words. */
-class MetaError extends Error {}
-
 const GraphFailure = z.object({
   error: z.object({ message: z.string(), code: z.number().optional() }),
 });
@@ -32,12 +29,22 @@ const GraphFailure = z.object({
 /** Meta's code for an access token it no longer takes: expired, revoked or the password changed. */
 const TOKEN_REFUSED = 190;
 
+const graphApi = providerApi({
+  name: 'Meta',
+  prefix: `https://graph.facebook.com/${GRAPH_VERSION}`,
+  readError: (body) => {
+    const { data } = GraphFailure.safeParse(body);
+
+    return { why: data?.error.message, deadToken: data?.error.code === TOKEN_REFUSED };
+  },
+});
+
 /**
  * A Graph API call with `token` in the Authorization header, so tokens stay out of addresses
  * and logs. `body` goes as JSON, or as it is when it's a form with a file. Resolves to the parsed
  * body, or fails with Meta's message.
  */
-export const graph = async (
+export const graph = (
   path: string,
   token: string | null,
   options: {
@@ -46,35 +53,14 @@ export const graph = async (
     body?: unknown;
   } = {},
 ) => {
-  const url = new URL(`https://graph.facebook.com/${GRAPH_VERSION}/${path}`);
+  const { body } = options;
 
-  for (const [name, value] of Object.entries(options.query ?? {}))
-    url.searchParams.set(name, value);
-
-  const { body: sent } = options;
-  const form = sent instanceof FormData;
-
-  const response = await fetch(url, {
+  return graphApi(path, {
     method: options.method ?? 'GET',
-    headers: {
-      ...(token ? { authorization: `Bearer ${token}` } : {}),
-      ...(sent && !form ? { 'content-type': 'application/json' } : {}),
-    },
-    body: form ? sent : sent ? JSON.stringify(sent) : undefined,
-    // A file takes longer to go than a call.
-    signal: AbortSignal.timeout((form ? 4 : 1) * config.outboundMs),
-  });
-
-  const body: unknown = await response.json();
-
-  if (!response.ok) {
-    const { data } = GraphFailure.safeParse(body);
-    const message = data?.error.message ?? `Meta answered ${response.status}`;
-
-    throw data?.error.code === TOKEN_REFUSED ? new AccountRefused(message) : new MetaError(message);
-  }
-
-  return body;
+    headers: token ? { authorization: `Bearer ${token}` } : {},
+    searchParams: options.query,
+    ...(body instanceof FormData ? { body } : body ? { json: body } : {}),
+  }).json();
 };
 
 const Secret = z.object({ pageToken: z.string() });
@@ -96,7 +82,10 @@ export const metaAccount = async (tx: Tx, id: string) => {
 /** `call`, with Meta's refusal as a BAD_REQUEST the member reads. */
 export const askMeta = <T>(call: Promise<T>) =>
   call.catch((error: unknown) => {
-    if (error instanceof MetaError || error instanceof AccountRefused)
+    if (error instanceof ProviderRefused)
+      throw new ORPCError('BAD_REQUEST', { message: error.message });
+
+    if (error instanceof AccountRefused)
       throw new ORPCError('BAD_REQUEST', { message: `Meta refused: ${error.message}` });
 
     throw error;
@@ -145,7 +134,15 @@ const orElse = async <Target, T>(
   try {
     return await send(target);
   } catch (error) {
-    if (!(error instanceof MetaError) || target === fallback) throw error;
+    // Only a 4xx refusal sends it again: a server's fault, or an answer that isn't JSON, may
+    // come after the message went.
+    if (
+      !(error instanceof ProviderRefused) ||
+      error.status < 400 ||
+      error.status >= 500 ||
+      target === fallback
+    )
+      throw error;
 
     return send(fallback);
   }
@@ -197,7 +194,7 @@ const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessag
     file === parts[0] ? orElse(message.quotedId, null, (mid) => send(file, mid)) : send(file, null),
   );
 
-  if (!first) throw new MetaError('Nothing to send');
+  if (!first) throw new Error('Nothing to send');
 
   return first;
 };
@@ -215,10 +212,10 @@ const replyToComment = async (
   const latest = message.replyTo?.externalId;
   const picked = message.quotedId ?? latest;
 
-  if (!picked) throw new MetaError('No comment to answer');
+  if (!picked) throw new Error('No comment to answer');
 
   if (provider === 'instagram' && message.attachments.length)
-    throw new MetaError('Instagram comment replies take text only');
+    throw new Error('Instagram comment replies take text only');
 
   const [file] = message.attachments;
   const fields = { message: `@[${message.to}] ${message.text}` };

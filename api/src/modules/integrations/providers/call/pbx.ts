@@ -3,6 +3,7 @@ import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { reachableOnly } from '#/modules/outbound.ts';
+import { providerApi, ProviderRefused } from '../../providerApi.ts';
 
 /** Where a Grandstream UCM's HTTPS API answers, and the API user frontline signs in as. */
 export interface Pbx {
@@ -27,36 +28,32 @@ const STATUS_TEXT: Record<number, string> = {
   [-68]: 'too many logins, try again later',
 };
 
-class PbxError extends Error {
-  readonly status: number;
+const NAME = 'The PBX';
 
-  constructor(status: number) {
-    super(`The PBX refused: ${STATUS_TEXT[status] ?? `status ${status}`}`);
-    this.status = status;
-  }
-}
+/** The UCM's refusal of an action, by the status it answered. */
+const refused = (status: number) =>
+  new ProviderRefused(NAME, status, STATUS_TEXT[status] ?? `status ${status}`);
 
 /** Signed-in sessions by PBX and user. A session lasts until the UCM answers -6. */
 const cookies = new Map<string, string>();
 
 const keyOf = (pbx: Pbx) => `${pbx.user}@${pbx.host}`;
 
+const pbxApi = providerApi({
+  name: NAME,
+  // A member names the host, so it may only be a public address, and a UCM's API never
+  // redirects, so neither does this.
+  dispatcher: reachableOnly,
+  redirect: 'error',
+});
+
 const post = (pbx: Pbx, request: Record<string, unknown>) =>
-  fetch(`https://${pbx.host}/api`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify({ request }),
-    signal: AbortSignal.timeout(config.outboundMs),
-    // A member names the host, so it may only be a public address, and a UCM's API never
-    // redirects, so neither does this.
-    dispatcher: reachableOnly,
-    redirect: 'error',
-  });
+  pbxApi.post(`https://${pbx.host}/api`, { json: { request } });
 
 const ask = async (pbx: Pbx, request: Record<string, unknown>) => {
-  const answer = Answer.parse(await (await post(pbx, request)).json());
+  const answer = await post(pbx, request).json(Answer);
 
-  if (answer.status !== 0) throw new PbxError(answer.status);
+  if (answer.status !== 0) throw refused(answer.status);
 
   return answer.response;
 };
@@ -87,7 +84,7 @@ const withSession = async <T>(pbx: Pbx, run: (cookie: string) => Promise<T>) => 
   try {
     return await run(cookie);
   } catch (error) {
-    if (!(error instanceof PbxError) || error.status !== -6) throw error;
+    if (!(error instanceof ProviderRefused) || error.status !== -6) throw error;
 
     return run(await login(pbx));
   }
@@ -123,13 +120,16 @@ export const checkPbx = async (pbx: Pbx) => {
 export const downloadRecording = (pbx: Pbx, path: string) =>
   withSession(pbx, async (cookie) => {
     const [filedir, filename = ''] = path.split('/');
-    const response = await post(pbx, { action: 'recapi', cookie, filedir, filename });
+
+    // The bytes come after the headers, so the whole download has a limit of its own.
+    const response = await pbxApi.post(`https://${pbx.host}/api`, {
+      json: { request: { action: 'recapi', cookie, filedir, filename } },
+      signal: AbortSignal.timeout(4 * config.outboundMs),
+    });
 
     // The UCM answers a refusal as JSON and a recording as audio.
     if (response.headers.get('content-type')?.includes('json')) {
-      const answer = Answer.parse(await response.json());
-
-      throw new PbxError(answer.status);
+      throw refused(Answer.parse(await response.json()).status);
     }
 
     return {

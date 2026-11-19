@@ -8,7 +8,8 @@ import {
   type WebhookSource,
 } from '../provider.ts';
 import { sameText } from '../secrets.ts';
-import { call, Message, telegram, TelegramRefused, User } from './telegram.ts';
+import { ProviderRefused } from '../providerApi.ts';
+import { call, Message, telegram, User } from './telegram.ts';
 
 /** A reaction type: an emoji, or a custom or paid one frontline can't show. */
 const Reaction = z.looseObject({ type: z.string(), emoji: z.string().optional() });
@@ -50,7 +51,8 @@ const download = async (token: string, fileId: string) => {
   const { file_path: path } = await call(token, 'getFile', FilePath, { file_id: fileId }).catch(
     (error: unknown) => {
       // A revoked token keeps the message too; the inbox marks the bot broken from the cause.
-      throw error instanceof TelegramRefused || error instanceof AccountRefused
+      throw (error instanceof ProviderRefused && error.status < 500) ||
+        error instanceof AccountRefused
         ? new FileRefused(error.message, { cause: error })
         : error;
     },

@@ -320,7 +320,7 @@ describe('meta-relay', () => {
     fakeProviders(withRelay(401));
 
     expect((await loggedIn('org-relay-d')).get('error')).toMatch(
-      /^The Meta relay refused the (facebook|instagram) account: 401$/,
+      /^The Meta relay refused: it answered 401$/,
     );
     expect((await clientAs('org-relay-d').integrations.accounts.list({})).accounts).toEqual([]);
 
