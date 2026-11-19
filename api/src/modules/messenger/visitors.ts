@@ -110,11 +110,30 @@ const companyFor = async (
   );
 };
 
-/** The visitor's custom fields, and the company they work at, found or made. */
+/** Whether a custom field holds nothing yet. */
+const unset = (value: unknown) =>
+  value === undefined ||
+  value === null ||
+  value === '' ||
+  (Array.isArray(value) && value.length === 0);
+
+/**
+ * The visitor's custom fields, and the company they work at, found or made. A signed-in
+ * customer's hash sits in the website's page, where anyone may read it and send other values, so
+ * on that customer the website's values only fill fields left blank, never replace them. The
+ * visitor's own lead takes them all.
+ */
 const saveOn = async (visitor: Visitor, { customFields, company }: VisitorData) => {
   const client = core.forOrg(visitor.orgId);
+  const id = visitor.customerId;
 
-  if (customFields) await client.customers.update({ id: visitor.customerId, customFields });
+  if (customFields) {
+    const held = visitor.verified ? (await client.customers.get({ id })).customFields : {};
+    const fill = Object.entries(customFields).filter(([field]) => unset(held[field]));
+
+    if (fill.length > 0)
+      await client.customers.update({ id, customFields: Object.fromEntries(fill) });
+  }
 
   if (company)
     await client.customers.linkCompany({
