@@ -261,12 +261,9 @@ test('a visitor the shop signs in writes at once, and a member outside the chann
 
   const email = `${unique()}@e2e.test`;
   const hash = createHmac('sha256', identitySecret).update(email).digest('hex');
+  const signedIn = `<script>window.frontlineMessenger = { email: '${email}', hash: '${hash}' };</script>`;
 
-  await using site = await openMessenger(
-    page.context(),
-    messenger.publicKey,
-    `<script>window.frontlineMessenger = { email: '${email}', hash: '${hash}' };</script>`,
-  );
+  await using site = await openMessenger(page.context(), messenger.publicKey, signedIn);
 
   await site.panel.getByRole('button', { name: 'Send us a message' }).click();
   await expect(site.panel.getByRole('textbox', { name: 'Message' })).toBeVisible();
