@@ -40,6 +40,7 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
     ['Surveys', '/frontline/surveys', 'Surveys'],
     ['Knowledge Base', '/frontline/knowledgebase', 'Knowledge Base'],
     ['Help centers', '/frontline/help-centers', 'Help centers'],
+    ['Overview', '/frontline/reports', 'Overview'],
     ['History', '/frontline/calls/history', 'Call history'],
     ['Queues', '/frontline/calls/queues', 'Queues'],
   ];

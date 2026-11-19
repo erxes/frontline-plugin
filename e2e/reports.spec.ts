@@ -75,7 +75,7 @@ test('call, ticket and conversation tiles on the home dashboard count the period
 
   // The call page counts the same calls, and lists them.
   await page.goto('/frontline/reports/call');
-  await expectPage(page, 'Calls');
+  await expectPage(page, 'Call center');
   await expect(page.getByRole('region', { name: 'Summary' })).toContainText('Service level');
   await expect(
     tileOf(page, 'Top numbers').getByRole('row').filter({ hasText: caller }).getByRole('cell'),
@@ -263,7 +263,7 @@ test('a ticket report card changes its chart, downloads, lists its tickets and s
   const ticket = await rpc('tickets/create', { pipelineId, name }, Id);
 
   await page.goto('/frontline/reports/ticket');
-  await expectPage(page, 'Tickets');
+  await expectPage(page, 'Ticket');
   await expect(page.getByRole('region', { name: 'Summary' })).toContainText('Overdue now');
 
   // The list card names the period's tickets, and its first cell opens one in the side panel.

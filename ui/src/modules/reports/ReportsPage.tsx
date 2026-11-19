@@ -53,9 +53,9 @@ export const useSectionNames = (): Record<Section, string> => {
 
   return {
     conversations: t('frontline-overview', 'Overview'),
-    tickets: t('tickets', 'Tickets'),
+    tickets: t('ticket', 'Ticket'),
     meta: t('facebook-and-instagram', 'Facebook and Instagram'),
-    calls: t('calls', 'Calls'),
+    calls: t('call-center', 'Call center'),
   };
 };
 

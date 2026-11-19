@@ -115,7 +115,10 @@ const CallsGroup = () => {
   );
 };
 
-/** The Reports group: the overview of conversations, then tickets, Facebook and calls, as the old pages were. */
+/**
+ * The Reports group: the overview of conversations, then tickets, Facebook and calls, named as the
+ * old pages were, apart from the Tickets and Calls modules' own links.
+ */
 const ReportsGroup = () => {
   const { t } = useTranslation('frontline');
 
@@ -130,13 +133,13 @@ const ReportsGroup = () => {
           icon: IconChartHistogram,
           exact: true,
         },
-        { name: t('tickets', 'Tickets'), to: `${REPORTS}/ticket`, icon: IconTicket },
+        { name: t('ticket', 'Ticket'), to: `${REPORTS}/ticket`, icon: IconTicket },
         {
           name: t('facebook-and-instagram', 'Facebook and Instagram'),
           to: `${REPORTS}/facebook`,
           icon: IconBrandFacebook,
         },
-        { name: t('calls', 'Calls'), to: `${REPORTS}/call`, icon: IconPhone },
+        { name: t('call-center', 'Call center'), to: `${REPORTS}/call`, icon: IconPhone },
       ]}
     />
   );

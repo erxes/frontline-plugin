@@ -287,7 +287,12 @@ test('the call history, a call in the panel, the queues and the phone', async ({
 });
 
 test("the home dashboard's tiles, the Reports page, and one refused", async ({ newMember }) => {
-  const agent = await newMember(['frontline.call.view', 'frontline.channel.view']);
+  const agent = await newMember([
+    'frontline.call.view',
+    'frontline.channel.view',
+    'frontline.inbox.view',
+  ]);
+
   const stranger = await newMember(['team.view']);
   const tiles = ['Top numbers', 'Call summary', 'Ticket summary', 'Conversations over time'];
 
@@ -308,7 +313,11 @@ test("the home dashboard's tiles, the Reports page, and one refused", async ({ n
 });
 
 test('the Reports pages for conversations, tickets and calls', async ({ newMember }) => {
-  const { page } = await newMember(['frontline.call.view', 'frontline.channel.view']);
+  const { page } = await newMember([
+    'frontline.call.view',
+    'frontline.channel.view',
+    'frontline.inbox.view',
+  ]);
 
   for (const [path, shown] of [
     ['/frontline/reports', 'Unresolved now'],
