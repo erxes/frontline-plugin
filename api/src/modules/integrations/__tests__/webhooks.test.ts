@@ -100,6 +100,13 @@ describe('meta', () => {
 
     expect(await deliver('/meta', raw)).toBe(401);
     expect(await deliver('/meta', raw, signedByMeta(`${raw} `))).toBe(401);
+
+    // A forged signature gets the same answer whether or not it names a connected page.
+    const elsewhere = raw.replaceAll('page-1', 'page-elsewhere');
+
+    expect(await deliver('/meta', elsewhere, signedByMeta(elsewhere, 'a-forged-secret'))).toBe(401);
+    expect(await deliver('/meta', elsewhere, signedByMeta(elsewhere))).toBe(200);
+
     expect(await deliver('/meta', raw, signedByMeta(raw))).toBe(200);
     await runQueued();
     expect((await clientAs('org-meta-b').conversations.list({})).totalCount).toBe(0);

@@ -220,7 +220,7 @@ export interface WebhookSource {
   /** The answer to the address check some providers send first, or null to refuse it. */
   confirm?: (query: Record<string, unknown>) => Promise<string | null>;
   /** The accounts a delivery addresses with their events, or null when it isn't the provider's. */
-  route: (request: WebhookRequest) => Routed[] | null;
+  route: (request: WebhookRequest) => Routed[] | null | Promise<Routed[] | null>;
   /**
    * The messages and reactions in one account's events, or null when the delivery isn't that
    * account's: its signature fails the account's secret.
