@@ -6,11 +6,11 @@ import { PERMISSIONS } from '#/core.ts';
 import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 
-// Tests never reach core. Ann is a customer already; another email or phone finds a new lead.
-// Changes to customers are kept for the test to read.
+// Tests never reach core. Ann is a customer already, on the silver plan; another email or phone
+// finds a new lead. Changes to customers are kept for the test to read.
 const core = vi.hoisted(() => ({
   customers: 0,
-  updates: [] as { id: string; primaryEmail?: string }[],
+  updates: [] as { id: string; primaryEmail?: string; customFields?: Record<string, unknown> }[],
 }));
 
 vi.mock('#/core.ts', async (importOriginal) => {
@@ -31,7 +31,11 @@ vi.mock('#/core.ts', async (importOriginal) => {
             primaryEmail === 'ann@example.com'
               ? { customer: { id: 'customer-ann' }, created: false }
               : { customer: { id: `lead-${primaryEmail}` }, created: true },
-          update: async (change: { id: string; primaryEmail?: string }) => {
+          get: async ({ id }: { id: string }) => ({
+            id,
+            customFields: id === 'customer-ann' ? { plan: 'silver' } : {},
+          }),
+          update: async (change: (typeof core.updates)[number]) => {
             core.updates.push(change);
 
             return { id: change.id };
@@ -166,5 +170,22 @@ describe('messenger identity', () => {
 
     // Signed out, the page starts a new visitor with nothing of hers.
     expect((await connect({ key, token: verified.token })).conversations).toEqual([]);
+  });
+
+  it("fills only the signed-in customer's blank fields, since her hash sits in the page", async () => {
+    const { key, signed } = await setUp('org-mi-d');
+
+    core.updates.length = 0;
+    await connect({ key, identity: signed(), customFields: { plan: 'free', city: 'Darkhan' } });
+
+    expect(core.updates).toEqual([{ id: 'customer-ann', customFields: { city: 'Darkhan' } }]);
+
+    // A visitor's own lead takes every value.
+    core.updates.length = 0;
+    await connect({ key, customFields: { plan: 'free' } });
+
+    expect(core.updates).toEqual([
+      { id: `customer-${core.customers}`, customFields: { plan: 'free' } },
+    ]);
   });
 });

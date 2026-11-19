@@ -3,6 +3,8 @@ import { pluginOpenApi } from '@erxes/plugin-sdk/openapi';
 import { OpenAPIHandler } from '@orpc/openapi/node';
 import { onError, ORPCError, ValidationError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/node';
+import { resolve, sep } from 'node:path';
+import compression from 'compression';
 import cors from 'cors';
 import express from 'express';
 import { z } from 'zod';
@@ -71,6 +73,26 @@ const memberDoc = pluginOpenApi(router, {
 });
 
 const anyOrigin = cors({ origin: true, credentials: false, maxAge: 600 });
+
+/**
+ * A built app's files from `dir`, compressed. Files in its `hashed` folder are named by their
+ * content hash, so a browser keeps them for good. An entry such as `remoteEntry.js` revalidates
+ * on each load, since a stale one imports chunks the next deploy removed.
+ */
+const builtFiles = (dir: string, hashed: string) => {
+  const kept = resolve(dir, hashed) + sep;
+
+  return [
+    compression(),
+    express.static(dir, {
+      setHeaders: (res, path) =>
+        res.set(
+          'cache-control',
+          path.startsWith(kept) ? 'public, max-age=31536000, immutable' : 'no-cache',
+        ),
+    }),
+  ];
+};
 
 /** Runs `handler`'s procedures at `prefix` for the member the token signs in (`member.ts`). */
 const signedIn =
@@ -146,19 +168,7 @@ export const createApp = () => {
   app.use('/api/public/:key', formsPublicRouter);
 
   if (config.widgetDir)
-    app.use(
-      '/widget',
-      cors({ maxAge: 600 }),
-      express.static(config.widgetDir, {
-        // Chunks are named by their hash. An entry revalidates on each load, since a stale
-        // one imports chunks the next deploy removed.
-        setHeaders: (res, path) =>
-          res.set(
-            'cache-control',
-            path.includes('/chunks/') ? 'public, max-age=31536000, immutable' : 'no-cache',
-          ),
-      }),
-    );
+    app.use('/widget', cors({ maxAge: 600 }), ...builtFiles(config.widgetDir, 'chunks'));
 
   // Core's API reference fetches the document from web at the organisation's own address.
   // It holds no secrets, so any origin may read it.
@@ -243,7 +253,7 @@ export const createApp = () => {
   app.use('/api/transfer', transferRoutes());
   app.use('/api/timelines', timelineRoutes());
 
-  if (config.uiDir) app.use('/ui', express.static(config.uiDir));
+  if (config.uiDir) app.use('/ui', ...builtFiles(config.uiDir, 'static'));
 
   return app;
 };

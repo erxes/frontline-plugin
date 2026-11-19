@@ -19,6 +19,9 @@ const en = {
   backHome: 'Back to the help center',
   fillIn: 'Fill in a form',
   skip: 'Skip to content',
+  pages: 'Pages',
+  previous: 'Previous page',
+  next: 'Next page',
 };
 
 type Copy = typeof en;
@@ -43,6 +46,9 @@ const mn: Copy = {
   backHome: 'Тусламжийн төв рүү буцах',
   fillIn: 'Маягт бөглөх',
   skip: 'Агуулга руу шилжих',
+  pages: 'Хуудаснууд',
+  previous: 'Өмнөх хуудас',
+  next: 'Дараагийн хуудас',
 };
 
 /** The site's words in the help center's language: Mongolian for `mn`, English otherwise. */

@@ -2,7 +2,8 @@ import { and, asc, desc, eq, ilike, inArray, or } from 'drizzle-orm';
 import express, { type Response, type Router } from 'express';
 import sanitizeHtml from 'sanitize-html';
 import { z } from 'zod';
-import { withOrg } from '#/db/client.ts';
+import { LRUCache } from 'lru-cache';
+import { type Tx, withOrg } from '#/db/client.ts';
 import { forms } from '#/db/forms.ts';
 import { HELP_CENTER_DOMAIN, HELP_CENTER_KEY, helpCenters } from '#/db/helpcenter.ts';
 import { integrations } from '#/db/inbox.ts';
@@ -16,7 +17,7 @@ import { messenger } from '../messenger/adapter.ts';
 import { keyOfOrganization, openedBy, widgetScript } from '../public.ts';
 import { countView } from '../views.ts';
 import { likeText } from '../filter.ts';
-import { published, shownFile, shownKeyOf, shownUrl } from '../shownFiles.ts';
+import { published, shownFile, shownUrl } from '../shownFiles.ts';
 
 /**
  * The help center's organisation and id from the address a signed-out visitor came by: its key,
@@ -114,129 +115,175 @@ export const searchOf = (orgId: string, topicId: string, term: string) => {
   );
 };
 
-/** A topic's categories and published public articles, as a help center or messenger shows them. */
-export const topicOf = (orgId: string, topicId: string) =>
-  withOrg(orgId, async (tx) => {
-    const [topic] = await tx.select().from(kbTopics).where(eq(kbTopics.id, topicId));
+const loadTopic = async (tx: Tx, topicId: string) => {
+  const [topic] = await tx.select().from(kbTopics).where(eq(kbTopics.id, topicId));
 
-    const categories = await tx
-      .select({
-        id: kbCategories.id,
-        parentId: kbCategories.parentId,
-        title: kbCategories.title,
-        description: kbCategories.description,
-        icon: kbCategories.icon,
-      })
-      .from(kbCategories)
-      .where(eq(kbCategories.topicId, topicId))
-      .orderBy(asc(kbCategories.title));
+  const rows = await tx
+    .select({
+      id: kbCategories.id,
+      parentId: kbCategories.parentId,
+      title: kbCategories.title,
+      description: kbCategories.description,
+      icon: kbCategories.icon,
+    })
+    .from(kbCategories)
+    .where(eq(kbCategories.topicId, topicId))
+    .orderBy(asc(kbCategories.title));
 
-    const articles = await tx
-      .select(listed)
-      .from(kbArticles)
-      .where(
-        and(
-          inArray(
-            kbArticles.categoryId,
-            categories.map((category) => category.id),
-          ),
-          published,
+  const articles = await tx
+    .select(listed)
+    .from(kbArticles)
+    .where(
+      and(
+        inArray(
+          kbArticles.categoryId,
+          rows.map((category) => category.id),
         ),
-      )
-      .orderBy(desc(kbArticles.publishedAt));
+        published,
+      ),
+    )
+    .orderBy(desc(kbArticles.publishedAt));
 
-    return {
-      topic: topic && {
-        title: topic.title,
-        description: topic.description,
-        color: topic.color,
-        languageCode: topic.languageCode,
-      },
-      categories,
-      articles,
-    };
-  });
+  const children = Map.groupBy(rows, (row) => row.parentId);
+
+  /** The ids of a category and every one below it, each once, though an import may loop. */
+  const tree = (id: string, seen = new Set<string>()): Set<string> => {
+    if (seen.has(id)) return seen;
+
+    seen.add(id);
+
+    for (const child of children.get(id) ?? []) tree(child.id, seen);
+
+    return seen;
+  };
+
+  return {
+    topic: topic && {
+      title: topic.title,
+      description: topic.description,
+      color: topic.color,
+      languageCode: topic.languageCode,
+    },
+    // Each with the published articles it and the categories below it hold.
+    categories: rows.map((row) => {
+      const ids = tree(row.id);
+
+      return { ...row, articleCount: articles.filter((item) => ids.has(item.categoryId)).length };
+    }),
+    articles,
+  };
+};
+
+/**
+ * Topics visitors read lately, by organisation and topic: a busy help center or messenger reads
+ * a topic's rows once in 30 s, and a change shows within that.
+ */
+const topics = new LRUCache<string, Awaited<ReturnType<typeof loadTopic>>>({
+  max: 500,
+  ttl: 30_000,
+});
+
+/** A topic's categories and published public articles, as a help center or messenger shows them. */
+const topicIn = async (tx: Tx, orgId: string, topicId: string) => {
+  const cacheKey = `${orgId} ${topicId}`;
+  const cached = topics.get(cacheKey);
+
+  if (cached) return cached;
+
+  const loaded = await loadTopic(tx, topicId);
+
+  topics.set(cacheKey, loaded);
+
+  return loaded;
+};
+
+/** `topicIn` in a transaction of its own. */
+export const topicOf = (orgId: string, topicId: string) =>
+  withOrg(orgId, (tx) => topicIn(tx, orgId, topicId));
 
 /**
  * The active forms of `ids`, in their order, with where an embed reads each and its script, by
  * the organisation's `key`.
  */
-const formsOf = (orgId: string, key: string, ids: string[]) =>
-  withOrg(orgId, async (tx) => {
-    if (ids.length === 0) return [];
+const formsIn = async (tx: Tx, key: string, ids: string[]) => {
+  if (ids.length === 0) return [];
 
-    const rows = await tx
-      .select({
-        id: forms.id,
-        name: forms.name,
-        title: forms.title,
-        description: forms.description,
-        code: forms.code,
-      })
-      .from(forms)
-      .where(and(inArray(forms.id, ids), eq(forms.status, 'active')));
+  const rows = await tx
+    .select({
+      id: forms.id,
+      name: forms.name,
+      title: forms.title,
+      description: forms.description,
+      code: forms.code,
+    })
+    .from(forms)
+    .where(and(inArray(forms.id, ids), eq(forms.status, 'active')));
 
-    return rows
-      .toSorted((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
-      .map((row) => ({
-        ...row,
-        url: urlOf(key, row.code),
-        scriptUrl: widgetScript('form', { key, code: row.code }),
-      }));
-  });
+  return rows
+    .toSorted((a, b) => ids.indexOf(a.id) - ids.indexOf(b.id))
+    .map((row) => ({
+      ...row,
+      url: urlOf(key, row.code),
+      scriptUrl: widgetScript('form', { key, code: row.code }),
+    }));
+};
 
 /** The script of the help center's messenger, while it is an active messenger. */
-const messengerScriptOf = (orgId: string, id: string | null) =>
-  withOrg(orgId, async (tx) => {
-    if (!id) return null;
+const messengerScriptIn = async (tx: Tx, id: string | null) => {
+  if (!id) return null;
 
-    const [row] = await tx
-      .select({ key: publicKeys.key })
-      .from(integrations)
-      .innerJoin(
-        publicKeys,
-        and(eq(publicKeys.kind, INTEGRATION_KEY), eq(publicKeys.targetId, integrations.id)),
-      )
-      .where(
-        and(
-          eq(integrations.id, id),
-          eq(integrations.kind, messenger.kind),
-          eq(integrations.isActive, true),
-        ),
-      );
+  const [row] = await tx
+    .select({ key: publicKeys.key })
+    .from(integrations)
+    .innerJoin(
+      publicKeys,
+      and(eq(publicKeys.kind, INTEGRATION_KEY), eq(publicKeys.targetId, integrations.id)),
+    )
+    .where(
+      and(
+        eq(integrations.id, id),
+        eq(integrations.kind, messenger.kind),
+        eq(integrations.isActive, true),
+      ),
+    );
 
-    return row ? widgetScript('messenger', { key: row.key }) : null;
-  });
+  return row ? widgetScript('messenger', { key: row.key }) : null;
+};
 
 /**
- * What a visitor sees of the help center: its look, with its images where a visitor loads them,
- * its topic's published articles and its forms.
+ * What a visitor sees of the help center, read in one transaction: its look, with its images
+ * where a visitor loads them, its topic's published articles and its forms. `key` is the
+ * organisation's key its files show by.
  */
-export const siteOf = async ({ orgId, center }: Center) => {
-  const key = await shownKeyOf(orgId);
-  const shown = (url: string | null | undefined) => url && shownUrl(key, url);
+export const siteOf = ({ orgId, center }: Center) =>
+  withOrg(orgId, async (tx) => {
+    const key = await keyOfOrganization(tx, orgId);
+    const shown = (url: string | null | undefined) => url && shownUrl(key, url);
 
-  return {
-    helpCenter: {
-      title: center.title,
-      description: center.description,
-      languageCode: center.languageCode,
-      kbLabel: center.kbLabel,
-      color: center.color,
-      backgroundImage: shown(center.backgroundImage),
-      styles: {
-        ...center.styles,
-        mainLogo: shown(center.styles.mainLogo),
-        favicon: shown(center.styles.favicon),
+    return {
+      key,
+      site: {
+        helpCenter: {
+          title: center.title,
+          description: center.description,
+          languageCode: center.languageCode,
+          kbLabel: center.kbLabel,
+          color: center.color,
+          backgroundImage: shown(center.backgroundImage),
+          styles: {
+            ...center.styles,
+            mainLogo: shown(center.styles.mainLogo),
+            favicon: shown(center.styles.favicon),
+          },
+          header: center.header,
+          footer: { ...center.footer, logo: shown(center.footer.logo) },
+        },
+        ...(await topicIn(tx, orgId, center.kbTopicId ?? '')),
+        forms: await formsIn(tx, key, center.formIds),
+        messengerScript: await messengerScriptIn(tx, center.messengerId),
       },
-      header: center.header,
-      footer: { ...center.footer, logo: shown(center.footer.logo) },
-    },
-    ...(await topicOf(orgId, center.kbTopicId ?? '')),
-    forms: await formsOf(orgId, key, center.formIds),
-    messengerScript: await messengerScriptOf(orgId, center.messengerId),
-  };
-};
+    };
+  });
 
 /**
  * One published public article of the topic, its body sanitized and its files where a visitor
@@ -283,7 +330,7 @@ export type VisitorTopic = Awaited<ReturnType<typeof topicOf>>;
 
 export type VisitorArticle = NonNullable<Awaited<ReturnType<typeof articleOf>>>;
 
-export type VisitorSite = Awaited<ReturnType<typeof siteOf>>;
+export type VisitorSite = Awaited<ReturnType<typeof siteOf>>['site'];
 
 const notFound = (res: Response, message: string) => {
   res.status(404).json({ message });
@@ -302,7 +349,7 @@ export const publicRouter = (): Router => {
     if (!found) return notFound(res, 'No such help center');
 
     res.set('cache-control', 'public, max-age=60');
-    res.json(await siteOf(found));
+    res.json((await siteOf(found)).site);
   });
 
   router.get('/help-centers/:address/articles/:id', async (req, res) => {

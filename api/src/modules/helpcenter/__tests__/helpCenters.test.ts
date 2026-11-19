@@ -70,11 +70,12 @@ describe('help centers', () => {
       (await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}/search?q=`)).status,
     ).toBe(400);
 
-    // The view is written with the others that came meanwhile.
+    // The view is written with the others that came meanwhile. Visitors see the count once the
+    // topic they read leaves the 30 s cache.
     await flushViews();
     await expect(
-      (await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}`)).json(),
-    ).resolves.toMatchObject({ articles: [{ id: article.id, viewCount: 1 }] });
+      clientAs('org-hc-a').knowledgebase.articles.get({ id: article.id }),
+    ).resolves.toMatchObject({ viewCount: 1 });
     expect((await fetch(`${publicApi.url('')}/help-centers/unknown-key`)).status).toBe(404);
   });
 
