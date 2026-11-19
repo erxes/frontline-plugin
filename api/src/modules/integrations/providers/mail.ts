@@ -124,7 +124,7 @@ export const readMail = async (
       files: mail.attachments.map((part) => ({
         name: part.filename ?? 'attachment',
         contentType: part.contentType,
-        bytes: async () => part.content,
+        read: async () => new Blob([new Uint8Array(part.content)]),
       })),
     },
   };

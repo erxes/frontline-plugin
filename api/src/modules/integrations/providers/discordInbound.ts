@@ -1,11 +1,10 @@
 import { MessageType, Routes } from 'discord-api-types/v10';
 import { and, desc, eq, isNotNull, max, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { config } from '#/config.ts';
 import { withOrg } from '#/db/client.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
-import { FileRefused } from '#/modules/files.ts';
+import { downloadFile } from '#/modules/files.ts';
 import { deliverInbound } from '../inbound.ts';
 import { type AccountRow, inOrder, type InboundMessage } from '../provider.ts';
 import { rest } from './discord.ts';
@@ -32,18 +31,6 @@ const DiscordMessage = z.object({
 
 /** The kinds of message a person writes; pins, joins, boosts and the like are left out. */
 const WRITTEN = new Set<number>([MessageType.Default, MessageType.Reply]);
-
-/** An attachment's bytes from Discord's CDN. */
-const download = async (url: string) => {
-  const response = await fetch(url, { signal: AbortSignal.timeout(4 * config.outboundMs) });
-
-  if (!response.ok)
-    throw new (response.status < 500 ? FileRefused : Error)(
-      `Discord did not send the file: ${response.status}`,
-    );
-
-  return new Uint8Array(await response.arrayBuffer());
-};
 
 /**
  * A message for the bot as the inbox reads it: a direct message, or one in a server that
@@ -74,8 +61,8 @@ export const inboundOf = (
     attachments: [],
     files: message.attachments.map((file) => ({
       name: file.filename,
-      contentType: file.content_type ?? 'application/octet-stream',
-      bytes: () => download(file.url),
+      contentType: file.content_type,
+      read: () => downloadFile(file.url, 'Discord'),
     })),
   };
 };

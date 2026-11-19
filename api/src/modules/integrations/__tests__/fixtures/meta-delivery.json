@@ -21,7 +21,12 @@
           "message": {
             "mid": "m_photo",
             "attachments": [
-              { "type": "image", "payload": { "url": "https://cdn.example.com/photo.jpg" } }
+              {
+                "type": "image",
+                "payload": {
+                  "url": "https://scontent.xx.fbcdn.net/v/t1.15752-9/photo.jpg?_nc_cat=1&oh=03_sig&oe=67410000"
+                }
+              }
             ]
           }
         },

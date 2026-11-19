@@ -3,7 +3,14 @@ import { z } from 'zod';
 import { COMMENT_RECEIVED } from '#/core.ts';
 import type { StoredFile } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
-import type { InboundMessage, InboundReaction, ProviderName, WebhookSource } from '../provider.ts';
+import { downloadFile } from '#/modules/files.ts';
+import type {
+  InboundFile,
+  InboundMessage,
+  InboundReaction,
+  ProviderName,
+  WebhookSource,
+} from '../provider.ts';
 import { sameText } from '../secrets.ts';
 import { metaKey } from '../store.ts';
 import { knownVerifyToken, metaSecretsOf } from './metaApp.ts';
@@ -100,10 +107,38 @@ const signedByMeta = async (orgId: string, raw: string, signature: unknown) =>
     sameText(`sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`, signature),
   );
 
-const filesOf = (attachments: z.infer<typeof Messaging>['message'] = { mid: '' }) =>
+const linksOf = (attachments: z.infer<typeof Messaging>['message'] = { mid: '' }) =>
   (attachments.attachments ?? []).flatMap(({ type, payload }): StoredFile[] =>
     payload?.url ? [{ url: payload.url, name: payload.title ?? type, type }] : [],
   );
+
+/** Meta's CDNs, which hold the files people send for as long as their signed links last. */
+const META_CDN = /(^|\.)(fbcdn\.net|fbsbx\.com|cdninstagram\.com)$/;
+
+const onMetaCdn = (url: string) => {
+  const at = URL.parse(url);
+
+  return at?.protocol === 'https:' && META_CDN.test(at.hostname);
+};
+
+/**
+ * What a person sent by link. A file on Meta's CDN is copied to core's storage as it arrives,
+ * since its signed link expires, by the file name its link ends in. A link elsewhere, such as a
+ * shared page, is kept as it is.
+ */
+const sentByLink = (links: StoredFile[]) => ({
+  attachments: links.filter((link) => !onMetaCdn(link.url)),
+  files: links
+    .filter((link) => onMetaCdn(link.url))
+    .map(({ url, name }): InboundFile => ({
+      name:
+        URL.parse(url)
+          ?.pathname.split('/')
+          .at(-1)
+          ?.match(/.+\.\w+$/)?.[0] ?? name,
+      read: () => downloadFile(url, 'Meta'),
+    })),
+});
 
 /** A chat message or a tapped button; it publishes its provider's `MESSAGE_RECEIVED`. */
 const fromMessaging = (event: z.infer<typeof Messaging>) => {
@@ -132,10 +167,7 @@ const fromMessaging = (event: z.infer<typeof Messaging>) => {
       ...base,
       messageId: message.mid,
       text: message.text ?? '',
-      attachments: [
-        ...(story ? [{ url: story.url, name: 'story', type: 'story' }] : []),
-        ...filesOf(message),
-      ],
+      ...sentByLink([...(story ? [{ url: story.url, name: 'story' }] : []), ...linksOf(message)]),
       providerData: message.quick_reply ? { payload: message.quick_reply.payload } : undefined,
       quotedId: message.reply_to?.mid,
     },
@@ -188,7 +220,7 @@ const fromChange = (
       messageId: value.comment_id,
       author: { externalId: value.from.id, name: value.from.name },
       text: value.message ?? '',
-      attachments: media ? [{ url: media, name: value.photo ? 'photo' : 'video' }] : [],
+      ...sentByLink(media ? [{ url: media, name: value.photo ? 'photo' : 'video' }] : []),
       providerData: { postId: value.post_id, commentId: value.comment_id },
       event,
     },

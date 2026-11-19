@@ -122,9 +122,13 @@ const withFiles = async (row: AccountRow, integrationId: string, message: Inboun
   const kept = await Promise.all(
     files.map(async (file) =>
       file
-        .bytes()
-        .then((bytes) =>
-          storeFile(row.orgId, { name: file.name, contentType: file.contentType, bytes }),
+        .read()
+        .then(async (blob) =>
+          storeFile(row.orgId, {
+            name: file.name,
+            contentType: file.contentType ?? (blob.type || 'application/octet-stream'),
+            bytes: await blob.bytes(),
+          }),
         )
         .catch(async (error: unknown) => {
           if (!(error instanceof FileRefused)) throw error;

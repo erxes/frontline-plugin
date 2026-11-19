@@ -111,7 +111,14 @@ describe('meta', () => {
     expect(messages.map(({ content, attachments }) => ({ content, attachments }))).toEqual([
       {
         content: '',
-        attachments: [{ url: 'https://cdn.example.com/photo.jpg', name: 'image', type: 'image' }],
+        attachments: [
+          {
+            url: '/core/v1/files/file-photo-jpg/download',
+            name: 'photo.jpg',
+            type: 'image/jpeg',
+            size: 4,
+          },
+        ],
       },
       { content: 'Do you ship to Darkhan?', attachments: [] },
     ]);

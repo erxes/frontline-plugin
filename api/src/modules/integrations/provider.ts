@@ -34,11 +34,14 @@ export interface InboundMessage {
   event?: string;
 }
 
-/** A file in a message the provider holds: read only to keep it. */
+/**
+ * A file in a message the provider holds: read only to keep it. Without a `contentType` it keeps
+ * the type it reads as.
+ */
 export interface InboundFile {
   name: string;
-  contentType: string;
-  bytes: () => Promise<Uint8Array>;
+  contentType?: string;
+  read: () => Promise<Blob>;
 }
 
 /** A customer's reactions on one message, as they stand now after a change at the provider. */

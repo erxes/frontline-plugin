@@ -1,6 +1,5 @@
 import { z } from 'zod';
-import { config } from '#/config.ts';
-import { FileRefused } from '#/modules/files.ts';
+import { downloadFile, FileRefused } from '#/modules/files.ts';
 import {
   AccountRefused,
   type InboundFile,
@@ -57,16 +56,7 @@ const download = async (token: string, fileId: string) => {
     },
   );
 
-  const response = await fetch(`https://api.telegram.org/file/bot${token}/${path}`, {
-    signal: AbortSignal.timeout(4 * config.outboundMs),
-  });
-
-  if (!response.ok)
-    throw new (response.status < 500 ? FileRefused : Error)(
-      `Telegram did not send the file: ${response.status}`,
-    );
-
-  return new Uint8Array(await response.arrayBuffer());
+  return downloadFile(`https://api.telegram.org/file/bot${token}/${path}`, 'Telegram');
 };
 
 /** The file a sticker is: a picture, an animation or a video. */
@@ -95,7 +85,7 @@ const filesOf = (token: string, message: z.infer<typeof Message>): InboundFile[]
           {
             name: file.file_name ?? name,
             contentType: file.mime_type ?? contentType,
-            bytes: () => download(token, file.file_id),
+            read: () => download(token, file.file_id),
           },
         ]
       : [],

@@ -13,6 +13,21 @@ import { readToken, signToken } from './tokens.ts';
 export class FileRefused extends Error {}
 
 /**
+ * The file a provider holds at `url`, typed as the provider answers. A 4xx is `FileRefused`; any
+ * other failure may pass on a later try.
+ */
+export const downloadFile = async (url: string, from: string) => {
+  const response = await fetch(url, { signal: AbortSignal.timeout(4 * config.outboundMs) });
+
+  if (!response.ok)
+    throw new (response.status < 500 ? FileRefused : Error)(
+      `${from} did not send the file: ${response.status}`,
+    );
+
+  return response.blob();
+};
+
+/**
  * Stores `bytes` as a file of the organisation in core, and gives it as records keep their files
  * (`Attachment`). Core refuses a type or a size the organisation's file settings don't allow, as
  * `FileRefused`; any other failure may pass on a later try.

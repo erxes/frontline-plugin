@@ -55,7 +55,15 @@ describe('facebook comments and postbacks', () => {
     ).toEqual([
       {
         content: 'And in size M?',
-        attachments: [{ url: 'https://cdn.example.com/size.jpg', name: 'photo' }],
+        // Meta's link expires, so the photo is kept in core.
+        attachments: [
+          {
+            url: '/core/v1/files/file-size-jpg/download',
+            name: 'size.jpg',
+            type: 'image/jpeg',
+            size: 4,
+          },
+        ],
         externalId: 'post-9_c2',
       },
       { content: 'How much is the blue one?', attachments: [], externalId: 'post-9_c1' },
@@ -171,7 +179,9 @@ describe('instagram comments', () => {
     expect(messages.map(({ content, attachments }) => ({ content, attachments }))).toEqual([
       {
         content: 'Love this!',
-        attachments: [{ url: 'https://cdn.example.com/story.mp4', name: 'story', type: 'story' }],
+        attachments: [
+          { url: '/core/v1/files/file-story/download', name: 'story', type: 'image/jpeg', size: 4 },
+        ],
       },
     ]);
     // Instagram's messages carry only the sender's id; their name comes from Instagram's profile.
