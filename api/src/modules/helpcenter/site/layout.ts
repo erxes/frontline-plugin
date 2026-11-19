@@ -1,6 +1,6 @@
 import { readableColor } from 'color2k';
 import { html, raw } from 'hono/html';
-import type { VisitorSite } from '../public.ts';
+import type { SiteData } from '../public.ts';
 import type { Copy } from './copy.ts';
 import { SITE_CSS } from './style.ts';
 
@@ -8,7 +8,7 @@ import { SITE_CSS } from './style.ts';
 export type Html = ReturnType<typeof html>;
 
 /** What every page of a help center's site draws from: its data, its words and its address. */
-export type Site = VisitorSite & {
+export type Site = SiteData & {
   /** The help center's language, or `en` when it has none or one a page can't name. */
   language: string;
   copy: Copy;

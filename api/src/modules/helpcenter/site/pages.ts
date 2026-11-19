@@ -1,4 +1,5 @@
 import { html, raw } from 'hono/html';
+import { articlesOnPage } from '../paging.ts';
 import type { VisitorArticle } from '../public.ts';
 import { type Html, href, type Site } from './layout.ts';
 
@@ -8,9 +9,6 @@ type Summary = Site['articles'][number];
 
 /** A page's title, description and `main`, or null for the 404 page. */
 export type Drawn = { title: string; description?: string | null; main: Html } | null;
-
-/** How many of a category's articles one page lists. */
-const PAGE_SIZE = 30;
 
 const dateOf = (site: Site, date: Date) =>
   new Intl.DateTimeFormat(site.language, { dateStyle: 'medium' }).format(date);
@@ -160,13 +158,12 @@ const Pager = (site: Site, path: string, page: number, pages: number) =>
  */
 export const categoryPage = (site: Site, id: string, page: number): Drawn => {
   const category = site.categories.find((item) => item.id === id);
-  const own = site.articles.filter((article) => article.categoryId === id);
-  const pages = Math.ceil(own.length / PAGE_SIZE);
+  const shown = articlesOnPage(site.articles, id, page);
 
-  if (!category || (page > 1 && page > pages)) return null;
+  if (!category || !shown) return null;
 
+  const { articles, pages } = shown;
   const children = site.categories.filter((item) => item.parentId === id);
-  const articles = own.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const parent = site.categories.find((item) => item.id === category.parentId);
 
   return {

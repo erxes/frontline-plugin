@@ -1,13 +1,19 @@
-import type { VisitorArticle, VisitorTopic } from '@frontline/api/helpcenter';
+import type { ArticlePage, VisitorArticle, VisitorTopic } from '@frontline/api/helpcenter';
 import type { ArticleReactions } from '@frontline/api/messenger';
 import type { Jsonify } from 'type-fest';
 
-/** A knowledge base topic as a visitor reads it: its categories and published articles. */
+/** A knowledge base topic as a visitor opens it: its categories, each with its article count. */
 export type Topic = Jsonify<VisitorTopic>;
 
 export type Category = Topic['categories'][number];
 
-export type ArticleSummary = Topic['articles'][number];
+/** One page of a category's articles, and how many pages they fill. */
+export type Page = Jsonify<ArticlePage>;
+
+export type ArticleSummary = Page['articles'][number];
+
+/** Lists page `page` of a category's articles, 30 to a page. */
+export type ListArticles = (categoryId: string, page: number) => Promise<Page>;
 
 /** Each reaction an article offers, how many picked it, and whether the visitor did. */
 export type Reactions = Jsonify<ArticleReactions>;

@@ -1,8 +1,8 @@
 import express, { type NextFunction, type Request, type Response } from 'express';
-import { z } from 'zod';
 import { config } from '#/config.ts';
 import { fail } from '../../fail.ts';
 import { LanguageCode } from '../../fields.ts';
+import { pageOf } from '../paging.ts';
 import { articleOf, type Center, centerAt, siteOf, visitorHtml } from '../public.ts';
 import { copyOf } from './copy.ts';
 import { page, type Site } from './layout.ts';
@@ -119,11 +119,6 @@ const param = (req: Request, name: string) => {
 
   return typeof value === 'string' ? value : '';
 };
-
-const Page = z.coerce.number().int().min(1);
-
-/** The page of a list `?page=` asks for, from 1; the first when it names none. */
-const pageOf = (req: Request) => Page.safeParse(req.query.page).data ?? 1;
 
 /** The site's pages, at `/help/:key` and at a help center's own host. */
 const pages = express

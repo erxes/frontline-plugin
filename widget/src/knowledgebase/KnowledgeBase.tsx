@@ -1,6 +1,6 @@
 import { useState } from 'preact/hooks';
 import { Articles, useArticleViews } from '../articles/Articles.tsx';
-import type { ReadArticle, SearchArticles } from '../articles/api.ts';
+import type { ListArticles, ReadArticle, SearchArticles } from '../articles/api.ts';
 import { BackIcon, BookIcon, CloseIcon } from '../shared/icons.tsx';
 import { useText } from '../shared/text.ts';
 import type { Site } from './api.ts';
@@ -9,10 +9,12 @@ import type { Site } from './api.ts';
 export const KnowledgeBase = ({
   site,
   read,
+  list,
   search,
 }: {
   site: Site;
   read: ReadArticle;
+  list: ListArticles;
   search: SearchArticles;
 }) => {
   const [open, setOpen] = useState(false);
@@ -48,7 +50,7 @@ export const KnowledgeBase = ({
             </button>
           </header>
           <div class="fl-scroll">
-            <Articles topic={site} read={read} search={search} views={views} />
+            <Articles topic={site} read={read} list={list} search={search} views={views} />
           </div>
         </section>
       )}

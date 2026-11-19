@@ -1,22 +1,21 @@
-import { and, asc, desc, eq, ilike, inArray, or } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import express, { type Response, type Router } from 'express';
 import sanitizeHtml from 'sanitize-html';
-import { z } from 'zod';
-import { LRUCache } from 'lru-cache';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { forms } from '#/db/forms.ts';
 import { HELP_CENTER_DOMAIN, HELP_CENTER_KEY, helpCenters } from '#/db/helpcenter.ts';
 import { integrations } from '#/db/inbox.ts';
 import { publicKeys } from '#/db/public.ts';
-import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
+import { kbArticles, kbCategories } from '#/db/schema.ts';
 import type { Attachment } from '#/db/table.ts';
 import { fail } from '../fail.ts';
 import { urlOf } from '../forms/embed.ts';
 import { INTEGRATION_KEY } from '../inbox/insertIntegration.ts';
 import { messenger } from '../messenger/adapter.ts';
+import { pageOf } from './paging.ts';
+import { categoryArticlesOf, SearchQuery, searchOf, type shelvesOf, topicIn } from './topic.ts';
 import { keyOfOrganization, openedBy, widgetScript } from '../public.ts';
 import { countView } from '../views.ts';
-import { likeText } from '../filter.ts';
 import { published, shownFile, shownUrl } from '../shownFiles.ts';
 
 /**
@@ -73,133 +72,6 @@ const shownAttachment = (key: string, file: Attachment) => ({
   ...file,
   url: shownUrl(key, file.url),
 });
-
-/** An article as a list shows it, without its body. */
-const listed = {
-  id: kbArticles.id,
-  categoryId: kbArticles.categoryId,
-  title: kbArticles.title,
-  summary: kbArticles.summary,
-  viewCount: kbArticles.viewCount,
-  publishedAt: kbArticles.publishedAt,
-};
-
-/** What a visitor searches a topic with: a few words, matched as written. */
-export const SearchQuery = z.object({ q: z.string().trim().min(1).max(100) });
-
-/**
- * The topic's articles a visitor may read whose title, summary or text holds `term`, ignoring
- * case and the body's tags, newest first.
- */
-export const searchOf = (orgId: string, topicId: string, term: string) => {
-  const pattern = likeText(term);
-
-  return withOrg(orgId, (tx) =>
-    tx
-      .select(listed)
-      .from(kbArticles)
-      .innerJoin(kbCategories, eq(kbCategories.id, kbArticles.categoryId))
-      .where(
-        and(
-          eq(kbCategories.topicId, topicId),
-          published,
-          or(
-            ilike(kbArticles.title, pattern),
-            ilike(kbArticles.summary, pattern),
-            ilike(kbArticles.plainText, pattern),
-          ),
-        ),
-      )
-      .orderBy(desc(kbArticles.publishedAt))
-      .limit(50),
-  );
-};
-
-const loadTopic = async (tx: Tx, topicId: string) => {
-  const [topic] = await tx.select().from(kbTopics).where(eq(kbTopics.id, topicId));
-
-  const rows = await tx
-    .select({
-      id: kbCategories.id,
-      parentId: kbCategories.parentId,
-      title: kbCategories.title,
-      description: kbCategories.description,
-      icon: kbCategories.icon,
-    })
-    .from(kbCategories)
-    .where(eq(kbCategories.topicId, topicId))
-    .orderBy(asc(kbCategories.title));
-
-  const articles = await tx
-    .select(listed)
-    .from(kbArticles)
-    .where(
-      and(
-        inArray(
-          kbArticles.categoryId,
-          rows.map((category) => category.id),
-        ),
-        published,
-      ),
-    )
-    .orderBy(desc(kbArticles.publishedAt));
-
-  const children = Map.groupBy(rows, (row) => row.parentId);
-
-  /** The ids of a category and every one below it, each once, though an import may loop. */
-  const tree = (id: string, seen = new Set<string>()): Set<string> => {
-    if (seen.has(id)) return seen;
-
-    seen.add(id);
-
-    for (const child of children.get(id) ?? []) tree(child.id, seen);
-
-    return seen;
-  };
-
-  return {
-    topic: topic && {
-      title: topic.title,
-      description: topic.description,
-      color: topic.color,
-      languageCode: topic.languageCode,
-    },
-    // Each with the published articles it and the categories below it hold.
-    categories: rows.map((row) => {
-      const ids = tree(row.id);
-
-      return { ...row, articleCount: articles.filter((item) => ids.has(item.categoryId)).length };
-    }),
-    articles,
-  };
-};
-
-/**
- * Topics visitors read lately, by organisation and topic: a busy help center or messenger reads
- * a topic's rows once in 30 s, and a change shows within that.
- */
-const topics = new LRUCache<string, Awaited<ReturnType<typeof loadTopic>>>({
-  max: 500,
-  ttl: 30_000,
-});
-
-/** A topic's categories and published public articles, as a help center or messenger shows them. */
-const topicIn = async (tx: Tx, orgId: string, topicId: string) => {
-  const cacheKey = `${orgId} ${topicId}`;
-  const cached = topics.get(cacheKey);
-
-  if (cached) return cached;
-
-  const loaded = await loadTopic(tx, topicId);
-
-  topics.set(cacheKey, loaded);
-
-  return loaded;
-};
-
-/** `topicIn` in a transaction of its own. */
-export const topicOf = (orgId: string, topicId: string) =>
-  withOrg(orgId, (tx) => topicIn(tx, orgId, topicId));
 
 /**
  * The active forms of `ids`, in their order, with where an embed reads each and its script, by
@@ -326,11 +198,18 @@ export const articleOf = async (orgId: string, topicId: string, id: string) => {
 };
 
 /** What a topic gives a visitor, for the embeds to type their replies. */
-export type VisitorTopic = Awaited<ReturnType<typeof topicOf>>;
+export type VisitorTopic = Awaited<ReturnType<typeof shelvesOf>>;
+
+/** One page of a category's articles, as the embeds list it. */
+export type ArticlePage = NonNullable<Awaited<ReturnType<typeof categoryArticlesOf>>>;
 
 export type VisitorArticle = NonNullable<Awaited<ReturnType<typeof articleOf>>>;
 
-export type VisitorSite = Awaited<ReturnType<typeof siteOf>>['site'];
+/** What the help center's site pages draw from: its look, its topic with every article, its forms. */
+export type SiteData = Awaited<ReturnType<typeof siteOf>>['site'];
+
+/** The help center as its embed reads it: the site without the articles, which it pages. */
+export type VisitorSite = Omit<SiteData, 'articles'>;
 
 const notFound = (res: Response, message: string) => {
   res.status(404).json({ message });
@@ -348,8 +227,27 @@ export const publicRouter = (): Router => {
 
     if (!found) return notFound(res, 'No such help center');
 
+    const { articles, ...site } = (await siteOf(found)).site;
+
     res.set('cache-control', 'public, max-age=60');
-    res.json((await siteOf(found)).site);
+    res.json(site satisfies VisitorSite);
+  });
+
+  router.get('/help-centers/:address/categories/:id/articles', async (req, res) => {
+    const found = await centerAt(req.params.address);
+
+    const page =
+      found &&
+      (await categoryArticlesOf(
+        found.orgId,
+        found.center.kbTopicId ?? '',
+        req.params.id,
+        pageOf(req),
+      ));
+
+    if (!page) return notFound(res, 'No such page of articles');
+
+    res.json(page);
   });
 
   router.get('/help-centers/:address/articles/:id', async (req, res) => {

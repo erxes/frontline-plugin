@@ -26,6 +26,22 @@ test('a visitor reads the knowledge base from its script on a website and in the
   const title = `Acme ${unique()}`;
   const kbTopicId = await knowledgeBase(rpc, answers);
 
+  // Visitors read a topic through a 30 s cache, so every article is in before the first read.
+  const { id: categoryId } = await rpc(
+    'knowledgebase/categories/create',
+    { topicId: kbTopicId, title: 'Shipping' },
+    Id,
+  );
+
+  await Promise.all(
+    Array.from({ length: 31 }, (_, at) =>
+      rpc(
+        'knowledgebase/articles/create',
+        { title: `Shipping note ${at}`, content: '<p>Note</p>', categoryId, status: 'publish' },
+        Id,
+      ),
+    ),
+  );
   await rpc('helpCenters/create', { title, kbTopicId }, Id);
 
   // The help center's panel gives the script line; the website shows a launcher with its topic.
@@ -70,6 +86,15 @@ test('a visitor reads the knowledge base from its script on a website and in the
 
   await site.panel.getByRole('button', { name: 'Back' }).click();
   await expect(search).toHaveValue('money');
+
+  // A category lists its articles 30 to a page, and Next turns to the rest.
+  await search.fill('');
+  await site.panel.getByRole('button', { name: 'Shipping 31 articles' }).click();
+  await expect(site.panel.getByRole('button', { name: /^Shipping note/ })).toHaveCount(30);
+  await site.panel.getByRole('button', { name: 'Next' }).click();
+  await expect(site.panel.getByText('Page 2 of 2')).toBeVisible();
+  await expect(site.panel.getByRole('button', { name: /^Shipping note/ })).toHaveCount(1);
+  await expect(site.panel.getByRole('button', { name: 'Next' })).toBeDisabled();
 });
 
 test('the owner creates a help center, edits it, sees its domain tab and deletes it', async ({

@@ -1,7 +1,9 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
-import { articleOf, SearchQuery, searchOf, topicOf } from '../helpcenter/public.ts';
+import { pageOf } from '../helpcenter/paging.ts';
+import { articleOf } from '../helpcenter/public.ts';
+import { categoryArticlesOf, SearchQuery, searchOf, shelvesOf } from '../helpcenter/topic.ts';
 import { react, reactionsOf } from '../knowledgebase/reactions.ts';
 import type { Visitor } from './session.ts';
 import { asVisitor, messengerIntegration, Params } from './threads.ts';
@@ -16,9 +18,23 @@ const topicIdOf = async (visitor: Visitor) => {
   return settings.knowledgeBaseTopicId;
 };
 
-/** The topic's categories and published public articles. */
+/** The topic's categories, each with how many published public articles it holds. */
 const knowledgeBase = asVisitor(async (visitor, _req, res) => {
-  res.json(await topicOf(visitor.orgId, await topicIdOf(visitor)));
+  res.json(await shelvesOf(visitor.orgId, await topicIdOf(visitor)));
+});
+
+/** One page of a category's articles, 30 to a page, from `?page=`. */
+const categoryArticles = asVisitor(async (visitor, req, res) => {
+  const page = await categoryArticlesOf(
+    visitor.orgId,
+    await topicIdOf(visitor),
+    Params.parse(req.params).id,
+    pageOf(req),
+  );
+
+  if (!page) throw new ORPCError('NOT_FOUND', { message: 'No such page of articles' });
+
+  res.json(page);
 });
 
 /** One of the topic's articles, counted as viewed, with its reactions and the visitor's pick. */
@@ -57,4 +73,4 @@ const search = asVisitor(async (visitor, req, res) => {
 });
 
 /** The messenger's knowledge base routes, under `/api/public/messenger/knowledge-base`. */
-export const articleRoutes = { knowledgeBase, article, reactTo, search };
+export const articleRoutes = { knowledgeBase, categoryArticles, article, reactTo, search };

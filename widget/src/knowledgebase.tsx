@@ -35,7 +35,7 @@ const start = async (center: string) => {
   document.body.append(host);
   render(
     <TextProvider value={text}>
-      <KnowledgeBase site={site} read={api.read} search={api.search} />
+      <KnowledgeBase site={site} read={api.read} list={api.list} search={api.search} />
     </TextProvider>,
     mount(host, styles),
   );
