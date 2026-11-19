@@ -52,11 +52,10 @@ const addField = async (page: Page, type: string, label: string) => {
 };
 
 /**
- * On the builder: a Start date, a Plan dropdown, and a Seats number shown only for the Team plan,
- * which the preview hides until Team is picked in it.
+ * On the builder: a Plan dropdown, a Seats number shown only for the Team plan, which the preview
+ * hides until Team is picked in it, and a Start date.
  */
 const buildFields = async (page: Page) => {
-  await addField(page, 'Date', 'Start');
   await addField(page, 'Dropdown', 'Plan');
   await page.getByRole('button', { name: 'Settings of Plan' }).click();
   await page.getByPlaceholder('Type an option and press Enter').fill('Free');
@@ -85,6 +84,8 @@ const buildFields = async (page: Page) => {
   await expect(preview.getByLabel('Seats')).toBeHidden();
   await pick(page, preview.getByRole('combobox', { name: 'Plan' }), 'Team');
   await expect(preview.getByLabel('Seats')).toBeVisible();
+  await page.getByRole('button', { name: 'Settings of Seats' }).click();
+  await addField(page, 'Date', 'Start');
 };
 
 test('an admin builds a form and a visitor sends it from a website and its address', async ({
