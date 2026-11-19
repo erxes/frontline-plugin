@@ -23,13 +23,14 @@ test('the owner sees the accounts page, what Meta’s login reported, and a prov
   // Other specs connect phone lines in the same organisation, so the list may not be empty.
   await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible();
 
+  // With no Meta app, Facebook and Instagram says so before the click and opens core's Meta tile.
   await page.getByRole('button', { name: 'Connect' }).click();
-  await page.getByRole('menuitem', { name: 'Facebook and Instagram' }).click();
-  await expect(
-    page.getByText(
-      'Set your Meta app in Settings › Integrations › Meta to connect Facebook and Instagram',
-    ),
-  ).toBeVisible();
+  await page
+    .getByRole('menuitem', { name: 'Facebook and Instagram Set up a Meta app in Settings first' })
+    .click();
+  await expect(page).toHaveURL(/\/settings\/integrations\/frontline\.meta$/);
+  await expect(page.getByText('Set a Meta app before you connect')).toBeVisible();
+  await page.goto(INTEGRATIONS);
 
   // A Telegram bot connects by its token, which Telegram checks before anything is saved.
   await page.getByRole('button', { name: 'Connect' }).click();

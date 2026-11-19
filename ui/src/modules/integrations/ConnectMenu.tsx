@@ -2,6 +2,7 @@ import { IconChevronDown, IconPlugConnected } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button, DropdownMenu, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { useIntegrationChange } from '@/inbox/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { ACCOUNT_TYPE } from '~/plugin.ts';
@@ -54,6 +55,51 @@ const AccountItems = ({ channelId }: { channelId: string }) => {
   );
 };
 
+/** Core's Settings › Integrations › Meta, where the organisation sets its Meta app. */
+const META_SETTINGS = '/settings/integrations/frontline.meta';
+
+/**
+ * Facebook and Instagram, which connect through Meta's login. With no Meta app, the
+ * organisation's own or the install's, the item says so and opens the settings that set one.
+ */
+const MetaItem = ({ channelId }: { channelId?: string }) => {
+  const { t } = useTranslation('frontline');
+  const meta = useConnectMeta();
+
+  const app = useQuery(
+    orpc.integrations.meta.app.get.queryOptions({
+      select: (settings) => settings.own || settings.installApp,
+    }),
+  );
+
+  const name = (
+    <>
+      <KindIcon kind="facebook" />
+      {t('facebook-and-instagram', 'Facebook and Instagram')}
+    </>
+  );
+
+  if (app.data === false)
+    return (
+      <DropdownMenu.Item render={<Link to={META_SETTINGS} />}>
+        {name}
+        <span className="text-xs text-muted-foreground">
+          {t('meta-app-missing', 'Set up a Meta app in Settings first')}
+        </span>
+      </DropdownMenu.Item>
+    );
+
+  // Off until the check answers, so a quick click never starts a login that has no app.
+  return (
+    <DropdownMenu.Item
+      disabled={app.isPending || meta.isPending}
+      onClick={() => meta.mutate({ channelId })}
+    >
+      {name}
+    </DropdownMenu.Item>
+  );
+};
+
 /**
  * Connect: Facebook and Instagram through Meta's login, every other provider with its form in
  * core's side panel. Opened from a channel, what it connects joins that channel, and the accounts
@@ -62,7 +108,6 @@ const AccountItems = ({ channelId }: { channelId: string }) => {
 export const ConnectMenu = ({ channelId }: { channelId?: string }) => {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
-  const meta = useConnectMeta();
   const names = useProviderNames();
 
   return (
@@ -77,10 +122,7 @@ export const ConnectMenu = ({ channelId }: { channelId?: string }) => {
         }
       />
       <DropdownMenu.Content align="end">
-        <DropdownMenu.Item disabled={meta.isPending} onClick={() => meta.mutate({ channelId })}>
-          <KindIcon kind="facebook" />
-          {t('facebook-and-instagram', 'Facebook and Instagram')}
-        </DropdownMenu.Item>
+        <MetaItem channelId={channelId} />
         {FORM_PROVIDERS.map((provider) => (
           <DropdownMenu.Item
             key={provider}

@@ -26,7 +26,7 @@ import { AccountChannels } from './AccountChannels.tsx';
 import { ListEmpty } from '~/shared/List.tsx';
 import { RowActions, TextCell } from '~/shared/Records.tsx';
 import { DateCell, Rows } from '~/shared/Table.tsx';
-import { ConnectMenu } from './ConnectMenu.tsx';
+import { ConnectMenu, useCanConnect } from './ConnectMenu.tsx';
 import { StatusBadge } from './parts.tsx';
 import {
   type Account,
@@ -240,6 +240,7 @@ export const IntegrationsPage = () => {
   const accounts = useAccounts();
   const bots = useBots();
   const columns = useColumns();
+  const canConnect = useCanConnect();
 
   const rows = (accounts.data?.accounts ?? []).map((account) => ({
     ...account,
@@ -249,7 +250,7 @@ export const IntegrationsPage = () => {
   return (
     <PageContainer>
       <AppHeader icon={IconPlugConnected} app={{ label: t('integrations', 'Integrations') }}>
-        <ConnectMenu />
+        {canConnect && <ConnectMenu />}
       </AppHeader>
       <LoginResult />
       {accounts.error ? (
