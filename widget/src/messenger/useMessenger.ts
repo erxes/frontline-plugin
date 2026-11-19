@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'preact/hooks';
+import { useCallback, useEffect, useRef, useState } from 'preact/hooks';
 import { languageOf } from '../shared/text.ts';
 import type { Connected, Conversation, Identity, MessengerApi, Settings } from './api.ts';
 
@@ -60,7 +60,6 @@ export const useMessenger = (api: MessengerApi, language: string | undefined) =>
   // When one of the visitor's tickets last changed, so the tickets tab refetches.
   const [ticketsChanged, setTicketsChanged] = useState(0);
   const [typing, setTyping] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const take = useCallback(
     (reply: Connected) => {
@@ -77,20 +76,27 @@ export const useMessenger = (api: MessengerApi, language: string | undefined) =>
     [api, take],
   );
 
+  // A returning visitor who can't connect still gets the launcher; opening the panel connects
+  // again and shows what went wrong. A messenger that can't load at all shows nothing.
   useEffect(() => {
-    const load = storedToken(api.key)
-      ? connect()
-      : api.settings().then((reply) => setSettings(reply.messenger));
+    const load = async () => setSettings((await api.settings()).messenger);
 
-    load.catch((failure: unknown) =>
-      setError(failure instanceof Error ? failure.message : String(failure)),
-    );
+    void (storedToken(api.key) ? connect().catch(load) : load()).catch(() => null);
   }, [api, connect, setSettings]);
 
   const token = session?.token;
 
+  // Changes can arrive close together; only the latest refresh's answer lands, so the count
+  // never steps back and a reply never chimes twice.
+  const asked = useRef(0);
+
   const refresh = useCallback(async () => {
-    if (token) setConversations(await api.conversations(token));
+    if (!token) return;
+
+    const ask = ++asked.current;
+    const found = await api.conversations(token);
+
+    if (ask === asked.current) setConversations(found);
   }, [api, token]);
 
   useEffect(() => {
@@ -132,7 +138,6 @@ export const useMessenger = (api: MessengerApi, language: string | undefined) =>
     changed,
     ticketsChanged,
     typing,
-    error,
     connect,
     refresh,
     signOut,

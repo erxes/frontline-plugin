@@ -50,7 +50,9 @@ const NewConversation = ({ settings, onBack }: { settings: Settings; onBack: () 
     <div class="fl-scroll fl-messages">
       {settings.welcome && <TeamNote>{settings.welcome}</TeamNote>}
       {settings.botGreeting && <TeamNote>{settings.botGreeting}</TeamNote>}
-      {settings.botMenu.length > 0 && <BotMenu settings={settings} onPick={() => undefined} />}
+      {settings.botMenu.length > 0 && (
+        <BotMenu settings={settings} onPick={() => undefined} onPerson={null} />
+      )}
       {!settings.isOnline && settings.away && <TeamNote>{settings.away}</TeamNote>}
     </div>
     {settings.requireAuth ? (

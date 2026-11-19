@@ -1,4 +1,5 @@
 import type { ComponentChildren } from 'preact';
+import { useState } from 'preact/hooks';
 import type { Uploaded } from '../shared/http.ts';
 import type { Attachment, Message, MessengerApi, Settings } from './api.ts';
 import { Composer, Identify } from './Composer.tsx';
@@ -125,28 +126,57 @@ export const Loading = () => {
   );
 };
 
-/** The bot's menu: a link opens, anything else is sent as the visitor's message. */
+/**
+ * The bot's menu: a link opens, anything else is sent as the visitor's message. Under it, once
+ * the conversation exists, a way past the bot to a person.
+ */
 export const BotMenu = ({
   settings,
   onPick,
+  onPerson,
 }: {
   settings: Settings;
   onPick: (text: string) => void;
-}) => (
-  <div class="fl-menu">
-    {settings.botMenu.map((item) =>
-      item.link ? (
-        <a key={item.text} href={item.link} target="_blank" rel="noopener">
-          {item.text}
-        </a>
-      ) : (
-        <button key={item.text} type="button" onClick={() => onPick(item.text)}>
-          {item.text}
+  onPerson: (() => void) | null;
+}) => {
+  const { t } = useText();
+
+  return (
+    <>
+      <div class="fl-menu">
+        {settings.botMenu.map((item) =>
+          item.link ? (
+            <a key={item.text} href={item.link} target="_blank" rel="noopener">
+              {item.text}
+            </a>
+          ) : (
+            <button key={item.text} type="button" onClick={() => onPick(item.text)}>
+              {item.text}
+            </button>
+          ),
+        )}
+      </div>
+      {onPerson && (
+        <button type="button" class="fl-link" onClick={onPerson}>
+          {t('Talk to a person')}
         </button>
-      ),
-    )}
-  </div>
-);
+      )}
+    </>
+  );
+};
+
+/** Runs what the visitor asked for, keeping why it failed to show them. */
+const useAttempt = () => {
+  const { messageOf } = useText();
+  const [error, setError] = useState<string | null>(null);
+
+  const attempt = (work: () => Promise<unknown>) => {
+    setError(null);
+    work().catch((failure: unknown) => setError(messageOf(failure)));
+  };
+
+  return { error, attempt };
+};
 
 /**
  * One conversation, or a new one when `conversationId` is null: the welcome and bot greeting,
@@ -168,10 +198,12 @@ export const Thread = ({
   onStarted: (id: string) => void;
   onBack: () => void;
 }) => {
-  const { settings, typing, refresh } = messenger;
+  const { settings, typing } = messenger;
   const { t } = useText();
+  // A bot menu pick, a call for a person or older messages that failed says why under the messages.
+  const { error, attempt } = useAttempt();
 
-  const { token, conversation, messages, hasEarlier, loadEarlier, send } = useThread(
+  const { token, conversation, messages, hasEarlier, loadEarlier, send, askForPerson } = useThread(
     api,
     messenger,
     conversationId,
@@ -193,7 +225,7 @@ export const Thread = ({
       <div ref={list} class="fl-scroll">
         <div ref={content} class="fl-messages" aria-live="polite">
           {hasEarlier && (
-            <button type="button" class="fl-link" onClick={() => void loadEarlier()}>
+            <button type="button" class="fl-link" onClick={() => attempt(loadEarlier)}>
               {t('Earlier messages')}
             </button>
           )}
@@ -201,21 +233,23 @@ export const Thread = ({
           {settings.welcome && !hasEarlier && <TeamNote>{settings.welcome}</TeamNote>}
           {withBot && settings.botGreeting && <TeamNote>{settings.botGreeting}</TeamNote>}
           <Messages api={api} token={token} messages={messages} language={settings.language} />
-          {withBot && <BotMenu settings={settings} onPick={(text) => void send(text, [])} />}
-          {withBot && conversationId && (
-            <button
-              type="button"
-              class="fl-link"
-              onClick={() => void api.askForPerson(token, conversationId).then(refresh)}
-            >
-              {t('Talk to a person')}
-            </button>
+          {withBot && (
+            <BotMenu
+              settings={settings}
+              onPick={(text) => attempt(async () => send(text, []))}
+              onPerson={conversationId ? () => attempt(askForPerson) : null}
+            />
           )}
           {!settings.isOnline && settings.away && <TeamNote>{settings.away}</TeamNote>}
           {resolved && settings.thank && <TeamNote>{settings.thank}</TeamNote>}
           {conversationId && typing === conversationId && (
             <p class="fl-typing" role="status">
               {t('Typing…')}
+            </p>
+          )}
+          {error && (
+            <p class="fl-error" role="alert">
+              {error}
             </p>
           )}
         </div>

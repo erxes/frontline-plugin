@@ -12,6 +12,7 @@
   --fl-muted: #71717a;
   --fl-line: #e4e4e7;
   --fl-soft: #f4f4f5;
+  --fl-danger: #dc2626;
   font:
     14px/1.45 system-ui,
     -apple-system,
@@ -20,14 +21,26 @@
   color: var(--fl-ink);
 }
 
+/* Dark follows the visitor's system, unless the embed's own background picks light or dark
+   (fl-light, fl-dark), so its text stays readable on it. */
 @media (prefers-color-scheme: dark) {
-  .fl {
+  .fl:not(.fl-light) {
     --fl-page: #18181b;
     --fl-ink: #f4f4f5;
     --fl-muted: #a1a1aa;
     --fl-line: #3f3f46;
     --fl-soft: #27272a;
+    --fl-danger: #f87171;
   }
+}
+
+.fl-dark {
+  --fl-page: #18181b;
+  --fl-ink: #f4f4f5;
+  --fl-muted: #a1a1aa;
+  --fl-line: #3f3f46;
+  --fl-soft: #27272a;
+  --fl-danger: #f87171;
 }
 
 .fl * {
@@ -163,6 +176,6 @@
 
 .fl-error {
   margin: 0;
-  color: #dc2626;
+  color: var(--fl-danger);
   font-size: 13px;
 }
