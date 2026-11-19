@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { app, Menu, type MenuItemConstructorOptions, nativeImage, Tray } from 'electron';
-import type { PhoneCommand, PhoneState } from './bridge.ts';
+import { callerOf, type PhoneCommand, type PhoneState } from './bridge.ts';
 import { textIn } from './text.ts';
 
 type Actions = {
@@ -20,7 +20,7 @@ const callItems = (state: PhoneState, actions: Actions): MenuItemConstructorOpti
   const doing = ringing ? text.incoming : call.talking ? text.onCall : text.calling;
 
   return [
-    { label: `${doing}: ${call.number}`, enabled: false },
+    { label: `${doing}: ${callerOf(call)}`, enabled: false },
     ...(ringing ? [{ label: text.answer, click: () => actions.send({ type: 'answer' }) }] : []),
     {
       label: ringing ? text.decline : text.hangUp,

@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"
+    />
+    <title>Frontline</title>
+    <!-- The call card (src/card.ts), in the colours of erxes's own softphone. -->
+    <style>
+      :root {
+        --card: lab(100 0 0);
+        --foreground: lab(8.3 0.6 -2.2);
+        --muted: lab(44.3 1.8 0.7);
+        --border: lab(90.6 0.4 -1.5);
+        --secondary: lab(96 0 0);
+        --primary: lab(39.9 40.5 -80.1);
+        --destructive: lab(48 70 50);
+        font-family: Inter, system-ui, sans-serif;
+        font-size: 13px;
+        color: var(--foreground);
+        background: var(--card);
+        -webkit-font-smoothing: antialiased;
+        user-select: none;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --card: lab(12 0 0);
+          --foreground: lab(96 0 0);
+          --muted: lab(66 0 0);
+          --border: lab(24 0 0);
+          --secondary: lab(20 0 0);
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        padding: 14px;
+        border: 1px solid var(--border);
+        /* The card moves by its face; its buttons still click. */
+        -webkit-app-region: drag;
+      }
+      header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+      #avatar {
+        flex: none;
+        display: grid;
+        place-items: center;
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        font-weight: 600;
+        color: var(--primary);
+        background: color-mix(in lab, var(--primary) 12%, transparent);
+      }
+      .who {
+        min-width: 0;
+        flex: 1;
+      }
+      #name,
+      #detail {
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font-variant-numeric: tabular-nums;
+      }
+      #name {
+        font-size: 15px;
+        font-weight: 600;
+      }
+      #detail {
+        color: var(--muted);
+      }
+      #buttons {
+        display: flex;
+        gap: 6px;
+      }
+      button {
+        flex: 1;
+        min-width: 0;
+        height: 30px;
+        padding: 0 6px;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        font: inherit;
+        font-weight: 500;
+        color: var(--foreground);
+        border: 0;
+        border-radius: 4px;
+        background: var(--secondary);
+        cursor: pointer;
+        -webkit-app-region: no-drag;
+      }
+      button:hover {
+        filter: brightness(0.95);
+      }
+      button:focus-visible {
+        outline: 2px solid var(--primary);
+        outline-offset: 2px;
+      }
+      button[aria-pressed='true'],
+      button.go {
+        color: white;
+        background: var(--primary);
+      }
+      button.stop {
+        color: white;
+        background: var(--destructive);
+      }
+      [hidden] {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div id="avatar" aria-hidden="true"></div>
+      <div class="who">
+        <div id="name"></div>
+        <div id="detail" role="status"></div>
+      </div>
+    </header>
+    <div id="buttons">
+      <button data-command="answer" class="go"></button>
+      <button data-command="mute"></button>
+      <button data-command="hold"></button>
+      <button data-command="open"></button>
+      <button data-command="hangUp" class="stop"></button>
+    </div>
+    <script>
+      const RING_HZ = 440;
+      const RING_MS = 1000;
+      const PAUSE_MS = 2000;
+      const at = (id) => document.getElementById(id);
+      const button = (command) => document.querySelector(`[data-command="${command}"]`);
+
+      let state = null;
+      let stopTone = null;
+
+      /** One second of tone, two of silence, until stopped. */
+      const startTone = () => {
+        const context = new AudioContext();
+        const gain = context.createGain();
+        const tone = context.createOscillator();
+
+        const beep = () => {
+          gain.gain.setValueAtTime(0.2, context.currentTime);
+          gain.gain.setValueAtTime(0, context.currentTime + RING_MS / 1000);
+        };
+
+        tone.frequency.value = RING_HZ;
+        gain.gain.value = 0;
+        tone.connect(gain).connect(context.destination);
+        tone.start();
+        beep();
+
+        const repeat = setInterval(beep, RING_MS + PAUSE_MS);
+
+        return () => {
+          clearInterval(repeat);
+          void context.close();
+        };
+      };
+
+      const clock = (since) => {
+        const seconds = Math.max(0, Math.round((Date.now() - since) / 1000));
+        const pad = (value) => String(value).padStart(2, '0');
+        const hours = Math.floor(seconds / 3600);
+        const minutes = Math.floor((seconds % 3600) / 60);
+
+        return hours > 0
+          ? `${hours}:${pad(minutes)}:${pad(seconds % 60)}`
+          : `${minutes}:${pad(seconds % 60)}`;
+      };
+
+      /** Up to two initials of the name; a phone for a caller core has no name for. */
+      const initials = (name) =>
+        name
+          ? name
+              .split(/\s+/)
+              .filter(Boolean)
+              .slice(0, 2)
+              .map((word) => word.charAt(0))
+              .join('')
+          : '\u260E';
+
+      const draw = () => {
+        if (!state) return;
+
+        const { call, text } = state;
+        const ringing = call.direction === 'incoming' && !call.talking;
+        const doing = ringing ? text.incoming : call.talking ? clock(call.since) : text.calling;
+
+        document.documentElement.lang = text.answer === 'Answer' ? 'en' : 'mn';
+        at('avatar').textContent = initials(call.name);
+        at('name').textContent = call.name ?? call.number;
+        at('detail').textContent = call.name ? `${call.number} · ${doing}` : doing;
+
+        button('answer').hidden = !ringing;
+        button('mute').hidden = !call.talking;
+        button('hold').hidden = !call.talking;
+        button('open').hidden = ringing;
+        button('answer').textContent = text.answer;
+        button('mute').textContent = text.mute;
+        button('hold').textContent = text.hold;
+        button('open').textContent = text.openCall;
+        button('hangUp').textContent = ringing ? text.decline : text.hangUp;
+        button('mute').setAttribute('aria-pressed', String(call.muted));
+        button('hold').setAttribute('aria-pressed', String(call.held));
+      };
+
+      window.erxesCard.onState((next) => {
+        const rings = Boolean(next && next.call.direction === 'incoming' && !next.call.talking);
+
+        state = next;
+
+        if (rings && !stopTone) stopTone = startTone();
+
+        if (!rings && stopTone) {
+          stopTone();
+          stopTone = null;
+        }
+
+        draw();
+      });
+
+      // The call's length, as it grows.
+      setInterval(draw, 1000);
+
+      at('buttons').addEventListener('click', (event) => {
+        const command = event.target.closest('button')?.dataset.command;
+
+        if (command) window.erxesCard.send(command);
+      });
+    </script>
+  </body>
+</html>
