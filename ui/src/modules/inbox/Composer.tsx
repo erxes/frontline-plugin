@@ -1,4 +1,4 @@
-import { IconLock, IconMessage2, IconPaperclip, IconSend } from '@tabler/icons-react';
+import { IconLock, IconMessage2, IconSend } from '@tabler/icons-react';
 import { Button, cn, Editor, editorText, Kbd, Tabs } from 'erxes-ui';
 import { type SubmitEvent, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,9 +6,10 @@ import { z } from 'zod';
 import { SendSurvey } from '~/modules/surveys/SurveyMessage.tsx';
 import { draftsOf, useDraft as useSavedDraft } from '~/shared/drafts.ts';
 import { takesNotesOnly } from '~/shared/kinds.tsx';
-import { type Attachment, FileList, FilePicker } from '~/shared/Files.tsx';
+import type { Attachment } from '~/shared/Files.tsx';
 import { type Conversation, useSendTyping } from './queries.ts';
 import { useSendMessage } from './changes.ts';
+import { AttachButton, AttachedFiles, useComposerFiles } from './ComposerFiles.tsx';
 import { useSlashItems } from './slashItems.tsx';
 import { TemplatePicker } from './TemplatePicker.tsx';
 import { useSendShortcut } from './useSendShortcut.ts';
@@ -77,6 +78,7 @@ const Actions = ({
   conversation,
   note,
   disabled,
+  files,
   attachments,
   onAttachments,
   onTemplate,
@@ -84,6 +86,7 @@ const Actions = ({
   conversation: Conversation;
   note: boolean;
   disabled: boolean;
+  files: ReturnType<typeof useComposerFiles>;
   attachments: Attachment[];
   onAttachments: (update: (files: Attachment[]) => Attachment[]) => void;
   onTemplate: (content: string) => void;
@@ -92,21 +95,14 @@ const Actions = ({
 
   return (
     <>
-      {attachments.length > 0 && (
-        <div className="px-3">
-          <FileList
-            files={attachments}
-            onRemove={(file) => onAttachments((files) => files.filter((other) => other !== file))}
-          />
-        </div>
-      )}
+      <AttachedFiles
+        files={files}
+        attachments={attachments}
+        onRemove={(file) => onAttachments((current) => current.filter((other) => other !== file))}
+      />
       <div className="flex items-center gap-1 p-2">
         {!note && <TemplatePicker channelId={conversation.channelId} onPick={onTemplate} />}
-        <FilePicker
-          icon={<IconPaperclip />}
-          label={t('attach-file', 'Attach file')}
-          onUploaded={(file) => onAttachments((files) => [...files, file])}
-        />
+        <AttachButton files={files} />
         {!note && <SendSurvey conversationId={conversation.id} />}
         <span className="flex-1" />
         <Kbd aria-hidden>{SHORTCUT}</Kbd>
@@ -239,6 +235,13 @@ const useDraft = (conversation: Conversation) => {
     setNote: (next: boolean) => save((current) => ({ ...current, note: next })),
     setAttachments: (update: (files: Attachment[]) => Attachment[]) =>
       edit((current) => ({ ...current, attachments: update(current.attachments) })),
+    // A file lands in the tab it was added in, which may no longer be open.
+    attach: (tab: boolean, file: Attachment) =>
+      save((current) => {
+        const landing = tab ? current.internal : current.reply;
+
+        return withPart(current, tab, { ...landing, attachments: [...landing.attachments, file] });
+      }),
     // A member writing notes stays in the note tab for the next one.
     clear: () => {
       if (!value.note && isEmpty(note ? value.reply : value.internal)) clear();
@@ -260,8 +263,8 @@ const useDraft = (conversation: Conversation) => {
  * The reply box, a compact card under the thread like the old inbox's: a reply goes to the
  * customer, an internal note stays with the team and can mention teammates. A note turns the
  * whole card yellow and its button reads Add note, so it can't pass for a reply. `/` opens the
- * formatting, the channel's response templates and, in a note, the teammates. Files attach
- * through core's upload. Ctrl or ⌘ with Enter sends it, and the cursor stays in the box. What
+ * formatting, the channel's response templates and, in a note, the teammates. Files attach from
+ * the paperclip, a paste or a drop, and Send waits for them. Ctrl or ⌘ with Enter sends it, and the cursor stays in the box. What
  * is written stays as the conversation's draft until it goes.
  */
 export const Composer = ({ conversation }: { conversation: Conversation }) => {
@@ -274,6 +277,9 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
   const send = useSendMessage();
   const sendTyping = useSendTyping(conversation.id);
   const empty = !editorText(html) && attachments.length === 0;
+  const files = useComposerFiles(note, draft.attach);
+  // A message waits for its files, so none is sent without one still uploading.
+  const held = empty || files.uploading || send.isPending;
 
   const restart = (content: string) => {
     setHtml(content);
@@ -284,7 +290,7 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
   const submit = (event?: SubmitEvent<HTMLFormElement>) => {
     event?.preventDefault();
 
-    if (empty || send.isPending) return;
+    if (held) return;
 
     draft.clear();
     setVersion((count) => count + 1);
@@ -310,6 +316,7 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
           shortcut(node);
         }}
         onSubmit={submit}
+        {...files.cardHandlers}
         className={cn(
           'flex flex-col rounded-lg border bg-background shadow-xs',
           note && 'border-warning bg-warning/10',
@@ -339,7 +346,8 @@ export const Composer = ({ conversation }: { conversation: Conversation }) => {
         <Actions
           conversation={conversation}
           note={note}
-          disabled={send.isPending || empty}
+          disabled={held}
+          files={files}
           attachments={attachments}
           onAttachments={draft.setAttachments}
           onTemplate={(content) =>

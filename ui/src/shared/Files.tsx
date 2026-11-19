@@ -27,23 +27,36 @@ export const ImageField = ({
   </Upload.Root>
 );
 
+/** Files as a `FileList`, the shape `useUpload` takes. */
+export const listOf = (files: File[]) => {
+  const data = new DataTransfer();
+
+  for (const file of files) data.items.add(file);
+
+  return data.files;
+};
+
 /**
- * A button that uploads the file picked; `accept` names the types it takes. Given an `icon`, it
- * is that icon alone with `label` on hover, as a composer's tools are.
+ * A button that opens the file dialog and hands over the files picked; `accept` names the types
+ * it takes, `multiple` lets it take several. Given an `icon`, it is that icon alone with `label`
+ * on hover, as a composer's tools are.
  */
-export const FilePicker = ({
+export const PickFiles = ({
   label,
   accept,
+  multiple,
   icon,
-  onUploaded,
+  busy,
+  onPick,
 }: {
   label: string;
   accept?: string;
+  multiple?: boolean;
   icon?: ReactNode;
-  onUploaded: (file: Attachment) => void;
+  busy?: boolean;
+  onPick: (files: File[]) => void;
 }) => {
   const input = useRef<HTMLInputElement>(null);
-  const { upload, isLoading } = useUpload();
 
   return (
     <>
@@ -52,19 +65,15 @@ export const FilePicker = ({
         type="file"
         hidden
         accept={accept}
+        multiple={multiple}
         aria-label={label}
-        onChange={(event) =>
-          upload({
-            files: event.target.files,
-            afterUpload: ({ response, fileInfo }) =>
-              onUploaded({
-                url: response,
-                name: fileInfo.name,
-                type: fileInfo.type,
-                size: fileInfo.size,
-              }),
-          })
-        }
+        onChange={(event) => {
+          const picked = Array.from(event.target.files ?? []);
+
+          // Cleared, so picking the same file again still counts.
+          event.target.value = '';
+          onPick(picked);
+        }}
       />
       {icon ? (
         <IconTip label={label}>
@@ -74,7 +83,7 @@ export const FilePicker = ({
             tone="muted"
             size="icon"
             aria-label={label}
-            disabled={isLoading}
+            disabled={busy}
             onClick={() => input.current?.click()}
           >
             {icon}
@@ -85,7 +94,7 @@ export const FilePicker = ({
           type="button"
           variant="outline"
           className="self-start"
-          disabled={isLoading}
+          disabled={busy}
           onClick={() => input.current?.click()}
         >
           <IconUpload />
@@ -93,6 +102,38 @@ export const FilePicker = ({
         </Button>
       )}
     </>
+  );
+};
+
+/** `PickFiles` that uploads the file picked to core's storage and hands over what it stored. */
+export const FilePicker = ({
+  onUploaded,
+  ...button
+}: {
+  label: string;
+  accept?: string;
+  icon?: ReactNode;
+  onUploaded: (file: Attachment) => void;
+}) => {
+  const { upload, isLoading } = useUpload();
+
+  return (
+    <PickFiles
+      {...button}
+      busy={isLoading}
+      onPick={(files) =>
+        upload({
+          files: listOf(files),
+          afterUpload: ({ response, fileInfo }) =>
+            onUploaded({
+              url: response,
+              name: fileInfo.name,
+              type: fileInfo.type,
+              size: fileInfo.size,
+            }),
+        })
+      }
+    />
   );
 };
 

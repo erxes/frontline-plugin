@@ -1140,6 +1140,8 @@
   "unread": "Уншаагүй",
   "unread-count": "{{count}} уншаагүй",
   "updated-at": "Шинэчилсэн огноо",
+  "upload-failed-name": "{{name}}-г байршуулж чадсангүй",
+  "uploading-name": "{{name}}-г байршуулж байна",
   "user-name": "Хэрэглэгчийн нэр",
   "value": "Утга",
   "view-image": "{{name}}-г харах",
