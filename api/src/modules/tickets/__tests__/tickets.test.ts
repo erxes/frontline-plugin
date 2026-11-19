@@ -2,6 +2,7 @@ import { sql } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
+import { conversations, integrations } from '#/db/inbox.ts';
 import { clientAs } from '#/test/member.ts';
 
 // Core checks a new ticket's fields.
@@ -315,6 +316,57 @@ describe('tickets', () => {
       { type: 'frontline.ticket.assigned', payload: { toAssigneeId: 'teammate' } },
     ]);
     expect(timeline.rows).toHaveLength(4);
+  });
+
+  it('remembers the conversation a ticket was made from, one the member sees', async () => {
+    const orgId = 'org-tk-source';
+    const { owner, teammate, channel, pipeline } = await setUp(orgId);
+    const hidden = await owner.channels.create({ name: 'Hidden' });
+
+    const [seen = '', unseen = ''] = await withOrg(orgId, async (tx) => {
+      const made = await tx
+        .insert(integrations)
+        .values(
+          [channel.id, hidden.id].map((channelId) => ({
+            orgId,
+            channelId,
+            kind: 'messenger',
+            name: 'Chat',
+            createdBy: 'user',
+          })),
+        )
+        .returning({ id: integrations.id, channelId: integrations.channelId });
+
+      const rows = await tx
+        .insert(conversations)
+        .values(
+          made.map((integration) => ({
+            orgId,
+            channelId: integration.channelId,
+            integrationId: integration.id,
+            customerId: 'bat',
+          })),
+        )
+        .returning({ id: conversations.id });
+
+      return rows.map((row) => row.id);
+    });
+
+    const ticket = await teammate.tickets.create({
+      pipelineId: pipeline.id,
+      name: 'Refund',
+      customerId: 'bat',
+      conversationId: seen,
+    });
+
+    expect(ticket).toMatchObject({ conversationId: seen, customerId: 'bat' });
+    await owner.tickets.create({ pipelineId: pipeline.id, name: 'Other' });
+    await expect(
+      teammate.tickets.list({ filter: rule('conversationId', 'eq', seen) }),
+    ).resolves.toMatchObject({ tickets: [{ id: ticket.id, conversationId: seen }] });
+    await expect(
+      teammate.tickets.create({ pipelineId: pipeline.id, name: 'Hidden', conversationId: unseen }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it('lists the pipelines and statuses a ticket can be filed under', async () => {

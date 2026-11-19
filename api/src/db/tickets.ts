@@ -242,6 +242,11 @@ export const tickets = table(
     /** The core customer and company the ticket is about. */
     customerId: text(),
     companyId: text(),
+    /**
+     * The conversation it was made from in the inbox, as the old `sourceConversationIds`. No
+     * foreign key: the ticket outlives a conversation its integration's removal deletes.
+     */
+    conversationId: text(),
     startDate: timestamp({ withTimezone: true }),
     targetDate: timestamp({ withTimezone: true }),
     state: text({ enum: TICKET_STATES }).notNull().default('active'),
@@ -317,6 +322,7 @@ export const tickets = table(
     index('frontline_tickets_org_assignee_idx').on(t.orgId, t.assigneeId),
     index('frontline_tickets_org_customer_idx').on(t.orgId, t.customerId),
     index('frontline_tickets_org_company_idx').on(t.orgId, t.companyId),
+    index('frontline_tickets_org_conversation_idx').on(t.orgId, t.conversationId),
     index('frontline_tickets_tag_ids_idx').using('gin', t.tagIds),
     check('frontline_tickets_priority_check', sql`${t.priority} between 0 and 4`),
     check('frontline_tickets_state_check', sql`${t.state} in ('active', 'archived')`),

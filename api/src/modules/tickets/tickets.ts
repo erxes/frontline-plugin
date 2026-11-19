@@ -10,6 +10,7 @@ import { channelMembers } from '#/db/schema.ts';
 import { pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { reads, readsWithCore, writesWithCore } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
+import { conversationById } from '../inbox/shared.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, filtersBy, likeText } from '../filter.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
@@ -47,6 +48,7 @@ const TICKET_FILTER: FilterFields = {
   'subject.departmentId': { type: 'select', expr: tickets.departmentId },
   'subject.customerId': { type: 'select', expr: tickets.customerId },
   'subject.companyId': { type: 'select', expr: tickets.companyId },
+  'subject.conversationId': { type: 'select', expr: tickets.conversationId },
   'subject.state': { type: 'select', expr: tickets.state },
   'subject.firstResponseSla': { type: 'select', expr: firstResponseSla },
   'subject.resolutionSla': { type: 'select', expr: resolutionSla },
@@ -218,8 +220,8 @@ export const fileTicket = async (
 
 /**
  * A new ticket in a pipeline of a channel the caller belongs to, in `statusId` or the pipeline's
- * first status, numbered by the pipeline and due by its SLA. Core checks its custom fields
- * first.
+ * first status, numbered by the pipeline and due by its SLA, made from `conversationId` when the
+ * caller sees that conversation. Core checks its custom fields first.
  */
 const create = writesWithCore(
   PERMISSIONS.channelView,
@@ -238,6 +240,7 @@ const create = writesWithCore(
       departmentId: true,
       customerId: true,
       companyId: true,
+      conversationId: true,
       startDate: true,
       targetDate: true,
       attachments: true,
@@ -258,6 +261,8 @@ const create = writesWithCore(
   .output(Ticket)
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
     const pipeline = await pipelineFor(tx, member, input.pipelineId, { change: false });
+
+    if (input.conversationId) await conversationById(tx, member, input.conversationId);
 
     return ticketById(
       tx,
