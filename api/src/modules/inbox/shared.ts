@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { CONVERSATION_TIMELINE } from '#/core.ts';
 import { PLUGIN } from '#/config.ts';
 import type { Tx } from '#/db/client.ts';
-import { conversations, conversationTags, integrations } from '#/db/inbox.ts';
+import { conversations, conversationTags, integrations, messages } from '#/db/inbox.ts';
 import { channelMembers, channels } from '#/db/schema.ts';
 import { managesAll, membership } from '../channels/access.ts';
 import { publishEvents } from '../events.ts';
@@ -26,6 +26,18 @@ export const tagIdsOf = sql<string[]>`array(
   order by ${conversationTags.tagId}
 )`;
 
+/**
+ * The type of the first file on the last message the customer sees, when that message has no
+ * text, so the list says Photo or File instead of a blank line; `''` for a file without a type.
+ */
+const attachmentTypeOf = sql<string | null>`case when ${conversations.content} = '' then (
+  select case when jsonb_array_length(${messages.attachments}) > 0
+    then coalesce(${messages.attachments} -> 0 ->> 'type', '') end
+  from ${messages}
+  where ${messages.conversationId} = ${conversations.id} and not ${messages.internal}
+  order by ${messages.createdAt} desc limit 1
+) end`;
+
 /** Whether `member` read the conversation since the customer last wrote. */
 export const readSql = (member: PluginMember) =>
   sql<boolean>`${member.userId} = any(${conversations.readBy})`;
@@ -42,6 +54,8 @@ export const Conversation = createSelectSchema(conversations)
     channelName: z.string(),
     tagIds: z.array(z.string()),
     isRead: z.boolean(),
+    /** The type of the last message's file, such as `image/png`, when that message has no text. */
+    attachmentType: z.string().nullable(),
   });
 
 /** The conversations `member` sees: their channels', or every channel's for one who manages them all. */
@@ -60,6 +74,7 @@ export const conversationRows = (tx: Tx, member: PluginMember) => {
       channelName: channels.name,
       tagIds: tagIdsOf,
       isRead: readSql(member),
+      attachmentType: attachmentTypeOf,
     })
     .from(conversations)
     .innerJoin(integrations, eq(integrations.id, conversations.integrationId))

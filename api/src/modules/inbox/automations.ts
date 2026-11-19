@@ -73,7 +73,9 @@ const reply = (call: CoreCall, body: Body, key: string) =>
 
     if (conversation.operator === 'person') return { sent: false };
 
-    await addBotMessage(tx, call.orgId, conversation, content, `automation:${key}`);
+    await addBotMessage(tx, call.orgId, conversation, content, {
+      externalId: `automation:${key}`,
+    });
     await signalConversations(tx, call.orgId, [conversation]);
 
     return { sent: true };

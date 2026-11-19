@@ -17,14 +17,15 @@ type Target = { id: string; customerId: string };
 /**
  * Adds a message from neither the customer nor a member (the bot) to a conversation and sends
  * it like a reply: queued for the adapter's `send`, or delivered on commit. `externalId` makes a
- * retried automation step add nothing. Returns false when that message is already there.
+ * retried automation step add nothing. A message that `answers` the customer stops their wait; a
+ * hand-off doesn't, as they still wait for the person. Returns false when it is already there.
  */
 export const addBotMessage = async (
   tx: Tx,
   orgId: string,
   conversation: Target,
   content: string,
-  externalId?: string,
+  { externalId, answers = true }: { externalId?: string; answers?: boolean } = {},
 ) => {
   const [integration] = await tx
     .select({ kind: integrations.kind })
@@ -54,6 +55,7 @@ export const addBotMessage = async (
       content,
       messageCount: sql`${conversations.messageCount} + 1`,
       lastMessageAt: message.createdAt,
+      ...(answers && { customerRespondedLast: false }),
     })
     .where(eq(conversations.id, conversation.id));
 
@@ -87,7 +89,9 @@ export const setOperatorOf = async (
     );
 
   if (operator === 'person')
-    await inOrder(changed, (row) => addBotMessage(tx, orgId, row, HAND_OFF_MESSAGE));
+    await inOrder(changed, (row) =>
+      addBotMessage(tx, orgId, row, HAND_OFF_MESSAGE, { answers: false }),
+    );
 
   await signalConversations(tx, orgId, changed);
 };

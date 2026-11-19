@@ -263,6 +263,20 @@ export const MemberChip = ({ id }: { id: string | null | undefined }) => {
   );
 };
 
+/** A member's avatar alone, `label` with their name on hover and for screen readers. */
+export const MemberAvatar = ({ id, label }: { id: string; label: (name: string) => string }) => {
+  const { member, name } = useMember(id);
+
+  if (!member) return null;
+
+  return (
+    <span title={label(name)} className="flex-none">
+      <PersonAvatar name={name} src={member.avatarUrl} size="sm" />
+      <span className="sr-only">{label(name)}</span>
+    </span>
+  );
+};
+
 /** A member's avatar and name on one line, or `placeholder` without one. */
 export const MemberLine = ({
   id,

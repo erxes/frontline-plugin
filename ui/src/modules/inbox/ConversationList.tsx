@@ -9,7 +9,7 @@ import {
   Skeleton,
   usePageHotkey,
 } from 'erxes-ui';
-import { type KeyboardEvent, useRef } from 'react';
+import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type CustomContainerComponentProps, Virtualizer, type VirtualizerHandle } from 'virtua';
 import { LoadPage } from '~/shared/List.tsx';
@@ -130,9 +130,25 @@ const RowList = ({ style, children, ref }: CustomContainerComponentProps) => {
   );
 };
 
+/** How near its end a scroll loads the list's next page, in pixels. */
+const NEXT_PX = 600;
+
+/** The time, moved on each minute, for the rows' waiting clocks. */
+const useMinute = () => {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  return now;
+};
+
 /**
  * The conversations on the left of the inbox under their toolbar, the open one marked; the older
- * ones load on demand. Only the rows in view and a few around them render, and they read what is
+ * ones load as the list scrolls near its end, or from the button under it. Only the rows in view and a few around them render, and they read what is
  * open and picked from here, once, instead of each subscribing for itself.
  */
 export const ConversationList = ({
@@ -152,6 +168,7 @@ export const ConversationList = ({
 
   const handlers: RowHandlers = {
     openId,
+    now: useMinute(),
     selection: RecordList.useSelection(),
     select: useSelectConversation(),
     prefetch: usePrefetchConversation(),
@@ -173,6 +190,17 @@ export const ConversationList = ({
               data={conversations}
               as={RowList}
               item="li"
+              onScroll={(offset) => {
+                const handle = rows.current;
+
+                // A page that failed loads again from its button, not on every scroll.
+                if (!handle || !paging.hasNextPage) return;
+
+                if (paging.isFetchingNextPage || paging.isFetchNextPageError) return;
+
+                if (offset + handle.viewportSize > handle.scrollSize - NEXT_PX)
+                  void paging.fetchNextPage();
+              }}
             >
               {(conversation) => (
                 <ConversationRow

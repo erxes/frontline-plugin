@@ -1,42 +1,19 @@
 import { sql } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { z } from 'zod';
-import type * as CoreModule from '#/core.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { pool, withOrg } from '#/db/client.ts';
+import { asked } from '#/modules/integrations/__tests__/standIns.ts';
 import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 
 // Tests never reach core: the customers a visitor becomes and the notifications members get
 // come from this stand-in.
-const created = vi.hoisted(() => ({ customers: 0, notifications: [] as unknown[] }));
-
-vi.mock('#/core.ts', async (importOriginal) => {
-  const actual = await importOriginal<typeof CoreModule>();
-
-  return {
-    ...actual,
-    core: {
-      ...actual.core,
-      forOrg: () => ({
-        customers: {
-          create: async () => {
-            created.customers += 1;
-
-            return { id: `customer-${created.customers}` };
-          },
-        },
-        notifications: {
-          create: async (input: unknown) => {
-            created.notifications.push(input);
-
-            return { ok: true };
-          },
-        },
-      }),
-    },
-  };
-});
+vi.mock('#/core.ts', async (importOriginal) =>
+  (await import('#/modules/integrations/__tests__/standIns.ts')).coreStandIn(
+    await importOriginal(),
+  ),
+);
 
 const { post, get, url } = serve('/api/public/messenger');
 
@@ -172,7 +149,7 @@ describe('inbox', () => {
       isRead: true,
       messageCount: 2,
     });
-    expect(created.notifications).toContainEqual(
+    expect(asked.notifications).toContainEqual(
       expect.objectContaining({
         kind: 'frontline.conversation.mentioned',
         userIds: ['user-org-ib-b'],
@@ -200,6 +177,18 @@ describe('inbox', () => {
     await expect(
       teammate.conversations.messages.create({ conversationId: id, content: '  ' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    // A reply of a photo alone gives the list the photo's type to name in place of text.
+    expect(await teammate.conversations.get({ id })).toMatchObject({ attachmentType: null });
+    await teammate.conversations.messages.create({
+      conversationId: id,
+      content: '',
+      attachments: [{ url: '/core/v1/files/leg-1/download', name: 'leg.png', type: 'image/png' }],
+    });
+    expect(await teammate.conversations.get({ id })).toMatchObject({
+      content: '',
+      attachmentType: 'image/png',
+    });
 
     // A phone call's conversation takes notes only: a reply would go nowhere.
     await withOrg('org-ib-b', (tx) =>
@@ -238,7 +227,7 @@ describe('inbox', () => {
       html: '<p>Ask <span data-inline-content-type="mention" data-_id="owner-rich" data-full-name="Olivia">@Olivia</span> about <strong>refunds</strong></p>',
       mentionedUserIds: ['owner-rich'],
     });
-    expect(created.notifications).toContainEqual(
+    expect(asked.notifications).toContainEqual(
       expect.objectContaining({
         kind: 'frontline.conversation.mentioned',
         userIds: ['owner-rich'],
@@ -274,7 +263,7 @@ describe('inbox', () => {
     const id = conversation?.id ?? '';
 
     await owner.conversations.assign({ ids: [id], assigneeId: 'teammate' });
-    expect(created.notifications).toContainEqual(
+    expect(asked.notifications).toContainEqual(
       expect.objectContaining({ kind: 'frontline.conversation.assigned', userIds: ['teammate'] }),
     );
 

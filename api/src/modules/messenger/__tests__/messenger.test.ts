@@ -325,14 +325,16 @@ describe('messenger', () => {
         body: JSON.stringify({ input, context: { event } }),
       });
 
-    expect((await action('frontline.conversation.reply', { content: 'On its way' })).status).toBe(
-      200,
-    );
+    const reply = () => action('frontline.conversation.reply', { content: 'On its way' });
+
+    expect((await reply()).status).toBe(200);
     // A retried step sends nothing twice.
-    await action('frontline.conversation.reply', { content: 'On its way' });
+    await reply();
+    // The bot's answer ends the customer's wait.
     expect(await teammate.conversations.get({ id })).toMatchObject({
       messageCount: 2,
       content: 'On its way',
+      customerRespondedLast: false,
     });
 
     /** The ids of the conversations the inbox's filter bar finds with `path` set to `value`. */

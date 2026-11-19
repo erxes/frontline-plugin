@@ -73,6 +73,9 @@ const UNKNOWN: KindLook = { icon: IconPlug, tint: 'text-muted-foreground' };
  */
 export const takesNotesOnly = (kind: string) => kind === 'call' || kind === 'callpro';
 
+/** Whether the customer waits at the other end for the answer, as in a chat; mail and calls don't. */
+export const isChat = (kind: string) => !['mail', 'call', 'callpro'].includes(kind);
+
 /** The outline icon of an integration kind, for a panel row's label; a plug for one the UI doesn't know. */
 export const kindIconOf = (kind: string) => (KIND_ICONS[kind] ?? UNKNOWN).icon;
 

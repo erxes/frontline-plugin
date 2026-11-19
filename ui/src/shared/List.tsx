@@ -110,12 +110,15 @@ export const CreateButton = ({
 
 /**
  * The button under a paged list that loads its next page, or with `newer`, the one above it that
- * loads back a page the list dropped. Nothing when there is no such page.
+ * loads back a page the list dropped, saying so when that page failed. Nothing when there is no
+ * such page.
  */
 export const LoadPage = ({ paging, newer = false }: { paging: Paging; newer?: boolean }) => {
   const { t } = useTranslation('frontline');
 
   if (!(newer ? paging.hasPreviousPage : paging.hasNextPage)) return null;
+
+  const failed = newer ? paging.isFetchPreviousPageError : paging.isFetchNextPageError;
 
   return (
     <Button
@@ -124,7 +127,11 @@ export const LoadPage = ({ paging, newer = false }: { paging: Paging; newer?: bo
       disabled={newer ? paging.isFetchingPreviousPage : paging.isFetchingNextPage}
       onClick={() => void (newer ? paging.fetchPreviousPage() : paging.fetchNextPage())}
     >
-      {newer ? t('load-newer', 'Load newer') : t('load-more', 'Load more')}
+      {failed
+        ? t('page-failed', 'That page did not load. Try again')
+        : newer
+          ? t('load-newer', 'Load newer')
+          : t('load-more', 'Load more')}
     </Button>
   );
 };

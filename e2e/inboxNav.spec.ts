@@ -74,7 +74,7 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   await member.getByRole('option', { name: teammate.fullName }).click();
   await queues.getByRole('link', { name: /^Assigned to me/ }).click();
   await expect(member).toHaveURL(/assigneeId/);
-  await expect(row).toBeVisible();
+  await expect(row).toContainText(`Assigned to ${teammate.fullName}`);
 
   // A message into the open conversation is read as it arrives.
   await row.click();
