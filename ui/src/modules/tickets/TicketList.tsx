@@ -16,7 +16,7 @@ import {
   type TicketRow,
   type TicketRowActions,
   useChoices,
-  useTicketPipeline,
+  useShownPipelineId,
   useTicketRowActions,
 } from './queries.ts';
 
@@ -51,7 +51,7 @@ const TicketLine = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions 
 /** The shown pipeline's statuses by stage and order. */
 export const usePipelineStatuses = () => {
   const { statuses } = useChoices();
-  const pipelineId = useTicketPipeline()?.id;
+  const pipelineId = useShownPipelineId();
 
   return statuses.filter((status) => status.pipelineId === pipelineId);
 };

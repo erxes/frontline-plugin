@@ -230,9 +230,12 @@ const listedConversation = (queryClient: QueryClient, id: string) => ({
 export const useConversation = (id: string) =>
   useQuery({ ...listedConversation(useQueryClient(), id), enabled: Boolean(id) });
 
-/** The open conversation; it suspends only when the list doesn't hold it. */
+/**
+ * The open conversation; it suspends only when the list doesn't hold it. A refetch that fails
+ * keeps the data it had beside its error.
+ */
 export const useOpenedConversation = (id: string) =>
-  useSuspenseQuery(listedConversation(useQueryClient(), id)).data;
+  useSuspenseQuery(listedConversation(useQueryClient(), id));
 
 export const messagesOptions = (conversationId: string) =>
   orpc.conversations.messages.list.infiniteOptions({

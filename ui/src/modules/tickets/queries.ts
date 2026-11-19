@@ -69,11 +69,24 @@ export const useTicketPipeline = () => {
   return data && shownOf(data, picked);
 };
 
-/** `useTicketPipeline`, suspending until the choices are in. */
-export const useShownPipeline = () => {
-  const [picked] = useQueryState(PIPELINE_PARAM);
+/**
+ * The sidebar's pick, held back while its tickets load, so the old pipeline's statuses and
+ * tickets stay on screen together until the new ones are in.
+ */
+const useShownPick = () => useDeferredValue(useQueryState(PIPELINE_PARAM)[0]);
 
-  return shownOf(useSuspenseQuery(choicesQuery).data, picked);
+/** The pipeline whose tickets show, suspending until the choices are in. */
+export const useShownPipeline = () => shownOf(useSuspenseQuery(choicesQuery).data, useShownPick());
+
+/**
+ * The id of the pipeline whose tickets and statuses show. The pick asks at once, beside the
+ * choices, and holds unless they don't have it.
+ */
+export const useShownPipelineId = () => {
+  const picked = useShownPick();
+  const { data } = useQuery(choicesQuery);
+
+  return data ? shownOf(data, picked)?.id : (picked ?? undefined);
 };
 
 /** The tickets `input` asks for, in pages. */
@@ -87,19 +100,15 @@ const ticketsOptions = (input: ListInput) =>
 const rowsOf = (page: Outputs['list']) => page.tickets;
 
 /**
- * What the shown pipeline's tickets are asked with, a board column's in its `statusId`. The
- * sidebar's pick asks at once, beside the choices, and holds unless they don't have it. A change
+ * What the shown pipeline's tickets are asked with, a board column's in its `statusId`. A change
  * is held back while its tickets load, so the old ones stay on screen until the new ones are in.
  */
 const useListInput = (statusId?: string) => {
   const [{ sort, direction }] = useTicketSort();
-  const [picked] = useQueryState(PIPELINE_PARAM);
-  const choices = useChoices();
-  const shown = useTicketPipeline()?.id;
 
   return {
     ...useListParams(),
-    pipelineId: useDeferredValue(choices.isPending ? (picked ?? undefined) : shown),
+    pipelineId: useShownPipelineId(),
     statusId,
     sort: useDeferredValue(sort),
     ascending: useDeferredValue(direction) === 'asc',
@@ -124,12 +133,11 @@ export const useColumnTickets = (statusId: string) => {
 };
 
 /**
- * How many tickets match the filter bar, for its count: read from the query the list suspends
- * on, without asking it again.
+ * How many tickets match the filter bar, for its count and the board's empty state: the first
+ * page of the query the list suspends on, asked once for both.
  */
 export const useTicketCount = () =>
-  usePaged(useInfiniteQuery({ ...ticketsOptions(useListInput()), enabled: false }), rowsOf)
-    .totalCount;
+  usePaged(useInfiniteQuery(ticketsOptions(useListInput())), rowsOf).totalCount;
 
 /**
  * Loads the tickets at `to` before they open: the first page of the pipeline it names, else the

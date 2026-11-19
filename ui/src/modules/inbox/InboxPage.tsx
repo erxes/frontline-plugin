@@ -21,7 +21,7 @@ import { z } from 'zod';
 import { channelsQuery } from '~/shared/reference.ts';
 import { CONVERSATION_TYPE, INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
-import { CreateButton, ListEmpty } from '~/shared/List.tsx';
+import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
 import { useListParams } from '~/shared/listPath.ts';
 import { QueryBoundary } from '~/shared/QueryBoundary.tsx';
 import { BulkBar } from './BulkBar.tsx';
@@ -118,32 +118,27 @@ const PickConversation = () => {
  * The open conversation: its header, thread and reply box, and its customer beside them. Its
  * messages load beside it, not after it. The thread waits and fails on its own, so a refused
  * thread keeps the header and reply box; picking another conversation keeps this one up until
- * the next one's messages are in.
+ * the next one's messages are in. One that can no longer be read, such as after the member
+ * leaves its channel, shows the refusal instead.
  */
 const OpenConversation = ({ id }: { id: string }) => {
   usePrefetchInfiniteQuery(messagesOptions(id));
 
-  const conversation = useOpenedConversation(id);
+  const { data: conversation, error } = useOpenedConversation(id);
   // One send for the composer and the thread, which shows it while it goes.
   const send = useSendMessage();
 
   useConversationSignal(id);
   useReadWhileOpen(conversation);
 
+  if (error) return <ListError error={error} />;
+
   // Another conversation gets a new thread and composer, with nothing carried over.
   return (
     <div className="flex min-h-0 flex-1">
       <div className="flex min-w-0 flex-1 flex-col">
         <ConversationHeader conversation={conversation} />
-        <QueryBoundary
-          resetKeys={[id]}
-          fallback={<ThreadSkeleton />}
-          renderError={(message) => (
-            <p role="alert" className="flex-1 p-6 text-center text-sm text-destructive-text">
-              {message}
-            </p>
-          )}
-        >
+        <QueryBoundary fallback={<ThreadSkeleton />}>
           <MessageThread key={id} conversation={conversation} sending={sendingTo(send, id)} />
         </QueryBoundary>
         <Composer key={id} conversation={conversation} send={send} />
@@ -160,11 +155,7 @@ const ConversationPane = () => {
   usePageHotkey('escape', () => void setId(null), { when: () => Boolean(id) });
 
   return (
-    <QueryBoundary
-      resetKeys={[id]}
-      fallback={<PaneSkeleton />}
-      renderError={(message) => <p className="m-4 text-sm text-destructive-text">{message}</p>}
-    >
+    <QueryBoundary fallback={<PaneSkeleton />}>
       {id ? <OpenConversation id={id} /> : <PickConversation />}
     </QueryBoundary>
   );
@@ -341,10 +332,7 @@ export const InboxPage = () => {
         />
       </ViewBar>
       {/* A later page that fails keeps the rows already shown, and its button to try again. */}
-      <QueryBoundary
-        fallback={<InboxSkeleton />}
-        renderError={(message) => <p className="m-3 text-sm text-destructive-text">{message}</p>}
-      >
+      <QueryBoundary fallback={<InboxSkeleton />}>
         <InboxBody onConnect={canConnect ? connect : undefined} />
       </QueryBoundary>
     </PageContainer>

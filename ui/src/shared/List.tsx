@@ -37,20 +37,22 @@ export const ListEmpty = ({
 };
 
 /**
- * "Try again" under a failed load; it refetches every query on screen that failed and spins until
- * they settle. The API's refusals, such as a missing permission, get none: asking again changes
- * nothing.
+ * "Try again" under a failed load; it refetches every query on screen that failed, or runs `retry`
+ * when one is given, and spins until they settle. The API's refusals, such as a missing
+ * permission, get none: asking again changes nothing.
  */
-export const RetryButton = ({ error }: { error: Error }) => {
+export const RetryButton = ({ error, retry }: { error: Error; retry?: () => void }) => {
   const { t } = useTranslation('frontline');
   const queryClient = useQueryClient();
 
-  const retry = useMutation({
-    mutationFn: () =>
-      queryClient.refetchQueries({
-        type: 'active',
-        predicate: (query) => query.state.status === 'error',
-      }),
+  const asking = useMutation({
+    mutationFn: async () =>
+      retry
+        ? retry()
+        : queryClient.refetchQueries({
+            type: 'active',
+            predicate: (query) => query.state.status === 'error',
+          }),
   });
 
   if (error instanceof ORPCError && error.status < 500) {
@@ -58,15 +60,18 @@ export const RetryButton = ({ error }: { error: Error }) => {
   }
 
   return (
-    <Button variant="outline" size="sm" disabled={retry.isPending} onClick={() => retry.mutate()}>
-      <IconRefresh className={retry.isPending ? 'animate-spin' : undefined} />
+    <Button variant="outline" size="sm" disabled={asking.isPending} onClick={() => asking.mutate()}>
+      <IconRefresh className={asking.isPending ? 'animate-spin' : undefined} />
       {t('try-again', 'Try again')}
     </Button>
   );
 };
 
-/** What a page shows when its query failed: the API's message in an outlined empty state. */
-export const ListError = ({ error }: { error: Error }) => {
+/**
+ * What a page shows when its query failed: the API's message in an outlined empty state, and
+ * Try again, which runs `retry` when given.
+ */
+export const ListError = ({ error, retry }: { error: Error; retry?: () => void }) => {
   const { t } = useTranslation('frontline');
 
   return (
@@ -79,7 +84,7 @@ export const ListError = ({ error }: { error: Error }) => {
         <Empty.Description>{error.message}</Empty.Description>
       </Empty.Header>
       <Empty.Content>
-        <RetryButton error={error} />
+        <RetryButton error={error} retry={retry} />
       </Empty.Content>
     </Empty>
   );

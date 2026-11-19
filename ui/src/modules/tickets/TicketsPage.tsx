@@ -70,42 +70,42 @@ const TicketsHeader = ({
   );
 };
 
-/**
- * The shown pipeline's tickets, grouped by status, on a board or in a table. It suspends until
- * the first page is in, and a new filter, sort or pipeline keeps the old tickets up until the new
- * ones are.
- */
-const PipelineTickets = ({
-  pipeline,
-  display,
-  create,
-}: {
-  pipeline: string;
-  display: (typeof DISPLAYS)[number];
-  create: () => void;
-}) => {
+type Shown = { pipeline: string; create: () => void };
+
+/** A pipeline with no tickets the filter bar keeps. */
+const NoTickets = ({ pipeline, create }: Shown) => {
   const { t } = useTranslation('frontline');
+
+  return (
+    <ListEmpty
+      icon={<IconTicket />}
+      title={t('no-tickets-in', 'No tickets in {{pipeline}} yet', { pipeline })}
+      description={t('no-tickets-in-description', 'Create one here, or pick another pipeline.')}
+      action={<Button onClick={create}>{t('create-ticket', 'Create ticket')}</Button>}
+    />
+  );
+};
+
+/** The board: its columns ask for their tickets at once, beside the count that says if any match. */
+const BoardTickets = (shown: Shown) =>
+  useTicketCount() === 0 ? <NoTickets {...shown} /> : <TicketsBoard />;
+
+/**
+ * The shown pipeline's tickets, grouped by status or in a table. It suspends until the first page
+ * is in, and a new filter, sort or pipeline keeps the old tickets up until the new ones are.
+ */
+const ListedTickets = ({ table, ...shown }: Shown & { table: boolean }) => {
   const list = useTickets();
   const { rows: tickets } = list;
 
-  if (tickets.length === 0)
-    return (
-      <ListEmpty
-        icon={<IconTicket />}
-        title={t('no-tickets-in', 'No tickets in {{pipeline}} yet', { pipeline })}
-        description={t('no-tickets-in-description', 'Create one here, or pick another pipeline.')}
-        action={<Button onClick={create}>{t('create-ticket', 'Create ticket')}</Button>}
-      />
-    );
+  if (tickets.length === 0) return <NoTickets {...shown} />;
 
-  if (display === 'table')
+  if (table)
     return (
       <TicketsTable tickets={tickets} paging={list}>
         <SelectionBar>{bulkOf(tickets)}</SelectionBar>
       </TicketsTable>
     );
-
-  if (display === 'board') return <TicketsBoard />;
 
   return (
     <RecordList.Provider listId={LIST}>
@@ -139,7 +139,9 @@ const TicketsBody = ({
       />
     );
 
-  return <PipelineTickets pipeline={pipeline.name} display={display} create={create} />;
+  if (display === 'board') return <BoardTickets pipeline={pipeline.name} create={create} />;
+
+  return <ListedTickets pipeline={pipeline.name} create={create} table={display === 'table'} />;
 };
 
 /**
@@ -170,10 +172,7 @@ export const TicketsPage = () => {
           <DisplayMenu list={LIST} displays={DISPLAYS} />
         </ListFilter>
       </ViewBar>
-      <QueryBoundary
-        fallback={<RecordList.Skeleton />}
-        renderError={(message) => <p className="m-3 text-sm text-destructive-text">{message}</p>}
-      >
+      <QueryBoundary fallback={<RecordList.Skeleton />}>
         <TicketsBody display={display} create={create} />
       </QueryBoundary>
     </PageContainer>
