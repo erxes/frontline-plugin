@@ -1,4 +1,4 @@
-import { isShown, unanswered } from '@frontline/api/logic';
+import { shownFields, unanswered } from '@frontline/api/logic';
 import { type Dispatch, type StateUpdater, useEffect, useState } from 'preact/hooks';
 import type { MessengerApi, NewTicket, Ticket, TicketForms } from '../api.ts';
 import type { Uploaded } from '../../shared/http.ts';
@@ -70,39 +70,48 @@ type Draft = Omit<NewTicket, 'files'>;
 const drafts = new Map<string, { draft: Draft; files: Uploaded[] }>();
 
 /**
- * The draft topic's properties that their Logic shows with the values so far, setting one, and
- * the shown required ones left empty when the visitor last tried to send.
+ * The draft topic's properties that their Logic shows, their values to send, setting one, and the
+ * shown required ones still empty once the visitor tried to send in this topic. A box the visitor
+ * never ticked is unticked, as core keeps it.
  */
 const useProperties = (
   forms: TicketForms,
   draft: Draft,
   setDraft: Dispatch<StateUpdater<Draft>>,
 ) => {
-  const [missing, setMissing] = useState<string[]>([]);
-  const values = draft.propertiesData;
-  const form = forms.pipelines.find((pipeline) => pipeline.id === draft.pipelineId);
-  const shown = form?.properties.filter((property) => isShown(property, values)) ?? [];
+  const [refusedIn, setRefusedIn] = useState<string | null>(null);
+  const properties = forms.pipelines.find(({ id }) => id === draft.pipelineId)?.properties ?? [];
 
-  const answer = (id: string, value: unknown) => {
+  const values = Object.fromEntries(
+    properties.map(({ id, type }) => [
+      id,
+      draft.propertiesData[id] ?? (type === 'boolean' ? false : null),
+    ]),
+  );
+
+  const shown = shownFields(properties, values);
+
+  const sent = Object.fromEntries(
+    shown.flatMap(({ id }) => (unanswered(values[id]) ? [] : [[id, values[id]]])),
+  );
+
+  const empty = shown.filter(({ id, isRequired }) => isRequired && !(id in sent));
+  const missing = refusedIn === draft.pipelineId ? empty.map(({ id }) => id) : [];
+
+  const answer = (id: string, value: unknown) =>
     setDraft((current) => ({
       ...current,
       propertiesData: { ...current.propertiesData, [id]: value },
     }));
-    setMissing((ids) => ids.filter((other) => other !== id));
-  };
 
   /** Whether each shown required property has a value, marking those that don't. */
   const answered = () => {
-    const empty = shown.filter(
-      (property) => property.isRequired && unanswered(values[property.id]),
-    );
-
-    setMissing(empty.map((property) => property.id));
+    setRefusedIn(draft.pipelineId);
 
     return empty.length === 0;
   };
 
-  return { shown, missing, answer, answered };
+  return { shown, sent, missing, answer, answered };
 };
 
 /**
@@ -146,16 +155,10 @@ const useDraft = (api: MessengerApi, token: string, forms: TicketForms) => {
     setError(null);
 
     try {
-      const shown = new Set(properties.shown.map((property) => property.id));
-
       const filed = await api.fileTicket(token, {
         ...draft,
         files: uploads.files.map((file) => file.receipt),
-        propertiesData: Object.fromEntries(
-          Object.entries(draft.propertiesData).filter(
-            ([id, value]) => shown.has(id) && !unanswered(value),
-          ),
-        ),
+        propertiesData: properties.sent,
       });
 
       drafts.delete(token);

@@ -1,4 +1,4 @@
-import { isShown, showsCallout, unanswered } from '@frontline/api/logic';
+import { showsCallout, shownFields, unanswered } from '@frontline/api/logic';
 import { useCallback, useState } from 'preact/hooks';
 import { useText } from '../shared/text.ts';
 import type { Answer, Field, FormApi, VisitorForm } from './api.ts';
@@ -37,7 +37,7 @@ const useAnswers = (api: FormApi, fields: Field[], onSent: (submissionId: string
   const [failure, setFailure] = useState<string | null>(null);
   const { messageOf } = useText();
   const steps = Math.max(1, ...fields.map((field) => field.pageNumber));
-  const shown = fields.filter((field) => field.pageNumber === step && isShown(field, answers));
+  const shown = shownFields(fields, answers).filter((field) => field.pageNumber === step);
 
   const setAnswer = useCallback((fieldId: string, value: Answer) => {
     setAnswers((current) => ({ ...current, [fieldId]: value }));

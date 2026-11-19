@@ -323,7 +323,7 @@ test("the widget's ticket form asks for a required field, and shows one only as 
 
   const key = await messengerIn(rpc, { ticketPipelineIds: [pipelineId] }, channelId);
   await using site = await openMessenger(page.context(), key);
-  const { panel } = site;
+  const { shop, panel } = site;
 
   await panel.getByRole('button', { name: /^Tickets/ }).click();
   await panel.getByRole('button', { name: 'File a ticket' }).click();
@@ -333,6 +333,11 @@ test("the widget's ticket form asks for a required field, and shows one only as 
   await expect(panel.getByRole('spinbutton', { name: seats })).toBeHidden();
   await panel.getByRole('button', { name: 'Send ticket' }).click();
   await expect(panel.getByRole('alert')).toHaveText('This field is required');
+  await expect(panel.getByRole('combobox', { name: plan })).toHaveAccessibleDescription(
+    'This field is required',
+  );
+  // The refused form, its empty required field marked.
+  await expectAccessible(shop, panel.getByRole('alert'));
 
   await panel.getByRole('combobox', { name: plan }).selectOption('Team');
   await expect(panel.getByRole('alert')).toBeHidden();

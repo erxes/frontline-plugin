@@ -66,12 +66,35 @@ const holds = (logic: Logic, answer: unknown): boolean => {
  * Whether `field` shows with these `answers`, by field id: a "show" field only once all its
  * rules hold, a "hide" field until they all do, any other field always.
  */
-export const isShown = (field: LogicField, answers: Record<string, unknown>) => {
+const isShown = (field: LogicField, answers: Record<string, unknown>) => {
   if (!field.logicAction || field.logics.length === 0) return true;
 
   const all = field.logics.every((logic) => holds(logic, answers[logic.fieldId]));
 
   return field.logicAction === 'show' ? all : !all;
+};
+
+/**
+ * The `fields` that show with these `answers`, each judged only by the answers of fields that show
+ * themselves, so a hidden field's leftover answer shows or hides nothing. Hiding one field can hide
+ * another, so it settles in at most one pass a field.
+ */
+export const shownFields = <Field extends LogicField>(
+  fields: Field[],
+  answers: Record<string, unknown>,
+) => {
+  let shown = fields;
+
+  for (let pass = 0; pass < fields.length; pass += 1) {
+    const kept = Object.fromEntries(shown.map((field) => [field.id, answers[field.id]]));
+    const next = fields.filter((field) => isShown(field, kept));
+
+    if (next.length === shown.length && next.every((field, at) => field === shown[at])) break;
+
+    shown = next;
+  }
+
+  return shown;
 };
 
 /**
