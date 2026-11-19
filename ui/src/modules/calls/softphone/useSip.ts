@@ -149,6 +149,19 @@ export const useSip = (line: Line, audio: RefObject<HTMLAudioElement | null>) =>
     };
   }, [line.webSocketUrl, line.extension, line.password, audio]);
 
+  // Leaving or reloading the page ends the call, so the browser, or the desktop app, asks first.
+  const onCall = Boolean(call);
+
+  useEffect(() => {
+    if (!onCall) return;
+
+    const hold = (event: BeforeUnloadEvent) => event.preventDefault();
+
+    window.addEventListener('beforeunload', hold);
+
+    return () => window.removeEventListener('beforeunload', hold);
+  }, [onCall]);
+
   const update = (patch: Partial<PhoneCall>) =>
     setCall((current) => current && { ...current, ...patch });
 

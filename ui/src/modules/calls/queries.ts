@@ -18,6 +18,19 @@ export type QueueLive = NonNullable<Outputs['queues']['get']['live']>;
 /** The pages under `/frontline/calls`. */
 export const CALLS_PATH = `/${PLUGIN}/calls`;
 
+/** The member's phone: the dial pad, the call they are on and its note. */
+export const PHONE_PATH = `${CALLS_PATH}/phone`;
+
+/**
+ * The member's SIP lines, which the softphone signs in to. A refetch would sign the phone in
+ * again, so they last as long as the page.
+ */
+export const phoneLinesQuery = {
+  ...orpc.calls.phone.lines.queryOptions({ input: {} }),
+  retry: false,
+  staleTime: Infinity,
+};
+
 /**
  * What a call changes: the history, each call, the queues' boards and the member's extensions.
  * Not the softphone's lines, whose refetch would sign the phone in again.

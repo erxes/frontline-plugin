@@ -1,0 +1,86 @@
+import { app, type BrowserWindow, ipcMain, Notification } from 'electron';
+import { type PhoneCommand, PhoneState } from './bridge.ts';
+import { CHANNELS } from './channels.ts';
+import { settings } from './settings.ts';
+import { textIn } from './text.ts';
+
+/** Brings the window up, from the tray or behind other windows. */
+export const reveal = (window: BrowserWindow) => {
+  if (window.isMinimized()) window.restore();
+
+  window.show();
+  window.focus();
+};
+
+/**
+ * The web softphone's side of the app: its state from the page, which `onState` gets (null while
+ * the page has no phone), and the commands the app sends it. An incoming call brings the window
+ * forward without taking the keyboard, flashes it, bounces the dock and shows a notification
+ * until it's answered or gone. A number dialed before the phone is ready waits for it.
+ */
+export const connectPhone = (
+  window: BrowserWindow,
+  onState: (state: PhoneState | null) => void,
+) => {
+  let ringing: Notification | null = null;
+  let waiting: string | null = null;
+  let current: PhoneState | null = null;
+
+  const send = (command: PhoneCommand) => window.webContents.send(CHANNELS.command, command);
+
+  const ring = (state: PhoneState | null) => {
+    const call = state?.call;
+
+    if (state && call?.direction === 'incoming' && !call.talking) {
+      if (ringing) return;
+
+      ringing = new Notification({ title: textIn(state.language).incoming, body: call.number });
+      ringing.on('click', () => reveal(window));
+      ringing.show();
+
+      if (!window.isVisible()) window.showInactive();
+
+      window.flashFrame(true);
+      app.dock?.bounce('critical');
+    } else if (ringing) {
+      ringing.close();
+      ringing = null;
+      window.flashFrame(false);
+    }
+  };
+
+  const update = (state: PhoneState | null) => {
+    current = state;
+    ring(state);
+    onState(state);
+
+    if (waiting && state?.status === 'ready' && !state.call) {
+      send({ type: 'dial', number: waiting });
+      waiting = null;
+    }
+  };
+
+  ipcMain.on(CHANNELS.phone, (event, raw: unknown) => {
+    // Only erxes web, in the app's window, speaks for the phone.
+    if (event.sender !== window.webContents || event.senderFrame?.origin !== settings().server)
+      return;
+
+    const parsed = PhoneState.safeParse(raw);
+
+    if (parsed.success) update(parsed.data);
+  });
+
+  // A page that reloads or leaves erxes has no phone until it says again. Not on a navigation
+  // that only starts: a tel: link starts one the window then cancels.
+  window.webContents.on('did-navigate', () => update(null));
+
+  return {
+    send,
+    dial: (number: string) => {
+      reveal(window);
+
+      if (current?.status === 'ready' && !current.call) send({ type: 'dial', number });
+      else waiting = number;
+    },
+  };
+};

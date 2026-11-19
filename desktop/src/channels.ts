@@ -1,0 +1,6 @@
+/** The IPC channels between the preload and the main process. */
+export const CHANNELS = {
+  phone: 'frontline:phone',
+  command: 'frontline:command',
+  connect: 'frontline:connect',
+};

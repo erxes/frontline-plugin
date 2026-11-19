@@ -149,6 +149,10 @@ const CallHistoryPage = lazy(
   withText(async () => ({ default: (await import('@/calls/pages.ts')).CallHistoryPage })),
 );
 
+const PhonePage = lazy(
+  withText(async () => ({ default: (await import('@/calls/pages.ts')).PhonePage })),
+);
+
 const QueuesPage = lazy(
   withText(async () => ({ default: (await import('@/calls/pages.ts')).QueuesPage })),
 );
@@ -272,6 +276,7 @@ export const Frontline = () => (
           <Route index element={<Navigate to="history" replace />} />
           <Route path="history" element={<CallHistoryPage />} />
           <Route path="history/:id" element={<RecordRoute contentType={CALL_TYPE} />} />
+          <Route path="phone" element={<PhonePage />} />
           <Route path="queues" element={<QueuesPage />} />
           <Route path="queues/:id" element={<QueuePage />} />
           <Route path="dashboard" element={<Navigate to="../queues" replace />} />

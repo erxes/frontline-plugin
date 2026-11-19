@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; img-src 'self'"
+    />
+    <title>Frontline</title>
+    <!-- Drawn as erxes's own sign-in card, the screen that comes next. -->
+    <style>
+      :root {
+        --background: lab(98.2 0 0);
+        --card: lab(100 0 0);
+        --foreground: lab(8.3 0.6 -2.2);
+        --muted: lab(44.3 1.8 0.7);
+        --border: lab(90.6 0.4 -1.5);
+        --primary: lab(39.9 40.5 -80.1);
+        --destructive: lab(48 70 50);
+        font-family: Inter, system-ui, sans-serif;
+        color: var(--foreground);
+        background: var(--background);
+        -webkit-font-smoothing: antialiased;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 24px;
+        padding: 24px;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 18px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+      }
+      .brand img {
+        width: 32px;
+        height: 32px;
+      }
+      .card {
+        width: min(304px, 100%);
+        border-radius: 12px;
+        background: var(--background);
+        box-shadow:
+          0 0 0 1px lab(0 0 0 / 0.05),
+          0 1px 1px lab(0 0 0 / 0.05),
+          0 2px 2px lab(0 0 0 / 0.05),
+          0 4px 4px lab(0 0 0 / 0.05),
+          0 8px 8px lab(0 0 0 / 0.05),
+          0 16px 16px lab(0 0 0 / 0.05);
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 32px 24px 24px;
+        border-radius: 12px;
+        background: var(--card);
+        box-shadow: 0 1px 0 var(--border);
+      }
+      .heading {
+        text-align: center;
+      }
+      h1 {
+        font-size: 20px;
+        font-weight: 600;
+        margin: 0 0 8px;
+      }
+      .heading p {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.45;
+        color: var(--muted);
+        overflow-wrap: anywhere;
+      }
+      label {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 13px;
+        font-weight: 500;
+      }
+      input {
+        height: 32px;
+        padding: 4px 12px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 400;
+        color: inherit;
+        border: 0;
+        border-radius: 4px;
+        background: var(--card);
+        box-shadow: 0 0 0 1px var(--border);
+        outline: none;
+      }
+      input:focus {
+        box-shadow:
+          0 0 0 4px rgb(79 70 229 / 0.25),
+          0 0 0 1px var(--primary);
+      }
+      #error {
+        margin: -8px 0 0;
+        font-size: 13px;
+        color: var(--destructive);
+      }
+      #error:empty {
+        display: none;
+      }
+      button {
+        height: 32px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 500;
+        color: white;
+        border: 1px solid var(--primary);
+        border-radius: 4px;
+        background: var(--primary);
+        box-shadow:
+          0 1px 2px rgb(0 0 0 / 0.13),
+          inset 0 1px 0 rgb(255 255 255 / 0.125);
+        cursor: pointer;
+      }
+      button:hover {
+        filter: brightness(1.08);
+      }
+      footer {
+        padding: 16px 24px;
+        font-size: 12px;
+        line-height: 1.5;
+        text-align: center;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="brand"><img src="icon.png" alt="" />Frontline</div>
+    <div class="card">
+      <form>
+        <div class="heading">
+          <h1 id="title"></h1>
+          <p id="lead"></p>
+        </div>
+        <label>
+          <span id="label"></span>
+          <input name="address" placeholder="erxes.example.mn" autocomplete="url" required />
+        </label>
+        <p id="error" role="alert"></p>
+        <button id="submit"></button>
+      </form>
+      <footer id="footer"></footer>
+    </div>
+    <script>
+      const words = {
+        en: {
+          title: 'Connect to erxes',
+          lead: 'Enter the address you open erxes at in the browser.',
+          retryTitle: "Can't reach erxes",
+          unreachable: (host) => `${host} didn't answer. Check the address and your connection.`,
+          noHttps: (host) =>
+            `${host} doesn't answer over HTTPS. If your erxes runs without it, start the address with http://.`,
+          label: 'erxes address',
+          submit: 'Continue',
+          retry: 'Try again',
+          footer: 'You sign in on the next screen, with your erxes account.',
+        },
+        mn: {
+          title: 'erxes-тэй холбогдох',
+          lead: 'Хөтөч дээр erxes-ийг нээдэг хаягаа оруулна уу.',
+          retryTitle: 'erxes-тэй холбогдож чадсангүй',
+          unreachable: (host) => `${host} хариу өгсөнгүй. Хаяг болон интернэтээ шалгана уу.`,
+          noHttps: (host) =>
+            `${host} HTTPS-ээр хариу өгөхгүй байна. Таны erxes HTTPS-гүй бол хаягаа http://-ээр эхлүүлнэ үү.`,
+          label: 'erxes-ийн хаяг',
+          submit: 'Үргэлжлүүлэх',
+          retry: 'Дахин оролдох',
+          footer: 'Дараагийн дэлгэц дээр erxes-ийн бүртгэлээрээ нэвтэрнэ.',
+        },
+      };
+      const text = navigator.language.startsWith('mn') ? words.mn : words.en;
+      const query = new URLSearchParams(location.search);
+      const address = query.get('address') ?? '';
+      const error = query.get('error') ?? '';
+      const form = document.querySelector('form');
+      const show = (id, value) => (document.getElementById(id).textContent = value);
+
+      document.documentElement.lang = text === words.mn ? 'mn' : 'en';
+      form.address.value = address;
+
+      // erxes didn't load (Chromium's ERR_ code): the same address tries again, and another one
+      // can replace it. Any other error is the app's own words about what was typed.
+      const retrying = error.startsWith('ERR_') && Boolean(address);
+      const host = address.replace(/^https?:\/\//, '');
+      const why = error.includes('SSL') ? text.noHttps(host) : text.unreachable(host);
+
+      show('title', retrying ? text.retryTitle : text.title);
+      show('lead', retrying ? why : text.lead);
+      show('label', text.label);
+      show('error', retrying ? '' : error);
+      show('submit', retrying ? text.retry : text.submit);
+      show('footer', text.footer);
+
+      form.address.addEventListener('input', () => show('submit', text.submit), { once: true });
+      form.addEventListener('submit', (event) => {
+        event.preventDefault();
+        window.erxesSetup.connect(form.address.value);
+      });
+
+      if (!retrying) form.address.focus();
+    </script>
+  </body>
+</html>

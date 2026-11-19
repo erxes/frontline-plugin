@@ -2,6 +2,7 @@ packages:
   - api
   - ui
   - widget
+  - desktop
 # `pnpm deploy` copies api/ with real files for the image.
 injectWorkspacePackages: true
 catalog:
@@ -17,8 +18,12 @@ overrides:
   # API's OpenTelemetry for 1.10, and two drizzle-orm copies don't share types.
   '@opentelemetry/api': 1.10.0
 # Install scripts nothing here needs: esbuild ships its binary as an optional
-# dependency, and the other two only print or check.
+# dependency, and the other two only print or check. Electron's downloads its binary, which
+# only `pnpm --filter @frontline/desktop start` needs, so CI's installs skip the 100 MB.
+# electron-winstaller is Squirrel's; the Windows build is NSIS.
 allowBuilds:
   core-js-pure: false
+  electron: false
+  electron-winstaller: false
   esbuild: false
   protobufjs: false
