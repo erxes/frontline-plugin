@@ -71,6 +71,16 @@ export const useConversationReport = (tile: string) => {
   };
 };
 
+/** The tile's period and the Facebook and Instagram report over it. */
+export const useMetaReport = (tile: string) => {
+  const period = usePeriod(tile);
+
+  return {
+    period,
+    query: useQuery(orpc.reports.meta.queryOptions(live(period.range))),
+  };
+};
+
 /** The tile's period and the call report over it. */
 export const useCallReport = (tile: string) => {
   const period = usePeriod(tile);

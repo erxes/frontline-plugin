@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
+import { withOrg } from '#/db/client.ts';
+import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 
@@ -97,5 +99,75 @@ describe('integrations', () => {
     ]);
     // The teammate worked the old channel only, so the conversation left their inbox with it.
     expect((await teammate.conversations.list({})).totalCount).toBe(0);
+  });
+
+  it('reports a Facebook page’s conversations, who wrote in them, and its comments and the posts they were on', async () => {
+    const orgId = 'org-in-c';
+    const { owner, teammate, channel } = await setUp(orgId);
+    const sales = await owner.channels.create({ name: 'Sales' });
+    const start = new Date('2026-03-01T01:00:00Z');
+    const later = (hours: number) => new Date(start.getTime() + hours * 3_600_000);
+
+    await withOrg(orgId, async (tx) => {
+      const pages = await tx
+        .insert(integrations)
+        .values(
+          [channel.id, sales.id].map((channelId) => ({
+            orgId,
+            channelId,
+            kind: 'facebook',
+            name: 'Page',
+            createdBy: 'owner',
+          })),
+        )
+        .returning({ id: integrations.id, channelId: integrations.channelId });
+
+      const opened = await tx
+        .insert(conversations)
+        .values(
+          // A conversation with no external id is a direct one, not a comment thread.
+          [null, 'comment:post-1:person-1', 'comment:post-1:person-2', 'm_2'].map(
+            (externalId, i) => ({
+              orgId,
+              externalId,
+              integrationId: pages[i === 3 ? 1 : 0]?.id ?? '',
+              channelId: pages[i === 3 ? 1 : 0]?.channelId ?? '',
+              customerId: 'customer-1',
+              createdAt: start,
+            }),
+          ),
+        )
+        .returning({ id: conversations.id });
+
+      const [chat, thread, otherThread] = opened.map(({ id }) => id);
+
+      await tx.insert(messages).values([
+        { orgId, conversationId: chat ?? '', customerId: 'customer-1', createdAt: start },
+        { orgId, conversationId: chat ?? '', createdAt: later(0.1) },
+        { orgId, conversationId: chat ?? '', userId: 'teammate', createdAt: later(24) },
+        { orgId, conversationId: chat ?? '', userId: 'teammate', internal: true, createdAt: start },
+        { orgId, conversationId: thread ?? '', customerId: 'customer-1', createdAt: start },
+        { orgId, conversationId: otherThread ?? '', userId: 'teammate', createdAt: start },
+      ]);
+    });
+
+    // 1 to 3 March in Ulaanbaatar; the teammate sees only the Support channel's page.
+    const period = { from: later(-9), to: later(63), timeZone: 'Asia/Ulaanbaatar' };
+
+    expect(await teammate.reports.meta(period)).toEqual({
+      conversations: 1,
+      botConversations: 1,
+      incoming: 1,
+      staff: 1,
+      bot: 1,
+      comments: 2,
+      posts: 1,
+      days: [
+        { day: '2026-03-01', conversations: 1, messages: 2, comments: 2 },
+        { day: '2026-03-02', conversations: 0, messages: 1, comments: 0 },
+        { day: '2026-03-03', conversations: 0, messages: 0, comments: 0 },
+      ],
+    });
+    await expect(owner.reports.meta(period)).resolves.toMatchObject({ conversations: 2 });
   });
 });

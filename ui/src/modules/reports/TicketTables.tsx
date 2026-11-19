@@ -4,7 +4,7 @@ import { MemberLine } from '~/shared/Person.tsx';
 import { useTicketReport } from './queries.ts';
 import { useTicketLinks } from './ticketLinks.ts';
 import { TicketTile } from './TicketTiles.tsx';
-import { Count, MiniTable, percentText } from './Tile.tsx';
+import { Count, MiniTable, shareOf } from './Tile.tsx';
 
 /**
  * How the period's new tickets keep their SLA, per clock: met and missed in time, overdue now,
@@ -57,7 +57,7 @@ export const TicketSla = () => {
                         cell(clock, 'met'),
                         cell(clock, 'missed'),
                         cell(clock, 'overdue'),
-                        percentText(met + missed ? met / (met + missed) : null),
+                        shareOf(met, met + missed),
                       ],
                     };
                   })

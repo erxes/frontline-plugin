@@ -8,12 +8,16 @@ import { sameText } from '../secrets.ts';
 import { metaKey } from '../store.ts';
 import { knownVerifyToken, metaSecretsOf } from './metaApp.ts';
 
+/** How the external id of a comment thread starts, which the reports count apart from chats. */
+export const COMMENT_THREAD = 'comment:';
+
 /** The conversation of one person's comments on one post: `comment:<post id>:<their id>`. */
-const commentThread = (postId: string, authorId: string) => `comment:${postId}:${authorId}`;
+const commentThread = (postId: string, authorId: string) =>
+  `${COMMENT_THREAD}${postId}:${authorId}`;
 
 /** The post a comment thread hangs under, or null for a Messenger or Instagram chat. */
 export const postOfThread = (threadId: string | null) =>
-  threadId?.startsWith('comment:') ? (threadId.split(':')[1] ?? null) : null;
+  threadId?.startsWith(COMMENT_THREAD) ? (threadId.split(':')[1] ?? null) : null;
 
 const File = z.object({ url: z.string(), title: z.string(), sticker_id: z.number() }).partial();
 
