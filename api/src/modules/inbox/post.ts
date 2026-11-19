@@ -19,7 +19,7 @@ const { orgId: _orgId, providerData: _providerData, ...columns } = getTableColum
 export const SEND_DEADLINE = sql`interval '15 minutes'`;
 
 /** Whether the reply waited on its send job past `SEND_DEADLINE`. */
-export const overdue = sql`${messages.deliveryStatus} in ('queued', 'sending') and ${messages.queuedAt} < now() - ${SEND_DEADLINE}`;
+export const overdue = sql`(${messages.deliveryStatus} in ('queued', 'sending') and ${messages.queuedAt} < now() - ${SEND_DEADLINE})`;
 
 export const messageColumns = {
   ...columns,

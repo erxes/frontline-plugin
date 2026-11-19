@@ -264,6 +264,29 @@ describe('tickets', () => {
     });
   });
 
+  it('refuses a target date before the start date, on create and on a change of either date', async () => {
+    const { owner, pipeline } = await setUp('org-tk-dates');
+    const [start, before, after, later] = [5, 3, 9, 10].map((day) => new Date(2026, 10, day));
+    const plan = { pipelineId: pipeline.id, name: 'Planned', startDate: start };
+
+    const refused = { message: "The target date can't be before the start date" };
+
+    // The client in tests skips the server's wording of refused input; the code still says it.
+    await expect(owner.tickets.create({ ...plan, targetDate: before })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+
+    const { id } = await owner.tickets.create(plan);
+
+    const update = (change: { startDate?: Date; targetDate?: Date; name?: string }) =>
+      owner.tickets.update({ id, ...change });
+
+    await expect(update({ targetDate: before })).rejects.toMatchObject(refused);
+    await expect(update({ targetDate: after })).resolves.toMatchObject({ targetDate: after });
+    await expect(update({ startDate: later })).rejects.toMatchObject(refused);
+    await expect(update({ name: 'Renamed' })).resolves.toMatchObject({ startDate: start });
+  });
+
   it('lets anyone who sees a ticket follow it, keeping the others who follow', async () => {
     const { owner, teammate, pipeline, stage } = await setUp('org-tk-h');
     const { id } = await owner.tickets.create({ pipelineId: pipeline.id, name: 'Follow me' });

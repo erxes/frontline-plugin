@@ -121,6 +121,24 @@ describe('forms', () => {
     ]);
   });
 
+  it('gives country and sex fields their fixed options, whatever is sent', async () => {
+    const owner = clientAs('org-fm-fixed');
+    const channel = await owner.channels.create({ name: 'Sales' });
+    const form = await owner.forms.create({ channelId: channel.id, name: 'Signup' });
+
+    const add = (type: 'select:countries' | 'core:customer:sex') =>
+      owner.forms.fields.add({ formId: form.id, type, label: type, options: ['Mars'] });
+
+    const country = await add('select:countries');
+
+    expect(country.options).toContain('Mongolia');
+    expect(country.options).not.toContain('Mars');
+    expect(country.options.length).toBeGreaterThan(200);
+    await expect(add('core:customer:sex')).resolves.toMatchObject({
+      options: ['Male', 'Female', 'Not applicable'],
+    });
+  });
+
   it('removes only empty steps, and never the last one', async () => {
     const owner = clientAs('org-fm-e');
     const channel = await owner.channels.create({ name: 'Sales' });
