@@ -8,6 +8,7 @@ import { PLUGIN } from '~/plugin.ts';
 import { orpc } from '~/orpc.ts';
 import { useChange } from '~/shared/hooks.ts';
 import { pageOptions, type PageParam, usePaged } from '~/shared/paging.ts';
+import { integrationsQuery } from '~/shared/reference.ts';
 import { SEARCH_PAUSE_MS } from '~/shared/Pickers.tsx';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 
@@ -84,6 +85,28 @@ export const useTopicOptions = () =>
       select: (data) => data.topics.map((topic) => ({ value: topic.id, label: topic.title })),
     }),
   ).data ?? [];
+
+/** The messengers of the member's channels, which a help center's site can load. */
+export const useMessengerOptions = () => {
+  const { t } = useTranslation('frontline');
+
+  return useQuery({
+    ...integrationsQuery,
+    select: (rows) =>
+      rows.flatMap((row) =>
+        row.kind === 'messenger'
+          ? [
+              {
+                value: row.id,
+                label: row.isActive
+                  ? row.name
+                  : t('messenger-off', { defaultValue: '{{name}} (off)', name: row.name }),
+              },
+            ]
+          : [],
+      ),
+  });
+};
 
 const formsWhere = (path: string, value: string[]) =>
   JSON.stringify({ match: 'all', rules: [{ path, op: 'in', value }] });

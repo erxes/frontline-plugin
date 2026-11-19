@@ -1,0 +1,1 @@
+ALTER TABLE "frontline_help_centers" ADD COLUMN "messenger_id" text;

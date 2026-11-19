@@ -5,10 +5,14 @@ import { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
 import { forms } from '#/db/forms.ts';
 import { HELP_CENTER_DOMAIN, HELP_CENTER_KEY, helpCenters } from '#/db/helpcenter.ts';
+import { integrations } from '#/db/inbox.ts';
+import { publicKeys } from '#/db/public.ts';
 import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
 import type { Attachment } from '#/db/table.ts';
 import { fail } from '../fail.ts';
 import { urlOf } from '../forms/embed.ts';
+import { INTEGRATION_KEY } from '../inbox/insertIntegration.ts';
+import { messenger } from '../messenger/adapter.ts';
 import { keyOfOrganization, openedBy, widgetScript } from '../public.ts';
 import { countView } from '../views.ts';
 import { likeText } from '../filter.ts';
@@ -181,6 +185,29 @@ const formsOf = (orgId: string, key: string, ids: string[]) =>
       }));
   });
 
+/** The script of the help center's messenger, while it is an active messenger. */
+const messengerScriptOf = (orgId: string, id: string | null) =>
+  withOrg(orgId, async (tx) => {
+    if (!id) return null;
+
+    const [row] = await tx
+      .select({ key: publicKeys.key })
+      .from(integrations)
+      .innerJoin(
+        publicKeys,
+        and(eq(publicKeys.kind, INTEGRATION_KEY), eq(publicKeys.targetId, integrations.id)),
+      )
+      .where(
+        and(
+          eq(integrations.id, id),
+          eq(integrations.kind, messenger.kind),
+          eq(integrations.isActive, true),
+        ),
+      );
+
+    return row ? widgetScript('messenger', { key: row.key }) : null;
+  });
+
 /**
  * What a visitor sees of the help center: its look, with its images where a visitor loads them,
  * its topic's published articles and its forms.
@@ -207,6 +234,7 @@ export const siteOf = async ({ orgId, center }: Center) => {
     },
     ...(await topicOf(orgId, center.kbTopicId ?? '')),
     forms: await formsOf(orgId, key, center.formIds),
+    messengerScript: await messengerScriptOf(orgId, center.messengerId),
   };
 };
 

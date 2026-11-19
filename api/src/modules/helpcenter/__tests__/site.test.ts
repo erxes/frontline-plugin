@@ -77,4 +77,43 @@ describe("a help center's site", () => {
     ).toBe(404);
     expect((await pageAt(`${origin}/`, 'unknown.example')).status).toBe(404);
   });
+
+  it('loads the messenger it picked on every page while the messenger is on', async () => {
+    const { owner, center, article } = await publishedSite('org-hc-messenger');
+    const site = `${app.url('')}/help/${center.publicKey}`;
+    const channel = await owner.channels.create({ name: 'Support' });
+
+    const messenger = await owner.integrations.create({
+      channelId: channel.id,
+      kind: 'messenger',
+      name: 'Website',
+      config: {},
+    });
+
+    const { scriptUrl } = await owner.integrations.messenger.settings({ id: messenger.id });
+
+    await expect(
+      owner.helpCenters.update({ id: center.id, messengerId: 'no-such-messenger' }),
+    ).rejects.toThrow('Pick a messenger');
+    expect((await pageAt(site)).body).not.toContain('/widget/messenger.js');
+
+    await owner.helpCenters.update({ id: center.id, messengerId: messenger.id });
+
+    const script = `<script type="module" src="${scriptUrl}"></script>`;
+
+    expect((await pageAt(site)).body).toContain(script);
+    expect((await pageAt(`${site}/articles/${article.id}`)).body).toContain(script);
+
+    await owner.integrations.update({ id: messenger.id, isActive: false });
+
+    expect((await pageAt(site)).body).not.toContain('/widget/messenger.js');
+    expect(await owner.helpCenters.get({ id: center.id })).toMatchObject({
+      messengerId: messenger.id,
+    });
+
+    // A deleted messenger reads as none.
+    await owner.integrations.remove({ id: messenger.id });
+
+    expect(await owner.helpCenters.get({ id: center.id })).toMatchObject({ messengerId: null });
+  });
 });

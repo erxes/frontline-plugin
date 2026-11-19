@@ -232,6 +232,13 @@
       "when": 1795045315175,
       "tag": "0034_meta_apps",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1795050088296,
+      "tag": "0035_help_center_messenger",
+      "breakpoints": true
     }
   ]
 }

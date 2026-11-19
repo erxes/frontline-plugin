@@ -162,6 +162,7 @@ export const page = async (site: Site, title: string, main: Html, description?: 
         ${raw(site.headerHtml)} ${Header(site)}
         <main id="main">${main}</main>
         ${Footer(site)} ${raw(site.footerHtml)}
+        ${site.messengerScript && html`<script type="module" src="${site.messengerScript}"></script>`}
       </body>
     </html>`;
 
