@@ -1,5 +1,5 @@
 import type { PluginJobDelivery } from '@erxes/core-contract';
-import { and, eq, type SQL, sql } from 'drizzle-orm';
+import { and, eq, not, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { SEND_ATTEMPTS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
@@ -7,6 +7,7 @@ import { conversations, type DELIVERY_STATUSES, integrations, messages } from '#
 import { logger } from '#/logger.ts';
 import { AccountRefused } from '../integrations/provider.ts';
 import { ADAPTERS } from './adapters.ts';
+import { overdue } from './post.ts';
 import { signalConversations } from './shared.ts';
 
 const Payload = z.object({ messageId: z.string() });
@@ -41,15 +42,16 @@ const outgoingOf = (orgId: string, messageId: string) =>
 
 /**
  * Takes the queued reply for this attempt as `sending`, and returns what its provider stored on
- * it as of the claim, or nothing when another attempt has it. An attempt sends from this, not
- * from a read before the claim, which another attempt may have outdated since.
+ * it as of the claim, or nothing when another attempt has it or it is overdue, which a member
+ * already sees as failed. An attempt sends from this, not from a read before the claim, which
+ * another attempt may have outdated since.
  */
 const claim = (orgId: string, messageId: string) =>
   withOrg(orgId, async (tx) => {
     const [claimed] = await tx
       .update(messages)
       .set({ deliveryStatus: 'sending' })
-      .where(and(eq(messages.id, messageId), eq(messages.deliveryStatus, 'queued')))
+      .where(and(eq(messages.id, messageId), eq(messages.deliveryStatus, 'queued'), not(overdue)))
       .returning({ providerData: messages.providerData });
 
     return claimed;

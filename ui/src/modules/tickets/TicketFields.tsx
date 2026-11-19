@@ -25,6 +25,7 @@ export const TicketPlan = ({ ticket }: { ticket: Ticket }) => {
         <DatePicker
           value={ticket.startDate ?? undefined}
           onChange={(day) => edit({ startDate: dayOf(day) })}
+          maxDate={ticket.targetDate ?? undefined}
           placeholder={t('start-date', 'Start date')}
           clearable
         />
@@ -33,6 +34,7 @@ export const TicketPlan = ({ ticket }: { ticket: Ticket }) => {
         <DatePicker
           value={ticket.targetDate ?? undefined}
           onChange={(day) => edit({ targetDate: dayOf(day) })}
+          minDate={ticket.startDate ?? undefined}
           placeholder={t('target-date', 'Target date')}
           clearable
         />

@@ -3,7 +3,7 @@ import { ORPCError } from '@orpc/server';
 import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { JOBS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { conversations, integrations, messages } from '#/db/inbox.ts';
+import { conversations, type DELIVERY_STATUSES, integrations, messages } from '#/db/inbox.ts';
 import type { StoredFile } from '#/db/table.ts';
 import { ADAPTERS } from './adapters.ts';
 import { signalConversations, signalMembers, statusFrom } from './shared.ts';
@@ -11,7 +11,22 @@ import { signalConversations, signalMembers, statusFrom } from './shared.ts';
 /** The row without `org_id`, which the caller already knows, and what only adapters read. */
 const { orgId: _orgId, providerData: _providerData, ...columns } = getTableColumns(messages);
 
-export const messageColumns = columns;
+/**
+ * How long a reply may wait on its send job, longer than the job's attempts and their waits
+ * (`JOBS.send.retry`). A reply nothing sent or failed by then, such as one whose job never ran,
+ * is failed, so a member can send it again.
+ */
+export const SEND_DEADLINE = sql`interval '15 minutes'`;
+
+/** Whether the reply waited on its send job past `SEND_DEADLINE`. */
+export const overdue = sql`${messages.deliveryStatus} in ('queued', 'sending') and ${messages.queuedAt} < now() - ${SEND_DEADLINE}`;
+
+export const messageColumns = {
+  ...columns,
+  deliveryStatus: sql<
+    (typeof DELIVERY_STATUSES)[number] | null
+  >`case when ${overdue} then 'failed' else ${messages.deliveryStatus} end`,
+};
 
 /** What a member, or an automation acting as one, writes into a conversation. */
 export type Written = {

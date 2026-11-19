@@ -19,6 +19,8 @@ import { assertLinks } from './changes.ts';
 import { createdEvent, publish, snapshot } from './events.ts';
 import { checkProperties, propertyFilter } from './properties.ts';
 import {
+  DATES_OUT_OF_ORDER,
+  datesInOrder,
   firstResponseSla,
   listRows,
   nextNumbers,
@@ -255,7 +257,8 @@ const create = writesWithCore(
       tagIds: true,
       attachments: true,
     })
-    .extend({ propertiesData: CustomFieldsPatch.default({}) }),
+    .extend({ propertiesData: CustomFieldsPatch.default({}) })
+    .refine(datesInOrder, { message: DATES_OUT_OF_ORDER, path: ['targetDate'] }),
   (member, input) =>
     checkProperties(member.orgId, input.pipelineId, {}, input.propertiesData, { create: true }),
 )

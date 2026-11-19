@@ -1,7 +1,7 @@
 import { ORPCError } from '@orpc/client';
 import { IconAlertTriangle, IconPlus, IconRefresh, IconSearchOff } from '@tabler/icons-react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { Button, Empty, Kbd, useListFilterParams, useScopedHotkeys } from 'erxes-ui';
+import { Button, Empty, Kbd, useListFilterParams, usePageHotkey } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Paging } from './paging.ts';
@@ -100,7 +100,7 @@ export const CreateButton = ({
   label: string;
   onClick: () => void;
 }) => {
-  useScopedHotkeys('c', () => allowed && onClick(), 'app');
+  usePageHotkey('c', onClick, { when: () => allowed });
 
   if (!allowed) return null;
 

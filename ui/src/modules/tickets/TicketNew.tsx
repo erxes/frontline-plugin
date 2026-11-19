@@ -136,6 +136,7 @@ const PlanRows = ({ plan, onChange }: { plan: Plan; onChange: (patch: Partial<Pl
         <DatePicker
           value={plan.startDate ?? undefined}
           onChange={(day) => onChange({ startDate: dayOf(day) })}
+          maxDate={plan.targetDate ?? undefined}
           placeholder={t('start-date', 'Start date')}
           clearable
         />
@@ -144,6 +145,7 @@ const PlanRows = ({ plan, onChange }: { plan: Plan; onChange: (patch: Partial<Pl
         <DatePicker
           value={plan.targetDate ?? undefined}
           onChange={(day) => onChange({ targetDate: dayOf(day) })}
+          minDate={plan.startDate ?? undefined}
           placeholder={t('target-date', 'Target date')}
           clearable
         />
