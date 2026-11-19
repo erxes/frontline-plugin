@@ -290,15 +290,20 @@ test('the call history, a call in the panel, the queues and the phone', async ({
   await expectAccessible(page, page.getByText('You have no phone line'));
 });
 
-test("the home dashboard's tiles, and one refused", async ({ newMember }) => {
+test("the home dashboard's tiles, the Reports page, and one refused", async ({ newMember }) => {
   const agent = await newMember(['frontline.call.view', 'frontline.channel.view']);
   const stranger = await newMember(['team.view']);
   const tiles = ['Top numbers', 'Call summary', 'Ticket summary', 'Conversations over time'];
 
   await addTiles(agent.page, tiles);
   await expectAccessible(agent.page, tileOf(agent.page, 'Call summary').getByText('Service level'));
+  await agent.page.goto('/frontline/reports');
+  await expectAccessible(agent.page, tileOf(agent.page, 'Call summary').getByText('Service level'));
   await addTiles(stranger.page, ['Call summary']);
   await expectAccessible(stranger.page, tileOf(stranger.page, 'Call summary').getByRole('alert'));
+  // The Reports page refuses them tile by tile, as the dashboard does.
+  await stranger.page.goto('/frontline/reports');
+  await expect(tileOf(stranger.page, 'Call summary').getByRole('alert')).toBeVisible();
 });
 
 const refused = [INBOX, '/frontline/tickets', FORMS, SURVEYS, KB, HELP_CENTERS, HISTORY];
