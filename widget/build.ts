@@ -19,18 +19,22 @@ type Modules = { getModuleInfo: (id: string) => { importers: readonly string[] }
  * The chunk a module goes in: packages, Vite's helpers and `src/shared` in `shared`, an embed's
  * own files in a chunk named after it. An embed's subfolder loads lazily, in a chunk of its own.
  * A file from another workspace package, such as the API's form logic, goes with the one embed
- * that imports it, or in `shared` when several do.
+ * that imports it, or in `shared` when several do. One an embed's chunk and a lazy subfolder both
+ * import, such as the form logic the form and the tickets tab share, gets a chunk named after its
+ * file, so the embeds that never load it don't carry it; it costs the embed one more request.
  */
 const chunkOf = (id: string, modules: Modules): string | null => {
   if (/^\0|\/node_modules\/|\/widget\/src\/shared\//.test(id)) return 'shared';
 
   if (id.includes('/widget/src/')) return /\/widget\/src\/(\w+)\/[^/]+$/.exec(id)?.[1] ?? null;
 
-  const importers = new Set(
-    modules.getModuleInfo(id)?.importers.map((importer) => chunkOf(importer, modules)),
-  );
+  const importers = modules.getModuleInfo(id)?.importers ?? [];
+  const lazy = importers.some((importer) => /\/widget\/src\/\w+\/\w+\//.test(importer));
+  const chunks = new Set(importers.map((importer) => chunkOf(importer, modules)));
 
-  return importers.size === 1 ? ([...importers][0] ?? null) : 'shared';
+  if (lazy && [...chunks].some(Boolean)) return /([\w-]+)\.tsx?$/.exec(id)?.[1] ?? null;
+
+  return chunks.size === 1 ? ([...chunks][0] ?? null) : 'shared';
 };
 
 await build({

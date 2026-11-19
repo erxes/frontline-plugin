@@ -2,7 +2,7 @@ import { RE2JS } from 're2js';
 import { z } from 'zod';
 import type { FieldValidator, formFields } from '#/db/forms.ts';
 import { Attachment } from '#/db/table.ts';
-import { isShown } from './logic.ts';
+import { shownFields, unanswered } from './logic.ts';
 
 /** What a visitor may send for one field: text, a number, a tick, picks or files. */
 export const Answer = z.union([
@@ -84,9 +84,6 @@ const validatorError = (validator: Field['validator'], text: string) => {
     : (validator.message ?? 'The answer does not match the format');
 };
 
-const empty = (value: z.infer<typeof Answer> | undefined) =>
-  value === undefined || value === '' || (Array.isArray(value) && value.length === 0);
-
 /** A text or number answer as text; any other answer as none. */
 const plain = (value: z.infer<typeof Answer>) =>
   typeof value === 'string' || typeof value === 'number' ? String(value) : '';
@@ -135,12 +132,10 @@ export const checkAnswers = (fields: Field[], answers: Record<string, z.infer<ty
   const errors: AnswerError[] = [];
   const kept: [string, z.infer<typeof Answer>][] = [];
 
-  for (const field of fields) {
+  for (const field of shownFields(fields, answers)) {
     const value = answers[field.id];
 
-    if (!isShown(field, answers)) continue;
-
-    if (value === undefined || empty(value)) {
+    if (value === undefined || unanswered(value)) {
       if (field.isRequired) errors.push({ fieldId: field.id, message: 'This field is required' });
       continue;
     }

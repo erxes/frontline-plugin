@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'preact/hooks';
+import { shownFields, unanswered } from '@frontline/api/logic';
+import { type Dispatch, type StateUpdater, useEffect, useState } from 'preact/hooks';
 import type { MessengerApi, NewTicket, Ticket, TicketForms } from '../api.ts';
 import type { Uploaded } from '../../shared/http.ts';
 import { AttachButton, FileChips, useUploads } from '../../shared/uploads.tsx';
@@ -69,6 +70,51 @@ type Draft = Omit<NewTicket, 'files'>;
 const drafts = new Map<string, { draft: Draft; files: Uploaded[] }>();
 
 /**
+ * The draft topic's properties that their Logic shows, their values to send, setting one, and the
+ * shown required ones still empty once the visitor tried to send in this topic. A box the visitor
+ * never ticked is unticked, as core keeps it.
+ */
+const useProperties = (
+  forms: TicketForms,
+  draft: Draft,
+  setDraft: Dispatch<StateUpdater<Draft>>,
+) => {
+  const [refusedIn, setRefusedIn] = useState<string | null>(null);
+  const properties = forms.pipelines.find(({ id }) => id === draft.pipelineId)?.properties ?? [];
+
+  const values = Object.fromEntries(
+    properties.map(({ id, type }) => [
+      id,
+      draft.propertiesData[id] ?? (type === 'boolean' ? false : null),
+    ]),
+  );
+
+  const shown = shownFields(properties, values);
+
+  const sent = Object.fromEntries(
+    shown.flatMap(({ id }) => (unanswered(values[id]) ? [] : [[id, values[id]]])),
+  );
+
+  const empty = shown.filter(({ id, isRequired }) => isRequired && !(id in sent));
+  const missing = refusedIn === draft.pipelineId ? empty.map(({ id }) => id) : [];
+
+  const answer = (id: string, value: unknown) =>
+    setDraft((current) => ({
+      ...current,
+      propertiesData: { ...current.propertiesData, [id]: value },
+    }));
+
+  /** Whether each shown required property has a value, marking those that don't. */
+  const answered = () => {
+    setRefusedIn(draft.pipelineId);
+
+    return empty.length === 0;
+  };
+
+  return { shown, sent, missing, answer, answered };
+};
+
+/**
  * What the visitor has filled in so far, kept when they leave the form or close the panel, and
  * sending it with their uploads' receipts.
  */
@@ -91,29 +137,28 @@ const useDraft = (api: MessengerApi, token: string, forms: TicketForms) => {
   const [saving, setSaving] = useState(false);
   const { messageOf } = useText();
   const uploads = useUploads((file) => api.upload(token, file), kept?.files);
-  const form = forms.pipelines.find((pipeline) => pipeline.id === draft.pipelineId);
+  const properties = useProperties(forms, draft, setDraft);
   const patch = (change: Partial<Draft>) => setDraft((current) => ({ ...current, ...change }));
 
   useEffect(() => {
     drafts.set(token, { draft, files: uploads.files });
   }, [token, draft, uploads.files]);
 
-  /** Files the draft; a property of another topic, or one left empty, stays out. */
+  /**
+   * Files the draft once each shown required property has a value; a property of another topic,
+   * one its Logic hides, or one left empty, stays out.
+   */
   const send = async () => {
+    if (!properties.answered()) return null;
+
     setSaving(true);
     setError(null);
 
     try {
-      const shown = new Set(form?.properties.map((property) => property.id));
-
       const filed = await api.fileTicket(token, {
         ...draft,
         files: uploads.files.map((file) => file.receipt),
-        propertiesData: Object.fromEntries(
-          Object.entries(draft.propertiesData).filter(
-            ([id, value]) => shown.has(id) && value !== null,
-          ),
-        ),
+        propertiesData: properties.sent,
       });
 
       drafts.delete(token);
@@ -128,7 +173,7 @@ const useDraft = (api: MessengerApi, token: string, forms: TicketForms) => {
     }
   };
 
-  return { draft, patch, form, uploads, error, saving, send };
+  return { draft, patch, properties, uploads, error, saving, send };
 };
 
 /**
@@ -146,7 +191,7 @@ export const TicketForm = ({
   forms: TicketForms;
   onFiled: (ticket: Ticket) => void;
 }) => {
-  const { draft, patch, form, uploads, error, saving, send } = useDraft(api, token, forms);
+  const { draft, patch, properties, uploads, error, saving, send } = useDraft(api, token, forms);
   const { t } = useText();
 
   const submit = async () => {
@@ -186,14 +231,13 @@ export const TicketForm = ({
           onInput={(event) => patch({ description: event.currentTarget.value })}
         />
       </label>
-      {form?.properties.map((property) => (
+      {properties.shown.map((property) => (
         <PropertyField
           key={property.id}
           property={property}
           value={draft.propertiesData[property.id] ?? null}
-          onChange={(value) =>
-            patch({ propertiesData: { ...draft.propertiesData, [property.id]: value } })
-          }
+          missing={properties.missing.includes(property.id)}
+          onChange={(value) => properties.answer(property.id, value)}
         />
       ))}
       {forms.tags.length > 0 && (

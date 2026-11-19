@@ -1,4 +1,4 @@
-import { isShown } from '@frontline/api/logic';
+import { shownFields } from '@frontline/api/logic';
 import { Button, Checkbox, cn, Input, Label, RadioGroup, Select, Switch, Textarea } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -162,7 +162,7 @@ export const FormPreview = ({ form, fields }: { form: Form; fields: FormField[] 
   const [answers, setAnswers] = useState<Answers>({});
   const [step, setStep] = useState(1);
   const steps = Math.max(form.steps.length, 1);
-  const shown = fields.filter((field) => field.pageNumber === step && isShown(field, answers));
+  const shown = shownFields(fields, answers).filter((field) => field.pageNumber === step);
 
   return (
     <section

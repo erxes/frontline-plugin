@@ -1,4 +1,4 @@
-import { CustomFieldsPatch, groupApplies } from '@erxes/core-contract';
+import { CustomFieldsPatch, type FieldLogic, groupApplies } from '@erxes/core-contract';
 import { ORPCError } from '@orpc/server';
 import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
@@ -7,6 +7,7 @@ import { type Tx, withOrg } from '#/db/client.ts';
 import { tags } from '#/db/tags.ts';
 import { pipelineStatuses, pipelines, tickets } from '#/db/tickets.ts';
 import { logger } from '#/logger.ts';
+import type { LogicOperator } from '../forms/logic.ts';
 import { checkProperties } from '../tickets/properties.ts';
 import { fileTicket } from '../tickets/tickets.ts';
 import { attachmentsOf, type Visitor } from './session.ts';
@@ -52,10 +53,31 @@ const WIDGET_TYPES = {
 
 const isWidgetType = (type: string): type is keyof typeof WIDGET_TYPES => type in WIDGET_TYPES;
 
+/** Each of core's Logic operators, as the form embed's rules (`../forms/logic.ts`) name it. */
+const OPERATORS = {
+  is: 'is',
+  isNot: 'isNot',
+  contains: 'contains',
+  greaterThan: 'greaterThan',
+  lessThan: 'lessThan',
+  isEmpty: 'isUnknown',
+  hasValue: 'hasAnyValue',
+} as const satisfies Record<FieldLogic['rules'][number]['operator'], LogicOperator>;
+
+/** A core field's Logic as a form field's, so the widget shows both with one `isShown`. */
+const logicOf = (logic: FieldLogic | null) => ({
+  logicAction: logic?.action ?? null,
+  logics: (logic?.rules ?? []).map(({ fieldId, operator, value }) => ({
+    fieldId,
+    operator: OPERATORS[operator],
+    value: value ?? undefined,
+  })),
+});
+
 /**
  * The ticket fields core shows on a new ticket, each with the groups that say which pipelines
- * show it. The widget doesn't follow their Logic, which would outgrow its size budget.
- * A visitor can still file a ticket while core can't answer, with no fields to fill in.
+ * show it, and its Required and Logic rules. A visitor can still file a ticket while core can't
+ * answer, with no fields to fill in.
  */
 const ticketFields = async (orgId: string) => {
   const client = core.forOrg(orgId);
@@ -68,20 +90,21 @@ const ticketFields = async (orgId: string) => {
 
     const appliesTo = new Map(groups.data.map((group) => [group.id, group.appliesTo]));
 
-    return fields.data.flatMap(
-      ({ id, label, description, type, options, isVisible, isVisibleToCreate, groupId }) =>
-        isVisible && isVisibleToCreate && isWidgetType(type)
-          ? [
-              {
-                id,
-                label,
-                description,
-                type: WIDGET_TYPES[type],
-                options,
-                appliesTo: appliesTo.get(groupId ?? '') ?? {},
-              },
-            ]
-          : [],
+    return fields.data.flatMap((field) =>
+      field.isVisible && field.isVisibleToCreate && isWidgetType(field.type)
+        ? [
+            {
+              id: field.id,
+              label: field.label,
+              description: field.description,
+              type: WIDGET_TYPES[field.type],
+              options: field.options,
+              isRequired: field.isRequired,
+              ...logicOf(field.logic),
+              appliesTo: appliesTo.get(field.groupId ?? '') ?? {},
+            },
+          ]
+        : [],
     );
   } catch (error) {
     logger.warn({ err: error, orgId }, 'ticket fields unavailable for the messenger');
