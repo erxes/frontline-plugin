@@ -344,9 +344,9 @@ export const graphApi = (call: ProviderCall) => {
   return { success: true };
 };
 
-/** The signature Meta puts on a delivery, with the test's app secret. */
-export const signedByMeta = (raw: string) => ({
-  'x-hub-signature-256': `sha256=${createHmac('sha256', 'test-meta-app-secret').update(raw).digest('hex')}`,
+/** The signature Meta puts on a delivery, with the install's app secret unless `secret` names another. */
+export const signedByMeta = (raw: string, secret = 'test-meta-app-secret') => ({
+  'x-hub-signature-256': `sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`,
 });
 
 const Hook = z.object({ url: z.string(), secret_token: z.string() });

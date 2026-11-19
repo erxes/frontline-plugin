@@ -225,6 +225,13 @@
       "when": 1795043338325,
       "tag": "0033_newest_first_indexes",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1795045315175,
+      "tag": "0034_meta_apps",
+      "breakpoints": true
     }
   ]
 }

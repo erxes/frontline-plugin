@@ -22,6 +22,7 @@ import { integrationProcedures } from '#/modules/inbox/integrations.ts';
 import { accountProcedures } from '#/modules/integrations/accounts.ts';
 import { discordProcedures } from '#/modules/integrations/providers/discord.ts';
 import { mailProcedures } from '#/modules/integrations/providers/mailConnect.ts';
+import { metaAppProcedures } from '#/modules/integrations/providers/metaApp.ts';
 import { metaBotProcedures } from '#/modules/integrations/providers/metaBots.ts';
 import { metaProcedures } from '#/modules/integrations/providers/metaLogin.ts';
 import { metaPostProcedures } from '#/modules/integrations/providers/metaPosts.ts';
@@ -78,7 +79,12 @@ export const router = {
     ...integrationProcedures,
     messenger: messengerProcedures,
     accounts: accountProcedures,
-    meta: { ...metaProcedures, posts: metaPostProcedures, bots: metaBotProcedures },
+    meta: {
+      ...metaProcedures,
+      app: metaAppProcedures,
+      posts: metaPostProcedures,
+      bots: metaBotProcedures,
+    },
     telegram: telegramProcedures,
     discord: discordProcedures,
     mail: mailProcedures,

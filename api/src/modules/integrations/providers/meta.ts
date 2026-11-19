@@ -15,6 +15,7 @@ import {
   type OutboundReaction,
   type ProviderName,
 } from '../provider.ts';
+import { metaAppOf } from './metaApp.ts';
 import { routeThroughRelay, unrouteFromRelay } from './metaRelay.ts';
 import { postOfThread } from './metaWebhook.ts';
 
@@ -301,16 +302,19 @@ export const subscribeToPage = (pageId: string, pageToken: string) =>
 
 /**
  * Repair, as the old plugin's did for a page or account whose events stopped: the app subscribes
- * to its page again, and meta-relay, when set, routes it here again.
+ * to its page again, and meta-relay, when set, routes it here again. An organisation's own app
+ * posts here directly, so the relay stays out of it.
  */
 const resubscribe = async (
   provider: 'facebook' | 'instagram',
   { row, secret }: MetaAccount,
   pageId: string,
 ) => {
+  const app = await metaAppOf(row.orgId);
+
   await Promise.all([
     subscribeToPage(pageId, secret.pageToken),
-    routeThroughRelay(provider, row.externalId),
+    app?.own ? undefined : routeThroughRelay(provider, row.externalId),
   ]);
 };
 

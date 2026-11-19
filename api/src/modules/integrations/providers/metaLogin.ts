@@ -8,6 +8,7 @@ import { readToken, signToken } from '../../tokens.ts';
 import { inOrder } from '../provider.ts';
 import { Into, intoChannel, metaKey, saveAccount } from '../store.ts';
 import { GRAPH_VERSION, graph, subscribeToPage } from './meta.ts';
+import { type MetaApp, metaAppIn, metaAppOf, metaCallbackUrl } from './metaApp.ts';
 import { routeThroughRelay } from './metaRelay.ts';
 
 const STATE = 'meta login';
@@ -32,8 +33,6 @@ const SCOPES = [
 
 const State = z.object({ orgId: z.string(), userId: z.string(), ...Into });
 
-const callbackUrl = () => `${config.publicUrl}/api/public/webhooks/meta/callback`;
-
 /** Where Meta's login returns the member: the Facebook and Instagram settings in web. */
 export const SETTINGS_URL = `${config.coreUiOrigin}/frontline/settings/integrations`;
 
@@ -47,15 +46,18 @@ const loginUrl = writes(PERMISSIONS.integrationManage)
   .input(z.object(Into).optional())
   .output(z.object({ url: z.string() }))
   .handler(async ({ input, context: { tx, member } }) => {
-    if (!config.meta.appId || !config.meta.appSecret)
+    const app = await metaAppIn(tx, member.orgId);
+
+    if (!app)
       throw new ORPCError('PRECONDITION_FAILED', {
-        message: 'Set META_APP_ID and META_APP_SECRET to connect Facebook and Instagram',
+        message:
+          'Set your Meta app in Settings › Integrations › Meta to connect Facebook and Instagram',
       });
 
     const url = new URL(`https://www.facebook.com/${GRAPH_VERSION}/dialog/oauth`);
 
-    url.searchParams.set('client_id', config.meta.appId);
-    url.searchParams.set('redirect_uri', callbackUrl());
+    url.searchParams.set('client_id', app.appId);
+    url.searchParams.set('redirect_uri', metaCallbackUrl());
     url.searchParams.set('scope', SCOPES.join(','));
     url.searchParams.set('response_type', 'code');
     url.searchParams.set(
@@ -92,13 +94,10 @@ const Pages = z.object({
 });
 
 /** A long-lived user token from the login's code: page tokens made from it don't expire. */
-const userTokenOf = async (code: string) => {
-  const appId = config.meta.appId ?? '';
-  const appSecret = config.meta.appSecret ?? '';
-
+const userTokenOf = async (code: string, { appId, appSecret }: MetaApp) => {
   const short = Token.parse(
     await graph('oauth/access_token', null, {
-      query: { client_id: appId, client_secret: appSecret, redirect_uri: callbackUrl(), code },
+      query: { client_id: appId, client_secret: appSecret, redirect_uri: metaCallbackUrl(), code },
     }),
   );
 
@@ -125,8 +124,12 @@ export const connectMetaPages = async (code: string, stateToken: string) => {
 
   if (!state) throw new ORPCError('UNAUTHORIZED', { message: 'The login expired: connect again' });
 
+  const app = await metaAppOf(state.orgId);
+
+  if (!app) throw new ORPCError('PRECONDITION_FAILED', { message: 'The Meta app was removed' });
+
   const pages = Pages.parse(
-    await graph('me/accounts', await userTokenOf(code), {
+    await graph('me/accounts', await userTokenOf(code, app), {
       query: { fields: 'id,name,access_token,instagram_business_account{id,username}' },
     }),
   ).data;
@@ -159,10 +162,13 @@ export const connectMetaPages = async (code: string, stateToken: string) => {
     ];
   });
 
-  // Meta and meta-relay first, so a refusal saves nothing and the member sees why.
+  // Meta and meta-relay first, so a refusal saves nothing and the member sees why. The relay
+  // forwards the install's app only; an organisation's own app posts here directly.
   await Promise.all([
     ...pages.map((page) => subscribeToPage(page.id, page.access_token)),
-    ...accounts.map((account) => routeThroughRelay(account.provider, account.externalId)),
+    ...(app.own
+      ? []
+      : accounts.map((account) => routeThroughRelay(account.provider, account.externalId))),
   ]);
 
   await withOrg(state.orgId, (tx) =>
