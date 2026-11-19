@@ -1,11 +1,11 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, count, eq, getTableColumns, ilike } from 'drizzle-orm';
+import { and, count, eq, exists, getTableColumns, ilike, or } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { CALL_DIRECTIONS, CALL_STATUSES, callQueues, calls } from '#/db/calls.ts';
+import { CALL_DIRECTIONS, CALL_STATUSES, callOperators, callQueues, calls } from '#/db/calls.ts';
 import { conversations } from '#/db/inbox.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { channelMembers } from '#/db/schema.ts';
@@ -95,6 +95,36 @@ const list = reads(PERMISSIONS.callView)
 
     return { calls: items, nextCursor, totalCount };
   });
+
+/**
+ * Whether a call with this customer is the caller's to know of: one of their channels', one they
+ * answered, or one on their extension, as the softphone's current call is.
+ */
+export const hasCallWith = async (tx: Tx, member: PluginMember, customerId: string) => {
+  const channels = seenBy(member);
+
+  const onTheirPhone = exists(
+    tx
+      .select({ id: callOperators.id })
+      .from(callOperators)
+      .where(
+        and(
+          eq(callOperators.userId, member.userId),
+          eq(callOperators.accountId, calls.accountId),
+          eq(callOperators.extension, calls.extension),
+        ),
+      ),
+  );
+
+  // No channel condition means the caller manages every channel.
+  const theirs = channels && or(channels, eq(calls.answeredBy, member.userId), onTheirPhone);
+
+  const [row] = await callRows(tx, member)
+    .where(and(eq(calls.customerId, customerId), theirs))
+    .limit(1);
+
+  return Boolean(row);
+};
 
 const callById = async (tx: Tx, member: PluginMember, id: string) => {
   const [row] = await callRows(tx, member).where(and(eq(calls.id, id), seenBy(member)));

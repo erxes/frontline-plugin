@@ -2,7 +2,7 @@ import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, desc, eq, inArray, isNotNull, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
-import { PERMISSIONS } from '#/core.ts';
+import { core, PERMISSIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { callOperators, calls } from '#/db/calls.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
@@ -10,6 +10,7 @@ import { reads, readsWithCore, writesWithCore } from '#/orpc.ts';
 import { call, pbxOf } from '../integrations/providers/call/call.ts';
 import { pbxAction, pbxFailed } from '../integrations/providers/call/pbx.ts';
 import { openSecret } from '../integrations/secrets.ts';
+import { hasCallWith } from './calls.ts';
 
 /**
  * The softphone core mounts on every page (`floatingWidget`): the member's SIP lines, the
@@ -217,4 +218,37 @@ const current = reads(PERMISSIONS.callView)
     return found ?? null;
   });
 
-export const phoneProcedures = { lines, extensions, transfer, current };
+/**
+ * Core's name for the customer, or null when it has none with a letter in it: a caller core
+ * first hears of is named by their number. Null too for a customer core no longer has.
+ */
+const customerName = async (member: PluginMember, { customerId }: { customerId: string }) => {
+  const customer = await core
+    .forOrg(member.orgId)
+    .customers.get({ id: customerId })
+    .catch((error: unknown) => {
+      if (error instanceof ORPCError && error.code === 'NOT_FOUND') return null;
+
+      throw error;
+    });
+
+  const name = [customer?.firstName, customer?.lastName].filter(Boolean).join(' ').trim();
+
+  return /\p{L}/u.test(name) ? name : null;
+};
+
+/** Who is on a call, by name, for a phone that shows only the number: a call the caller sees. */
+const caller = readsWithCore(
+  PERMISSIONS.callView,
+  z.object({ customerId: z.string() }),
+  customerName,
+)
+  .output(z.object({ name: z.string().nullable() }))
+  .handler(async ({ input, context: { tx, member, fromCore } }) => {
+    if (!(await hasCallWith(tx, member, input.customerId)))
+      throw new ORPCError('NOT_FOUND', { message: 'No call of yours is with this customer' });
+
+    return { name: fromCore };
+  });
+
+export const phoneProcedures = { lines, extensions, transfer, current, caller };

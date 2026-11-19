@@ -263,6 +263,13 @@ describe('calls through a PBX', () => {
     const current = await saraa.calls.phone.current({ accountId: account.id });
 
     expect(current).toMatchObject({ customerPhone: '88001122' });
+    // The phone shows the caller by core's name; one core no longer has stays a number.
+    expect(await saraa.calls.phone.caller({ customerId: current?.customerId ?? '' })).toEqual({
+      name: 'Dulam Dorj',
+    });
+    await expect(
+      saraa.calls.phone.caller({ customerId: 'customer-of-no-call' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     expect(
       (await owner.calls.get({ conversationId: current?.conversationId ?? '' })).answeredBy,
     ).toBe('user-saraa');

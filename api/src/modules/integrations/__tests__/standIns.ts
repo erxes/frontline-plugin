@@ -1,4 +1,5 @@
 import type * as Sdk from '@erxes/plugin-sdk';
+import { ORPCError } from '@orpc/server';
 import type * as CoreModule from '#/core.ts';
 
 /**
@@ -44,6 +45,13 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
             id: `customer-${input.primaryEmail ?? input.primaryPhone ?? 'without-contact'}`,
           },
         }),
+        // Core names the caller of 88001122 and has forgotten every other customer.
+        get: async ({ id }: { id: string }) => {
+          if (id !== 'customer-88001122')
+            throw new ORPCError('NOT_FOUND', { message: 'No such customer' });
+
+          return { id, firstName: 'Dulam', lastName: 'Dorj' };
+        },
         // Every search finds Saraa, with her two addresses.
         list: async () => ({
           data: [
