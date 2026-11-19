@@ -21,6 +21,10 @@ const FORMS = '/frontline/forms';
 /** What the public address gives a visitor: the fields, by id. */
 const Shown = z.object({ fields: z.array(z.object({ id: z.string(), label: z.string() })) });
 
+/** Sends `answers` to a form's public address `url`, as its widget does, and gives the status. */
+const answer = async (request: APIRequestContext, url: string, answers: Record<string, unknown>) =>
+  (await request.post(url, { data: { answers } })).status();
+
 /** Opens `select` and picks `option` in it. */
 const pick = async (page: Page, select: Locator, option: string) => {
   await select.click();
@@ -127,14 +131,8 @@ const sendAsVisitor = async (page: Page, request: APIRequestContext, name: strin
   const idOf = (label: string) => fields.find((field) => field.label === label)?.id ?? '';
 
   expect(shown.status()).toBe(200);
-  expect(
-    (
-      await request.post(url, { data: { answers: { [idOf('Plan')]: 'Free', [idOf('Seats')]: 9 } } })
-    ).status(),
-  ).toBe(201);
-  expect(
-    (await request.post(url, { data: { answers: { [idOf('Plan')]: 'Gold' } } })).status(),
-  ).toBe(422);
+  expect(await answer(request, url, { [idOf('Plan')]: 'Free', [idOf('Seats')]: 9 })).toBe(201);
+  expect(await answer(request, url, { [idOf('Plan')]: 'Gold' })).toBe(422);
 };
 
 test('an admin builds a form and a visitor sends it from a website and its address', async ({
@@ -203,11 +201,8 @@ test('an admin narrows, corrects and deletes the answers a form got', async ({
     Id,
   );
 
-  const send = async (answers: Record<string, unknown>) =>
-    expect((await request.post(url, { data: { answers } })).status()).toBe(201);
-
-  await send({ [plan.id]: 'Team', [seats.id]: 5 });
-  await send({ [plan.id]: 'Free', [seats.id]: 9 });
+  expect(await answer(request, url, { [plan.id]: 'Team', [seats.id]: 5 })).toBe(201);
+  expect(await answer(request, url, { [plan.id]: 'Free', [seats.id]: 9 })).toBe(201);
 
   // The form's panel links to its submissions: a column per field, and a filter per field.
   await page.goto(recordPath(FORMS, 'frontline:form', form.id));
@@ -244,7 +239,7 @@ test('an admin narrows, corrects and deletes the answers a form got', async ({
   await expect(team).toBeHidden();
 });
 
-test('the builder previews a phone and drags fields by keyboard', async ({
+test('the builder previews a phone and the thank-you screen, and drags fields by keyboard', async ({
   page,
   api,
   request,
@@ -264,6 +259,14 @@ test('the builder previews a phone and drags fields by keyboard', async ({
   await preview.getByLabel('Seats').fill('5');
   await mobile.click();
   await expect(mobile).toHaveAttribute('aria-pressed', 'true');
+  await expect(preview.getByLabel('Seats')).toHaveValue('5');
+
+  // It shows what a visitor reads after sending, and the form again with its answers.
+  const screens = page.getByRole('group', { name: 'Screen' });
+
+  await screens.getByRole('button', { name: 'Thank you' }).click();
+  await expect(preview.getByRole('heading', { name: 'Thank you' })).toBeVisible();
+  await screens.getByRole('button', { name: 'Form' }).click();
   await expect(preview.getByLabel('Seats')).toHaveValue('5');
 
   // The keyboard drags Seats, its settings open, above Company and back (#174).
