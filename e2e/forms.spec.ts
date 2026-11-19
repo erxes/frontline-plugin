@@ -55,7 +55,7 @@ const newForm = async (page: Page, channel: string, name: string) => {
 /** Adds a field of `type` to the first step and names it `label`. */
 const addField = async (page: Page, type: string, label: string) => {
   await page.getByRole('button', { name: 'Add field' }).click();
-  await page.getByRole('option', { name: type, exact: true }).click();
+  await page.getByRole('menuitem', { name: type, exact: true }).click();
   await retype(page, page.getByRole('button', { name: type, exact: true }), 'Label', label);
   await expect(page.getByRole('button', { name: label, exact: true })).toBeVisible();
 };

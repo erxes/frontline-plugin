@@ -2,17 +2,16 @@ import { DndContext, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { IconForms, IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Button, PageContainer, ScrollArea, Skeleton, TextField } from 'erxes-ui';
+import { Button, DropdownMenu, PageContainer, ScrollArea, Skeleton, TextField } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { DevicePreview } from '~/shared/DevicePreview.tsx';
 import { AppHeader } from '~/shared/Header.tsx';
 import { ListError } from '~/shared/List.tsx';
-import { ActionsMenu } from '~/shared/Records.tsx';
 import { FieldEditor } from './FieldEditor.tsx';
 import { stepZone, useFieldDrag } from './fieldDrag.ts';
-import { FIELD_ICONS, FIELD_TYPES, useFieldTypeNames } from './fieldTypes.ts';
+import { CUSTOMER_TYPES, FIELD_ICONS, INPUT_TYPES, useFieldTypeNames } from './fieldTypes.ts';
 import { FormScreens } from './FormScreens.tsx';
 import {
   FORMS_PATH,
@@ -40,31 +39,53 @@ export const FormHeader = ({ form, label }: { form?: Form; label: string }) => {
   );
 };
 
-/** A menu of field types; picking one adds that field at the end of the step. */
+/**
+ * A menu of every field type at once, inputs beside the customer fields they fill; picking one
+ * adds that field at the end of the step.
+ */
 const AddField = ({ formId, pageNumber }: { formId: string; pageNumber: number }) => {
   const { t } = useTranslation('frontline');
-  const types = useFieldTypeNames();
+  const names = useFieldTypeNames();
   const add = useMutation(orpc.forms.fields.add.mutationOptions(useFormChange()));
 
-  return (
-    <ActionsMenu
-      trigger={
-        <Button variant="secondary" className="self-start">
-          <IconPlus />
-          {t('form-add-field', 'Add field')}
-        </Button>
-      }
-      actions={FIELD_TYPES.map((type) => {
-        const TypeIcon = FIELD_ICONS[type];
+  const groups = [
+    { label: t('form-field-inputs', 'Inputs'), types: INPUT_TYPES },
+    { label: t('form-field-customer', 'Customer fields'), types: CUSTOMER_TYPES },
+  ];
 
-        return {
-          value: type,
-          icon: <TypeIcon />,
-          label: types[type],
-          onSelect: () => add.mutate({ formId, type, label: types[type], pageNumber }),
-        };
-      })}
-    />
+  return (
+    <DropdownMenu>
+      <DropdownMenu.Trigger
+        render={
+          <Button variant="secondary" className="self-start">
+            <IconPlus />
+            {t('form-add-field', 'Add field')}
+          </Button>
+        }
+      />
+      <DropdownMenu.Content align="start" className="w-auto">
+        <div className="grid grid-cols-2 gap-x-1">
+          {groups.map((group) => (
+            <DropdownMenu.Group key={group.label} aria-label={group.label}>
+              <DropdownMenu.Label>{group.label}</DropdownMenu.Label>
+              {group.types.map((type) => {
+                const TypeIcon = FIELD_ICONS[type];
+
+                return (
+                  <DropdownMenu.Item
+                    key={type}
+                    onClick={() => add.mutate({ formId, type, label: names[type], pageNumber })}
+                  >
+                    <TypeIcon />
+                    {names[type]}
+                  </DropdownMenu.Item>
+                );
+              })}
+            </DropdownMenu.Group>
+          ))}
+        </div>
+      </DropdownMenu.Content>
+    </DropdownMenu>
   );
 };
 
@@ -166,9 +187,9 @@ const Builder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
   const { layout, context } = useFieldDrag(form.id, fields, Math.max(form.steps.length, 1));
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:flex">
+    <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:grid-cols-5">
       <fieldset disabled={!form.canManage} className="contents">
-        <div className="flex min-w-0 flex-1 flex-col gap-4">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-3">
           <DndContext {...context}>
             {layout.map((ids, index) => (
               <StepCard
@@ -196,7 +217,7 @@ const Builder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
           )}
         </div>
       </fieldset>
-      <div className="min-w-0 flex-1 lg:sticky lg:top-0 lg:self-start">
+      <div className="min-w-0 lg:col-span-2 lg:sticky lg:top-0 lg:self-start">
         <DevicePreview>
           <FormScreens form={form} fields={fields} />
         </DevicePreview>
@@ -226,9 +247,9 @@ export const FormBuilderPage = () => {
         ) : form.data && fields.data ? (
           <Builder form={form.data} fields={fields.data} />
         ) : (
-          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:flex">
-            <Skeleton className="h-80 flex-1" />
-            <Skeleton className="h-80 flex-1" />
+          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:grid-cols-5">
+            <Skeleton className="h-80 lg:col-span-3" />
+            <Skeleton className="h-80 lg:col-span-2" />
           </div>
         )}
       </ScrollArea>
