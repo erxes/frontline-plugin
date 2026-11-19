@@ -53,7 +53,7 @@ const counts = reads(PERMISSIONS.inboxView)
       })
       .from(conversations)
       .leftJoin(channelMembers, membership(member, conversations.channelId))
-      .where(and(seenBy(member), unread));
+      .where(and(seenBy(member, conversations.channelId), unread));
 
     const rows = await tx
       .select({

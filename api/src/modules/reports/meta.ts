@@ -63,7 +63,7 @@ export const metaReport = reads(PERMISSIONS.inboxView)
       .leftJoin(channelMembers, membership(member, conversations.channelId))
       .where(
         and(
-          seenBy(member),
+          seenBy(member, conversations.channelId),
           inChannel(range),
           inArray(integrations.kind, ['facebook', 'instagram']),
         ),

@@ -203,7 +203,13 @@ export const callReport = reads(PERMISSIONS.callView)
         .from(calls)
         .innerJoin(conversations, eq(conversations.id, calls.conversationId))
         .leftJoin(channelMembers, membership(member, conversations.channelId))
-        .where(and(seenBy(member), inChannel(range), within(calls.startedAt, range))),
+        .where(
+          and(
+            seenBy(member, conversations.channelId),
+            inChannel(range),
+            within(calls.startedAt, range),
+          ),
+        ),
     );
 
     const [totals] = await tx

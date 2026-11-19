@@ -5,7 +5,7 @@ import { withOrg } from '#/db/client.ts';
 import { channelMembers, channels } from '#/db/schema.ts';
 import { tags } from '#/db/tags.ts';
 import { pipelines, pipelineStatuses, PRIORITY_NAMES, tickets } from '#/db/tickets.ts';
-import { membership } from '../channels/access.ts';
+import { askedMember, membership } from '../channels/access.ts';
 import { orderOf } from '../paging.ts';
 import { pipelineFor } from '../pipelines/pipelines.ts';
 import { updateTicket } from '../tickets/changes.ts';
@@ -13,15 +13,7 @@ import { checkProperties, propertyFilter } from '../tickets/properties.ts';
 import { fileTicket, ticketsMatching } from '../tickets/tickets.ts';
 import { customersOf, membersByEmail, namesOf } from './people.ts';
 import { propertyCells, propertyPatchOf, ticketFieldsFor } from './properties.ts';
-import {
-  dateOf,
-  type ImportRequest,
-  listOf,
-  refuse,
-  rowOf,
-  runImport,
-  transferMember,
-} from './shared.ts';
+import { dateOf, type ImportRequest, listOf, refuse, rowOf, runImport } from './shared.ts';
 import {
   pipelineOfRow,
   priorityOf,
@@ -82,7 +74,7 @@ const textOf = (description: string) => {
  * narrows them.
  */
 export const exportTickets = async (request: z.infer<typeof PluginExportRequest>) => {
-  const member = transferMember(request.orgId, request.userId);
+  const member = askedMember(request.orgId, request.userId);
   const order = orderOf(tickets, tickets.createdAt, true);
   const fromCore = await propertyFilter(request.orgId, request.query.filter ?? undefined);
   const fields = await ticketFieldsFor(request.orgId, request.columns.includes('properties'));
@@ -165,7 +157,7 @@ export const exportTickets = async (request: z.infer<typeof PluginExportRequest>
  * description stays as it is unless its text changed, so its formatting survives a round trip.
  */
 export const importTickets = async (request: ImportRequest) => {
-  const member = transferMember(request.orgId, request.userId);
+  const member = askedMember(request.orgId, request.userId);
   const cells = request.rows.map((row) => row.values);
 
   const fields = await ticketFieldsFor(

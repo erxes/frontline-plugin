@@ -105,7 +105,7 @@ export const conversationReport = reads(PERMISSIONS.inboxView)
       .select({ id: conversations.id })
       .from(conversations)
       .leftJoin(channelMembers, membership(member, conversations.channelId))
-      .where(and(seenBy(member), inChannel(range)));
+      .where(and(seenBy(member, conversations.channelId), inChannel(range)));
 
     const mine = inArray(conversations.id, theirs);
     const started = and(mine, within(conversations.createdAt, range));

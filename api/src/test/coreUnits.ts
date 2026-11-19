@@ -208,15 +208,19 @@ export const ticketFieldCalls = {
   fieldGroups: { list: async () => ({ data: ticketGroups() }) },
 };
 
+/** Core's roles of the users a test names; anyone else is a `member`. */
+export const coreRoles: Record<string, string> = {};
+
 /**
- * `#/core.ts` with core's units answered by `coreUnits` and ticket fields by `coreTicketFields`:
- * `vi.mock('#/core.ts', …unitsStandIn)`.
+ * `#/core.ts` with core's units answered by `coreUnits`, ticket fields by `coreTicketFields` and
+ * users' roles by `coreRoles`: `vi.mock('#/core.ts', …unitsStandIn)`.
  */
 export const unitsStandIn = (actual: typeof CoreModule) => ({
   ...actual,
   core: {
     ...actual.core,
     forOrg: (orgId: string) => ({
+      users: { get: async ({ id }: { id: string }) => ({ id, role: coreRoles[id] ?? 'member' }) },
       units: {
         list: async () => list(orgId),
         import: async ({ units }: { units: Required<UnitInput>[] }) => importUnits(orgId, units),

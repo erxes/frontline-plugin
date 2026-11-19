@@ -89,7 +89,7 @@ const list = readsWithCore(
   )
   .handler(async ({ input, context: { tx, member, fromCore: customerIds } }) => {
     const matches = and(
-      seenBy(member),
+      seenBy(member, conversations.channelId),
       filtersBy(input.filter, 'subject.status') ? undefined : ne(conversations.status, 'resolved'),
       input.search
         ? or(

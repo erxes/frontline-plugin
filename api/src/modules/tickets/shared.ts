@@ -19,7 +19,13 @@ import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { Attachment, StoredFile } from '#/db/table.ts';
 import { pipelineStatuses, pipelines, STATUS_TYPES, tickets } from '#/db/tickets.ts';
-import { canChangeSql, heldInChannels, managesAll, membership } from '../channels/access.ts';
+import {
+  canChangeSql,
+  heldInChannels,
+  managesAll,
+  membership,
+  ownsOrSharedSql,
+} from '../channels/access.ts';
 import { Title } from '../fields.ts';
 import { notifyVisitors } from '../inbox/shared.ts';
 import { statusRights, ticketVisible } from '../pipelines/rights.ts';
@@ -73,10 +79,14 @@ const { description, attachments, ...rowColumns } = ticketColumns;
 
 /**
  * The tickets `member` sees: their channels', or every channel's for one who manages them all,
- * under their statuses' and pipelines' rules (`ticketVisible`).
+ * but no one else's personal inbox, under their statuses' and pipelines' rules (`ticketVisible`).
  */
 export const seenBy = (member: PluginMember) =>
-  and(managesAll(member) ? undefined : isNotNull(channelMembers.userId), ticketVisible(member));
+  and(
+    managesAll(member) ? undefined : isNotNull(channelMembers.userId),
+    ownsOrSharedSql(member, tickets.channelId),
+    ticketVisible(member),
+  );
 
 /** Tickets' `columns` with what the caller may do and their SLA states. */
 const rowsOf = <Columns extends typeof rowColumns>(

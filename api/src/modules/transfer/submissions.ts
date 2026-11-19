@@ -6,7 +6,7 @@ import type { z } from 'zod';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { formAnswers, formFields, forms, formSubmissions } from '#/db/forms.ts';
 import { channelMembers } from '#/db/schema.ts';
-import { membership } from '../channels/access.ts';
+import { askedMember, membership } from '../channels/access.ts';
 import { FILE_FIELDS, typeError } from '../forms/answers.ts';
 import { answered, SUBMISSION_FILTER, submissionRows } from '../forms/submissions.ts';
 import { orderOf } from '../paging.ts';
@@ -19,7 +19,6 @@ import {
   rowOf,
   runImport,
   tickOf,
-  transferMember,
 } from './shared.ts';
 
 /**
@@ -68,7 +67,7 @@ const formsWithFields = async (tx: Tx, ids: string[]) => {
 
 /** The submissions of the forms in the member's channels, oldest first, as their search narrows. */
 export const exportSubmissions = async (request: z.infer<typeof PluginExportRequest>) => {
-  const member = transferMember(request.orgId, request.userId);
+  const member = askedMember(request.orgId, request.userId);
   const order = orderOf(formSubmissions, formSubmissions.createdAt, true);
   const { search, filter } = request.query;
 
@@ -156,7 +155,7 @@ const answersOf = (cell: string, fields: Field[]) =>
  * has is skipped, so an export imports again without doubling.
  */
 export const importSubmissions = async (request: ImportRequest) => {
-  const member = transferMember(request.orgId, request.userId);
+  const member = askedMember(request.orgId, request.userId);
 
   const customerOf = await customersOf(
     request.orgId,

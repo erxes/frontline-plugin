@@ -40,7 +40,7 @@ const integrationRows = (tx: Tx, member: PluginMember) =>
 
 export const integrationById = async (tx: Tx, member: PluginMember, id: string) => {
   const [row] = await integrationRows(tx, member).where(
-    and(eq(integrations.id, id), seenBy(member)),
+    and(eq(integrations.id, id), seenBy(member, integrations.channelId)),
   );
 
   if (!row) throw new ORPCError('NOT_FOUND', { message: 'No such integration' });
@@ -70,7 +70,7 @@ const list = reads(PERMISSIONS.channelView)
     integrationRows(tx, member)
       .where(
         and(
-          seenBy(member),
+          seenBy(member, integrations.channelId),
           input.channelId ? eq(integrations.channelId, input.channelId) : undefined,
         ),
       )

@@ -7,12 +7,38 @@ import type { Tx } from '#/db/client.ts';
 import { type CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
 import { publishEvents, type RecordEvent } from '../events.ts';
 
+/**
+ * The member core asks about in a transfer or a timeline check. Core sends no permissions, and a
+ * plugin can't read a role's: Owner and Admin hold every one, and anyone else sees what their
+ * channels hold, as a member without channel management does.
+ */
+export const askedMember = (orgId: string, userId: string, role = 'member') => {
+  const all = role === 'owner' || role === 'admin';
+
+  return {
+    userId,
+    orgId,
+    role,
+    permissions: all ? Object.values(PERMISSIONS) : [PERMISSIONS.channelView],
+    can: (action) => all || action === PERMISSIONS.channelView,
+    tier: null,
+    access: 'full',
+    canChange: () => true,
+  } satisfies PluginMember;
+};
+
 /** Whether `member` sees every channel, not only the ones they belong to. */
 export const managesAll = (member: PluginMember) => member.can(PERMISSIONS.channelManage);
 
 /** Whether `member` may see a channel with this owner: a personal inbox shows only to its owner. */
 const ownsOrShared = (ownerId: string | null, member: PluginMember) =>
   ownerId === null || ownerId === member.userId;
+
+/** `ownsOrShared` for the channel `channelId` names, in a query: even a manager sees no one else's inbox. */
+export const ownsOrSharedSql = (member: PluginMember, channelId: Column) =>
+  sql<boolean>`not exists (
+    select 1 from ${channels} where ${channels.id} = ${channelId} and ${channels.ownerId} <> ${member.userId}
+  )`;
 
 /** Joins `member`'s own row of `channelMembers` for the channel `channelId` names. */
 export const membership = (member: PluginMember, channelId: Column) =>

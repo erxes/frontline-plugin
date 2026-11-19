@@ -72,7 +72,7 @@ const list = reads(PERMISSIONS.callView)
   .output(z.object({ calls: z.array(Call), ...PageOutput }))
   .handler(async ({ input, context: { tx, member } }) => {
     const matches = and(
-      seenBy(member),
+      seenBy(member, conversations.channelId),
       input.search ? ilike(calls.customerPhone, likeText(input.search)) : undefined,
       compileFilter(CALL_FILTER, input.filter, { me: member.userId }),
     );
@@ -101,8 +101,6 @@ const list = reads(PERMISSIONS.callView)
  * answered, or one on their extension, as the softphone's current call is.
  */
 export const hasCallWith = async (tx: Tx, member: PluginMember, customerId: string) => {
-  const channels = seenBy(member);
-
   const onTheirPhone = exists(
     tx
       .select({ id: callOperators.id })
@@ -116,8 +114,11 @@ export const hasCallWith = async (tx: Tx, member: PluginMember, customerId: stri
       ),
   );
 
-  // No channel condition means the caller manages every channel.
-  const theirs = channels && or(channels, eq(calls.answeredBy, member.userId), onTheirPhone);
+  const theirs = or(
+    seenBy(member, conversations.channelId),
+    eq(calls.answeredBy, member.userId),
+    onTheirPhone,
+  );
 
   const [row] = await callRows(tx, member)
     .where(and(eq(calls.customerId, customerId), theirs))
@@ -127,7 +128,9 @@ export const hasCallWith = async (tx: Tx, member: PluginMember, customerId: stri
 };
 
 const callById = async (tx: Tx, member: PluginMember, id: string) => {
-  const [row] = await callRows(tx, member).where(and(eq(calls.id, id), seenBy(member)));
+  const [row] = await callRows(tx, member).where(
+    and(eq(calls.id, id), seenBy(member, conversations.channelId)),
+  );
 
   if (!row) throw new ORPCError('NOT_FOUND', { message: 'No such call' });
 
@@ -142,7 +145,7 @@ const get = reads(PERMISSIONS.callView)
     if ('id' in input) return callById(tx, member, input.id);
 
     const [row] = await callRows(tx, member).where(
-      and(eq(calls.conversationId, input.conversationId), seenBy(member)),
+      and(eq(calls.conversationId, input.conversationId), seenBy(member, conversations.channelId)),
     );
 
     if (!row) throw new ORPCError('NOT_FOUND', { message: 'No such call' });

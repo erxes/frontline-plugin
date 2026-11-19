@@ -11,9 +11,10 @@ import {
 } from '#/db/tickets.ts';
 import { membership } from '../channels/access.ts';
 import { seenBy } from '../tickets/shared.ts';
-import { listOf, refuse, type transferMember } from './shared.ts';
+import type { askedMember } from '../channels/access.ts';
+import { listOf, refuse } from './shared.ts';
 
-type Member = ReturnType<typeof transferMember>;
+type Member = ReturnType<typeof askedMember>;
 
 type Row = Record<string, string>;
 
