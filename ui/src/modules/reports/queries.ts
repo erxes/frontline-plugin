@@ -6,12 +6,7 @@ import { channelsQuery, choicesQuery, integrationsQuery } from '~/shared/referen
 import { usePeriod } from './Tile.tsx';
 import { usePick } from './TilePick.tsx';
 
-const ReportInput = z.object({
-  from: z.date(),
-  to: z.date(),
-  pipelineId: z.string().optional(),
-  channelId: z.string().optional(),
-});
+const ReportInput = z.object({ from: z.date(), to: z.date(), filter: z.string().optional() });
 
 type ReportInput = z.infer<typeof ReportInput>;
 
@@ -19,11 +14,11 @@ type ReportInput = z.infer<typeof ReportInput>;
 const LastKey = z.tuple([z.unknown(), z.object({ input: ReportInput })]);
 
 /**
- * The report over `input`. A tile keeps its numbers while the next minute loads, and shows the
- * skeleton for a new period, day, pipeline or channel. Tiles that tick a few seconds apart share
+ * The report over `input`. A tile or card keeps its numbers while the next minute loads, and
+ * shows the skeleton for a new period, day or filter. Tiles that tick a few seconds apart share
  * the fetch.
  */
-const live = <Input extends ReportInput>(input: Input) => ({
+export const live = <Input extends ReportInput>(input: Input) => ({
   input,
   staleTime: 30_000,
   placeholderData: <Data>(previous: Data | undefined, last?: { queryKey: unknown }) => {
@@ -32,12 +27,15 @@ const live = <Input extends ReportInput>(input: Input) => ({
     const same =
       key.success &&
       key.data[1].input.from.getTime() === input.from.getTime() &&
-      key.data[1].input.pipelineId === input.pipelineId &&
-      key.data[1].input.channelId === input.channelId;
+      key.data[1].input.filter === input.filter;
 
     return same ? previous : undefined;
   },
 });
+
+/** A filter keeping the rows whose `path` is `id`, or none without one. */
+const only = (path: string, id: string | null) =>
+  id ? JSON.stringify({ match: 'all', rules: [{ path, op: 'in', value: [id] }] }) : undefined;
 
 /** The tile's period and pipeline, and the ticket report over them. */
 export const useTicketReport = (tile: string) => {
@@ -56,7 +54,7 @@ export const useTicketReport = (tile: string) => {
     pick,
     query: useQuery(
       orpc.reports.tickets.queryOptions(
-        live({ ...period.range, pipelineId: pick.id ?? undefined }),
+        live({ ...period.range, filter: only('subject.pipelineId', pick.id) }),
       ),
     ),
   };
@@ -86,7 +84,14 @@ const useChannelScope = (tile: string, kinds?: string[]) => {
 
   const pick = usePick(tile, options, t('channel', 'Channel'), t('all-channels', 'All channels'));
 
-  return { period, pick, input: live({ ...period.range, channelId: pick.id ?? undefined }) };
+  return {
+    period,
+    pick,
+    input: live({
+      ...period.range,
+      filter: only('subject.channelId', pick.id),
+    }),
+  };
 };
 
 /** The tile's period and channel, and the conversation report over them. */

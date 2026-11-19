@@ -16,7 +16,8 @@ import { statusProcedures } from '#/modules/pipelines/statuses.ts';
 import { callReport } from '#/modules/reports/calls.ts';
 import { conversationReport } from '#/modules/reports/conversations.ts';
 import { metaReport } from '#/modules/reports/meta.ts';
-import { ticketReport } from '#/modules/reports/tickets.ts';
+import { chartProcedures } from '#/modules/reports/charts.ts';
+import { ticketPropertyReport, ticketReport } from '#/modules/reports/tickets.ts';
 import { responseTemplateProcedures } from '#/modules/responseTemplates/responseTemplates.ts';
 import { conversationProcedures } from '#/modules/inbox/conversations.ts';
 import { countProcedures } from '#/modules/inbox/counts.ts';
@@ -118,9 +119,11 @@ export const router = {
   },
   reports: {
     tickets: ticketReport,
+    ticketProperties: ticketPropertyReport,
     conversations: conversationReport,
     calls: callReport,
     meta: metaReport,
+    charts: chartProcedures,
   },
 };
 

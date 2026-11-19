@@ -1,6 +1,8 @@
 import {
   IconBook,
+  IconBrandFacebook,
   IconChartBar,
+  IconChartHistogram,
   IconPlugConnected,
   IconChecklist,
   IconChevronDown,
@@ -35,6 +37,7 @@ import { PLUGIN, TICKET_FIELDS } from '~/plugin.ts';
 
 const ROOT = `/${PLUGIN}`;
 const CALLS = `${ROOT}/calls`;
+const REPORTS = `${ROOT}/reports`;
 const SETTINGS = `${ROOT}/settings`;
 
 // The inbox's count, queues and channels and the ticket pipelines load with the API client, after
@@ -52,44 +55,93 @@ const Page = () => (
   </Suspense>
 );
 
-/** The Calls group: its history and its queues, open until the member folds it. */
-const CallsGroup = () => {
-  const { t } = useTranslation('frontline');
+/** A group of sidebar links under a heading that folds them away, open until the member does. */
+const NavGroup = ({
+  icon: GroupIcon,
+  name,
+  items,
+}: {
+  icon: Icon;
+  name: string;
+  items: { name: string; to: string; icon: Icon; exact?: boolean }[];
+}) => {
   const { pathname } = useLocation();
   const [open, setOpen] = useState(true);
 
-  const items = [
-    { name: t('history', 'History'), to: `${CALLS}/history`, icon: IconHistory },
-    { name: t('queues', 'Queues'), to: `${CALLS}/queues`, icon: IconListDetails },
-  ];
-
-  const inCalls = pathname.startsWith(`${CALLS}/`);
+  const isAt = ({ to, exact }: { to: string; exact?: boolean }) =>
+    pathname === to || (!exact && pathname.startsWith(`${to}/`));
 
   return (
     <Sidebar.MenuItem>
-      <Sidebar.MenuButton isActive={inCalls && !open} onClick={() => setOpen((value) => !value)}>
-        <IconPhone />
-        <span className="min-w-0 flex-1 truncate">{t('calls', 'Calls')}</span>
+      <Sidebar.MenuButton
+        isActive={!open && items.some(isAt)}
+        onClick={() => setOpen((value) => !value)}
+      >
+        <GroupIcon />
+        <span className="min-w-0 flex-1 truncate">{name}</span>
         <IconChevronDown
           className={cn('size-4 text-muted-foreground transition-transform', !open && '-rotate-90')}
         />
       </Sidebar.MenuButton>
       {open && (
         <Sidebar.Sub>
-          {items.map(({ name, to, icon: Icon }) => (
-            <Sidebar.SubItem key={to}>
-              <Sidebar.SubButton
-                isActive={pathname === to || pathname.startsWith(`${to}/`)}
-                render={<Link to={to} />}
-              >
-                <Icon />
-                <span>{name}</span>
+          {items.map((item) => (
+            <Sidebar.SubItem key={item.to}>
+              <Sidebar.SubButton isActive={isAt(item)} render={<Link to={item.to} />}>
+                <item.icon />
+                <span>{item.name}</span>
               </Sidebar.SubButton>
             </Sidebar.SubItem>
           ))}
         </Sidebar.Sub>
       )}
     </Sidebar.MenuItem>
+  );
+};
+
+/** The Calls group: its history and its queues. */
+const CallsGroup = () => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <NavGroup
+      icon={IconPhone}
+      name={t('calls', 'Calls')}
+      items={[
+        { name: t('history', 'History'), to: `${CALLS}/history`, icon: IconHistory },
+        { name: t('queues', 'Queues'), to: `${CALLS}/queues`, icon: IconListDetails },
+      ]}
+    />
+  );
+};
+
+/**
+ * The Reports group: the overview of conversations, then tickets, Facebook and calls, named as the
+ * old pages were, apart from the Tickets and Calls modules' own links.
+ */
+const ReportsGroup = () => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <NavGroup
+      icon={IconChartBar}
+      name={t('reports', 'Reports')}
+      items={[
+        {
+          name: t('frontline-overview', 'Overview'),
+          to: REPORTS,
+          icon: IconChartHistogram,
+          exact: true,
+        },
+        { name: t('ticket', 'Ticket'), to: `${REPORTS}/ticket`, icon: IconTicket },
+        {
+          name: t('facebook-and-instagram', 'Facebook and Instagram'),
+          to: `${REPORTS}/facebook`,
+          icon: IconBrandFacebook,
+        },
+        { name: t('call-center', 'Call center'), to: `${REPORTS}/call`, icon: IconPhone },
+      ]}
+    />
   );
 };
 
@@ -119,7 +171,6 @@ const MODULES: NavLink[] = [
   [`${ROOT}/surveys`, 'surveys', 'Surveys', IconChecklist],
   [`${ROOT}/knowledgebase`, 'knowledge-base', 'Knowledge Base', IconBook],
   [`${ROOT}/help-centers`, 'help-centers', 'Help centers', IconHelpCircle],
-  [`${ROOT}/reports`, 'reports', 'Reports', IconChartBar],
 ];
 
 const SETTINGS_PAGES: NavLink[] = [
@@ -163,6 +214,7 @@ const FrontlineSidebar = () => {
               <TicketsNav />
             </Suspense>
             {links(t, MODULES)}
+            <ReportsGroup />
             <CallsGroup />
           </Sidebar.Menu>
         </Sidebar.GroupContent>

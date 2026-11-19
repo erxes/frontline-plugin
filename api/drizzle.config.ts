@@ -20,6 +20,7 @@ export default defineConfig({
     './src/db/mail.ts',
     './src/db/meta.ts',
     './src/db/calls.ts',
+    './src/db/reports.ts',
   ],
   out: './drizzle',
   casing: 'snake_case',

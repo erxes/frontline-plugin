@@ -7,43 +7,60 @@ import { conversationLinks } from './conversationLinks.ts';
 import { useConversationReport } from './queries.ts';
 import { BarList, MiniTable, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
 
-/** Started, resolved and open conversations, and how fast members answered and resolved them. */
-export const ConversationSummary = () => {
+type ConversationReport = NonNullable<ReturnType<typeof useConversationReport>['query']['data']>;
+
+/**
+ * Started, resolved and open conversations, each opening the inbox where `links` leads, and how
+ * fast members answered and resolved them.
+ */
+export const ConversationStats = ({
+  report,
+  links,
+}: {
+  report: ConversationReport;
+  links: ReturnType<typeof conversationLinks>;
+}) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
+
+  return (
+    <Stats>
+      <Stat
+        label={t('conversations-started', 'Started')}
+        value={format.number(report.started)}
+        to={links.started()}
+      />
+      <Stat
+        label={t('conversations-resolved', 'Resolved')}
+        value={format.number(report.resolved)}
+        to={links.resolved()}
+      />
+      <Stat
+        label={t('conversations-unresolved', 'Unresolved now')}
+        value={format.number(report.unresolved)}
+        to={links.unresolved()}
+      />
+      <Stat
+        label={t('average-first-response', 'Average first response')}
+        value={span(report.firstResponseSeconds)}
+      />
+      <Stat
+        label={t('average-resolution', 'Average resolution')}
+        value={span(report.resolutionSeconds)}
+      />
+    </Stats>
+  );
+};
+
+/** The conversation numbers of `ConversationStats` for the tile's period and channel. */
+export const ConversationSummary = () => {
   const { period, pick, query } = useConversationReport('conversation-summary');
   const links = conversationLinks(period.range, pick.id);
 
   return (
     <Tile period={period} pick={pick} query={query}>
-      {(report) => (
-        <Stats>
-          <Stat
-            label={t('conversations-started', 'Started')}
-            value={format.number(report.started)}
-            to={links.started()}
-          />
-          <Stat
-            label={t('conversations-resolved', 'Resolved')}
-            value={format.number(report.resolved)}
-            to={links.resolved()}
-          />
-          <Stat
-            label={t('conversations-unresolved', 'Unresolved now')}
-            value={format.number(report.unresolved)}
-            to={links.unresolved()}
-          />
-          <Stat
-            label={t('average-first-response', 'Average first response')}
-            value={span(report.firstResponseSeconds)}
-          />
-          <Stat
-            label={t('average-resolution', 'Average resolution')}
-            value={span(report.resolutionSeconds)}
-          />
-        </Stats>
-      )}
+      {(report) => <ConversationStats report={report} links={links} />}
     </Tile>
   );
 };

@@ -13,71 +13,123 @@ import { Nothing } from './Tile.tsx';
 /** A report's `YYYY-MM-DD` day as a local date, so it shows as that day in any time zone. */
 const localDay = (day: string) => new Date(`${day}T00:00:00`);
 
-type AreasProps = {
+/** How a series of days draws: a filled area, a line or bars per series. */
+export type SeriesVisual = 'area' | 'line' | 'bar';
+
+type SeriesProps = {
   days: { day: string }[];
   config: Record<string, { label: string; color: string }>;
+  visual: SeriesVisual;
 };
 
-/** An area per `config` key, in its colour, over the days, drawn with the loaded `recharts`. */
-const Areas = ({ recharts, days, config }: AreasProps & { recharts: typeof Recharts }) => {
-  const { Area, AreaChart, CartesianGrid, Legend, Tooltip, XAxis, YAxis } = recharts;
+/** The grid, axes and tooltip every chart over days shares, with a legend when `legend`. */
+const useAxes = (
+  { CartesianGrid, Legend, Tooltip, XAxis, YAxis }: typeof Recharts,
+  legend: boolean,
+) => {
   const format = useFormat();
+
+  return [
+    <CartesianGrid key="grid" vertical={false} />,
+    <XAxis
+      key="x"
+      dataKey="day"
+      tickLine={false}
+      axisLine={false}
+      minTickGap={24}
+      tickFormatter={(day: string) => format.date(localDay(day), 'MMM d')}
+    />,
+    <YAxis key="y" allowDecimals={false} tickLine={false} axisLine={false} width={32} />,
+    <Tooltip
+      key="tooltip"
+      content={
+        <ChartTooltipContent
+          labelFormatter={(day) => (typeof day === 'string' ? format.date(localDay(day)) : day)}
+        />
+      }
+    />,
+    legend && <Legend key="legend" content={<ChartLegendContent />} />,
+  ];
+};
+
+/** A mark per `config` key, in its colour, over the days, drawn with the loaded `recharts`. */
+const Series = ({
+  recharts,
+  days,
+  config,
+  visual,
+}: SeriesProps & { recharts: typeof Recharts }) => {
+  const { Area, AreaChart, Bar, BarChart, Line, LineChart } = recharts;
+  const keys = Object.keys(config);
+  // One series is named by its card; a legend tells several apart.
+  const axes = useAxes(recharts, keys.length > 1);
+
+  const margin = { top: 8, right: 8, bottom: 0, left: 0 };
 
   return (
     <ChartContainer config={config} className="aspect-auto h-48 w-full">
-      <AreaChart responsive data={days} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
-        <CartesianGrid vertical={false} />
-        <XAxis
-          dataKey="day"
-          tickLine={false}
-          axisLine={false}
-          minTickGap={24}
-          tickFormatter={(day: string) => format.date(localDay(day), 'MMM d')}
-        />
-        <YAxis allowDecimals={false} tickLine={false} axisLine={false} width={32} />
-        <Tooltip
-          content={
-            <ChartTooltipContent
-              labelFormatter={(day) => (typeof day === 'string' ? format.date(localDay(day)) : day)}
+      {visual === 'bar' ? (
+        <BarChart responsive data={days} margin={margin}>
+          {axes}
+          {keys.map((key) => (
+            <Bar key={key} dataKey={key} fill={`var(--color-${key})`} radius={2} />
+          ))}
+        </BarChart>
+      ) : visual === 'line' ? (
+        <LineChart responsive data={days} margin={margin}>
+          {axes}
+          {keys.map((key) => (
+            <Line
+              key={key}
+              dataKey={key}
+              type="monotone"
+              stroke={`var(--color-${key})`}
+              strokeWidth={2}
+              dot={false}
             />
-          }
-        />
-        <Legend content={<ChartLegendContent />} />
-        {Object.keys(config).map((key) => (
-          <Area
-            key={key}
-            dataKey={key}
-            type="monotone"
-            stroke={`var(--color-${key})`}
-            fill={`var(--color-${key})`}
-            fillOpacity={0.15}
-            strokeWidth={2}
-          />
-        ))}
-      </AreaChart>
+          ))}
+        </LineChart>
+      ) : (
+        <AreaChart responsive data={days} margin={margin}>
+          {axes}
+          {keys.map((key) => (
+            <Area
+              key={key}
+              dataKey={key}
+              type="monotone"
+              stroke={`var(--color-${key})`}
+              fill={`var(--color-${key})`}
+              fillOpacity={0.15}
+              strokeWidth={2}
+            />
+          ))}
+        </AreaChart>
+      )}
     </ChartContainer>
   );
 };
 
-/** `Areas` once recharts loads, with the first chart rather than with the tiles. */
-const DayAreas = lazy(async () => {
+/** `Series` once recharts loads, with the first chart rather than with the tiles. */
+const DaySeries = lazy(async () => {
   const recharts = await import('recharts');
 
-  return { default: (props: AreasProps) => <Areas recharts={recharts} {...props} /> };
+  return { default: (props: SeriesProps) => <Series recharts={recharts} {...props} /> };
 });
 
 /**
- * Each day's counts as one area per series in `config`, its colour and label, with the days
- * along the bottom. A period with no counts at all says `empty` instead.
+ * Each day's counts as one area, line or bars per series in `config`, its colour and label, with
+ * the days along the bottom. A period with no counts at all says `empty` instead.
  */
 export const DayChart = <Key extends string>({
   days,
   config,
   empty,
+  visual = 'area',
 }: {
-  days: ({ day: string } & Record<NoInfer<Key>, number>)[];
+  days: ({ day: string } & Record<NoInfer<Key>, string | number>)[];
   config: Record<Key, { label: string; color: string }>;
   empty: string;
+  visual?: SeriesVisual;
 }) => {
   const keys = Object.keys(config).filter((key): key is Key => key in config);
 
@@ -85,7 +137,70 @@ export const DayChart = <Key extends string>({
 
   return (
     <Suspense fallback={<Skeleton className="h-48" />}>
-      <DayAreas days={days} config={config} />
+      <DaySeries days={days} config={config} visual={visual} />
+    </Suspense>
+  );
+};
+
+/** The chart palette's five colours, a slice each in turn. */
+const SLICE_COLORS = [
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-3)',
+  'var(--chart-4)',
+  'var(--chart-5)',
+];
+
+type SliceProps = { rows: { key: string; name: string; value: number; color?: string | null }[] };
+
+/**
+ * A slice per row, its own colour or the palette's next, with a legend, by the loaded `recharts`.
+ * Slices go by position, `s0`, `s1`…, as a CSS variable can't be named after any value.
+ */
+const Slices = ({ recharts, rows }: SliceProps & { recharts: typeof Recharts }) => {
+  const { Cell, Legend, Pie, PieChart, Tooltip } = recharts;
+
+  const slices = rows.map((row, index) => ({
+    slot: `s${index}`,
+    name: row.name,
+    value: row.value,
+  }));
+
+  const config = Object.fromEntries(
+    rows.map((row, index) => [
+      `s${index}`,
+      { label: row.name, color: row.color ?? SLICE_COLORS[index % SLICE_COLORS.length] ?? '' },
+    ]),
+  );
+
+  return (
+    <ChartContainer config={config} className="aspect-auto h-56 w-full">
+      <PieChart responsive>
+        <Tooltip content={<ChartTooltipContent nameKey="slot" hideLabel />} />
+        <Pie data={slices} dataKey="value" nameKey="slot" innerRadius="45%" strokeWidth={2}>
+          {slices.map((slice) => (
+            <Cell key={slice.slot} fill={`var(--color-${slice.slot})`} />
+          ))}
+        </Pie>
+        <Legend content={<ChartLegendContent nameKey="slot" />} />
+      </PieChart>
+    </ChartContainer>
+  );
+};
+
+const PieSlices = lazy(async () => {
+  const recharts = await import('recharts');
+
+  return { default: (props: SliceProps) => <Slices recharts={recharts} {...props} /> };
+});
+
+/** The rows as slices of a ring, or `empty` when none has a count. */
+export const PieChart = ({ rows, empty }: SliceProps & { empty: string }) => {
+  if (!rows.some((row) => row.value > 0)) return <Nothing>{empty}</Nothing>;
+
+  return (
+    <Suspense fallback={<Skeleton className="h-56" />}>
+      <PieSlices rows={rows} />
     </Suspense>
   );
 };

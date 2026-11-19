@@ -1,6 +1,6 @@
-import { and, type Column, eq, gte, lt, type SQL, sql } from 'drizzle-orm';
+import { FilterParam } from '@erxes/plugin-sdk/filter';
+import { and, type Column, gte, lt, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { conversations } from '#/db/inbox.ts';
 
 const MAX_DAYS = 366;
 
@@ -30,7 +30,7 @@ const isTimeZone = (timeZone: string) => {
  * A report's period, `from` up to `to`, and the member's time zone, which draws its days and
  * hours. A year at most.
  */
-export const RangeInput = z
+const RangeInput = z
   .object({
     from: z.date(),
     to: z.date(),
@@ -44,12 +44,11 @@ export const RangeInput = z
 
 export type Range = z.output<typeof RangeInput>;
 
-/** A period, and the one channel a report counts when `channelId` names it. */
-export const ChannelRangeInput = RangeInput.and(z.object({ channelId: z.string().optional() }));
-
-/** Whether a conversation is in the channel the report counts, or any when it names none. */
-export const inChannel = ({ channelId }: { channelId?: string }) =>
-  channelId ? eq(conversations.channelId, channelId) : undefined;
+/**
+ * A period, and the filter a report card narrows it by: core's condition group on the paths the
+ * list of the same records takes, so a card and its list count the same rows.
+ */
+export const ReportInput = RangeInput.and(z.object({ filter: FilterParam.optional() }));
 
 /** Whether `column` falls in the period. */
 export const within = (column: Column, { from, to }: Range) =>

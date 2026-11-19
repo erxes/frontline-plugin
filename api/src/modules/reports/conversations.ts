@@ -17,17 +17,18 @@ import type { Tx } from '#/db/client.ts';
 import { conversations, conversationTags, integrations, messages } from '#/db/inbox.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { tags } from '#/db/tags.ts';
+import { compileFilter } from '@erxes/plugin-sdk/filter';
 import { reads } from '#/orpc.ts';
 import { membership, seenBy } from '../channels/access.ts';
+import { conversationFilter } from '../inbox/conversations.ts';
 import {
   averageSeconds,
-  ChannelRangeInput,
   Count,
   countOn,
   countWhere,
   dayOf,
   everyDay,
-  inChannel,
+  ReportInput,
   secondsBetween,
   TOP,
   TagCount,
@@ -94,18 +95,24 @@ const breakdowns = async (tx: Tx, started: SQL | undefined, replied: SQL | undef
 };
 
 /**
- * The conversations of the member's channels, or of one of them, over a period: how many started
- * and were resolved, how fast, by day, by source and tag, and who answered.
+ * The conversations of the member's channels the card's filter keeps, over a period: how many
+ * started and were resolved, how fast, by day, by source and tag, and who answered.
  */
 export const conversationReport = reads(PERMISSIONS.inboxView)
-  .input(ChannelRangeInput)
+  .input(ReportInput)
   .output(ConversationReport)
   .handler(async ({ input: range, context: { tx, member } }) => {
     const theirs = tx
       .select({ id: conversations.id })
       .from(conversations)
+      .innerJoin(integrations, eq(integrations.id, conversations.integrationId))
       .leftJoin(channelMembers, membership(member, conversations.channelId))
-      .where(and(seenBy(member, conversations.channelId), inChannel(range)));
+      .where(
+        and(
+          seenBy(member, conversations.channelId),
+          compileFilter(conversationFilter(member), range.filter, { me: member.userId }),
+        ),
+      );
 
     const mine = inArray(conversations.id, theirs);
     const started = and(mine, within(conversations.createdAt, range));

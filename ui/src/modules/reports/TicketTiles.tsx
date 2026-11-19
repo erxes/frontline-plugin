@@ -8,53 +8,66 @@ import { useTicketReport } from './queries.ts';
 import { useTicketLinks } from './ticketLinks.ts';
 import { BarList, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
 
-/** Created, resolved, open and overdue tickets, each opening its tickets, and how long resolving took. */
-export const TicketSummary = () => {
+type TicketReport = NonNullable<ReturnType<typeof useTicketReport>['query']['data']>;
+
+/**
+ * Created, resolved, open and overdue tickets, each opening its tickets in the pipeline `links`
+ * leads to, and how long resolving took.
+ */
+export const TicketStats = ({
+  report,
+  links,
+}: {
+  report: TicketReport;
+  links: ReturnType<typeof useTicketLinks>;
+}) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const span = useSpanText();
-  const ticketReport = useTicketReport('ticket-summary');
-  const links = useTicketLinks(ticketReport);
 
   return (
-    <Tile {...ticketReport}>
-      {(report) => (
-        <Stats>
-          <Stat
-            label={t('tickets-created', 'Created')}
-            value={format.number(report.created)}
-            to={links.created()}
-          />
-          <Stat
-            label={t('tickets-resolved', 'Resolved')}
-            value={format.number(report.resolved)}
-            to={links.resolved()}
-          />
-          <Stat
-            label={t('tickets-unresolved', 'Open now')}
-            value={format.number(report.unresolved)}
-            to={links.open()}
-          />
-          <Stat
-            label={t('tickets-overdue', 'Overdue now')}
-            value={format.number(report.overdue)}
-            hint={t('past-sla', 'Past an SLA due time')}
-            to={links.open({
-              match: 'any',
-              rules: [
-                { path: 'subject.firstResponseSla', op: 'in', value: ['overdue'] },
-                { path: 'subject.resolutionSla', op: 'in', value: ['overdue'] },
-              ],
-            })}
-          />
-          <Stat
-            label={t('average-resolution', 'Average resolution')}
-            value={span(report.resolutionSeconds)}
-          />
-        </Stats>
-      )}
-    </Tile>
+    <Stats>
+      <Stat
+        label={t('tickets-created', 'Created')}
+        value={format.number(report.created)}
+        to={links.created()}
+      />
+      <Stat
+        label={t('tickets-resolved', 'Resolved')}
+        value={format.number(report.resolved)}
+        to={links.resolved()}
+      />
+      <Stat
+        label={t('tickets-unresolved', 'Open now')}
+        value={format.number(report.unresolved)}
+        to={links.open()}
+      />
+      <Stat
+        label={t('tickets-overdue', 'Overdue now')}
+        value={format.number(report.overdue)}
+        hint={t('past-sla', 'Past an SLA due time')}
+        to={links.open({
+          match: 'any',
+          rules: [
+            { path: 'subject.firstResponseSla', op: 'in', value: ['overdue'] },
+            { path: 'subject.resolutionSla', op: 'in', value: ['overdue'] },
+          ],
+        })}
+      />
+      <Stat
+        label={t('average-resolution', 'Average resolution')}
+        value={span(report.resolutionSeconds)}
+      />
+    </Stats>
   );
+};
+
+/** The ticket numbers of `TicketStats` for the tile's period and pipeline. */
+export const TicketSummary = () => {
+  const ticketReport = useTicketReport('ticket-summary');
+  const links = useTicketLinks(ticketReport.period.range, ticketReport.pick.id);
+
+  return <Tile {...ticketReport}>{(report) => <TicketStats report={report} links={links} />}</Tile>;
 };
 
 /** Tickets created and resolved each day. */
@@ -86,7 +99,7 @@ export const TicketsByStatus = () => {
   const stages = useStages();
   const statuses = useQuery(choicesQuery).data?.statuses ?? [];
   const report = useTicketReport('tickets-by-stage');
-  const links = useTicketLinks(report);
+  const links = useTicketLinks(report.period.range, report.pick.id);
   const pipelineId = report.pick.id;
 
   const inStatuses = (ids: string[]) =>
@@ -131,7 +144,7 @@ export const TicketsByPriority = () => {
   const { t } = useTranslation('frontline');
   const priorities = usePriorityNames();
   const ticketReport = useTicketReport('tickets-by-priority');
-  const links = useTicketLinks(ticketReport);
+  const links = useTicketLinks(ticketReport.period.range, ticketReport.pick.id);
 
   return (
     <Tile {...ticketReport}>
@@ -159,7 +172,7 @@ export const TicketsByPriority = () => {
 export const TicketsByTag = () => {
   const { t } = useTranslation('frontline');
   const ticketReport = useTicketReport('tickets-by-tag');
-  const links = useTicketLinks(ticketReport);
+  const links = useTicketLinks(ticketReport.period.range, ticketReport.pick.id);
 
   return (
     <Tile {...ticketReport}>

@@ -34,8 +34,11 @@ import {
   tagIdsOf,
 } from './shared.ts';
 
-/** What the inbox's filter bar narrows conversations by (`ui/src/modules/inbox/InboxFilter.tsx`). */
-const filterFields = (member: PluginMember): FilterFields => ({
+/**
+ * What the inbox's filter bar narrows conversations by (`ui/src/modules/inbox/InboxFilter.tsx`),
+ * and a report card's filter. The query joins their integration.
+ */
+export const conversationFilter = (member: PluginMember): FilterFields => ({
   'subject.channelId': { type: 'select', expr: conversations.channelId },
   'subject.integrationId': { type: 'select', expr: conversations.integrationId },
   'subject.kind': { type: 'select', expr: integrations.kind },
@@ -73,7 +76,7 @@ const shown = (member: PluginMember, filter: z.infer<typeof ListInput>['filter']
   and(
     seenBy(member, conversations.channelId),
     filtersBy(filter, 'subject.status') ? undefined : ne(conversations.status, 'resolved'),
-    compileFilter(filterFields(member), filter, { me: member.userId }),
+    compileFilter(conversationFilter(member), filter, { me: member.userId }),
   );
 
 /**

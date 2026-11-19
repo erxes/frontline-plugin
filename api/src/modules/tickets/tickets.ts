@@ -38,6 +38,7 @@ const TICKET_FILTER: FilterFields = {
   'subject.name': { type: 'text', expr: tickets.name },
   'subject.number': { type: 'text', expr: tickets.number },
   'subject.channelId': { type: 'select', expr: tickets.channelId },
+  'subject.pipelineId': { type: 'select', expr: tickets.pipelineId },
   'subject.statusId': { type: 'select', expr: tickets.statusId },
   'subject.priority': { type: 'select', expr: sql`${tickets.priority}::text` },
   'subject.assigneeId': { type: 'member', expr: tickets.assigneeId },

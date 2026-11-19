@@ -13,6 +13,7 @@ import {
   IconClockCheck,
   IconEye,
   IconHash,
+  IconLayoutKanban,
   IconLetterCase,
   IconProgressCheck,
   IconSortAscending,
@@ -45,6 +46,33 @@ const useStatusField = (): TListFilterField => {
       .filter((status) => status.pipelineId === pipelineId)
       .map((status) => ({ value: status.id, label: status.name })),
   };
+};
+
+/** The pipeline field, and the status field over every pipeline's statuses, each named with its pipeline's. */
+const usePipelineFields = (): TListFilterField[] => {
+  const { t } = useTranslation('frontline');
+  const { pipelines, statuses } = useChoices();
+  const names = new Map(pipelines.map((pipeline) => [pipeline.id, pipeline.name]));
+
+  return [
+    {
+      path: 'subject.pipelineId',
+      label: t('pipeline', 'Pipeline'),
+      type: 'select',
+      icon: IconLayoutKanban,
+      options: pipelines.map((pipeline) => ({ value: pipeline.id, label: pipeline.name })),
+    },
+    {
+      path: 'subject.statusId',
+      label: t('status', 'Status'),
+      type: 'select',
+      icon: IconProgressCheck,
+      options: statuses.map((status) => ({
+        value: status.id,
+        label: `${names.get(status.pipelineId) ?? ''} › ${status.name}`,
+      })),
+    },
+  ];
 };
 
 const teamOptions = (rows: { id: string; name: string }[]) =>
@@ -106,11 +134,8 @@ const useDateFields = () => {
   ];
 };
 
-/**
- * Every field the shown pipeline's tickets narrow by, as the old page's filters had them, and
- * the custom fields core keeps; the API applies them (`api/src/modules/tickets/tickets.ts`).
- */
-export const useTicketFields = (): TListFilterField[] => {
+/** Every ticket field but the pipeline's and the status's, in the order the menu lists them. */
+const useCommonFields = (status: TListFilterField[]): TListFilterField[] => {
   const { t } = useTranslation('frontline');
   const priorities = usePriorityNames();
   const sla = useSlaNames();
@@ -119,7 +144,7 @@ export const useTicketFields = (): TListFilterField[] => {
   return [
     { path: 'subject.name', label: t('name', 'Name'), type: 'text', icon: IconLetterCase },
     { path: 'subject.number', label: t('number', 'Number'), type: 'text', icon: IconHash },
-    useStatusField(),
+    ...status,
     {
       path: 'subject.priority',
       label: t('priority', 'Priority'),
@@ -166,6 +191,15 @@ export const useTicketFields = (): TListFilterField[] => {
     ...usePropertyFilterFields(),
   ];
 };
+
+/**
+ * Every field the shown pipeline's tickets narrow by, as the old page's filters had them, and
+ * the custom fields core keeps; the API applies them (`api/src/modules/tickets/tickets.ts`).
+ */
+export const useTicketFields = (): TListFilterField[] => useCommonFields([useStatusField()]);
+
+/** The ticket fields a report card narrows by: every pipeline's, so the pipeline is a field too. */
+export const useTicketReportFields = (): TListFilterField[] => useCommonFields(usePipelineFields());
 
 /** A menu row's mark: a check when it is the current choice. */
 const check = (on: boolean) => (on ? <IconCheck /> : <span className="size-4" />);
