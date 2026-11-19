@@ -9,19 +9,23 @@ import {
   Skeleton,
   usePageHotkey,
 } from 'erxes-ui';
-import { type KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent, startTransition, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type CustomContainerComponentProps, Virtualizer, type VirtualizerHandle } from 'virtua';
 import { LoadPage } from '~/shared/List.tsx';
 import type { Paging } from '~/shared/paging.ts';
+import { usePrefetch } from '~/shared/prefetch.ts';
 import { ConversationRow, ROW, type RowHandlers } from './ConversationRow.tsx';
-import { type Conversation, useOpenConversation, usePrefetchConversation } from './queries.ts';
+import { type Conversation, prefetchConversation, useOpenConversation } from './queries.ts';
 
-/** Opens a conversation; the pane reads it once it shows. */
+/**
+ * Opens a conversation as a transition: the open one stays in the pane until the next one's
+ * messages are in, instead of a skeleton between them.
+ */
 export const useSelectConversation = () => {
   const [, setOpenId] = useOpenConversation();
 
-  return (conversation: Conversation) => void setOpenId(conversation.id);
+  return (conversation: Conversation) => startTransition(() => void setOpenId(conversation.id));
 };
 
 /**
@@ -62,7 +66,7 @@ const Toolbar = ({
 };
 
 /** Placeholders shaped like rows while the first page loads. */
-const RowSkeletons = () => (
+export const RowSkeletons = () => (
   <ul aria-hidden>
     {['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((key) => (
       <li key={key} className="flex gap-3 px-3 py-3">
@@ -171,7 +175,7 @@ export const ConversationList = ({
     now: useMinute(),
     selection: RecordList.useSelection(),
     select: useSelectConversation(),
-    prefetch: usePrefetchConversation(),
+    prefetch: usePrefetch(prefetchConversation),
     onKeyDown: useListKeys(conversations, (index) => rows.current?.scrollToIndex(index)),
   };
 
@@ -181,37 +185,33 @@ export const ConversationList = ({
       <ScrollArea.Root className="min-h-0 flex-1">
         <ScrollArea.Viewport ref={viewport}>
           <LoadPage paging={paging} newer />
-          {paging.isPending ? (
-            <RowSkeletons />
-          ) : (
-            <Virtualizer
-              ref={rows}
-              scrollRef={viewport}
-              data={conversations}
-              as={RowList}
-              item="li"
-              onScroll={(offset) => {
-                const handle = rows.current;
+          <Virtualizer
+            ref={rows}
+            scrollRef={viewport}
+            data={conversations}
+            as={RowList}
+            item="li"
+            onScroll={(offset) => {
+              const handle = rows.current;
 
-                // A page that failed loads again from its button, not on every scroll.
-                if (!handle || !paging.hasNextPage) return;
+              // A page that failed loads again from its button, not on every scroll.
+              if (!handle || !paging.hasNextPage) return;
 
-                if (paging.isFetchingNextPage || paging.isFetchNextPageError) return;
+              if (paging.isFetchingNextPage || paging.isFetchNextPageError) return;
 
-                if (offset + handle.viewportSize > handle.scrollSize - NEXT_PX)
-                  void paging.fetchNextPage();
-              }}
-            >
-              {(conversation) => (
-                <ConversationRow
-                  key={conversation.id}
-                  conversation={conversation}
-                  customer={customers.get(conversation.customerId)}
-                  handlers={handlers}
-                />
-              )}
-            </Virtualizer>
-          )}
+              if (offset + handle.viewportSize > handle.scrollSize - NEXT_PX)
+                void paging.fetchNextPage();
+            }}
+          >
+            {(conversation) => (
+              <ConversationRow
+                key={conversation.id}
+                conversation={conversation}
+                customer={customers.get(conversation.customerId)}
+                handlers={handlers}
+              />
+            )}
+          </Virtualizer>
           <LoadPage paging={paging} />
         </ScrollArea.Viewport>
         <ScrollArea.Bar />

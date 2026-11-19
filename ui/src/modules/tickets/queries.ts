@@ -6,18 +6,21 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  useSuspenseInfiniteQuery,
+  useSuspenseQuery,
 } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
-import { toast, useListFilterParams, useLiveSignal } from 'erxes-ui';
+import { toast, useLiveSignal } from 'erxes-ui';
 import { parseAsStringLiteral, useQueryState, useQueryStates } from 'nuqs';
+import { useDeferredValue } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange, useOptimistic } from '~/shared/hooks.ts';
-import { PIPELINE_PARAM } from '~/shared/listPath.ts';
+import { listParamsOf, PIPELINE_PARAM, useListParams } from '~/shared/listPath.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
-import { choicesQuery } from '~/shared/reference.ts';
+import { choicesQuery, FRESH_MS } from '~/shared/reference.ts';
 
 type Outputs = InferClientOutputs<Client>['tickets'];
 
@@ -33,12 +36,20 @@ export type BulkChange = Omit<InferClientInputs<Client>['tickets']['bulkUpdate']
 
 export type SlaState = NonNullable<Ticket['firstResponseSla']>;
 
+type ListInput = Omit<InferClientInputs<Client>['tickets']['list'], 'cursor'>;
+
+type Choices = InferClientOutputs<Client>['pipelines']['choices'];
+
 /** The field the tickets sort by and its direction, in the address beside the filter. */
 export const useTicketSort = () =>
   useQueryStates({
     sort: parseAsStringLiteral(['updatedAt', 'createdAt'] as const).withDefault('updatedAt'),
     direction: parseAsStringLiteral(['desc', 'asc'] as const).withDefault('desc'),
   });
+
+/** The pipeline the tickets page shows: the one picked into the address, else the first. */
+const shownOf = ({ pipelines }: Choices, picked: string | null) =>
+  pipelines.find((pipeline) => pipeline.id === picked) ?? pipelines[0];
 
 /** The pipelines and statuses of the member's channels: what a ticket is filed under. */
 export const useChoices = () => {
@@ -53,53 +64,91 @@ export const useChoices = () => {
  */
 export const useTicketPipeline = () => {
   const [picked] = useQueryState(PIPELINE_PARAM);
-  const { pipelines } = useChoices();
+  const { data } = useQuery(choicesQuery);
 
-  return pipelines.find((pipeline) => pipeline.id === picked) ?? pipelines[0];
+  return data && shownOf(data, picked);
 };
 
+/** `useTicketPipeline`, suspending until the choices are in. */
+export const useShownPipeline = () => {
+  const [picked] = useQueryState(PIPELINE_PARAM);
+
+  return shownOf(useSuspenseQuery(choicesQuery).data, picked);
+};
+
+/** The tickets `input` asks for, in pages. */
+const ticketsOptions = (input: ListInput) =>
+  orpc.tickets.list.infiniteOptions({
+    input: ({ cursor }: PageParam) => ({ ...input, cursor }),
+    ...pageOptions,
+    staleTime: FRESH_MS,
+  });
+
+const rowsOf = (page: Outputs['list']) => page.tickets;
+
 /**
- * The shown pipeline's tickets the filter bar keeps, in the chosen order, a page at a time; a
- * board column's in its `statusId`. Another member's change refetches them, and the open ticket.
+ * What the shown pipeline's tickets are asked with, a board column's in its `statusId`. The
+ * sidebar's pick asks at once, beside the choices, and holds unless they don't have it. A change
+ * is held back while its tickets load, so the old ones stay on screen until the new ones are in.
  */
-export const useTickets = (statusId?: string) => {
-  const params = useListFilterParams();
+const useListInput = (statusId?: string) => {
   const [{ sort, direction }] = useTicketSort();
   const [picked] = useQueryState(PIPELINE_PARAM);
   const choices = useChoices();
   const shown = useTicketPipeline()?.id;
-  // The sidebar's pick asks at once, beside the choices, and holds unless they don't have it.
-  const pipelineId = choices.isPending ? (picked ?? undefined) : shown;
-  const ascending = direction === 'asc';
 
-  const query = usePaged(
-    useInfiniteQuery(
-      orpc.tickets.list.infiniteOptions({
-        input: ({ cursor }: PageParam) => ({
-          ...params,
-          pipelineId,
-          statusId,
-          sort,
-          ascending,
-          cursor,
-        }),
-        ...pageOptions,
-        enabled: Boolean(pipelineId),
-      }),
-    ),
-    (page) => page.tickets,
-  );
-
-  // The rows group by the choices' statuses, so the list waits for both. Without a pipeline it
-  // never asks, and shows the choices' refusal.
   return {
-    ...query,
-    isPending: choices.isPending || (Boolean(pipelineId) && query.isPending),
-    error: choices.error ?? query.error,
+    ...useListParams(),
+    pipelineId: useDeferredValue(choices.isPending ? (picked ?? undefined) : shown),
+    statusId,
+    sort: useDeferredValue(sort),
+    ascending: useDeferredValue(direction) === 'asc',
   };
 };
 
-/** Another member's change to a ticket refetches the open lists, columns and ticket. */
+/**
+ * The shown pipeline's tickets the filter bar keeps, in the chosen order, a page at a time. It
+ * suspends until the first page is in; render it only once the member has a pipeline.
+ */
+export const useTickets = () =>
+  usePaged(useSuspenseInfiniteQuery(ticketsOptions(useListInput())), rowsOf);
+
+/** A board column's tickets: those of the shown pipeline in `statusId`, a page at a time. */
+export const useColumnTickets = (statusId: string) => {
+  const input = useListInput(statusId);
+
+  return usePaged(
+    useInfiniteQuery({ ...ticketsOptions(input), enabled: Boolean(input.pipelineId) }),
+    rowsOf,
+  );
+};
+
+/**
+ * How many tickets match the filter bar, for its count: read from the query the list suspends
+ * on, without asking it again.
+ */
+export const useTicketCount = () =>
+  usePaged(useInfiniteQuery({ ...ticketsOptions(useListInput()), enabled: false }), rowsOf)
+    .totalCount;
+
+/**
+ * Loads the tickets at `to` before they open: the first page of the pipeline it names, else the
+ * member's first, in the default order.
+ */
+export const prefetchTickets = async (queryClient: QueryClient, to: string) => {
+  const { params, pipeline } = listParamsOf(to);
+  const pipelineId = shownOf(await queryClient.query(choicesQuery), pipeline)?.id;
+
+  if (pipelineId)
+    await queryClient.infiniteQuery(
+      ticketsOptions({ ...params, pipelineId, sort: 'updatedAt', ascending: false }),
+    );
+};
+
+/**
+ * Another member's change to a ticket refetches the open lists, columns and ticket. The layout
+ * listens on every page, so tickets loaded on another stay true while they count as fresh.
+ */
 export const useTicketsLive = () => {
   const queryClient = useQueryClient();
 
@@ -110,8 +159,15 @@ export const useTicketsLive = () => {
   );
 };
 
+const ticketOptions = (id: string) =>
+  orpc.tickets.get.queryOptions({ input: { id }, staleTime: FRESH_MS });
+
 /** One ticket: every slot of its panel reads this query. */
-export const useTicket = (id: string) => useQuery(orpc.tickets.get.queryOptions({ input: { id } }));
+export const useTicket = (id: string) => useQuery(ticketOptions(id));
+
+/** Loads a ticket's panel before it opens, as the member points at its name: its slots and data. */
+export const prefetchTicket = (queryClient: QueryClient, id: string) =>
+  Promise.all([import('./slots.ts'), queryClient.query(ticketOptions(id))]);
 
 /** Refetches every ticket query after a change, and shows a refusal. */
 export const useTicketChange = () => useChange(orpc.tickets.key());

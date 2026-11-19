@@ -11,8 +11,8 @@ import { usePipelineStatuses } from './TicketList.tsx';
 import {
   type TicketRow,
   type TicketRowActions,
+  useColumnTickets,
   useTicketRowActions,
-  useTickets,
 } from './queries.ts';
 
 type Status = ReturnType<typeof usePipelineStatuses>[number];
@@ -68,7 +68,7 @@ const TicketCard = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions 
 const StatusColumn = memo(function StatusColumn({ status }: { status: Status }) {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
-  const column = useTickets(status.id);
+  const column = useColumnTickets(status.id);
   const act = useTicketRowActions();
 
   return (

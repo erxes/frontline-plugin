@@ -14,6 +14,7 @@ import { useTranslation } from 'react-i18next';
 import { TICKET_TYPE } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
 import { CreateButton, ListEmpty, LoadPage } from '~/shared/List.tsx';
+import { QueryBoundary } from '~/shared/QueryBoundary.tsx';
 import { ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
 import { TicketBulkActions } from './TicketBulkActions.tsx';
 import { ticketTags } from './TicketLinks.tsx';
@@ -21,7 +22,13 @@ import { SortMenu, useTicketFields } from './TicketFilter.tsx';
 import { TicketList } from './TicketList.tsx';
 import { TicketsBoard } from './TicketsBoard.tsx';
 import { TicketsTable } from './TicketsTable.tsx';
-import { type TicketRow, useTicketPipeline, useTickets, useTicketsLive } from './queries.ts';
+import {
+  type TicketRow,
+  useShownPipeline,
+  useTicketCount,
+  useTicketPipeline,
+  useTickets,
+} from './queries.ts';
 
 const LIST = 'frontline-tickets';
 
@@ -64,6 +71,78 @@ const TicketsHeader = ({
 };
 
 /**
+ * The shown pipeline's tickets, grouped by status, on a board or in a table. It suspends until
+ * the first page is in, and a new filter, sort or pipeline keeps the old tickets up until the new
+ * ones are.
+ */
+const PipelineTickets = ({
+  pipeline,
+  display,
+  create,
+}: {
+  pipeline: string;
+  display: (typeof DISPLAYS)[number];
+  create: () => void;
+}) => {
+  const { t } = useTranslation('frontline');
+  const list = useTickets();
+  const { rows: tickets } = list;
+
+  if (tickets.length === 0)
+    return (
+      <ListEmpty
+        icon={<IconTicket />}
+        title={t('no-tickets-in', 'No tickets in {{pipeline}} yet', { pipeline })}
+        description={t('no-tickets-in-description', 'Create one here, or pick another pipeline.')}
+        action={<Button onClick={create}>{t('create-ticket', 'Create ticket')}</Button>}
+      />
+    );
+
+  if (display === 'table')
+    return (
+      <TicketsTable tickets={tickets} paging={list}>
+        <SelectionBar>{bulkOf(tickets)}</SelectionBar>
+      </TicketsTable>
+    );
+
+  if (display === 'board') return <TicketsBoard />;
+
+  return (
+    <RecordList.Provider listId={LIST}>
+      <LoadPage paging={list} newer />
+      <TicketList tickets={tickets} />
+      <LoadPage paging={list} />
+      <ListSelectionBar shown={tickets.map((ticket) => ticket.id)}>
+        {bulkOf(tickets)}
+      </ListSelectionBar>
+    </RecordList.Provider>
+  );
+};
+
+/** The tickets once the choices are in, or why there are none: no pipeline to file them under. */
+const TicketsBody = ({
+  display,
+  create,
+}: {
+  display: (typeof DISPLAYS)[number];
+  create: () => void;
+}) => {
+  const { t } = useTranslation('frontline');
+  const pipeline = useShownPipeline();
+
+  if (!pipeline)
+    return (
+      <ListEmpty
+        icon={<IconTicket />}
+        title={t('no-tickets-yet', 'No tickets yet')}
+        description={t('no-ticket-pipelines', 'A channel admin adds pipelines in its settings.')}
+      />
+    );
+
+  return <PipelineTickets pipeline={pipeline.name} display={display} create={create} />;
+};
+
+/**
  * One pipeline's tickets at a time, the one the sidebar picked, under core's list bar: the filter
  * (`F`) on every field the old page filtered by, Sort, and Display, which groups them by status,
  * lays them on a board or shows a table. A ticket opens in core's side panel; Create ticket
@@ -74,63 +153,29 @@ export const TicketsPage = () => {
   const { openNew } = useOpenRecord();
   const [display] = useListDisplay(LIST, DISPLAYS);
   const pipeline = useTicketPipeline();
-  const canCreate = Boolean(pipeline);
   const create = () => openNew(TICKET_TYPE, { pipelineId: pipeline?.id });
-
-  useTicketsLive();
-  const list = useTickets();
-  const { rows: tickets, totalCount, isPending, error } = list;
 
   return (
     <PageContainer>
-      <TicketsHeader pipeline={pipeline?.name} canCreate={canCreate} create={create} />
+      <TicketsHeader pipeline={pipeline?.name} canCreate={Boolean(pipeline)} create={create} />
       <ViewBar allLabel={t('all-tickets', 'All tickets')}>
         <ListFilter
           id={LIST}
           fields={useTicketFields()}
           members={memberQueries}
           tags={ticketTags}
-          totalCount={totalCount}
+          totalCount={useTicketCount()}
         >
           <SortMenu />
           <DisplayMenu list={LIST} displays={DISPLAYS} />
         </ListFilter>
       </ViewBar>
-      {error ? (
-        <p className="m-3 text-sm text-destructive-text">{error.message}</p>
-      ) : !isPending && tickets.length === 0 ? (
-        <ListEmpty
-          icon={<IconTicket />}
-          title={
-            pipeline
-              ? t('no-tickets-in', 'No tickets in {{pipeline}} yet', { pipeline: pipeline.name })
-              : t('no-tickets-yet', 'No tickets yet')
-          }
-          description={
-            pipeline
-              ? t('no-tickets-in-description', 'Create one here, or pick another pipeline.')
-              : t('no-ticket-pipelines', 'A channel admin adds pipelines in its settings.')
-          }
-          action={
-            canCreate && <Button onClick={create}>{t('create-ticket', 'Create ticket')}</Button>
-          }
-        />
-      ) : display === 'table' ? (
-        <TicketsTable tickets={tickets} paging={list}>
-          <SelectionBar>{bulkOf(tickets)}</SelectionBar>
-        </TicketsTable>
-      ) : display === 'board' ? (
-        <TicketsBoard />
-      ) : (
-        <RecordList.Provider listId={LIST}>
-          <LoadPage paging={list} newer />
-          {isPending ? <RecordList.Skeleton /> : <TicketList tickets={tickets} />}
-          <LoadPage paging={list} />
-          <ListSelectionBar shown={tickets.map((ticket) => ticket.id)}>
-            {bulkOf(tickets)}
-          </ListSelectionBar>
-        </RecordList.Provider>
-      )}
+      <QueryBoundary
+        fallback={<RecordList.Skeleton />}
+        renderError={(message) => <p className="m-3 text-sm text-destructive-text">{message}</p>}
+      >
+        <TicketsBody display={display} create={create} />
+      </QueryBoundary>
     </PageContainer>
   );
 };

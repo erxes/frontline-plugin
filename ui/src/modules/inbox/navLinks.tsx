@@ -1,3 +1,4 @@
+import type { QueryClient } from '@tanstack/react-query';
 import {
   Badge,
   cn,
@@ -15,8 +16,11 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import { z } from 'zod';
+import { inboxPage } from '~/pages.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { INBOX_PATH, listPath } from '~/shared/listPath.ts';
+import { usePrefetch } from '~/shared/prefetch.ts';
+import { prefetchInbox } from './queries.ts';
 
 /** Whether each sidebar group is open, remembered in the browser as the old sidebar did. */
 const groupOpen = storedFamily({
@@ -53,6 +57,13 @@ export const Count = ({ count, beforeAction }: { count: number; beforeAction?: b
   );
 };
 
+/** The inbox page at `to` and its first page of conversations. */
+const loadInbox = (queryClient: QueryClient, to: string) =>
+  Promise.all([inboxPage(), prefetchInbox(queryClient, to)]);
+
+/** Loads the inbox a sidebar link leads to as the member points at it: `{...prefetch(to)}`. */
+export const usePrefetchInbox = () => usePrefetch(loadInbox);
+
 /** Whether the inbox shows `rules` now, and the link that turns them on, or off when they are. */
 export const useFilterLink = (...rules: TConditionRule[]) => {
   const { pathname } = useLocation();
@@ -83,10 +94,11 @@ export const FilterLink = ({
   children?: ReactNode;
 }) => {
   const { active, to } = useFilterLink(rule);
+  const prefetch = usePrefetchInbox();
 
   return (
     <Sidebar.MenuItem>
-      <Sidebar.MenuButton isActive={active} render={<Link to={to} />}>
+      <Sidebar.MenuButton isActive={active} render={<Link to={to} {...prefetch(to)} />}>
         {icon}
         <span className="min-w-0 flex-1 truncate">{name}</span>
         <Count count={count} beforeAction={Boolean(action)} />
