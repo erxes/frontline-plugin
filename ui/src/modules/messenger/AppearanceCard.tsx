@@ -28,7 +28,7 @@ const ColorRow = ({
               aria-label={label}
               value={field.value ?? undefined}
               onValueChange={field.onChange}
-              className="w-min"
+              className="w-16"
             />
           </Form.Control>
         </Form.Item>

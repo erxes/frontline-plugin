@@ -118,7 +118,7 @@ const HelpCenterCard = () => {
                     aria-label={t('kb-color', 'Color')}
                     value={field.value || undefined}
                     onValueChange={field.onChange}
-                    className="w-min"
+                    className="w-16"
                   />
                 </Form.Control>
                 <Form.Message />

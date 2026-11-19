@@ -85,7 +85,7 @@ const ColorCell = ({ tag }: { tag: Tag }) => {
         aria-label={t('tag-color', 'Colour of {{name}}', { name: tag.name })}
         value={tag.colorCode ?? DEFAULT_COLOR}
         onValueChange={(colorCode) => update.mutate({ id: tag.id, colorCode })}
-        className="w-12 flex-none"
+        className="w-full"
       />
     </RecordTableInlineCell>
   );

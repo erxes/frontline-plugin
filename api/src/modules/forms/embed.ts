@@ -1,5 +1,5 @@
 import { ORPCError } from '@orpc/server';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, getTableColumns, sql } from 'drizzle-orm';
 import express, { type Request, type RequestHandler, type Response, Router } from 'express';
 import { z } from 'zod';
 import { config } from '#/config.ts';
@@ -30,6 +30,7 @@ import { keyOfOrganization, organizationOfKey, widgetScript } from '../public.ts
 import { countView } from '../views.ts';
 import { type Answer, checkAnswers, FILE_FIELDS, VisitorAnswers } from './answers.ts';
 import { customerOfSubmission } from './customers.ts';
+import { fieldOptions } from './fields.ts';
 import { type FormLink, formLinkOf } from './links.ts';
 import { formFor, publishFormEvents } from './shared.ts';
 
@@ -69,7 +70,7 @@ const activeForm = async (tx: Tx, code: string) => {
   if (!form) return null;
 
   const fields = await tx
-    .select()
+    .select({ ...getTableColumns(formFields), options: fieldOptions })
     .from(formFields)
     .where(eq(formFields.formId, form.id))
     .orderBy(asc(formFields.pageNumber), asc(formFields.order));

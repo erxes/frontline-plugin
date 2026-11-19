@@ -128,8 +128,13 @@ test('a member changes tickets in one go, sees them on the board and deletes the
   await openPipeline(page, pipeline);
   const ofPipeline = page.url();
 
+  // C opens the create panel, as the button does, once the button shows.
+  await expect(page.getByRole('button', { name: 'Create ticket' }).first()).toBeVisible();
+
   for (const name of names) {
-    await page.getByRole('button', { name: 'Create ticket' }).first().click();
+    await (name === refund
+      ? page.keyboard.press('c')
+      : page.getByRole('button', { name: 'Create ticket' }).first().click());
     await pick(page, panel.getByRole('combobox', { name: 'Pipeline' }), `${channel} › ${pipeline}`);
     await panel.getByLabel('Name').fill(name);
     await panel.getByRole('button', { name: 'Create ticket' }).click();

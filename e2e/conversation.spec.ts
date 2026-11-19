@@ -1,3 +1,4 @@
+import type { Locator } from '@playwright/test';
 import {
   addMessenger,
   createChannel,
@@ -10,6 +11,14 @@ import {
   unique,
   visitorOf,
 } from './fixtures.ts';
+
+/** Types `day` into the date field as a person does, closes the calendar its click opened and leaves. */
+const typeDay = async (field: Locator, day: string) => {
+  await field.click();
+  await field.pressSequentially(day);
+  await field.press('Escape');
+  await field.press('Tab');
+};
 
 test('a member makes a ticket from the open conversation, which shows it and which it links back to', async ({
   page,
@@ -47,6 +56,17 @@ test('a member makes a ticket from the open conversation, which shows it and whi
   await expect(panel.getByLabel('Name')).toHaveValue(question);
   await expect(panel.getByText(name)).toBeVisible();
   await expect(panel.getByRole('combobox', { name: 'Pipeline' })).toContainText(pipeline);
+
+  // A target date before the start date isn't taken.
+  const start = panel.getByRole('textbox', { name: 'Start date' });
+  const target = panel.getByRole('textbox', { name: 'Target date' });
+
+  await typeDay(start, '2026-11-05');
+  await expect(start).not.toHaveValue('');
+  await typeDay(target, '2026-11-03');
+  await expect(target).toHaveValue('');
+  await typeDay(target, '2026-11-09');
+  await expect(target).not.toHaveValue('');
   await panel.getByRole('button', { name: 'Create ticket' }).click();
   await expect(panel.getByRole('button', { name: `Name ${question}` })).toBeVisible();
 

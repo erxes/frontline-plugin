@@ -17,6 +17,8 @@ import { assertTags } from '../tags/tags.ts';
 import { assertTeam } from '../teams/teams.ts';
 import { auditRemoved, changeEvents, publish, snapshot } from './events.ts';
 import {
+  DATES_OUT_OF_ORDER,
+  datesInOrder,
   firstStatusOf,
   nextNumbers,
   refine,
@@ -235,7 +237,15 @@ export const changeTickets = async (
 
   if (statusId || pipelineId || fields.priority !== undefined) await refreshSla(tx, ids);
 
-  await publish(tx, member, changeEvents(rows, await snapshot(tx, ids)));
+  const after = await snapshot(tx, ids);
+
+  // Checked after the write, so a change of one date is held against the other one as stored.
+  const plans = fields.startDate !== undefined || fields.targetDate !== undefined;
+
+  if (plans && !after.every(datesInOrder))
+    throw new ORPCError('BAD_REQUEST', { message: DATES_OUT_OF_ORDER });
+
+  await publish(tx, member, changeEvents(rows, after));
   // The customers before and after, so a ticket handed to someone else leaves one tab and joins
   // the other.
   const { customerId } = fields;

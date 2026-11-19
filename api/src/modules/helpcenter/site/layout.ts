@@ -139,6 +139,28 @@ const Footer = (site: Site) => {
   </footer>`;
 };
 
+/** What an address that opens no help center shows: the site's default look, no header. */
+export const noCenterPage = async () =>
+  String(
+    await html`<!doctype html>
+      <html lang="en">
+        <head>
+          <meta charset="utf-8" />
+          <meta name="viewport" content="width=device-width, initial-scale=1" />
+          <title>No such help center</title>
+          <style>
+            ${raw(SITE_CSS)}
+          </style>
+        </head>
+        <body>
+          <main id="main" class="hc-wrap hc-section">
+            <h1 class="hc-page-title">No such help center</h1>
+            <p>Check the address you were given.</p>
+          </main>
+        </body>
+      </html>`,
+  );
+
 /** A whole page of the site: `<head>`, the header, `main`, then the footer. */
 export const page = async (site: Site, title: string, main: Html, description?: string | null) => {
   const { helpCenter, copy } = site;

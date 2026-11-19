@@ -1,14 +1,9 @@
 import { IconPlus } from '@tabler/icons-react';
-import {
-  Button,
-  RecordList,
-  type RecordListGroup,
-  RelativeDateDisplay,
-  useOpenRecord,
-} from 'erxes-ui';
+import { Button, RecordList, type RecordListGroup, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { StageIcon } from '@/pipelines/StageIcon.tsx';
 import { TICKET_TYPE } from '~/plugin.ts';
+import { RowDate } from '~/shared/List.tsx';
 import { AssigneeCell, PriorityCell, TicketMenu, TicketName } from './TicketCells.tsx';
 import { SlaBadge } from './SlaBadge.tsx';
 import { TicketTags } from './TicketLinks.tsx';
@@ -39,11 +34,7 @@ const TicketLine = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions 
     <span className="hidden w-44 shrink-0 md:block">
       <AssigneeCell ticket={ticket} act={act} />
     </span>
-    <span className="w-24 shrink-0 text-muted-foreground">
-      <RelativeDateDisplay value={ticket.updatedAt.toISOString()}>
-        <RelativeDateDisplay.Value value={ticket.updatedAt.toISOString()} />
-      </RelativeDateDisplay>
-    </span>
+    <RowDate date={ticket.updatedAt} />
     <TicketMenu ticket={ticket} act={act} />
   </div>
 );

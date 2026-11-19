@@ -104,6 +104,12 @@ export const convertibleTo = (type: string) => {
 /** The types whose answers pick from the field's options. */
 export const PICK_TYPES: readonly string[] = ['select', 'radio', 'check'];
 
+/**
+ * The types a visitor picks one option of from a dropdown, as the embed draws them, or types into
+ * to find one when the field allows search.
+ */
+export const SELECT_TYPES: readonly string[] = ['select', 'select:countries', 'core:customer:sex'];
+
 /** The types a member writes a rule for, as text. */
 const TEXT_TYPES: readonly string[] = ['text', 'textarea', 'core:customer:description'];
 

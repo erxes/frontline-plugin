@@ -263,7 +263,10 @@ const pin = writes(PERMISSIONS.inboxView)
     return updated;
   });
 
-/** Sends a reply that failed again, as a new job with its own attempts. */
+/**
+ * Sends a reply again that failed, or waited on its send past `SEND_DEADLINE`, as a new job with
+ * its own attempts and deadline.
+ */
 const retry = writes(PERMISSIONS.inboxView)
   .input(z.object({ id: z.string() }))
   .output(Message)
@@ -275,7 +278,7 @@ const retry = writes(PERMISSIONS.inboxView)
 
     const [updated] = await tx
       .update(messages)
-      .set({ deliveryStatus: 'queued' })
+      .set({ deliveryStatus: 'queued', queuedAt: sql`now()` })
       .where(eq(messages.id, input.id))
       .returning(messageColumns);
 

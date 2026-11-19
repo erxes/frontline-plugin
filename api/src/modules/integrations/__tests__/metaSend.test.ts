@@ -119,4 +119,42 @@ describe('messenger replies', () => {
     expect(await statusOf()).toBe('failed');
     expect(sent()).toHaveLength(4);
   });
+
+  it('fails a reply whose send never ran within 15 minutes, and sends it again on request', async () => {
+    const calls = fakeProviders(graphApi);
+    const { owner, conversationId } = await chatting('org-fb-stuck');
+    const reply = await owner.conversations.messages.create({ conversationId, content: 'Hello?' });
+
+    const statusOf = async () =>
+      (await owner.conversations.messages.list({ conversationId })).messages.find(
+        (message) => message.id === reply.id,
+      )?.deliveryStatus;
+
+    const sent = () =>
+      calls.filter((call) => call.method === 'POST' && call.url.pathname.endsWith('me/messages'))
+        .length;
+
+    const before = sent();
+
+    expect(await statusOf()).toBe('queued');
+
+    // Core never ran the job.
+    await withOrg('org-fb-stuck', (tx) =>
+      tx.execute(sql`update frontline_messages set queued_at = now() - interval '16 minutes'
+        where id = ${reply.id}`),
+    );
+    expect(await statusOf()).toBe('failed');
+
+    // The job, run after the member saw the reply fail, sends nothing.
+    await runQueued();
+    expect(sent()).toBe(before);
+    expect(await statusOf()).toBe('failed');
+
+    await expect(owner.conversations.messages.retry({ id: reply.id })).resolves.toMatchObject({
+      deliveryStatus: 'queued',
+    });
+    await runQueued();
+    expect(await statusOf()).toBe('sent');
+    expect(sent()).toBe(before + 1);
+  });
 });

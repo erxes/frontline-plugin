@@ -19,6 +19,8 @@ import { assertLinks } from './changes.ts';
 import { createdEvent, publish, snapshot } from './events.ts';
 import { checkProperties, propertyFilter } from './properties.ts';
 import {
+  DATES_OUT_OF_ORDER,
+  datesInOrder,
   firstResponseSla,
   listRows,
   nextNumbers,
@@ -185,8 +187,8 @@ type NewTicket = Omit<
 
 /**
  * Files a ticket in `pipeline` by `actor`, a member or, with no user, the customer it names:
- * its links checked, in `statusId` or the pipeline's first status. The caller checks that
- * `actor` may file in the pipeline, and its properties with `checkProperties`.
+ * its links and date order checked, in `statusId` or the pipeline's first status. The caller
+ * checks that `actor` may file in the pipeline, and its properties with `checkProperties`.
  */
 export const fileTicket = async (
   tx: Tx,
@@ -194,6 +196,8 @@ export const fileTicket = async (
   pipeline: { id: string; channelId: string },
   input: NewTicket,
 ) => {
+  if (!datesInOrder(input)) throw new ORPCError('BAD_REQUEST', { message: DATES_OUT_OF_ORDER });
+
   await assertLinks(tx, input);
 
   const [status] = await tx

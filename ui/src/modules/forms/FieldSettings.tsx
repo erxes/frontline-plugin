@@ -4,7 +4,7 @@ import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { FieldRules } from './FieldRules.tsx';
-import { PICK_TYPES, PRESETS, takesValidator, usePresetNames } from './fieldTypes.ts';
+import { PICK_TYPES, PRESETS, SELECT_TYPES, takesValidator, usePresetNames } from './fieldTypes.ts';
 import { type FormField, useFormChange } from './useForms.ts';
 
 type Validator = FormField['validator'];
@@ -101,10 +101,9 @@ const WidthSetting = ({ field, save }: { field: FormField; save: Save }) => {
   );
 };
 
-/** A pick field's options, and whether visitors type to find one. */
+/** A pick field's options. */
 const OptionsSetting = ({ field, save }: { field: FormField; save: Save }) => {
   const { t } = useTranslation('frontline');
-  const searchId = useId();
   // Held here as typed, so an option entered before the last one's save returns isn't lost.
   const [options, setOptions] = useState(() => field.options);
 
@@ -119,16 +118,23 @@ const OptionsSetting = ({ field, save }: { field: FormField; save: Save }) => {
         }}
         placeholder={t('field-add-option', 'Type an option and press Enter')}
       />
-      {(field.type === 'select' || field.type === 'select:countries') && (
-        <div className="flex items-center gap-2">
-          <Switch
-            id={searchId}
-            checked={field.allowSearch}
-            onCheckedChange={(allowSearch) => save({ allowSearch })}
-          />
-          <Label htmlFor={searchId}>{t('field-allow-search', 'Visitors type to find one')}</Label>
-        </div>
-      )}
+    </div>
+  );
+};
+
+/** Whether visitors type to find a dropdown's option instead of opening its list. */
+const SearchSetting = ({ field, save }: { field: FormField; save: Save }) => {
+  const { t } = useTranslation('frontline');
+  const searchId = useId();
+
+  return (
+    <div className="flex items-center gap-2 sm:col-span-2">
+      <Switch
+        id={searchId}
+        checked={field.allowSearch}
+        onCheckedChange={(allowSearch) => save({ allowSearch })}
+      />
+      <Label htmlFor={searchId}>{t('field-allow-search', 'Visitors type to find one')}</Label>
     </div>
   );
 };
@@ -170,6 +176,7 @@ export const FieldSettings = ({ field, fields }: { field: FormField; fields: For
         />
       )}
       {PICK_TYPES.includes(field.type) && <OptionsSetting field={field} save={save} />}
+      {SELECT_TYPES.includes(field.type) && <SearchSetting field={field} save={save} />}
       <div className="sm:col-span-2">
         <FieldRules field={field} fields={fields} save={save} />
       </div>

@@ -118,7 +118,15 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await expect(page.getByRole('textbox', { name: 'Welcome message' })).toHaveValue(
     'Hi, how can we help?',
   );
-  await expect(page.getByText(`/widget/messenger.js?key=${key}"></script>`)).toBeVisible();
+  const install = page.getByText(`/widget/messenger.js?key=${key}"></script>`);
+
+  await expect(install).toBeVisible();
+  // Its copy button copies the code and leaves it in place.
+  await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
+  await install.locator('..').getByRole('button', { name: 'Copy', exact: true }).click();
+  await expect(page.getByText('Copied', { exact: true })).toBeVisible();
+  await expect(install).toBeVisible();
+  expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(`key=${key}`);
 
   // The secret the website signs visitors with: made, then rotated after a confirm.
   const secret = page.getByLabel('Messenger identity secret');
@@ -147,6 +155,13 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await expect(preview.getByRole('button', { name: 'Back' })).toBeVisible();
   // Online hours and the bot's fields show only once switched on.
   await expectAccessible(page, page.getByRole('button', { name: 'Add hours' }));
+  // A website page with no address marks that field instead of saving.
+  await page.getByRole('button', { name: 'Add page' }).click();
+  await page.getByRole('textbox', { name: 'Button text' }).fill('Docs');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Enter the address, starting with https://')).toBeVisible();
+  await page.getByRole('textbox', { name: 'Page address' }).click();
+  await page.keyboard.type('https://example.com/docs');
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await expect(page.getByText('Messenger saved')).toBeVisible();
 

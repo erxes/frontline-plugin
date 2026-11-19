@@ -7,6 +7,21 @@ const refetch = (queryClient: QueryClient, keys: QueryKey[]) => {
   for (const queryKey of keys) void queryClient.invalidateQueries({ queryKey });
 };
 
+/** Copies text to the clipboard and says so, or that the browser refused. */
+export const useCopy = () => {
+  const { t } = useTranslation('frontline');
+
+  // A page outside a secure context has no clipboard; that refuses as well.
+  return (text: string) =>
+    Promise.resolve(text)
+      .then((copied) => navigator.clipboard.writeText(copied))
+      .then(
+        () => toast({ title: t('copied', 'Copied') }),
+        () =>
+          toast({ title: t('copy-failed', 'The browser refused to copy'), variant: 'destructive' }),
+      );
+};
+
 /** Shows the API's refusal of a change as a toast. */
 export const useRefusal = () => {
   const { t } = useTranslation('frontline');

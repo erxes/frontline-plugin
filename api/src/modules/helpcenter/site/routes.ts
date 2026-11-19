@@ -5,7 +5,7 @@ import { LanguageCode } from '../../fields.ts';
 import { pageOf } from '../paging.ts';
 import { articleOf, type Center, centerAt, siteOf, visitorHtml } from '../public.ts';
 import { copyOf } from './copy.ts';
-import { page, type Site } from './layout.ts';
+import { noCenterPage, page, type Site } from './layout.ts';
 import {
   articlePage,
   categoryPage,
@@ -88,7 +88,11 @@ const sitePage =
       const found = openedByHost.get(req) ?? (await centerAt(address));
 
       if (!found) {
-        res.status(404).type('text/plain').send('No such help center');
+        res.set(SECURITY);
+        res
+          .status(404)
+          .type('html')
+          .send(await noCenterPage());
 
         return;
       }

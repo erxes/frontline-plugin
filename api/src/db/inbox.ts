@@ -150,7 +150,8 @@ export const DELIVERY_STATUSES = ['queued', 'sending', 'sent', 'failed'] as cons
  * A message of a conversation: from the customer (`customerId`), a member (`userId`) or neither
  * (a bot or the system). An internal note stays in the inbox and never goes out. A member's
  * message to the customer is `queued` until a send job claims it as `sending`, so only that job
- * calls the provider, and then `sent` or `failed`. `externalId` is the provider's
+ * calls the provider, and then `sent` or `failed`. One that reaches neither within
+ * `SEND_DEADLINE` of `queuedAt` reads as `failed` (`modules/inbox/post.ts`). `externalId` is the provider's
  * message id, so a retried webhook adds nothing; `providerData` is what only its adapter reads.
  */
 export const messages = table(
@@ -178,6 +179,10 @@ export const messages = table(
     surveyId: text(),
     externalId: text(),
     deliveryStatus: text({ enum: DELIVERY_STATUSES }),
+    /**
+     * When the reply's send last started: written, sent again, or claimed by a send attempt.
+     */
+    queuedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     providerData: jsonb().$type<Record<string, unknown>>(),
     customerReadAt: timestamp({ withTimezone: true }),
     pinnedAt: timestamp({ withTimezone: true }),

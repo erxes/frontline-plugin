@@ -32,33 +32,38 @@ const logFailure = (error: unknown) => {
   if (!(error instanceof ORPCError) || error.status >= 500) logger.error(error);
 };
 
+type Issues = ValidationError['issues'];
+
 /**
- * Refused input says what is wrong and where, as zod's pretty error does elsewhere ("✖ A question
- * needs at least 2 options → at steps[0].options"), where oRPC says "Input validation failed".
+ * Refused input says what is wrong, by `explain`, where oRPC says "Input validation failed".
  */
-const explainInput = (error: unknown) => {
+const explainInput = (explain: (issues: Issues) => string) => (error: unknown) => {
   if (
     error instanceof ORPCError &&
     error.code === 'BAD_REQUEST' &&
     error.cause instanceof ValidationError
   ) {
     throw new ORPCError('BAD_REQUEST', {
-      message: z.prettifyError({ issues: error.cause.issues }),
+      message: explain(error.cause.issues),
       data: error.data,
       cause: error.cause,
     });
   }
 };
 
-// The same procedures twice: RPC for the plugin UI, REST (documented below) for scripts.
+// The same procedures twice: RPC for the plugin UI, REST (documented below) for scripts. The UI
+// shows a member the first issue's own words; a script gets every issue and where, as zod's
+// pretty error ("✖ A question needs at least 2 options → at steps[0].options").
 const rpc = new RPCHandler(router, {
   interceptors: [onError(logFailure)],
-  clientInterceptors: [onError(explainInput)],
+  clientInterceptors: [
+    onError(explainInput((issues) => issues[0]?.message ?? 'Input validation failed')),
+  ],
 });
 
 const rest = new OpenAPIHandler(router, {
   interceptors: [onError(logFailure)],
-  clientInterceptors: [onError(explainInput)],
+  clientInterceptors: [onError(explainInput((issues) => z.prettifyError({ issues })))],
 });
 
 /** Settings › Developer › API reference in core shows it (the manifest's `api.docs`). */

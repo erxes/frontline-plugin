@@ -7,11 +7,29 @@ import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { FIELD_TYPES, FieldLogic, FieldValidator, formFields, forms } from '#/db/forms.ts';
 import { reads, writes } from '#/orpc.ts';
+import countries from 'i18n-iso-countries';
 import { isPattern } from './answers.ts';
+import { SEX_CODES } from './customers.ts';
 import { Ids } from '../fields.ts';
 import { formFor } from './shared.ts';
 
-const { orgId, ...fieldColumns } = getTableColumns(formFields);
+const COUNTRIES = Object.values(countries.getNames('en', { select: 'official' })).toSorted((a, b) =>
+  a.localeCompare(b, 'en'),
+);
+
+/**
+ * A field's options: every country for a country field and the sexes a customer takes for a sex
+ * field, whatever the field stores, else the ones a member set.
+ */
+export const fieldOptions = sql<string[]>`case ${formFields.type}
+  when 'select:countries' then ${sql.param(COUNTRIES)}::text[]
+  when 'core:customer:sex' then ${sql.param(Object.keys(SEX_CODES))}::text[]
+  else ${formFields.options} end`;
+
+const { orgId, ...columns } = getTableColumns(formFields);
+
+/** A field as the builder and the embed read it, with its options. */
+export const fieldColumns = { ...columns, options: fieldOptions };
 
 export const FormField = createSelectSchema(formFields, {
   validator: () => FieldValidator.nullable(),

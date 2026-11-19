@@ -122,6 +122,17 @@ export const ticketById = async (tx: Tx, member: PluginMember, id: string) => {
   return ticket;
 };
 
+export const DATES_OUT_OF_ORDER = "The target date can't be before the start date";
+
+/** Whether a ticket's plan is in order: no target date before its start date. */
+export const datesInOrder = ({
+  startDate,
+  targetDate,
+}: {
+  startDate?: Date | null;
+  targetDate?: Date | null;
+}) => !startDate || !targetDate || targetDate >= startDate;
+
 /** What a ticket's fields accept. */
 export const refine = {
   name: () => Title,

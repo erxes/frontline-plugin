@@ -10,10 +10,11 @@ import {
   IconRefresh,
   IconRobot,
 } from '@tabler/icons-react';
-import { Button, cn, Editor, editorText, toast, toIsoDay, useFormat } from 'erxes-ui';
+import { Button, cn, Editor, editorText, toIsoDay, useFormat } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SentSurvey } from '~/modules/surveys/SurveyMessage.tsx';
+import { useCopy } from '~/shared/hooks.ts';
 import { MemberLine, PersonAvatar } from '~/shared/Person.tsx';
 import type { Message } from './queries.ts';
 import { useEditMessage, usePinMessage, useRetryMessage } from './changes.ts';
@@ -145,21 +146,6 @@ export const continues = (message: Message, previous: Message | undefined) =>
   previous.internal === message.internal &&
   message.createdAt.getTime() - previous.createdAt.getTime() < RUN_MS &&
   toIsoDay(message.createdAt) === toIsoDay(previous.createdAt);
-
-/** Copies the message's text and says so. */
-const useCopy = () => {
-  const { t } = useTranslation('frontline');
-
-  // A page outside a secure context has no clipboard; that refuses as well.
-  return (text: string) =>
-    Promise.resolve(text)
-      .then((copied) => navigator.clipboard.writeText(copied))
-      .then(
-        () => toast({ title: t('copied', 'Copied') }),
-        () =>
-          toast({ title: t('copy-failed', 'The browser refused to copy'), variant: 'destructive' }),
-      );
-};
 
 /** What a quote of the message shows: its text, else the name of its first file. */
 export const quoteText = (message: Pick<Message, 'content' | 'attachments'>) =>
