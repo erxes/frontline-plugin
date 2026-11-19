@@ -8,13 +8,16 @@ import type { Tx } from '#/db/client.ts';
 import { type CHANNEL_ROLES, channelMembers, channels } from '#/db/schema.ts';
 import { publishEvents, type RecordEvent } from '../events.ts';
 
+/** Whether core's role holds every permission, channel management with it: Owner and Admin do. */
+export const holdsEveryPermission = (role: string) => role === 'owner' || role === 'admin';
+
 /**
  * The member core asks about in a transfer or a timeline check. Core sends no permissions, and a
  * plugin can't read a role's: Owner and Admin hold every one, and anyone else sees what their
  * channels hold, as a member without channel management does.
  */
 export const askedMember = (orgId: string, userId: string, role = 'member') => {
-  const all = role === 'owner' || role === 'admin';
+  const all = holdsEveryPermission(role);
 
   return {
     userId,

@@ -94,6 +94,14 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
           downloadUrl: `https://files.core.test/${id}`,
         }),
       },
+      // Members whose id starts with `admin-` hold core's Admin role.
+      users: {
+        list: async ({ ids }: { ids: string }) => ({
+          data: ids
+            .split(',')
+            .map((id) => ({ id, role: id.startsWith('admin-') ? 'admin' : 'member' })),
+        }),
+      },
       notifications: {
         create: async (input: unknown) => {
           asked.notifications.push(input);

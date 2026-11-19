@@ -1,16 +1,18 @@
 import { randomUUID } from 'node:crypto';
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { core, INBOX_NOTIFICATIONS, PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { messages } from '#/db/inbox.ts';
+import { channelMembers, channels } from '#/db/schema.ts';
 import { Attachment, StoredFile } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import { reads, writes } from '#/orpc.ts';
+import { holdsEveryPermission } from '../channels/access.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import { Content, Html, writtenText } from './html.ts';
 import { messageColumns, postMessage, queueSend } from './post.ts';
@@ -92,6 +94,45 @@ const list = reads(PERMISSIONS.inboxView)
     return { messages: items, nextCursor };
   });
 
+/**
+ * The ones of `userIds` who see the channel, so a mention reaches no one else: its members, and
+ * Owners and Admins, who see every channel but someone else's personal inbox. When core can't
+ * tell roles, only the members stay.
+ */
+const mentionable = async (tx: Tx, member: PluginMember, channelId: string, userIds: string[]) => {
+  const ids = [...new Set(userIds)];
+
+  if (ids.length === 0) return [];
+
+  const [channel] = await tx
+    .select({ ownerId: channels.ownerId })
+    .from(channels)
+    .where(eq(channels.id, channelId));
+
+  const rows = await tx
+    .select({ userId: channelMembers.userId })
+    .from(channelMembers)
+    .where(and(eq(channelMembers.channelId, channelId), inArray(channelMembers.userId, ids)));
+
+  const inIt = rows.map((row) => row.userId);
+  const rest = ids.filter((id) => !inIt.includes(id));
+
+  if (rest.length === 0 || channel?.ownerId) return inIt.toSorted();
+
+  const users = await core
+    .forOrg(member.orgId)
+    .users.list({ ids: rest.join(','), limit: rest.length })
+    .catch((error: unknown) => {
+      logger.error({ err: error, channelId, userIds: rest }, 'mentioned roles failed');
+
+      return { data: [] };
+    });
+
+  const managers = users.data.filter((user) => holdsEveryPermission(user.role));
+
+  return [...inIt, ...managers.map((user) => user.id)].toSorted();
+};
+
 /** Tells the mentioned members, after the message committed; a failure is logged, not thrown. */
 const notifyMentioned = async (member: PluginMember, conversationId: string, userIds: string[]) => {
   const others = userIds.filter((id) => id !== member.userId);
@@ -152,7 +193,10 @@ const create = writes(PERMISSIONS.inboxView)
     if (input.replyToId && !answered)
       throw new ORPCError('BAD_REQUEST', { message: 'Reply to a message of this conversation' });
 
-    const mentionedUserIds = [...new Set([...input.mentionedUserIds, ...text.mentionedUserIds])];
+    const mentionedUserIds = await mentionable(tx, member, conversation.channelId, [
+      ...input.mentionedUserIds,
+      ...text.mentionedUserIds,
+    ]);
 
     const message = await postMessage(tx, member, conversation, {
       content: text.content,

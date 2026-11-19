@@ -223,20 +223,22 @@ describe('inbox', () => {
     const note = await teammate.conversations.messages.create({
       conversationId: id,
       internal: true,
+      // Someone outside the channel isn't told; an Admin, who sees every channel, is.
+      mentionedUserIds: ['outsider', 'admin-ib'],
       html:
-        '<p>Ask <span data-inline-content-type="mention" data-_id="owner-rich" data-full-name="Olivia">@Olivia</span>' +
+        '<p>Ask <span data-inline-content-type="mention" data-_id="user-org-ib-rich" data-full-name="Olivia">@Olivia</span>' +
         ' about <strong>refunds</strong><img src="x" onerror="alert(1)"><script>alert(2)</script></p>',
     });
 
     expect(note).toMatchObject({
       content: 'Ask @Olivia about refunds',
-      html: '<p>Ask <span data-inline-content-type="mention" data-_id="owner-rich" data-full-name="Olivia">@Olivia</span> about <strong>refunds</strong></p>',
-      mentionedUserIds: ['owner-rich'],
+      html: '<p>Ask <span data-inline-content-type="mention" data-_id="user-org-ib-rich" data-full-name="Olivia">@Olivia</span> about <strong>refunds</strong></p>',
+      mentionedUserIds: ['admin-ib', 'user-org-ib-rich'],
     });
     expect(asked.notifications).toContainEqual(
       expect.objectContaining({
         kind: 'frontline.conversation.mentioned',
-        userIds: ['owner-rich'],
+        userIds: ['admin-ib', 'user-org-ib-rich'],
       }),
     );
 
