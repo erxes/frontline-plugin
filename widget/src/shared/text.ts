@@ -20,18 +20,19 @@ const textOf = (words: Words) => {
       String(values[name] ?? ''),
     );
 
+  /** A message the API wrote, in the embed's language when its words have it. */
+  const wordOf = (message: string) => (known(words, message) ? t(message) : message);
+
   /**
-   * What went wrong, as the API said it, in the embed's language when its words have it. A
-   * failure that never reached the API, such as a lost connection, reads as a generic one.
+   * What went wrong, as the API said it. A failure that never reached the API, such as a lost
+   * connection, reads as a generic one.
    */
-  const messageOf = (failure: unknown) => {
-    if (!(failure instanceof Error) || failure instanceof TypeError)
-      return t('Something went wrong');
+  const messageOf = (failure: unknown) =>
+    !(failure instanceof Error) || failure instanceof TypeError
+      ? t('Something went wrong')
+      : wordOf(failure.message);
 
-    return known(words, failure.message) ? t(failure.message) : failure.message;
-  };
-
-  return { t, messageOf };
+  return { t, wordOf, messageOf };
 };
 
 export type Text = ReturnType<typeof textOf>;

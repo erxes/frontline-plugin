@@ -1,4 +1,5 @@
 import { useEffect } from 'preact/hooks';
+import { useText } from '../shared/text.ts';
 import { AttachButton, FileChips, useUploads } from '../shared/uploads.tsx';
 import type { Answer, Field, FormApi } from './api.ts';
 
@@ -100,33 +101,38 @@ export const searches = (field: Field) =>
  * A long list's input: the visitor types and the browser offers the options that match. Text
  * that matches one but for case becomes it; the step refuses any other text (`FormView.tsx`).
  */
-const SearchSelect = ({ field, value, onChange }: InputProps) => (
-  <>
-    <input
-      id={field.id}
-      list={`${field.id}-options`}
-      required={field.isRequired}
-      autocomplete="off"
-      placeholder={field.placeholder || 'Type to search'}
-      value={textOf(value)}
-      onInput={(event) => {
-        const typed = event.currentTarget.value;
+const SearchSelect = ({ field, value, onChange }: InputProps) => {
+  const { t } = useText();
 
-        onChange(
-          field.options.find((option) => option.toLowerCase() === typed.toLowerCase()) ?? typed,
-        );
-      }}
-    />
-    <datalist id={`${field.id}-options`}>
-      {field.options.map((option) => (
-        <option key={option} value={option} />
-      ))}
-    </datalist>
-  </>
-);
+  return (
+    <>
+      <input
+        id={field.id}
+        list={`${field.id}-options`}
+        required={field.isRequired}
+        autocomplete="off"
+        placeholder={field.placeholder || t('Type to search')}
+        value={textOf(value)}
+        onInput={(event) => {
+          const typed = event.currentTarget.value;
+
+          onChange(
+            field.options.find((option) => option.toLowerCase() === typed.toLowerCase()) ?? typed,
+          );
+        }}
+      />
+      <datalist id={`${field.id}-options`}>
+        {field.options.map((option) => (
+          <option key={option} value={option} />
+        ))}
+      </datalist>
+    </>
+  );
+};
 
 /** The input a field of its type takes. */
 const Input = ({ field, value, onChange }: InputProps) => {
+  const { t } = useText();
   const common = { id: field.id, required: field.isRequired, placeholder: field.placeholder ?? '' };
 
   switch (field.type) {
@@ -175,7 +181,7 @@ const Input = ({ field, value, onChange }: InputProps) => {
           value={textOf(value)}
           onChange={(event) => onChange(event.currentTarget.value)}
         >
-          <option value="">{field.placeholder || 'Pick one'}</option>
+          <option value="">{field.placeholder || t('Pick one')}</option>
           {field.options.map((option) => (
             <option key={option} value={option}>
               {option}
@@ -205,6 +211,7 @@ export const FieldRow = ({
   error: string | undefined;
   setAnswer: SetAnswer;
 }) => {
+  const { wordOf } = useText();
   const files = field.type === 'file' || field.type === 'core:customer:avatar';
   const group = files || field.type === 'radio' || field.type === 'check';
   const Wrapper = group ? 'fieldset' : 'div';
@@ -230,7 +237,7 @@ export const FieldRow = ({
       {field.description && <small>{field.description}</small>}
       {error && (
         <p class="fl-error" role="alert">
-          {error}
+          {wordOf(error)}
         </p>
       )}
     </Wrapper>

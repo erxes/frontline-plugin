@@ -10,7 +10,7 @@ import { reads, writes } from '#/orpc.ts';
 import { channelFor, membership } from '../channels/access.ts';
 import { assertTags } from '../tags/tags.ts';
 import { changedEvent } from '../events.ts';
-import { Blank, Color, Title } from '../fields.ts';
+import { Blank, Color, LanguageCode, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
@@ -85,6 +85,7 @@ const FormFields = createUpdateSchema(forms, {
   description: () => Blank(2000),
   buttonText: () => Blank(100),
   primaryColor: () => Color.nullable(),
+  languageCode: () => LanguageCode.nullable(),
   calloutTitle: () => Blank(200),
   calloutBody: () => Blank(2000),
   calloutButtonText: () => Blank(100),
@@ -103,6 +104,7 @@ const FormFields = createUpdateSchema(forms, {
   status: true,
   loadType: true,
   primaryColor: true,
+  languageCode: true,
   saveAsCustomer: true,
   calloutTitle: true,
   calloutBody: true,
@@ -126,6 +128,7 @@ const NAMES: [keyof z.infer<typeof Form>, string][] = [
   ['status', 'status'],
   ['loadType', 'load type'],
   ['primaryColor', 'colour'],
+  ['languageCode', 'language'],
   ['saveAsCustomer', 'save as customer'],
   ['calloutTitle', 'callout title'],
   ['calloutBody', 'callout body'],
@@ -150,7 +153,7 @@ const create = writes(PERMISSIONS.channelView)
     const [created] = await tx
       .insert(forms)
       .values({
-        steps: [{ name: 'Step 1', description: '' }],
+        steps: [{ name: '', description: '' }],
         ...input,
         orgId: member.orgId,
         code: newCode(),

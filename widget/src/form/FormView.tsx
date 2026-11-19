@@ -5,25 +5,33 @@ import type { Answer, Field, FormApi, VisitorForm } from './api.ts';
 import { FieldRow, searches } from './Field.tsx';
 
 /** What the visitor reads before the form, unless the form skips it. */
-const Callout = ({ form, onStart }: { form: VisitorForm['form']; onStart: () => void }) => (
-  <div class="fl-callout">
-    {form.calloutImage && <img src={form.calloutImage.url} alt="" />}
-    {form.calloutTitle && <h2>{form.calloutTitle}</h2>}
-    {form.calloutBody && <p>{form.calloutBody}</p>}
-    <button type="button" class="fl-primary" onClick={onStart}>
-      {form.calloutButtonText || 'Start'}
-    </button>
-  </div>
-);
+const Callout = ({ form, onStart }: { form: VisitorForm['form']; onStart: () => void }) => {
+  const { t } = useText();
+
+  return (
+    <div class="fl-callout">
+      {form.calloutImage && <img src={form.calloutImage.url} alt="" />}
+      {form.calloutTitle && <h2>{form.calloutTitle}</h2>}
+      {form.calloutBody && <p>{form.calloutBody}</p>}
+      <button type="button" class="fl-primary" onClick={onStart}>
+        {form.calloutButtonText || t('Start')}
+      </button>
+    </div>
+  );
+};
 
 /** What the visitor reads once they sent the form. */
-const Thanks = ({ form }: { form: VisitorForm['form'] }) => (
-  <div class="fl-callout" role="status">
-    {form.thankImage && <img src={form.thankImage.url} alt="" />}
-    <h2>{form.thankTitle || 'Thank you'}</h2>
-    {form.thankContent && <p>{form.thankContent}</p>}
-  </div>
-);
+const Thanks = ({ form }: { form: VisitorForm['form'] }) => {
+  const { t } = useText();
+
+  return (
+    <div class="fl-callout" role="status">
+      {form.thankImage && <img src={form.thankImage.url} alt="" />}
+      <h2>{form.thankTitle || t('Thank you')}</h2>
+      {form.thankContent && <p>{form.thankContent}</p>}
+    </div>
+  );
+};
 
 /**
  * The visitor's answers, the step they are on, and sending: each step checks its required
@@ -80,7 +88,7 @@ const useAnswers = (api: FormApi, fields: Field[], onSent: (submissionId: string
       if (unanswered(answer)) return field.isRequired ? [[field.id, 'This field is required']] : [];
 
       return searches(field) && typeof answer === 'string' && !field.options.includes(answer)
-        ? [[field.id, 'Pick one of the options']]
+        ? [[field.id, 'Pick an option']]
         : [];
     });
 
@@ -107,6 +115,7 @@ export const FormView = ({
   visitorForm: VisitorForm;
   onSent: (submissionId: string) => void;
 }) => {
+  const { t } = useText();
   const callout = showsCallout(form);
   const [stage, setStage] = useState<'callout' | 'form' | 'thanks'>(callout ? 'callout' : 'form');
 
@@ -135,7 +144,7 @@ export const FormView = ({
       {form.description && <p>{form.description}</p>}
       {state.steps > 1 && (
         <p class="fl-step">
-          {about?.name || `Step ${state.step} of ${state.steps}`}
+          {about?.name || t('Step {step} of {steps}', { step: state.step, steps: state.steps })}
           {about?.description && <small>{about.description}</small>}
         </p>
       )}
@@ -159,11 +168,11 @@ export const FormView = ({
       <div class="fl-actions">
         {state.step > 1 && (
           <button type="button" class="fl-secondary" onClick={() => state.setStep(state.step - 1)}>
-            Back
+            {t('Back')}
           </button>
         )}
         <button type="submit" class="fl-primary" disabled={state.sending}>
-          {state.step < state.steps ? 'Next' : form.buttonText || 'Send'}
+          {state.step < state.steps ? t('Next') : form.buttonText || t('Send')}
         </button>
       </div>
     </form>
