@@ -8,7 +8,7 @@ import { fail } from '../fail.ts';
 import { sendIpLimit, underKeyLimit, underLeadLimit } from '../limits.ts';
 import { shownKeyOf, shownUrl } from '../shownFiles.ts';
 import { voteRoutes } from '../surveys/votes.ts';
-import { integrationChanges, isOnlineAt } from './adapter.ts';
+import { integrationChanges } from './adapter.ts';
 import { articleRoutes } from './articles.ts';
 import { fileRoutes } from './files.ts';
 import { messengerOf, tokenOf, visitorOf } from './session.ts';
@@ -16,6 +16,7 @@ import { streaming, subscribe } from './stream.ts';
 import { ticketRoutes } from './tickets.ts';
 import { asVisitor, messengerIntegration, threadRoutes, visitorConversations } from './threads.ts';
 import { Identity, signedCustomer } from './identity.ts';
+import { visitorView } from './view.ts';
 import {
   fillIn,
   newVisitor,
@@ -62,7 +63,9 @@ const opened = async (key: string) => {
  * `/settings` by messenger key for a minute, as browsers keep it (`max-age=60`), so a page view
  * costs no query and no call to core. A change to the messenger drops it at once in this process.
  */
-const openedRecently = new LRUCache<string, Awaited<ReturnType<typeof opened>>>({
+type Opened = Awaited<ReturnType<typeof opened>>;
+
+const openedRecently = new LRUCache<string, Opened>({
   max: 5000,
   ttl: 60_000,
   fetchMethod: opened,
@@ -73,23 +76,17 @@ integrationChanges.on('changed', (integrationId) => {
     if (cached.integrationId === integrationId) openedRecently.delete(key);
 });
 
-/**
- * What a visitor sees of the messenger: its settings with its team in place of the team's ids and
- * its logos where a visitor loads them, whether that team is online now, and whether it takes
- * tickets.
- */
-const messengerView = ({ settings, supporters, shownKey }: Awaited<ReturnType<typeof opened>>) => {
-  const { supporterIds, channelId, ticketPipelineIds, ...shown } = settings;
-
-  return {
-    ...shown,
-    logo: shown.logo && shownUrl(shownKey, shown.logo),
-    launcherLogo: shown.launcherLogo && shownUrl(shownKey, shown.launcherLogo),
-    isOnline: isOnlineAt(settings, new Date()),
+/** What a visitor sees of the messenger now, its logos where a visitor loads them. */
+const messengerView = ({ settings: { channelId, ...settings }, supporters, shownKey }: Opened) =>
+  visitorView(
+    {
+      ...settings,
+      logo: settings.logo && shownUrl(shownKey, settings.logo),
+      launcherLogo: settings.launcherLogo && shownUrl(shownKey, settings.launcherLogo),
+    },
     supporters,
-    tickets: ticketPipelineIds.length > 0,
-  };
-};
+    new Date(),
+  );
 
 /** What `/connect` answers, as the widget reads it. */
 export type Connected = {

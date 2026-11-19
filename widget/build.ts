@@ -8,6 +8,7 @@ const root = import.meta.dirname;
 /** Each embed, by the file name a website's script loads. */
 const entries = {
   messenger: resolve(root, 'src/messenger.tsx'),
+  'messenger-preview': resolve(root, 'src/messenger-preview.tsx'),
   form: resolve(root, 'src/form.tsx'),
   knowledgebase: resolve(root, 'src/knowledgebase.tsx'),
 };

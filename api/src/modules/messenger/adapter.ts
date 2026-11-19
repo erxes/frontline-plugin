@@ -2,11 +2,7 @@ import { EventEmitter } from 'node:events';
 import { z } from 'zod';
 import type { Adapter } from '../inbox/adapters.ts';
 import { Color } from '../fields.ts';
-
-const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-
-/** The days an online-hours row covers: one weekday, every day, Monday to Friday or the weekend. */
-export const HOURS_DAYS = [...WEEKDAYS, 'everyday', 'weekdays', 'weekend'] as const;
+import { HOURS_DAYS } from './view.ts';
 
 const Time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'A time such as 09:00');
 
@@ -86,44 +82,6 @@ export const MessengerConfig = z.object({
 });
 
 export type MessengerConfig = z.infer<typeof MessengerConfig>;
-
-/** The weekday, as `HOURS_DAYS` names it, and the `HH:mm` time in `timeZone` at `now`. */
-const clockAt = (now: Date, timeZone: string) => {
-  const parts = new Intl.DateTimeFormat('en-GB', {
-    timeZone,
-    weekday: 'long',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(now);
-
-  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-
-  return { day: part('weekday').toLowerCase(), time: `${part('hour')}:${part('minute')}` };
-};
-
-const covers = (day: (typeof HOURS_DAYS)[number], weekday: string) =>
-  day === weekday ||
-  day === 'everyday' ||
-  (day === 'weekend' && (weekday === 'saturday' || weekday === 'sunday')) ||
-  (day === 'weekdays' && weekday !== 'saturday' && weekday !== 'sunday');
-
-/**
- * Whether the messenger's team reads as online at `now`. Hours that end at or before they start
- * run past midnight: Friday 22:00 to 06:00 covers Friday night and Saturday until 06:00.
- */
-export const isOnlineAt = (config: MessengerConfig, now: Date) => {
-  if (config.availability === 'manual') return config.isOnline;
-
-  const { day, time } = clockAt(now, config.timezone ?? 'UTC');
-  const yesterday = WEEKDAYS[(WEEKDAYS.indexOf(day) + 6) % 7] ?? day;
-
-  return config.onlineHours.some(({ day: days, from, to }) =>
-    from < to
-      ? covers(days, day) && from <= time && time < to
-      : (covers(days, day) && from <= time) || (covers(days, yesterday) && time < to),
-  );
-};
 
 /** The chat on a website: visitors write through the public messenger routes and read replies there. */
 export const messenger = {

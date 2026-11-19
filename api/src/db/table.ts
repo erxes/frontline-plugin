@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { pgTableCreator, text, timestamp } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
+import { CORE_FILE } from '#/coreFile.ts';
 
 /**
  * Every table is `frontline_<name>`: the plugin shares core's database, and core
@@ -24,9 +25,6 @@ export const stamps = () => ({
     .defaultNow()
     .$onUpdate(() => new Date()),
 });
-
-/** The address core gives a file it stores, with the file's id. */
-export const CORE_FILE = /^\/core\/v1\/files\/([\w-]{1,64})\/download$/;
 
 /**
  * A file a row keeps, as its column's type and what the API returns: one on core's storage, one a

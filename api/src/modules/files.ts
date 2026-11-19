@@ -5,7 +5,8 @@ import express, { type Request, type Response } from 'express';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { core, refusedByCore } from '#/core.ts';
-import { Attachment, CORE_FILE, type StoredFile } from '#/db/table.ts';
+import { fileIdOf } from '#/coreFile.ts';
+import { Attachment, type StoredFile } from '#/db/table.ts';
 import { readToken, signToken } from './tokens.ts';
 
 /** A file that whoever holds it, or core's storage, won't give or take: trying again won't help. */
@@ -71,9 +72,6 @@ export const readFile = async (orgId: string, id: string) => {
 
   return { name: file.name, contentType: file.contentType, size: file.size, body: answer.body };
 };
-
-/** The id of the core file at `url`, the address core gives its files, or null for another address. */
-export const fileIdOf = (url: string) => CORE_FILE.exec(url)?.[1] ?? null;
 
 /**
  * A file a member attached to what a provider sends, read whole from core with the name it was

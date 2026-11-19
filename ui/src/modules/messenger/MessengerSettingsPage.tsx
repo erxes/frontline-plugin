@@ -40,11 +40,8 @@ const SettingsForm = ({ messenger }: { messenger: MessengerSettings }) => {
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={(event) => void save(event)}
-        className="grid grid-cols-1 gap-4 lg:grid-cols-3"
-      >
-        <div className="flex min-w-0 flex-col gap-4 lg:col-span-2">
+      <form onSubmit={(event) => void save(event)} className="flex flex-col gap-6 xl:flex-row">
+        <div className="flex min-w-0 flex-1 flex-col gap-4">
           <InstallCard messenger={messenger} />
           <fieldset disabled={!messenger.canManage} className="contents">
             <GreetingCard />
@@ -62,7 +59,7 @@ const SettingsForm = ({ messenger }: { messenger: MessengerSettings }) => {
             />
           )}
         </div>
-        <MessengerPreview />
+        <MessengerPreview messenger={messenger} />
       </form>
     </Form>
   );
@@ -84,7 +81,7 @@ export const MessengerSettingsPage = () => {
         levels={[{ label: data?.name ?? t('messenger', 'Messenger') }]}
       />
       <ScrollArea>
-        <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 p-6">
+        <div className="mx-auto flex w-full max-w-7xl flex-col gap-4 p-6">
           {error ? (
             <p role="alert" className="text-sm text-destructive-text">
               {error.message}

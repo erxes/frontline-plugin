@@ -1,5 +1,6 @@
+import type { ComponentChildren } from 'preact';
 import { useEffect, useRef, useState } from 'preact/hooks';
-import type { MessengerApi } from './api.ts';
+import type { MessengerApi, Settings } from './api.ts';
 import { Home } from './Home.tsx';
 import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
 import { Loading, Thread } from './Thread.tsx';
@@ -79,19 +80,10 @@ export const Messenger = ({ api }: { api: MessengerApi }) => {
   const open = shown === true;
   const [view, setView] = useState<View>({ name: 'home' });
   const { settings, session, conversations, connect } = messenger;
-  const panel = useRef<HTMLElement>(null);
-  const toggle = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (open && !session) void connect().catch(() => setOpen(false));
   }, [open, session, connect]);
-
-  // Focus follows the panel: into it as it opens, back to the launcher once it closes. On a phone
-  // the launcher hides while the panel is open, so focus would otherwise drop to the page.
-  useEffect(() => {
-    if (shown) panel.current?.focus();
-    else if (shown === false) toggle.current?.focus();
-  }, [shown]);
 
   useEffect(() => {
     const show = () => setOpen(true);
@@ -103,8 +95,58 @@ export const Messenger = ({ api }: { api: MessengerApi }) => {
 
   if (!settings) return null;
 
-  const unread = conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0);
-  const launcher = settings.showLauncher && !(settings.hideWhenOffline && !settings.isOnline);
+  return (
+    <Shell
+      settings={settings}
+      shown={shown}
+      unread={conversations.reduce((sum, conversation) => sum + conversation.unreadCount, 0)}
+      onOpen={setOpen}
+    >
+      <Page api={api} messenger={messenger} view={view} open={open} onView={setView} />
+    </Shell>
+  );
+};
+
+/** Whether the messenger shows its launcher: it's on, and not hidden while the team is offline. */
+export const hasLauncher = (settings: Settings) =>
+  settings.showLauncher && !(settings.hideWhenOffline && !settings.isOnline);
+
+/**
+ * The messenger in the page's corner, in its settings' colours: the launcher, and once `shown`,
+ * the panel holding `children`, hidden while `shown` is false. The settings page's preview draws
+ * the same.
+ */
+export const Shell = ({
+  settings,
+  shown,
+  unread,
+  onOpen,
+  children,
+}: {
+  settings: Settings;
+  shown: boolean | null;
+  unread: number;
+  onOpen: (open: boolean) => void;
+  children: ComponentChildren;
+}) => {
+  const open = shown === true;
+  const panel = useRef<HTMLElement>(null);
+  const toggle = useRef<HTMLButtonElement>(null);
+  const was = useRef(shown);
+
+  // Focus follows the panel: into it as it opens, back to the launcher once it closes. On a phone
+  // the launcher hides while the panel is open, so focus would otherwise drop to the page. A panel
+  // that mounts open, as the settings page's preview does, leaves focus on the page.
+  useEffect(() => {
+    if (was.current === shown) return;
+
+    was.current = shown;
+
+    if (shown) panel.current?.focus();
+    else if (shown === false) toggle.current?.focus();
+  }, [shown]);
+
+  const launcher = hasLauncher(settings);
 
   return (
     <div
@@ -129,11 +171,11 @@ export const Messenger = ({ api }: { api: MessengerApi }) => {
             type="button"
             class="fl-icon-button fl-close"
             aria-label="Close"
-            onClick={() => setOpen(false)}
+            onClick={() => onOpen(false)}
           >
             <CloseIcon />
           </button>
-          <Page api={api} messenger={messenger} view={view} open={open} onView={setView} />
+          {children}
         </section>
       )}
       {launcher && (
@@ -143,7 +185,7 @@ export const Messenger = ({ api }: { api: MessengerApi }) => {
           class="fl-launcher"
           aria-label={open ? 'Close the messenger' : 'Open the messenger'}
           aria-expanded={open}
-          onClick={() => setOpen(!open)}
+          onClick={() => onOpen(!open)}
         >
           {open ? (
             <CloseIcon />

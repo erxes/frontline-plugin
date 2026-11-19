@@ -12,11 +12,11 @@ import {
   formSubmissions,
   forms,
 } from '#/db/forms.ts';
+import { fileIdOf } from '#/coreFile.ts';
 import { writes } from '#/orpc.ts';
 import { fail } from '../fail.ts';
 import { leadIpLimit, underKeyLimit, uploadIpLimit } from '../limits.ts';
 import {
-  fileIdOf,
   filesOf,
   rawUpload,
   readFile,
