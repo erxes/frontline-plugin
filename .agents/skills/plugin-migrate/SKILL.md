@@ -57,8 +57,8 @@ The row goes in the module's commit.
    `schema-change` skill. Fix the old types: whole numbers become
    `integer()`, fixed string sets become `text({ enum })`, required ids stay
    `text().notNull()`, and a value the old code kept unique by checking first
-   gets a unique index. Drop fields nothing reads. Update the table's entry in
-   `scripts/import-map.ts` to match.
+   gets a unique index. Drop fields nothing reads. Update the step in
+   `scripts/import/steps/` that fills the table to match.
 3. Procedures. One per GraphQL operation listed, following the `endpoint`
    skill and shaped like `api/src/modules/channels`. Name it after what it does
    (`tasks.list`, not `getTasks`), and fold operations that only differ by
