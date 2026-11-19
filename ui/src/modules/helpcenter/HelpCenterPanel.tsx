@@ -4,7 +4,6 @@ import {
   IconBrush,
   IconDots,
   IconExternalLink,
-  IconForms,
   IconKey,
   IconLanguage,
   IconLetterCase,
@@ -21,12 +20,12 @@ import {
   TextField,
   type TRecordSlotProps,
 } from 'erxes-ui';
-import { type ReactNode, useState } from 'react';
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LANGUAGE_CODES, useLanguageName } from '@/knowledgebase/useKnowledgeBase.ts';
 import { InstallCode, scriptTag } from '~/shared/InstallCode.tsx';
 import { InfoRow, PageLink, PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
-import { Badges, PickerField } from '~/shared/Pickers.tsx';
+import { PickerField } from '~/shared/Pickers.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import {
   type HelpCenter,
@@ -34,11 +33,10 @@ import {
   useCanManageHelpCenters,
   useDeleteHelpCenters,
   useEditHelpCenter,
-  useFormNames,
-  useFormOptions,
   useHelpCenter,
   useTopicOptions,
 } from './queries.ts';
+import { Forms, Tickets } from './SiteOffers.tsx';
 
 /** A slot's help center: a spinner while it loads, the refusal when the API gives one. */
 export const WithHelpCenter = ({
@@ -227,42 +225,6 @@ const Content = ({ center }: { center: HelpCenter }) => {
   );
 };
 
-/** The forms its site offers, in order. */
-const Forms = ({ center }: { center: HelpCenter }) => {
-  const { t } = useTranslation('frontline');
-  const edit = useEditHelpCenter(center.id);
-  const [search, setSearch] = useState('');
-  const options = useFormOptions(search);
-  const names = useFormNames(center.formIds);
-  const hidden = center.formIds.filter((id) => !names.has(id)).length;
-
-  const labels = [
-    ...center.formIds.flatMap((id) => names.get(id) ?? []),
-    ...(hidden > 0
-      ? [t('forms-elsewhere', { defaultValue: '{{count}} in other channels', count: hidden })]
-      : []),
-  ];
-
-  return (
-    <PanelSection title={t('forms', 'Forms')}>
-      <PanelField icon={IconForms} label={t('forms', 'Forms')} cell={false}>
-        <PickerField
-          label={t('forms', 'Forms')}
-          placeholder={t('no-forms', 'No forms')}
-          display={<Badges labels={labels} max={3} />}
-          options={options.data ?? []}
-          loading={options.isPending}
-          error={options.error}
-          onSearchChange={setSearch}
-          value={center.formIds}
-          onValueChange={(formIds) => edit({ formIds })}
-          multiple
-        />
-      </PanelField>
-    </PanelSection>
-  );
-};
-
 /** Its logo, colours, fonts, header and footer, on a page of their own. */
 const Look = ({ center }: { center: HelpCenter }) => {
   const { t } = useTranslation('frontline');
@@ -290,6 +252,7 @@ export const HelpCenterDetail = ({ contentId }: TRecordSlotProps) => {
         <ReadOnly when={!canManage}>
           <Content center={center} />
           <Forms center={center} />
+          <Tickets center={center} />
           <Look center={center} />
         </ReadOnly>
       )}

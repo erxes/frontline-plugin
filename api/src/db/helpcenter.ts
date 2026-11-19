@@ -85,6 +85,8 @@ export const helpCenters = table(
       .array()
       .notNull()
       .default(sql`'{}'`),
+    /** The messenger its site loads, for chat and the visitor's tickets. */
+    messengerId: text(),
     color: text(),
     backgroundImage: text(),
     styles: jsonb().$type<z.infer<typeof HelpCenterStyles>>().notNull().default({}),

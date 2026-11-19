@@ -62,7 +62,7 @@ const siteFor = async (found: Center, base: string): Promise<Site> => {
 };
 
 /**
- * Pages load only frontline's form embed, images from anywhere, and no frames; the member's
+ * Pages load only frontline's form and messenger embeds, images from anywhere, and no frames; the member's
  * HTML is sanitized before it gets here.
  */
 const SECURITY = {

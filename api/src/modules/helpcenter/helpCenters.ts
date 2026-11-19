@@ -16,12 +16,14 @@ import {
   helpCenters,
 } from '#/db/helpcenter.ts';
 import { forms } from '#/db/forms.ts';
+import { integrations } from '#/db/inbox.ts';
 import { publicKeys } from '#/db/public.ts';
 import { kbTopics } from '#/db/schema.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
 import { Blank, Color, LanguageCode, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
+import { messenger } from '../messenger/adapter.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 import { removeKeys, widgetScript } from '../public.ts';
 import {
@@ -34,14 +36,20 @@ import {
   recordDomain,
 } from './domains.ts';
 
-const { orgId, formIds, ...columns } = getTableColumns(helpCenters);
+const { orgId, formIds, messengerId, ...columns } = getTableColumns(helpCenters);
 
-/** A help center's columns, its forms narrowed to those not deleted since, in order. */
+/**
+ * A help center's columns, its forms narrowed to those not deleted since, in order, and its
+ * messenger to null once deleted.
+ */
 const centerColumns = {
   ...columns,
   formIds: sql<
     string[]
   >`array(select f.id from unnest(${formIds}) with ordinality as f(id, n) join ${forms} as live on live.id = f.id order by f.n)`,
+  messengerId: sql<
+    string | null
+  >`(select i.id from ${integrations} as i where i.id = ${messengerId})`,
 };
 
 const refine = {
@@ -94,6 +102,17 @@ const assertTopic = async (tx: Tx, topicId: string | null | undefined) => {
     .where(eq(kbTopics.id, topicId));
 
   if (!topic) throw new ORPCError('BAD_REQUEST', { message: 'Pick a knowledge base topic' });
+};
+
+const assertMessenger = async (tx: Tx, id: string | null | undefined) => {
+  if (!id) return;
+
+  const [found] = await tx
+    .select({ id: integrations.id })
+    .from(integrations)
+    .where(and(eq(integrations.id, id), eq(integrations.kind, messenger.kind)));
+
+  if (!found) throw new ORPCError('BAD_REQUEST', { message: 'Pick a messenger' });
 };
 
 /** The forms picked, each once, after checking each is a form. */
@@ -166,6 +185,7 @@ const FIELDS = {
   kbTopicId: true,
   kbLabel: true,
   formIds: true,
+  messengerId: true,
   color: true,
   backgroundImage: true,
   styles: true,
@@ -181,6 +201,7 @@ const create = writes(PERMISSIONS.helpCenterManage)
       languageCode: true,
       kbLabel: true,
       formIds: true,
+      messengerId: true,
       color: true,
       backgroundImage: true,
       styles: true,
@@ -191,6 +212,7 @@ const create = writes(PERMISSIONS.helpCenterManage)
   .output(HelpCenter)
   .handler(async ({ input, context: { tx, member } }) => {
     await assertTopic(tx, input.kbTopicId);
+    await assertMessenger(tx, input.messengerId);
 
     const publicKey = randomBytes(10).toString('hex');
 
@@ -220,6 +242,7 @@ const update = writes(PERMISSIONS.helpCenterManage)
   .handler(async ({ input: { id, ...fields }, context: { tx } }) => {
     await centerById(tx, id);
     await assertTopic(tx, fields.kbTopicId);
+    await assertMessenger(tx, fields.messengerId);
     await tx
       .update(helpCenters)
       .set({ ...fields, formIds: await pickedForms(tx, fields.formIds) })
