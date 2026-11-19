@@ -103,7 +103,7 @@ const PeriodToggle = ({ days, setDays }: PeriodState) => {
         <ToggleGroup.Item
           key={period}
           value={period}
-          aria-label={t('last-days', 'Last {{count}} days', { count: Number(period) })}
+          title={t('last-days', 'Last {{count}} days', { count: Number(period) })}
         >
           {t('days-short', '{{count}}d', { count: Number(period) })}
         </ToggleGroup.Item>

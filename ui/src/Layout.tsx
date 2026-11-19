@@ -1,5 +1,6 @@
 import {
   IconBook,
+  IconChartBar,
   IconPlugConnected,
   IconChecklist,
   IconChevronDown,
@@ -118,6 +119,7 @@ const MODULES: NavLink[] = [
   [`${ROOT}/surveys`, 'surveys', 'Surveys', IconChecklist],
   [`${ROOT}/knowledgebase`, 'knowledge-base', 'Knowledge Base', IconBook],
   [`${ROOT}/help-centers`, 'help-centers', 'Help centers', IconHelpCircle],
+  [`${ROOT}/reports`, 'reports', 'Reports', IconChartBar],
 ];
 
 const SETTINGS_PAGES: NavLink[] = [

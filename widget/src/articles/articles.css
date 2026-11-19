@@ -50,6 +50,24 @@
   color: var(--fl-muted);
 }
 
+.fl-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.fl-pager button {
+  padding: 6px 12px;
+  border: 1px solid var(--fl-line);
+  border-radius: 10px;
+  background: var(--fl-page);
+}
+
+.fl-pager button:disabled {
+  opacity: 0.5;
+}
+
 .fl-article {
   display: flex;
   flex-direction: column;

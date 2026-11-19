@@ -37,7 +37,7 @@ const TypeSelect = ({ field }: { field: FormField }) => {
       }}
     >
       <Select.Trigger
-        className="w-36 shrink-0"
+        className="w-44 shrink-0"
         aria-label={t('field-type', 'Type of {{label}}', { label: field.label })}
       >
         <Select.Value />

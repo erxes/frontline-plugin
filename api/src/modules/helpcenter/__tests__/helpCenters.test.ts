@@ -41,12 +41,28 @@ describe('help centers', () => {
 
     expect(site.status).toBe(200);
     expect(site.headers.get('access-control-allow-origin')).toBe('*');
-    await expect(site.json()).resolves.toMatchObject({
+    // The site gives each category's count; its articles come a page of 30 at a time.
+    const opened: unknown = await site.json();
+
+    expect(opened).toMatchObject({
       helpCenter: { title: 'Acme help' },
       topic: { title: 'Help' },
-      categories: [{ title: 'Billing' }],
-      articles: [{ id: article.id, title: 'Refunds', viewCount: 0 }],
+      categories: [{ id: article.categoryId, title: 'Billing', articleCount: 1 }],
     });
+    expect(opened).not.toHaveProperty('articles');
+
+    const page = (category: string, number: number) =>
+      fetch(
+        `${publicApi.url('')}/help-centers/${center.publicKey}/categories/${category}/articles?page=${number}`,
+      );
+
+    await expect((await page(article.categoryId, 1)).json()).resolves.toMatchObject({
+      articles: [{ id: article.id, title: 'Refunds', viewCount: 0 }],
+      page: 1,
+      pages: 1,
+    });
+    expect((await page(article.categoryId, 2)).status).toBe(404);
+    expect((await page('no-such-category', 1)).status).toBe(404);
 
     const read = await fetch(
       `${publicApi.url('')}/help-centers/${center.publicKey}/articles/${article.id}`,
@@ -267,10 +283,25 @@ describe('help centers', () => {
 
     const offered = await visitorOf({ knowledgeBaseTopicId: topic.id });
 
-    expect((await messenger.get('/knowledge-base', offered)).body).toMatchObject({
+    const opened = (await messenger.get('/knowledge-base', offered)).body;
+
+    expect(opened).toMatchObject({
       topic: { title: 'Help' },
-      articles: [{ id: article.id, title: 'Refunds' }],
+      categories: [{ id: article.categoryId, articleCount: 1 }],
     });
+    expect(opened).not.toHaveProperty('articles');
+    expect(
+      (await messenger.get(`/knowledge-base/categories/${article.categoryId}/articles`, offered))
+        .body,
+    ).toMatchObject({ articles: [{ id: article.id, title: 'Refunds' }], page: 1, pages: 1 });
+    expect(
+      (
+        await messenger.get(
+          `/knowledge-base/categories/${article.categoryId}/articles?page=2`,
+          offered,
+        )
+      ).status,
+    ).toBe(404);
     expect(
       (await messenger.get(`/knowledge-base/articles/${article.id}`, offered)).body,
     ).toMatchObject({ title: 'Refunds', content: SANITIZED });

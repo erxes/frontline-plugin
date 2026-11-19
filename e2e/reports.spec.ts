@@ -50,8 +50,8 @@ test('call, ticket and conversation tiles on the home dashboard count the period
   await expect(tileOf(page, 'Facebook and Instagram over time').getByRole('alert')).toHaveCount(0);
 
   // Each tile picks its own period; today's calls are in the last 7 days too.
-  await numbers.getByRole('button', { name: 'Last 7 days' }).click();
-  await expect(numbers.getByRole('button', { name: 'Last 7 days' })).toHaveAttribute(
+  await numbers.getByRole('button', { name: '7d', exact: true }).click();
+  await expect(numbers.getByRole('button', { name: '7d', exact: true })).toHaveAttribute(
     'aria-pressed',
     'true',
   );
@@ -63,6 +63,18 @@ test('call, ticket and conversation tiles on the home dashboard count the period
     tileOf(page, 'Top numbers').getByRole('row').filter({ hasText: caller }),
   ).toBeVisible();
   await expect(tileOf(page, 'Ticket summary')).toBeVisible();
+
+  // The sidebar's Reports page lays out every tile by what it counts, with the same numbers.
+  await page.goto('/frontline/inbox');
+  await page.getByRole('link', { name: 'Reports' }).click();
+
+  for (const group of ['Tickets', 'Conversations', 'Facebook and Instagram', 'Calls'])
+    await expect(page.getByRole('heading', { level: 2, name: group, exact: true })).toBeVisible();
+
+  await expect(page.getByRole('heading', { level: 3 })).toHaveCount(20);
+  await expect(
+    tileOf(page, 'Top numbers').getByRole('row').filter({ hasText: caller }).getByRole('cell'),
+  ).toHaveText([caller, '3', '2', '1']);
 });
 
 test('a ticket tile number opens the tickets it counts', async ({ page, api, request }) => {

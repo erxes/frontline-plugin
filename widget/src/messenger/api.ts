@@ -9,7 +9,7 @@ import type {
   VisitorTicket,
 } from '@frontline/api/messenger';
 import type { Jsonify } from 'type-fest';
-import type { Article, ArticleSummary, Reactions, Topic } from '../articles/api.ts';
+import type { Article, ArticleSummary, Page, Reactions, Topic } from '../articles/api.ts';
 import { bearer, publicApi, uploadFile } from '../shared/http.ts';
 
 /** What `/connect` answers, as JSON carries it. */
@@ -115,6 +115,10 @@ export const messengerApi = (base: URL, key: string) => {
     /** The API as the visitor with `token`, for the calls a lazy chunk makes itself. */
     as,
     knowledgeBase: (token: string) => as(token).get('knowledge-base').json<Topic>(),
+    categoryArticles: (token: string, id: string, page: number) =>
+      as(token)
+        .get(`knowledge-base/categories/${encodeURIComponent(id)}/articles?page=${page}`)
+        .json<Page>(),
     /** One article, with its reactions and how the visitor sets theirs. */
     article: async (token: string, id: string): Promise<Article> => {
       const path = `knowledge-base/articles/${encodeURIComponent(id)}`;

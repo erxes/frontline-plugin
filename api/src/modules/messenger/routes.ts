@@ -270,6 +270,7 @@ export const messengerRoutes = () => {
   router.post('/tickets', ticketRoutes.createTicket);
   router.get('/tickets/forms', ticketRoutes.ticketForms);
   router.get('/knowledge-base', articleRoutes.knowledgeBase);
+  router.get('/knowledge-base/categories/:id/articles', articleRoutes.categoryArticles);
   router.get('/knowledge-base/articles/:id', articleRoutes.article);
   router.post('/knowledge-base/articles/:id/reaction', articleRoutes.reactTo);
   router.get('/knowledge-base/search', articleRoutes.search);

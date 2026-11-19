@@ -2,68 +2,22 @@ import { useEffect, useState } from 'preact/hooks';
 import type {
   Article,
   ArticleSummary,
-  Category,
+  ListArticles,
   ReadArticle,
   SearchArticles,
   Topic,
 } from './api.ts';
+import {
+  ArticleRows,
+  CategoryRows,
+  CategoryView,
+  type Open,
+  type Turn,
+  type View,
+} from './Category.tsx';
 import { useText } from '../shared/text.ts';
 
 const loadReactions = async () => (await import('./reactions/Reactions.tsx')).Reactions;
-
-type View = { name: 'home' } | { name: 'category'; id: string } | { name: 'article'; id: string };
-
-type Open = (view: View) => void;
-
-const ArticleRows = ({ articles, open }: { articles: ArticleSummary[]; open: Open }) => (
-  <ul class="fl-rows">
-    {articles.map((article) => (
-      <li key={article.id}>
-        <button
-          type="button"
-          class="fl-row"
-          onClick={() => open({ name: 'article', id: article.id })}
-        >
-          <span>{article.title}</span>
-          {article.summary && <small>{article.summary}</small>}
-        </button>
-      </li>
-    ))}
-  </ul>
-);
-
-const CategoryRows = ({
-  categories,
-  topic,
-  open,
-}: {
-  categories: Category[];
-  topic: Topic;
-  open: Open;
-}) => {
-  const { t } = useText();
-
-  return (
-    <ul class="fl-rows">
-      {categories.map((category) => {
-        const count = topic.articles.filter((article) => article.categoryId === category.id).length;
-
-        return (
-          <li key={category.id}>
-            <button
-              type="button"
-              class="fl-row"
-              onClick={() => open({ name: 'category', id: category.id })}
-            >
-              <span>{category.title}</span>
-              <small>{t(count === 1 ? '1 article' : '{count} articles', { count })}</small>
-            </button>
-          </li>
-        );
-      })}
-    </ul>
-  );
-};
 
 /**
  * The articles whose title, summary or text holds `term`, asked for once the visitor pauses
@@ -187,45 +141,56 @@ const Page = ({
   topic,
   view,
   open,
+  turn,
   read,
+  list,
 }: {
   topic: Topic;
   view: View;
   open: Open;
+  turn: Turn;
   read: ReadArticle;
+  list: ListArticles;
 }) => {
   const { t } = useText();
 
   if (view.name === 'article') return <ArticleView id={view.id} read={read} />;
 
-  const parentId = view.name === 'category' ? view.id : null;
-  const category = topic.categories.find((item) => item.id === parentId);
-  const children = topic.categories.filter((item) => item.parentId === parentId);
-  const articles = topic.articles.filter((article) => article.categoryId === parentId);
+  if (view.name === 'category')
+    return (
+      <CategoryView
+        topic={topic}
+        id={view.id}
+        page={view.page}
+        open={open}
+        turn={turn}
+        list={list}
+      />
+    );
 
-  return (
-    <>
-      {category && <h3>{category.title}</h3>}
-      {category?.description && <p class="fl-muted">{category.description}</p>}
-      <CategoryRows categories={children} topic={topic} open={open} />
-      <ArticleRows articles={articles} open={open} />
-      {children.length === 0 && articles.length === 0 && (
-        <p class="fl-muted">{t('No articles yet')}</p>
-      )}
-    </>
+  const top = topic.categories.filter((item) => item.parentId === null);
+
+  return top.length > 0 ? (
+    <CategoryRows categories={top} open={open} />
+  ) : (
+    <p class="fl-muted">{t('No articles yet')}</p>
   );
 };
 
 /**
  * Where the visitor is in a topic, which the embed's header steps back through: `back` is null
- * on the topic's first page.
+ * on the topic's first page. Turning a category's page replaces it, so back leaves the category.
  */
 export const useArticleViews = () => {
   const [views, setViews] = useState<View[]>([{ name: 'home' }]);
+  const view = views.at(-1) ?? { name: 'home' };
 
   return {
-    view: views.at(-1) ?? { name: 'home' },
+    view,
     open: (next: View) => setViews([...views, next]),
+    turn: (page: number) => {
+      if (view.name === 'category') setViews([...views.slice(0, -1), { ...view, page }]);
+    },
     back: views.length > 1 ? () => setViews(views.slice(0, -1)) : null,
   };
 };
@@ -234,16 +199,18 @@ type ArticleViews = ReturnType<typeof useArticleViews>;
 
 /**
  * A knowledge base topic a visitor browses: a search over its articles' titles, summaries and
- * text, its categories and their articles, and one article at a time.
+ * text, its categories and a page of their articles at a time, and one article at a time.
  */
 export const Articles = ({
   topic,
   read,
+  list,
   search,
-  views: { view, open },
+  views: { view, open, turn },
 }: {
   topic: Topic;
   read: ReadArticle;
+  list: ListArticles;
   search: SearchArticles;
   views: ArticleViews;
 }) => {
@@ -268,7 +235,7 @@ export const Articles = ({
       {searching ? (
         <Found {...found} open={open} />
       ) : (
-        <Page topic={topic} view={view} open={open} read={read} />
+        <Page topic={topic} view={view} open={open} turn={turn} read={read} list={list} />
       )}
     </div>
   );

@@ -119,6 +119,10 @@ const SubmissionsPage = lazy(
   })),
 );
 
+const ReportsPage = lazy(
+  withText(async () => ({ default: (await import('@/reports/ReportsPage.tsx')).ReportsPage })),
+);
+
 const SurveysPage = lazy(
   withText(async () => ({ default: (await import('@/surveys/SurveysPage.tsx')).SurveysPage })),
 );
@@ -271,6 +275,7 @@ export const Frontline = () => (
           <Route path=":id" element={<RecordRoute contentType={SURVEY_TYPE} />} />
           <Route path=":id/builder" element={<SurveyBuilderPage />} />
         </Route>
+        <Route path="reports" element={<ReportsPage />} />
         <Route path="personal-channel" element={<PersonalChannel />} />
         <Route path="calls">
           <Route index element={<Navigate to="history" replace />} />

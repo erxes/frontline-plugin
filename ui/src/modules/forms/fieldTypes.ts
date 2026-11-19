@@ -21,8 +21,8 @@ import {
 import { useTranslation } from 'react-i18next';
 import type { FormField } from './useForms.ts';
 
-/** The kinds of input a field can be, then the customer fields a submission writes. */
-export const FIELD_TYPES = [
+/** The kinds of input a field can be. */
+export const INPUT_TYPES = [
   'text',
   'textarea',
   'number',
@@ -33,6 +33,10 @@ export const FIELD_TYPES = [
   'radio',
   'check',
   'file',
+] as const;
+
+/** The customer fields a submission writes. */
+export const CUSTOMER_TYPES = [
   'core:customer:firstName',
   'core:customer:middleName',
   'core:customer:lastName',
@@ -43,6 +47,8 @@ export const FIELD_TYPES = [
   'core:customer:birthDate',
   'core:customer:avatar',
 ] as const;
+
+const FIELD_TYPES = [...INPUT_TYPES, ...CUSTOMER_TYPES];
 
 export type FieldType = (typeof FIELD_TYPES)[number];
 
