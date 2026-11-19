@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
+import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 import { config } from '#/config.ts';
 import { reachableOnly } from '#/modules/outbound.ts';
@@ -7,6 +8,8 @@ import { providerApi, ProviderRefused } from '../../providerApi.ts';
 
 /** Where a Grandstream UCM's HTTPS API answers, and the API user frontline signs in as. */
 export interface Pbx {
+  /** The organisation that connected it: two may share a hosted UCM and its API user. */
+  orgId: string;
   /** `pbx.example.com` or `pbx.example.com:8089`. */
   host: string;
   user: string;
@@ -34,10 +37,25 @@ const NAME = 'The PBX';
 const refused = (status: number) =>
   new ProviderRefused(NAME, status, STATUS_TEXT[status] ?? `status ${status}`);
 
-/** Signed-in sessions by PBX and user. A session lasts until the UCM answers -6. */
-const cookies = new Map<string, string>();
+/**
+ * Signed-in sessions by organisation, PBX and user, with the password each signed in with, so a
+ * wrong password never rides on another's session. The UCM ends a session it hasn't seen for a
+ * while with -6; one unused for 10 minutes goes from here too.
+ */
+const sessions = new LRUCache<string, { password: string; cookie: string }>({
+  max: 1000,
+  ttl: 10 * 60_000,
+  updateAgeOnGet: true,
+});
 
-const keyOf = (pbx: Pbx) => `${pbx.user}@${pbx.host}`;
+const keyOf = (pbx: Pbx) => [pbx.orgId, pbx.user, pbx.host].join(' ');
+
+/** The session `pbx` signed in with, unless its password changed since. */
+const sessionOf = (pbx: Pbx) => {
+  const session = sessions.get(keyOf(pbx));
+
+  return session?.password === pbx.password ? session.cookie : undefined;
+};
 
 const pbxApi = providerApi({
   name: NAME,
@@ -72,14 +90,14 @@ const login = async (pbx: Pbx) => {
     .object({ cookie: z.string() })
     .parse(await ask(pbx, { action: 'login', user: pbx.user, token }));
 
-  cookies.set(keyOf(pbx), cookie);
+  sessions.set(keyOf(pbx), { password: pbx.password, cookie });
 
   return cookie;
 };
 
 /** Runs `action` with a signed-in session, signing in again once when the session expired. */
 const withSession = async <T>(pbx: Pbx, run: (cookie: string) => Promise<T>) => {
-  const cookie = cookies.get(keyOf(pbx)) ?? (await login(pbx));
+  const cookie = sessionOf(pbx) ?? (await login(pbx));
 
   try {
     return await run(cookie);
@@ -108,7 +126,7 @@ export const pbxFailed = (error: unknown): never => {
 
 /** Resolves to why the PBX refuses frontline's API user, or null while it signs in. */
 export const checkPbx = async (pbx: Pbx) => {
-  cookies.delete(keyOf(pbx));
+  sessions.delete(keyOf(pbx));
 
   return login(pbx).then(
     () => null,

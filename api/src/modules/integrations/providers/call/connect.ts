@@ -63,8 +63,9 @@ const connect = writesWithCore(
     apiPassword: z.string().min(1).max(200),
     ...Into,
   }),
-  async (_member, input) => {
+  async (member, input) => {
     const refused = await checkPbx({
+      orgId: member.orgId,
       host: input.host,
       user: input.apiUser,
       password: input.apiPassword,

@@ -1,6 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
-import { defineProvider } from '../../provider.ts';
+import { defineProvider, type OpenAccount } from '../../provider.ts';
 import { checkPbx } from './pbx.ts';
 
 /** A Grandstream UCM's settings, without secrets. */
@@ -27,6 +27,18 @@ const PbxSecret = z.object({
   webhookSecret: z.string(),
 });
 
+/** The PBX an account's calls go through, signed in as its API user. */
+export const pbxOf = ({
+  row,
+  config,
+  secret,
+}: OpenAccount<z.infer<typeof PbxConfig>, z.infer<typeof PbxSecret>>) => ({
+  orgId: row.orgId,
+  host: config.host,
+  user: secret.apiUser,
+  password: secret.apiPassword,
+});
+
 const noReplies = () =>
   Promise.reject(new ORPCError('BAD_REQUEST', { message: 'A phone call takes no written reply' }));
 
@@ -35,16 +47,8 @@ export const call = defineProvider({
   name: 'call',
   Config: PbxConfig,
   Secret: PbxSecret,
-  check: ({ config, secret }) =>
-    checkPbx({ host: config.host, user: secret.apiUser, password: secret.apiPassword }),
+  check: (account) => checkPbx(pbxOf(account)),
   send: noReplies,
-});
-
-/** The PBX an account's calls go through, signed in as its API user. */
-export const pbxOf = (account: ReturnType<typeof call.open>['account']) => ({
-  host: account.config.host,
-  user: account.secret.apiUser,
-  password: account.secret.apiPassword,
 });
 
 /** A CallPro line: CallPro posts each call's state to the line's webhook address. */
