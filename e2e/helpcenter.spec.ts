@@ -135,7 +135,7 @@ test('the owner creates a help center, edits it, sees its domain tab and deletes
   await expect(page.getByRole('row', { name: new RegExp(renamed) })).toBeHidden();
 
   // A site address with no help center gets a page that says so.
-  const missing = await page.goto(`${plugin}/help/deadbeef`);
+  const missing = await page.goto(new URL('/help/deadbeef', plugin).href);
 
   expect(missing?.status()).toBe(404);
   await expect(page.getByRole('heading', { name: 'No such help center' })).toBeVisible();

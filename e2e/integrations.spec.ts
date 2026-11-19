@@ -123,7 +123,7 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   await expect(install).toBeVisible();
   // Its copy button copies the code and leaves it in place.
   await page.context().grantPermissions(['clipboard-read', 'clipboard-write']);
-  await page.getByRole('button', { name: 'Copy', exact: true }).last().click();
+  await install.locator('..').getByRole('button', { name: 'Copy', exact: true }).click();
   await expect(page.getByText('Copied', { exact: true })).toBeVisible();
   await expect(install).toBeVisible();
   expect(await page.evaluate(() => navigator.clipboard.readText())).toContain(`key=${key}`);

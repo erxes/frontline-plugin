@@ -12,10 +12,11 @@ import {
   visitorOf,
 } from './fixtures.ts';
 
-/** Types `day` into the date field as a person does, then leaves it. */
+/** Types `day` into the date field as a person does, closes the calendar its click opened and leaves. */
 const typeDay = async (field: Locator, day: string) => {
   await field.click();
   await field.pressSequentially(day);
+  await field.press('Escape');
   await field.press('Tab');
 };
 

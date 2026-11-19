@@ -29,7 +29,7 @@ test('the owner adds, finds and deletes tags', async ({ page }) => {
   const cell = page.getByRole('cell').filter({ has: colour });
   const box = await cell.boundingBox();
 
-  await cell.click({ position: { x: (box?.width ?? 0) - 6, y: (box?.height ?? 0) / 2 } });
+  await cell.click({ position: { x: (box?.width ?? 0) * 0.85, y: (box?.height ?? 0) / 2 } });
   await expect(colour).toHaveAttribute('aria-expanded', 'true');
   await page.keyboard.press('Escape');
   await page.getByRole('button', { name: `Actions for ${tag}` }).click();
