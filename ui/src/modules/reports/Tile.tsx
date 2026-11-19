@@ -17,6 +17,7 @@ import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
 import { RetryButton } from '~/shared/List.tsx';
 import css from './styles.css?inline';
+import { type PickState, TilePick } from './TilePick.tsx';
 
 addPluginStyles(`${PLUGIN}:reports`, css);
 
@@ -112,25 +113,25 @@ const PeriodToggle = ({ days, setDays }: PeriodState) => {
 };
 
 /**
- * A report tile's body under core's header: the period toggle, then the report once it loads,
- * a skeleton before, or the API's message when it fails, such as a missing permission.
+ * A report tile's body under core's header: what it counts, a pipeline or channel, and the period
+ * toggle, then the report once it loads, a skeleton before, or the API's message when it fails,
+ * such as a missing permission.
  */
 export const Tile = <Report,>({
   period,
+  pick,
   query,
-  controls,
   children,
 }: {
   /** None for a tile that counts what holds now. */
   period?: PeriodState;
+  pick?: PickState;
   query: UseQueryResult<Report>;
-  /** Pickers before the period, such as the pipeline a ticket tile counts. */
-  controls?: ReactNode;
   children: (report: Report) => ReactNode;
 }) => (
   <div className="flex h-full flex-col gap-3 p-3">
     <div className="flex items-center justify-end gap-2 empty:hidden">
-      {controls}
+      {pick && <TilePick pick={pick} />}
       {period && <PeriodToggle {...period} />}
     </div>
     {query.error ? (

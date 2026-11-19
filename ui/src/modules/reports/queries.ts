@@ -1,20 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { storedFamily } from 'erxes-ui';
-import { useAtom } from 'jotai';
+import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
-import { PLUGIN } from '~/plugin.ts';
-import { choicesQuery } from '~/shared/reference.ts';
+import { channelsQuery, choicesQuery, integrationsQuery } from '~/shared/reference.ts';
 import { usePeriod } from './Tile.tsx';
+import { usePick } from './TilePick.tsx';
 
-/** Each ticket tile's pipeline, by its widget name, kept in this browser; null counts them all. */
-const tilePipeline = storedFamily({
-  key: `${PLUGIN}:tile-pipeline`,
-  schema: z.string().nullable(),
-  initial: null,
+const ReportInput = z.object({
+  from: z.date(),
+  to: z.date(),
+  pipelineId: z.string().optional(),
+  channelId: z.string().optional(),
 });
-
-const ReportInput = z.object({ from: z.date(), to: z.date(), pipelineId: z.string().optional() });
 
 type ReportInput = z.infer<typeof ReportInput>;
 
@@ -23,7 +20,8 @@ const LastKey = z.tuple([z.unknown(), z.object({ input: ReportInput })]);
 
 /**
  * The report over `input`. A tile keeps its numbers while the next minute loads, and shows the
- * skeleton for a new period, day or pipeline. Tiles that tick a few seconds apart share the fetch.
+ * skeleton for a new period, day, pipeline or channel. Tiles that tick a few seconds apart share
+ * the fetch.
  */
 const live = <Input extends ReportInput>(input: Input) => ({
   input,
@@ -34,59 +32,80 @@ const live = <Input extends ReportInput>(input: Input) => ({
     const same =
       key.success &&
       key.data[1].input.from.getTime() === input.from.getTime() &&
-      key.data[1].input.pipelineId === input.pipelineId;
+      key.data[1].input.pipelineId === input.pipelineId &&
+      key.data[1].input.channelId === input.channelId;
 
     return same ? previous : undefined;
   },
 });
 
-/**
- * The tile's period and pipeline, and the ticket report over them. A kept pipeline the member no
- * longer sees, such as a deleted one, counts them all.
- */
+/** The tile's period and pipeline, and the ticket report over them. */
 export const useTicketReport = (tile: string) => {
+  const { t } = useTranslation('frontline');
   const period = usePeriod(tile);
-  const [kept, setPipelineId] = useAtom(tilePipeline(tile));
-  const pipelines = useQuery(choicesQuery).data?.pipelines;
-  const pipelineId = !pipelines || pipelines.some(({ id }) => id === kept) ? kept : null;
+
+  const pick = usePick(
+    tile,
+    useQuery(choicesQuery).data?.pipelines,
+    t('pipeline', 'Pipeline'),
+    t('all-pipelines', 'All pipelines'),
+  );
 
   return {
     period,
-    pipeline: { pipelineId, setPipelineId },
+    pick,
     query: useQuery(
       orpc.reports.tickets.queryOptions(
-        live({ ...period.range, pipelineId: pipelineId ?? undefined }),
+        live({ ...period.range, pipelineId: pick.id ?? undefined }),
       ),
     ),
   };
 };
 
-/** The tile's period and the conversation report over it. */
+/**
+ * The tile's period and channel, and the input of a report over them. With `kinds`, it offers
+ * only the channels with an integration of one of them, such as a phone line. A member who may
+ * not list channels picks none.
+ */
+const useChannelScope = (tile: string, kinds?: string[]) => {
+  const { t } = useTranslation('frontline');
+  const period = usePeriod(tile);
+  const channels = useQuery(channelsQuery);
+  const integrations = useQuery(integrationsQuery).data;
+  const listed = channels.isError ? [] : channels.data?.channels;
+
+  const options =
+    kinds && integrations
+      ? listed?.filter((channel) =>
+          integrations.some(
+            (integration) =>
+              integration.channelId === channel.id && kinds.includes(integration.kind),
+          ),
+        )
+      : listed;
+
+  const pick = usePick(tile, options, t('channel', 'Channel'), t('all-channels', 'All channels'));
+
+  return { period, pick, input: live({ ...period.range, channelId: pick.id ?? undefined }) };
+};
+
+/** The tile's period and channel, and the conversation report over them. */
 export const useConversationReport = (tile: string) => {
-  const period = usePeriod(tile);
+  const { input, ...scope } = useChannelScope(tile);
 
-  return {
-    period,
-    query: useQuery(orpc.reports.conversations.queryOptions(live(period.range))),
-  };
+  return { ...scope, query: useQuery(orpc.reports.conversations.queryOptions(input)) };
 };
 
-/** The tile's period and the Facebook and Instagram report over it. */
+/** The tile's period and Facebook or Instagram channel, and the Meta report over them. */
 export const useMetaReport = (tile: string) => {
-  const period = usePeriod(tile);
+  const { input, ...scope } = useChannelScope(tile, ['facebook', 'instagram']);
 
-  return {
-    period,
-    query: useQuery(orpc.reports.meta.queryOptions(live(period.range))),
-  };
+  return { ...scope, query: useQuery(orpc.reports.meta.queryOptions(input)) };
 };
 
-/** The tile's period and the call report over it. */
+/** The tile's period and phone channel, and the call report over them. */
 export const useCallReport = (tile: string) => {
-  const period = usePeriod(tile);
+  const { input, ...scope } = useChannelScope(tile, ['call', 'callpro']);
 
-  return {
-    period,
-    query: useQuery(orpc.reports.calls.queryOptions(live(period.range))),
-  };
+  return { ...scope, query: useQuery(orpc.reports.calls.queryOptions(input)) };
 };

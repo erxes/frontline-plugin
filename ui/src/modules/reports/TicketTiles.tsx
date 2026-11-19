@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { Select, useFormat } from 'erxes-ui';
-import type { ReactNode } from 'react';
+import { useFormat } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { usePriorityNames, useStages } from '@/pipelines/queries.ts';
 import { choicesQuery } from '~/shared/reference.ts';
@@ -8,62 +7,6 @@ import { DayChart } from './Charts.tsx';
 import { useTicketReport } from './queries.ts';
 import { useTicketLinks } from './ticketLinks.ts';
 import { BarList, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
-
-/** A select item can't hold null, so "all pipelines" is this. */
-const ALL = 'all';
-
-type Report = ReturnType<typeof useTicketReport>;
-
-/**
- * The tile's period and query, and its pipeline pick, laid out by `Tile`; `now` for a tile that
- * counts what holds now, with no period.
- */
-export const TicketTile = ({
-  report: { period, query, pipeline },
-  now = false,
-  children,
-}: {
-  report: Report;
-  now?: boolean;
-  children: (data: NonNullable<Report['query']['data']>) => ReactNode;
-}) => {
-  const { t } = useTranslation('frontline');
-  const pipelines = useQuery(choicesQuery).data?.pipelines ?? [];
-
-  return (
-    <Tile
-      period={now ? undefined : period}
-      query={query}
-      controls={
-        pipelines.length > 1 && (
-          <Select
-            value={pipeline.pipelineId ?? ALL}
-            onValueChange={(value) =>
-              pipeline.setPipelineId(!value || value === ALL ? null : value)
-            }
-          >
-            <Select.Trigger className="h-7 w-auto max-w-48" aria-label={t('pipeline', 'Pipeline')}>
-              <Select.Value>
-                {pipelines.find((row) => row.id === pipeline.pipelineId)?.name ??
-                  t('all-pipelines', 'All pipelines')}
-              </Select.Value>
-            </Select.Trigger>
-            <Select.Content>
-              <Select.Item value={ALL}>{t('all-pipelines', 'All pipelines')}</Select.Item>
-              {pipelines.map((row) => (
-                <Select.Item key={row.id} value={row.id}>
-                  {row.name}
-                </Select.Item>
-              ))}
-            </Select.Content>
-          </Select>
-        )
-      }
-    >
-      {children}
-    </Tile>
-  );
-};
 
 /** Created, resolved, open and overdue tickets, each opening its tickets, and how long resolving took. */
 export const TicketSummary = () => {
@@ -74,7 +17,7 @@ export const TicketSummary = () => {
   const links = useTicketLinks(ticketReport);
 
   return (
-    <TicketTile report={ticketReport}>
+    <Tile {...ticketReport}>
       {(report) => (
         <Stats>
           <Stat
@@ -110,7 +53,7 @@ export const TicketSummary = () => {
           />
         </Stats>
       )}
-    </TicketTile>
+    </Tile>
   );
 };
 
@@ -119,7 +62,7 @@ export const TicketsOverTime = () => {
   const { t } = useTranslation('frontline');
 
   return (
-    <TicketTile report={useTicketReport('tickets-over-time')}>
+    <Tile {...useTicketReport('tickets-over-time')}>
       {(report) => (
         <DayChart
           days={report.days}
@@ -130,7 +73,7 @@ export const TicketsOverTime = () => {
           empty={t('no-tickets-in-period', 'No tickets in this period.')}
         />
       )}
-    </TicketTile>
+    </Tile>
   );
 };
 
@@ -144,13 +87,13 @@ export const TicketsByStatus = () => {
   const statuses = useQuery(choicesQuery).data?.statuses ?? [];
   const report = useTicketReport('tickets-by-stage');
   const links = useTicketLinks(report);
-  const { pipelineId } = report.pipeline;
+  const pipelineId = report.pick.id;
 
   const inStatuses = (ids: string[]) =>
     ids.length ? links.created({ path: 'subject.statusId', op: 'in', value: ids }) : undefined;
 
   return (
-    <TicketTile report={report}>
+    <Tile {...report}>
       {(data) => {
         const counts = new Map(data.statuses.map((row) => [row.statusId, row.count]));
 
@@ -179,7 +122,7 @@ export const TicketsByStatus = () => {
           />
         );
       }}
-    </TicketTile>
+    </Tile>
   );
 };
 
@@ -191,7 +134,7 @@ export const TicketsByPriority = () => {
   const links = useTicketLinks(ticketReport);
 
   return (
-    <TicketTile report={ticketReport}>
+    <Tile {...ticketReport}>
       {(report) => (
         <BarList
           rows={report.priorities.map(({ priority, count }) => {
@@ -208,7 +151,7 @@ export const TicketsByPriority = () => {
           empty={t('no-tickets-in-period', 'No tickets in this period.')}
         />
       )}
-    </TicketTile>
+    </Tile>
   );
 };
 
@@ -219,7 +162,7 @@ export const TicketsByTag = () => {
   const links = useTicketLinks(ticketReport);
 
   return (
-    <TicketTile report={ticketReport}>
+    <Tile {...ticketReport}>
       {(report) => (
         <BarList
           rows={report.tags.map((tag) => ({
@@ -233,6 +176,6 @@ export const TicketsByTag = () => {
           empty={t('no-tagged-tickets', 'No tagged tickets in this period.')}
         />
       )}
-    </TicketTile>
+    </Tile>
   );
 };

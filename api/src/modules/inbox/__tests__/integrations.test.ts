@@ -169,5 +169,26 @@ describe('integrations', () => {
       ],
     });
     await expect(owner.reports.meta(period)).resolves.toMatchObject({ conversations: 2 });
+
+    // A tile that counts one channel: Sales holds one direct conversation, Support the rest.
+    await expect(owner.reports.meta({ ...period, channelId: sales.id })).resolves.toMatchObject({
+      conversations: 1,
+      comments: 0,
+    });
+    await expect(
+      owner.reports.conversations({ ...period, channelId: channel.id }),
+    ).resolves.toMatchObject({ started: 3 });
+    await expect(owner.reports.calls({ ...period, channelId: sales.id })).resolves.toMatchObject({
+      total: 0,
+    });
+
+    // Naming a channel the teammate isn't in shows them nothing of it.
+    await expect(
+      teammate.reports.conversations({ ...period, channelId: sales.id }),
+    ).resolves.toMatchObject({ started: 0, unresolved: 0 });
+    await expect(teammate.reports.meta({ ...period, channelId: sales.id })).resolves.toMatchObject({
+      conversations: 0,
+      incoming: 0,
+    });
   });
 });

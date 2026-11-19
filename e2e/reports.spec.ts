@@ -152,6 +152,44 @@ test('a conversation tile number opens the conversations it counts in the inbox'
   await expect(page.getByText(question)).toBeVisible();
 });
 
+test('a conversation tile counts the one channel a member picks, keeps the pick and opens its inbox', async ({
+  page,
+  api,
+  request,
+}) => {
+  const rpc = await pluginApi(api, request);
+  const name = `Picked ${unique()}`;
+  const { id } = await rpc('channels/create', { name }, Id);
+  const hello = `Hello ${unique()}`;
+
+  // The pick shows once there are two channels to pick from.
+  await rpc('channels/create', { name: `Other ${unique()}` }, Id);
+
+  await (await visitorOf(request, await messengerIn(rpc, { welcome: 'Hi' }, id))).write(hello);
+
+  await addTiles(page, ['Conversation summary']);
+  await pick(
+    page,
+    tileOf(page, 'Conversation summary').getByRole('combobox', { name: 'Channel' }),
+    name,
+  );
+  await expect(tileOf(page, 'Conversation summary')).toContainText(
+    /Started\s*1\s*Resolved\s*0\s*Unresolved now\s*1/,
+  );
+
+  await page.reload();
+  await expect(
+    tileOf(page, 'Conversation summary').getByRole('combobox', { name: 'Channel' }),
+  ).toHaveText(name);
+
+  // Its numbers open the inbox narrowed to that channel too.
+  await tileOf(page, 'Conversation summary')
+    .getByRole('link', { name: /^Started: / })
+    .click();
+  await expect(page).toHaveURL(new RegExp(id));
+  await expect(page.getByText(hello)).toBeVisible();
+});
+
 test('a member without the call permission sees the refusal in the call tile', async ({
   newMember,
 }) => {
