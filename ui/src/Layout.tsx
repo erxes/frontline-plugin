@@ -29,6 +29,7 @@ import { lazy, type ReactNode, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { withText } from '~/i18n/withText.ts';
+import { NavSkeleton } from '~/shared/NavSkeleton.tsx';
 import { PLUGIN, TICKET_FIELDS } from '~/plugin.ts';
 
 const ROOT = `/${PLUGIN}`;
@@ -164,7 +165,7 @@ const FrontlineSidebar = () => {
           </Sidebar.Menu>
         </Sidebar.GroupContent>
       </Sidebar.Group>
-      <Suspense fallback={null}>
+      <Suspense fallback={<NavSkeleton />}>
         <InboxGroups />
       </Suspense>
     </>
