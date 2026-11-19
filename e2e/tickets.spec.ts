@@ -6,10 +6,13 @@ import {
   expect,
   expectAccessible,
   filterBy,
+  Id,
   INBOX,
+  messengerIn,
   openChannelPipelines,
   openMessenger,
   pick,
+  pluginApi,
   recordPanel,
   test,
   unique,
@@ -281,6 +284,61 @@ test('a visitor files a ticket from the widget in a pipeline the messenger offer
 
   await openPipeline(page, pipeline);
   await expect(ticket(page, subject)).toBeVisible();
+});
+
+test("the widget's ticket form asks for a required field, and shows one only as its Logic says", async ({
+  page,
+  api,
+  request,
+}) => {
+  const rpc = await pluginApi(api, request);
+  const { id: channelId } = await rpc('channels/create', { name: `Support ${unique()}` }, Id);
+  const pipeline = { channelId, name: `Returns ${unique()}` };
+  const { id: pipelineId } = await rpc('pipelines/create', pipeline, Id);
+  const [plan, seats, subject] = [`Plan ${unique()}`, `Seats ${unique()}`, `Team ${unique()}`];
+
+  // A group of this pipeline's alone, so no other spec's ticket asks for its required field.
+  const group = await api.fieldGroups.create({
+    contentType: 'frontline.ticket',
+    name: plan,
+    appliesTo: { pipeline: [pipelineId] },
+  });
+
+  const field = { contentType: 'frontline.ticket', groupId: group.id } as const;
+
+  const { id: planId } = await api.fields.create({
+    ...field,
+    label: plan,
+    type: 'select',
+    options: ['Solo', 'Team'],
+    isRequired: true,
+  });
+
+  await api.fields.create({
+    ...field,
+    label: seats,
+    type: 'number',
+    logic: { action: 'show', rules: [{ fieldId: planId, operator: 'is', value: 'Team' }] },
+  });
+
+  const key = await messengerIn(rpc, { ticketPipelineIds: [pipelineId] }, channelId);
+  await using site = await openMessenger(page.context(), key);
+  const { panel } = site;
+
+  await panel.getByRole('button', { name: /^Tickets/ }).click();
+  await panel.getByRole('button', { name: 'File a ticket' }).click();
+  await panel.getByRole('textbox', { name: 'Email or phone' }).fill(`${unique()}@example.com`);
+  await panel.getByRole('button', { name: 'Continue' }).click();
+  await panel.getByRole('textbox', { name: 'Subject' }).fill(subject);
+  await expect(panel.getByRole('spinbutton', { name: seats })).toBeHidden();
+  await panel.getByRole('button', { name: 'Send ticket' }).click();
+  await expect(panel.getByRole('alert')).toHaveText('This field is required');
+
+  await panel.getByRole('combobox', { name: plan }).selectOption('Team');
+  await expect(panel.getByRole('alert')).toBeHidden();
+  await panel.getByRole('spinbutton', { name: seats }).fill('3');
+  await panel.getByRole('button', { name: 'Send ticket' }).click();
+  await expect(panel.getByRole('list', { name: 'Your tickets' })).toContainText(subject);
 });
 
 test('a member without frontline permissions is refused the tickets', async ({ newMember }) => {

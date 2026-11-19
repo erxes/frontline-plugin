@@ -289,7 +289,11 @@ export const knowledgeBase = async (rpc: Rpc, title: string) => {
 const Messenger = z.object({ publicKey: z.string() });
 
 /** The messenger settings the specs set when they add one through the API. */
-type MessengerConfig = { welcome?: string; knowledgeBaseTopicId?: string };
+type MessengerConfig = {
+  welcome?: string;
+  knowledgeBaseTopicId?: string;
+  ticketPipelineIds?: string[];
+};
 
 /**
  * A website messenger added through the API with `config`, in `channelId` or a new channel.
