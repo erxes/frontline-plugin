@@ -116,7 +116,7 @@ export const TicketContent = ({ ticket }: { ticket: Ticket }) => {
           <FileList
             files={ticket.attachments}
             onRemove={(file) =>
-              edit({ attachments: ticket.attachments.filter((row) => row.url !== file.url) })
+              edit({ attachments: ticket.attachments.filter((row) => row !== file) })
             }
           />
           <FilePicker

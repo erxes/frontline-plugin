@@ -87,7 +87,10 @@ const ImageFile = ({ file }: { file: File }) => {
   );
 };
 
-/** The message's files: images as thumbnails that open whole, the rest as chips with their name. */
+/**
+ * The message's files: images as thumbnails that open whole, the rest as chips with their name.
+ * A Meta photo's type is the bare `image`.
+ */
 export const Attachments = ({ files }: { files: Message['attachments'] }) => {
   if (files.length === 0) return null;
 
@@ -95,7 +98,7 @@ export const Attachments = ({ files }: { files: Message['attachments'] }) => {
     <ul className="flex flex-wrap gap-2">
       {files.map((file) => (
         <li key={file.url}>
-          {file.type?.startsWith('image/') ? (
+          {file.type?.split('/')[0] === 'image' ? (
             <ImageFile file={file} />
           ) : (
             <a

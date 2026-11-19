@@ -20,6 +20,10 @@ import {
 
 const TICKETS = '/frontline/tickets';
 
+/** A one-pixel PNG. */
+const PNG =
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+
 // One after the other: every test files tickets in the owner's organisation.
 test.describe.configure({ mode: 'default' });
 
@@ -66,6 +70,16 @@ test('a member files, changes and filters tickets in the list', async ({ page })
   await pick(page, panel.getByRole('combobox', { name: 'Priority' }), 'High');
   await expect(page.getByRole('combobox', { name: `Priority of ${refund}` })).toHaveText('High');
   await expect(panel.getByText('Status changed')).toBeVisible();
+
+  // An attached image shows as its thumbnail, which opens the file.
+  await panel.locator('input[aria-label="Attach a file"]').setInputFiles({
+    name: 'receipt.png',
+    mimeType: 'image/png',
+    buffer: Buffer.from(PNG, 'base64'),
+  });
+  const thumbnail = panel.getByRole('link', { name: 'receipt.png' }).getByRole('img');
+
+  await expect.poll(() => thumbnail.evaluate((img: HTMLImageElement) => img.naturalWidth)).toBe(1);
 
   // Core's Activity tab lists each change, from the events the change published.
   await panel.getByRole('tab', { name: 'Activity' }).click();
