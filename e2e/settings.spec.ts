@@ -23,6 +23,15 @@ test('the owner adds, finds and deletes tags', async ({ page }) => {
   // The filter bar's search lives in the address.
   await page.goto(`${SETTINGS}/tags?${new URLSearchParams({ searchValue: tag })}`);
   await expect(page.getByRole('row')).toHaveCount(2);
+
+  // The whole colour cell opens the picker, not only its swatch.
+  const colour = page.getByRole('button', { name: `Colour of ${tag}` });
+  const cell = page.getByRole('cell').filter({ has: colour });
+  const box = await cell.boundingBox();
+
+  await cell.click({ position: { x: (box?.width ?? 0) - 6, y: (box?.height ?? 0) / 2 } });
+  await expect(colour).toHaveAttribute('aria-expanded', 'true');
+  await page.keyboard.press('Escape');
   await page.getByRole('button', { name: `Actions for ${tag}` }).click();
   await page.getByRole('option', { name: 'Delete' }).click();
   await confirmDelete(page);
@@ -89,6 +98,12 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
   await page.goto(`${SETTINGS}/response-templates`);
   await expect(page).toHaveURL(`${SETTINGS}/channels`);
   await expect(page.getByRole('button', { name: 'Create channel' })).toBeVisible();
+
+  // The knowledge base under its spelled-out name opens it, and an unknown page the inbox.
+  await page.goto('/frontline/knowledge-base');
+  await expect(page).toHaveURL(/\/frontline\/knowledgebase/);
+  await page.goto('/frontline/nowhere');
+  await expect(page).toHaveURL(/\/frontline\/inbox/);
 
   // The old channel pages' links open their record's new place.
   const old = {

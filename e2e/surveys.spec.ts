@@ -138,6 +138,16 @@ test('an admin archives, reactivates and deletes surveys', async ({ page }) => {
   await page.goto(SURVEYS);
   await page.getByRole('button', { name: 'New survey' }).first().click();
   await expect(panel.getByText('Maybe', { exact: true })).toBeVisible();
+
+  // One option is refused in plain words, and the refusal goes once another is added.
+  await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
+  await panel.getByRole('textbox', { name: 'Title', exact: true }).fill(title);
+  await panel.getByRole('textbox', { name: 'Question', exact: true }).fill('Coming?');
+  await panel.getByRole('button', { name: 'Create survey' }).click();
+  await expect(panel.getByRole('alert')).toHaveText('A question needs at least 2 options');
+  await panel.getByPlaceholder('Type an option and press Enter').fill('No');
+  await page.keyboard.press('Enter');
+  await expect(panel.getByRole('alert')).toBeHidden();
   await panel.getByRole('button', { name: 'Cancel' }).click();
   await page.getByRole('alertdialog').getByRole('button', { name: 'Discard' }).click();
 

@@ -231,6 +231,27 @@ test('the builder previews a phone and the thank-you screen, and drags fields by
   await expect(first).toHaveAccessibleName('Settings of Seats');
   await moveByKeys(seats, 'ArrowDown', 'Seats', 'Company');
   await expect(first).toHaveAccessibleName('Settings of Company');
+
+  // Country and Sex offer their fixed lists, and a file field shows the embed's attach button.
+  await rpc(
+    'forms/fields/add',
+    { formId: form.id, type: 'select:countries', label: 'Country' },
+    Id,
+  );
+  await rpc('forms/fields/add', { formId: form.id, type: 'core:customer:sex', label: 'Sex' }, Id);
+  await rpc('forms/fields/add', { formId: form.id, type: 'file', label: 'Resume' }, Id);
+  await page.reload();
+  await pick(page, preview.getByRole('combobox', { name: 'Country' }), 'Mongolia');
+  await pick(page, preview.getByRole('combobox', { name: 'Sex' }), 'Female');
+  await expect(preview.getByRole('button', { name: 'Resume' })).toBeDisabled();
+
+  // Removing a field asks first, since its rules go with it.
+  await page.getByRole('button', { name: 'Remove Resume' }).click();
+  const confirm = page.getByRole('alertdialog');
+
+  await expect(confirm).toContainText('Remove Resume and the rules that use it?');
+  await confirm.getByRole('button', { name: 'Remove' }).click();
+  await expect(page.getByRole('button', { name: 'Settings of Resume' })).toBeHidden();
 });
 
 test('a channel member reads a form and its submissions but changes neither', async ({

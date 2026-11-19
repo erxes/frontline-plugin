@@ -99,6 +99,7 @@ test('a visitor reads the knowledge base from its script on a website and in the
 
 test('the owner creates a help center, edits it, sees its domain tab and deletes it', async ({
   page,
+  plugin,
 }) => {
   const title = `Help ${unique()}`;
   const renamed = `${title} desk`;
@@ -132,6 +133,12 @@ test('the owner creates a help center, edits it, sees its domain tab and deletes
   await page.getByRole('option', { name: 'Delete' }).click();
   await confirmDelete(page);
   await expect(page.getByRole('row', { name: new RegExp(renamed) })).toBeHidden();
+
+  // A site address with no help center gets a page that says so.
+  const missing = await page.goto(`${plugin}/help/deadbeef`);
+
+  expect(missing?.status()).toBe(404);
+  await expect(page.getByRole('heading', { name: 'No such help center' })).toBeVisible();
 });
 
 test('the owner picks its forms, changes its look and deletes help centers together', async ({
