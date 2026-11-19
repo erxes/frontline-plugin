@@ -41,6 +41,8 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
 
           return { id: `customer-${asked.customers}` };
         },
+        // A lead a sender's second first message made, which the first one's link replaced.
+        remove: async ({ ids }: { ids: string[] }) => ({ removed: ids.length }),
         // Core's customer with the email or phone: the same one for the same address or number.
         findOrCreate: async (input: { primaryEmail?: string; primaryPhone?: string }) => ({
           customer: {
