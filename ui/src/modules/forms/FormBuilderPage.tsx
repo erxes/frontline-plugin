@@ -186,13 +186,7 @@ const Builder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
               className="self-start"
               onClick={() =>
                 edit({
-                  steps: [
-                    ...form.steps,
-                    {
-                      name: t('form-step-n', 'Step {{n}}', { n: form.steps.length + 1 }),
-                      description: '',
-                    },
-                  ],
+                  steps: [...form.steps, { name: '', description: '' }],
                 })
               }
             >

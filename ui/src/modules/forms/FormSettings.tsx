@@ -5,6 +5,7 @@ import {
   IconColorSwatch,
   IconEyeOff,
   IconHeartHandshake,
+  IconLanguage,
   IconLayoutBottombar,
   IconLetterCase,
   IconMessage,
@@ -14,6 +15,7 @@ import {
 import { ColorPicker, PanelField, PanelSection, Select, Switch, TextField } from 'erxes-ui';
 import type { ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
+import { LanguageSelect } from '@/knowledgebase/LanguageSelect.tsx';
 import { ChannelSelect } from '~/shared/ChannelSelect.tsx';
 import { ImageField } from '~/shared/Files.tsx';
 import { type Form, LOAD_TYPES, type LoadType, useEditForm, useLoadTypeNames } from './useForms.ts';
@@ -170,6 +172,13 @@ export const Appearance = ({ form }: { form: Form }) => {
           value={form.primaryColor ?? ''}
           onValueChange={(primaryColor) => edit({ primaryColor: primaryColor || null })}
           className="mx-2 w-12"
+        />
+      </PanelField>
+      <PanelField icon={IconLanguage} label={t('language', 'Language')}>
+        <LanguageSelect
+          value={form.languageCode}
+          onChange={(languageCode) => edit({ languageCode })}
+          variant="flush"
         />
       </PanelField>
       <PanelField

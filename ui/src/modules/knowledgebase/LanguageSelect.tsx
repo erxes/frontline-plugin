@@ -4,15 +4,17 @@ import { LANGUAGE_CODES, useLanguageName } from './useKnowledgeBase.ts';
 
 const NO_LANGUAGE = 'none';
 
-/** The language a topic is written in, or none. */
+/** The language a topic, messenger or form is written in, or none. */
 export const LanguageSelect = ({
   id,
   value,
   onChange,
+  variant,
 }: {
   id?: string;
   value: string | null;
   onChange: (code: string | null) => void;
+  variant?: 'flush';
 }) => {
   const { t } = useTranslation('frontline');
   const language = useLanguageName();
@@ -22,7 +24,7 @@ export const LanguageSelect = ({
       value={value ?? NO_LANGUAGE}
       onValueChange={(code) => onChange(code === NO_LANGUAGE ? null : code)}
     >
-      <Select.Trigger id={id} aria-label={t('language', 'Language')}>
+      <Select.Trigger id={id} aria-label={t('language', 'Language')} variant={variant}>
         <Select.Value />
       </Select.Trigger>
       <Select.Content>

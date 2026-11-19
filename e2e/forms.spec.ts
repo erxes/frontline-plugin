@@ -117,7 +117,7 @@ const sendAsVisitor = async (page: Page, request: APIRequestContext, name: strin
     // Plan searches its options: text that is none is refused, and one but for case becomes it.
     await form.getByLabel('Plan').fill('Tea');
     await form.getByRole('button', { name: 'Ask' }).click();
-    await expect(form.getByText('Pick one of the options')).toBeVisible();
+    await expect(form.getByText('Pick an option')).toBeVisible();
     await form.getByLabel('Plan').fill('team');
     await expect(form.getByLabel('Plan')).toHaveValue('Team');
     await form.getByLabel('Seats').fill('5');

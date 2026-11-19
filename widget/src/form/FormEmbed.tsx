@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
 import { ChatIcon, CloseIcon } from '../shared/icons.tsx';
+import { useText } from '../shared/text.ts';
 import type { FormApi, VisitorForm } from './api.ts';
 import { FormView } from './FormView.tsx';
 
@@ -83,6 +84,7 @@ export const FormEmbed = ({
   code: string;
   visitorForm: VisitorForm;
 }) => {
+  const { t } = useText();
   const { form } = visitorForm;
   const [shown, setOpen] = useOpen(code, form.loadType);
   const open = shown === true;
@@ -130,7 +132,7 @@ export const FormEmbed = ({
             <button
               type="button"
               class="fl-icon-button fl-close"
-              aria-label="Close"
+              aria-label={t('Close')}
               onClick={() => setOpen(false)}
             >
               <CloseIcon />
@@ -144,7 +146,7 @@ export const FormEmbed = ({
           ref={toggle}
           type="button"
           class="fl-launcher"
-          aria-label={open ? `Close ${name}` : `Open ${name}`}
+          aria-label={t(open ? 'Close {name}' : 'Open {name}', { name })}
           aria-expanded={open}
           onClick={() => setOpen(!open)}
         >

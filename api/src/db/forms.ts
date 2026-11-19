@@ -61,6 +61,8 @@ export const forms = table(
     loadType: text({ enum: FORM_LOAD_TYPES }).notNull().default('embedded'),
     /** A hex colour, from erxes-ui's ColorPicker. */
     primaryColor: text(),
+    /** The ISO 639-1 language the embed's own words show in, unless the website's script names one. */
+    languageCode: text(),
     /** A visitor who gives an email or phone becomes a customer, not a lead. */
     saveAsCustomer: boolean().notNull().default(false),
     /** The callout shown before the form, unless skipped. */

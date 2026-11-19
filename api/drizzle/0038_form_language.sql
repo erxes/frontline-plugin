@@ -1,0 +1,1 @@
+ALTER TABLE "frontline_forms" ADD COLUMN "language_code" text;
