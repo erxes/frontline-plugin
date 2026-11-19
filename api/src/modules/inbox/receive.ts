@@ -113,6 +113,8 @@ export type Incoming = {
   attachments?: StoredFile[];
   /** What only the adapter reads back, such as a mail's subject. */
   providerData?: Record<string, unknown>;
+  /** The provider's id for the message this one answers, if the conversation has it. */
+  quotedExternalId?: string;
   /** The event type a new message publishes for automations to start from. */
   event?: string;
   /** A member started it, as with an outgoing call, so no one hears it arrive. */
@@ -191,6 +193,18 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
   return { ...created, kind: integration.kind, channelId: integration.channelId };
 };
 
+/** The id of the conversation's message with the provider's id `externalId`, if it has one. */
+const messageWith = async (tx: Tx, conversationId: string, externalId: string | undefined) => {
+  if (!externalId) return undefined;
+
+  const [found] = await tx
+    .select({ id: messages.id })
+    .from(messages)
+    .where(and(eq(messages.conversationId, conversationId), eq(messages.externalId, externalId)));
+
+  return found?.id;
+};
+
 /**
  * Adds a customer's message to its conversation in `tx`, starting one when it has none: the
  * conversation waits on a reply again, unread by everyone, and a resolved one reopens. A new
@@ -200,6 +214,8 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
  */
 export const receiveIn = async (tx: Tx, orgId: string, incoming: Incoming) => {
   const conversation = await conversationOf(tx, orgId, incoming);
+
+  const replyToId = await messageWith(tx, conversation.id, incoming.quotedExternalId);
 
   const [message] = await tx
     .insert(messages)
@@ -211,6 +227,7 @@ export const receiveIn = async (tx: Tx, orgId: string, incoming: Incoming) => {
       attachments: incoming.attachments ?? [],
       externalId: incoming.externalId,
       providerData: incoming.providerData,
+      replyToId,
     })
     .onConflictDoNothing()
     .returning();

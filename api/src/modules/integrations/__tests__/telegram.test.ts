@@ -24,6 +24,19 @@ vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
 
 const { deliver } = serve();
 
+/** Telegram's update with the customer's message 43, a reply to the bot's message 42. */
+const answered = JSON.stringify({
+  update_id: 918273101,
+  message: {
+    message_id: 43,
+    from: { id: 4242, is_bot: false, first_name: 'Bat' },
+    chat: { id: 4242, type: 'private' },
+    date: 1763180300,
+    text: 'Great, thanks!',
+    reply_to_message: { message_id: 42 },
+  },
+});
+
 /** Telegram's update with the customer's emojis on their message 41. */
 const reacted = (emojis: string[], updateId: number) =>
   JSON.stringify({
@@ -130,6 +143,14 @@ describe('telegram', () => {
       { content: 'It ships today', deliveryStatus: 'sent', externalId: '4242:42' },
       { content: 'Hello, is my order on its way?', deliveryStatus: null, externalId: '4242:41' },
     ]);
+
+    // The customer's reply to the bot's message answers that message in the inbox too.
+    expect(await deliver(path, answered, signed)).toBe(200);
+
+    const [thanks, shipped] = (await owner.conversations.messages.list({ conversationId }))
+      .messages;
+
+    expect(thanks).toMatchObject({ content: 'Great, thanks!', replyToId: shipped?.id });
 
     // The token was revoked in BotFather. A photo still arrives, without its file; the reply after
     // it fails at once; the bot shows broken, and whoever connected it hears so once.

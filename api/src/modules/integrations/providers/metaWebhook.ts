@@ -28,7 +28,9 @@ const Messaging = z.object({
       is_echo: z.boolean().optional(),
       is_deleted: z.boolean().optional(),
       quick_reply: z.object({ payload: z.string() }).optional(),
-      reply_to: z.object({ story: z.object({ url: z.string() }).optional() }).optional(),
+      reply_to: z
+        .object({ mid: z.string().optional(), story: z.object({ url: z.string() }).optional() })
+        .optional(),
       attachments: z.array(z.object({ type: z.string(), payload: File.nullish() })).optional(),
     })
     .optional(),
@@ -132,6 +134,7 @@ const fromMessaging = (event: z.infer<typeof Messaging>) => {
         ...filesOf(message),
       ],
       providerData: message.quick_reply ? { payload: message.quick_reply.payload } : undefined,
+      quotedId: message.reply_to?.mid,
     },
   ];
 };

@@ -28,6 +28,8 @@ export interface InboundMessage {
   attachments: StoredFile[];
   /** Files the provider holds, kept in core's storage as attachments when the message is new. */
   files?: InboundFile[];
+  /** The provider's id for the message this one answers, when the customer replied to one. */
+  quotedId?: string;
   /** The manifest event automations start from, published with the message when it is new. */
   event?: string;
 }

@@ -56,6 +56,8 @@ export const Message = z.object({
   contact: z
     .object({ phone_number: z.string(), first_name: z.string(), last_name: z.string().optional() })
     .optional(),
+  /** The message this one answers, when the customer replied to one. */
+  reply_to_message: z.object({ message_id: z.number() }).optional(),
 });
 
 /** The photo types Telegram shows as a photo, up to `PHOTO_BYTES`. */
