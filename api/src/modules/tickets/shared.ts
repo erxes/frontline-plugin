@@ -148,8 +148,8 @@ export const seenTicket = async (tx: Tx, member: PluginMember, id: string) => {
 };
 
 /**
- * The tickets of `ids` the caller sees (`ticketsSeenBy`), all of them or NOT_FOUND, oldest first, with
- * their channels held (`heldInChannels`). Their channels' members change them; with `remove`,
+ * The ids and channels of the tickets of `ids` the caller sees (`ticketsSeenBy`), all of them or
+ * NOT_FOUND, oldest first, with their channels held (`heldInChannels`). Their channels' members change them; with `remove`,
  * only the admins.
  */
 export const ticketsFor = async (
@@ -163,7 +163,7 @@ export const ticketsFor = async (
     member,
     ids,
     await tx
-      .select(ticketColumns)
+      .select({ id: tickets.id, channelId: tickets.channelId })
       .from(tickets)
       .leftJoin(channelMembers, membership(member, tickets.channelId))
       .where(and(inArray(tickets.id, ids), ticketsSeenBy(member)))
