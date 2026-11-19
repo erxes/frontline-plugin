@@ -7,7 +7,12 @@ import { conversations, customerLinks, integrations, messages } from '#/db/inbox
 import type { StoredFile } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import type { Person } from '../integrations/provider.ts';
-import { publishConversationEvents, signalArrival, signalConversations } from './shared.ts';
+import {
+  conversationLink,
+  publishConversationEvents,
+  signalArrival,
+  signalConversations,
+} from './shared.ts';
 
 /**
  * The provider's user, as an adapter knows them; `email` when the provider gives one. `whoIs`
@@ -105,7 +110,7 @@ const publishMessageReceived = async (
     p_type => ${MESSAGE_RECEIVED_EVENT.type},
     p_payload => ${JSON.stringify(payload)}::jsonb,
     p_summary => 'Sent a message',
-    p_link => ${`/${PLUGIN}/inbox?conversationId=${encodeURIComponent(payload.conversationId)}`},
+    p_link => ${conversationLink(payload.conversationId)},
     p_dedupe_key => ${`message:${payload.messageId}`}
   )`);
 };

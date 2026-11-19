@@ -1,11 +1,13 @@
 import { ORPCError } from '@orpc/server';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { core, INTEGRATION_BROKEN, PERMISSIONS } from '#/core.ts';
+import { PLUGIN } from '#/config.ts';
+import { INTEGRATION_BROKEN, PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
 import { logger } from '#/logger.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
+import { notifyMembers } from '../notify.ts';
 import { AccountRefused, type AccountRow } from './provider.ts';
 import { providerOf } from './providers/index.ts';
 import { Account, accountColumns, accountRow, removeWebhookKeys, webhookKeyOf } from './store.ts';
@@ -49,19 +51,14 @@ export const recordCheck = async (row: AccountRow, error: string | null) => {
   if (!checked) throw new ORPCError('NOT_FOUND', { message: 'No such integration account' });
 
   if (error && wasHealthy)
-    await core
-      .forOrg(row.orgId)
-      .notifications.create({
-        kind: INTEGRATION_BROKEN,
-        title: `${row.name} stopped working`,
-        body: error,
-        link: '/frontline/settings/integrations',
-        userIds: [row.createdBy],
-        dedupeKey: `integration-broken:${row.id}:${checked.checkedAt?.toISOString() ?? ''}`,
-      })
-      .catch((failure: unknown) => {
-        logger.error({ err: failure, accountId: row.id }, 'broken integration notification failed');
-      });
+    await notifyMembers(row.orgId, {
+      kind: INTEGRATION_BROKEN,
+      title: 'An integration stopped working',
+      body: `${row.name}: ${error}`,
+      link: `/${PLUGIN}/settings/integrations`,
+      userIds: [row.createdBy],
+      dedupeKey: `integration-broken:${row.id}:${checked.checkedAt?.toISOString() ?? ''}`,
+    });
 
   return checked;
 };

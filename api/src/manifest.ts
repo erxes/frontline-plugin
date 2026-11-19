@@ -51,6 +51,15 @@ const DESKTOP_REDIRECT = 'http://127.0.0.1:47823/callback';
 export const manifest = {
   title: 'Frontline',
   description: 'Inbox, channels, tickets and customer messaging for erxes',
+  // Core shows these words in the member's language, such as the titles `notifyMembers` sends.
+  translations: {
+    mn: {
+      'You were mentioned in a conversation': 'Таныг харилцан ярианд дурдлаа',
+      'A conversation was assigned to you': 'Танд харилцан яриа хуваарилагдлаа',
+      'Conversations were assigned to you': 'Танд харилцан ярианууд хуваарилагдлаа',
+      'An integration stopped working': 'Интеграц ажиллахаа болилоо',
+    },
+  },
   version: config.version,
   ui: { remote: 'frontline_ui', entry: config.uiEntryUrl },
   // `server.ts` serves the procedures as REST at /api/v1 and their document here.

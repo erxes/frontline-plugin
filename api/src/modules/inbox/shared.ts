@@ -143,11 +143,15 @@ export const publishConversationEvents = (
       orgId,
       actorUserId: actorId,
       entityType: CONVERSATION_TIMELINE,
-      linkOf: (id) => `/${PLUGIN}/inbox?conversationId=${encodeURIComponent(id)}`,
+      linkOf: conversationLink,
       audited: false,
     },
     events.map(({ conversationId, ...event }) => ({ ...event, entityId: conversationId })),
   );
+
+/** Where web opens a conversation. */
+export const conversationLink = (id: string) =>
+  `/${PLUGIN}/inbox?conversationId=${encodeURIComponent(id)}`;
 
 /** The Postgres channel the public messenger stream listens on (`messenger/stream.ts`). */
 export const VISITOR_CHANNEL = 'frontline_visitors';

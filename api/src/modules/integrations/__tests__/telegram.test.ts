@@ -173,7 +173,7 @@ describe('telegram', () => {
       { status: 'broken', error: 'Unauthorized' },
     ]);
     expect(asked.notifications.slice(told)).toMatchObject([
-      { title: '@shop_help_bot stopped working', body: 'Unauthorized' },
+      { title: 'An integration stopped working', body: '@shop_help_bot: Unauthorized' },
     ]);
   });
 

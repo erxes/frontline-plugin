@@ -14,15 +14,16 @@ import {
 } from '#/db/inbox.ts';
 import { tags } from '#/db/tags.ts';
 import { channelMembers } from '#/db/schema.ts';
-import { logger } from '#/logger.ts';
 import { reads, readsWithCore, writes } from '#/orpc.ts';
 import { membership, seenBy } from '../channels/access.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, filtersBy, likeText } from '../filter.ts';
+import { notifyMembers } from '../notify.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 import {
   Conversation,
   conversationById,
+  conversationLink,
   conversationRows,
   conversationsFor,
   Ids,
@@ -163,27 +164,19 @@ const get = reads(PERMISSIONS.inboxView)
   .output(Conversation)
   .handler(({ input, context: { tx, member } }) => conversationById(tx, member, input.id));
 
-/** Tells the new assignee, after the change committed; a failed notification is logged, not thrown. */
-const notifyAssignee = async (member: PluginMember, assigneeId: string, ids: string[]) => {
-  if (assigneeId === member.userId) return;
-
-  await core
-    .forOrg(member.orgId)
-    .notifications.create({
-      kind: INBOX_NOTIFICATIONS.assigned,
-      title:
-        ids.length === 1
-          ? 'A conversation was assigned to you'
-          : `${ids.length} conversations were assigned to you`,
-      link: `/frontline/inbox?conversationId=${encodeURIComponent(ids[0] ?? '')}`,
-      userIds: [assigneeId],
-      actorUserId: member.userId,
-      dedupeKey: `assigned:${assigneeId}:${ids.join(',')}`,
-    })
-    .catch((error: unknown) => {
-      logger.error({ err: error, assigneeId, ids }, 'assignment notification failed');
-    });
-};
+/** Tells the new assignee, after the change committed. */
+const notifyAssignee = (member: PluginMember, assigneeId: string, ids: string[]) =>
+  notifyMembers(member.orgId, {
+    kind: INBOX_NOTIFICATIONS.assigned,
+    title:
+      ids.length === 1
+        ? 'A conversation was assigned to you'
+        : 'Conversations were assigned to you',
+    link: conversationLink(ids[0] ?? ''),
+    userIds: [assigneeId],
+    actorUserId: member.userId,
+    dedupeKey: `assigned:${assigneeId}:${ids.join(',')}`,
+  });
 
 /** Assigns the conversations to a member, or unassigns them with null. */
 const assign = writes(PERMISSIONS.inboxView)

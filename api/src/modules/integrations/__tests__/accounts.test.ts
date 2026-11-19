@@ -162,7 +162,11 @@ describe('integration accounts', () => {
     ]);
     // Told once, when it broke, not on every check after.
     expect(asked.notifications).toMatchObject([
-      { kind: INTEGRATION_BROKEN, userIds: ['user-org-acc-c'], body: '401: Unauthorized' },
+      {
+        kind: INTEGRATION_BROKEN,
+        userIds: ['user-org-acc-c'],
+        body: 'shop-bot: 401: Unauthorized',
+      },
     ]);
   });
 

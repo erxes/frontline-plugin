@@ -13,6 +13,7 @@ import { Attachment, StoredFile } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import { reads, writes } from '#/orpc.ts';
 import { holdsEveryPermission } from '../channels/access.ts';
+import { notifyMembers } from '../notify.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import { Content, Html, writtenText } from './html.ts';
 import { messageColumns, postMessage, queueSend } from './post.ts';
@@ -20,6 +21,7 @@ import { Reaction, reactionsOf } from './reactions.ts';
 import { withoutParts } from './send.ts';
 import {
   conversationById,
+  conversationLink,
   conversationsFor,
   signalConversations,
   signalMembers,
@@ -133,26 +135,6 @@ const mentionable = async (tx: Tx, member: PluginMember, channelId: string, user
   return [...inIt, ...managers.map((user) => user.id)].toSorted();
 };
 
-/** Tells the mentioned members, after the message committed; a failure is logged, not thrown. */
-const notifyMentioned = async (member: PluginMember, conversationId: string, userIds: string[]) => {
-  const others = userIds.filter((id) => id !== member.userId);
-
-  if (others.length === 0) return;
-
-  await core
-    .forOrg(member.orgId)
-    .notifications.create({
-      kind: INBOX_NOTIFICATIONS.mentioned,
-      title: 'You were mentioned in a conversation',
-      link: `/frontline/inbox?conversationId=${encodeURIComponent(conversationId)}`,
-      userIds: others,
-      actorUserId: member.userId,
-    })
-    .catch((error: unknown) => {
-      logger.error({ err: error, conversationId, userIds: others }, 'mention notification failed');
-    });
-};
-
 /**
  * A member's reply to the customer, or an internal note with `internal`, posted as `postMessage`
  * says: plain `content`, or rich text as `html`. Members it mentions hear of it. It answers
@@ -207,7 +189,15 @@ const create = writes(PERMISSIONS.inboxView)
       replyToId: input.replyToId,
     });
 
-    afterCommit(() => notifyMentioned(member, conversation.id, mentionedUserIds));
+    afterCommit(() =>
+      notifyMembers(member.orgId, {
+        kind: INBOX_NOTIFICATIONS.mentioned,
+        title: 'You were mentioned in a conversation',
+        link: conversationLink(conversation.id),
+        userIds: mentionedUserIds,
+        actorUserId: member.userId,
+      }),
+    );
 
     return { ...message, quotedContent: answered?.content ?? null };
   });

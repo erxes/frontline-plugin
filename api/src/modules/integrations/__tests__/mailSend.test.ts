@@ -388,7 +388,7 @@ describe('mail', () => {
     expect(await health()).toMatchObject([
       { status: 'broken', error: 'The last 5 mail syncs failed: Connection timed out' },
     ]);
-    expect(asked.notifications.at(-1)).toMatchObject({ title: 'Shop support stopped working' });
+    expect(asked.notifications.at(-1)).toMatchObject({ title: 'An integration stopped working' });
 
     mailbox.down = false;
     await sync('org-mail-d');
