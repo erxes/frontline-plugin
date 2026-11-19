@@ -17,6 +17,7 @@ import { CONVERSATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { MemberCell } from '~/shared/MemberPicker.tsx';
 import { ContactChip } from '~/shared/Person.tsx';
 import { ConversationMenu, VisitorTyping } from './ConversationPresence.tsx';
+import { ConversationTickets } from './ConversationTickets.tsx';
 import { KindIcon } from '~/shared/kinds.tsx';
 import { type Conversation, conversationTags, useCreateTag } from './queries.ts';
 import { useAssign, useSetStatus, useSetTags } from './changes.ts';
@@ -160,8 +161,8 @@ const TagSummary = ({ conversation }: { conversation: Conversation }) => {
 
 /**
  * The open conversation's controls on one row, as the old inbox had them: the list toggle, who
- * it is with, where it came from and its assignee on the left; its tags, Resolve or Reopen and
- * the overflow menu on the right. Each change shows at once and saves behind it.
+ * it is with, where it came from and its assignee on the left; its tickets and Create ticket, its
+ * tags, Resolve or Reopen and the overflow menu on the right. Each change shows at once and saves behind it.
  */
 export const ConversationHeader = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
@@ -193,6 +194,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         className="w-auto min-w-0"
       />
       <span className="flex-1" />
+      <ConversationTickets conversation={conversation} />
       <TagEditor
         ids={[conversation.id]}
         tagIds={conversation.tagIds}

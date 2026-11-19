@@ -29,7 +29,6 @@ import { sendingTo, useMarkRead, useSendMessage } from './changes.ts';
 import { Composer } from './Composer.tsx';
 import { ConversationHeader, listShown } from './ConversationHeader.tsx';
 import { ConversationList, RowSkeletons } from './ConversationList.tsx';
-import { CustomerSidebar } from './CustomerSidebar.tsx';
 import { useInboxFields } from './InboxFilter.tsx';
 import { MessageThread, ThreadSkeleton } from './MessageThread.tsx';
 import {
@@ -143,7 +142,6 @@ const OpenConversation = ({ id }: { id: string }) => {
         </QueryBoundary>
         <Composer key={id} conversation={conversation} send={send} />
       </div>
-      <CustomerSidebar conversation={conversation} />
     </div>
   );
 };

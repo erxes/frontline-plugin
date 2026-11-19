@@ -41,3 +41,7 @@ export const CALL_TYPE = `${PLUGIN}:call`;
 
 /** A conversation in the inbox; its draft is a new mail. */
 export const CONVERSATION_TYPE = `${PLUGIN}:conversation`;
+
+/** Where the inbox opens a conversation. */
+export const conversationPath = (id: string) =>
+  `/${PLUGIN}/inbox?conversationId=${encodeURIComponent(id)}`;

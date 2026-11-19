@@ -8,6 +8,7 @@ import {
   IconProgressCheck,
   IconTag,
   IconUser,
+  IconUserCircle,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import {
@@ -19,7 +20,7 @@ import {
   type TRecordDraftProps,
   textOf,
 } from 'erxes-ui';
-import type { SubmitEvent } from 'react';
+import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChannels } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
@@ -29,10 +30,10 @@ import { TagsField } from '~/shared/Pickers.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { PrioritySelect, StatusSelect } from './TicketCells.tsx';
 import { dayOf } from './TicketFields.tsx';
-import { ticketTags } from './TicketLinks.tsx';
+import { ContactField, ticketTags } from './TicketLinks.tsx';
 import { PropertyRows } from './TicketProperties.tsx';
 import { useChoices, useTicketChange } from './queries.ts';
-import { type TicketDraft, useOpener, useTicketDraft, written } from './ticketDraft.ts';
+import { type TicketDraft, useTicketForm, written } from './ticketDraft.ts';
 
 /** The pipelines of the member's channels, each after its channel's name. */
 const PipelineSelect = ({
@@ -63,33 +64,36 @@ const PipelineSelect = ({
   );
 };
 
-/** The draft's pipeline and its status; an empty status files it under the pipeline's first. */
+/**
+ * The draft's pipeline and its status; an empty status files it under the pipeline's first.
+ * `missing` says to pick a pipeline, after Save without one.
+ */
 const FilingRows = ({
   pipelineId,
   statusId,
+  missing,
   onPipeline,
   onStatus,
 }: {
   pipelineId: string;
   statusId: string;
+  missing: boolean;
   onPipeline: (pipelineId: string) => void;
   onStatus: (statusId: string) => void;
 }) => {
   const { t } = useTranslation('frontline');
   const { pipelines } = useChoices();
 
+  const error =
+    pipelines.length === 0
+      ? t('ticket-pipeline-first', 'Add a pipeline to one of your channels first.')
+      : missing && !pipelineId
+        ? t('pick-pipeline', 'Pick a pipeline.')
+        : undefined;
+
   return (
     <>
-      <PanelFormRow
-        label={t('pipeline', 'Pipeline')}
-        icon={IconGitBranch}
-        required
-        error={
-          pipelines.length === 0
-            ? t('ticket-pipeline-first', 'Add a pipeline to one of your channels first.')
-            : undefined
-        }
-      >
+      <PanelFormRow label={t('pipeline', 'Pipeline')} icon={IconGitBranch} required error={error}>
         <PipelineSelect value={pipelineId} onChange={onPipeline} />
       </PanelFormRow>
       <PanelFormRow label={t('status', 'Status')} icon={IconProgressCheck}>
@@ -181,28 +185,20 @@ const LabelRows = ({
 };
 
 /**
- * A new ticket in core's side panel: its pipeline and status, name, priority, assignee, dates and
- * description. It starts in the opener's pipeline and status (`openNew(TICKET_TYPE, { pipelineId,
- * statusId })`), else the first pipeline and its first status. What is typed is kept as a draft
- * until the ticket is created or Cancel discards it, so closing the panel, leaving the page or
+ * A new ticket in core's side panel: its pipeline and status, name, customer, priority, assignee,
+ * dates and description. It starts in the opener's pipeline and status (`openNew(TICKET_TYPE, {
+ * pipelineId, statusId })`), else the first pipeline and its first status. One made from an inbox
+ * conversation (`{ conversationId, customerId, name, pipelineId? }`) starts with its customer and
+ * name, and with no pipeline unless the opener gave one. What is typed is kept as a draft until
+ * the ticket is created or Cancel discards it, so closing the panel, leaving the page or
  * reloading loses none of it, as the old create sheet kept it.
  */
 export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
-  const { pipelines } = useChoices();
-  const draft = useTicketDraft();
+  const { draft, starts, pipelineId, statusId, fields, save } = useTicketForm(defaults);
+  const { name, description, ...rest } = fields;
   const discard = useDiscard(written(draft.value), draft.clear, onCancel);
-
-  useOpener(draft, textOf(defaults.pipelineId), textOf(defaults.statusId));
-
-  const { pipelineId: picked, statusId: pickedStatus, name, description, ...fields } = draft.value;
-  const pipelineId = picked || textOf(defaults.pipelineId) || (pipelines[0]?.id ?? '');
-  const statusId = picked ? pickedStatus : textOf(defaults.statusId);
-
-  // Every save pins the filing the form shows, so its properties never follow another pipeline.
-  const save = (patch: Partial<TicketDraft>) =>
-    draft.save((last) => ({ ...last, pipelineId, statusId, ...patch }));
-
+  const [missing, setMissing] = useState(false);
   const { onSuccess } = useTicketChange();
 
   const create = useMutation(
@@ -218,11 +214,14 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
   // onSubmit rather than a form action, which would clear the fields when the API refuses them.
   const submit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
-    create.mutate({ pipelineId, statusId: statusId || undefined, name, description, ...fields });
+    setMissing(!pipelineId);
+
+    if (pipelineId) create.mutate({ pipelineId, statusId: statusId || undefined, ...fields });
   };
 
   return (
     <form
+      key={starts}
       onSubmit={submit}
       onChange={(event) => save({ name: textOf(new FormData(event.currentTarget).get('name')) })}
       className="flex min-h-0 flex-1 flex-col"
@@ -235,6 +234,7 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
         <FilingRows
           pipelineId={pipelineId}
           statusId={statusId}
+          missing={missing}
           onPipeline={(next) => save({ pipelineId: next, statusId: '', propertiesData: {} })}
           onStatus={(next) => save({ statusId: next })}
         />
@@ -246,8 +246,16 @@ export const TicketNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) 
           required
           placeholder={t('name', 'Name')}
         />
-        <PlanRows plan={fields} onChange={save} />
-        <LabelRows pipelineId={pipelineId} labels={fields} onChange={save} />
+        <PanelFormRow label={t('customer', 'Customer')} icon={IconUserCircle}>
+          <ContactField
+            contentType="core:customer"
+            label={t('customer', 'Customer')}
+            value={rest.customerId}
+            onChange={(customerId) => save({ customerId })}
+          />
+        </PanelFormRow>
+        <PlanRows plan={rest} onChange={save} />
+        <LabelRows pipelineId={pipelineId} labels={rest} onChange={save} />
         <PanelFormRow label={t('description', 'Description')} icon={IconAlignLeft}>
           <Editor
             initialContent={description}

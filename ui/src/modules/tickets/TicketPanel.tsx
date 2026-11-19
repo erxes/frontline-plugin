@@ -9,6 +9,7 @@ import {
   IconGitBranch,
   IconHash,
   IconLetterCase,
+  IconMessage,
   IconProgressCheck,
   IconUserCircle,
 } from '@tabler/icons-react';
@@ -24,10 +25,11 @@ import {
   useOpenRecord,
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useChannel } from '@/channels/useChannels.ts';
 import { orpc } from '~/orpc.ts';
-import { FORM_SUBMISSION_TYPE } from '~/plugin.ts';
+import { conversationPath, FORM_SUBMISSION_TYPE } from '~/plugin.ts';
 import { PrioritySelect, StatusSelect, TicketMenu } from './TicketCells.tsx';
 import { TicketContent, TicketPlan, TicketSla } from './TicketFields.tsx';
 import { TicketContacts, TicketLabels, TicketPeople } from './TicketLinks.tsx';
@@ -82,8 +84,8 @@ export const TicketActions = ({ contentId }: TRecordSlotProps) => {
 };
 
 /**
- * Where the ticket is filed, who made it when, and when its status last moved and it was
- * resolved, read only, at the foot of the tab.
+ * Where the ticket is filed, the inbox conversation it was made from, who made it when, and when
+ * its status last moved and it was resolved, read only, at the foot of the tab.
  */
 const TicketRecord = ({ ticket }: { ticket: Ticket }) => {
   const { t } = useTranslation('frontline');
@@ -99,6 +101,13 @@ const TicketRecord = ({ ticket }: { ticket: Ticket }) => {
       <InfoRow icon={IconGitBranch} label={t('pipeline', 'Pipeline')}>
         {pipeline?.name}
       </InfoRow>
+      {ticket.conversationId && (
+        <InfoRow icon={IconMessage} label={t('conversation', 'Conversation')}>
+          <Link to={conversationPath(ticket.conversationId)} className="truncate hover:underline">
+            {t('open-in-inbox', 'Open in the inbox')}
+          </Link>
+        </InfoRow>
+      )}
       <InfoRow icon={IconUserCircle} label={t('created-by', 'Created by')}>
         <MemberChip id={ticket.createdBy} />
       </InfoRow>

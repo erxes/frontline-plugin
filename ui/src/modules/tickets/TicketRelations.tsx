@@ -1,11 +1,9 @@
-import { ORPCError } from '@orpc/client';
 import { IconTicket } from '@tabler/icons-react';
 import { type QueryClient, useQuery } from '@tanstack/react-query';
 import { Empty, Spinner, type TRecordContacts, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { TICKET_TYPE } from '~/plugin.ts';
-import { REFERENCE_MS } from '~/shared/reference.ts';
 import { ticketOptions, useChoices } from './queries.ts';
 
 /**
@@ -36,19 +34,6 @@ export const pipelineLimits = async () =>
 const anyOf = (path: string, ids: string[]) =>
   ids.length > 0 ? [{ path, op: 'in' as const, value: ids }] : [];
 
-/**
- * Whether the member may read tickets, from one ticket asked for at most every few minutes, so
- * the inbox's rail knows without asking for each customer's tickets. Tickets have no access
- * procedure of their own.
- */
-export const useTicketsReadable = () => {
-  const { error } = useQuery(
-    orpc.tickets.list.queryOptions({ input: { limit: 1 }, staleTime: REFERENCE_MS, retry: false }),
-  );
-
-  return !(error instanceof ORPCError && error.code === 'FORBIDDEN');
-};
-
 /** The member's tickets about these customers or companies, active and archived, newest first. */
 const useContactTickets = ({ customerIds, companyIds }: TRecordContacts) => {
   const filter = {
@@ -74,8 +59,7 @@ const useContactTickets = ({ customerIds, companyIds }: TRecordContacts) => {
 };
 
 /**
- * The Tickets tab on a customer's or company's panel, and the inbox's customer sidebar: the
- * member's tickets about them. One opens on top in core's side panel.
+ * The Tickets tab on a customer's or company's panel: the member's tickets about them. One opens on top in core's side panel.
  */
 export const TicketRelations = (contacts: TRecordContacts) => {
   const { t } = useTranslation('frontline');
