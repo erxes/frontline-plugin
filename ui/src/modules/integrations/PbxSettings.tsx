@@ -24,13 +24,16 @@ import { ZonePicker } from './ConnectFields.tsx';
 import { AddRow, ItemRow } from './parts.tsx';
 import type { Account } from './useIntegrations.ts';
 
-/** A PBX's own settings, which `saveSettings` takes again with each change. */
+/**
+ * A PBX's own settings, which `saveSettings` takes again with each change, and whether a TURN
+ * password is saved: the API keeps it sealed and never sends it back.
+ */
 const PbxConfig = z.object({
   phone: z.string(),
   timeZone: z.string(),
   turnUrl: z.string().default(''),
   turnUsername: z.string().default(''),
-  turnPassword: z.string().default(''),
+  hasTurnPassword: z.boolean().default(false),
 });
 
 type PbxConfig = z.infer<typeof PbxConfig>;
@@ -63,9 +66,13 @@ const usePbx = (account: Account, settings: Settings) => {
     settings.operators.flatMap((operator) => (operator.hasSipPassword ? [operator.extension] : [])),
   );
 
+  // Left out, the TURN password stays as saved; `turnPassword` in `patch` replaces or clears it.
   const change = (patch: Partial<Omit<SaveInput, 'accountId'>>) => {
-    if (config.success)
-      save.mutate({ accountId: account.id, ...config.data, queues, operators, ...patch });
+    if (!config.success) return;
+
+    const { hasTurnPassword, ...stored } = config.data;
+
+    save.mutate({ accountId: account.id, ...stored, queues, operators, ...patch });
   };
 
   return { config: config.data, queues, operators, softphones, change };
@@ -82,7 +89,7 @@ const SettingRow = ({
   placeholder,
 }: {
   pbx: Pbx & { config: PbxConfig };
-  name: Exclude<keyof PbxConfig, 'timeZone' | 'turnPassword'>;
+  name: Exclude<keyof PbxConfig, 'timeZone' | 'hasTurnPassword'>;
   label: string;
   icon: Icon;
   placeholder?: string;
@@ -133,15 +140,19 @@ const SystemSection = ({ pbx }: { pbx: Pbx & { config: PbxConfig } }) => {
           <TextField
             scope="frontline-pbx.turnPassword"
             value=""
-            placeholder={config.turnPassword ? '••••••••' : t('turn-password', 'TURN password')}
+            placeholder={
+              config.hasTurnPassword
+                ? t('turn-password-saved', 'Saved; type a new one to replace it')
+                : t('turn-password', 'TURN password')
+            }
             onSave={(turnPassword) => turnPassword && change({ turnPassword })}
           />
-          {config.turnPassword && (
+          {config.hasTurnPassword && (
             <Button
               variant="ghost"
               size="icon"
               aria-label={t('clear-turn-password', 'Clear TURN password')}
-              onClick={() => change({ turnPassword: '' })}
+              onClick={() => change({ turnPassword: null })}
             >
               <IconX />
             </Button>
