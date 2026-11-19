@@ -21,7 +21,18 @@
           "message": {
             "mid": "m_photo",
             "attachments": [
-              { "type": "image", "payload": { "url": "https://cdn.example.com/photo.jpg" } }
+              {
+                "type": "image",
+                "payload": {
+                  "url": "https://scontent.xx.fbcdn.net/v/t1.15752-9/photo.jpg?_nc_cat=1&oh=03_sig&oe=67410000"
+                }
+              },
+              {
+                "type": "file",
+                "payload": {
+                  "url": "https://cdn.fbsbx.com/v/t59.2708-21/%D0%9D%D1%8D%D1%85%D1%8D%D0%BC%D0%B6%D0%BB%D1%8D%D1%85.pdf?_nc_cat=1&oh=03_sig&oe=67410000"
+                }
+              }
             ]
           }
         },

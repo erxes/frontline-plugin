@@ -7,6 +7,7 @@ import type { InboundMessage, InboundReaction, ProviderName, WebhookSource } fro
 import { sameText } from '../secrets.ts';
 import { metaKey } from '../store.ts';
 import { knownVerifyToken, metaSecretsOf } from './metaApp.ts';
+import { copiesOf } from './metaFiles.ts';
 
 /** How the external id of a comment thread starts, which the reports count apart from chats. */
 export const COMMENT_THREAD = 'comment:';
@@ -127,15 +128,18 @@ const fromMessaging = (event: z.infer<typeof Messaging>) => {
 
   const story = message.reply_to?.story;
 
+  const attachments = [
+    ...(story ? [{ url: story.url, name: 'story', type: 'story' }] : []),
+    ...filesOf(message),
+  ];
+
   return [
     {
       ...base,
       messageId: message.mid,
       text: message.text ?? '',
-      attachments: [
-        ...(story ? [{ url: story.url, name: 'story', type: 'story' }] : []),
-        ...filesOf(message),
-      ],
+      attachments,
+      kept: copiesOf(attachments),
       providerData: message.quick_reply ? { payload: message.quick_reply.payload } : undefined,
       quotedId: message.reply_to?.mid,
     },
@@ -181,6 +185,7 @@ const fromChange = (
     return [];
 
   const media = value.photo ?? value.video;
+  const attachments = media ? [{ url: media, name: value.photo ? 'photo' : 'video' }] : [];
 
   return [
     {
@@ -188,7 +193,8 @@ const fromChange = (
       messageId: value.comment_id,
       author: { externalId: value.from.id, name: value.from.name },
       text: value.message ?? '',
-      attachments: media ? [{ url: media, name: value.photo ? 'photo' : 'video' }] : [],
+      attachments,
+      kept: copiesOf(attachments),
       providerData: { postId: value.post_id, commentId: value.comment_id },
       event,
     },

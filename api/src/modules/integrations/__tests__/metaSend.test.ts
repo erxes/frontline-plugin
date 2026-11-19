@@ -31,6 +31,8 @@ const chatting = async (orgId: string) => {
   const raw = fixture('meta-delivery.json');
 
   await deliver('/meta', raw, signedByMeta(raw));
+  // The delivery's files are copied off Meta's CDN, so only a reply's jobs wait after this.
+  await runQueued();
 
   return { owner, conversationId: await conversationWith(orgId, 'psid-1') };
 };

@@ -101,17 +101,33 @@ describe('meta', () => {
     expect(await deliver('/meta', raw)).toBe(401);
     expect(await deliver('/meta', raw, signedByMeta(`${raw} `))).toBe(401);
     expect(await deliver('/meta', raw, signedByMeta(raw))).toBe(200);
+    await runQueued();
     expect((await clientAs('org-meta-b').conversations.list({})).totalCount).toBe(0);
 
     const [conversation] = (await owner.conversations.list({})).conversations;
     const conversationId = conversation?.id ?? '';
     const { messages } = await owner.conversations.messages.list({ conversationId });
 
-    // Newest first, and no echo of the page's own message.
+    // Newest first, and no echo of the page's own message. Meta's links expire, so the files are
+    // copied to core, named as their links name them.
     expect(messages.map(({ content, attachments }) => ({ content, attachments }))).toEqual([
       {
         content: '',
-        attachments: [{ url: 'https://cdn.example.com/photo.jpg', name: 'image', type: 'image' }],
+        attachments: [
+          {
+            url: '/core/v1/files/file-photo-jpg/download',
+            name: 'photo.jpg',
+            type: 'image/jpeg',
+            size: 4,
+          },
+          {
+            // The stand-in's file ids spell each letter that isn't Latin as a dash.
+            url: `/core/v1/files/file-${'-'.repeat(10)}pdf/download`,
+            name: 'Нэхэмжлэх.pdf',
+            type: 'application/pdf',
+            size: 4,
+          },
+        ],
       },
       { content: 'Do you ship to Darkhan?', attachments: [] },
     ]);

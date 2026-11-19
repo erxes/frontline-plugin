@@ -209,7 +209,10 @@ export const deliverInbound = async <T extends InboundMessage>(
 
         await saved?.(tx, message);
 
-        if (received.changed) changed.push(received.changed);
+        if (!received.changed) return;
+
+        changed.push(received.changed);
+        await message.kept?.(tx, received.message);
       }).catch(async (error: unknown) => {
         if (!refusedData(error)) throw error;
 
