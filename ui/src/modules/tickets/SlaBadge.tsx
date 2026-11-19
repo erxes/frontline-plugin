@@ -1,6 +1,6 @@
 import { Badge } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { type SlaState, type Ticket, useSlaNames } from './queries.ts';
+import { type SlaState, type TicketRow, useSlaNames } from './queries.ts';
 
 const badges = {
   due: 'muted',
@@ -18,7 +18,7 @@ export const SlaStateBadge = ({ state }: { state: SlaState }) => (
  * The clock that needs a look on a row or card: an overdue one, else the running one. Nothing
  * when the pipeline keeps no SLA or both clocks stopped in time.
  */
-export const SlaBadge = ({ ticket }: { ticket: Ticket }) => {
+export const SlaBadge = ({ ticket }: { ticket: TicketRow }) => {
   const { t } = useTranslation('frontline');
 
   const clocks = [

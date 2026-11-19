@@ -8,7 +8,12 @@ import { AssigneeCell, PriorityCell, TicketMenu } from './TicketCells.tsx';
 import { TicketTags } from './TicketLinks.tsx';
 import { TicketPropertyBadges } from './TicketProperties.tsx';
 import { usePipelineStatuses } from './TicketList.tsx';
-import { type Ticket, type TicketRowActions, useTicketRowActions, useTickets } from './queries.ts';
+import {
+  type TicketRow,
+  type TicketRowActions,
+  useTicketRowActions,
+  useTickets,
+} from './queries.ts';
 
 type Status = ReturnType<typeof usePipelineStatuses>[number];
 
@@ -17,7 +22,7 @@ type Status = ReturnType<typeof usePipelineStatuses>[number];
  * tags and properties, and under them its priority and assignee, each changed on the card.
  * Drag it anywhere on it to another status; click it to open it.
  */
-const TicketCard = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
+const TicketCard = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions }) => {
   const format = useFormat();
   const { open } = useOpenRecord();
 

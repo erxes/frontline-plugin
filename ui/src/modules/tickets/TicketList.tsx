@@ -13,7 +13,7 @@ import { AssigneeCell, PriorityCell, TicketMenu, TicketName } from './TicketCell
 import { SlaBadge } from './SlaBadge.tsx';
 import { TicketTags } from './TicketLinks.tsx';
 import {
-  type Ticket,
+  type TicketRow,
   type TicketRowActions,
   useChoices,
   useTicketPipeline,
@@ -24,7 +24,7 @@ import {
  * One ticket: its number and name, tags, SLA, priority, assignee, last change, and its menu. The
  * tags show only on a row wide enough to keep the name readable beside them.
  */
-const TicketRow = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => (
+const TicketLine = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions }) => (
   <div className="@container flex min-w-0 flex-1 items-center gap-3 text-xs">
     <span className="flex min-w-0 flex-1">
       <TicketName ticket={ticket} />
@@ -57,7 +57,7 @@ export const usePipelineStatuses = () => {
 };
 
 /** The shown pipeline's statuses, each with its tickets. */
-const useStatusGroups = (tickets: Ticket[]) => {
+const useStatusGroups = (tickets: TicketRow[]) => {
   const byStatus = Map.groupBy(tickets, (ticket) => ticket.statusId);
 
   return usePipelineStatuses().map((status) => ({
@@ -71,12 +71,12 @@ const useStatusGroups = (tickets: Ticket[]) => {
  * The tickets grouped by status, each group under a header that folds it away and adds a ticket
  * in that status. Inside `RecordList.Provider`, whose selection the bulk bar reads.
  */
-export const TicketList = ({ tickets }: { tickets: Ticket[] }) => {
+export const TicketList = ({ tickets }: { tickets: TicketRow[] }) => {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
   const act = useTicketRowActions();
 
-  const groups: RecordListGroup<Ticket>[] = useStatusGroups(tickets)
+  const groups: RecordListGroup<TicketRow>[] = useStatusGroups(tickets)
     .filter((group) => group.rows.length > 0)
     .map(({ status, label, rows }) => ({
       id: status.id,
@@ -102,7 +102,7 @@ export const TicketList = ({ tickets }: { tickets: Ticket[] }) => {
       groups={groups}
       rowId={(ticket) => ticket.id}
       rowLabel={(ticket) => ticket.name}
-      renderRow={(ticket) => <TicketRow ticket={ticket} act={act} />}
+      renderRow={(ticket) => <TicketLine ticket={ticket} act={act} />}
     />
   );
 };

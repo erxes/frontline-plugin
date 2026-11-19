@@ -21,7 +21,7 @@ import { SortMenu, useTicketFields } from './TicketFilter.tsx';
 import { TicketList } from './TicketList.tsx';
 import { TicketsBoard } from './TicketsBoard.tsx';
 import { TicketsTable } from './TicketsTable.tsx';
-import { type Ticket, useTicketPipeline, useTickets, useTicketsLive } from './queries.ts';
+import { type TicketRow, useTicketPipeline, useTickets, useTicketsLive } from './queries.ts';
 
 const LIST = 'frontline-tickets';
 
@@ -29,7 +29,7 @@ const LIST = 'frontline-tickets';
 const DISPLAYS = ['list', 'board', 'table'] as const;
 
 /** The bulk bar's actions for the picked ids, read from the tickets shown. */
-const bulkOf = (tickets: Ticket[]) => (selected: string[], clear: () => void) => (
+const bulkOf = (tickets: TicketRow[]) => (selected: string[], clear: () => void) => (
   <TicketBulkActions
     tickets={tickets.filter((ticket) => selected.includes(ticket.id))}
     clear={clear}

@@ -23,7 +23,7 @@ import {
 import { useTranslation } from 'react-i18next';
 import { TICKET_FIELDS } from '~/plugin.ts';
 import { Badges, PickerField } from '~/shared/Pickers.tsx';
-import type { Ticket } from './queries.ts';
+import type { TicketRow } from './queries.ts';
 
 /** How the ticket screens draw each type of core's fields; they draw no other. */
 const KINDS = {
@@ -185,7 +185,7 @@ const useValueText = () => {
 };
 
 /** The ticket's field values on its board card, three at most and the rest on hover. */
-export const TicketPropertyBadges = ({ ticket }: { ticket: Ticket }) => {
+export const TicketPropertyBadges = ({ ticket }: { ticket: TicketRow }) => {
   const fields = usePipelineFields(ticket.pipelineId);
   const valueText = useValueText();
 

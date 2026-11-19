@@ -64,19 +64,31 @@ export const Ticket = createSelectSchema(tickets, {
   });
 
 /**
+ * A ticket as lists, boards and tables show it: without the description and attachments, which
+ * only its panel shows. The board's cards show its property values.
+ */
+export const TicketRow = Ticket.omit({ description: true, attachments: true });
+
+const { description, attachments, ...rowColumns } = ticketColumns;
+
+/**
  * The tickets `member` sees: their channels', or every channel's for one who manages them all,
  * under their statuses' and pipelines' rules (`ticketVisible`).
  */
 export const seenBy = (member: PluginMember) =>
   and(managesAll(member) ? undefined : isNotNull(channelMembers.userId), ticketVisible(member));
 
-/** Tickets with what the caller may do and their SLA states. Callers narrow them with `seenBy`. */
-export const ticketRows = (tx: Tx, member: PluginMember) => {
+/** Tickets' `columns` with what the caller may do and their SLA states. */
+const rowsOf = <Columns extends typeof rowColumns>(
+  tx: Tx,
+  member: PluginMember,
+  columns: Columns,
+) => {
   const rights = statusRights(member);
 
   return tx
     .select({
-      ...ticketColumns,
+      ...columns,
       canManage: canChangeSql(member),
       canEdit: rights.canEdit,
       canMove: rights.canMove,
@@ -88,6 +100,12 @@ export const ticketRows = (tx: Tx, member: PluginMember) => {
     .leftJoin(channelMembers, membership(member, tickets.channelId))
     .$dynamic();
 };
+
+/** Tickets as `Ticket`. Callers narrow them with `seenBy`. */
+const ticketRows = (tx: Tx, member: PluginMember) => rowsOf(tx, member, ticketColumns);
+
+/** Tickets as `TicketRow`, for lists. Callers narrow them with `seenBy`. */
+export const listRows = (tx: Tx, member: PluginMember) => rowsOf(tx, member, rowColumns);
 
 /** The tickets of `ids` as the caller sees them, oldest first. */
 export const ticketsById = (tx: Tx, member: PluginMember, ids: string[]) =>

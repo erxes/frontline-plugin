@@ -26,11 +26,16 @@ import {
   useTicketActions,
 } from './TicketCells.tsx';
 import { SlaBadge } from './SlaBadge.tsx';
-import { type Ticket, type TicketRowActions, useChoices, useTicketRowActions } from './queries.ts';
+import {
+  type TicketRow,
+  type TicketRowActions,
+  useChoices,
+  useTicketRowActions,
+} from './queries.ts';
 
-const column = columnOf<Ticket>;
+const column = columnOf<TicketRow>;
 
-const MoreCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) => {
+const MoreCell = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions }) => {
   const { t } = useTranslation('frontline');
 
   return (
@@ -41,7 +46,7 @@ const MoreCell = ({ ticket, act }: { ticket: Ticket; act: TicketRowActions }) =>
   );
 };
 
-const PipelineCell = ({ ticket }: { ticket: Ticket }) => {
+const PipelineCell = ({ ticket }: { ticket: TicketRow }) => {
   const { pipelines } = useChoices();
 
   return (
@@ -58,7 +63,7 @@ const MaybeDate = ({ date }: { date: Date | null }) =>
   date ? <DateCell date={date} /> : <RecordTableInlineCell />;
 
 /** What a ticket is, where it stands, who has it and when. */
-const useColumns = (): RecordTableColumnDef<Ticket>[] => {
+const useColumns = (): RecordTableColumnDef<TicketRow>[] => {
   const { t } = useTranslation('frontline');
   const act = useTicketRowActions();
 
@@ -69,7 +74,7 @@ const useColumns = (): RecordTableColumnDef<Ticket>[] => {
       cell: ({ row }) => <MoreCell ticket={row.original} act={act} />,
       size: 33,
     },
-    RecordTable.checkboxColumnOf<Ticket>(),
+    RecordTable.checkboxColumnOf<TicketRow>(),
     column('name', t('name', 'Name'), IconLabelFilled, 320, (ticket) => (
       <RecordTableInlineCell>
         <TicketName ticket={ticket} />
@@ -122,7 +127,7 @@ export const TicketsTable = ({
   paging,
   children,
 }: {
-  tickets: Ticket[];
+  tickets: TicketRow[];
   paging: Paging;
   children: ReactNode;
 }) => (
