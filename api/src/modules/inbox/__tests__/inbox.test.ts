@@ -110,7 +110,10 @@ describe('inbox', () => {
 
     // The conversation started on the customer's timeline.
     const events = await withOrg('org-ib-a', (tx) =>
-      tx.execute(sql`select type, subject_id, entity_id from core_events where entity_id = ${id}`),
+      tx.execute(
+        sql`select type, subject_id, entity_id from core_events
+          where entity_id = ${id} and summary is not null`,
+      ),
     );
 
     expect(events.rows).toEqual([

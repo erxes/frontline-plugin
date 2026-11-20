@@ -115,6 +115,51 @@ describe('automations', () => {
     expect(messages).toHaveLength(2);
   });
 
+  it("files a ticket for the run's customer and conversation once per step", async () => {
+    const { owner, conversation } = await telegramConversation('org-auto-t');
+    const channel = await owner.channels.create({ name: 'Support', memberIds: [] });
+    const pipeline = await owner.pipelines.create({ channelId: channel.id, name: 'Main' });
+
+    const step = {
+      input: { pipelineId: pipeline.id, name: 'Order is late', priority: '3' },
+      context: {
+        event: {
+          subjectType: 'customer',
+          subjectId: conversation.customerId,
+          payload: { conversationId: conversation.id },
+        },
+      },
+    };
+
+    const first = await act('frontline.ticket.create', step, { orgId: 'org-auto-t', run: 'run-t' });
+
+    expect(first.status).toBe(200);
+    expect(
+      await act('frontline.ticket.create', step, { orgId: 'org-auto-t', run: 'run-t' }),
+    ).toEqual(first);
+
+    const { tickets } = await owner.tickets.list({});
+
+    expect(tickets).toMatchObject([
+      {
+        name: 'Order is late',
+        priority: 3,
+        customerId: conversation.customerId,
+        conversationId: conversation.id,
+        pipelineId: pipeline.id,
+      },
+    ]);
+    expect(first.body).toMatchObject({ ticketId: tickets[0]?.id, number: tickets[0]?.number });
+
+    expect(
+      await act(
+        'frontline.ticket.create',
+        { ...step, input: { ...step.input, pipelineId: 'missing' } },
+        { orgId: 'org-auto-t', run: 'run-u' },
+      ),
+    ).toMatchObject({ status: 404 });
+  });
+
   it("replies in the customer's latest conversation of the step's kind, or refuses", async () => {
     const { conversation } = await telegramConversation('org-auto-b');
 

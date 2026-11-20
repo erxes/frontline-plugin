@@ -4,12 +4,19 @@ import { eq } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { signedByCore } from '#/config.ts';
-import { CONVERSATION_EVENTS, FORM_ACTIONS, INBOX_ACTIONS, INBOX_NOTIFICATIONS } from '#/core.ts';
+import {
+  CONVERSATION_EVENTS,
+  FORM_ACTIONS,
+  INBOX_ACTIONS,
+  INBOX_NOTIFICATIONS,
+  TICKET_ACTIONS,
+} from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations } from '#/db/inbox.ts';
 import { fail, verifiedBy } from '../fail.ts';
 import { createFormLink } from '../forms/links.ts';
 import { sendKindOf, sendMessage } from '../integrations/actions.ts';
+import { createTicket } from '../tickets/automation.ts';
 import { addBotMessage, setOperatorOf } from './operator.ts';
 import { notifyMembers } from '../notify.ts';
 import {
@@ -146,6 +153,12 @@ export const runAction = async (req: Request, res: Response) => {
 
     if (req.params.type === INBOX_ACTIONS.handOff) {
       res.json(await handOff(call, body));
+
+      return;
+    }
+
+    if (req.params.type === TICKET_ACTIONS.create) {
+      res.json(await createTicket(call, req.body, key));
 
       return;
     }
