@@ -1,5 +1,5 @@
-import { IconArrowDown } from '@tabler/icons-react';
-import { Button, cn, ScrollArea, Skeleton, Spinner, toIsoDay, useFormat } from 'erxes-ui';
+import { IconArrowDown, IconMessageCircle } from '@tabler/icons-react';
+import { Button, cn, Empty, ScrollArea, Skeleton, Spinner, toIsoDay, useFormat } from 'erxes-ui';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type CustomContainerComponentProps, Virtualizer } from 'virtua';
@@ -8,7 +8,7 @@ import { LoadPage } from '~/shared/List.tsx';
 import { takesNotesOnly } from '~/shared/kinds.tsx';
 import { useCustomer } from '~/shared/Person.tsx';
 import type { Sending } from './changes.ts';
-import { focusComposer } from './Composer.tsx';
+import { focusComposer } from './ComposerEditor.tsx';
 import { useQuote } from './composerDraft.ts';
 import { Bubble, continues, type QuoteLink, quoteText } from './MessageBubble.tsx';
 import { SendingMessage } from './MessageContent.tsx';
@@ -31,10 +31,13 @@ const DayDivider = ({ date }: { date: Date }) => {
         ? t('yesterday', 'Yesterday')
         : format.date(date);
 
+  // A label on the rule, not between two lines of text, so a day reads at a glance in a long thread.
   return (
-    <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
+    <div className="mt-5 mb-1 flex items-center gap-3">
       <hr className="flex-1" />
-      {label}
+      <span className="rounded-full border bg-background px-2.5 py-0.5 text-xs font-medium text-muted-foreground">
+        {label}
+      </span>
       <hr className="flex-1" />
     </div>
   );
@@ -42,10 +45,19 @@ const DayDivider = ({ date }: { date: Date }) => {
 
 /** Placeholders shaped like a short exchange while the messages load. */
 export const ThreadSkeleton = () => (
-  <div aria-hidden className="flex min-h-0 flex-1 flex-col gap-4 p-4">
-    <Skeleton className="h-12 w-2/5" />
+  <div
+    aria-hidden
+    className="mx-auto flex min-h-0 w-full max-w-4xl flex-1 flex-col gap-4 px-4 py-6"
+  >
+    <span className="flex gap-2">
+      <Skeleton radius="circle" className="size-8 shrink-0" />
+      <Skeleton className="h-12 w-2/5" />
+    </span>
     <Skeleton className="h-16 w-1/2 self-end" />
-    <Skeleton className="h-10 w-1/3" />
+    <span className="flex gap-2">
+      <Skeleton radius="circle" className="size-8 shrink-0" />
+      <Skeleton className="h-10 w-1/3" />
+    </span>
   </div>
 );
 
@@ -80,7 +92,7 @@ const LatestButton = ({
     <div
       inert={!shown}
       className={cn(
-        'absolute inset-x-0 bottom-3 mx-auto w-fit transition-opacity',
+        'absolute inset-x-0 bottom-4 mx-auto w-fit transition-opacity',
         !shown && 'opacity-0',
       )}
     >
@@ -198,11 +210,18 @@ export const MessageThread = ({ conversation, sending }: ThreadProps) => {
       <ScrollArea.Root className="relative min-h-0 flex-1">
         <ScrollArea.Viewport ref={viewport}>
           {messages.length === 0 && !sending ? (
-            <p className="p-6 text-center text-sm text-muted-foreground">
-              {t('no-messages-yet', 'No messages yet. Write the first one below.')}
-            </p>
+            <Empty className="mt-16">
+              <Empty.Header>
+                <Empty.Media>
+                  <IconMessageCircle />
+                </Empty.Media>
+                <Empty.Description>
+                  {t('no-messages-yet', 'No messages yet. Write the first one below.')}
+                </Empty.Description>
+              </Empty.Header>
+            </Empty>
           ) : (
-            <div className="mx-auto w-full max-w-2xl px-3">
+            <div className="mx-auto w-full max-w-4xl px-4">
               <Virtualizer
                 ref={rows}
                 scrollRef={viewport}

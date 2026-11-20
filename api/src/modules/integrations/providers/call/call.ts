@@ -1,5 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
+import { config as settings } from '#/config.ts';
 import { defineProvider, type OpenAccount } from '../../provider.ts';
 import { checkPbx } from './pbx.ts';
 
@@ -9,36 +10,42 @@ const PbxConfig = z.object({
   host: z.string(),
   /** The organisation's number on it. */
   phone: z.string(),
+  /**
+   * The trunk calls come in through and the one they go out on, as the PBX names them: a live
+   * event through one of them says its direction. Empty, the event's own type does.
+   */
+  srcTrunk: z.string().default(''),
+  dstTrunk: z.string().default(''),
   /** Its clock's IANA zone: CDR times are wall-clock times there. */
   timeZone: z.string(),
-  /**
-   * The TURN server softphones relay their audio through when the PBX or the member is behind
-   * NAT (`turn:turn.example.com:3478`), and its login. Every operator's softphone gets them; the
-   * password stays sealed in the secret, and settings show only whether there is one.
-   */
-  turnUrl: z.string().default(''),
-  turnUsername: z.string().default(''),
-  hasTurnPassword: z.boolean().default(false),
 });
 
 const PbxSecret = z.object({
-  apiUser: z.string(),
-  apiPassword: z.string(),
   /** Signs what the PBX's bridge posts: `x-erxes-signature` over `<timestamp>.<body>`. */
   webhookSecret: z.string(),
-  turnPassword: z.string().default(''),
 });
 
-/** The PBX an account's calls go through, signed in as its API user. */
+/**
+ * The API user every PBX is signed in to, from `CALL_API_USER` and `CALL_API_PASSWORD`, as the
+ * old plugin read it; refused while they are unset.
+ */
+export const callApi = () => {
+  if (!settings.callApi)
+    throw new ORPCError('BAD_REQUEST', {
+      message: 'Set CALL_API_USER and CALL_API_PASSWORD in the API environment to connect a PBX',
+    });
+
+  return settings.callApi;
+};
+
+/** The PBX an account's calls go through, signed in as the install's API user. */
 export const pbxOf = ({
   row,
   config,
-  secret,
-}: OpenAccount<z.infer<typeof PbxConfig>, z.infer<typeof PbxSecret>>) => ({
+}: Pick<OpenAccount<z.infer<typeof PbxConfig>, z.infer<typeof PbxSecret>>, 'row' | 'config'>) => ({
   orgId: row.orgId,
   host: config.host,
-  user: secret.apiUser,
-  password: secret.apiPassword,
+  ...callApi(),
 });
 
 const noReplies = () =>

@@ -14,7 +14,7 @@ import {
   usePageHotkey,
   ViewBar,
 } from 'erxes-ui';
-import { useAtom, useAtomValue } from 'jotai';
+import { useAtom } from 'jotai';
 import { type ReactNode, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -27,7 +27,7 @@ import { QueryBoundary } from '~/shared/QueryBoundary.tsx';
 import { BulkBar } from './BulkBar.tsx';
 import { sendingTo, useMarkRead, useSendMessage } from './changes.ts';
 import { Composer } from './Composer.tsx';
-import { ConversationHeader, listShown } from './ConversationHeader.tsx';
+import { ConversationHeader, useListShown } from './ConversationHeader.tsx';
 import { ConversationList, RowSkeletons } from './ConversationList.tsx';
 import { useInboxFields } from './InboxFilter.tsx';
 import { MessageThread, ThreadSkeleton } from './MessageThread.tsx';
@@ -48,17 +48,20 @@ const LIST = 'frontline-inbox';
 /** The pane's shape while a conversation opened from the address loads: header, thread, reply box. */
 const PaneSkeleton = () => (
   <div aria-hidden className="flex min-h-0 flex-1 flex-col">
-    <div className="flex h-12 items-center gap-2 border-b px-3">
-      <Skeleton radius="circle" className="size-6" />
-      <Skeleton className="h-4 w-40" />
+    <div className="flex h-14 items-center gap-2.5 border-b px-3">
+      <Skeleton radius="circle" className="size-8" />
+      <span className="flex flex-col gap-1.5">
+        <Skeleton className="h-3.5 w-36" />
+        <Skeleton className="h-3 w-24" />
+      </span>
     </div>
-    <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col gap-4 px-3 py-6">
+    <div className="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4 px-4 py-6">
       <Skeleton className="h-12 w-2/5" />
       <Skeleton className="h-16 w-1/2 self-end" />
       <Skeleton className="h-10 w-1/3" />
     </div>
-    <div className="mx-auto w-full max-w-2xl p-3">
-      <Skeleton radius="lg" className="h-24" />
+    <div className="mx-auto w-full max-w-4xl px-4 pb-4">
+      <Skeleton radius="lg" className="h-28" />
     </div>
   </div>
 );
@@ -178,14 +181,14 @@ const InboxEmpty = ({ onConnect }: { onConnect?: () => void }) => {
   );
 };
 
-/** The narrowest the list goes: a row still shows the name, a few letters of the channel and the time. */
+/** The narrowest the list goes: a row still shows a few words of the name, preview and channel, and the time. */
 const LIST_MIN = 300;
 
 /** The list's width in pixels, as the member last dragged it. */
 const listWidth = stored({
   key: `${PLUGIN}:inbox-list-width`,
   schema: z.number().min(LIST_MIN),
-  initial: 400,
+  initial: 360,
 });
 
 /**
@@ -219,7 +222,7 @@ const InboxColumns = ({
               id="list"
               defaultSize={width}
               minSize={LIST_MIN}
-              maxSize="50%"
+              maxSize="45%"
               onResize={({ inPixels }) => {
                 dragged.current = Math.round(inPixels);
               }}
@@ -256,7 +259,7 @@ const InboxSkeleton = () => {
 const InboxBody = ({ onConnect }: { onConnect?: () => void }) => {
   const [openId] = useOpenConversation();
   // The header's toggle hides the list beside an open conversation only.
-  const shown = useAtomValue(listShown);
+  const [shown] = useListShown();
   const list = useConversations();
   const { rows: conversations } = list;
   // A conversation the filters no longer match stays open beside the empty list.

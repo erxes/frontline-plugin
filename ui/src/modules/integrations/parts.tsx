@@ -1,6 +1,6 @@
 import { IconPlus, IconX } from '@tabler/icons-react';
-import { Badge, Button, Input, textOf } from 'erxes-ui';
-import type { SubmitEvent } from 'react';
+import { Badge, Button, Input } from 'erxes-ui';
+import { type KeyboardEvent, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 // What the integrations page and the account and bot panels share.
@@ -35,6 +35,7 @@ export const ItemRow = ({
         {hint && <span className="ml-2 text-muted-foreground">{hint}</span>}
       </span>
       <Button
+        type="button"
         variant="ghost"
         size="icon"
         aria-label={t('remove-item', 'Remove {{name}}', { name: label })}
@@ -46,7 +47,11 @@ export const ItemRow = ({
   );
 };
 
-/** A row's inputs and its Add button, cleared once the item is added. */
+/**
+ * A row's inputs and its Add button, cleared once the item is added; Enter in an input adds it
+ * too. No form of its own, so it can sit in a form that saves more, such as connect: a required
+ * input left empty takes the focus instead of blocking that form.
+ */
 export const AddRow = ({
   fields,
   onAdd,
@@ -55,34 +60,50 @@ export const AddRow = ({
   onAdd: (values: Record<string, string>) => void;
 }) => {
   const { t } = useTranslation('frontline');
+  const row = useRef<HTMLFieldSetElement>(null);
 
-  const submit = (event: SubmitEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const form = new FormData(event.currentTarget);
+  const add = () => {
+    const inputs = [...(row.current?.querySelectorAll('input') ?? [])];
 
-    onAdd(Object.fromEntries(fields.map(({ name }) => [name, textOf(form.get(name)).trim()])));
-    event.currentTarget.reset();
+    const empty = fields.findIndex(
+      (field, index) => field.required && !inputs[index]?.value.trim(),
+    );
+
+    if (empty !== -1) return inputs[empty]?.focus();
+
+    onAdd(
+      Object.fromEntries(
+        fields.map(({ name }, index) => [name, inputs[index]?.value.trim() ?? '']),
+      ),
+    );
+
+    for (const input of inputs) input.value = '';
   };
 
   return (
-    <form onSubmit={submit} className="flex items-center gap-2 px-2 py-1">
+    <fieldset ref={row} className="m-0 flex min-w-0 items-center gap-2 border-0 px-2 py-1">
       {fields.map((field) => (
         <Input
           key={field.name}
-          name={field.name}
           type={field.type}
-          required={field.required}
+          aria-required={field.required}
           maxLength={field.maxLength}
           aria-label={field.label}
           placeholder={field.label}
           variant="bordered"
           text="sm"
+          onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {
+            if (event.key !== 'Enter') return;
+
+            event.preventDefault();
+            add();
+          }}
         />
       ))}
-      <Button type="submit" variant="secondary">
+      <Button type="button" variant="secondary" onClick={add}>
         <IconPlus />
         {t('add', 'Add')}
       </Button>
-    </form>
+    </fieldset>
   );
 };

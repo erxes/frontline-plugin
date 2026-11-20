@@ -46,7 +46,8 @@ const Toolbar = ({
   const label = t('refresh', 'Refresh');
 
   return (
-    <div className="flex shrink-0 items-center gap-2 border-b px-3 py-1">
+    // Its checkbox sits over the rows' avatars: their wrapper's and their own inset.
+    <div className="flex h-10 shrink-0 items-center gap-2 border-b px-4.5">
       <span className="grid size-8 place-items-center">
         <Checkbox
           aria-label={t('select-all-conversations', 'Select all conversations')}
@@ -69,11 +70,12 @@ const Toolbar = ({
 export const RowSkeletons = () => (
   <ul aria-hidden>
     {['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h'].map((key) => (
-      <li key={key} className="flex gap-3 px-3 py-3">
+      <li key={key} className="flex gap-3 px-4.5 py-3">
         <Skeleton radius="circle" className="size-8 shrink-0" />
-        <span className="flex flex-1 flex-col gap-2">
+        <span className="flex flex-1 flex-col gap-2 pt-0.5">
           <Skeleton className="h-3.5 w-1/2" />
           <Skeleton className="h-3.5 w-full" />
+          <Skeleton className="h-3 w-1/3" />
         </span>
       </li>
     ))}
@@ -121,8 +123,7 @@ const RowList = ({ style, children, ref }: CustomContainerComponentProps) => {
   return (
     // As wide as the inbox's column, however it is dragged: erxes-ui's ScrollArea lets its
     // content grow to the widest row, which would push the time and the ends of the previews out
-    // of sight, so the rows' text takes no part in measuring it. The same query box lets a row
-    // drop its channel when the list is dragged narrow.
+    // of sight, so the rows' text takes no part in measuring it.
     <ul
       ref={ref}
       style={style}
@@ -185,6 +186,7 @@ export const ConversationList = ({
       <ScrollArea.Root className="min-h-0 flex-1">
         <ScrollArea.Viewport ref={viewport}>
           <LoadPage paging={paging} newer />
+          <div aria-hidden className="h-1" />
           <Virtualizer
             ref={rows}
             scrollRef={viewport}

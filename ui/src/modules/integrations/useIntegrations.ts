@@ -101,6 +101,20 @@ export const useConnectMeta = () => {
   );
 };
 
+/** Core's Settings › Integrations › Meta, where the organisation sets its Meta app. */
+export const META_SETTINGS = '/settings/integrations/frontline.meta';
+
+/**
+ * Whether the organisation has a Meta app to log in with, its own or the install's: undefined
+ * until the check answers, so nothing starts a login that has no app.
+ */
+export const useMetaApp = () =>
+  useQuery(
+    orpc.integrations.meta.app.get.queryOptions({
+      select: (settings) => settings.own || settings.installApp,
+    }),
+  ).data;
+
 /** Points the provider's events at frontline again, then records whether the account works. */
 export const useRepairAccount = () =>
   useMutation(orpc.integrations.accounts.repair.mutationOptions(useIntegrationChange()));

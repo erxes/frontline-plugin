@@ -1,4 +1,4 @@
-import { IconTicket } from '@tabler/icons-react';
+import { IconLayoutKanban, IconTicket } from '@tabler/icons-react';
 import type { QueryClient } from '@tanstack/react-query';
 import { Sidebar } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
@@ -46,7 +46,8 @@ export const TicketsNav = () => {
                   <Link to={ticketsPath(pipeline.id)} {...prefetch(ticketsPath(pipeline.id))} />
                 }
               >
-                <span>{pipeline.name}</span>
+                <IconLayoutKanban />
+                <span className="min-w-0 truncate">{pipeline.name}</span>
               </Sidebar.SubButton>
             </Sidebar.SubItem>
           ))}

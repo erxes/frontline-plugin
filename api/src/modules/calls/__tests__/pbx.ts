@@ -35,10 +35,11 @@ const ANSWERS: Record<string, unknown> = {
 };
 
 /**
- * A Grandstream UCM at `pbx.test` whose API user is `erxes` / `secret`, and core's storage.
- * Returns the actions frontline asked of the PBX, newest last.
+ * A Grandstream UCM at `pbx.test` whose API user's password is `password`, `secret` as the tests'
+ * `CALL_API_PASSWORD` has it, and core's storage. Returns the actions frontline asked of the PBX,
+ * newest last.
  */
-export const fakePbx = () => {
+export const fakePbx = ({ password = 'secret' }: { password?: string } = {}) => {
   const actions: Record<string, unknown>[] = [];
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -57,7 +58,7 @@ export const fakePbx = () => {
       case 'challenge':
         return Response.json({ status: 0, response: { challenge: 'abc123' } });
       case 'login': {
-        const good = createHash('md5').update('abc123secret').digest('hex');
+        const good = createHash('md5').update(`abc123${password}`).digest('hex');
 
         return Response.json(
           asked.token === good ? { status: 0, response: { cookie: 'cookie-1' } } : { status: -37 },
@@ -81,8 +82,6 @@ export const fakePbx = () => {
 
 export const PBX = {
   host: 'pbx.test',
-  apiUser: 'erxes',
-  apiPassword: 'secret',
   phone: '77001100',
   timeZone: 'Asia/Ulaanbaatar',
 };

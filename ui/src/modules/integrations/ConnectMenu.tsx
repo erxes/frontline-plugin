@@ -9,7 +9,13 @@ import { ACCOUNT_TYPE } from '~/plugin.ts';
 import { KindIcon } from '~/shared/kinds.tsx';
 import { integrationsQuery } from '~/shared/reference.ts';
 import { FORM_PROVIDERS } from './AccountNew.tsx';
-import { useAccounts, useConnectMeta, useProviderNames } from './useIntegrations.ts';
+import {
+  META_SETTINGS,
+  useAccounts,
+  useConnectMeta,
+  useMetaApp,
+  useProviderNames,
+} from './useIntegrations.ts';
 
 /**
  * The connected accounts that serve no channel yet; adding one makes it an integration of
@@ -55,9 +61,6 @@ const AccountItems = ({ channelId }: { channelId: string }) => {
   );
 };
 
-/** Core's Settings › Integrations › Meta, where the organisation sets its Meta app. */
-const META_SETTINGS = '/settings/integrations/frontline.meta';
-
 /**
  * Facebook and Instagram, which connect through Meta's login. With no Meta app, the
  * organisation's own or the install's, the item says so and opens the settings that set one.
@@ -65,12 +68,7 @@ const META_SETTINGS = '/settings/integrations/frontline.meta';
 const MetaItem = ({ channelId }: { channelId?: string }) => {
   const { t } = useTranslation('frontline');
   const meta = useConnectMeta();
-
-  const app = useQuery(
-    orpc.integrations.meta.app.get.queryOptions({
-      select: (settings) => settings.own || settings.installApp,
-    }),
-  );
+  const app = useMetaApp();
 
   const name = (
     <>
@@ -79,7 +77,7 @@ const MetaItem = ({ channelId }: { channelId?: string }) => {
     </>
   );
 
-  if (app.data === false)
+  if (app === false)
     return (
       <DropdownMenu.Item render={<Link to={META_SETTINGS} />}>
         {name}
@@ -92,7 +90,7 @@ const MetaItem = ({ channelId }: { channelId?: string }) => {
   // Off until the check answers, so a quick click never starts a login that has no app.
   return (
     <DropdownMenu.Item
-      disabled={app.isPending || meta.isPending}
+      disabled={app === undefined || meta.isPending}
       onClick={() => meta.mutate({ channelId })}
     >
       {name}

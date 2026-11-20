@@ -16,11 +16,10 @@ const { deliver, connectPbx } = pbxServer();
 
 describe('calls through a PBX', () => {
   it('refuses a PBX that refuses its API user', async () => {
-    fakePbx();
+    // The PBX knows the install's API user by another password than CALL_API_PASSWORD.
+    fakePbx({ password: 'changed-on-the-pbx' });
 
-    await expect(
-      clientAs('org-call-x').integrations.call.connect({ ...PBX, apiPassword: 'wrong' }),
-    ).rejects.toMatchObject({
+    await expect(clientAs('org-call-x').integrations.call.connect(PBX)).rejects.toMatchObject({
       code: 'BAD_REQUEST',
       message: 'The PBX refused: wrong API user or password',
     });
@@ -213,9 +212,6 @@ describe('calls through a PBX', () => {
     await owner.integrations.call.saveSettings({
       accountId: account.id,
       ...PBX,
-      turnUrl: 'turn:turn.pbx.test:3478',
-      turnUsername: 'relay',
-      turnPassword: 'relay-secret',
       queues: [],
       operators: [
         { userId: 'user-bold', extension: '1001' },
@@ -231,7 +227,6 @@ describe('calls through a PBX', () => {
     ]);
     expect(JSON.stringify(settings)).not.toContain('sip-1002');
     expect(JSON.stringify(settings)).not.toContain('relay-secret');
-    expect(settings.account.config).toMatchObject({ hasTurnPassword: true });
     expect(
       JSON.stringify(await owner.integrations.accounts.list({})).includes('relay-secret'),
     ).toBe(false);
@@ -245,6 +240,7 @@ describe('calls through a PBX', () => {
         extension: '1002',
         password: 'sip-1002',
         webSocketUrl: 'wss://pbx.test/ws',
+        // The install's TURN server, from TURN_SERVER_URL without its scheme, as the old setting was.
         iceServers: [
           { urls: 'turn:turn.pbx.test:3478', username: 'relay', credential: 'relay-secret' },
         ],

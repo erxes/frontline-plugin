@@ -69,6 +69,20 @@ const Env = z.object({
   SECRETS_KEY: z.base64().refine((key) => Buffer.from(key, 'base64').length === 32, {
     message: 'SECRETS_KEY must be 32 bytes in base64',
   }),
+  /**
+   * The Grandstream UCM API user every PBX is signed in to, as the old plugin read it: a user
+   * from the UCM's API configuration page. Set both or neither; without them no PBX connects.
+   */
+  CALL_API_USER: z.string().min(1).optional(),
+  CALL_API_PASSWORD: z.string().min(1).optional(),
+  /**
+   * The TURN server every softphone relays its audio through when it or the PBX is behind NAT,
+   * as the old calls settings named it: `turn.example.com:3478` or `turn:turn.example.com:3478`,
+   * and its login. Unset, softphones connect directly.
+   */
+  TURN_SERVER_URL: z.string().trim().min(1).optional(),
+  TURN_SERVER_USERNAME: z.string().optional(),
+  TURN_SERVER_CREDENTIAL: z.string().optional(),
   /** The Meta app that Facebook pages and Instagram accounts connect through. */
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
@@ -86,7 +100,12 @@ const Env = z.object({
 const env = Env.refine((vars) => !vars.META_RELAY_URL === !vars.META_RELAY_KEY, {
   message: 'Set META_RELAY_URL and META_RELAY_KEY together, or neither',
   path: ['META_RELAY_KEY'],
-}).parse(process.env);
+})
+  .refine((vars) => !vars.CALL_API_USER === !vars.CALL_API_PASSWORD, {
+    message: 'Set CALL_API_USER and CALL_API_PASSWORD together, or neither',
+    path: ['CALL_API_PASSWORD'],
+  })
+  .parse(process.env);
 
 export const config = {
   port: env.PORT,
@@ -122,6 +141,21 @@ export const config = {
       : null,
   helpCenterDomainSuffix: env.HELPCENTER_DOMAIN_SUFFIX,
   secretsKey: Buffer.from(env.SECRETS_KEY, 'base64'),
+  /** The softphones' TURN server, as WebRTC's `iceServers` take it, or null when none is set. */
+  turn: env.TURN_SERVER_URL
+    ? {
+        urls: /^turns?:/.test(env.TURN_SERVER_URL)
+          ? env.TURN_SERVER_URL
+          : `turn:${env.TURN_SERVER_URL}`,
+        username: env.TURN_SERVER_USERNAME || undefined,
+        credential: env.TURN_SERVER_CREDENTIAL || undefined,
+      }
+    : null,
+  /** The PBXes' API user, or null when none is set. */
+  callApi:
+    env.CALL_API_USER && env.CALL_API_PASSWORD
+      ? { user: env.CALL_API_USER, password: env.CALL_API_PASSWORD }
+      : null,
   meta: {
     appId: env.META_APP_ID,
     appSecret: env.META_APP_SECRET,

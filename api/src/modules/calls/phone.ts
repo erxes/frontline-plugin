@@ -2,6 +2,7 @@ import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, desc, eq, inArray, isNotNull, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
+import { config as settings } from '#/config.ts';
 import { core, PERMISSIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { callOperators, calls } from '#/db/calls.ts';
@@ -44,8 +45,8 @@ const lineFor = (member: PluginMember, accountId: string) =>
 
 /**
  * The lines the caller's softphone signs in to: each extension with a SIP password, on the PBX's
- * WebRTC socket (`wss://<host>/ws`, the UCM's HTTPS port), relayed through the PBX's TURN server
- * when it has one.
+ * WebRTC socket (`wss://<host>/ws`, the UCM's HTTPS port), relayed through the install's TURN
+ * server (`TURN_SERVER_URL`) when it has one, as the old calls settings gave every softphone.
  */
 const lines = reads(PERMISSIONS.callView)
   .input(z.object({}))
@@ -73,7 +74,7 @@ const lines = reads(PERMISSIONS.callView)
     return rows.flatMap(({ operator, account }) => {
       if (!operator.sipSecret) return [];
 
-      const { config, secret } = call.open(account).account;
+      const { config } = call.open(account).account;
 
       return {
         accountId: account.id,
@@ -81,15 +82,7 @@ const lines = reads(PERMISSIONS.callView)
         extension: operator.extension,
         password: openSecret(member.orgId, operator.sipSecret, SipSecret).password,
         webSocketUrl: `wss://${config.host}/ws`,
-        iceServers: config.turnUrl
-          ? [
-              {
-                urls: config.turnUrl,
-                username: config.turnUsername || undefined,
-                credential: secret.turnPassword || undefined,
-              },
-            ]
-          : [],
+        iceServers: settings.turn ? [settings.turn] : [],
       };
     });
   });
