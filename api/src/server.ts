@@ -1,4 +1,9 @@
-import { verifyCoreEvent, verifyCoreJob, verifyPublicCall } from '@erxes/plugin-sdk';
+import {
+  type PluginMember,
+  verifyCoreEvent,
+  verifyCoreJob,
+  verifyPublicCall,
+} from '@erxes/plugin-sdk';
 import { pluginOpenApi } from '@erxes/plugin-sdk/openapi';
 import { OpenAPIHandler } from '@orpc/openapi/node';
 import { onError, ORPCError, ValidationError } from '@orpc/server';
@@ -22,6 +27,7 @@ import { pipelineChoices } from '#/modules/tickets/automation.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
 import { siteByHost, siteByKey } from '#/modules/helpcenter/site/routes.ts';
 import { runAction } from '#/modules/inbox/automations.ts';
+import { integrationChoices } from '#/modules/integrations/automationRecords.ts';
 import { webhookRoutes } from '#/modules/integrations/routes.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';
@@ -117,6 +123,14 @@ const signedIn =
     if (!matched) next();
   };
 
+const recordChoices = (member: PluginMember, type: string) => {
+  if (type === 'form') return formChoices(member);
+
+  if (type === 'pipeline') return pipelineChoices(member);
+
+  return integrationChoices(member, type);
+};
+
 /**
  * What core's automations call: the manifest's actions, signed by core (the inbox's, the form
  * link and the send steps), and a `plugin_record` field's choices, as the member in the builder.
@@ -125,26 +139,18 @@ const automationRoutes = () =>
   express
     .Router()
     .post('/actions/:type', express.json({ limit: '256kb' }), runAction)
-    .get('/records/form', async (req, res) => {
+    .get('/records/:type', async (req, res) => {
       const member = await memberOf(req, res, 'Open this plugin inside erxes to sign in');
 
       if (!member) return;
 
       try {
-        res.json(await formChoices(member));
-      } catch (error) {
-        fail(res, error, 'form choices');
-      }
-    })
-    .get('/records/pipeline', async (req, res) => {
-      const member = await memberOf(req, res, 'Open this plugin inside erxes to sign in');
+        const choices = await recordChoices(member, req.params.type);
 
-      if (!member) return;
-
-      try {
-        res.json(await pipelineChoices(member));
+        if (choices) res.json(choices);
+        else res.status(404).json({ message: `No ${req.params.type} records` });
       } catch (error) {
-        fail(res, error, 'pipeline choices');
+        fail(res, error, 'record choices');
       }
     });
 
@@ -196,7 +202,7 @@ export const createApp = () => {
   // uses (acme.os.erxes.io, its own domain). Any origin may: access is the
   // Bearer session token core issues, never a cookie, so CORS guards nothing here.
   // Routes for websites (an API key, customer tokens) set their own CORS.
-  app.use(['/api/rpc', '/api/v1', '/ui'], anyOrigin);
+  app.use(['/api/rpc', '/api/v1', '/api/automations/records', '/ui'], anyOrigin);
 
   app.get('/health', (_req, res) => {
     res.json({ ok: true });

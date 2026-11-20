@@ -13,6 +13,10 @@ import {
   TICKET_EVENTS,
 } from '#/core.ts';
 import { TICKET_PRIORITIES } from '#/db/tickets.ts';
+import {
+  INTEGRATION_RECORDS,
+  type IntegrationRecord,
+} from '#/modules/integrations/automationRecords.ts';
 
 type Events = NonNullable<PluginManifest['events']>;
 
@@ -30,11 +34,18 @@ const pipeline = (key: string, label: string): Field => ({
   recordType: 'pipeline',
 });
 
-const MESSAGE: Field[] = [
+const connection = (recordType: IntegrationRecord): Field => ({
+  key: 'integrationId',
+  label: INTEGRATION_RECORDS[recordType].label,
+  type: 'text',
+  recordType,
+});
+
+const message = (recordType: IntegrationRecord): Field[] => [
+  connection(recordType),
   text('content', 'Message'),
   text('conversationId', 'Conversation ID'),
   text('messageId', 'Message ID'),
-  text('integrationId', 'Integration ID'),
 ];
 
 const BUTTON: Field[] = [text('payload', 'Button payload')];
@@ -110,7 +121,7 @@ const conversationEvents: Events = [
     type: CONVERSATION_EVENTS.started.type,
     label: CONVERSATION_EVENTS.started.label,
     subject: 'customer',
-    fields: [text('integrationId', 'Integration ID')],
+    fields: [connection('integration')],
   },
   {
     type: CONVERSATION_EVENTS.assigned.type,
@@ -127,25 +138,22 @@ const conversationEvents: Events = [
   {
     ...MESSAGE_RECEIVED_EVENT,
     fields: [
-      ...MESSAGE,
+      ...message('integration'),
       text('customerId', 'Customer ID'),
       text('kind', 'Integration kind'),
       text('operator', 'Answered by (bot or person)'),
     ],
   },
   ...[
-    { ...MESSAGE_RECEIVED.telegram, fields: MESSAGE },
-    { ...MESSAGE_RECEIVED.discord, fields: MESSAGE },
-    { ...MESSAGE_RECEIVED.mail, fields: [...MESSAGE, text('subject', 'Subject')] },
-    { ...MESSAGE_RECEIVED.facebook, fields: [...MESSAGE, ...BUTTON] },
-    { ...MESSAGE_RECEIVED.instagram, fields: [...MESSAGE, ...BUTTON] },
-    { ...MESSAGE_RECEIVED.messenger, fields: MESSAGE },
+    { ...MESSAGE_RECEIVED.telegram, fields: message('telegram_bot') },
+    { ...MESSAGE_RECEIVED.discord, fields: message('discord_bot') },
+    { ...MESSAGE_RECEIVED.mail, fields: [...message('mailbox'), text('subject', 'Subject')] },
+    { ...MESSAGE_RECEIVED.facebook, fields: [...message('facebook_page'), ...BUTTON] },
+    { ...MESSAGE_RECEIVED.instagram, fields: [...message('instagram_account'), ...BUTTON] },
+    { ...MESSAGE_RECEIVED.messenger, fields: message('messenger') },
+    { ...COMMENT_RECEIVED.facebook, fields: [...message('facebook_page'), ...COMMENT] },
+    { ...COMMENT_RECEIVED.instagram, fields: [...message('instagram_account'), ...COMMENT] },
   ].map((event) => ({ ...event, subject: 'customer' as const })),
-  ...Object.values(COMMENT_RECEIVED).map((event) => ({
-    ...event,
-    subject: 'customer' as const,
-    fields: [...MESSAGE, ...COMMENT],
-  })),
 ];
 
 export const AUTOMATION_EVENTS: Events = [
