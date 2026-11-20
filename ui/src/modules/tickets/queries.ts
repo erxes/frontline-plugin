@@ -3,6 +3,7 @@ import {
   type InfiniteData,
   type QueryClient,
   useInfiniteQuery,
+  useIsFetching,
   useMutation,
   useQuery,
   useQueryClient,
@@ -116,25 +117,28 @@ const useListInput = (statusId?: string) => {
 };
 
 /**
- * The shown pipeline's tickets the filter bar keeps, in the chosen order, a page at a time. It
- * suspends until the first page is in; render it only once the member has a pipeline.
+ * The shown pipeline's tickets the filter bar keeps, in the chosen order, a page at a time, for
+ * the table. It suspends until the first page is in; render it only once the member has a pipeline.
  */
 export const useTickets = () =>
   usePaged(useSuspenseInfiniteQuery(ticketsOptions(useListInput())), rowsOf);
 
-/** A board column's tickets: those of the shown pipeline in `statusId`, a page at a time. */
-export const useColumnTickets = (statusId: string) => {
+/**
+ * A status's tickets, for its board column or list group: those of the shown pipeline in
+ * `statusId`, a page at a time. A folded group passes `enabled: false` and asks for none.
+ */
+export const useColumnTickets = (statusId: string, enabled = true) => {
   const input = useListInput(statusId);
 
   return usePaged(
-    useInfiniteQuery({ ...ticketsOptions(input), enabled: Boolean(input.pipelineId) }),
+    useInfiniteQuery({ ...ticketsOptions(input), enabled: enabled && Boolean(input.pipelineId) }),
     rowsOf,
   );
 };
 
 /**
- * How many tickets match the filter bar, for its count and the board's empty state: the first
- * page of the query the list suspends on, asked once for both.
+ * How many tickets match the filter bar, for its count and the empty state of the board and the
+ * grouped list: the first page of the query the table suspends on, asked once for all.
  */
 export const useTicketCount = () =>
   usePaged(useInfiniteQuery(ticketsOptions(useListInput())), rowsOf).totalCount;
@@ -189,13 +193,28 @@ const TICKET_ROWS = [orpc.tickets.list.key(), orpc.tickets.get.key()];
 const columnKey = (statusId: string) =>
   orpc.tickets.list.key({ type: 'infinite', input: { statusId } });
 
+/** The tickets the lists hold, by id; `active` keeps those of the lists on screen. */
+const loadedTickets = (queryClient: QueryClient, type: 'all' | 'active' = 'all') =>
+  new Map(
+    queryClient
+      .getQueriesData<TicketPages>({ queryKey: orpc.tickets.list.key({ type: 'infinite' }), type })
+      .flatMap(([, data]) => data?.pages ?? [])
+      .flatMap((page) => page.tickets)
+      .map((ticket) => [ticket.id, ticket]),
+  );
+
 /** A loaded ticket, from any list that holds it. */
-const cachedTicket = (queryClient: QueryClient, id: string) =>
-  queryClient
-    .getQueriesData<TicketPages>({ queryKey: orpc.tickets.list.key({ type: 'infinite' }) })
-    .flatMap(([, data]) => data?.pages ?? [])
-    .flatMap((page) => page.tickets)
-    .find((ticket) => ticket.id === id);
+const cachedTicket = (queryClient: QueryClient, id: string) => loadedTickets(queryClient).get(id);
+
+/**
+ * The tickets the lists on screen hold, by id, such as every status group's of the list display.
+ * It reads again as each list's request settles, when its new rows are in.
+ */
+export const useShownTickets = () => {
+  useIsFetching({ queryKey: orpc.tickets.list.key({ type: 'infinite' }) });
+
+  return loadedTickets(useQueryClient(), 'active');
+};
 
 /** The first page's count moved by `by`; later pages carry none. */
 const recount = (pages: TicketPages['pages'], by: number) =>
