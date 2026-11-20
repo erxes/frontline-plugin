@@ -109,14 +109,19 @@ export const FilterLink = ({
   );
 };
 
-/** A sidebar group whose label folds it, as the old Work queue, My inbox and Team inbox did. */
+/**
+ * A sidebar group whose label folds it, as the old Work queue, My inbox and Team inbox did, with
+ * an `action` button at the label's end.
+ */
 export const NavGroup = ({
   id,
   label,
+  action,
   children,
 }: {
   id: string;
   label: string;
+  action?: ReactNode;
   children: ReactNode;
 }) => {
   const [open, setOpen] = useAtom(groupOpen(id));
@@ -127,6 +132,7 @@ export const NavGroup = ({
         <Collapsible.TriggerIcon />
         {label}
       </Collapsible.Trigger>
+      {action}
       <Collapsible.Panel>
         <Sidebar.GroupContent>
           <Sidebar.Menu aria-label={label}>{children}</Sidebar.Menu>

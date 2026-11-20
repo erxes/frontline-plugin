@@ -184,7 +184,11 @@ const SETTINGS_PAGES: NavLink[] = [
   [`${SETTINGS}/accounts`, 'connected-accounts', 'Connected accounts', IconLink],
 ];
 
-/** The app sidebar: the inbox and tickets with their counts, the other modules, and Calls. */
+/**
+ * The app sidebar, in the order a member works: the inbox and tickets with their counts, then the
+ * work queues, their own inbox and their channels, then the tools around them (forms, surveys,
+ * knowledge base, help centers, reports and calls).
+ */
 const FrontlineSidebar = () => {
   const { t } = useTranslation('frontline');
 
@@ -215,15 +219,22 @@ const FrontlineSidebar = () => {
             >
               <TicketsNav />
             </Suspense>
-            {links(t, MODULES)}
-            <ReportsGroup />
-            <CallsGroup />
           </Sidebar.Menu>
         </Sidebar.GroupContent>
       </Sidebar.Group>
       <Suspense fallback={<NavSkeleton />}>
         <InboxGroups />
       </Suspense>
+      <Sidebar.Group variant="compact">
+        <Sidebar.GroupLabel>{t('tools', 'Tools')}</Sidebar.GroupLabel>
+        <Sidebar.GroupContent>
+          <Sidebar.Menu aria-label={t('tools', 'Tools')}>
+            {links(t, MODULES)}
+            <ReportsGroup />
+            <CallsGroup />
+          </Sidebar.Menu>
+        </Sidebar.GroupContent>
+      </Sidebar.Group>
     </>
   );
 };

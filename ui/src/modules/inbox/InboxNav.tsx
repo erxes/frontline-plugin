@@ -123,7 +123,7 @@ export const InboxNav = () => {
 
 /**
  * The old inbox's groups under Frontline's pages: the work queues, My inbox (the member's
- * personal inbox) and Team inbox (their team channels). Each link sets the inbox's filter in the
+ * personal inbox) and Channels (their team channels). Each link sets the inbox's filter in the
  * address and shows how many conversations wait unread, kept live. A member who can't use the
  * inbox gets none of them, once the API refuses; until the counts come, the groups' outline shows.
  */

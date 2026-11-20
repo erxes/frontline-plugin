@@ -39,7 +39,7 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   const row = conversations.getByRole('button', { name: new RegExp(refund) });
 
   const channelLink = member
-    .getByRole('list', { name: 'Team inbox' })
+    .getByRole('list', { name: 'Channels' })
     .getByRole('link', { name: new RegExp(`^${channel}`) });
 
   await expect(channelLink.getByLabel('1 unread')).toBeVisible();
@@ -95,7 +95,7 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   await expect(channelLink.getByLabel(/unread/)).toBeHidden();
 });
 
-test('My inbox and Team inbox split the member’s channels; quiet ones fold, a filter finds any, and a folded group stays folded', async ({
+test('My inbox and Channels split the member’s channels; quiet ones fold, a filter finds any, and a folded group stays folded', async ({
   plugin,
   request,
   api,
@@ -135,7 +135,7 @@ test('My inbox and Team inbox split the member’s channels; quiet ones fold, a 
   await member.goto(INBOX);
   await expect(mine.getByRole('button', { name: 'Create my inbox' })).toBeHidden();
 
-  const team = member.getByRole('list', { name: 'Team inbox' });
+  const team = member.getByRole('list', { name: 'Channels' });
   const link = (name: string) => team.getByRole('link', { name: new RegExp(`^${name}`) });
 
   await expect(mine.getByRole('link', { name: /^Personal inbox/ })).toBeVisible();
@@ -161,13 +161,17 @@ test('My inbox and Team inbox split the member’s channels; quiet ones fold, a 
   await filter.fill('');
 
   // A folded group stays folded after a reload.
-  await member.getByRole('button', { name: 'Team inbox' }).click();
+  await member.getByRole('button', { name: 'Channels', exact: true }).click();
   await expect(team).toBeHidden();
   await member.reload();
   await expect(member.getByRole('list', { name: 'Work queue' })).toBeVisible();
   await expect(team).toBeHidden();
-  await member.getByRole('button', { name: 'Team inbox' }).click();
+  await member.getByRole('button', { name: 'Channels', exact: true }).click();
   await expect(link(busy)).toBeVisible();
+
+  // Its gear opens the channel settings.
+  await member.getByRole('button', { name: 'Manage channels' }).click();
+  await expect(member).toHaveURL(/\/frontline\/settings\/channels$/);
 });
 
 test('a member without the inbox permission gets the Inbox link and none of its groups', async ({
@@ -179,5 +183,5 @@ test('a member without the inbox permission gets the Inbox link and none of its 
   await expect(page.getByRole('link', { name: 'Inbox', exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Work queue' })).toBeHidden();
   await expect(page.getByRole('list', { name: 'My inbox' })).toBeHidden();
-  await expect(page.getByRole('list', { name: 'Team inbox' })).toBeHidden();
+  await expect(page.getByRole('list', { name: 'Channels' })).toBeHidden();
 });

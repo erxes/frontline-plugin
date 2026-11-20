@@ -1,9 +1,16 @@
-import { IconChevronRight, IconCircles, IconMinus, IconPlus } from '@tabler/icons-react';
+import {
+  IconChevronRight,
+  IconCircles,
+  IconMinus,
+  IconPlus,
+  IconSettings,
+} from '@tabler/icons-react';
 import { Button, cn, IconComponent, Sidebar, storedFamily, type TConditionRule } from 'erxes-ui';
 import { useAtom } from 'jotai';
 import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { CHANNELS_PATH } from '@/channels/useChannels.ts';
 import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
 import { KindIcon, useKindNames } from '~/shared/kinds.tsx';
@@ -111,6 +118,22 @@ export const ChannelLink = ({ channel, icon }: { channel: Channel; icon: ReactNo
   );
 };
 
+/** The Channels group's gear: the channel settings, where channels are made and set up. */
+const ManageChannels = () => {
+  const { t } = useTranslation('frontline');
+  const navigate = useNavigate();
+
+  return (
+    <Sidebar.GroupAction
+      aria-label={t('manage-channels', 'Manage channels')}
+      title={t('manage-channels', 'Manage channels')}
+      onClick={() => void navigate(CHANNELS_PATH)}
+    >
+      <IconSettings />
+    </Sidebar.GroupAction>
+  );
+};
+
 /**
  * The member's team channels. Those with something unread, and the open one, show first, up to
  * `SHOWN`; the rest fold behind one row. A member in many channels gets a filter box that
@@ -149,7 +172,7 @@ export const TeamChannels = ({ channels }: { channels: Channel[] }) => {
   const hiddenQuiet = channels.every((channel) => folded.includes(channel) || !channel.unread);
 
   return (
-    <NavGroup id="team" label={t('team-inbox', 'Team inbox')}>
+    <NavGroup id="team" label={t('channels', 'Channels')} action={<ManageChannels />}>
       {channels.length > FILTER_FROM && (
         <Sidebar.MenuItem>
           <Sidebar.Input
