@@ -1,4 +1,4 @@
-import { memberQueries } from '@erxes/core-contract/client';
+import { orpc as core, memberQueries } from '@erxes/core-contract/client';
 import { IconPlus } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -41,13 +41,21 @@ const MemberOptions = ({
   const active = team.data?.data ?? [];
   const picked = useMembersById(value, memberQueries);
 
+  // Most picks are your own, so you come first.
+  const meId = useQuery({ ...core.auth.me.queryOptions(), staleTime: 60_000, retry: false }).data
+    ?.user.id;
+
+  const me = active.find((member) => member.id === meId);
+
   const others = [...picked.values()].filter(
     (member) => !active.some((teammate) => teammate.id === member.id),
   );
 
   return (
     <EntityPicker<Member>
-      items={[...active, ...others]}
+      items={
+        me ? [me, ...active.filter((member) => member !== me), ...others] : [...active, ...others]
+      }
       itemKey={(member) => ({
         id: member.id,
         label: `${memberName(member)} ${member.email ?? ''}`,
