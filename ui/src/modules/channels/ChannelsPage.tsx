@@ -5,6 +5,7 @@ import {
   IconCircles,
   IconFileDescription,
   IconForms,
+  IconInbox,
   IconMessageReply,
   IconPlugConnected,
   IconSitemap,
@@ -30,7 +31,10 @@ import { useTranslation } from 'react-i18next';
 import { FORMS_PATH } from '@/forms/useForms.ts';
 import { MemberLine, PersonAvatar } from '~/shared/Person.tsx';
 import { CHANNEL_TYPE } from '~/plugin.ts';
-import { listPath } from '~/shared/listPath.ts';
+import { channelRule, INBOX_PATH, listPath } from '~/shared/listPath.ts';
+import { orpc } from '~/orpc.ts';
+import { FRESH_MS } from '~/shared/reference.ts';
+import { useQuery } from '@tanstack/react-query';
 import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, CountCell, DateCell, Rows } from '~/shared/Table.tsx';
@@ -108,8 +112,18 @@ const MemberAvatars = ({ ids }: { ids: string[] }) => {
   );
 };
 
+/** Each channel's unread conversations, by id: those the member works in. */
+const useUnread = () => {
+  const counts = useQuery(
+    orpc.conversations.counts.queryOptions({ input: {}, staleTime: FRESH_MS, retry: false }),
+  ).data;
+
+  return new Map(counts?.channels.map((channel) => [channel.id, channel.unread]));
+};
+
 const useColumns = (): RecordTableColumnDef<Channel>[] => {
   const { t } = useTranslation('frontline');
+  const unread = useUnread();
 
   return [
     {
@@ -122,11 +136,12 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
     column('name', t('name', 'Name'), IconAlignLeft, 220, (channel) => (
       <NameCell channel={channel} />
     )),
-    column('description', t('description', 'Description'), IconFileDescription, 260, (channel) => (
-      <TextCell value={channel.description} />
-    )),
-    column('members', t('members', 'Members'), IconUsers, 140, (channel) => (
-      <MemberAvatars ids={channel.memberIds} />
+    // The inbox narrowed to the channel, where its unread conversations wait.
+    column('unread', t('unread', 'Unread'), IconInbox, 90, (channel) => (
+      <CountCell
+        to={listPath(INBOX_PATH, channelRule(channel.id))}
+        count={unread.get(channel.id) ?? 0}
+      />
     )),
     column('integrations', t('integrations', 'Integrations'), IconPlugConnected, 220, (channel) => (
       <IntegrationBadges channelId={channel.id} />
@@ -156,6 +171,12 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
         />
       ),
     ),
+    column('members', t('members', 'Members'), IconUsers, 140, (channel) => (
+      <MemberAvatars ids={channel.memberIds} />
+    )),
+    column('description', t('description', 'Description'), IconFileDescription, 260, (channel) => (
+      <TextCell value={channel.description} />
+    )),
     column('createdBy', t('created-by', 'Created by'), IconUser, 180, (channel) => (
       <RecordTableInlineCell>
         <MemberLine id={channel.createdBy} />

@@ -266,7 +266,7 @@ export const CONFIG: IUIConfig = {
       contentType: ACCOUNT_TYPE,
       title: 'Account',
       icon: IconPlugConnected,
-      detailPath: pageOf('settings/integrations'),
+      detailPath: pageOf('settings/accounts'),
       ...slots(() => import('@/integrations/accountSlots.ts')),
     },
     {

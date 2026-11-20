@@ -34,7 +34,7 @@ const SCOPES = [
 const State = z.object({ orgId: z.string(), userId: z.string(), ...Into });
 
 /** Where Meta's login returns the member: the Facebook and Instagram settings in web. */
-export const SETTINGS_URL = `${config.coreUiOrigin}/frontline/settings/integrations`;
+export const SETTINGS_URL = `${config.coreUiOrigin}/frontline/settings/accounts`;
 
 /**
  * The address of Meta's login dialog, where the member picks the pages and Instagram accounts to

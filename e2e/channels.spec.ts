@@ -20,14 +20,14 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await panel.getByRole('button', { name: 'Create channel' }).click();
 
   // The draft becomes the channel, its name edited in place. It starts with a website messenger
-  // and a Support pipeline; it has no forms or response templates yet, and each count opens
-  // that list.
+  // and a Support pipeline; it has no unread conversations, forms or response templates yet, and
+  // each count opens that list.
   await expect(panel.getByRole('button', { name })).toBeEnabled();
   const row = page.getByRole('row', { name: new RegExp(name) });
 
   await expect(row).toBeVisible();
   await expect(row.getByRole('link', { name: '1' })).toHaveCount(1);
-  await expect(row.getByRole('link', { name: '0' })).toHaveCount(2);
+  await expect(row.getByRole('link', { name: '0' })).toHaveCount(3);
 
   // Its tabs hold what it takes in and works with: no Activity tab or notes.
   await expect(panel.getByRole('tab', { name: 'Activity' })).toBeHidden();

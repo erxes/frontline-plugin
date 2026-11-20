@@ -80,6 +80,12 @@ const MessengerSettingsPage = lazy(
   })),
 );
 
+const AccountsPage = lazy(
+  withText(async () => ({
+    default: (await import('@/integrations/AccountsPage.tsx')).AccountsPage,
+  })),
+);
+
 const IntegrationsPage = lazy(
   withText(async () => ({
     default: (await import('@/integrations/IntegrationsPage.tsx')).IntegrationsPage,
@@ -201,7 +207,7 @@ const settingsRoutes = (
       {/* The old integration detail page, one per channel and kind, is now the accounts list. */}
       <Route
         path="details/:id/:integrationType"
-        element={<Navigate to={`/${PLUGIN}/settings/integrations`} replace />}
+        element={<Navigate to={`/${PLUGIN}/settings/accounts`} replace />}
       />
     </Route>
     <Route
@@ -209,7 +215,7 @@ const settingsRoutes = (
       element={<Navigate to={`/${PLUGIN}/personal-channel`} replace />}
     />
     {/* The old integrations config, Meta's app among it, is core's now; accounts stay here. */}
-    <Route path="config/*" element={<Navigate to={`/${PLUGIN}/settings/integrations`} replace />} />
+    <Route path="config/*" element={<Navigate to={`/${PLUGIN}/settings/accounts`} replace />} />
     <Route path="pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
     <Route
       path="response-templates/:id"
@@ -219,8 +225,9 @@ const settingsRoutes = (
     {/* Help centers moved out of settings. */}
     <Route path="help-centers/*" element={<Redirect path="help-centers" param="*" />} />
     <Route path="integrations" element={<IntegrationsPage />} />
-    <Route path="integrations/:id" element={<RecordRoute contentType={ACCOUNT_TYPE} />} />
-    <Route path="meta" element={<Navigate to="../integrations" replace />} />
+    <Route path="accounts" element={<AccountsPage />} />
+    <Route path="accounts/:id" element={<RecordRoute contentType={ACCOUNT_TYPE} />} />
+    <Route path="meta" element={<Navigate to="../accounts" replace />} />
     <Route path="meta/bots/:id" element={<RecordRoute contentType={META_BOT_TYPE} />} />
     {/*
       Any other settings address opens the channels: a record's list without its id, and old links

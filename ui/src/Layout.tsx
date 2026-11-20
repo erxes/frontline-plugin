@@ -12,6 +12,7 @@ import {
   IconHelpCircle,
   IconHistory,
   IconInbox,
+  IconLink,
   IconListDetails,
   IconPhone,
   IconSettings,
@@ -180,6 +181,7 @@ const SETTINGS_PAGES: NavLink[] = [
   ['/settings/structure', 'branches-and-departments', 'Branches and departments', IconSitemap],
   [`/settings/properties/${TICKET_FIELDS}`, 'ticket-properties', 'Ticket properties', IconForms],
   [`${SETTINGS}/integrations`, 'integrations', 'Integrations', IconPlugConnected],
+  [`${SETTINGS}/accounts`, 'connected-accounts', 'Connected accounts', IconLink],
 ];
 
 /** The app sidebar: the inbox and tickets with their counts, the other modules, and Calls. */

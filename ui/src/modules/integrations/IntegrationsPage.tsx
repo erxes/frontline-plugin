@@ -1,119 +1,86 @@
 import {
-  IconCalendarCheck,
+  IconCalendarPlus,
   IconCircles,
   IconHeartbeat,
   IconLetterCase,
+  IconMessageCirclePlus,
   IconPlugConnected,
-  IconRefresh,
-  IconRobot,
-  IconTrash,
+  IconSettings,
 } from '@tabler/icons-react';
+import { useQuery } from '@tanstack/react-query';
 import {
+  Badge,
   Button,
+  ListFilter,
   PageContainer,
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
+  type TListFilterField,
+  useListFilterParams,
   useOpenRecord,
+  ViewBar,
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
-import { ACCOUNT_TYPE, INTEGRATION_TYPE, META_BOT_TYPE } from '~/plugin.ts';
+import { useNavigate } from 'react-router-dom';
+import type { Integration } from '@/inbox/queries.ts';
+import { messengerPath } from '@/messenger/queries.ts';
+import { orpc } from '~/orpc.ts';
+import { CHANNEL_TYPE, INTEGRATION_TYPE } from '~/plugin.ts';
+import { ChannelLabel } from '~/shared/ChannelSelect.tsx';
 import { AppHeader } from '~/shared/Header.tsx';
-import { KindIcon } from '~/shared/kinds.tsx';
-import { AccountChannels } from './AccountChannels.tsx';
+import { KindIcon, useKindNames } from '~/shared/kinds.tsx';
 import { ListEmpty } from '~/shared/List.tsx';
 import { RowActions, TextCell } from '~/shared/Records.tsx';
-import { DateCell, Rows } from '~/shared/Table.tsx';
+import { channelsQuery } from '~/shared/reference.ts';
+import { column as columnOf, DateCell, Rows } from '~/shared/Table.tsx';
 import { ConnectMenu, useCanConnect } from './ConnectMenu.tsx';
-import { StatusBadge } from './parts.tsx';
-import {
-  type Account,
-  type Bot,
-  isMeta,
-  useAccounts,
-  useBots,
-  useRepairAccount,
-  useProviderNames,
-  useRemoveAccount,
-} from './useIntegrations.ts';
 
-type Row = Account & { bot: Bot | undefined };
+const column = columnOf<Integration>;
 
-const MoreCell = ({ row }: { row: Row }) => {
+/** A messenger's settings page; the rest open in the side panel. */
+const MoreCell = ({ integration }: { integration: Integration }) => {
   const { t } = useTranslation('frontline');
-  const { open, openNew } = useOpenRecord();
-  const repair = useRepairAccount();
-  const remove = useRemoveAccount();
-
-  const bot = isMeta(row)
-    ? row.bot
-      ? [
-          {
-            value: 'bot',
-            icon: <IconRobot />,
-            label: t('open-bot', 'Open bot'),
-            onSelect: () => open({ contentType: META_BOT_TYPE, contentId: row.bot?.id ?? '' }),
-          },
-        ]
-      : [
-          {
-            value: 'bot',
-            icon: <IconRobot />,
-            label: t('set-up-bot', 'Set up a bot'),
-            onSelect: () => openNew(META_BOT_TYPE, { accountId: row.id }),
-          },
-        ]
-    : [];
+  const { open } = useOpenRecord();
+  const navigate = useNavigate();
 
   return (
     <RowActions
-      label={t('account-actions', 'Actions for {{name}}', { name: row.name })}
+      label={t('integration-actions-of', 'Actions for {{name}}', { name: integration.name })}
       actions={[
         {
-          value: 'channel',
-          icon: <IconCircles />,
-          label: t('add-to-channel', 'Add to a channel'),
-          onSelect: () =>
-            openNew(INTEGRATION_TYPE, { kind: row.provider, accountId: row.id, name: row.name }),
+          value: 'open',
+          icon: <IconPlugConnected />,
+          label: t('open', 'Open'),
+          onSelect: () => open({ contentType: INTEGRATION_TYPE, contentId: integration.id }),
         },
-        ...bot,
-        {
-          value: 'repair',
-          icon: <IconRefresh />,
-          label: t('repair', 'Repair'),
-          onSelect: () => repair.mutate({ id: row.id }),
-        },
-        {
-          value: 'remove',
-          icon: <IconTrash />,
-          label: t('disconnect', 'Disconnect'),
-          onSelect: () => void remove(row),
-        },
+        ...(integration.kind === 'messenger'
+          ? [
+              {
+                value: 'settings',
+                icon: <IconSettings />,
+                label: t('messenger-settings', 'Messenger settings'),
+                onSelect: () => void navigate(messengerPath(integration.id)),
+              },
+            ]
+          : []),
       ]}
     />
   );
 };
 
-/**
- * A cell that opens the record `contentType` with its `icon` and `label`, or reads empty without
- * one.
- */
+/** A cell that opens a record in the side panel, showing `children`. */
 const OpenCell = ({
-  label,
-  icon,
   contentType,
   contentId,
+  children,
 }: {
-  label: string | undefined;
-  icon?: ReactNode;
   contentType: string;
   contentId: string;
+  children: ReactNode;
 }) => {
   const { open } = useOpenRecord();
-
-  if (!label) return <TextCell value={null} />;
 
   return (
     <RecordTableInlineCell>
@@ -122,159 +89,143 @@ const OpenCell = ({
         className="w-full justify-start"
         onClick={() => open({ contentType, contentId })}
       >
-        {icon}
-        <span className="truncate">{label}</span>
+        {children}
       </Button>
     </RecordTableInlineCell>
   );
 };
 
-const useColumns = (): RecordTableColumnDef<Row>[] => {
+const useColumns = (): RecordTableColumnDef<Integration>[] => {
   const { t } = useTranslation('frontline');
-  const names = useProviderNames();
+  const kinds = useKindNames();
 
   return [
     {
       id: 'more',
       header: () => <RecordTable.ColumnSelector />,
-      cell: ({ row }) => <MoreCell row={row.original} />,
+      cell: ({ row }) => <MoreCell integration={row.original} />,
       size: 33,
     },
+    column('name', t('name', 'Name'), IconLetterCase, 240, (integration) => (
+      <OpenCell contentType={INTEGRATION_TYPE} contentId={integration.id}>
+        <KindIcon kind={integration.kind} />
+        <span className="truncate">{integration.name}</span>
+      </OpenCell>
+    )),
+    column('kind', t('type', 'Type'), IconPlugConnected, 170, (integration) => (
+      <TextCell value={kinds[integration.kind] ?? integration.kind} />
+    )),
+    column('channel', t('channel', 'Channel'), IconCircles, 220, (integration) => (
+      <OpenCell contentType={CHANNEL_TYPE} contentId={integration.channelId}>
+        <ChannelLabel id={integration.channelId} />
+      </OpenCell>
+    )),
+    column('isActive', t('status', 'Status'), IconHeartbeat, 120, (integration) => (
+      <RecordTableInlineCell>
+        <Badge variant={integration.isActive ? 'success' : 'secondary'}>
+          {integration.isActive ? t('active', 'Active') : t('archived', 'Archived')}
+        </Badge>
+      </RecordTableInlineCell>
+    )),
+    column('createdAt', t('created-at', 'Created at'), IconCalendarPlus, 130, (integration) => (
+      <DateCell date={integration.createdAt} />
+    )),
+  ];
+};
+
+/** What the filter bar narrows integrations by; the API applies it. */
+const useFields = (): TListFilterField[] => {
+  const { t } = useTranslation('frontline');
+  const kinds = useKindNames();
+  const channels = useQuery(channelsQuery).data?.channels ?? [];
+
+  return [
+    { path: 'subject.name', label: t('name', 'Name'), type: 'text', icon: IconLetterCase },
     {
-      id: 'name',
-      header: () => <RecordTable.InlineHead label={t('name', 'Name')} icon={IconLetterCase} />,
-      cell: ({ row }) => (
-        <OpenCell
-          label={row.original.name}
-          icon={<KindIcon kind={row.original.provider} />}
-          contentType={ACCOUNT_TYPE}
-          contentId={row.original.id}
-        />
-      ),
-      size: 240,
+      path: 'subject.kind',
+      label: t('type', 'Type'),
+      type: 'select',
+      icon: IconPlugConnected,
+      options: Object.entries(kinds).map(([value, label]) => ({ value, label })),
     },
     {
-      id: 'provider',
-      header: () => <RecordTable.InlineHead label={t('type', 'Type')} icon={IconPlugConnected} />,
-      cell: ({ row }) => <TextCell value={names[row.original.provider]} />,
-      size: 170,
+      path: 'subject.channelId',
+      label: t('channel', 'Channel'),
+      type: 'select',
+      icon: IconCircles,
+      options: channels.map((channel) => ({ value: channel.id, label: channel.name })),
     },
     {
-      id: 'channels',
-      header: () => <RecordTable.InlineHead label={t('channels', 'Channels')} icon={IconCircles} />,
-      cell: ({ row }) => <AccountChannels accountId={row.original.id} />,
-      size: 260,
+      path: 'subject.isActive',
+      label: t('active', 'Active'),
+      type: 'boolean',
+      icon: IconHeartbeat,
     },
     {
-      id: 'status',
-      header: () => <RecordTable.InlineHead label={t('status', 'Status')} icon={IconHeartbeat} />,
-      cell: ({ row }) => (
-        <RecordTableInlineCell title={row.original.error ?? undefined}>
-          <StatusBadge status={row.original.status} />
-        </RecordTableInlineCell>
-      ),
-      size: 130,
-    },
-    {
-      id: 'bot',
-      header: () => <RecordTable.InlineHead label={t('bot', 'Bot')} icon={IconRobot} />,
-      cell: ({ row }) => (
-        <OpenCell
-          label={row.original.bot?.name}
-          contentType={META_BOT_TYPE}
-          contentId={row.original.bot?.id ?? ''}
-        />
-      ),
-      size: 200,
-    },
-    {
-      id: 'checkedAt',
-      header: () => (
-        <RecordTable.InlineHead label={t('checked-at', 'Checked at')} icon={IconCalendarCheck} />
-      ),
-      cell: ({ row }) =>
-        row.original.checkedAt ? (
-          <DateCell date={row.original.checkedAt} />
-        ) : (
-          <TextCell value={null} />
-        ),
-      size: 140,
+      path: 'subject.createdAt',
+      label: t('created-at', 'Created at'),
+      type: 'date',
+      icon: IconCalendarPlus,
     },
   ];
 };
 
-/** What Meta's login reported when it sent the member back here. */
-const LoginResult = () => {
-  const { t } = useTranslation('frontline');
-  const [params] = useSearchParams();
-  const error = params.get('error');
-  const connected = params.get('connected');
-
-  if (error)
-    return (
-      <p role="alert" className="mx-3 mt-3 text-sm text-destructive-text">
-        {error}
-      </p>
-    );
-
-  if (connected === null) return null;
-
-  return (
-    <output className="mx-3 mt-3 block text-sm text-muted-foreground">
-      {t('pages-connected', {
-        defaultValue_one: 'Connected {{count}} page',
-        defaultValue_other: 'Connected {{count}} pages',
-        count: Number(connected),
-      })}
-    </output>
-  );
-};
-
 /**
- * Every account the organisation connected: Facebook pages and Instagram accounts with the bot
- * each runs, Telegram and Discord bots, mailboxes and phone lines. A name opens the account; a
- * row's menu adds it to a channel, sets up a page's bot, repairs it or disconnects it.
+ * Settings › Integrations: every way conversations come into the member's channels, website
+ * messengers and connected pages, bots, mailboxes and phone lines alike, each with the channel it
+ * feeds. A name opens the integration in the side panel; its channel opens the channel. The
+ * accounts behind them are Settings › Connected accounts.
  */
 export const IntegrationsPage = () => {
   const { t } = useTranslation('frontline');
-  const accounts = useAccounts();
-  const bots = useBots();
-  const columns = useColumns();
+  const { openNew } = useOpenRecord();
   const canConnect = useCanConnect();
-
-  const rows = (accounts.data?.accounts ?? []).map((account) => ({
-    ...account,
-    bot: bots.data?.find((bot) => bot.accountId === account.id),
-  }));
+  const params = useListFilterParams();
+  const list = useQuery(orpc.integrations.list.queryOptions({ input: params }));
+  const rows = list.data ?? [];
+  const columns = useColumns();
 
   return (
     <PageContainer>
       <AppHeader icon={IconPlugConnected} app={{ label: t('integrations', 'Integrations') }}>
-        {canConnect && <ConnectMenu />}
+        {canConnect ? (
+          <ConnectMenu withMessenger />
+        ) : (
+          <Button onClick={() => openNew(INTEGRATION_TYPE)}>
+            <IconMessageCirclePlus />
+            {t('add-messenger', 'Add messenger')}
+          </Button>
+        )}
       </AppHeader>
-      <LoginResult />
-      {accounts.error ? (
+      <ViewBar allLabel={t('all-integrations', 'All integrations')}>
+        <ListFilter
+          id="frontline-integrations"
+          fields={useFields()}
+          totalCount={list.isPending ? undefined : rows.length}
+        />
+      </ViewBar>
+      {list.error ? (
         <p role="alert" className="m-3 text-sm text-destructive-text">
-          {accounts.error.message}
+          {list.error.message}
         </p>
-      ) : !accounts.isPending && rows.length === 0 ? (
+      ) : !list.isPending && rows.length === 0 ? (
         <ListEmpty
           icon={<IconPlugConnected />}
-          title={t('no-accounts-connected', 'No accounts connected')}
+          title={t('no-integrations-yet', 'No integrations yet')}
           description={t(
-            'connect-accounts-description',
-            'Connect your pages, bots, mailboxes and phone lines to answer them in the inbox',
+            'integrations-description',
+            'Add a website messenger or connect a page, bot, mailbox or phone line to a channel.',
           )}
         />
       ) : (
         <RecordTable.Provider
-          tableId="frontline_integration_accounts"
+          tableId="frontline_integrations"
           columns={columns}
           data={rows}
           stickyColumns={['more', 'name']}
           className="m-3"
         >
-          <Rows isPending={accounts.isPending} skeletons={3} />
+          <Rows isPending={list.isPending} skeletons={4} />
         </RecordTable.Provider>
       )}
     </PageContainer>

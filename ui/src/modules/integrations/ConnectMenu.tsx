@@ -1,11 +1,11 @@
-import { IconChevronDown, IconPlugConnected } from '@tabler/icons-react';
+import { IconChevronDown, IconMessageCircle, IconPlugConnected } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button, DropdownMenu, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { useIntegrationChange } from '@/inbox/queries.ts';
 import { orpc } from '~/orpc.ts';
-import { ACCOUNT_TYPE } from '~/plugin.ts';
+import { ACCOUNT_TYPE, INTEGRATION_TYPE } from '~/plugin.ts';
 import { KindIcon } from '~/shared/kinds.tsx';
 import { integrationsQuery } from '~/shared/reference.ts';
 import { FORM_PROVIDERS } from './AccountNew.tsx';
@@ -101,9 +101,16 @@ const MetaItem = ({ channelId }: { channelId?: string }) => {
 /**
  * Connect: Facebook and Instagram through Meta's login, every other provider with its form in
  * core's side panel. Opened from a channel, what it connects joins that channel, and the accounts
- * connected before are offered to add.
+ * connected before are offered to add. `withMessenger` makes it Add integration, a website
+ * messenger first.
  */
-export const ConnectMenu = ({ channelId }: { channelId?: string }) => {
+export const ConnectMenu = ({
+  channelId,
+  withMessenger = false,
+}: {
+  channelId?: string;
+  withMessenger?: boolean;
+}) => {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
   const names = useProviderNames();
@@ -114,12 +121,21 @@ export const ConnectMenu = ({ channelId }: { channelId?: string }) => {
         render={
           <Button variant={channelId ? 'ghost' : 'default'} size={channelId ? 'sm' : 'default'}>
             <IconPlugConnected />
-            {t('connect', 'Connect')}
+            {withMessenger ? t('add-integration', 'Add integration') : t('connect', 'Connect')}
             <IconChevronDown />
           </Button>
         }
       />
       <DropdownMenu.Content align="end">
+        {withMessenger && (
+          <>
+            <DropdownMenu.Item onClick={() => openNew(INTEGRATION_TYPE, { channelId })}>
+              <IconMessageCircle />
+              {t('website-messenger', 'Website messenger')}
+            </DropdownMenu.Item>
+            <DropdownMenu.Separator />
+          </>
+        )}
         <MetaItem channelId={channelId} />
         {FORM_PROVIDERS.map((provider) => (
           <DropdownMenu.Item

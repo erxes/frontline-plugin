@@ -55,7 +55,7 @@ export const recordCheck = async (row: AccountRow, error: string | null) => {
       kind: INTEGRATION_BROKEN,
       title: 'An integration stopped working',
       body: `${row.name}: ${error}`,
-      link: `/${PLUGIN}/settings/integrations`,
+      link: `/${PLUGIN}/settings/accounts`,
       userIds: [row.createdBy],
       dedupeKey: `integration-broken:${row.id}:${checked.checkedAt?.toISOString() ?? ''}`,
     });

@@ -1,6 +1,6 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, asc, eq, getTableColumns } from 'drizzle-orm';
+import { and, asc, eq, getTableColumns, ilike } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
@@ -9,8 +9,10 @@ import { integrations } from '#/db/inbox.ts';
 import { publicKeys } from '#/db/public.ts';
 import { channelMembers } from '#/db/schema.ts';
 import { reads, writes } from '#/orpc.ts';
+import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { canChangeSql, channelFor, membership, seenBy } from '../channels/access.ts';
 import { Title } from '../fields.ts';
+import { FilterInput, likeText } from '../filter.ts';
 import { integrationChanges } from '../messenger/adapter.ts';
 import { removeKeys } from '../public.ts';
 import { channelServing, INTEGRATION_KEY, insertIntegration } from './insertIntegration.ts';
@@ -61,9 +63,21 @@ const configOf = (kind: string, config: Record<string, unknown>) => {
   return parsed.data;
 };
 
-/** The integrations of the caller's channels, or of one channel, oldest first. */
+/** What the Integrations list's filter bar narrows by (`ui/src/modules/integrations/IntegrationsPage.tsx`). */
+const integrationFilter: FilterFields = {
+  'subject.name': { type: 'text', expr: integrations.name },
+  'subject.kind': { type: 'select', expr: integrations.kind },
+  'subject.channelId': { type: 'select', expr: integrations.channelId },
+  'subject.isActive': { type: 'boolean', expr: integrations.isActive },
+  'subject.createdAt': { type: 'date', expr: integrations.createdAt },
+};
+
+/**
+ * The integrations of the caller's channels, or of one channel, oldest first, narrowed by the
+ * filter bar: `search` matches the name, ignoring case.
+ */
 const list = reads(PERMISSIONS.channelView)
-  .input(z.object({ channelId: z.string().optional() }))
+  .input(z.object({ channelId: z.string().optional(), ...FilterInput }))
   .output(z.array(Integration))
   .handler(({ input, context: { tx, member } }) =>
     integrationRows(tx, member)
@@ -71,6 +85,8 @@ const list = reads(PERMISSIONS.channelView)
         and(
           seenBy(member, integrations.channelId),
           input.channelId ? eq(integrations.channelId, input.channelId) : undefined,
+          input.search ? ilike(integrations.name, likeText(input.search)) : undefined,
+          compileFilter(integrationFilter, input.filter, { me: member.userId }),
         ),
       )
       .orderBy(asc(integrations.createdAt), asc(integrations.id)),
