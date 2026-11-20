@@ -3,7 +3,6 @@ import {
   type InfiniteData,
   type QueryClient,
   useInfiniteQuery,
-  useIsFetching,
   useMutation,
   useQuery,
   useQueryClient,
@@ -218,15 +217,18 @@ const loadedTickets = (queryClient: QueryClient, type: 'all' | 'active' = 'all')
 /** A loaded ticket, from any list that holds it. */
 const cachedTicket = (queryClient: QueryClient, id: string) => loadedTickets(queryClient).get(id);
 
-/**
- * The tickets the lists on screen hold, by id, such as every status group's of the list display.
- * It reads again as each list's request settles, when its new rows are in.
- */
-export const useShownTickets = () => {
-  useIsFetching({ queryKey: orpc.tickets.list.key({ type: 'infinite' }) });
+/** Of `ids`, the tickets a list on screen holds, such as a status group's of the list display. */
+const shownTicketsOf = (queryClient: QueryClient, ids: string[]) => {
+  const loaded = loadedTickets(queryClient, 'active');
 
-  return loadedTickets(useQueryClient(), 'active');
+  return ids.flatMap((id) => loaded.get(id) ?? []);
 };
+
+/**
+ * The picked tickets the lists on screen hold. It reads the cache on each pick, as `ids` change,
+ * since the cache itself tells React nothing.
+ */
+export const usePickedTickets = (ids: string[]) => shownTicketsOf(useQueryClient(), ids);
 
 /** The first page's count moved by `by`; later pages carry none. */
 const recount = (pages: TicketPages['pages'], by: number) =>

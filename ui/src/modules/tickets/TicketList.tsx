@@ -18,8 +18,8 @@ import {
   type TicketRowActions,
   useChoices,
   useColumnTickets,
+  usePickedTickets,
   useShownPipelineId,
-  useShownTickets,
   useTicketRowActions,
 } from './queries.ts';
 
@@ -195,18 +195,17 @@ const StatusGroup = memo(function StatusGroup({
   );
 });
 
-/**
- * The bulk bar for the picked tickets, read from the status groups' lists. It reads them again on
- * each pick: the groups' lists may already be in when they mount, so no request settles to.
- */
+/** The bulk bar for the picked tickets the status groups' lists hold. */
 const TicketSelection = () => {
-  RecordList.useSelection();
-  const shown = useShownTickets();
+  const picked = usePickedTickets(RecordList.useSelection().ids);
 
   return (
-    <ListSelectionBar shown={[...shown.keys()]}>
+    <ListSelectionBar shown={picked.map((ticket) => ticket.id)}>
       {(selected, clear) => (
-        <TicketBulkActions tickets={selected.flatMap((id) => shown.get(id) ?? [])} clear={clear} />
+        <TicketBulkActions
+          tickets={picked.filter((ticket) => selected.includes(ticket.id))}
+          clear={clear}
+        />
       )}
     </ListSelectionBar>
   );
