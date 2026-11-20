@@ -127,15 +127,9 @@ export const MESSAGE_RECEIVED = {
     label: 'Email Received',
     description: 'An email arrived in a connected mailbox',
   },
-  facebook: { type: 'frontline.facebook.message_received', label: 'Facebook message received' },
-  instagram: { type: 'frontline.instagram.message_received', label: 'Instagram message received' },
 } as const;
 
-/** What a person's comment under a connected page's or account's post publishes. */
-export const COMMENT_RECEIVED = {
-  facebook: { type: 'frontline.facebook.comment_received', label: 'Facebook comment received' },
-  instagram: { type: 'frontline.instagram.comment_received', label: 'Instagram comment received' },
-} as const;
+export const META_SUBSCRIPTIONS = ['core.messenger.*', 'core.facebook.*', 'core.instagram.*'];
 
 /**
  * Automation steps that reply to the run's customer through a provider: in the conversation the
@@ -156,16 +150,6 @@ export const SEND_ACTIONS = {
     type: 'frontline.mail.send',
     label: 'Send Email',
     description: "Reply to the customer's email right away, from the mailbox it came to",
-  },
-  facebook: {
-    type: 'frontline.facebook.reply',
-    label: 'Reply on Facebook',
-    description: 'Answers in the chat, or in the comment thread under a post, as the page',
-  },
-  instagram: {
-    type: 'frontline.instagram.reply',
-    label: 'Reply on Instagram',
-    description: 'Answers in the chat, or in the comment thread under a post, as the account',
   },
 } as const;
 
@@ -242,6 +226,12 @@ export const JOBS = {
   metaFiles: {
     name: 'integrations.meta-files',
     retry: { attempts: 5, delay: 60, maxDelay: 1800 },
+  },
+  metaImport: {
+    name: 'integrations.meta-import',
+    cron: '53 2 * * *',
+    onInstall: true,
+    retry: { attempts: 5, delay: 60, maxDelay: 3600 },
   },
   /**
    * Brings the organisation's own teams to core once, then copies core's branches and

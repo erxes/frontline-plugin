@@ -18,6 +18,8 @@ export const memberOf = (
     tier: 'pro',
     access: 'full',
     canChange: () => true,
+    saas: false,
+    bundles: [],
   }) satisfies PluginMember;
 
 /** The typed client the UI uses, served in-process as that member. */

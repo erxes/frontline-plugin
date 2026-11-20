@@ -1,11 +1,10 @@
-import { createHmac, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, vi } from 'vite-plus/test';
 import { z } from 'zod';
 import { JOB_RUNS } from '#/jobs.ts';
 import { createApp } from '#/server.ts';
 import { clientAs } from '#/test/member.ts';
-import { asked } from './standIns.ts';
+import { asked, connectMeta } from './standIns.ts';
 
 /** One call frontline made to a provider's API. */
 export interface ProviderCall {
@@ -98,17 +97,13 @@ export const fakeProviders = (answer: (call: ProviderCall) => unknown) => {
   return calls;
 };
 
-/**
- * A payload a provider really sends, field for field, from `fixtures/`. Don't add a field it
- * leaves out: Messenger and Instagram messages carry only the sender's page-scoped id, so a name
- * in a fixture hid that frontline never looked the sender up.
- */
+/** A payload a provider really sends, field for field, from `fixtures/`. */
 export const fixture = (name: string) =>
   readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8');
 
 /**
- * Serves the app for the file's tests; `get` and `deliver` reach `/api/public/webhooks`, and
- * `act` core's automation steps.
+ * Serves the app for the file's tests; `deliver` reaches `/api/public/webhooks`, `event` core's
+ * event deliveries and `act` core's automation steps.
  */
 export const serve = () => {
   let base = '';
@@ -141,27 +136,9 @@ export const serve = () => {
       body: raw,
     });
 
-  const get = (path: string) => fetch(`${base}/public/webhooks${path}`, { redirect: 'manual' });
-
   return {
-    get,
-    /** Logs `orgId` in through Meta's dialog and gives a channel to the page or the account. */
-    connectMeta: async (orgId: string, provider: 'facebook' | 'instagram') => {
-      const owner = clientAs(orgId);
-      const { url } = await owner.integrations.meta.loginUrl();
-      const state = new URL(url).searchParams.get('state') ?? '';
-
-      await get(`/meta/callback?code=login-code&state=${state}`);
-
-      const { accounts } = await owner.integrations.accounts.list({ provider });
-      const account = accounts[0];
-
-      if (!account) throw new Error(`no ${provider} account`);
-
-      await channelFor(orgId, provider, account.id);
-
-      return { owner, account };
-    },
+    event: async (body: unknown, token = 'core-event') =>
+      (await post('/events', JSON.stringify(body), { authorization: `Bearer ${token}` })).status,
     deliver: async (path: string, raw: string, headers: Record<string, string> = {}) =>
       (await post(`/public/webhooks${path}`, raw, headers)).status,
     /** POSTs `body` as JSON to `path` under `/api`, and answers its status. */
@@ -211,17 +188,56 @@ export const runQueued = async (attempt = 1) => {
   await Promise.all(asked.jobs.splice(0).map(async (job) => runJob(Queued.parse(job), attempt)));
 };
 
-/** A channel in `orgId` with an integration that takes `accountId`'s conversations. */
-export const channelFor = async (orgId: string, kind: string, accountId: string) => {
+const channelWith = async (orgId: string, kind: string, config: Record<string, string>) => {
   const owner = clientAs(orgId);
   const channel = await owner.channels.create({ name: `${kind} support` });
 
-  return owner.integrations.create({
-    channelId: channel.id,
-    kind,
-    name: kind,
-    config: { accountId },
-  });
+  return owner.integrations.create({ channelId: channel.id, kind, name: kind, config });
+};
+
+/** A channel in `orgId` with an integration that takes `accountId`'s conversations. */
+export const channelFor = (orgId: string, kind: string, accountId: string) =>
+  channelWith(orgId, kind, { accountId });
+
+export const metaChannel = async (orgId: string, kind: 'facebook' | 'instagram') => {
+  const connection = connectMeta(orgId, kind);
+  const integration = await channelWith(orgId, kind, { connectionId: connection.id });
+
+  return { owner: clientAs(orgId), connection, integration };
+};
+
+export const metaEvent = (
+  orgId: string,
+  type: string,
+  customerId: string,
+  payload: Record<string, unknown>,
+) => {
+  const at = new Date().toISOString();
+  const id = `event-${crypto.randomUUID()}`;
+
+  return {
+    id,
+    type,
+    organizationId: orgId,
+    createdAt: at,
+    data: {
+      id,
+      source: 'core',
+      type,
+      version: 1,
+      subjectType: 'customer',
+      subjectId: customerId,
+      entityType: null,
+      entityId: null,
+      actorType: 'customer',
+      actorId: customerId,
+      payload,
+      summary: null,
+      link: null,
+      occurredAt: at,
+      createdAt: at,
+    },
+  };
 };
 
 /** The id of `orgId`'s conversation with the provider's id `externalId`. */
@@ -233,9 +249,6 @@ export const conversationWith = async (orgId: string, externalId: string) => {
 
   return found.id;
 };
-
-export const lastPost = (calls: ProviderCall[]) =>
-  calls.filter((call) => call.method === 'POST').at(-1);
 
 /**
  * The Bot API's answers for the bot `777`; a token with `bad-token` in it is refused, and so is a
@@ -299,78 +312,14 @@ export const telegramApi = (call: ProviderCall) => {
   return { ok: true, result: true };
 };
 
-const POST = {
-  id: 'page-1_post-9',
-  message: 'New blue jackets are in',
-  permalink_url: 'https://www.facebook.com/page-1/posts/9',
-  full_picture: 'https://cdn.example.com/jacket.jpg',
-  created_time: '2025-11-15T04:00:00+0000',
-};
-
-/**
- * The Graph API's answers for the page `page-1` and its Instagram account `ig-1`. A call whose
- * body says `refused` fails as Meta fails one.
- */
-export const graphApi = (call: ProviderCall) => {
-  const path = call.url.pathname.replace('/v23.0/', '');
-
-  // A file on Meta's CDN, through the signed link a message carries, unless it has expired.
-  if (/\.(fbcdn\.net|fbsbx\.com)$/.test(call.url.hostname))
-    return call.url.searchParams.get('signature') === 'expired'
-      ? new Response(null, { status: 403 })
-      : new Response(FILE_BYTES, {
-          headers: {
-            'content-type': call.url.pathname.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
-          },
-        });
-
-  if (JSON.stringify(call.body ?? null).includes('refused'))
-    return Response.json({ error: { message: 'Invalid parameter' } }, { status: 400 });
-
-  if (path === POST.id) return POST;
-
-  if (path === 'page-1/published_posts')
-    return { data: [POST], paging: { cursors: { after: 'cursor-2' }, next: 'https://next' } };
-
-  if (path === 'oauth/access_token')
-    return {
-      access_token: call.url.searchParams.get('code') ? 'short-user-token' : 'long-user-token',
-    };
-
-  if (path === 'me/accounts')
-    return {
-      data: [
-        {
-          id: 'page-1',
-          name: 'Shop',
-          access_token: 'page-token-1',
-          instagram_business_account: { id: 'ig-1', username: 'shop.mn' },
+export const metaCdn = (call: ProviderCall) =>
+  call.url.searchParams.get('signature') === 'expired'
+    ? new Response(null, { status: 403 })
+    : new Response(FILE_BYTES, {
+        headers: {
+          'content-type': call.url.pathname.endsWith('.pdf') ? 'application/pdf' : 'image/jpeg',
         },
-      ],
-    };
-
-  // Each message Messenger takes gets an id of its own, as Meta gives one.
-  if (path === 'me/messages') return { recipient_id: 'psid-1', message_id: `m_${randomUUID()}` };
-
-  // The profile of the person behind psid-1, which Messenger's events leave out.
-  if (path === 'psid-1') return { id: 'psid-1', first_name: 'Bat', last_name: 'Erdene' };
-
-  // Instagram's profile of igsid-6, who wrote with only their id.
-  if (path === 'igsid-6') return { id: 'igsid-6', name: 'Saraa', username: 'saraa.mn' };
-
-  if (path.endsWith('/comments') || path.endsWith('/replies'))
-    return call.method === 'POST' ? { id: `reply-to-${path.split('/')[0]}` } : { data: [] };
-
-  if (path === 'page-1/feed' || path === 'page-1/photos')
-    return { id: 'page-1_post-new', post_id: 'page-1_post-new' };
-
-  return { success: true };
-};
-
-/** The signature Meta puts on a delivery, with the install's app secret unless `secret` names another. */
-export const signedByMeta = (raw: string, secret = 'test-meta-app-secret') => ({
-  'x-hub-signature-256': `sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`,
-});
+      });
 
 const Hook = z.object({ url: z.string(), secret_token: z.string() });
 

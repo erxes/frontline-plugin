@@ -97,8 +97,8 @@ const list = reads(PERMISSIONS.integrationView)
   });
 
 /**
- * Repair, as the old plugin had it: points the provider's events at frontline again (Meta's page
- * subscription and relay route, Telegram's webhook), then asks whether the account works and
+ * Repair, as the old plugin had it: points the provider's events at frontline again (Telegram's
+ * webhook), then asks whether the account works and
  * marks it healthy or broken. The provider is asked before any transaction opens, so a slow one
  * holds no connection.
  */

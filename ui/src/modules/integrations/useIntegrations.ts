@@ -19,12 +19,10 @@ export type BotSettings = Omit<
   'id'
 >;
 
-/** Whether the account came through Meta's login: a Facebook page or an Instagram account. */
-export const isMeta = (account: Pick<Account, 'provider'>) =>
-  account.provider === 'facebook' || account.provider === 'instagram';
+export type MetaConnection = Outputs['integrations']['meta']['connections']['connections'][number];
 
 /** A provider's accounts as members read them. */
-export const useProviderNames = (): Record<Provider, string> => {
+export const useProviderNames = (): Record<Provider | MetaConnection['kind'], string> => {
   const { t } = useTranslation('frontline');
 
   return {
@@ -51,12 +49,11 @@ export const useAccount = (id: string) =>
     }),
   );
 
-/** The connected Facebook pages and Instagram accounts, by provider then name. */
-export const useMetaAccounts = () =>
+export const useMetaConnections = () =>
   useQuery(
-    orpc.integrations.accounts.list.queryOptions({
+    orpc.integrations.meta.connections.queryOptions({
       input: {},
-      select: (data) => data.accounts.filter(isMeta),
+      select: (data) => data.connections,
     }),
   );
 
@@ -89,31 +86,7 @@ export const useUpdateBot = (bot: Bot) => {
   };
 };
 
-/** Sends the member to Meta's login, where they pick the pages to connect. */
-export const useConnectMeta = () => {
-  const { onError } = useIntegrationChange();
-
-  return useMutation(
-    orpc.integrations.meta.loginUrl.mutationOptions({
-      onSuccess: ({ url }) => window.location.assign(url),
-      onError,
-    }),
-  );
-};
-
-/** Core's Settings › Integrations › Meta, where the organisation sets its Meta app. */
-export const META_SETTINGS = '/settings/integrations/frontline.meta';
-
-/**
- * Whether the organisation has a Meta app to log in with, its own or the install's: undefined
- * until the check answers, so nothing starts a login that has no app.
- */
-export const useMetaApp = () =>
-  useQuery(
-    orpc.integrations.meta.app.get.queryOptions({
-      select: (settings) => settings.own || settings.installApp,
-    }),
-  ).data;
+export const META_SETTINGS = '/settings/integrations/meta';
 
 /** Points the provider's events at frontline again, then records whether the account works. */
 export const useRepairAccount = () =>

@@ -6,15 +6,7 @@ import { id, stamps, table } from './table.ts';
  * Where conversations come from besides the messenger. Each provider's code lives in
  * `api/src/modules/integrations/providers`, and shared code never names one.
  */
-export const PROVIDERS = [
-  'facebook',
-  'instagram',
-  'telegram',
-  'discord',
-  'mail',
-  'call',
-  'callpro',
-] as const;
+export const PROVIDERS = ['telegram', 'discord', 'mail', 'call', 'callpro'] as const;
 
 export const ACCOUNT_STATUSES = ['healthy', 'broken'] as const;
 
@@ -22,8 +14,8 @@ export const ACCOUNT_STATUSES = ['healthy', 'broken'] as const;
 export const ACCOUNT_EXTERNAL_INDEX = 'frontline_integration_accounts_org_provider_external_key';
 
 /**
- * Something an organisation connected at a provider: a Facebook page, an Instagram account, a
- * Telegram or Discord bot, a mailbox. It keeps only the provider's id for it, its settings and
+ * Something an organisation connected at a provider: a Telegram or Discord bot, a mailbox, a phone
+ * line. Facebook pages and Instagram accounts are core's Meta connections. It keeps only the provider's id for it, its settings and
  * its secrets; conversations, messages and customers are the inbox's.
  */
 export const integrationAccounts = table(
@@ -32,7 +24,7 @@ export const integrationAccounts = table(
     id: id(),
     orgId: text().notNull(),
     provider: text({ enum: PROVIDERS }).notNull(),
-    /** The provider's id: a page or Instagram account id, a bot's user id, the mail address. */
+    /** The provider's id: a bot's user id, the mail address, a phone line's. */
     externalId: text().notNull(),
     name: text().notNull(),
     /** Settings without secrets, as the provider's `Config` schema reads them. */
@@ -52,7 +44,7 @@ export const integrationAccounts = table(
     unique('frontline_integration_accounts_org_id_key').on(t.orgId, t.id),
     check(
       'frontline_integration_accounts_provider_check',
-      sql`${t.provider} in ('facebook', 'instagram', 'telegram', 'discord', 'mail', 'call', 'callpro')`,
+      sql`${t.provider} in ('telegram', 'discord', 'mail', 'call', 'callpro')`,
     ),
     check('frontline_integration_accounts_status_check', sql`${t.status} in ('healthy', 'broken')`),
   ],

@@ -82,7 +82,10 @@ const get = reads(PERMISSIONS.channelView)
   .handler(({ input, context: { tx, member } }) => integrationById(tx, member, input.id));
 
 /** The config of an integration that takes conversations through a connected account. */
-const ThroughAccount = z.object({ accountId: z.string() });
+const ThroughAccount = z.union([
+  z.object({ accountId: z.string() }).transform(({ accountId }) => accountId),
+  z.object({ connectionId: z.string() }).transform(({ connectionId }) => connectionId),
+]);
 
 /**
  * A new integration of a channel the caller is an admin of, with the key its embed or webhook
@@ -104,7 +107,7 @@ const create = writes(PERMISSIONS.channelView)
 
     const config = configOf(input.kind, input.config);
     const account = ThroughAccount.safeParse(config).data;
-    const serving = account && (await channelServing(tx, account.accountId, input.channelId));
+    const serving = account && (await channelServing(tx, account, input.channelId));
 
     if (serving)
       throw new ORPCError('CONFLICT', {

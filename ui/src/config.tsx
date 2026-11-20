@@ -28,7 +28,6 @@ import { type ComponentType, lazy } from 'react';
 import { addConfigText } from '~/i18n/configText.ts';
 import { withText } from '~/i18n/withText.ts';
 import { DASHBOARD_WIDGETS } from '~/dashboardWidgets.ts';
-import { INTEGRATION_TILES } from '~/integrationTiles.ts';
 import {
   ACCOUNT_TYPE,
   CALL_TYPE,
@@ -323,6 +322,4 @@ export const CONFIG: IUIConfig = {
     },
   ],
   dashboardWidgets: DASHBOARD_WIDGETS,
-  // The organisation's own Meta app, on core's Settings › Integrations.
-  integrations: INTEGRATION_TILES,
 };

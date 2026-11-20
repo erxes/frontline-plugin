@@ -92,6 +92,7 @@ const Marks = ({ message }: { message: Message }) => {
         {format.time(message.createdAt)}
       </time>
       {message.editedAt && <span>{t('edited', 'Edited')}</span>}
+      {message.deletedAt && <span>{t('message-deleted', 'Deleted by the customer')}</span>}
       {message.internal && <IconLock className="size-3" aria-hidden />}
     </>
   );

@@ -81,6 +81,7 @@ const reactAtProvider = async (member: PluginMember, input: z.output<typeof Reac
       adapter: found,
       conversationId: conversation.id,
       reach: await found.react(tx, {
+        orgId: member.orgId,
         integration: { id: integration.id, config: integration.config },
         conversation,
         message,

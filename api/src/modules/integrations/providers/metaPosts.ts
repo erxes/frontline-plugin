@@ -1,4 +1,3 @@
-import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
@@ -7,11 +6,8 @@ import { withOrg } from '#/db/client.ts';
 import { integrations } from '#/db/inbox.ts';
 import { readsWithCore, writesWithCore } from '#/orpc.ts';
 import { conversationById } from '../../inbox/shared.ts';
-import type { ProviderName } from '../provider.ts';
-import { askMeta, graph, metaAccount } from './meta.ts';
-import { postOfThread } from './metaWebhook.ts';
+import { type Connection, connectionOf, graph, MetaConfig, postOfThread } from './meta.ts';
 
-/** A page's post or an Instagram account's media, as Meta keeps it. */
 const Post = z.object({
   id: z.string(),
   content: z.string(),
@@ -25,7 +21,6 @@ const FIELDS = {
   instagram: 'id,caption,permalink,media_url,thumbnail_url,timestamp',
 };
 
-/** One post in either shape Meta answers with, read as `Post`. */
 const GraphPost = z
   .object({
     id: z.string(),
@@ -57,44 +52,60 @@ const Page = z.object({
     .optional(),
 });
 
-const postsPath = (provider: ProviderName, externalId: string) =>
-  provider === 'instagram' ? `${externalId}/media` : `${externalId}/published_posts`;
+const postsPath = ({ kind, externalId }: Connection) =>
+  kind === 'instagram' ? `${externalId}/media` : `${externalId}/published_posts`;
 
-/** The page or account, read in a transaction that ends before Meta is asked. */
-const accountFor = (member: PluginMember, accountId: string) =>
-  withOrg(member.orgId, (tx) => metaAccount(tx, accountId));
+const postsOf = async (
+  orgId: string,
+  connection: Connection,
+  { after, limit }: { after?: string; limit: number },
+) => {
+  const page = Page.parse(
+    await graph(orgId, connection.id, postsPath(connection), {
+      query: {
+        fields: FIELDS[connection.kind],
+        limit: String(limit),
+        ...(after ? { after } : {}),
+      },
+    }),
+  );
 
-/** The account's posts, newest first, 25 at a time from Meta's cursor. */
+  return {
+    posts: page.data,
+    next: page.paging?.next ? (page.paging.cursors?.after ?? null) : null,
+  };
+};
+
 const list = readsWithCore(
   PERMISSIONS.integrationView,
-  z.object({ accountId: z.string(), after: z.string().optional() }),
-  async (member, input) => {
-    const { row, provider, token } = await accountFor(member, input.accountId);
-
-    const page = Page.parse(
-      await askMeta(
-        graph(postsPath(provider, row.externalId), token, {
-          query: {
-            fields: FIELDS[provider],
-            limit: '25',
-            ...(input.after ? { after: input.after } : {}),
-          },
-        }),
-      ),
-    );
-
-    return {
-      posts: page.data,
-      next: page.paging?.next ? (page.paging.cursors?.after ?? null) : null,
-    };
-  },
+  z.object({ connectionId: z.string(), after: z.string().optional() }),
+  async (member, input) =>
+    postsOf(member.orgId, await connectionOf(member.orgId, input.connectionId), {
+      after: input.after,
+      limit: 25,
+    }),
 )
   .output(z.object({ posts: z.array(Post), next: z.string().nullable() }))
   .handler(({ context: { fromCore } }) => fromCore);
 
-const AccountConfig = z.object({ accountId: z.string() });
+const MEDIA_PAGES = 4;
 
-/** The post a comment conversation hangs under, read from Meta; null for a chat. */
+const instagramPost = async (
+  orgId: string,
+  connection: Connection,
+  postId: string,
+  { after, pages }: { after?: string; pages: number } = { pages: MEDIA_PAGES },
+): Promise<z.infer<typeof Post> | null> => {
+  const page = await postsOf(orgId, connection, { after, limit: 50 });
+  const found = page.posts.find((post) => post.id === postId);
+
+  if (found) return found;
+
+  return page.next && pages > 1
+    ? instagramPost(orgId, connection, postId, { after: page.next, pages: pages - 1 })
+    : null;
+};
+
 const get = readsWithCore(
   PERMISSIONS.inboxView,
   z.object({ conversationId: z.string() }),
@@ -110,17 +121,20 @@ const get = readsWithCore(
         .from(integrations)
         .where(eq(integrations.id, conversation.integrationId));
 
-      const { accountId } = AccountConfig.parse(integration?.config);
-
-      return { postId, ...(await metaAccount(tx, accountId)) };
+      return { postId, connectionId: MetaConfig.parse(integration?.config).connectionId };
     });
 
     if (!found) return null;
 
+    const connection = await connectionOf(member.orgId, found.connectionId);
+
+    if (connection.kind === 'instagram')
+      return instagramPost(member.orgId, connection, found.postId);
+
     return GraphPost.parse(
-      await askMeta(
-        graph(found.postId, found.token, { query: { fields: FIELDS[found.provider] } }),
-      ),
+      await graph(member.orgId, connection.id, found.postId, {
+        query: { fields: FIELDS.facebook },
+      }),
     );
   },
 )
@@ -129,33 +143,30 @@ const get = readsWithCore(
 
 const Created = z.object({ id: z.string(), post_id: z.string().optional() });
 
-/** Publishes a post on a Facebook page: text with a link, or a photo with a caption. */
 const create = writesWithCore(
   PERMISSIONS.integrationManage,
   z.object({
-    accountId: z.string(),
+    connectionId: z.string(),
     message: z.string().trim().min(1).max(5000),
     link: z.url().optional(),
     imageUrl: z.url().optional(),
   }),
   async (member, input) => {
-    const { row, provider, token } = await accountFor(member, input.accountId);
+    const connection = await connectionOf(member.orgId, input.connectionId);
 
-    if (provider !== 'facebook')
+    if (connection.kind !== 'facebook')
       throw new ORPCError('BAD_REQUEST', { message: 'Posts are published on Facebook pages' });
 
     const created = Created.parse(
-      await askMeta(
-        input.imageUrl
-          ? graph(`${row.externalId}/photos`, token, {
-              method: 'POST',
-              body: { url: input.imageUrl, caption: input.message },
-            })
-          : graph(`${row.externalId}/feed`, token, {
-              method: 'POST',
-              body: { message: input.message, link: input.link },
-            }),
-      ),
+      input.imageUrl
+        ? await graph(member.orgId, connection.id, `${connection.externalId}/photos`, {
+            method: 'POST',
+            body: { url: input.imageUrl, caption: input.message },
+          })
+        : await graph(member.orgId, connection.id, `${connection.externalId}/feed`, {
+            method: 'POST',
+            body: { message: input.message, ...(input.link ? { link: input.link } : {}) },
+          }),
     );
 
     return { id: created.post_id ?? created.id };

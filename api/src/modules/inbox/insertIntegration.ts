@@ -37,7 +37,8 @@ export const insertIntegration = async (
 };
 
 /**
- * The channel `accountId` already takes conversations into, as an active integration, or as
+ * The channel `accountId`, a connected account or a core Meta connection, already takes
+ * conversations into, as an active integration, or as
  * any integration of `channelId`. An account serves one channel: the inbox routes what it
  * receives to its oldest active integration, so a second one would stay silent.
  */
@@ -48,7 +49,7 @@ export const channelServing = async (tx: Tx, accountId: string, channelId?: stri
     .innerJoin(channels, eq(channels.id, integrations.channelId))
     .where(
       and(
-        sql`${integrations.config} ->> 'accountId' = ${accountId}`,
+        sql`coalesce(${integrations.config} ->> 'accountId', ${integrations.config} ->> 'connectionId') = ${accountId}`,
         or(
           eq(integrations.isActive, true),
           channelId ? eq(integrations.channelId, channelId) : undefined,

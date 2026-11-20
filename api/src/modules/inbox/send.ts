@@ -123,7 +123,12 @@ export const sendReply = async (job: PluginJobDelivery) => {
 
   if (!send) return settle(job.orgId, messageId, row.conversation, { deliveryStatus: 'sent' });
 
-  const outgoing = { ...row, message: { ...row.message, providerData: claimed.providerData } };
+  const outgoing = {
+    ...row,
+    orgId: job.orgId,
+    message: { ...row.message, providerData: claimed.providerData },
+  };
+
   let externalId: string | null;
 
   try {

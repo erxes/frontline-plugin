@@ -12,7 +12,8 @@ import { useIntegrationChange } from './queries.ts';
 
 /**
  * A new website messenger in core's side panel: the channel its conversations land in, its name
- * and the welcome its visitors see. Opened with a connected account's `kind` and `accountId`, it
+ * and the welcome its visitors see. Opened with a connected account's `kind` and `accountId`, or
+ * a Facebook page's or Instagram account's `connectionId`, it
  * adds that page, bot or mailbox to the channel instead. Only the channels the member is an
  * admin of are offered; a `channelId` picks one. A new messenger opens on its settings page, where
  * its look and install code are.
@@ -22,6 +23,8 @@ export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftPr
   // A connected page or account's list opens the draft with its kind and id.
   const kind = textOf(defaults.kind) || 'messenger';
   const accountId = textOf(defaults.accountId);
+  const connectionId = textOf(defaults.connectionId);
+  const through = accountId ? { accountId } : connectionId ? { connectionId } : null;
 
   // A channel's page opens it with that channel picked.
   const [picked, setChannelId] = useState(() => textOf(defaults.channelId));
@@ -48,7 +51,7 @@ export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftPr
       channelId,
       kind,
       name: textOf(form.get('name')),
-      config: accountId ? { accountId } : { welcome: textOf(form.get('welcome')) },
+      config: through ?? { welcome: textOf(form.get('welcome')) },
     });
   };
 
@@ -58,7 +61,7 @@ export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftPr
         onCancel={onCancel}
         saving={create.isPending}
         saveLabel={
-          accountId ? t('add-to-channel', 'Add to a channel') : t('add-messenger', 'Add messenger')
+          through ? t('add-to-channel', 'Add to a channel') : t('add-messenger', 'Add messenger')
         }
       >
         <ChannelRow
@@ -74,7 +77,7 @@ export const IntegrationNew = ({ defaults, onCreated, onCancel }: TRecordDraftPr
           placeholder={t('messenger-name-placeholder', 'Website')}
           defaultValue={textOf(defaults.name)}
         />
-        {!accountId && (
+        {!through && (
           <TextRow
             label={t('welcome-message', 'Welcome message')}
             icon={IconMessage}

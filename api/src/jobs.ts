@@ -7,6 +7,7 @@ import { checkAccounts, syncMail } from '#/modules/integrations/jobs.ts';
 import { copyRecording } from '#/modules/integrations/providers/call/recording.ts';
 import { keepDiscordGateways } from '#/modules/integrations/providers/discordGateway.ts';
 import { copyMetaFiles } from '#/modules/integrations/providers/metaFiles.ts';
+import { importMeta } from '#/modules/integrations/providers/metaImport.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';
 import { checkSla } from '#/modules/tickets/sla.ts';
 
@@ -21,5 +22,6 @@ export const JOB_RUNS: Record<string, (job: PluginJobDelivery) => Promise<unknow
   [JOBS.discordGateway.name]: keepDiscordGateways,
   [JOBS.recording.name]: copyRecording,
   [JOBS.metaFiles.name]: copyMetaFiles,
+  [JOBS.metaImport.name]: importMeta,
   [JOBS.units.name]: (job) => syncUnits(job.orgId),
 };

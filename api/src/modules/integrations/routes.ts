@@ -5,7 +5,6 @@ import { deliverInbound, deliverReactions } from './inbound.ts';
 import type { Routed, WebhookRequest, WebhookSource } from './provider.ts';
 import { WEBHOOKS } from './providers/index.ts';
 import { callWebhooks } from './providers/call/routes.ts';
-import { connectMetaPages, SETTINGS_URL } from './providers/metaLogin.ts';
 import { accountOf } from './store.ts';
 
 /** Whether `error` says a delivery can't be read, which no resend changes. */
@@ -44,11 +43,9 @@ const receiveAll = async (webhook: WebhookSource, request: WebhookRequest, route
   return found.every((account) => account !== null) ? found.flat() : null;
 };
 
-const Callback = z.object({ code: z.string(), state: z.string() });
-
 /**
- * The providers' signed-out routes at `/api/public/webhooks`: Meta's login callback, each
- * provider's address check, and the deliveries. A delivery is answered 200 once it is in the
+ * The providers' signed-out routes at `/api/public/webhooks`: each provider's address check, and
+ * the deliveries. A delivery is answered 200 once it is in the
  * inbox or could never be, 401 when its signature fails, and 500 when it could not be stored
  * this time, so the provider sends it again.
  */
@@ -56,30 +53,6 @@ export const webhookRoutes = () => {
   const router = express.Router();
 
   router.use(callWebhooks());
-  router.get('/meta/callback', async (req, res) => {
-    const params = Callback.safeParse(req.query);
-    const back = new URL(SETTINGS_URL);
-
-    if (!params.success) {
-      back.searchParams.set('error', 'Meta did not finish the login');
-      res.redirect(back.toString());
-
-      return;
-    }
-
-    try {
-      back.searchParams.set(
-        'connected',
-        String(await connectMetaPages(params.data.code, params.data.state)),
-      );
-    } catch (error) {
-      logger.warn({ err: error }, 'meta login failed');
-      back.searchParams.set('error', error instanceof Error ? error.message : 'The login failed');
-    }
-
-    res.redirect(back.toString());
-  });
-
   router.get('/:source', async (req, res) => {
     const answer = await WEBHOOKS[req.params.source]?.confirm?.(req.query);
 
@@ -109,8 +82,8 @@ export const webhookRoutes = () => {
     } catch (error) {
       if (!unreadable(error)) throw error;
 
-      // A body that isn't the provider's shape won't be any better sent again, and Meta and
-      // Telegram resend anything but a 2xx, Telegram holding the bot's later updates behind it.
+      // A body that isn't the provider's shape won't be any better sent again, and Telegram
+      // resends anything but a 2xx, holding the bot's later updates behind it.
       logger.warn({ err: error, source }, 'webhook delivery left out');
       res.sendStatus(200);
 

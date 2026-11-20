@@ -23,6 +23,7 @@ import { siteByHost, siteByKey } from '#/modules/helpcenter/site/routes.ts';
 import { runAction } from '#/modules/inbox/automations.ts';
 import { webhookRoutes } from '#/modules/integrations/routes.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
+import { isMetaEvent, receiveMetaEvent } from '#/modules/integrations/providers/metaEvents.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';
 import { timelineRoutes } from '#/modules/timelines.ts';
 import { transferRoutes } from '#/modules/transfer/routes.ts';
@@ -228,7 +229,8 @@ export const createApp = () => {
   });
 
   // Core delivers the manifest's `subscriptions` here, signed over the raw body; anything but
-  // 2xx retries. A change to a branch or department refreshes the organisation's copy.
+  // 2xx retries. A change to a branch or department refreshes the organisation's copy, and a
+  // Facebook or Instagram event reaches the inbox.
   app.post('/api/events', express.text({ type: '*/*', limit: '1mb' }), async (req, res) => {
     const body: unknown = req.body;
 
@@ -250,6 +252,8 @@ export const createApp = () => {
         'units synced',
       );
     }
+
+    if (isMetaEvent(event.type)) await receiveMetaEvent(event);
 
     res.sendStatus(204);
   });

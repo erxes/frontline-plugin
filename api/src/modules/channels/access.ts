@@ -28,6 +28,8 @@ export const askedMember = (orgId: string, userId: string, role = 'member') => {
     tier: null,
     access: 'full',
     canChange: () => true,
+    saas: false,
+    bundles: [],
   } satisfies PluginMember;
 };
 

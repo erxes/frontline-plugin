@@ -17,9 +17,9 @@ import { CallProFields, DiscordFields, PbxFields, TelegramFields } from './Conne
 import { MailFields } from './MailFields.tsx';
 import { queuesOf } from './PbxLines.tsx';
 import { KindIcon } from '~/shared/kinds.tsx';
-import { META_SETTINGS, useConnectMeta, useMetaApp, useProviderNames } from './useIntegrations.ts';
+import { META_SETTINGS, useProviderNames } from './useIntegrations.ts';
 
-/** The providers connected with a form here; Facebook and Instagram connect through Meta's login. */
+/** The providers connected with a form here; Facebook and Instagram connect in core's Settings. */
 export const FORM_PROVIDERS = ['telegram', 'discord', 'mail', 'call', 'callpro'] as const;
 
 const FormProvider = z.enum(FORM_PROVIDERS);
@@ -137,51 +137,25 @@ const ConnectForm = ({
 
 /**
  * What to connect, when the draft opened without a provider (core's New, or a reload): Facebook
- * and Instagram through Meta's login, as the Connect menu offers them, then each provider with a
- * form, whose form takes this list's place.
+ * and Instagram in core's Settings › Integrations, as the Connect menu offers them, then each
+ * provider with a form, whose form takes this list's place.
  */
-const ProviderPicker = ({
-  channelId,
-  onPick,
-}: {
-  channelId?: string;
-  onPick: (provider: FormProvider) => void;
-}) => {
+const ProviderPicker = ({ onPick }: { onPick: (provider: FormProvider) => void }) => {
   const { t } = useTranslation('frontline');
   const names = useProviderNames();
-  const meta = useConnectMeta();
-  const metaApp = useMetaApp();
-  const row = buttonVariants({ variant: 'ghost', className: 'w-full justify-start' });
-
-  const metaName = (
-    <>
-      <KindIcon kind="facebook" />
-      {t('facebook-and-instagram', 'Facebook and Instagram')}
-    </>
-  );
 
   return (
     <div className="flex flex-col gap-2 p-3">
       <p className="text-sm text-muted-foreground">{t('pick-provider', 'Pick what to connect')}</p>
       <ul aria-label={t('pick-provider', 'Pick what to connect')} className="flex flex-col gap-0.5">
         <li>
-          {metaApp === false ? (
-            <Link to={META_SETTINGS} className={row}>
-              {metaName}
-              <span className="text-xs text-muted-foreground">
-                {t('meta-app-missing', 'Set up a Meta app in Settings first')}
-              </span>
-            </Link>
-          ) : (
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              disabled={metaApp === undefined || meta.isPending}
-              onClick={() => meta.mutate({ channelId })}
-            >
-              {metaName}
-            </Button>
-          )}
+          <Link
+            to={META_SETTINGS}
+            className={buttonVariants({ variant: 'ghost', className: 'w-full justify-start' })}
+          >
+            <KindIcon kind="facebook" />
+            {t('facebook-and-instagram', 'Facebook and Instagram')}
+          </Link>
         </li>
         {FORM_PROVIDERS.map((provider) => (
           <li key={provider}>
@@ -212,7 +186,7 @@ export const AccountNew = ({ defaults, ...props }: TRecordDraftProps) => {
   const provider = named.success ? named.data : picked;
   const channelId = textOf(defaults.channelId) || undefined;
 
-  if (!provider) return <ProviderPicker channelId={channelId} onPick={setPicked} />;
+  if (!provider) return <ProviderPicker onPick={setPicked} />;
 
   return <ConnectForm provider={provider} into={{ channelId }} {...props} />;
 };

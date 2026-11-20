@@ -3,7 +3,6 @@ import { config } from '#/config.ts';
 import {
   CHANNEL_EVENTS,
   CHANNEL_TIMELINE,
-  COMMENT_RECEIVED,
   CONVERSATION_EVENTS,
   CONVERSATION_TIMELINE,
   FORM_ACTIONS,
@@ -16,6 +15,7 @@ import {
   JOBS,
   MESSAGE_RECEIVED,
   MESSAGE_RECEIVED_EVENT,
+  META_SUBSCRIPTIONS,
   PERMISSIONS,
   SEND_ACTIONS,
   SURVEY_EVENTS,
@@ -84,9 +84,11 @@ export const manifest = {
     'files:write',
     'units:read',
     'units:write',
+    'meta:read',
+    'meta:write',
   ],
   // Any change to a unit refreshes the copy (`modules/teams/sync.ts`).
-  subscriptions: ['core.unit.*'],
+  subscriptions: ['core.unit.*', ...META_SUBSCRIPTIONS],
   // Conversations, tickets and form submissions in core's customer filter (`relations.ts`).
   relations: RELATIONS,
   permissions: [
@@ -230,7 +232,7 @@ export const manifest = {
       subject: 'customer' as const,
     })),
     MESSAGE_RECEIVED_EVENT,
-    ...[...Object.values(MESSAGE_RECEIVED), ...Object.values(COMMENT_RECEIVED)].map((event) => ({
+    ...Object.values(MESSAGE_RECEIVED).map((event) => ({
       ...event,
       subject: 'customer' as const,
     })),

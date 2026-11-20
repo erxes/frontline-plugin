@@ -6,16 +6,16 @@ import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { useIntegrationChange } from '@/inbox/queries.ts';
-import { useBots, useMetaAccounts } from './useIntegrations.ts';
+import { useBots, useMetaConnections } from './useIntegrations.ts';
 
 /** The pages and accounts without a bot: a page has one. */
 const AccountSelect = ({ value, onChange }: { value: string; onChange: (id: string) => void }) => {
   const { t } = useTranslation('frontline');
-  const accounts = useMetaAccounts();
+  const accounts = useMetaConnections();
   const bots = useBots();
 
   const free = (accounts.data ?? []).filter(
-    (account) => !bots.data?.some((bot) => bot.accountId === account.id),
+    (account) => !bots.data?.some((bot) => bot.connectionId === account.id),
   );
 
   const nameOf = (id: string) => accounts.data?.find((account) => account.id === id)?.name ?? '';
@@ -44,7 +44,7 @@ const AccountSelect = ({ value, onChange }: { value: string; onChange: (id: stri
  */
 export const BotNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
-  const [accountId, setAccountId] = useState(() => textOf(defaults.accountId));
+  const [connectionId, setConnectionId] = useState(() => textOf(defaults.connectionId));
   const { onSuccess } = useIntegrationChange();
 
   const create = useMutation(
@@ -61,7 +61,7 @@ export const BotNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => 
     const form = new FormData(event.currentTarget);
 
     create.mutate({
-      accountId,
+      connectionId,
       name: textOf(form.get('name')),
       getStartedText: textOf(form.get('getStartedText')) || null,
       greeting: textOf(form.get('greeting')) || null,
@@ -78,7 +78,7 @@ export const BotNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => 
         saveLabel={t('create-bot', 'Create bot')}
       >
         <PanelFormRow label={t('page', 'Page')} icon={IconBrandFacebook} required>
-          <AccountSelect value={accountId} onChange={setAccountId} />
+          <AccountSelect value={connectionId} onChange={setConnectionId} />
         </PanelFormRow>
         <TextRow label={t('name', 'Name')} icon={IconLetterCase} name="name" required />
         <TextRow
