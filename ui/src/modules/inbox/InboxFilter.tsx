@@ -3,7 +3,6 @@ import {
   IconCalendarCheck,
   IconCalendarPlus,
   IconCalendarUp,
-  IconCircles,
   IconEye,
   IconMessageQuestion,
   IconPlug,
@@ -14,12 +13,11 @@ import {
   IconUserShare,
   IconUsers,
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
 import type { TListFilterField } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { useKindNames } from '~/shared/kinds.tsx';
-import { channelsQuery } from '~/shared/reference.ts';
 import { type Conversation, useIntegrations } from './queries.ts';
+import { useChannelField } from '~/shared/channelField.ts';
 
 /** What each status reads as. */
 export const useStatusNames = (): Record<Conversation['status'], string> => {
@@ -92,7 +90,7 @@ const useYesNoFields = (): TListFilterField[] => {
  */
 export const useInboxFields = (): TListFilterField[] => {
   const { t } = useTranslation('frontline');
-  const channels = useQuery(channelsQuery).data?.channels ?? [];
+  const channelField = useChannelField();
   // Archived integrations leave the pickers, as the old inbox's did.
   const integrations = (useIntegrations().data ?? []).filter(({ isActive }) => isActive);
   const statuses = useStatusNames();
@@ -106,13 +104,7 @@ export const useInboxFields = (): TListFilterField[] => {
       icon: IconProgressCheck,
       options: Object.entries(statuses).map(([value, label]) => ({ value, label })),
     },
-    {
-      path: 'subject.channelId',
-      label: t('channel', 'Channel'),
-      type: 'select',
-      icon: IconCircles,
-      options: channels.map((channel) => ({ value: channel.id, label: channel.name })),
-    },
+    ...channelField,
     {
       path: 'subject.integrationId',
       label: t('integration', 'Integration'),

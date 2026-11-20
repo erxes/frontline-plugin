@@ -146,7 +146,10 @@ export const InboxGroups = () => {
         ))}
         {personal.length === 0 && <CreatePersonal />}
       </NavGroup>
-      <TeamChannels channels={counts.channels.filter((channel) => !channel.personal)} />
+      {/* With one channel the inbox is that channel already. */}
+      {counts.channels.length > 1 && (
+        <TeamChannels channels={counts.channels.filter((channel) => !channel.personal)} />
+      )}
     </>
   );
 };

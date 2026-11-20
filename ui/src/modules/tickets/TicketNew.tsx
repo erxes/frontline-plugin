@@ -10,7 +10,7 @@ import {
   IconUser,
   IconUserCircle,
 } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   DatePicker,
   Editor,
@@ -22,7 +22,7 @@ import {
 } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useChannels } from '@/channels/useChannels.ts';
+import { channelsQuery } from '~/shared/reference.ts';
 import { orpc } from '~/orpc.ts';
 import { useDiscard } from '~/shared/drafts.ts';
 import { MemberSelect } from '~/shared/MemberPicker.tsx';
@@ -45,8 +45,14 @@ const PipelineSelect = ({
 }) => {
   const { t } = useTranslation('frontline');
   const { pipelines } = useChoices();
-  const channels = useChannels().data?.channels ?? [];
+  const channels = useQuery(channelsQuery).data?.channels ?? [];
   const channelName = new Map(channels.map((channel) => [channel.id, channel.name]));
+
+  // A member in one channel picks by pipeline alone.
+  const labelOf = (pipeline: { channelId: string; name: string }) =>
+    channels.length < 2
+      ? pipeline.name
+      : `${channelName.get(pipeline.channelId) ?? ''} › ${pipeline.name}`;
 
   return (
     <Select value={value} onValueChange={(next) => next && onChange(next)}>
@@ -56,7 +62,7 @@ const PipelineSelect = ({
       <Select.Content>
         {pipelines.map((pipeline) => (
           <Select.Item key={pipeline.id} value={pipeline.id}>
-            {`${channelName.get(pipeline.channelId) ?? ''} › ${pipeline.name}`}
+            {labelOf(pipeline)}
           </Select.Item>
         ))}
       </Select.Content>

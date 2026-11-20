@@ -33,9 +33,9 @@ import { AppHeader } from '~/shared/Header.tsx';
 import { KindIcon, useKindNames } from '~/shared/kinds.tsx';
 import { ListEmpty } from '~/shared/List.tsx';
 import { RowActions, TextCell } from '~/shared/Records.tsx';
-import { channelsQuery } from '~/shared/reference.ts';
 import { column as columnOf, DateCell, Rows } from '~/shared/Table.tsx';
 import { ConnectMenu, useCanConnect } from './ConnectMenu.tsx';
+import { useChannelField, useManyChannels } from '~/shared/channelField.ts';
 
 const column = columnOf<Integration>;
 
@@ -98,8 +98,9 @@ const OpenCell = ({
 const useColumns = (): RecordTableColumnDef<Integration>[] => {
   const { t } = useTranslation('frontline');
   const kinds = useKindNames();
+  const manyChannels = useManyChannels();
 
-  return [
+  const columns: RecordTableColumnDef<Integration>[] = [
     {
       id: 'more',
       header: () => <RecordTable.ColumnSelector />,
@@ -131,13 +132,16 @@ const useColumns = (): RecordTableColumnDef<Integration>[] => {
       <DateCell date={integration.createdAt} />
     )),
   ];
+
+  // A member in one channel sees it on every row, so the column says nothing.
+  return manyChannels ? columns : columns.filter(({ id }) => id !== 'channel');
 };
 
 /** What the filter bar narrows integrations by; the API applies it. */
 const useFields = (): TListFilterField[] => {
   const { t } = useTranslation('frontline');
   const kinds = useKindNames();
-  const channels = useQuery(channelsQuery).data?.channels ?? [];
+  const channelField = useChannelField();
 
   return [
     { path: 'subject.name', label: t('name', 'Name'), type: 'text', icon: IconLetterCase },
@@ -148,13 +152,7 @@ const useFields = (): TListFilterField[] => {
       icon: IconPlugConnected,
       options: Object.entries(kinds).map(([value, label]) => ({ value, label })),
     },
-    {
-      path: 'subject.channelId',
-      label: t('channel', 'Channel'),
-      type: 'select',
-      icon: IconCircles,
-      options: channels.map((channel) => ({ value: channel.id, label: channel.name })),
-    },
+    ...channelField,
     {
       path: 'subject.isActive',
       label: t('active', 'Active'),

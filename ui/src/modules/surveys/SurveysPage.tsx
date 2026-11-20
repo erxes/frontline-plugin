@@ -3,7 +3,6 @@ import {
   IconCalendarPlus,
   IconCalendarUp,
   IconChecklist,
-  IconCircles,
   IconHelp,
   IconLetterCase,
   IconProgressCheck,
@@ -20,7 +19,6 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { useChannels } from '@/channels/useChannels.ts';
 import { SURVEY_TYPE } from '~/plugin.ts';
 import { useManagedChannels } from '~/shared/ChannelSelect.tsx';
 import { ArchiveButtons } from '~/shared/ArchiveButtons.tsx';
@@ -35,6 +33,7 @@ import {
   useStatusNames,
   useSurveys,
 } from './useSurveys.ts';
+import { useChannelField } from '~/shared/channelField.ts';
 
 const LIST = 'frontline-surveys';
 
@@ -65,7 +64,7 @@ const bulk = (selected: string[], clear: () => void) => (
 const useFields = (): TListFilterField[] => {
   const { t } = useTranslation('frontline');
   const statuses = useStatusNames();
-  const channels = useChannels().data?.channels ?? [];
+  const channelField = useChannelField();
 
   return [
     { path: 'subject.title', label: t('title', 'Title'), type: 'text', icon: IconLetterCase },
@@ -82,13 +81,7 @@ const useFields = (): TListFilterField[] => {
       icon: IconProgressCheck,
       options: SURVEY_STATUSES.map((status) => ({ value: status, label: statuses[status] })),
     },
-    {
-      path: 'subject.channelId',
-      label: t('channel', 'Channel'),
-      type: 'select',
-      icon: IconCircles,
-      options: channels.map((channel) => ({ value: channel.id, label: channel.name })),
-    },
+    ...channelField,
     { path: 'subject.sentCount', label: t('survey-sent', 'Sent'), type: 'number', icon: IconSend },
     { path: 'subject.createdBy', label: t('created-by', 'Created by'), type: 'member' },
     {

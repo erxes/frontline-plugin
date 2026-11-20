@@ -1,7 +1,6 @@
 import {
   IconArrowsExchange,
   IconCalendarBolt,
-  IconCircles,
   IconClock,
   IconHash,
   IconPhone,
@@ -12,11 +11,10 @@ import {
   IconUser,
   IconUsersGroup,
 } from '@tabler/icons-react';
-import { useQuery } from '@tanstack/react-query';
 import { Badge, type BadgeProps, type TListFilterField } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { channelsQuery } from '~/shared/reference.ts';
 import type { Call } from './queries.ts';
+import { useChannelField } from '~/shared/channelField.ts';
 
 type Status = Call['status'];
 
@@ -88,16 +86,10 @@ export const useCallFields = (): TListFilterField[] => {
   const { t } = useTranslation('frontline');
   const statuses = useCallStatusNames();
   const directions = useDirectionNames();
-  const channels = useQuery(channelsQuery).data?.channels ?? [];
+  const channelField = useChannelField();
 
   return [
-    {
-      path: 'subject.channelId',
-      label: t('channel', 'Channel'),
-      type: 'select',
-      icon: IconCircles,
-      options: channels.map((channel) => ({ value: channel.id, label: channel.name })),
-    },
+    ...channelField,
     {
       path: 'subject.status',
       label: t('status', 'Status'),
