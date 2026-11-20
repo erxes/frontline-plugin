@@ -84,6 +84,11 @@ export const markRefused = async (row: AccountRow, error: unknown) => {
  * whether the caller may connect and change them.
  */
 const list = reads(PERMISSIONS.integrationView)
+  .route({
+    summary: 'List connected accounts: Facebook pages, Instagram, Telegram, Discord, mail, calls',
+    description:
+      'One provider with `provider`, or all; an account’s `id` is the `accountId` others take.',
+  })
   .input(z.object({ provider: z.enum(PROVIDERS).optional() }))
   .output(z.object({ accounts: z.array(Account), canManage: z.boolean() }))
   .handler(async ({ input, context: { tx, member } }) => {
