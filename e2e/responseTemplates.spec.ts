@@ -23,7 +23,7 @@ test("a channel admin writes, edits and deletes the channel's response templates
   await panel.getByPlaceholder('Search members').fill(teammate.fullName);
   await panel.getByRole('option', { name: teammate.fullName }).click();
   await panel.getByRole('button', { name: 'Create channel' }).click();
-  await panel.getByRole('tab', { name: 'Response templates' }).click();
+  await panel.getByRole('tab', { name: 'Templates' }).click();
   await panel.getByRole('link', { name: 'Manage channel response templates' }).click();
 
   await expectPage(page, 'Response templates');

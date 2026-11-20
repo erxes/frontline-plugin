@@ -30,7 +30,7 @@ export const CHANNEL_TABS: TRecordTab[] = [
   },
   {
     value: 'pipelines',
-    label: 'Ticket pipelines',
+    label: 'Pipelines',
     icon: IconGitBranch,
     component: lazy(async () => ({ default: (await channel()).PipelinesTab })),
   },
@@ -42,7 +42,7 @@ export const CHANNEL_TABS: TRecordTab[] = [
   },
   {
     value: 'templates',
-    label: 'Response templates',
+    label: 'Templates',
     icon: IconMessageReply,
     component: lazy(async () => ({ default: (await channel()).TemplatesTab })),
   },

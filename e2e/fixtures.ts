@@ -81,7 +81,7 @@ export const createChannel = async (page: Page, memberName?: string) => {
   await panel.getByRole('switch', { name: 'Website messenger' }).click();
   await panel.getByRole('switch', { name: 'Ticket pipeline' }).click();
   await panel.getByRole('button', { name: 'Create channel' }).click();
-  await expect(panel.getByRole('tab', { name: 'Ticket pipelines' })).toBeVisible();
+  await expect(panel.getByRole('tab', { name: 'Pipelines' })).toBeVisible();
 
   return channel;
 };
@@ -92,7 +92,7 @@ export const openChannelPipelines = async (page: Page, memberName?: string) => {
 
   const panel = recordPanel(page);
 
-  await panel.getByRole('tab', { name: 'Ticket pipelines' }).click();
+  await panel.getByRole('tab', { name: 'Pipelines' }).click();
   await panel.getByRole('link', { name: 'Manage channel pipelines' }).click();
   await expect(page.getByText('No pipelines yet')).toBeVisible();
 

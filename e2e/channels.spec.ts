@@ -33,7 +33,7 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
   await expect(panel.getByRole('tab', { name: 'Activity' })).toBeHidden();
   await panel.getByRole('tab', { name: 'Integrations' }).click();
   await expect(panel.getByRole('button', { name, exact: true })).toBeVisible();
-  await panel.getByRole('tab', { name: 'Ticket pipelines' }).click();
+  await panel.getByRole('tab', { name: 'Pipelines' }).click();
   await expect(panel.getByRole('button', { name: 'Support', exact: true })).toBeVisible();
   await panel.getByRole('tab', { name: 'Members' }).click();
   await expect(panel.getByText(teammate.fullName)).toBeVisible();
