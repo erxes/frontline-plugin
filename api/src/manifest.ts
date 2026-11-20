@@ -3,26 +3,20 @@ import { config } from '#/config.ts';
 import {
   CHANNEL_EVENTS,
   CHANNEL_TIMELINE,
-  COMMENT_RECEIVED,
   CONVERSATION_EVENTS,
   CONVERSATION_TIMELINE,
-  FORM_ACTIONS,
   FORM_EVENTS,
-  FORM_LINK_DAYS,
   FORM_TIMELINE,
-  INBOX_ACTIONS,
   INBOX_NOTIFICATIONS,
   INTEGRATION_BROKEN,
   JOBS,
-  MESSAGE_RECEIVED,
-  MESSAGE_RECEIVED_EVENT,
   PERMISSIONS,
-  SEND_ACTIONS,
   SURVEY_EVENTS,
   SURVEY_TIMELINE,
   TICKET_EVENTS,
   TICKET_TIMELINE,
 } from '#/core.ts';
+import { AUTOMATION_ACTIONS, AUTOMATION_EVENTS } from '#/automationContract.ts';
 import { TRANSFERS } from '#/modules/transfer/routes.ts';
 import { RELATIONS } from '#/relations.ts';
 
@@ -206,35 +200,7 @@ export const manifest = {
     { kind: INTEGRATION_BROKEN, label: 'A page, bot or mailbox you connected stopped working' },
   ],
   jobs: Object.values(JOBS),
-  // What automations can start on: ticket and form events, a conversation's events, each
-  // customer message and each comment under a connected post.
-  events: [
-    { type: TICKET_EVENTS.created.type, label: TICKET_EVENTS.created.label },
-    { type: TICKET_EVENTS.moved.type, label: 'Ticket status changed' },
-    { type: TICKET_EVENTS.slaBreached.type, label: TICKET_EVENTS.slaBreached.label },
-    {
-      type: FORM_EVENTS.submitted.type,
-      label: FORM_EVENTS.submitted.label,
-      description: 'A visitor sent a form; the customer is who sent it',
-      subject: 'customer',
-      fields: [
-        { key: 'formId', label: 'Form ID', type: 'text' },
-        { key: 'submissionId', label: 'Submission ID', type: 'text' },
-        { key: 'referenceType', label: 'Answered about (record type)', type: 'text' },
-        { key: 'referenceId', label: 'Answered about (record ID)', type: 'text' },
-      ],
-    },
-    ...Object.values(CONVERSATION_EVENTS).map(({ type, label }) => ({
-      type,
-      label,
-      subject: 'customer' as const,
-    })),
-    MESSAGE_RECEIVED_EVENT,
-    ...[...Object.values(MESSAGE_RECEIVED), ...Object.values(COMMENT_RECEIVED)].map((event) => ({
-      ...event,
-      subject: 'customer' as const,
-    })),
-  ],
+  events: AUTOMATION_EVENTS,
   timelines: [
     // Core asks `/timelines/access` whether the member sees each record (`modules/timelines.ts`).
     {
@@ -270,47 +236,5 @@ export const manifest = {
     ...activityTypes(CHANNEL_EVENTS, 'IconCircles'),
     ...activityTypes(CONVERSATION_EVENTS, 'IconMessage'),
   ],
-  actions: [
-    {
-      type: INBOX_ACTIONS.reply,
-      label: 'Reply in the conversation',
-      description: 'The bot answers the customer, unless a person has taken the conversation over',
-      subject: 'customer',
-      fields: [{ key: 'content', label: 'Message', type: 'longtext', required: true }],
-    },
-    {
-      type: INBOX_ACTIONS.handOff,
-      label: 'Hand off to a person',
-      description: 'Stops automated replies, tells the customer and can assign a member',
-      subject: 'customer',
-      fields: [{ key: 'assigneeIds', label: 'Assign to', type: 'members', required: false }],
-    },
-    {
-      type: FORM_ACTIONS.createLink,
-      label: 'Create form link',
-      description:
-        "A personal link to a form: its answer is saved as the run's customer's, about the record the run started on, once",
-      fields: [
-        { key: 'formId', label: 'Form', type: 'plugin_record', recordType: 'form', required: true },
-        {
-          key: 'expiresInDays',
-          label: 'Expires after (days)',
-          type: 'number',
-          required: false,
-          placeholder: String(FORM_LINK_DAYS.default),
-        },
-      ],
-      outputs: [
-        { key: 'url', label: 'Form link', type: 'text' },
-        { key: 'expiresAt', label: 'Link expires at', type: 'date' },
-        { key: 'linkId', label: 'Link ID', type: 'text' },
-        { key: 'formId', label: 'Form ID', type: 'text' },
-      ],
-    },
-    ...Object.values(SEND_ACTIONS).map((action) => ({
-      ...action,
-      subject: 'customer' as const,
-      fields: [{ key: 'message', label: 'Message', type: 'longtext' as const, required: true }],
-    })),
-  ],
+  actions: AUTOMATION_ACTIONS,
 } satisfies PluginManifest;

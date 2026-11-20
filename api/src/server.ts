@@ -18,6 +18,7 @@ import { fail, verifiedBy } from '#/modules/fail.ts';
 import { visitorIpLimit } from '#/modules/limits.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
 import { formChoices } from '#/modules/forms/links.ts';
+import { pipelineChoices } from '#/modules/tickets/automation.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
 import { siteByHost, siteByKey } from '#/modules/helpcenter/site/routes.ts';
 import { runAction } from '#/modules/inbox/automations.ts';
@@ -133,6 +134,17 @@ const automationRoutes = () =>
         res.json(await formChoices(member));
       } catch (error) {
         fail(res, error, 'form choices');
+      }
+    })
+    .get('/records/pipeline', async (req, res) => {
+      const member = await memberOf(req, res, 'Open this plugin inside erxes to sign in');
+
+      if (!member) return;
+
+      try {
+        res.json(await pipelineChoices(member));
+      } catch (error) {
+        fail(res, error, 'pipeline choices');
       }
     });
 

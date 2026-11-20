@@ -297,7 +297,7 @@ describe('messenger', () => {
 
     const events = await withOrg('org-ms-e', (tx) =>
       tx.execute(sql`select subject_type, entity_id, payload from core_events
-        where type = 'frontline.conversation.message_received' and org_id = 'org-ms-e'`),
+        where type like '%.message_received' and org_id = 'org-ms-e' order by type`),
     );
 
     expect(events.rows).toMatchObject([
@@ -306,6 +306,7 @@ describe('messenger', () => {
         entity_id: null,
         payload: { conversationId: id, kind: 'messenger', operator: 'bot', content: 'Trigger me' },
       },
+      { subject_type: 'customer', entity_id: id, payload: { conversationId: id } },
     ]);
   });
 

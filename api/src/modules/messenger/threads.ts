@@ -4,6 +4,7 @@ import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { PLUGIN } from '#/config.ts';
+import { MESSAGE_RECEIVED } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { fail } from '../fail.ts';
@@ -206,7 +207,12 @@ const send = asVisitor(async (visitor, req, res) => {
   if (settings?.requireAuth && !visitor.identified)
     throw new ORPCError('FORBIDDEN', { message: 'Leave your email or phone number first' });
 
-  const message = await receive(visitor.orgId, { ...visitor, ...input, attachments });
+  const message = await receive(visitor.orgId, {
+    ...visitor,
+    ...input,
+    attachments,
+    event: MESSAGE_RECEIVED.messenger.type,
+  });
 
   const reply: VisitorMessage = {
     id: message.id,

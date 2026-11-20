@@ -129,6 +129,11 @@ export const MESSAGE_RECEIVED = {
   },
   facebook: { type: 'frontline.facebook.message_received', label: 'Facebook message received' },
   instagram: { type: 'frontline.instagram.message_received', label: 'Instagram message received' },
+  messenger: {
+    type: 'frontline.messenger.message_received',
+    label: 'Messenger message received',
+    description: 'A visitor wrote in a website messenger',
+  },
 } as const;
 
 /** What a person's comment under a connected page's or account's post publishes. */
@@ -167,6 +172,11 @@ export const SEND_ACTIONS = {
     label: 'Reply on Instagram',
     description: 'Answers in the chat, or in the comment thread under a post, as the account',
   },
+  messenger: {
+    type: 'frontline.messenger.send_message',
+    label: 'Send Messenger Message',
+    description: "Reply in the visitor's website messenger chat",
+  },
 } as const;
 
 /** Tells whoever connected an account that the provider stopped accepting it. */
@@ -183,6 +193,10 @@ export const TICKET_EVENTS = {
   assigned: { type: 'frontline.ticket.assigned', label: 'Ticket assigned' },
   slaWarning: { type: 'frontline.ticket.sla_warning', label: 'Ticket SLA running out' },
   slaBreached: { type: 'frontline.ticket.sla_breached', label: 'Ticket SLA missed' },
+} as const;
+
+export const TICKET_ACTIONS = {
+  create: 'frontline.ticket.create',
 } as const;
 
 /** The record type whose Activity tab shows a channel's events. */
