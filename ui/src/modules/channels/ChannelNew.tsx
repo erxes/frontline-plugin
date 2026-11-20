@@ -1,7 +1,14 @@
 import { memberQueries } from '@erxes/core-contract/client';
 import { CHANNEL_ICON } from '~/shared/icons.ts';
 import { isDefinedError } from '@orpc/client';
-import { IconAlignLeft, IconIcons, IconLetterCase, IconUsers } from '@tabler/icons-react';
+import {
+  IconAlignLeft,
+  IconGitBranch,
+  IconIcons,
+  IconLetterCase,
+  IconMessageCircle,
+  IconUsers,
+} from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   EntityPicker,
@@ -9,15 +16,17 @@ import {
   memberName,
   PanelFormLayout,
   PanelFormRow,
+  Switch,
   type TRecordDraftProps,
   textOf,
+  toast,
 } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MemberLine } from '~/shared/Person.tsx';
 import { orpc } from '~/orpc.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
-import { useChannelChange } from './useChannels.ts';
+import { useChange } from '~/shared/hooks.ts';
 
 /** Team members to pick, several at once, leaving out `exclude`. */
 export const MemberPicker = ({
@@ -48,25 +57,99 @@ export const MemberPicker = ({
   );
 };
 
-/**
- * A new channel in core's side panel, under its "New channel" header: icon, name, description
- * and its first members. Nothing saves until Save; CHANNEL_NAME_TAKEN shows under the name, and
- * the fields keep what was typed.
- */
-export const ChannelNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
-  const { t } = useTranslation('frontline');
-  const [icon, setIcon] = useState<string | null>(CHANNEL_ICON);
-  const [memberIds, setMemberIds] = useState<string[]>([]);
-  const { onSuccess } = useChannelChange();
+/** What a new channel starts with, beside itself. */
+type Starters = { messenger: boolean; pipeline: boolean };
 
-  const create = useMutation(
+/**
+ * Creates the channel, then what it starts with: a website messenger and a ticket pipeline, so
+ * conversations can come in and turn into tickets from the start. The channel stands even when a
+ * starter fails; the toast says which, and its tab adds it again.
+ */
+const useCreateChannel = (starters: Starters, onCreated: (id: string) => void) => {
+  const { t } = useTranslation('frontline');
+
+  const { onSuccess } = useChange(
+    orpc.channels.key(),
+    orpc.integrations.key(),
+    orpc.pipelines.key(),
+    orpc.conversations.counts.key(),
+  );
+
+  // Save stays busy until the starters are made too, as TanStack waits on `onSuccess`.
+  const addStarters = async (channel: { id: string; name: string }) => {
+    const results = await Promise.allSettled([
+      starters.messenger &&
+        orpc.integrations.create.call({
+          channelId: channel.id,
+          kind: 'messenger',
+          name: channel.name,
+          config: { welcome: '' },
+        }),
+      starters.pipeline &&
+        orpc.pipelines.create.call({
+          channelId: channel.id,
+          name: t('starter-pipeline', 'Support'),
+        }),
+    ]);
+
+    if (results.some((result) => result.status === 'rejected')) {
+      toast({
+        title: t('channel-starters-failed', 'The channel is made, but not all it starts with'),
+        description: t(
+          'channel-starters-failed-hint',
+          'Add the messenger or pipeline from the channel’s tabs.',
+        ),
+        variant: 'destructive',
+      });
+    }
+  };
+
+  return useMutation(
     orpc.channels.create.mutationOptions({
-      onSuccess: (channel) => {
+      onSuccess: async (channel) => {
+        await addStarters(channel);
         onSuccess();
         onCreated(channel.id);
       },
     }),
   );
+};
+
+/** A starter the new channel can begin with, on until turned off. */
+const StarterRow = ({
+  label,
+  hint,
+  icon,
+  checked,
+  onCheckedChange,
+}: {
+  label: string;
+  hint: string;
+  icon: typeof IconUsers;
+  checked: boolean;
+  onCheckedChange: (checked: boolean) => void;
+}) => (
+  <PanelFormRow label={label} icon={icon} hint={hint}>
+    <Switch
+      aria-label={label}
+      checked={checked}
+      onCheckedChange={onCheckedChange}
+      className="mx-2"
+    />
+  </PanelFormRow>
+);
+
+/**
+ * A new channel in core's side panel, under its "New channel" header: icon, name, description,
+ * its first members, and what it starts with, a website messenger and a ticket pipeline. Nothing
+ * saves until Save; CHANNEL_NAME_TAKEN shows under the name, and the fields keep what was typed.
+ */
+export const ChannelNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
+  const { t } = useTranslation('frontline');
+  const [icon, setIcon] = useState<string | null>(CHANNEL_ICON);
+  const [memberIds, setMemberIds] = useState<string[]>([]);
+  const [starters, setStarters] = useState<Starters>({ messenger: true, pipeline: true });
+  const create = useCreateChannel(starters, onCreated);
 
   const takenName =
     isDefinedError(create.error) && create.error.code === 'CHANNEL_NAME_TAKEN'
@@ -122,6 +205,20 @@ export const ChannelNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
         <PanelFormRow label={t('members', 'Members')} icon={IconUsers}>
           <MemberPicker value={memberIds} onValueChange={setMemberIds} />
         </PanelFormRow>
+        <StarterRow
+          label={t('website-messenger', 'Website messenger')}
+          hint={t('starter-messenger-hint', 'A chat widget for your site, set up after Save')}
+          icon={IconMessageCircle}
+          checked={starters.messenger}
+          onCheckedChange={(messenger) => setStarters((value) => ({ ...value, messenger }))}
+        />
+        <StarterRow
+          label={t('ticket-pipeline', 'Ticket pipeline')}
+          hint={t('starter-pipeline-hint', 'Support, with the default statuses')}
+          icon={IconGitBranch}
+          checked={starters.pipeline}
+          onCheckedChange={(pipeline) => setStarters((value) => ({ ...value, pipeline }))}
+        />
         {create.error && !isDefinedError(create.error) && (
           <p role="alert" className="text-xs text-destructive-text">
             {create.error.message}

@@ -97,9 +97,10 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   const settingsUrl = page.url();
   const panel = recordPanel(page);
 
-  // The channel's panel lists the messenger with a link to its settings.
+  // The channel's Integrations tab lists the messenger with a link to its settings.
   await page.goto('/frontline/settings/channels');
   await page.getByText(channel, { exact: true }).click();
+  await panel.getByRole('tab', { name: 'Integrations' }).click();
   await panel.getByRole('link', { name: /^Settings of Website / }).click();
   await expect(page).toHaveURL(settingsUrl);
 

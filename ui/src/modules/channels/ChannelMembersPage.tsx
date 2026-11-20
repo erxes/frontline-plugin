@@ -44,7 +44,7 @@ import {
 type MemberRow = ChannelMember & { id: string };
 
 /** Asks, then removes members; the API refuses to leave the channel without an admin. */
-const useRemoveMembers = (channelId: string) => {
+export const useRemoveMembers = (channelId: string) => {
   const { t } = useTranslation('frontline');
   const { confirm } = useConfirm();
   const remove = useMutation(orpc.channels.removeMembers.mutationOptions(useChannelChange()));
@@ -194,7 +194,7 @@ const MembersCommandBar = ({ channel }: { channel: Channel }) => {
 };
 
 /** The header's action: pick teammates who aren't in the channel yet, then add them. */
-const AddMembers = ({ channel }: { channel: Channel }) => {
+export const AddMembers = ({ channel }: { channel: Channel }) => {
   const { t } = useTranslation('frontline');
   const change = useChannelChange();
   const [open, setOpen] = useState(false);

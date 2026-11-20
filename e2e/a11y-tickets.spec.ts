@@ -38,8 +38,9 @@ test('a channel and its members', async ({ page }) => {
   await page.goto(recordPath(`${SETTINGS}/channels`, 'frontline:channel'));
   await expectAccessible(page, panel.getByLabel('Name'));
   await createChannel(page);
-  await expectAccessible(page, panel.getByRole('link', { name: /Manage channel members/ }));
-  await panel.getByRole('link', { name: /Manage channel members/ }).click();
+  await panel.getByRole('tab', { name: 'Members' }).click();
+  await expectAccessible(page, panel.getByRole('link', { name: 'Manage channel members' }));
+  await panel.getByRole('link', { name: 'Manage channel members' }).click();
   await expectAccessible(page, page.getByRole('combobox', { name: 'Role: Admin' }));
 });
 

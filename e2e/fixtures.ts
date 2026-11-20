@@ -62,7 +62,10 @@ export const confirmDelete = async (page: Page) => {
   await confirm.getByRole('button', { name: 'Delete' }).click();
 };
 
-/** Creates a channel, with `memberName` in it when given, and leaves it open in the side panel. */
+/**
+ * Creates a channel without its starter messenger and pipeline, with `memberName` in it when
+ * given, and leaves it open in the side panel.
+ */
 export const createChannel = async (page: Page, memberName?: string) => {
   const channel = `Support ${unique()}`;
   const panel = recordPanel(page);
@@ -75,8 +78,10 @@ export const createChannel = async (page: Page, memberName?: string) => {
     await panel.getByRole('option', { name: memberName }).click();
   }
 
+  await panel.getByRole('switch', { name: 'Website messenger' }).click();
+  await panel.getByRole('switch', { name: 'Ticket pipeline' }).click();
   await panel.getByRole('button', { name: 'Create channel' }).click();
-  await expect(panel.getByRole('link', { name: /Manage channel pipelines/ })).toBeVisible();
+  await expect(panel.getByRole('tab', { name: 'Ticket pipelines' })).toBeVisible();
 
   return channel;
 };
@@ -85,9 +90,10 @@ export const createChannel = async (page: Page, memberName?: string) => {
 export const openChannelPipelines = async (page: Page, memberName?: string) => {
   const channel = await createChannel(page, memberName);
 
-  await recordPanel(page)
-    .getByRole('link', { name: /Manage channel pipelines/ })
-    .click();
+  const panel = recordPanel(page);
+
+  await panel.getByRole('tab', { name: 'Ticket pipelines' }).click();
+  await panel.getByRole('link', { name: 'Manage channel pipelines' }).click();
   await expect(page.getByText('No pipelines yet')).toBeVisible();
 
   return channel;

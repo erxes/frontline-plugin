@@ -30,6 +30,13 @@ const useKinds = (channelId: string) => {
   );
 };
 
+/** How many integrations bring conversations into the channel, once they load. */
+export const useIntegrationCount = (channelId: string) => {
+  const { data } = useQuery(integrationsQuery);
+
+  return data?.filter((integration) => integration.channelId === channelId).length;
+};
+
 /**
  * The list's Integrations cell: one chip per kind, its icon and how many, as the old channel list
  * showed them. It opens the integrations themselves, each leading to its side panel, and closes
