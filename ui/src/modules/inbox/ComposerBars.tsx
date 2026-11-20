@@ -136,7 +136,10 @@ export const Toolbar = ({
           aria-hidden
           className="mr-2 hidden items-center gap-1.5 text-xs text-muted-foreground @md:flex"
         >
-          <Kbd>{SHORTCUT}</Kbd>
+          {/* Kbd fades its text, so it takes the full text colour to stay readable. */}
+          <span className="text-foreground">
+            <Kbd variant="foreground">{SHORTCUT}</Kbd>
+          </span>
           {note ? t('shortcut-add-note', 'to add') : t('shortcut-send', 'to send')}
         </span>
         <SendButton note={note} disabled={disabled} busy={busy} />
