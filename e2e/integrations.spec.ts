@@ -15,7 +15,7 @@ const INTEGRATIONS = '/frontline/settings/integrations';
 
 // The stack has no Meta app and no real bots, so nothing connects here: the API tests feed core's
 // Meta events and each provider's recorded payloads through the inbox, comments, posts and bots.
-test('the owner sees the accounts page, Meta in core, and a provider’s refusal', async ({
+test('the owner sees the accounts page, the Meta app check, and a provider’s refusal', async ({
   page,
 }) => {
   await page.goto(INTEGRATIONS);
@@ -23,7 +23,9 @@ test('the owner sees the accounts page, Meta in core, and a provider’s refusal
   await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Connect' }).click();
-  await page.getByRole('menuitem', { name: 'Facebook and Instagram' }).click();
+  await page
+    .getByRole('menuitem', { name: 'Facebook and Instagram Set up a Meta app in Settings first' })
+    .click();
   await expect(page).toHaveURL(/\/settings\/integrations\/meta$/);
   await page.goto(INTEGRATIONS);
 

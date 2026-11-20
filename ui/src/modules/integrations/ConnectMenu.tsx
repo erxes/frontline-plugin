@@ -12,6 +12,8 @@ import { FORM_PROVIDERS } from './AccountNew.tsx';
 import {
   META_SETTINGS,
   useAccounts,
+  useConnectMeta,
+  useMetaApp,
   useMetaConnections,
   useProviderNames,
 } from './useIntegrations.ts';
@@ -68,21 +70,44 @@ const AccountItems = ({ channelId }: { channelId: string }) => {
   );
 };
 
+/**
+ * Facebook and Instagram, which connect through Meta's login. With no Meta app, the
+ * organisation's own or the install's, the item says so and opens the settings that set one.
+ */
 const MetaItem = () => {
   const { t } = useTranslation('frontline');
+  const meta = useConnectMeta();
+  const app = useMetaApp();
 
-  return (
-    <DropdownMenu.Item render={<Link to={META_SETTINGS} />}>
+  const name = (
+    <>
       <KindIcon kind="facebook" />
       {t('facebook-and-instagram', 'Facebook and Instagram')}
+    </>
+  );
+
+  if (app === false)
+    return (
+      <DropdownMenu.Item render={<Link to={META_SETTINGS} />}>
+        {name}
+        <span className="text-xs text-muted-foreground">
+          {t('meta-app-missing', 'Set up a Meta app in Settings first')}
+        </span>
+      </DropdownMenu.Item>
+    );
+
+  // Off until the check answers, so a quick click never starts a login that has no app.
+  return (
+    <DropdownMenu.Item disabled={app === undefined || meta.isPending} onClick={() => meta.mutate()}>
+      {name}
     </DropdownMenu.Item>
   );
 };
 
 /**
- * Connect: Facebook and Instagram in core's Settings › Integrations, every other provider with
- * its form in core's side panel. Opened from a channel, what it connects joins that channel, and
- * the accounts and pages connected before are offered to add.
+ * Connect: Facebook and Instagram through Meta's login, every other provider with its form in
+ * core's side panel. Opened from a channel, what it connects joins that channel, and the accounts
+ * and pages connected before are offered to add.
  */
 export const ConnectMenu = ({ channelId }: { channelId?: string }) => {
   const { t } = useTranslation('frontline');

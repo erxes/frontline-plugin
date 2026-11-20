@@ -6,7 +6,6 @@ import {
   IconPlugConnected,
   IconRefresh,
   IconRobot,
-  IconSettings,
   IconTrash,
 } from '@tabler/icons-react';
 import {
@@ -19,7 +18,6 @@ import {
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { ACCOUNT_TYPE, INTEGRATION_TYPE, META_BOT_TYPE } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
 import { KindIcon } from '~/shared/kinds.tsx';
@@ -32,11 +30,12 @@ import { StatusBadge } from './parts.tsx';
 import {
   type Account,
   type Bot,
-  META_SETTINGS,
   type MetaConnection,
   useAccounts,
   useBots,
+  useDisconnectConnection,
   useMetaConnections,
+  useRepairConnection,
   useRepairAccount,
   useProviderNames,
   useRemoveAccount,
@@ -77,8 +76,9 @@ const useAccountActions = (row: Row) => {
 const MoreCell = ({ row }: { row: Row }) => {
   const { t } = useTranslation('frontline');
   const { open, openNew } = useOpenRecord();
-  const navigate = useNavigate();
   const accountActions = useAccountActions(row);
+  const repairConnection = useRepairConnection();
+  const disconnect = useDisconnectConnection();
 
   const metaActions = [
     row.bot
@@ -95,10 +95,16 @@ const MoreCell = ({ row }: { row: Row }) => {
           onSelect: () => openNew(META_BOT_TYPE, { connectionId: row.id }),
         },
     {
-      value: 'settings',
-      icon: <IconSettings />,
-      label: t('manage-in-settings', 'Manage in Settings'),
-      onSelect: () => void navigate(META_SETTINGS),
+      value: 'repair',
+      icon: <IconRefresh />,
+      label: t('repair', 'Repair'),
+      onSelect: () => repairConnection.mutate({ id: row.id }),
+    },
+    {
+      value: 'remove',
+      icon: <IconTrash />,
+      label: t('disconnect', 'Disconnect'),
+      onSelect: () => void disconnect(row),
     },
   ];
 
@@ -145,8 +151,7 @@ const OpenCell = ({
 };
 
 const NameCell = ({ row }: { row: Row }) => {
-  const { open } = useOpenRecord();
-  const navigate = useNavigate();
+  const { open, openNew } = useOpenRecord();
 
   return (
     <OpenCell
@@ -154,7 +159,7 @@ const NameCell = ({ row }: { row: Row }) => {
       icon={<KindIcon kind={row.kind} />}
       onOpen={() =>
         row.meta
-          ? void navigate(META_SETTINGS)
+          ? openNew(INTEGRATION_TYPE, { kind: row.kind, name: row.name, connectionId: row.id })
           : open({ contentType: ACCOUNT_TYPE, contentId: row.id })
       }
     />

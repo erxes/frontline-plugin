@@ -1,3 +1,4 @@
+import { orpc as core } from '@erxes/core-contract/client';
 import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
@@ -87,6 +88,39 @@ export const useUpdateBot = (bot: Bot) => {
 };
 
 export const META_SETTINGS = '/settings/integrations/meta';
+
+export const useConnectMeta = () => {
+  const { onError } = useIntegrationChange();
+
+  return useMutation(
+    core.meta.loginUrl.mutationOptions({
+      onSuccess: ({ url }) => window.location.assign(url),
+      onError,
+    }),
+  );
+};
+
+export const useMetaApp = () =>
+  useQuery(
+    core.meta.app.queryOptions({ select: (settings) => settings.own || settings.installApp }),
+  ).data;
+
+export const useRepairConnection = () =>
+  useMutation(core.meta.repair.mutationOptions(useIntegrationChange()));
+
+export const useDisconnectConnection = () => {
+  const { t } = useTranslation('frontline');
+  const confirm = useConfirmDelete();
+
+  const disconnect = useMutation(core.meta.disconnect.mutationOptions(useIntegrationChange()));
+
+  return async (connection: Pick<MetaConnection, 'id' | 'name'>) => {
+    await confirm(
+      t('disconnect-account-confirm', 'Disconnect {{name}}?', { name: connection.name }),
+    );
+    disconnect.mutate({ id: connection.id });
+  };
+};
 
 /** Points the provider's events at frontline again, then records whether the account works. */
 export const useRepairAccount = () =>
