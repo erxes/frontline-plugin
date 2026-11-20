@@ -13,35 +13,21 @@ import {
 import { useTranslation } from 'react-i18next';
 import { TICKET_TYPE } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
-import { CreateButton, ListEmpty, LoadPage } from '~/shared/List.tsx';
+import { CreateButton, ListEmpty } from '~/shared/List.tsx';
 import { QueryBoundary } from '~/shared/QueryBoundary.tsx';
-import { ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
+import { SelectionBar } from '~/shared/Records.tsx';
 import { TicketBulkActions } from './TicketBulkActions.tsx';
 import { ticketTags } from './TicketLinks.tsx';
 import { SortMenu, useTicketFields } from './TicketFilter.tsx';
 import { TicketList } from './TicketList.tsx';
 import { TicketsBoard } from './TicketsBoard.tsx';
 import { TicketsTable } from './TicketsTable.tsx';
-import {
-  type TicketRow,
-  useShownPipeline,
-  useTicketCount,
-  useTicketPipeline,
-  useTickets,
-} from './queries.ts';
+import { useShownPipeline, useTicketCount, useTicketPipeline, useTickets } from './queries.ts';
 
 const LIST = 'frontline-tickets';
 
 /** Grouped by status first, as the old list; the board and table show the same tickets. */
 const DISPLAYS = ['list', 'board', 'table'] as const;
-
-/** The bulk bar's actions for the picked ids, read from the tickets shown. */
-const bulkOf = (tickets: TicketRow[]) => (selected: string[], clear: () => void) => (
-  <TicketBulkActions
-    tickets={tickets.filter((ticket) => selected.includes(ticket.id))}
-    clear={clear}
-  />
-);
 
 /** The page header, as core's breadcrumb draws it: Tickets, the shown pipeline, Create ticket. */
 const TicketsHeader = ({
@@ -86,36 +72,43 @@ const NoTickets = ({ pipeline, create }: Shown) => {
   );
 };
 
-/** The board: its columns ask for their tickets at once, beside the count that says if any match. */
-const BoardTickets = (shown: Shown) =>
-  useTicketCount() === 0 ? <NoTickets {...shown} /> : <TicketsBoard />;
+/**
+ * The board or the list grouped by status: each status asks for its own tickets at once, beside
+ * the count that says if any match.
+ */
+const StatusTickets = ({ board, ...shown }: Shown & { board: boolean }) => {
+  if (useTicketCount() === 0) return <NoTickets {...shown} />;
+
+  if (board) return <TicketsBoard />;
+
+  return (
+    <RecordList.Provider listId={LIST}>
+      <TicketList />
+    </RecordList.Provider>
+  );
+};
 
 /**
- * The shown pipeline's tickets, grouped by status or in a table. It suspends until the first page
- * is in, and a new filter, sort or pipeline keeps the old tickets up until the new ones are.
+ * The shown pipeline's tickets in a table. It suspends until the first page is in, and a new
+ * filter, sort or pipeline keeps the old tickets up until the new ones are.
  */
-const ListedTickets = ({ table, ...shown }: Shown & { table: boolean }) => {
+const TableTickets = (shown: Shown) => {
   const list = useTickets();
   const { rows: tickets } = list;
 
   if (tickets.length === 0) return <NoTickets {...shown} />;
 
-  if (table)
-    return (
-      <TicketsTable tickets={tickets} paging={list}>
-        <SelectionBar>{bulkOf(tickets)}</SelectionBar>
-      </TicketsTable>
-    );
-
   return (
-    <RecordList.Provider listId={LIST}>
-      <LoadPage paging={list} newer />
-      <TicketList tickets={tickets} />
-      <LoadPage paging={list} />
-      <ListSelectionBar shown={tickets.map((ticket) => ticket.id)}>
-        {bulkOf(tickets)}
-      </ListSelectionBar>
-    </RecordList.Provider>
+    <TicketsTable tickets={tickets} paging={list}>
+      <SelectionBar>
+        {(selected, clear) => (
+          <TicketBulkActions
+            tickets={tickets.filter((ticket) => selected.includes(ticket.id))}
+            clear={clear}
+          />
+        )}
+      </SelectionBar>
+    </TicketsTable>
   );
 };
 
@@ -139,9 +132,9 @@ const TicketsBody = ({
       />
     );
 
-  if (display === 'board') return <BoardTickets pipeline={pipeline.name} create={create} />;
+  if (display === 'table') return <TableTickets pipeline={pipeline.name} create={create} />;
 
-  return <ListedTickets pipeline={pipeline.name} create={create} table={display === 'table'} />;
+  return <StatusTickets pipeline={pipeline.name} create={create} board={display === 'board'} />;
 };
 
 /**
