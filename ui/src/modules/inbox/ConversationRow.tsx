@@ -13,6 +13,7 @@ import { MemberAvatar, PersonAvatar } from '~/shared/Person.tsx';
 import { isChat, KindIcon } from '~/shared/kinds.tsx';
 import type { usePrefetch } from '~/shared/prefetch.ts';
 import type { Conversation } from './queries.ts';
+import { TagDot, usePickedTags } from './TagDot.tsx';
 
 /** The list's row buttons carry the conversation's id, so the keys can move the focus between them. */
 export const ROW = 'data-conversation-id';
@@ -38,7 +39,7 @@ const Pick = ({
   const { t } = useTranslation('frontline');
 
   return (
-    <span className="relative grid size-8 shrink-0 place-items-center">
+    <span className="relative mt-2.5 grid size-8 shrink-0 place-items-center">
       <span className={picking ? 'opacity-0' : 'group-hover:opacity-0'}>
         <PersonAvatar name={name} src={avatarUrl} />
       </span>
@@ -82,10 +83,34 @@ const usePreview = ({ content, attachmentType }: Conversation) => {
   return t('preview-file', 'File');
 };
 
+/** How many tag dots a row shows before the rest count as +N. */
+const ROW_TAGS = 3;
+
+/** The conversation's tags as coloured dots beside its preview, each named on hover. */
+const RowTags = ({ tagIds }: { tagIds: string[] }) => {
+  const tags = usePickedTags(tagIds).filter((tag) => tag.colorCode);
+
+  if (tags.length === 0) return null;
+
+  const names = tags.map((tag) => tag.name).join(', ');
+  const rest = tags.length - ROW_TAGS;
+
+  return (
+    <span title={names} className="flex shrink-0 items-center gap-0.5">
+      {tags.slice(0, ROW_TAGS).map((tag) => (
+        <TagDot key={tag.id} color={tag.colorCode} />
+      ))}
+      {rest > 0 && <span className="text-xs text-muted-foreground">+{rest}</span>}
+      <span className="sr-only">{names}</span>
+    </span>
+  );
+};
+
 /**
- * The row's text: the customer's name, bold while unread, the integration's icon and the
- * channel, the time, a clock while the customer waits, and the last message and the assignee
- * under them.
+ * The row's text on three lines, each kept to one line however long: the customer's name, bold
+ * while unread, with a clock while they wait and the time at the end; the last message, with the
+ * unread dot; and where it came from, the integration's mark and the channel, with its tags and
+ * assignee. A read row's name and preview step back, so the unread ones stand out in a long list.
  */
 const Summary = ({
   conversation,
@@ -104,35 +129,24 @@ const Summary = ({
 
   return (
     <>
-      <span className="flex items-center gap-1.5">
+      <span className="flex min-w-0 items-center gap-1.5">
         <span
           className={cn(
-            'min-w-0 truncate text-sm',
-            unread ? 'font-semibold text-foreground' : 'font-medium',
+            'min-w-0 flex-1 truncate text-sm',
+            unread ? 'font-semibold text-foreground' : 'font-medium text-foreground/80',
           )}
         >
           {name}
         </span>
-        <KindIcon
-          kind={conversation.kind}
-          thread={conversation.externalId}
-          className="size-3.5 shrink-0"
-        />
-        <span className="sr-only">{conversation.integrationName}</span>
-        {/* A list dragged narrow leaves the name and the time, not two names cut to a letter. */}
-        <span className="hidden min-w-0 flex-1 truncate text-xs text-muted-foreground @sm:block">
-          {conversation.channelName}
-        </span>
         {waiting && (
-          <span title={waitingLabel} className="ml-auto flex shrink-0 text-warning-text">
+          <span title={waitingLabel} className="flex shrink-0 text-warning-text">
             <IconClockExclamation aria-hidden className="size-3.5" />
             <span className="sr-only">{waitingLabel}</span>
           </span>
         )}
         <span
           className={cn(
-            'shrink-0 text-xs',
-            !waiting && 'ml-auto',
+            'shrink-0 text-xs tabular-nums',
             waiting && 'font-medium text-warning-text',
             !waiting && unread && 'font-medium text-primary-text',
             !waiting && !unread && 'text-muted-foreground',
@@ -141,7 +155,7 @@ const Summary = ({
           <RelativeDateDisplay.Value value={conversation.lastMessageAt.toISOString()} />
         </span>
       </span>
-      <span className="flex items-center gap-2">
+      <span className="flex min-w-0 items-center gap-2">
         <span
           className={cn(
             'min-w-0 flex-1 truncate text-sm',
@@ -150,16 +164,26 @@ const Summary = ({
         >
           {preview}
         </span>
+        {unread && (
+          <span className="size-2 shrink-0 rounded-full bg-primary">
+            <span className="sr-only">{t('unread', 'Unread')}</span>
+          </span>
+        )}
+      </span>
+      <span className="flex h-4 min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+        <KindIcon
+          kind={conversation.kind}
+          thread={conversation.externalId}
+          className="size-3.5 shrink-0"
+        />
+        <span className="sr-only">{conversation.integrationName}</span>
+        <span className="min-w-0 flex-1 truncate leading-4">{conversation.channelName}</span>
+        <RowTags tagIds={conversation.tagIds} />
         {conversation.assigneeId && (
           <MemberAvatar
             id={conversation.assigneeId}
             label={(assignee) => t('assigned-to', 'Assigned to {{name}}', { name: assignee })}
           />
-        )}
-        {unread && (
-          <span className="size-2 shrink-0 rounded-full bg-primary">
-            <span className="sr-only">{t('unread', 'Unread')}</span>
-          </span>
         )}
       </span>
     </>
@@ -196,11 +220,15 @@ export const ConversationRow = ({
   const picked = selection.has(conversation.id);
 
   return (
+    // Inset rounded rows with a gap of their own, not a rule under each: the open one is a filled
+    // card with the primary edge, and the keys' focus rings the whole row.
     <div
       className={cn(
-        'group relative flex items-center gap-3 border-b px-3 hover:bg-accent/60',
+        'group relative mx-2 my-px flex items-start gap-3 rounded-lg px-2.5 transition-colors hover:bg-accent/60',
+        'has-focus-visible:ring-2 has-focus-visible:ring-ring',
         (open || picked) && 'bg-accent hover:bg-accent',
-        open && 'before:absolute before:inset-y-0 before:left-0 before:w-0.5 before:bg-primary',
+        open &&
+          'before:absolute before:inset-y-2 before:left-0 before:w-0.5 before:rounded-full before:bg-primary',
       )}
     >
       <Pick

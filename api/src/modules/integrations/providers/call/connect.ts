@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
-import { and, eq, getTableColumns, notInArray, sql } from 'drizzle-orm';
+import { and, eq, getTableColumns, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { config } from '#/config.ts';
@@ -11,7 +11,6 @@ import { integrationAccounts } from '#/db/integrations.ts';
 import { publicKeys } from '#/db/public.ts';
 import { isBlockedIp } from '#/modules/outbound.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
-import { sealSecret } from '../../secrets.ts';
 import {
   Account,
   accountColumns,
@@ -20,7 +19,8 @@ import {
   intoChannel,
   saveAccount,
 } from '../../store.ts';
-import { call } from './call.ts';
+import { call, callApi } from './call.ts';
+import { Lines, saveLines } from './lines.ts';
 import { checkPbx } from './pbx.ts';
 
 const Host = z
@@ -35,41 +35,40 @@ const TimeZone = z.string().refine((zone) => Intl.supportedValuesOf('timeZone').
 
 const Phone = z.string().trim().min(3).max(30);
 
+/** A trunk's name on the PBX, as its CDRs and events name it. */
+const Trunk = z.string().trim().max(100).default('');
+
 const PbxInput = z.object({
+  /** What the account is called in frontline; empty, its phone number. */
+  name: z.string().trim().max(100).default(''),
   phone: Phone,
+  /** The trunk calls come in through and the one they go out on, which tell a call's direction. */
+  srcTrunk: Trunk,
+  dstTrunk: Trunk,
   timeZone: TimeZone,
-  turnUrl: z
-    .string()
-    .trim()
-    .max(300)
-    .regex(/^(turns?:\S+)?$/, 'A TURN address, such as turn:turn.example.com:3478')
-    .default(''),
-  turnUsername: z.string().trim().max(200).default(''),
-  /** A new TURN password: none or an empty one keeps the stored one, and null clears it. */
-  turnPassword: z.string().max(200).nullish(),
 });
 
 const newKey = () => randomBytes(24).toString('base64url');
 
 /**
- * Connects a Grandstream UCM by its HTTPS API user: frontline signs in to check it, before the
- * transaction opens, then hands out the address and secret its bridge signs posts with.
- * Connecting the same PBX again replaces its credentials and key.
+ * Connects a Grandstream UCM: frontline signs in to it as the install's API user
+ * (`CALL_API_USER`), before the transaction opens, then hands out the address and secret its
+ * bridge signs posts with. Its queues and operators can come with it, as the old form took them.
+ * Connecting the same PBX again replaces its settings and key.
  */
 const connect = writesWithCore(
   PERMISSIONS.integrationManage,
   PbxInput.extend({
     host: Host,
-    apiUser: z.string().trim().min(1).max(100),
-    apiPassword: z.string().min(1).max(200),
+    queues: Lines.queues.default([]),
+    operators: Lines.operators.default([]),
     ...Into,
   }),
   async (member, input) => {
     const refused = await checkPbx({
       orgId: member.orgId,
       host: input.host,
-      user: input.apiUser,
-      password: input.apiPassword,
+      ...callApi(),
     });
 
     if (refused) throw new ORPCError('BAD_REQUEST', { message: refused });
@@ -77,26 +76,27 @@ const connect = writesWithCore(
 )
   .output(Account)
   .handler(async ({ input, context: { tx, member } }) => {
-    const { apiUser, apiPassword, turnPassword, channelId, ...settings } = input;
+    const { channelId, name, queues, operators, ...settings } = input;
 
-    return saveAccount(
+    const account = await saveAccount(
       tx,
       member,
       {
         provider: 'call',
         externalId: input.host.toLowerCase(),
-        name: input.phone,
-        config: { ...settings, hasTurnPassword: Boolean(turnPassword) },
+        name: name || input.phone,
+        config: settings,
         secret: {
-          apiUser,
-          apiPassword,
           webhookSecret: randomBytes(32).toString('hex'),
-          turnPassword: turnPassword ?? '',
         },
         webhookKey: newKey(),
       },
       await intoChannel(tx, member, channelId),
     );
+
+    await saveLines(tx, member.orgId, account.id, { queues, operators });
+
+    return account;
   });
 
 /** Connects a CallPro line by its number; CallPro posts its calls to the address frontline gives. */
@@ -192,107 +192,36 @@ const settings = reads(PERMISSIONS.integrationManage)
   });
 
 /**
- * Saves a PBX's settings, the queues frontline follows and the members who answer it by
- * extension. Queues and operators not listed go; a kept queue keeps its counters, and a kept
- * operator its status and SIP password unless the change gives a new one.
+ * Saves a PBX's settings and name, the queues frontline follows and the members who answer it by
+ * extension, as `saveLines` keeps them.
  */
 const saveSettings = writes(PERMISSIONS.integrationManage)
   .input(
     PbxInput.extend({
       accountId: z.string(),
-      queues: z
-        .array(
-          z.object({ queue: z.string().trim().min(1).max(30), name: z.string().trim().max(100) }),
-        )
-        .max(100),
-      operators: z
-        .array(
-          z.object({
-            userId: z.string().min(1),
-            extension: z.string().trim().min(1).max(30),
-            /** The extension's SIP password, for the member's softphone. */
-            sipPassword: z.string().min(1).max(200).optional(),
-          }),
-        )
-        .max(500),
+      ...Lines,
     }),
   )
   .output(Account)
   .handler(async ({ input, context: { tx, member } }) => {
-    const { accountId, queues, operators, turnPassword, ...changes } = input;
+    const { accountId, queues, operators, name, ...changes } = input;
     const row = await phoneAccount(tx, accountId);
 
     if (row.provider !== 'call')
       throw new ORPCError('BAD_REQUEST', { message: 'A CallPro line has no queues or operators' });
 
-    const { config: stored, secret } = call.open(row).account;
-    const turn = turnPassword === null ? '' : turnPassword || secret.turnPassword;
+    const { config: stored } = call.open(row).account;
 
     const [saved] = await tx
       .update(integrationAccounts)
       .set({
-        config: { ...stored, ...changes, hasTurnPassword: turn !== '' },
-        secret: sealSecret(member.orgId, { ...secret, turnPassword: turn }),
-        name: changes.phone,
+        config: { ...stored, ...changes },
+        name: name || changes.phone,
       })
       .where(eq(integrationAccounts.id, accountId))
       .returning(accountColumns);
 
-    await tx.delete(callQueues).where(
-      and(
-        eq(callQueues.accountId, accountId),
-        notInArray(
-          callQueues.queue,
-          queues.map((queue) => queue.queue),
-        ),
-      ),
-    );
-
-    if (queues.length)
-      await tx
-        .insert(callQueues)
-        .values(queues.map((queue) => ({ ...queue, orgId: member.orgId, accountId })))
-        .onConflictDoUpdate({
-          target: [callQueues.orgId, callQueues.accountId, callQueues.queue],
-          set: { name: sql`excluded.name` },
-        });
-
-    // An operator whose extension changed goes first, so the unique keys hold; one that stayed
-    // keeps its status.
-    await tx.delete(callOperators).where(
-      and(
-        eq(callOperators.accountId, accountId),
-        sql`${callOperators.userId} || ' ' || ${callOperators.extension} <> all(array[${sql.join(
-          operators.map((operator) => sql`${`${operator.userId} ${operator.extension}`}`),
-          sql`, `,
-        )}]::text[])`,
-      ),
-    );
-
-    if (operators.length)
-      await tx
-        .insert(callOperators)
-        .values(
-          operators.map(({ sipPassword: _password, ...operator }) => ({
-            ...operator,
-            orgId: member.orgId,
-            accountId,
-          })),
-        )
-        .onConflictDoNothing();
-
-    for (const { userId, extension, sipPassword } of operators)
-      if (sipPassword)
-        await tx
-          .update(callOperators)
-          .set({ sipSecret: sealSecret(member.orgId, { password: sipPassword }) })
-          .where(
-            and(
-              eq(callOperators.accountId, accountId),
-              eq(callOperators.userId, userId),
-              eq(callOperators.extension, extension),
-            ),
-          );
+    await saveLines(tx, member.orgId, accountId, { queues, operators });
 
     if (!saved) throw new ORPCError('INTERNAL_SERVER_ERROR');
 

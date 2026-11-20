@@ -146,7 +146,10 @@ export const ConversationTickets = ({ conversation }: { conversation: Conversati
           onClick={create}
         >
           <IconPlus />
-          {t('ticket', 'Ticket')}
+          {/* A narrow header keeps the icon, named on hover and by its label. */}
+          <span aria-hidden className="hidden @3xl:inline">
+            {t('ticket', 'Ticket')}
+          </span>
         </Button>
       </IconTip>
     </>

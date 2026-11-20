@@ -8,18 +8,30 @@ import {
   IconTag,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { Button, EntityPicker, IconTip, Popover, stored, useOpenRecord } from 'erxes-ui';
-import { useAtom } from 'jotai';
+import {
+  Button,
+  cn,
+  EntityPicker,
+  IconTip,
+  Popover,
+  Separator,
+  Skeleton,
+  stored,
+  useMediaQuery,
+  useOpenRecord,
+} from 'erxes-ui';
+import { atom, useAtom } from 'jotai';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { CONVERSATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { MemberCell } from '~/shared/MemberPicker.tsx';
-import { ContactChip } from '~/shared/Person.tsx';
+import { PersonAvatar, useCustomer } from '~/shared/Person.tsx';
 import { ConversationMenu, VisitorTyping } from './ConversationPresence.tsx';
 import { ConversationTickets } from './ConversationTickets.tsx';
 import { KindIcon } from '~/shared/kinds.tsx';
 import { type Conversation, conversationTags, useCreateTag } from './queries.ts';
+import { TagDot, usePickedTags } from './TagDot.tsx';
 import { useAssign, useSetStatus, useSetTags } from './changes.ts';
 
 /**
@@ -30,11 +42,14 @@ export const TagEditor = ({
   ids,
   tagIds,
   label,
+  compact = false,
   children,
 }: {
   ids: string[];
   tagIds: string[];
   label: string;
+  /** In a narrow header (a `@container`), only the icon and how many tags, the rest by name on hover. */
+  compact?: boolean;
   children?: ReactNode;
 }) => {
   const { t } = useTranslation('frontline');
@@ -52,10 +67,19 @@ export const TagEditor = ({
             {children ? (
               <>
                 <span className="sr-only">{label}</span>
-                {children}
+                <span
+                  className={cn('flex min-w-0 items-center gap-1.5', compact && 'hidden @3xl:flex')}
+                >
+                  {children}
+                </span>
+                {compact && (
+                  <span aria-hidden className="@3xl:hidden">
+                    {tagIds.length}
+                  </span>
+                )}
               </>
             ) : (
-              <span className="truncate">{label}</span>
+              <span className={cn('truncate', compact && 'sr-only @3xl:not-sr-only')}>{label}</span>
             )}
           </Button>
         }
@@ -97,17 +121,34 @@ export const TagEditor = ({
   );
 };
 
-/** Whether the inbox shows its conversation list beside the open one. */
-export const listShown = stored({
+/** Whether the inbox shows its conversation list beside the open one, on a wide screen. */
+const listShown = stored({
   key: `${PLUGIN}:inbox-list`,
   schema: z.boolean(),
   initial: true,
 });
 
+/** The same on a narrow screen, for this visit only: hidden until the member asks for it. */
+const narrowListShown = atom(false);
+
+/**
+ * Whether the conversation list shows beside the open conversation, and the switch for it. On a
+ * screen too narrow for both at a working width (a tablet, a laptop's split window) the
+ * conversation takes the room and the list waits behind the header's toggle; on a wide one the
+ * member's last choice holds.
+ */
+export const useListShown = () => {
+  const wide = useMediaQuery('(min-width: 1024px)');
+  const remembered = useAtom(listShown);
+  const narrow = useAtom(narrowListShown);
+
+  return wide ? remembered : narrow;
+};
+
 /** Hides the conversation list to give the open one the width, or shows it again. */
 const ListToggle = () => {
   const { t } = useTranslation('frontline');
-  const [shown, setShown] = useAtom(listShown);
+  const [shown, setShown] = useListShown();
 
   const label = shown
     ? t('hide-conversations', 'Hide conversations')
@@ -115,7 +156,13 @@ const ListToggle = () => {
 
   return (
     <IconTip label={label}>
-      <Button variant="ghost" size="icon" aria-label={label} onClick={() => setShown(!shown)}>
+      <Button
+        variant="ghost"
+        tone="muted"
+        size="icon"
+        aria-label={label}
+        onClick={() => setShown(!shown)}
+      >
         {shown ? <IconLayoutSidebarLeftCollapse /> : <IconLayoutSidebarLeftExpand />}
       </Button>
     </IconTip>
@@ -130,39 +177,76 @@ const TAGS_SHOWN = 2;
  * dot of its own colour, the first two named and the rest counted.
  */
 const TagSummary = ({ conversation }: { conversation: Conversation }) => {
-  const tags = (useQuery(conversationTags).data?.data ?? []).filter((tag) =>
-    conversation.tagIds.includes(tag.id),
-  );
-
+  const tags = usePickedTags(conversation.tagIds);
   const rest = tags.length - TAGS_SHOWN;
 
   return (
     <>
-      {tags.slice(0, TAGS_SHOWN).map((tag) => {
-        const dot: Record<`--${string}`, string> = { '--tag-color': tag.colorCode ?? '' };
-
-        return (
-          <span key={tag.id} className="flex min-w-0 items-center gap-1">
-            {tag.colorCode && (
-              <span
-                aria-hidden
-                style={dot}
-                className="size-2 shrink-0 rounded-full bg-(--tag-color)"
-              />
-            )}
-            <span className="truncate">{tag.name}</span>
-          </span>
-        );
-      })}
+      {tags.slice(0, TAGS_SHOWN).map((tag) => (
+        <span key={tag.id} className="flex min-w-0 items-center gap-1">
+          <TagDot color={tag.colorCode} />
+          <span className="truncate">{tag.name}</span>
+        </span>
+      ))}
       {rest > 0 && <span className="shrink-0 text-muted-foreground">+{rest}</span>}
     </>
   );
 };
 
 /**
+ * Who the conversation is with and where it came from, on two lines: the customer's avatar and
+ * name, which opens them in core's side panel, and under it the integration's mark, the channel
+ * and the integration, then "Typing…" while the visitor writes. A visitor core has no record of
+ * reads "Visitor", as in the list, and opens nothing.
+ */
+const Identity = ({ conversation }: { conversation: Conversation }) => {
+  const { open } = useOpenRecord();
+  const customer = useCustomer(conversation.customerId);
+  const source = `${conversation.channelName} · ${conversation.integrationName}`;
+
+  const name = customer.isPending ? (
+    <Skeleton className="h-4 w-32" />
+  ) : customer.found ? (
+    <button
+      type="button"
+      data-panel-inline=""
+      title={customer.name}
+      onClick={() => open({ contentType: 'core:customer', contentId: conversation.customerId })}
+      className="min-w-0 truncate rounded-sm text-left text-sm font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+    >
+      {customer.name}
+    </button>
+  ) : (
+    <span className="min-w-0 truncate text-sm font-semibold">{customer.name}</span>
+  );
+
+  return (
+    <span className="flex min-w-0 items-center gap-2.5">
+      <PersonAvatar name={customer.name} src={customer.avatarUrl} />
+      <span className="flex min-w-0 flex-col">
+        {name}
+        <span
+          title={source}
+          className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
+        >
+          <KindIcon
+            kind={conversation.kind}
+            thread={conversation.externalId}
+            className="size-3.5 shrink-0"
+          />
+          <span className="truncate">{source}</span>
+          <VisitorTyping conversation={conversation} />
+        </span>
+      </span>
+    </span>
+  );
+};
+
+/**
  * The open conversation's controls on one row, as the old inbox had them: the list toggle, who
- * it is with, where it came from and its assignee on the left; its tickets and Create ticket, its
- * tags, Resolve or Reopen and the overflow menu on the right. Each change shows at once and saves behind it.
+ * it is with and where it came from, and its assignee on the left; its tickets and Create ticket,
+ * its tags and the details on the right, then after a rule Resolve or Reopen and the overflow
+ * menu, so the step that closes the work stands apart. Each change shows at once and saves behind it.
  */
 export const ConversationHeader = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
@@ -172,18 +256,10 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
   const { open } = useOpenRecord();
 
   return (
-    <header className="@container flex h-12 shrink-0 items-center gap-2 border-b px-3">
+    <header className="@container flex h-14 shrink-0 items-center gap-2 border-b px-3">
       <ListToggle />
-      <span className="flex min-w-0">
-        <ContactChip contentId={conversation.customerId} placeholder={t('visitor', 'Visitor')} />
-      </span>
-      <IconTip label={`${conversation.channelName} · ${conversation.integrationName}`}>
-        <span className="grid size-6 shrink-0 place-items-center">
-          <KindIcon kind={conversation.kind} thread={conversation.externalId} className="size-4" />
-          <span className="sr-only">{conversation.channelName}</span>
-        </span>
-      </IconTip>
-      <VisitorTyping conversation={conversation} />
+      <Identity conversation={conversation} />
+      <Separator orientation="vertical" className="h-5" />
       <MemberCell
         variant="field"
         value={conversation.assigneeId}
@@ -191,33 +267,39 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         noneLabel={t('unassigned', 'Unassigned')}
         placeholder={t('assign', 'Assign')}
         aria-label={conversation.assigneeId ? undefined : t('assign', 'Assign')}
-        className="w-auto min-w-0"
+        className="w-auto max-w-40 min-w-0"
       />
       <span className="flex-1" />
-      <ConversationTickets conversation={conversation} />
-      <TagEditor
-        ids={[conversation.id]}
-        tagIds={conversation.tagIds}
-        label={
-          conversation.tagIds.length === 0 ? t('add-tags', 'Add tags') : t('edit-tags', 'Edit tags')
-        }
-      >
-        {conversation.tagIds.length > 0 ? <TagSummary conversation={conversation} /> : undefined}
-      </TagEditor>
-      <IconTip label={t('conversation-details', 'Details and properties')}>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t('conversation-details', 'Details and properties')}
-          onClick={() => open({ contentType: CONVERSATION_TYPE, contentId: conversation.id })}
+      <span className="flex shrink-0 items-center gap-1.5">
+        <ConversationTickets conversation={conversation} />
+        <TagEditor
+          compact
+          ids={[conversation.id]}
+          tagIds={conversation.tagIds}
+          label={
+            conversation.tagIds.length === 0
+              ? t('add-tags', 'Add tags')
+              : t('edit-tags', 'Edit tags')
+          }
         >
-          <IconLayoutSidebarRightExpand />
-        </Button>
-      </IconTip>
+          {conversation.tagIds.length > 0 ? <TagSummary conversation={conversation} /> : undefined}
+        </TagEditor>
+        <IconTip label={t('conversation-details', 'Details and properties')}>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label={t('conversation-details', 'Details and properties')}
+            onClick={() => open({ contentType: CONVERSATION_TYPE, contentId: conversation.id })}
+          >
+            <IconLayoutSidebarRightExpand />
+          </Button>
+        </IconTip>
+      </span>
+      <Separator orientation="vertical" className="h-5" />
       {/* A narrow header keeps the icon, named on hover, so the customer and the assignee keep their names. */}
       <IconTip label={resolved ? t('reopen', 'Reopen') : t('resolve', 'Resolve')}>
         <Button
-          variant="outline"
+          variant={resolved ? 'outline' : 'default'}
           size="sm"
           disabled={setStatus.isPending}
           onClick={() =>

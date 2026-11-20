@@ -1,39 +1,35 @@
-import { memberQueries } from '@erxes/core-contract/client';
 import {
   type Icon,
+  IconArrowDownLeft,
+  IconArrowUpRight,
+  IconTag,
   IconClock,
   IconListNumbers,
-  IconLock,
   IconPhone,
   IconServer,
-  IconUser,
-  IconUsers,
-  IconX,
 } from '@tabler/icons-react';
 import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
 import { useMutation } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
-import { Button, PanelField, PanelSection, TextField, useMembersById, memberName } from 'erxes-ui';
-import { useState } from 'react';
+import { PanelField, PanelSection, TextField } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
 import { useChange } from '~/shared/hooks.ts';
-import { MemberSelect } from '~/shared/MemberPicker.tsx';
 import { ZonePicker } from './ConnectFields.tsx';
-import { AddRow, ItemRow } from './parts.tsx';
+import { OperatorList, queuesOf, queueText } from './PbxLines.tsx';
 import type { Account } from './useIntegrations.ts';
 
 /**
- * A PBX's own settings, which `saveSettings` takes again with each change, and whether a TURN
- * password is saved: the API keeps it sealed and never sends it back.
+ * A PBX's own settings, which `saveSettings` takes again with each change; its address shows
+ * only.
  */
 const PbxConfig = z.object({
+  host: z.string(),
   phone: z.string(),
+  srcTrunk: z.string().default(''),
+  dstTrunk: z.string().default(''),
   timeZone: z.string(),
-  turnUrl: z.string().default(''),
-  turnUsername: z.string().default(''),
-  hasTurnPassword: z.boolean().default(false),
 });
 
 type PbxConfig = z.infer<typeof PbxConfig>;
@@ -44,7 +40,7 @@ type SaveInput = InferClientInputs<Client>['integrations']['call']['saveSettings
 
 /**
  * A PBX's settings, queues and operators as `saveSettings` takes them, and `change`, which saves
- * them all with `patch` applied. Softphones read the TURN server and extensions again after it.
+ * them all with `patch` applied. Softphones read the extensions again after it.
  */
 const usePbx = (account: Account, settings: Settings) => {
   const save = useMutation(
@@ -66,16 +62,22 @@ const usePbx = (account: Account, settings: Settings) => {
     settings.operators.flatMap((operator) => (operator.hasSipPassword ? [operator.extension] : [])),
   );
 
-  // Left out, the TURN password stays as saved; `turnPassword` in `patch` replaces or clears it.
   const change = (patch: Partial<Omit<SaveInput, 'accountId'>>) => {
     if (!config.success) return;
 
-    const { hasTurnPassword, ...stored } = config.data;
+    const { host, ...stored } = config.data;
 
-    save.mutate({ accountId: account.id, ...stored, queues, operators, ...patch });
+    save.mutate({
+      accountId: account.id,
+      name: account.name,
+      ...stored,
+      queues,
+      operators,
+      ...patch,
+    });
   };
 
-  return { config: config.data, queues, operators, softphones, change };
+  return { name: account.name, config: config.data, queues, operators, softphones, change };
 };
 
 type Pbx = ReturnType<typeof usePbx>;
@@ -89,7 +91,7 @@ const SettingRow = ({
   placeholder,
 }: {
   pbx: Pbx & { config: PbxConfig };
-  name: Exclude<keyof PbxConfig, 'timeZone' | 'hasTurnPassword'>;
+  name: Exclude<keyof PbxConfig, 'host' | 'timeZone'>;
   label: string;
   icon: Icon;
   placeholder?: string;
@@ -109,8 +111,8 @@ const SettingRow = ({
 );
 
 /**
- * The PBX's number, time zone and the TURN server its softphones relay through, each edited in
- * place. The TURN password shows only that it is set; a new one replaces it, and Clear drops it.
+ * The PBX's name, number, time zone, queues and trunks, each edited in place, and its WebSocket
+ * server. The softphones' TURN server is the install's, `TURN_SERVER_URL`.
  */
 const SystemSection = ({ pbx }: { pbx: Pbx & { config: PbxConfig } }) => {
   const { t } = useTranslation('frontline');
@@ -118,146 +120,56 @@ const SystemSection = ({ pbx }: { pbx: Pbx & { config: PbxConfig } }) => {
 
   return (
     <PanelSection title={t('phone-system', 'Phone system')}>
-      <SettingRow pbx={pbx} name="phone" label={t('phone', 'Phone')} icon={IconPhone} />
+      <PanelField icon={IconTag} label={t('name', 'Name')}>
+        <TextField
+          scope="frontline-pbx.name"
+          value={pbx.name}
+          placeholder={config.phone}
+          onSave={(value) => value.trim() !== pbx.name && change({ name: value.trim() })}
+        />
+      </PanelField>
+      <SettingRow
+        pbx={pbx}
+        name="phone"
+        label={t('phone-number', 'Phone number')}
+        icon={IconPhone}
+      />
+      {/* Connecting the PBX again moves it to another address, so its address shows only. */}
+      <PanelField icon={IconServer} label={t('websocket-server', 'WebSocket server')} cell={false}>
+        <span className="truncate px-2 text-xs">{config.host}</span>
+      </PanelField>
       <PanelField icon={IconClock} label={t('time-zone', 'Time zone')} cell={false}>
         <ZonePicker value={config.timeZone} onValueChange={(timeZone) => change({ timeZone })} />
       </PanelField>
-      <SettingRow
-        pbx={pbx}
-        name="turnUrl"
-        label={t('turn-server', 'TURN server')}
-        icon={IconServer}
-        placeholder="turn:turn.example.com:3478"
-      />
-      <SettingRow
-        pbx={pbx}
-        name="turnUsername"
-        label={t('turn-user', 'TURN user')}
-        icon={IconUser}
-      />
-      <PanelField icon={IconLock} label={t('turn-password', 'TURN password')}>
-        <div className="flex items-center gap-1">
-          <TextField
-            scope="frontline-pbx.turnPassword"
-            value=""
-            placeholder={
-              config.hasTurnPassword
-                ? t('turn-password-saved', 'Saved; type a new one to replace it')
-                : t('turn-password', 'TURN password')
-            }
-            onSave={(turnPassword) => turnPassword && change({ turnPassword })}
-          />
-          {config.hasTurnPassword && (
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={t('clear-turn-password', 'Clear TURN password')}
-              onClick={() => change({ turnPassword: null })}
-            >
-              <IconX />
-            </Button>
-          )}
-        </div>
-      </PanelField>
-    </PanelSection>
-  );
-};
+      <PanelField icon={IconListNumbers} label={t('queues', 'Queues')}>
+        <TextField
+          scope="frontline-pbx.queues"
+          value={queueText(pbx.queues)}
+          placeholder="6500, 6501"
+          onSave={(value) => {
+            const next = queuesOf(value, pbx.queues);
 
-/** The PBX queues frontline follows, by number. */
-const QueuesSection = ({ pbx: { queues, change } }: { pbx: Pbx }) => {
-  const { t } = useTranslation('frontline');
-
-  return (
-    <PanelSection title={t('queues', 'Queues')} icon={IconListNumbers}>
-      <ul aria-label={t('queues', 'Queues')}>
-        {queues.map((queue) => (
-          <ItemRow
-            key={queue.queue}
-            label={queue.queue}
-            hint={queue.name}
-            onRemove={() => change({ queues: queues.filter((each) => each.queue !== queue.queue) })}
-          />
-        ))}
-      </ul>
-      <AddRow
-        fields={[
-          { name: 'queue', label: t('queue-number', 'Queue number'), required: true },
-          { name: 'name', label: t('name', 'Name') },
-        ]}
-        onAdd={({ queue = '', name = '' }) => change({ queues: [...queues, { queue, name }] })}
-      />
-    </PanelSection>
-  );
-};
-
-/**
- * The members who answer the PBX, each by an extension; a member is picked before the extension.
- * An extension's SIP password gives its member the softphone on every page.
- */
-const OperatorsSection = ({ pbx: { operators, softphones, change } }: { pbx: Pbx }) => {
-  const { t } = useTranslation('frontline');
-  const [userId, setUserId] = useState<string | null>(null);
-
-  const members = useMembersById(
-    operators.map((operator) => operator.userId),
-    memberQueries,
-  );
-
-  return (
-    <PanelSection title={t('operators', 'Operators')} icon={IconUsers}>
-      <ul aria-label={t('operators', 'Operators')}>
-        {operators.map((operator) => {
-          const member = members.get(operator.userId);
-
-          return (
-            <ItemRow
-              key={operator.extension}
-              label={operator.extension}
-              hint={[
-                member && memberName(member),
-                softphones.has(operator.extension) && t('with-softphone', 'softphone'),
-              ]
-                .filter(Boolean)
-                .join(', ')}
-              onRemove={() =>
-                change({
-                  operators: operators.filter((each) => each.extension !== operator.extension),
-                })
-              }
-            />
-          );
-        })}
-      </ul>
-      <div className="px-2 py-1">
-        <MemberSelect
-          value={userId}
-          onValueChange={setUserId}
-          placeholder={t('operator-member', 'Member who answers')}
-          aria-label={t('operator-member', 'Member who answers')}
-        />
-      </div>
-      {userId && (
-        <AddRow
-          fields={[
-            { name: 'extension', label: t('extension', 'Extension'), required: true },
-            { name: 'sipPassword', label: t('sip-password', 'SIP password'), type: 'password' },
-          ]}
-          onAdd={({ extension = '', sipPassword }) => {
-            change({
-              operators: [
-                ...operators,
-                { userId, extension, sipPassword: sipPassword || undefined },
-              ],
-            });
-            setUserId(null);
+            if (queueText(next) !== queueText(pbx.queues)) change({ queues: next });
           }}
         />
-      )}
+      </PanelField>
+      <SettingRow
+        pbx={pbx}
+        name="srcTrunk"
+        label={t('source-trunk', 'Source trunk')}
+        icon={IconArrowDownLeft}
+      />
+      <SettingRow
+        pbx={pbx}
+        name="dstTrunk"
+        label={t('destination-trunk', 'Destination trunk')}
+        icon={IconArrowUpRight}
+      />
     </PanelSection>
   );
 };
 
-/** A Grandstream PBX's settings, the queues frontline follows and the members who answer it. */
+/** A Grandstream PBX's settings, with the queues frontline follows, and the members who answer it. */
 export const PbxSettings = ({ account, settings }: { account: Account; settings: Settings }) => {
   const pbx = usePbx(account, settings);
   const { config } = pbx;
@@ -265,8 +177,11 @@ export const PbxSettings = ({ account, settings }: { account: Account; settings:
   return (
     <>
       {config && <SystemSection pbx={{ ...pbx, config }} />}
-      <QueuesSection pbx={pbx} />
-      <OperatorsSection pbx={pbx} />
+      <OperatorList
+        operators={pbx.operators}
+        softphones={pbx.softphones}
+        onChange={(operators) => pbx.change({ operators })}
+      />
     </>
   );
 };

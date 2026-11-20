@@ -160,7 +160,10 @@ const useCustomerFace = (id: string | null | undefined) =>
     select: (customer) => ({ title: customerTitle(customer), avatarUrl: customer.avatarUrl }),
   });
 
-/** The customer's name, else their email or phone, else "Visitor", and their picture. */
+/**
+ * The customer's name, else their email or phone, else "Visitor", and their picture; `found`
+ * once core has them, so a visitor core has no record of can't be opened.
+ */
 export const useCustomer = (customerId: string | null | undefined) => {
   const { t } = useTranslation('frontline');
   const { data, isPending } = useCustomerFace(customerId);
@@ -169,6 +172,7 @@ export const useCustomer = (customerId: string | null | undefined) => {
     name: data?.title || t('visitor', 'Visitor'),
     avatarUrl: data?.avatarUrl,
     isPending: Boolean(customerId) && isPending,
+    found: Boolean(data),
   };
 };
 

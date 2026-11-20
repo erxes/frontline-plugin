@@ -1,9 +1,20 @@
-import { IconClock, IconKey, IconLock, IconPhone, IconServer, IconUser } from '@tabler/icons-react';
+import {
+  IconArrowDownLeft,
+  IconArrowUpRight,
+  IconClock,
+  IconKey,
+  IconListNumbers,
+  IconPhone,
+  IconServer,
+  IconTag,
+} from '@tabler/icons-react';
 import { PanelFormRow, localTimeZone, zoneOffset } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { PickerField } from '~/shared/Pickers.tsx';
+import { ChannelRow, useNewRecordChannel } from '~/shared/ChannelSelect.tsx';
 import { TextRow } from '~/shared/TextRow.tsx';
+import { type Operator, OperatorList } from './PbxLines.tsx';
 
 /** A Telegram bot: its token, and where BotFather gives one. */
 export const TelegramFields = () => {
@@ -93,49 +104,52 @@ const ZoneRow = () => {
   );
 };
 
-/** A Grandstream PBX: its number, its HTTPS API login, its time zone and trunks. */
-export const PbxFields = () => {
+/**
+ * A Grandstream PBX, in the old form's order: its name, phone number, WebSocket server (the UCM's
+ * HTTPS address, which the softphones' `wss://<host>/ws` and the API share), channel, the queues
+ * frontline follows in one field, its trunks and time zone, then the members who answer it. The API login and the softphones' TURN server are the install's (`CALL_API_USER`,
+ * `TURN_SERVER_URL` and theirs), as before. The operators go with the form as JSON; the channel is the one it was opened from,
+ * else the member's first, as a new messenger's is.
+ */
+export const PbxFields = ({ channelId = '' }: { channelId?: string }) => {
   const { t } = useTranslation('frontline');
+  const [channel, setChannel] = useState(channelId);
+  const [operators, setOperators] = useState<Operator[]>([]);
+  const picked = useNewRecordChannel(channel);
 
   return (
     <>
-      <TextRow label={t('phone', 'Phone')} icon={IconPhone} name="phone" required />
+      <TextRow label={t('name', 'Name')} icon={IconTag} name="name" />
+      <TextRow label={t('phone-number', 'Phone number')} icon={IconPhone} name="phone" required />
       <TextRow
-        label={t('pbx-host', 'PBX host')}
+        label={t('websocket-server', 'WebSocket server')}
         icon={IconServer}
         name="host"
         placeholder="pbx.example.com:8089"
         required
         hint={t('pbx-host-hint', "The UCM's address and HTTPS port, as you open it in a browser.")}
       />
-      <TextRow
-        label={t('api-user', 'API user')}
-        icon={IconUser}
-        name="apiUser"
-        required
-        hint={t('pbx-api-user-hint', "A user from the UCM's API configuration page.")}
+      <ChannelRow
+        value={picked}
+        onChange={setChannel}
+        missing={t('pbx-channel-none', 'You are no channel’s admin, so the PBX joins none yet.')}
       />
+      <input type="hidden" name="channelId" value={picked} />
       <TextRow
-        label={t('api-password', 'API password')}
-        icon={IconLock}
-        name="apiPassword"
-        type="password"
-        required
+        label={t('queues', 'Queues')}
+        icon={IconListNumbers}
+        name="queues"
+        placeholder="6500, 6501"
+      />
+      <TextRow label={t('source-trunk', 'Source trunk')} icon={IconArrowDownLeft} name="srcTrunk" />
+      <TextRow
+        label={t('destination-trunk', 'Destination trunk')}
+        icon={IconArrowUpRight}
+        name="dstTrunk"
       />
       <ZoneRow />
-      <TextRow
-        label={t('turn-server', 'TURN server')}
-        icon={IconServer}
-        name="turnUrl"
-        placeholder="turn:turn.example.com:3478"
-      />
-      <TextRow label={t('turn-user', 'TURN user')} icon={IconUser} name="turnUsername" />
-      <TextRow
-        label={t('turn-password', 'TURN password')}
-        icon={IconLock}
-        name="turnPassword"
-        type="password"
-      />
+      <OperatorList operators={operators} onChange={setOperators} />
+      <input type="hidden" name="operators" value={JSON.stringify(operators)} />
     </>
   );
 };

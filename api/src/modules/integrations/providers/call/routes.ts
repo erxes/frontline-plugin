@@ -220,11 +220,26 @@ const PBX_POSTS: Record<
   },
 };
 
+/**
+ * Whether a live event's call came in or went out: through the account's inbound trunk it came
+ * in, on its outbound trunk it went out, as the old integration told them; else the event's own
+ * type, else a call with only an outbound trunk went out.
+ */
+const directionOf = (
+  event: CallEvent,
+  { srcTrunk, dstTrunk }: { srcTrunk: string; dstTrunk: string },
+) => {
+  if (srcTrunk && event.srcTrunkName === srcTrunk) return 'incoming';
+
+  if (dstTrunk && event.dstTrunkName === dstTrunk) return 'outgoing';
+
+  return event.callType ?? (event.dstTrunkName && !event.srcTrunkName ? 'outgoing' : 'incoming');
+};
+
 const onEvent = async (row: AccountRow, event: CallEvent) => {
   const { config } = call.open(row).account;
 
-  const direction =
-    event.callType ?? (event.dstTrunkName && !event.srcTrunkName ? 'outgoing' : 'incoming');
+  const direction = directionOf(event, config);
 
   const init: NewCall = {
     callKey: event.linkedid || event.uniqueid,
