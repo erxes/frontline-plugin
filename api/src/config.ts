@@ -51,7 +51,7 @@ const Env = z.object({
   UI_DIR: z.string().optional(),
   /** The built embeds websites load, served at `/widget` (the image sets it). */
   WIDGET_DIR: z.string().optional(),
-  /** web's origin, where Meta's login sends members back. Defaults to CORE_URL's origin. */
+  /** web's origin, for help center CORS. Defaults to CORE_URL's origin. */
   CORE_UI_URL: z.url().optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   VERSION: z.string().default('0.1.0'),
@@ -83,29 +83,12 @@ const Env = z.object({
   TURN_SERVER_URL: z.string().trim().min(1).optional(),
   TURN_SERVER_USERNAME: z.string().optional(),
   TURN_SERVER_CREDENTIAL: z.string().optional(),
-  /** The Meta app that Facebook pages and Instagram accounts connect through. */
-  META_APP_ID: z.string().optional(),
-  META_APP_SECRET: z.string().optional(),
-  /** What Meta's webhook subscription sends back as `hub.verify_token`. */
-  META_VERIFY_TOKEN: z.string().optional(),
-  /**
-   * meta-relay, which forwards the deliveries of a Meta app another erxes install shares: each
-   * connected page and Instagram account is routed to this API. Off unless both are set.
-   */
-  META_RELAY_URL: z.url().optional(),
-  /** This install's key at meta-relay. */
-  META_RELAY_KEY: z.string().min(1).optional(),
 });
 
-const env = Env.refine((vars) => !vars.META_RELAY_URL === !vars.META_RELAY_KEY, {
-  message: 'Set META_RELAY_URL and META_RELAY_KEY together, or neither',
-  path: ['META_RELAY_KEY'],
-})
-  .refine((vars) => !vars.CALL_API_USER === !vars.CALL_API_PASSWORD, {
-    message: 'Set CALL_API_USER and CALL_API_PASSWORD together, or neither',
-    path: ['CALL_API_PASSWORD'],
-  })
-  .parse(process.env);
+const env = Env.refine((vars) => !vars.CALL_API_USER === !vars.CALL_API_PASSWORD, {
+  message: 'Set CALL_API_USER and CALL_API_PASSWORD together, or neither',
+  path: ['CALL_API_PASSWORD'],
+}).parse(process.env);
 
 export const config = {
   port: env.PORT,
@@ -156,15 +139,6 @@ export const config = {
     env.CALL_API_USER && env.CALL_API_PASSWORD
       ? { user: env.CALL_API_USER, password: env.CALL_API_PASSWORD }
       : null,
-  meta: {
-    appId: env.META_APP_ID,
-    appSecret: env.META_APP_SECRET,
-    verifyToken: env.META_VERIFY_TOKEN,
-    relay:
-      env.META_RELAY_URL && env.META_RELAY_KEY
-        ? { url: env.META_RELAY_URL.replace(/\/+$/, ''), key: env.META_RELAY_KEY }
-        : null,
-  },
 };
 
 /** What checks a token core signed for this plugin: its session, job, event and call tokens. */

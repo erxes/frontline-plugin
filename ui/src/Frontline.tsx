@@ -208,7 +208,7 @@ const settingsRoutes = (
       path="personal-channel/*"
       element={<Navigate to={`/${PLUGIN}/personal-channel`} replace />}
     />
-    {/* The old integrations config, Meta's app among it, is core's now; accounts stay here. */}
+    {/* The old integrations config is core's now; accounts stay here. */}
     <Route path="config/*" element={<Navigate to={`/${PLUGIN}/settings/integrations`} replace />} />
     <Route path="pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
     <Route

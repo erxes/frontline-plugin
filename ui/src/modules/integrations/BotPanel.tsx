@@ -162,7 +162,7 @@ const BotFields = ({ bot }: { bot: Bot }) => {
   const { t } = useTranslation('frontline');
   const { save } = useUpdateBot(bot);
   const scope = `frontline-meta-bot.${bot.id}`;
-  const messenger = bot.provider === 'facebook';
+  const messenger = bot.kind === 'facebook';
 
   return (
     <PanelSection title={t('bot', 'Bot')}>
@@ -179,7 +179,7 @@ const BotFields = ({ bot }: { bot: Bot }) => {
         />
       </PanelField>
       <InfoRow icon={IconBrandFacebook} label={t('page', 'Page')}>
-        {bot.accountName}
+        {bot.connectionName}
       </InfoRow>
       <PanelField icon={IconHeartbeat} label={t('status', 'Status')} cell={false}>
         <span className="flex items-center gap-2 px-2 text-xs">

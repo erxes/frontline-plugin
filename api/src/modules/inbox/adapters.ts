@@ -7,6 +7,7 @@ import { messenger } from '../messenger/adapter.ts';
 
 /** A member's reply on its way to the customer, as its adapter gets it. */
 export type Outgoing = {
+  orgId: string;
   integration: { id: string; config: Record<string, unknown> };
   conversation: { id: string; externalId: string | null; customerId: string };
   message: {

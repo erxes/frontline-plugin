@@ -1,6 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { and, desc, eq, isNotNull, or } from 'drizzle-orm';
-import { alias } from 'drizzle-orm/pg-core';
+import { quotedIdOf } from './quoted.ts';
 import { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
 import { customerLinks, messages } from '#/db/inbox.ts';
@@ -8,11 +8,11 @@ import type { Adapter, Outgoing } from '../inbox/adapters.ts';
 import { markRefused } from './accounts.ts';
 import type { AccountRow, ProviderName } from './provider.ts';
 import { providerOf } from './providers/index.ts';
+import { metaAdapter } from './providers/metaAdapter.ts';
+import { accountRow } from './store.ts';
 
 /** The provider's ids of the parts of a reply an earlier attempt sent, kept in `providerData`. */
 const Parts = z.array(z.string()).default([]);
-
-import { accountRow } from './store.ts';
 
 /** An integration of a provider's kind names the connected account its conversations go through. */
 const AccountConfig = z.object({ accountId: z.string().min(1) });
@@ -32,6 +32,9 @@ const replyContext = async (
     .from(customerLinks)
     .where(and(eq(customerLinks.source, provider), eq(customerLinks.customerId, customerId)));
 
+  if (!link)
+    throw new ORPCError('NOT_FOUND', { message: 'The customer has no id at the provider' });
+
   const [last] = await tx
     .select({
       externalId: messages.externalId,
@@ -49,28 +52,12 @@ const replyContext = async (
     .orderBy(desc(messages.createdAt), desc(messages.id))
     .limit(1);
 
-  if (!link)
-    throw new ORPCError('NOT_FOUND', { message: 'The customer has no id at the provider' });
-
   return {
     to: link.externalId,
     replyTo: last?.externalId
       ? { externalId: last.externalId, providerData: last.providerData, createdAt: last.createdAt }
       : null,
   };
-};
-
-const quoted = alias(messages, 'quoted');
-
-/** The provider's id for the message a reply answers, when the member picked one it has. */
-const quotedIdOf = async (tx: Tx, messageId: string) => {
-  const [row] = await tx
-    .select({ externalId: quoted.externalId })
-    .from(messages)
-    .innerJoin(quoted, eq(quoted.id, messages.replyToId))
-    .where(eq(messages.id, messageId));
-
-  return row?.externalId ?? null;
 };
 
 /** The integration's account, opened, with the thread and what a reply answers at the provider. */
@@ -147,8 +134,8 @@ const adapterOf = (provider: ProviderName, label: string): Adapter => ({
 
 /** The inbox's adapters for the providers' integrations, by kind. */
 export const PROVIDER_ADAPTERS = [
-  adapterOf('facebook', 'Facebook Messenger'),
-  adapterOf('instagram', 'Instagram'),
+  metaAdapter('facebook', 'Facebook Messenger'),
+  metaAdapter('instagram', 'Instagram'),
   adapterOf('telegram', 'Telegram'),
   adapterOf('discord', 'Discord'),
   adapterOf('mail', 'Email'),

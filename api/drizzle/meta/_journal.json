@@ -302,6 +302,20 @@
       "when": 1795090471065,
       "tag": "0044_message_queued_at",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "7",
+      "when": 1795163847240,
+      "tag": "0045_meta_on_core",
+      "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795165026893,
+      "tag": "0046_message_deleted_at",
+      "breakpoints": true
     }
   ]
 }

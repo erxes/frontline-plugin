@@ -7,7 +7,7 @@ import { compileFilter } from '@erxes/plugin-sdk/filter';
 import { reads } from '#/orpc.ts';
 import { membership, seenBy } from '../channels/access.ts';
 import { conversationFilter } from '../inbox/conversations.ts';
-import { COMMENT_THREAD } from '../integrations/providers/metaWebhook.ts';
+import { COMMENT_THREAD } from '../integrations/providers/meta.ts';
 import { Count, countWhere, dayOf, everyDay, ReportInput, TOP, within } from './shared.ts';
 
 const MetaReport = z.object({

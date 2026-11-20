@@ -188,6 +188,7 @@ export const messages = table(
     pinnedAt: timestamp({ withTimezone: true }),
     pinnedBy: text(),
     editedAt: timestamp({ withTimezone: true }),
+    deletedAt: timestamp({ withTimezone: true }),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [

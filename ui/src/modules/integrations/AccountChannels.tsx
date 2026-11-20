@@ -15,7 +15,7 @@ export const AccountChannels = ({ accountId }: { accountId: string }) => {
   const { open } = useOpenRecord();
 
   const integrations = (useQuery(integrationsQuery).data ?? []).filter(
-    ({ config }) => config.accountId === accountId,
+    ({ config }) => (config.accountId ?? config.connectionId) === accountId,
   );
 
   return (

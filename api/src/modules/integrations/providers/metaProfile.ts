@@ -1,6 +1,8 @@
+import type { MetaKind } from '@erxes/core-contract';
 import type { metaBots } from '#/db/meta.ts';
-import type { ProviderName } from '../provider.ts';
 import { graph } from './meta.ts';
+
+type Connection = { orgId: string; id: string; kind: MetaKind };
 
 type Bot = Pick<
   typeof metaBots.$inferSelect,
@@ -14,14 +16,14 @@ const payloadOf = (botId: string, itemId?: string) => JSON.stringify({ botId, it
 const FIELDS = ['get_started', 'persistent_menu', 'greeting', 'ice_breakers'];
 
 /** Instagram's profile has a persistent menu and ice breakers only. */
-const fieldsOf = (provider: ProviderName) =>
+const fieldsOf = (provider: MetaKind) =>
   provider === 'instagram' ? ['persistent_menu', 'ice_breakers'] : FIELDS;
 
-const queryOf = (provider: ProviderName): Record<string, string> =>
+const queryOf = (provider: MetaKind): Record<string, string> =>
   provider === 'instagram' ? { platform: 'instagram' } : {};
 
 /** The profile Meta stores for `bot`, with the fields it leaves empty. */
-const profileOf = (provider: ProviderName, bot: Bot) => {
+const profileOf = (provider: MetaKind, bot: Bot) => {
   const getStarted = {
     type: 'postback',
     title: bot.getStartedText || 'Get started',
@@ -71,28 +73,28 @@ const profileOf = (provider: ProviderName, bot: Bot) => {
  * Sets the bot's profile on the page or Instagram account. A field left out of Meta's POST keeps
  * its old value, so an emptied one is deleted.
  */
-export const pushProfile = async (provider: ProviderName, token: string, bot: Bot) => {
-  const { profile, cleared } = profileOf(provider, bot);
+export const pushProfile = async ({ orgId, id, kind }: Connection, bot: Bot) => {
+  const { profile, cleared } = profileOf(kind, bot);
 
   if (Object.keys(profile).length)
-    await graph('me/messenger_profile', token, {
+    await graph(orgId, id, 'me/messenger_profile', {
       method: 'POST',
-      query: queryOf(provider),
+      query: queryOf(kind),
       body: profile,
     });
 
   if (cleared.length)
-    await graph('me/messenger_profile', token, {
+    await graph(orgId, id, 'me/messenger_profile', {
       method: 'DELETE',
-      query: queryOf(provider),
+      query: queryOf(kind),
       body: { fields: cleared },
     });
 };
 
 /** Clears every profile field frontline set, for a bot that is being removed. */
-export const clearProfile = (provider: ProviderName, token: string) =>
-  graph('me/messenger_profile', token, {
+export const clearProfile = ({ orgId, id, kind }: Connection) =>
+  graph(orgId, id, 'me/messenger_profile', {
     method: 'DELETE',
-    query: queryOf(provider),
-    body: { fields: fieldsOf(provider) },
+    query: queryOf(kind),
+    body: { fields: fieldsOf(kind) },
   });

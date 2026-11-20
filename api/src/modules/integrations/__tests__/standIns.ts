@@ -1,18 +1,128 @@
+import { randomUUID } from 'node:crypto';
 import type * as Sdk from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import type * as CoreModule from '#/core.ts';
 import { ticketFieldCalls } from '#/test/coreUnits.ts';
 
+type Meta = ReturnType<(typeof CoreModule)['core']['forOrg']>['meta'];
+
+type Connection = Awaited<ReturnType<Meta['connections']>>['data'][number];
+
+type Sent = Parameters<Meta['send']>[0];
+
 /**
  * What frontline asked of core in a test: the customers senders become, the notifications
- * members get and the jobs it queued. `vi.mock` loads this module before the app, so it imports
- * nothing of the app's.
+ * members get, the jobs it queued, and what it sent, asked and handed over through core's Meta
+ * integration. `vi.mock` loads this module before the app, so it imports nothing of the app's.
  */
 export const asked = {
   customers: 0,
   created: [] as unknown[],
   notifications: [] as unknown[],
   jobs: [] as unknown[],
+  metaSent: [] as Sent[],
+  metaGraph: [] as Parameters<Meta['graph']>[0][],
+  metaImported: [] as Parameters<Meta['import']>[0][],
+};
+
+const metaConnections: { orgId: string; connection: Connection }[] = [];
+
+export const connectMeta = (
+  orgId: string,
+  kind: Connection['kind'],
+  fields: Partial<Connection> = {},
+) => {
+  const connection: Connection = {
+    id: `connection-${randomUUID()}`,
+    kind,
+    externalId: kind === 'facebook' ? 'page-1' : 'ig-1',
+    pageId: 'page-1',
+    name: kind === 'facebook' ? 'Shop' : '@shop.mn',
+    username: kind === 'instagram' ? 'shop.mn' : null,
+    app: 'install',
+    status: 'healthy',
+    statusReason: null,
+    connectedAt: '2026-11-01T00:00:00Z',
+    checkedAt: null,
+    createdAt: '2026-11-01T00:00:00Z',
+    ...fields,
+  };
+
+  metaConnections.push({ orgId, connection });
+
+  return connection;
+};
+
+export const metaConnectionsOf = (orgId: string) =>
+  metaConnections.filter((one) => one.orgId === orgId).map((one) => one.connection);
+
+const POST = {
+  id: 'page-1_post-9',
+  message: 'New blue jackets are in',
+  permalink_url: 'https://www.facebook.com/page-1/posts/9',
+  full_picture: 'https://cdn.example.com/jacket.jpg',
+  created_time: '2025-11-15T04:00:00+0000',
+};
+
+const MEDIA = {
+  id: 'media-3',
+  caption: 'Autumn drop',
+  permalink: 'https://www.instagram.com/p/media-3',
+  media_url: 'https://cdn.example.com/drop.jpg',
+  timestamp: '2025-11-16T04:00:00+0000',
+};
+
+const graphAnswer = ({ path, method, body }: Parameters<Meta['graph']>[0]) => {
+  if (JSON.stringify(body ?? null).includes('refused'))
+    return { status: 400, body: { error: { message: 'Invalid parameter' } } };
+
+  if (path === POST.id) return { status: 200, body: POST };
+
+  if (path === 'page-1/published_posts')
+    return {
+      status: 200,
+      body: { data: [POST], paging: { cursors: { after: 'cursor-2' }, next: 'https://next' } },
+    };
+
+  if (path === 'ig-1/media') return { status: 200, body: { data: [MEDIA] } };
+
+  if (method === 'POST' && (path === 'page-1/feed' || path === 'page-1/photos'))
+    return { status: 200, body: { id: 'page-1_post-new', post_id: 'page-1_post-new' } };
+
+  return { status: 200, body: { result: 'success' } };
+};
+
+const metaSend = async (input: Sent) => {
+  asked.metaSent.push(input);
+
+  if ('commentId' in input && input.commentId.endsWith('-deleted'))
+    throw new ORPCError('META_REFUSED', {
+      status: 400,
+      message: 'Meta refused: Object does not exist',
+    });
+
+  return { id: input.kind === 'reaction' ? null : `mid.${input.idempotencyKey}` };
+};
+
+const metaImport = (orgId: string) => async (input: Parameters<Meta['import']>[0]) => {
+  asked.metaImported.push(input);
+
+  for (const { pageToken: _token, ...given } of input.connections ?? []) {
+    const known = metaConnectionsOf(orgId).find(
+      (one) => one.kind === given.kind && one.externalId === given.externalId,
+    );
+
+    if (known) Object.assign(known, given);
+    else connectMeta(orgId, given.kind, { ...given, username: given.username ?? null });
+  }
+
+  return {
+    connections: input.connections?.length ?? 0,
+    people: input.people?.length ?? 0,
+    automations: 0,
+    placeholdersLeft: 0,
+    stepsLeft: 0,
+  };
 };
 
 /** What was uploaded to core's storage, by file id. */
@@ -32,8 +142,20 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
   ...actual,
   core: {
     ...actual.core,
-    forOrg: () => ({
+    forOrg: (orgId: string) => ({
       ...ticketFieldCalls,
+      meta: {
+        connections: async ({ kind }: { kind?: Connection['kind'] } = {}) => ({
+          data: metaConnectionsOf(orgId).filter((one) => !kind || one.kind === kind),
+        }),
+        send: metaSend,
+        graph: async (input: Parameters<Meta['graph']>[0]) => {
+          asked.metaGraph.push(input);
+
+          return graphAnswer(input);
+        },
+        import: metaImport(orgId),
+      },
       customers: {
         create: async (input: unknown) => {
           asked.customers += 1;
@@ -116,11 +238,16 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
 });
 
 /**
- * The SDK with core's job queue answered here, and core's automation calls signed with a token
- * `core-call:<orgId>:<userId>`.
+ * The SDK with core's job queue answered here, core's automation calls signed with a token
+ * `core-call:<orgId>:<userId>`, and core's event deliveries with the token `core-event`.
  */
 export const sdkStandIn = (actual: typeof Sdk) => ({
   ...actual,
+  verifyCoreEvent: async (authorization: string | null | undefined, raw: string) => {
+    if (authorization !== 'Bearer core-event') throw new Error('not signed by core');
+
+    return actual.DeliveredEvent.parse(JSON.parse(raw));
+  },
   enqueueJob: async (_tx: unknown, job: unknown) => {
     asked.jobs.push(job);
   },

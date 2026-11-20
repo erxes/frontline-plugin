@@ -29,8 +29,8 @@ interface Connected {
   secret: Record<string, unknown>;
   syncState?: Record<string, unknown>;
   /**
-   * The key a webhook delivery names it by, a `frontline_public_keys` row: Meta's page id
-   * (`metaKey`), or the random key in a Telegram webhook's address.
+   * The key a webhook delivery names it by, a `frontline_public_keys` row: the random key in a
+   * Telegram webhook's address.
    */
   webhookKey?: string;
 }
@@ -124,8 +124,7 @@ export const saveAccount = async (
   if (!row) throw new ORPCError('INTERNAL_SERVER_ERROR');
 
   if (connected.webhookKey) {
-    // A reconnect issues a new key, so the old one stops leading anywhere. A page another
-    // organisation connected before moves here: Meta sends its events to one place.
+    // A reconnect issues a new key, so the old one stops leading anywhere.
     await removeWebhookKeys(tx, member.orgId, [row.id]);
     await tx
       .insert(publicKeys)
@@ -176,9 +175,6 @@ export const accountOf = async ({ provider, key }: Pick<Routed, 'provider' | 'ke
 
   return row ?? null;
 };
-
-/** The key Meta's deliveries name an account by: its page or Instagram account id. */
-export const metaKey = (provider: ProviderName, externalId: string) => `${provider}:${externalId}`;
 
 /** The account `id` with its secret, for the provider's calls. */
 export const accountRow = async (tx: Tx, id: string) => {
