@@ -195,8 +195,12 @@ const StatusGroup = memo(function StatusGroup({
   );
 });
 
-/** The bulk bar for the picked tickets, read from the status groups' lists. */
+/**
+ * The bulk bar for the picked tickets, read from the status groups' lists. It reads them again on
+ * each pick: the groups' lists may already be in when they mount, so no request settles to.
+ */
 const TicketSelection = () => {
+  RecordList.useSelection();
   const shown = useShownTickets();
 
   return (
