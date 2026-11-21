@@ -103,6 +103,14 @@ the website signed the visitor in. Core's `core.agent.finished` posts the answer
 and `core.agent.failed` hands the conversation to a person (`api/src/modules/messenger/agent.ts`).
 A member's reply or an assignment stops the bot.
 
+A messenger's FAQ answers before the agent does. Its settings keep up to 10 questions with saved
+answers in `config.faq`, and the widget's home screen shows the questions. A tap
+(`POST /api/public/messenger/faq/:id`) posts the question as the visitor's message, in their latest
+unresolved conversation or a new one, and the saved answer as a bot message straight after. A
+typed message that equals a question, once trimmed, lowercased and stripped of trailing
+punctuation, gets the same answer. Neither goes to the agent or changes the conversation's
+`operator` (`api/src/modules/messenger/faq.ts`).
+
 ## Verification without theatre
 
 - Run `vp run check` after each edit. Never run `tsc` or `npx tsc`.
