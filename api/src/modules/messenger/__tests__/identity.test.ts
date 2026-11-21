@@ -1,16 +1,19 @@
 import { createHmac } from 'node:crypto';
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { z } from 'zod';
+import type * as Sdk from '@erxes/plugin-sdk';
 import type * as CoreModule from '#/core.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { serve } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 
 // Tests never reach core. Ann is a customer already, on the silver plan; another email or phone
-// finds a new lead. Changes to customers are kept for the test to read.
+// finds a new lead. Changes to customers and messages to core's agents are kept for the test to
+// read.
 const core = vi.hoisted(() => ({
   customers: 0,
   updates: [] as { id: string; primaryEmail?: string; customFields?: Record<string, unknown> }[],
+  submitted: [] as Record<string, unknown>[],
 }));
 
 vi.mock('#/core.ts', async (importOriginal) => {
@@ -42,12 +45,34 @@ vi.mock('#/core.ts', async (importOriginal) => {
           },
         },
         notifications: { create: async () => ({ ok: true }) },
+        agents: {
+          submit: async (input: Record<string, unknown>) => {
+            core.submitted.push(input);
+
+            return { ok: true };
+          },
+        },
       }),
     },
   };
 });
 
+// Core signs each event delivery; here the token `core-event` stands for its signature.
+vi.mock('@erxes/plugin-sdk', async (importOriginal) => {
+  const actual = await importOriginal<typeof Sdk>();
+
+  return {
+    ...actual,
+    verifyCoreEvent: async (authorization: string | undefined, raw: string) => {
+      if (authorization !== 'Bearer core-event') throw new Error('not signed by core');
+
+      return actual.DeliveredEvent.parse(JSON.parse(raw));
+    },
+  };
+});
+
 const messenger = serve('/api/public/messenger');
+const api = serve('/api');
 
 const Connected = z.object({
   token: z.string(),
@@ -59,11 +84,14 @@ const Connected = z.object({
 const connect = async (body: Record<string, unknown>) =>
   Connected.parse((await messenger.post('/connect', body)).body);
 
+const Sent = z.object({ id: z.string(), conversationId: z.string() });
+
+/** The visitor's message, as the messenger answers it. */
+const send = async (token: string, content: string, conversationId?: string) =>
+  Sent.parse((await messenger.post('/messages', { content, conversationId }, token)).body);
+
 const write = async (token: string, content: string, conversationId?: string) =>
-  z
-    .object({ conversationId: z.string() })
-    .parse((await messenger.post('/messages', { content, conversationId }, token)).body)
-    .conversationId;
+  (await send(token, content, conversationId)).conversationId;
 
 const ann = { email: 'ann@example.com', firstName: 'Ann' };
 
@@ -186,6 +214,121 @@ describe('messenger identity', () => {
 
     expect(core.updates).toEqual([
       { id: `customer-${core.customers}`, customFields: { plan: 'free' } },
+    ]);
+  });
+});
+
+/** Core delivers `core.agent.finished` with `agent-1`'s `answer` in the conversation `key`. */
+const agentFinished = (orgId: string, eventId: string, key: string, answer: string) => {
+  const at = new Date().toISOString();
+  const type = 'core.agent.finished';
+  const payload = { agentId: 'agent-1', plugin: 'frontline', key, answer, blocks: [] };
+
+  const data = {
+    id: eventId,
+    source: 'core',
+    type,
+    version: 1,
+    payload,
+    summary: null,
+    link: null,
+  };
+
+  const about = { subjectType: null, subjectId: null, entityType: null, entityId: null };
+  const actor = { actorType: 'system', actorId: null };
+
+  return api.post(
+    '/events',
+    {
+      id: eventId,
+      type,
+      organizationId: orgId,
+      createdAt: at,
+      data: { ...data, ...about, ...actor, occurredAt: at, createdAt: at },
+    },
+    'core-event',
+  );
+};
+
+const Page = z.object({
+  items: z.array(z.object({ content: z.string(), fromVisitor: z.boolean() })),
+});
+
+/** The conversation's messages as its visitor reads them, oldest first. */
+const visitorReads = async (token: string, id: string) =>
+  Page.parse((await messenger.get(`/conversations/${id}/messages`, token)).body).items.toReversed();
+
+/** The identity set-up, with its messenger answered by core's `agent-1`. */
+const withAgent = async (orgId: string) => {
+  const set = await setUp(orgId);
+
+  await set.owner.integrations.messenger.setAgent({ id: set.id, agentId: 'agent-1' });
+
+  return set;
+};
+
+describe("a messenger's core agent", () => {
+  it('gets each visitor message keyed by its conversation, and a signed-in customer', async () => {
+    const { owner, id, key, signed, hers, token } = await withAgent('org-id-agent-a');
+    const stranger = await send(token, 'Do you ship to Darkhan?');
+    const annToken = (await connect({ key, identity: signed() })).token;
+    const fromAnn = await send(annToken, 'Where is my order?', hers);
+
+    expect(core.submitted).toContainEqual({
+      id: 'agent-1',
+      key: stranger.conversationId,
+      text: 'Do you ship to Darkhan?',
+      requestId: stranger.id,
+    });
+    expect(core.submitted).toContainEqual({
+      id: 'agent-1',
+      key: hers,
+      text: 'Where is my order?',
+      requestId: fromAnn.id,
+      customerId: 'customer-ann',
+    });
+
+    await owner.integrations.messenger.setAgent({ id, agentId: null });
+    await send(token, 'Anyone there?', stranger.conversationId);
+
+    expect(core.submitted.map(({ text }) => text)).not.toContain('Anyone there?');
+  });
+
+  it('posts its answer to the visitor as the bot, once', async () => {
+    const { teammate, token } = await withAgent('org-id-agent-b');
+    const id = await write(token, 'Do you ship daily?');
+
+    expect((await agentFinished('org-id-agent-b', 'ev-b', id, 'We do.')).status).toBe(204);
+    // Core may deliver an event again.
+    await agentFinished('org-id-agent-b', 'ev-b', id, 'We do.');
+
+    expect(await visitorReads(token, id)).toEqual([
+      { content: 'Do you ship daily?', fromVisitor: true },
+      { content: 'We do.', fromVisitor: false },
+    ]);
+    expect(await teammate.conversations.get({ id })).toMatchObject({
+      operator: 'bot',
+      content: 'We do.',
+      customerRespondedLast: false,
+    });
+  });
+
+  it('stops answering once a member replies', async () => {
+    const { teammate, token } = await withAgent('org-id-agent-c');
+    const id = await write(token, 'Hello?');
+
+    await teammate.conversations.messages.create({ conversationId: id, content: 'I can help.' });
+
+    expect(await teammate.conversations.get({ id })).toMatchObject({ operator: 'person' });
+
+    await write(token, 'Thanks!', id);
+    await agentFinished('org-id-agent-c', 'ev-c', id, 'Late answer');
+
+    expect(core.submitted.map(({ text }) => text)).not.toContain('Thanks!');
+    expect((await visitorReads(token, id)).map(({ content }) => content)).toEqual([
+      'Hello?',
+      'I can help.',
+      'Thanks!',
     ]);
   });
 });

@@ -1,6 +1,7 @@
 import type { PluginManifest } from '@erxes/core-contract';
 import { config } from '#/config.ts';
 import {
+  AGENT_EVENTS,
   CHANNEL_EVENTS,
   CHANNEL_TIMELINE,
   CONVERSATION_EVENTS,
@@ -94,8 +95,14 @@ export const manifest = {
   ],
   // Any change to a unit refreshes the copy (`modules/teams/sync.ts`); a merge moves the merged
   // contacts' rows to the kept one (`modules/contacts/merges.ts`); a Facebook connection removed
-  // or turned off stops its pages (`providers/metaConnect.ts`).
-  subscriptions: ['core.unit.*', ...MERGE_EVENTS, CONNECTION_CHANGED],
+  // or turned off stops its pages (`providers/metaConnect.ts`); a messenger's core agent answers
+  // through core's agent events (`modules/messenger/agent.ts`).
+  subscriptions: [
+    'core.unit.*',
+    ...MERGE_EVENTS,
+    CONNECTION_CHANGED,
+    ...Object.values(AGENT_EVENTS),
+  ],
   // Conversations, tickets and form submissions in core's customer filter (`relations.ts`).
   relations: RELATIONS,
   permissions: [

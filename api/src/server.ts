@@ -33,6 +33,7 @@ import {
   CONNECTION_CHANGED,
   followConnection,
 } from '#/modules/integrations/providers/metaConnect.ts';
+import { onAgentEvent } from '#/modules/messenger/agent.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
 import { applyMerge } from '#/modules/contacts/merges.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';
@@ -176,7 +177,7 @@ const desktopApi: express.RequestHandler = async (req, res) => {
 // Core delivers the manifest's `subscriptions` here, signed over the raw body; anything but
 // 2xx retries. A change to a branch or department refreshes the organisation's copy; a merge
 // of customers or companies moves frontline's rows to the kept one; a Facebook connection removed
-// or turned off stops its pages.
+// or turned off stops its pages; a core agent's answer goes into its messenger conversation.
 const coreEvents: express.RequestHandler = async (req, res) => {
   const body: unknown = req.body;
 
@@ -212,6 +213,8 @@ const coreEvents: express.RequestHandler = async (req, res) => {
       'merged contacts followed',
     );
   }
+
+  await onAgentEvent(event);
 
   res.sendStatus(204);
 };
