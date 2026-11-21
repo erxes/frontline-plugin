@@ -4,7 +4,6 @@ import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { JOBS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { conversations, type DELIVERY_STATUSES, integrations, messages } from '#/db/inbox.ts';
-import type { StoredFile } from '#/db/table.ts';
 import { ADAPTERS } from './adapters.ts';
 import { signalConversations, signalMembers, statusFrom } from './shared.ts';
 
@@ -28,34 +27,25 @@ export const messageColumns = {
   >`case when ${overdue} then 'failed' else ${messages.deliveryStatus} end`,
 };
 
-/** What a member, or an automation acting as one, writes into a conversation. */
-export type Written = {
-  /** Set by a caller that may write the same message twice, so the repeat adds nothing. */
-  id?: string;
-  content: string;
-  /** Rich text, sanitized (`html.ts`); null for plain text. */
-  html?: string | null;
-  attachments: StoredFile[];
-  internal: boolean;
-  mentionedUserIds: string[];
-  replyToId: string | null;
-  /** The survey the customer votes on in this message. */
-  surveyId?: string;
-  /** What the adapter reads back when it sends it, such as a new mail's subject. */
-  providerData?: Record<string, unknown>;
-};
+type Message = typeof messages.$inferSelect;
 
 /**
- * Adds the message to `conversation` in `tx`. A reply waits on its adapter's `send` as a queued
- * job, or is sent once it commits when the adapter has none; the conversation leaves `new` and
- * stops waiting on a reply. A note only adds the author to the conversation's participants. A
- * message whose `id` exists already is returned as it is.
+ * Adds `written`, a message from a member or an automation acting as one, to `conversation` in
+ * `tx`. A reply waits on its adapter's `send` as a queued job, or is sent once it commits when
+ * the adapter has none; the conversation leaves `new` and stops waiting on a reply. A note only
+ * adds the author to the conversation's participants. A caller that may write the same message
+ * twice sets `id`: a message whose `id` exists already is returned as it is. `html` is sanitized
+ * (`html.ts`).
  */
 export const postMessage = async (
   tx: Tx,
   author: { orgId: string; userId: string },
   conversation: { id: string; customerId: string; integrationId: string },
-  written: Written,
+  written: Pick<
+    Message,
+    'content' | 'attachments' | 'internal' | 'mentionedUserIds' | 'replyToId'
+  > &
+    Partial<Pick<Message, 'id' | 'html' | 'surveyId' | 'providerData'>>,
 ) => {
   const [integration] = await tx
     .select({ kind: integrations.kind })

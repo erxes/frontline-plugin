@@ -10,6 +10,7 @@ import {
   timestamp,
   unique,
 } from 'drizzle-orm/pg-core';
+import { z } from 'zod';
 import { conversations } from './inbox.ts';
 import { integrationAccounts } from './integrations.ts';
 import { type StoredFile, id, table } from './table.ts';
@@ -65,19 +66,27 @@ export const callOperators = table(
 );
 
 /** What a queue's live board shows, as the PBX last sent it. */
-export type QueueLive = {
-  agents: {
-    extension: string;
-    name: string;
-    status: string;
-    answered: number;
-    abandoned: number;
-    talkSeconds: number;
-    pausedAt: string | null;
-  }[];
-  waiting: { callerId: string; channel: string | null }[];
-  talking: { callerId: string; calleeId: string | null; since: string | null }[];
-};
+export const QueueLive = z.object({
+  agents: z.array(
+    z.object({
+      extension: z.string(),
+      name: z.string(),
+      status: z.string(),
+      answered: z.number(),
+      abandoned: z.number(),
+      talkSeconds: z.number(),
+      pausedAt: z.string().nullable(),
+    }),
+  ),
+  waiting: z.array(z.object({ callerId: z.string(), channel: z.string().nullable() })),
+  talking: z.array(
+    z.object({
+      callerId: z.string(),
+      calleeId: z.string().nullable(),
+      since: z.string().nullable(),
+    }),
+  ),
+});
 
 /**
  * A PBX queue frontline shows: its counters for the day and its live board, both as the PBX last
@@ -102,7 +111,7 @@ export const callQueues = table(
     /** Percent of calls answered within the queue's service level. */
     slaRate: real().notNull().default(0),
     statsAt: timestamp({ withTimezone: true }),
-    live: jsonb().$type<QueueLive>(),
+    live: jsonb().$type<z.infer<typeof QueueLive>>(),
     liveAt: timestamp({ withTimezone: true }),
   },
   (t) => [

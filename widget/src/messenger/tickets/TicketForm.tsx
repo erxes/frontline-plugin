@@ -4,7 +4,7 @@ import type { MessengerApi, NewTicket, Ticket, TicketForms } from '../api.ts';
 import type { Uploaded } from '../../shared/http.ts';
 import { AttachButton, FileChips, useUploads } from '../../shared/uploads.tsx';
 import { useText } from '../../shared/text.ts';
-import { PropertyField, toggled } from './PropertyField.tsx';
+import { PropertyField, type PropertyValue, toggled } from './PropertyField.tsx';
 
 /** The organisation's ticket tags, each a pill the visitor ticks. */
 const TagPicker = ({
@@ -92,13 +92,17 @@ const useProperties = (
   const shown = shownFields(properties, values);
 
   const sent = Object.fromEntries(
-    shown.flatMap(({ id }) => (unanswered(values[id]) ? [] : [[id, values[id]]])),
+    shown.flatMap(({ id }) => {
+      const value = values[id];
+
+      return value === undefined || unanswered(value) ? [] : [[id, value]];
+    }),
   );
 
   const empty = shown.filter(({ id, isRequired }) => isRequired && !(id in sent));
   const missing = refusedIn === draft.pipelineId ? empty.map(({ id }) => id) : [];
 
-  const answer = (id: string, value: unknown) =>
+  const answer = (id: string, value: PropertyValue) =>
     setDraft((current) => ({
       ...current,
       propertiesData: { ...current.propertiesData, [id]: value },

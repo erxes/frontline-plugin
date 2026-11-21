@@ -2,6 +2,7 @@ import { createHmac, randomUUID } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { afterAll, afterEach, beforeAll, vi } from 'vite-plus/test';
 import { z } from 'zod';
+import type { MetaProvider } from '#/db/meta.ts';
 import { JOB_RUNS } from '#/jobs.ts';
 import { createApp } from '#/server.ts';
 import { clientAs } from '#/test/member.ts';
@@ -146,7 +147,7 @@ export const serve = () => {
   return {
     get,
     /** Logs `orgId` in through Meta's dialog and gives a channel to the page or the account. */
-    connectMeta: async (orgId: string, provider: 'facebook' | 'instagram') => {
+    connectMeta: async (orgId: string, provider: MetaProvider) => {
       const owner = clientAs(orgId);
       const { url } = await owner.integrations.meta.loginUrl();
       const state = new URL(url).searchParams.get('state') ?? '';

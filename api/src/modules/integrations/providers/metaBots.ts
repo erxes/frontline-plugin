@@ -7,7 +7,14 @@ import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { type Tx, uniqueViolation, withOrg } from '#/db/client.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
-import { BOT_ACCOUNT_INDEX, BotMenuItem, IceBreaker, metaBots } from '#/db/meta.ts';
+import {
+  BOT_ACCOUNT_INDEX,
+  BotMenuItem,
+  IceBreaker,
+  META_PROVIDERS,
+  type MetaProvider,
+  metaBots,
+} from '#/db/meta.ts';
 import { logger } from '#/logger.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
 import { askMeta, metaAccount } from './meta.ts';
@@ -23,7 +30,7 @@ const Bot = createSelectSchema(metaBots, {
   .omit({ orgId: true })
   .extend({
     accountName: z.string(),
-    provider: z.enum(['facebook', 'instagram']),
+    provider: z.enum(META_PROVIDERS),
   });
 
 const botRows = (tx: Tx) =>
@@ -31,7 +38,7 @@ const botRows = (tx: Tx) =>
     .select({
       ...botColumns,
       accountName: integrationAccounts.name,
-      provider: sql<'facebook' | 'instagram'>`${integrationAccounts.provider}`,
+      provider: sql<MetaProvider>`${integrationAccounts.provider}`,
     })
     .from(metaBots)
     .innerJoin(integrationAccounts, eq(integrationAccounts.id, metaBots.accountId))

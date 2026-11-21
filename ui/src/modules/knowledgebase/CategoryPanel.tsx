@@ -11,7 +11,9 @@ import {
   IconTrash,
   IconUser,
 } from '@tabler/icons-react';
+import type { InferClientInputs } from '@orpc/client';
 import { useMutation } from '@tanstack/react-query';
+import type { Client } from '@frontline/api';
 import { CATEGORY_ICON } from '~/shared/icons.ts';
 import {
   Button,
@@ -87,21 +89,16 @@ export const CategoryActions = ({ contentId }: TRecordSlotProps) => {
   );
 };
 
-type CategoryEdit = {
-  title?: string;
-  description?: string;
-  code?: string;
-  icon?: string | null;
-  topicId?: string;
-  parentId?: string | null;
-};
-
 /** The category's fields, edited in place by category managers. */
 const CategoryFields = ({ category }: { category: Category }) => {
   const { t } = useTranslation('frontline');
   const can = useKbAccess();
   const update = useMutation(orpc.knowledgebase.categories.update.mutationOptions(useKbChange()));
-  const edit = (fields: CategoryEdit) => update.mutate({ id: category.id, ...fields });
+
+  const edit = (
+    fields: Omit<InferClientInputs<Client>['knowledgebase']['categories']['update'], 'id'>,
+  ) => update.mutate({ id: category.id, ...fields });
+
   const scope = `frontline-kb-category.${category.id}`;
 
   return (

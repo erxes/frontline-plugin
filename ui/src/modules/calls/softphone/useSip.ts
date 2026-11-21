@@ -1,5 +1,6 @@
 import type { InferClientOutputs } from '@orpc/client';
 import type { Client } from '@frontline/api';
+import type { PhoneState } from '@frontline/desktop';
 import { toast } from 'erxes-ui';
 import { UA, WebSocketInterface } from 'jssip';
 import { getI18n } from 'react-i18next';
@@ -17,7 +18,7 @@ import {
 export type Line = InferClientOutputs<Client>['calls']['phone']['lines'][number];
 
 /** Signing in to the PBX, signed in and taking calls, or cut off from it. */
-export type PhoneStatus = 'connecting' | 'ready' | 'offline';
+export type PhoneStatus = PhoneState['status'];
 
 /** The call the phone is on: ringing until either side answers, then talking. */
 export type PhoneCall = {

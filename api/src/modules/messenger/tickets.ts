@@ -208,6 +208,9 @@ const File = z.object({
   propertiesData: CustomFieldsPatch.default({}),
 });
 
+/** A ticket the visitor files, with every field `/tickets` defaults filled in. */
+export type VisitorNewTicket = z.output<typeof File>;
+
 /**
  * The visitor files a ticket in a pipeline their messenger offers, as its customer. The team
  * reaches them by the email or phone they left, so a visitor leaves one first.

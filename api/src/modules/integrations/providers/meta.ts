@@ -1,6 +1,7 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
+import type { MetaProvider } from '#/db/meta.ts';
 import type { StoredFile } from '#/db/table.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { providerApi, ProviderRefused } from '../providerApi.ts';
@@ -303,7 +304,7 @@ export const subscribeToPage = (pageId: string, pageToken: string) =>
  * posts here directly, so the relay stays out of it.
  */
 const resubscribe = async (
-  provider: 'facebook' | 'instagram',
+  provider: MetaProvider,
   { row, secret }: MetaAccount,
   pageId: string,
 ) => {
@@ -333,7 +334,7 @@ const InstagramPerson = z.object({ name: z.string().optional(), username: z.stri
  * events give only their page-scoped id.
  */
 const whoIsOn =
-  (provider: 'facebook' | 'instagram') =>
+  (provider: MetaProvider) =>
   async ({ secret }: MetaAccount, id: string) => {
     if (provider === 'instagram') {
       const { name, username } = InstagramPerson.parse(
@@ -357,7 +358,7 @@ const whoIsOn =
  * install sharing the app may still read it.
  */
 const disconnectFrom =
-  (provider: 'facebook' | 'instagram') =>
+  (provider: MetaProvider) =>
   ({ row }: MetaAccount) =>
     unrouteFromRelay(provider, row.externalId);
 

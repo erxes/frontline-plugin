@@ -14,14 +14,7 @@ import { VISUALS } from './figures.tsx';
 export type SavedChart = InferClientOutputs<Client>['reports']['charts']['list'][number];
 
 /** How a card narrows and draws what it counts. */
-export type Look = {
-  visual: Visual;
-  period: Period;
-  from: Date | null;
-  to: Date | null;
-  filter: TConditionGroup | null;
-  fieldId: string | null;
-};
+export type Look = Pick<SavedChart, 'visual' | 'period' | 'from' | 'to' | 'filter' | 'fieldId'>;
 
 const OPERATORS = [
   'eq',

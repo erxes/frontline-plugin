@@ -7,7 +7,9 @@ import {
   IconTrash,
   IconUser,
 } from '@tabler/icons-react';
+import type { InferClientInputs } from '@orpc/client';
 import { useMutation } from '@tanstack/react-query';
+import type { Client } from '@frontline/api';
 import {
   Button,
   PanelDescriptionField,
@@ -112,7 +114,7 @@ const TemplateFields = ({ template }: { template: ResponseTemplate }) => {
   const format = useFormat();
   const update = useMutation(orpc.responseTemplates.update.mutationOptions(useTemplateChange()));
 
-  const edit = (fields: { name?: string; content?: string; channelId?: string }) =>
+  const edit = (fields: Omit<InferClientInputs<Client>['responseTemplates']['update'], 'id'>) =>
     update.mutate({ id: template.id, ...fields });
 
   const scope = `frontline-response-template.${template.id}`;
