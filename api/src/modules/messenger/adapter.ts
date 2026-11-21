@@ -79,6 +79,31 @@ export const MessengerConfig = z.object({
     )
     .max(10)
     .default([]),
+
+  /**
+   * Common questions the home screen offers, in order. A visitor who taps one, or types it, gets
+   * its saved answer at once. The id is the page's, so a tap names the entry and the answer comes
+   * from here.
+   */
+  faq: z
+    .array(
+      z.object({
+        id: z.string().min(1).max(64),
+        question: z
+          .string()
+          .trim()
+          .min(1)
+          .max(150)
+          .regex(/^[^\r\n]*$/, 'One line'),
+        answer: z.string().trim().min(1).max(2000),
+      }),
+    )
+    .max(10)
+    .refine(
+      (entries) => new Set(entries.map((entry) => entry.id)).size === entries.length,
+      'Each question needs its own id',
+    )
+    .default([]),
 });
 
 export type MessengerConfig = z.infer<typeof MessengerConfig>;

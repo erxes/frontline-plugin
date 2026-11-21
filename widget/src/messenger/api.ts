@@ -97,6 +97,11 @@ export const messengerApi = (base: URL, key: string) => {
         .json<MessagePage>(),
     send: (token: string, body: { conversationId?: string; content: string; files: string[] }) =>
       as(token).post(body, 'messages').json<Message>(),
+    /** Asks common question `id`, whose answer the API posts right after it. */
+    ask: (token: string, id: string) =>
+      as(token)
+        .post(undefined, `faq/${encodeURIComponent(id)}`)
+        .json<Message>(),
     read: (token: string, id: string) => notify(token, id, 'read'),
     typing: (token: string, id: string) => notify(token, id, 'typing'),
     askForPerson: (token: string, id: string) => notify(token, id, 'person'),

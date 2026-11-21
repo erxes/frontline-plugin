@@ -14,7 +14,7 @@ vi.mock('#/core.ts', async (importOriginal) =>
   ),
 );
 
-const { post } = serve('/api/public/messenger');
+const { get, post } = serve('/api/public/messenger');
 
 const Connected = z.looseObject({ token: z.string() });
 
@@ -75,6 +75,30 @@ describe('integrations', () => {
 
     await owner.integrations.remove({ id: integration.id });
     expect(await owner.integrations.list({})).toEqual([]);
+  });
+
+  it('keeps a messenger’s common questions in order and shows visitors the questions only', async () => {
+    const { owner, integration } = await setUp('org-in-faq');
+    const { id, publicKey } = integration;
+
+    const faq = [
+      { id: 'hours', question: 'When are you open?', answer: 'Weekdays, 09:00 to 18:00.' },
+      { id: 'ship', question: 'Do you ship abroad?', answer: 'Yes, to 40 countries.' },
+    ];
+
+    for (const refused of [[faq[0], faq[0]], [{ ...faq[1], question: 'Two\nlines' }]])
+      await expect(
+        owner.integrations.update({ id, config: { faq: refused } }),
+      ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    await owner.integrations.update({ id, config: { faq } });
+
+    expect((await owner.integrations.messenger.settings({ id })).config.faq).toEqual(faq);
+    expect(
+      z
+        .object({ messenger: z.looseObject({ faq: z.unknown() }) })
+        .parse((await get(`/settings?key=${publicKey}`)).body).messenger.faq,
+    ).toEqual(faq.map(({ id: entry, question }) => ({ id: entry, question })));
   });
 
   it('moves an integration with its conversations to another channel an admin picks', async () => {
