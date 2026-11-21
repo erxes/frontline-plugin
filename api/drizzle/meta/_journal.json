@@ -309,6 +309,13 @@
       "when": 1795257938480,
       "tag": "0045_integration_agent",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1795261757822,
+      "tag": "0046_message_blocks",
+      "breakpoints": true
     }
   ]
 }

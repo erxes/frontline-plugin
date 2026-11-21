@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { AgentBlock } from '@erxes/core-contract';
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
@@ -30,6 +31,7 @@ import {
 
 export const Message = createSelectSchema(messages, {
   attachments: () => z.array(StoredFile),
+  blocks: () => z.array(AgentBlock),
 }).omit({ orgId: true, providerData: true });
 
 /** The message `id` of a conversation the caller sees, locked, or NOT_FOUND. */

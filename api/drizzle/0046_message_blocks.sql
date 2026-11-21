@@ -1,0 +1,1 @@
+ALTER TABLE "frontline_messages" ADD COLUMN "blocks" jsonb DEFAULT '[]'::jsonb NOT NULL;

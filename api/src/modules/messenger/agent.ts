@@ -97,7 +97,8 @@ export const submitToAgent = async (
 };
 
 /**
- * Posts the agent's answer into its conversation as the bot, and tells the inbox and the
+ * Posts the agent's answer, with the blocks it showed below it, into its conversation as the bot,
+ * and tells the inbox and the
  * visitor's messenger. A repeated delivery of `eventId` adds nothing, and so does an answer to a
  * conversation a person took meanwhile. Returns whether it posted.
  */
@@ -105,10 +106,11 @@ const postAnswer = (orgId: string, eventId: string, finished: z.infer<typeof Age
   withOrg(orgId, async (tx) => {
     const conversation = await answeredBy(tx, finished);
 
-    if (!conversation || !finished.answer.trim()) return false;
+    if (!conversation || (!finished.answer.trim() && finished.blocks.length === 0)) return false;
 
     const posted = await addBotMessage(tx, orgId, conversation, finished.answer, {
       externalId: `agent:${eventId}`,
+      blocks: finished.blocks,
     });
 
     if (posted) await signalConversations(tx, orgId, [conversation]);

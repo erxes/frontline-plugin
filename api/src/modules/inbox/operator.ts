@@ -1,3 +1,4 @@
+import type { AgentBlock } from '@erxes/core-contract';
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
@@ -18,14 +19,19 @@ type Target = { id: string; customerId: string };
  * Adds a message from neither the customer nor a member (the bot) to a conversation and sends
  * it like a reply: queued for the adapter's `send`, or delivered on commit. `externalId` makes a
  * retried automation step add nothing. A message that `answers` the customer stops their wait; a
- * hand-off doesn't, as they still wait for the person. Returns false when it is already there.
+ * hand-off doesn't, as they still wait for the person. A core agent's answer carries the `blocks`
+ * it showed below it. Returns false when it is already there.
  */
 export const addBotMessage = async (
   tx: Tx,
   orgId: string,
   conversation: Target,
   content: string,
-  { externalId, answers = true }: { externalId?: string; answers?: boolean } = {},
+  {
+    externalId,
+    answers = true,
+    blocks = [],
+  }: { externalId?: string; answers?: boolean; blocks?: AgentBlock[] } = {},
 ) => {
   const [integration] = await tx
     .select({ kind: integrations.kind })
@@ -41,6 +47,7 @@ export const addBotMessage = async (
       orgId,
       conversationId: conversation.id,
       content,
+      blocks,
       externalId,
       deliveryStatus: queued ? 'queued' : 'sent',
     })

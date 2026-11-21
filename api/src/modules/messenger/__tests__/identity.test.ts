@@ -222,11 +222,20 @@ describe('messenger identity', () => {
   });
 });
 
-/** Core delivers `core.agent.finished` with `agent-1`'s `answer` in the conversation `key`. */
-const agentFinished = (orgId: string, eventId: string, key: string, answer: string) => {
+/**
+ * Core delivers `core.agent.finished` with `agent-1`'s `answer`, and the `blocks` it showed below
+ * it, in the conversation `key`.
+ */
+const agentFinished = (
+  orgId: string,
+  eventId: string,
+  key: string,
+  answer: string,
+  blocks: Record<string, unknown>[] = [],
+) => {
   const at = new Date().toISOString();
   const type = 'core.agent.finished';
-  const payload = { agentId: 'agent-1', plugin: 'frontline', key, answer };
+  const payload = { agentId: 'agent-1', plugin: 'frontline', key, answer, blocks };
 
   const data = {
     id: eventId,
@@ -255,8 +264,27 @@ const agentFinished = (orgId: string, eventId: string, key: string, answer: stri
 };
 
 const Page = z.object({
-  items: z.array(z.object({ content: z.string(), fromVisitor: z.boolean() })),
+  items: z.array(
+    z.object({
+      content: z.string(),
+      fromVisitor: z.boolean(),
+      blocks: z.array(z.record(z.string(), z.unknown())),
+    }),
+  ),
 });
+
+/** A product card and a payment link, as core sends them. */
+const blocks = [
+  {
+    kind: 'product',
+    title: 'Felt boots',
+    price: '450,000₮',
+    text: 'Handmade in Arkhangai.',
+    imageUrl: 'https://shop.example.com/boots.jpg',
+    url: 'https://shop.example.com/boots',
+  },
+  { kind: 'payment', title: 'Pay', url: 'https://pay.example.com/i/1', amount: '450,000₮' },
+];
 
 /** The conversation's messages as its visitor reads them, oldest first. */
 const visitorReads = async (token: string, id: string) =>
@@ -298,18 +326,23 @@ describe("a messenger's core agent", () => {
     expect(core.submitted.map(({ text }) => text)).not.toContain('Anyone there?');
   });
 
-  it('posts its answer to the visitor as the bot, once', async () => {
+  it('posts its answer to the visitor as the bot, once, with what it showed', async () => {
     const { teammate, token } = await withAgent('org-id-agent-b');
     const id = await write(token, 'Do you ship daily?');
 
-    expect((await agentFinished('org-id-agent-b', 'ev-b', id, 'We do.')).status).toBe(204);
+    expect((await agentFinished('org-id-agent-b', 'ev-b', id, 'We do.', blocks)).status).toBe(204);
     // Core may deliver an event again.
-    await agentFinished('org-id-agent-b', 'ev-b', id, 'We do.');
+    await agentFinished('org-id-agent-b', 'ev-b', id, 'We do.', blocks);
 
     expect(await visitorReads(token, id)).toEqual([
-      { content: 'Do you ship daily?', fromVisitor: true },
-      { content: 'We do.', fromVisitor: false },
+      { content: 'Do you ship daily?', fromVisitor: true, blocks: [] },
+      { content: 'We do.', fromVisitor: false, blocks },
     ]);
+    expect(
+      (await teammate.conversations.messages.list({ conversationId: id })).messages.map(
+        (message) => message.blocks,
+      ),
+    ).toEqual([blocks, []]);
     expect(await teammate.conversations.get({ id })).toMatchObject({
       operator: 'bot',
       content: 'We do.',
