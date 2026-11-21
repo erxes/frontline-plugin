@@ -6,3 +6,5 @@ export {
   IntegrationDetail as Detail,
   IntegrationTitle as Title,
 } from './IntegrationPanel.tsx';
+
+export { AgentTab as Bot } from '@/messenger/AgentTab.tsx';
