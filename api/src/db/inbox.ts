@@ -1,4 +1,4 @@
-import type { CustomValue } from '@erxes/core-contract';
+import type { AgentBlock, CustomValue } from '@erxes/core-contract';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -170,6 +170,8 @@ export const messages = table(
     /** A member's rich text, sanitized, or null for plain text; `content` is its text. */
     html: text(),
     attachments: jsonb().$type<StoredFile[]>().notNull().default([]),
+    /** What a core agent showed below its answer: pictures, products, links and payment links. */
+    blocks: jsonb().$type<AgentBlock[]>().notNull().default([]),
     internal: boolean().notNull().default(false),
     /** A core customer id. */
     customerId: text(),

@@ -101,6 +101,8 @@ in `frontline_integrations.agent_id`. While a conversation's `operator` is `bot`
 message goes to core's `agents.submit`, keyed by the conversation id, with the customer only when
 the website signed the visitor in. Core's `core.agent.finished` posts the answer as a bot message,
 and `core.agent.failed` hands the conversation to a person (`api/src/modules/messenger/agent.ts`).
+The answer's `blocks` (pictures, product cards, links and payment links) are stored in
+`frontline_messages.blocks` and drawn under the message in the widget and the inbox.
 A member's reply or an assignment stops the bot.
 
 ## Verification without theatre
