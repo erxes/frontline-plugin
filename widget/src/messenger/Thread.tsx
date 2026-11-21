@@ -12,6 +12,10 @@ import { useNewestInView, useThread } from './useThread.ts';
 
 const loadSurvey = async () => (await import('./survey/SurveyCard.tsx')).SurveyCard;
 
+const loadBlocks = async () => (await import('./blocks/AgentBlocks.tsx')).AgentBlocks;
+
+type Blocks = Awaited<ReturnType<typeof loadBlocks>>;
+
 /** A message from the team, the bot or the messenger itself, on the left. */
 export const TeamNote = ({ children }: { children: ComponentChildren }) => (
   <div class="fl-message">
@@ -43,15 +47,20 @@ export const Files = ({
   </div>
 );
 
-/** One message: the visitor's on the right in the messenger's colour, the team's on the left. */
+/**
+ * One message: the visitor's on the right in the messenger's colour, the team's on the left, with
+ * what a core agent showed under its answer once `Blocks` loaded.
+ */
 const Bubble = ({
   message,
   language,
   urlOf,
+  Blocks,
 }: {
   message: Message;
   language: string;
   urlOf: (url: string) => string;
+  Blocks: Blocks | null;
 }) => {
   const { t } = useText();
 
@@ -61,12 +70,16 @@ const Bubble = ({
         {message.content}
         {message.attachments.length > 0 && <Files files={message.attachments} urlOf={urlOf} />}
       </div>
+      {Blocks && <Blocks blocks={message.blocks} />}
       <time dateTime={message.createdAt}>{timeOf(message.createdAt, language, t)}</time>
     </div>
   );
 };
 
-/** The conversation's messages; a survey shows as the visitor's ballot, from a chunk of its own. */
+/**
+ * The conversation's messages; a survey shows as the visitor's ballot and a core agent's blocks
+ * under its answer, each from a chunk of its own.
+ */
 const Messages = ({
   api,
   token,
@@ -83,6 +96,11 @@ const Messages = ({
     loadSurvey,
   );
 
+  const Blocks = useLazy(
+    messages.some((message) => message.blocks.length > 0),
+    loadBlocks,
+  );
+
   const urlOf = (url: string) => api.fileUrl(token, url);
 
   return messages.map((message) =>
@@ -91,7 +109,13 @@ const Messages = ({
         {Survey && <Survey api={api} token={token} messageId={message.id} urlOf={urlOf} />}
       </div>
     ) : (
-      <Bubble key={message.id} message={message} language={language} urlOf={urlOf} />
+      <Bubble
+        key={message.id}
+        message={message}
+        language={language}
+        urlOf={urlOf}
+        Blocks={Blocks}
+      />
     ),
   );
 };

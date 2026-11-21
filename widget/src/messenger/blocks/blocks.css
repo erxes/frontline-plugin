@@ -1,0 +1,69 @@
+.fl-blocks {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 6px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fl-blocks li {
+  display: flex;
+  max-width: 100%;
+}
+
+.fl-block-image {
+  display: block;
+  max-width: 220px;
+  max-height: 220px;
+  border-radius: 8px;
+}
+
+.fl-product {
+  width: 220px;
+  overflow: hidden;
+  border: 1px solid var(--fl-line);
+  border-radius: 12px;
+  background: var(--fl-page);
+}
+
+.fl-product img {
+  display: block;
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+
+.fl-product div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+}
+
+.fl-product-text {
+  color: var(--fl-muted);
+  font-size: 13px;
+}
+
+.fl-product a {
+  margin-top: 4px;
+  color: var(--fl-color);
+}
+
+/* A link reads like the bot menu's buttons; a payment is filled in the messenger's colour. */
+.fl-block-link,
+.fl-pay {
+  padding: 6px 12px;
+  border: 1px solid var(--fl-color);
+  border-radius: 999px;
+  color: var(--fl-color);
+  text-decoration: none;
+}
+
+.fl-pay {
+  background: var(--fl-color);
+  color: var(--fl-text);
+  font-weight: 600;
+}
