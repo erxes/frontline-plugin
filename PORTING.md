@@ -99,6 +99,13 @@ Frontline builds these in its own tables, with no core change:
   messages to messenger visitors itself. Members get `core.signal`.
 - Teams. Core's units, copied to `frontline_teams` by `modules/teams/sync.ts`.
 
+A messenger can be answered by an agent an admin made in core: its Bot tab saves the agent's id
+in `frontline_integrations.agent_id`. While a conversation's `operator` is `bot`, each visitor
+message goes to core's `agents.submit`, keyed by the conversation id, with the customer only when
+the website signed the visitor in. Core's `core.agent.finished` posts the answer as a bot message,
+and `core.agent.failed` hands the conversation to a person (`api/src/modules/messenger/agent.ts`).
+A member's reply or an assignment stops the bot.
+
 ## Verification without theatre
 
 - Run `vp run check` after each edit. Never run `tsc` or `npx tsc`.
