@@ -34,6 +34,11 @@ export const integrations = table(
     name: text().notNull(),
     isActive: boolean().notNull().default(true),
     config: jsonb().$type<Record<string, unknown>>().notNull().default({}),
+    /**
+     * The core agent that answers the messenger's conversations while their `operator` is
+     * `bot`, or null for none. Core refuses a submit to an agent since deleted.
+     */
+    agentId: text(),
     ...stamps(),
   },
   (t) => [
