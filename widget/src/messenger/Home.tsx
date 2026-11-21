@@ -1,3 +1,4 @@
+import { useState } from 'preact/hooks';
 import type { Conversation, Settings } from './api.ts';
 import { hoursOf, statusOf, timeOf } from './hours.ts';
 import { ChatIcon } from '../shared/icons.tsx';
@@ -80,18 +81,66 @@ const Chats = ({
 };
 
 /**
+ * The messenger's common questions, each a button that asks it. Until the visitor is connected,
+ * `onAsk` is null and the buttons wait; while one is asked, the others wait too.
+ */
+const Questions = ({
+  faq,
+  onAsk,
+}: {
+  faq: Settings['faq'];
+  onAsk: ((id: string) => Promise<void>) | null;
+}) => {
+  const { t, messageOf } = useText();
+  const [asking, setAsking] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const ask = (id: string) => {
+    if (!onAsk) return;
+
+    setAsking(true);
+    setError(null);
+    onAsk(id)
+      .catch((failure: unknown) => setError(messageOf(failure)))
+      .finally(() => setAsking(false));
+  };
+
+  return (
+    <div class="fl-card">
+      <h3>{t('Common questions')}</h3>
+      <ul class="fl-list">
+        {faq.map((entry) => (
+          <li key={entry.id}>
+            <button type="button" disabled={!onAsk || asking} onClick={() => ask(entry.id)}>
+              {entry.question}
+            </button>
+          </li>
+        ))}
+      </ul>
+      {error && (
+        <p class="fl-error" role="alert">
+          {error}
+        </p>
+      )}
+    </div>
+  );
+};
+
+/**
  * The messenger's first page: the greeting, a button to write, the visitor's conversations,
- * their tickets, the help articles, the online hours, the website's own pages and links.
+ * the common questions, their tickets, the help articles, the online hours, the website's own pages and links.
  */
 export const Home = ({
   settings,
   conversations,
   onOpen,
+  onAsk,
   onTab,
 }: {
   settings: Settings;
   conversations: Conversation[];
   onOpen: (id: string | null) => void;
+  onAsk: ((id: string) => Promise<void>) | null;
   onTab: (name: 'tickets' | 'articles') => void;
 }) => {
   const { t } = useText();
@@ -103,6 +152,9 @@ export const Home = ({
       <div class="fl-body">
         {settings.showChat && (
           <Chats settings={settings} conversations={conversations} onOpen={onOpen} />
+        )}
+        {settings.showChat && settings.faq.length > 0 && (
+          <Questions faq={settings.faq} onAsk={onAsk} />
         )}
         {settings.tickets && (
           <button type="button" class="fl-card fl-app" onClick={() => onTab('tickets')}>

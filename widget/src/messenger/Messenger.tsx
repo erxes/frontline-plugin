@@ -60,15 +60,36 @@ const Page = ({
   const TicketsTab = useLazy(view.name === 'tickets', loadTickets);
   const HelpTab = useLazy(view.name === 'articles', loadArticles);
   const home = () => onView({ name: 'home' });
+  const { settings, session } = messenger;
 
-  if (!messenger.settings) return null;
+  if (!settings) return null;
+
+  /**
+   * Asks a common question, then opens the conversation holding it and its answer. A messenger
+   * that wants an email or phone first asks for it on a new conversation instead.
+   */
+  const ask = async (id: string) => {
+    if (!session) return;
+
+    if (settings.requireAuth && !session.identified) {
+      onView({ name: 'thread', id: null });
+
+      return;
+    }
+
+    const asked = await api.ask(session.token, id);
+
+    onView({ name: 'thread', id: asked.conversationId });
+    await messenger.refresh();
+  };
 
   if (view.name === 'home')
     return (
       <Home
-        settings={messenger.settings}
+        settings={settings}
         conversations={messenger.conversations}
         onOpen={(id) => onView({ name: 'thread', id })}
+        onAsk={session ? ask : null}
         onTab={(name) => onView({ name })}
       />
     );
