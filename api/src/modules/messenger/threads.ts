@@ -11,10 +11,11 @@ import { fail } from '../fail.ts';
 import { underKeyLimit } from '../limits.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import { setOperatorOf } from '../inbox/operator.ts';
-import { receive } from '../inbox/receive.ts';
+import { type Incoming, receive } from '../inbox/receive.ts';
 import { typingTopic } from '../inbox/shared.ts';
 import { MessengerConfig, messenger } from './adapter.ts';
 import { submitToAgent } from './agent.ts';
+import { faqAnswerTo, postFaqAnswer } from './faq.ts';
 import { attachmentsOf, type Visitor, visitorOf } from './session.ts';
 
 /** What a visitor sees of a message: never an internal note or who on the team is who. */
@@ -193,30 +194,38 @@ const conversationMessages = asVisitor(async (visitor, req, res) => {
 });
 
 /**
- * The visitor writes, in a conversation of theirs or a new one. A messenger that requires it
- * takes messages only from a visitor who left an email or phone. A messenger with a core agent
- * gives it the message while the bot answers the conversation.
+ * The messenger's settings, for a visitor who may write to it: one that requires it takes
+ * messages only from a visitor who left an email or phone.
  */
-const send = asVisitor(async (visitor, req, res) => {
-  const { files, ...input } = Send.parse(req.body);
-
-  if (!input.content && files.length === 0)
-    throw new ORPCError('BAD_REQUEST', { message: 'Write a message or attach a file' });
-
-  const attachments = await attachmentsOf(visitor, files);
+const writableBy = async (visitor: Visitor) => {
   const settings = await messengerIntegration(visitor.orgId, visitor.integrationId);
 
-  if (settings?.requireAuth && !visitor.identified)
+  if (!settings) throw new ORPCError('NOT_FOUND', { message: 'No such messenger' });
+
+  if (settings.requireAuth && !visitor.identified)
     throw new ORPCError('FORBIDDEN', { message: 'Leave your email or phone number first' });
 
+  return settings;
+};
+
+/**
+ * Adds the visitor's message and answers it: with `answer`, a common question's, posted as the
+ * bot at once, else by the messenger's core agent while the bot has the conversation. Returns
+ * the message as the visitor sees it.
+ */
+const deliver = async (
+  visitor: Visitor,
+  input: Pick<Incoming, 'conversationId' | 'content' | 'attachments'>,
+  answer: string | undefined,
+) => {
   const message = await receive(visitor.orgId, {
     ...visitor,
     ...input,
-    attachments,
     event: MESSAGE_RECEIVED.messenger.type,
   });
 
-  await submitToAgent(visitor, message);
+  if (answer === undefined) await submitToAgent(visitor, message);
+  else await postFaqAnswer(visitor.orgId, { ...message, customerId: visitor.customerId }, answer);
 
   const reply: VisitorMessage = {
     id: message.id,
@@ -228,7 +237,42 @@ const send = asVisitor(async (visitor, req, res) => {
     createdAt: message.createdAt,
   };
 
-  res.status(201).json(reply);
+  return reply;
+};
+
+/**
+ * The visitor writes, in a conversation of theirs or a new one. A message that asks one of the
+ * messenger's common questions exactly gets its saved answer; any other goes to its core agent.
+ */
+const send = asVisitor(async (visitor, req, res) => {
+  const { files, ...input } = Send.parse(req.body);
+
+  if (!input.content && files.length === 0)
+    throw new ORPCError('BAD_REQUEST', { message: 'Write a message or attach a file' });
+
+  const attachments = await attachmentsOf(visitor, files);
+  const { faq } = await writableBy(visitor);
+  const answer = files.length === 0 ? faqAnswerTo(faq, input.content) : undefined;
+
+  res.status(201).json(await deliver(visitor, { ...input, attachments }, answer));
+});
+
+/**
+ * The visitor taps common question `:id` on the messenger's home screen: it goes in as their
+ * message, in their latest conversation that isn't resolved or a new one, and its saved answer
+ * follows at once.
+ */
+const ask = asVisitor(async (visitor, req, res) => {
+  const { id } = Params.parse(req.params);
+  const entry = (await writableBy(visitor)).faq.find((each) => each.id === id);
+
+  if (!entry) throw new ORPCError('NOT_FOUND', { message: 'No such question' });
+
+  const open = (await visitorConversations(visitor)).find((each) => each.status !== 'resolved');
+
+  const asked = { conversationId: open?.id, content: entry.question };
+
+  res.status(201).json(await deliver(visitor, asked, entry.answer));
 });
 
 /**
@@ -298,6 +342,7 @@ export const threadRoutes = {
   }),
   conversationMessages,
   send,
+  ask,
   markRead,
   typing,
   askForPerson,

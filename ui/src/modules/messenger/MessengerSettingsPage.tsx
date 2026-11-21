@@ -13,6 +13,7 @@ import { AppearanceCard } from './AppearanceCard.tsx';
 import { AvailabilityCard } from './AvailabilityCard.tsx';
 import { BehaviourCard } from './BehaviourCard.tsx';
 import { BotCard } from './BotCard.tsx';
+import { FaqCard } from './FaqCard.tsx';
 import { GreetingCard } from './GreetingCard.tsx';
 import { InstallCard } from './InstallCard.tsx';
 import { MessengerPreview } from './MessengerPreview.tsx';
@@ -49,6 +50,7 @@ const SettingsForm = ({ messenger }: { messenger: MessengerSettings }) => {
             <AvailabilityCard />
             <BehaviourCard />
             <BotCard />
+            <FaqCard />
             <TicketsCard channelId={messenger.channelId} />
           </fieldset>
           {messenger.canManage && (
