@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { app, Menu, type MenuItemConstructorOptions, nativeImage, Tray } from 'electron';
+import type { TrayState } from '../icons.ts';
 import { callerOf, type PhoneCommand, type PhoneState } from './bridge.ts';
 import { textIn } from './text.ts';
 
@@ -58,20 +59,31 @@ const loginItem = (language: string): MenuItemConstructorOptions[] =>
         },
       ];
 
+/** The icon for the phone's state, which build.ts renders: a template on macOS, a tile elsewhere. */
+const icon = (state: PhoneState | null) => {
+  const shown: TrayState = state?.call ? 'call' : state?.status === 'ready' ? 'ready' : 'offline';
+  const template = process.platform === 'darwin' ? 'Template' : '';
+
+  return nativeImage.createFromPath(join(app.getAppPath(), `dist/tray-${shown}${template}.png`));
+};
+
 /**
  * The tray icon and its menu: the phone's state, the call with Answer and Hang up, the queue
- * switches, and the window. The same menu on every system, since Linux's tray sends no click.
+ * switches, and the window. The icon greys out while the phone is offline and gets a dot for a
+ * call. The same menu on every system, since Linux's tray sends no click.
  */
 export const createTray = (actions: Actions) => {
-  const tray = new Tray(nativeImage.createFromPath(join(app.getAppPath(), 'dist/tray.png')));
+  const tray = new Tray(icon(null));
 
-  tray.setToolTip('Frontline');
   tray.on('click', actions.open);
 
   const render = (state: PhoneState | null) => {
     const language = state?.language ?? app.getLocale();
     const text = textIn(language);
+    const [status] = state ? callItems(state, actions) : [];
 
+    tray.setImage(icon(state));
+    tray.setToolTip(status?.label ? `Frontline · ${status.label}` : 'Frontline');
     tray.setContextMenu(
       Menu.buildFromTemplate([
         ...(state

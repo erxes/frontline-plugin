@@ -16,6 +16,10 @@ import { createWindow, showServer, showSetup, telNumber } from './window.ts';
 // A second launch, such as a tel: link the system hands the app, goes to the first one.
 if (!app.requestSingleInstanceLock()) app.exit();
 
+// Windows names a notification's sender by the installer's appId (electron-builder.yml), and
+// otherwise shows it as Electron.
+if (process.platform === 'win32') app.setAppUserModelId('io.erxes.frontline');
+
 let quitting = false;
 let language = app.getLocale();
 let window: BrowserWindow | null = null;

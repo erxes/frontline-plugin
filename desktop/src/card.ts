@@ -33,6 +33,8 @@ export const createCard = (main: BrowserWindow, actions: Actions) => {
       height: HEIGHT,
       show: false,
       frame: false,
+      // call.html draws the card's rounded face on a clear window.
+      transparent: true,
       resizable: false,
       minimizable: false,
       maximizable: false,

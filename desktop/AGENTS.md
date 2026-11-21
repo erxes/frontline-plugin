@@ -1,8 +1,9 @@
 # desktop
 
 Frontline on the desktop: an Electron shell around erxes web, in the T3 Code
-style. It draws no screens of its own beyond `static/setup.html`, the erxes
-address form. Every feature is a web feature first.
+style. It draws two screens of its own, `static/setup.html`, the erxes address
+form, and `static/call.html`, the call card, each in light and dark. Every
+feature is a web feature first.
 
 - One window loads `<server>/frontline`, where the member signs in to erxes as
   in a browser. Closing it hides it to the tray, so the web softphone, which
@@ -20,6 +21,10 @@ address form. Every feature is a web feature first.
   right of the screen, while a call rings or is on and the app's window isn't in
   front. Its page, `static/call.html`, has no phone: it draws `PhoneState`, rings,
   and sends its buttons back as `CardCommand`. The app's window stays where it is.
+- `icons.ts` draws the app icon and the tray's icons as SVG, one headset glyph
+  for all, and `build.ts` renders them to PNG in `dist/`. The tray icon greys
+  out while the phone is offline and gets a dot for a call; macOS gets black
+  templates the menu bar tints. There are no icon files in `static/`.
 - `pnpm --filter @frontline/desktop start` downloads Electron's binary once,
   builds (`build.ts`) and runs it; `dist` packages it with electron-builder for
   the system it runs on (`electron-builder.yml`). On Linux without a working

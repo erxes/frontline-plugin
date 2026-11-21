@@ -8,7 +8,8 @@ directories:
 files:
   - dist/**
   - package.json
-icon: static/icon.png
+# build.ts renders it from icons.ts.
+icon: dist/icon.png
 # The system offers the app for phone number links.
 protocols:
   - name: Phone numbers
