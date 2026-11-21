@@ -47,11 +47,19 @@ const agentOf = (orgId: string, conversationId: string) =>
     return row?.agentId ?? null;
   });
 
+/** The agent will not answer: a person takes the conversation, and the customer hears so. */
+const handOff = (orgId: string, { agentId, key }: { agentId: string; key: string }) =>
+  withOrg(orgId, async (tx) => {
+    const conversation = await answeredBy(tx, { agentId, key });
+
+    if (conversation) await setOperatorOf(tx, orgId, [conversation], 'person');
+  });
+
 /**
  * Gives a visitor's message to the messenger's core agent, after the message committed. The
  * conversation id is core's key for it and the message id makes a retry land once. Only a visitor
  * the website signed in goes as the customer, so the agent acts for them. The answer comes back as
- * `core.agent.finished`; a refusal is logged and the conversation waits for a person.
+ * `core.agent.finished`; when core refuses the message, a person takes the conversation.
  */
 export const submitToAgent = async (
   visitor: Visitor,
@@ -81,8 +89,10 @@ export const submitToAgent = async (
           conversationId: message.conversationId,
           messageId: message.id,
         },
-        'core agent did not take the message',
+        'core agent did not take the message; a person takes the conversation',
       );
+
+      return handOff(visitor.orgId, { agentId, key: message.conversationId });
     });
 };
 
@@ -106,20 +116,6 @@ const postAnswer = (orgId: string, eventId: string, finished: z.infer<typeof Age
     return posted;
   });
 
-/** The agent gave no answer: a person takes the conversation, and the customer hears so. */
-const handOff = (orgId: string, failed: z.infer<typeof AgentFailed>) => {
-  logger.warn(
-    { orgId, agentId: failed.agentId, conversationId: failed.key, reason: failed.reason },
-    'core agent gave no answer; a person takes the conversation',
-  );
-
-  return withOrg(orgId, async (tx) => {
-    const conversation = await answeredBy(tx, failed);
-
-    if (conversation) await setOperatorOf(tx, orgId, [conversation], 'person');
-  });
-};
-
 /** Acts on what core says of a message the plugin gave an agent; other events pass by. */
 export const onAgentEvent = async ({ id, type, organizationId, data }: DeliveredEvent) => {
   if (type === AGENT_EVENTS.finished) {
@@ -132,5 +128,19 @@ export const onAgentEvent = async ({ id, type, organizationId, data }: Delivered
     );
   }
 
-  if (type === AGENT_EVENTS.failed) await handOff(organizationId, AgentFailed.parse(data.payload));
+  if (type === AGENT_EVENTS.failed) {
+    const failed = AgentFailed.parse(data.payload);
+
+    logger.warn(
+      {
+        orgId: organizationId,
+        agentId: failed.agentId,
+        conversationId: failed.key,
+        reason: failed.reason,
+      },
+      'core agent gave no answer; a person takes the conversation',
+    );
+
+    await handOff(organizationId, failed);
+  }
 };

@@ -11,6 +11,8 @@ import { clientAs } from '#/test/member.ts';
 // finds a new lead. Changes to customers and messages to core's agents are kept for the test to
 // read.
 const core = vi.hoisted(() => ({
+  // Core refuses a message with this text, as when another server runs the conversation.
+  refused: 'Is anyone there?',
   customers: 0,
   updates: [] as { id: string; primaryEmail?: string; customFields?: Record<string, unknown> }[],
   submitted: [] as Record<string, unknown>[],
@@ -47,6 +49,8 @@ vi.mock('#/core.ts', async (importOriginal) => {
         notifications: { create: async () => ({ ok: true }) },
         agents: {
           submit: async (input: Record<string, unknown>) => {
+            if (input.text === core.refused) throw new Error('ASSISTANT_BUSY');
+
             core.submitted.push(input);
 
             return { ok: true };
@@ -311,6 +315,15 @@ describe("a messenger's core agent", () => {
       content: 'We do.',
       customerRespondedLast: false,
     });
+  });
+
+  it('hands the conversation to a person when core refuses the message', async () => {
+    const { teammate, token } = await withAgent('org-id-agent-d');
+    const id = await write(token, core.refused);
+
+    await expect
+      .poll(async () => (await teammate.conversations.get({ id })).operator)
+      .toBe('person');
   });
 
   it('stops answering once a member replies', async () => {
