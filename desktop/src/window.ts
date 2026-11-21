@@ -113,7 +113,7 @@ export const createWindow = ({ quitting, onStay, language, hidden, onDial }: Opt
     show: false,
     title: 'Frontline',
     // The setup page's colour, so no white flashes before a page paints in dark mode.
-    backgroundColor: nativeTheme.shouldUseDarkColors ? '#121212' : '#fafafa',
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#141414' : '#fafafa',
     // macOS and Windows take the icon from the app; Linux's window list asks the window.
     ...(process.platform === 'linux' && { icon: join(app.getAppPath(), 'dist/icon.png') }),
     autoHideMenuBar: true,

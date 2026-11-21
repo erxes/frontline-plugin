@@ -66,7 +66,7 @@ export const trayTemplate = (state: TrayState) => {
 
   return svg(
     '212 234 600 600',
-    state === 'call' ? dotted(glyph, { x: 744, y: 300, r: 88, fill: '#000' }) : glyph,
+    state === 'call' ? dotted(glyph, { x: 720, y: 324, r: 88, fill: '#000' }) : glyph,
   );
 };
 

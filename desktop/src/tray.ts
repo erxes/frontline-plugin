@@ -10,18 +10,30 @@ type Actions = {
   send: (command: PhoneCommand) => void;
 };
 
-/** The call's line in the menu and what the member can do with it. */
-const callItems = (state: PhoneState, actions: Actions): MenuItemConstructorOptions[] => {
-  const text = textIn(state.language);
-  const { call } = state;
+/** The phone's line, for the menu and the tooltip: its status, or the call and who it's with. */
+const statusOf = ({ language, status, call }: PhoneState) => {
+  const text = textIn(language);
 
-  if (!call) return [{ label: text[state.status], enabled: false }];
+  if (!call) return text[status];
 
   const ringing = call.direction === 'incoming' && !call.talking;
   const doing = ringing ? text.incoming : call.talking ? text.onCall : text.calling;
 
+  return `${doing}: ${callerOf(call)}`;
+};
+
+/** The call's line in the menu and what the member can do with it. */
+const callItems = (state: PhoneState, actions: Actions): MenuItemConstructorOptions[] => {
+  const text = textIn(state.language);
+  const { call } = state;
+  const status = { label: statusOf(state), enabled: false };
+
+  if (!call) return [status];
+
+  const ringing = call.direction === 'incoming' && !call.talking;
+
   return [
-    { label: `${doing}: ${callerOf(call)}`, enabled: false },
+    status,
     ...(ringing ? [{ label: text.answer, click: () => actions.send({ type: 'answer' }) }] : []),
     {
       label: ringing ? text.decline : text.hangUp,
@@ -80,10 +92,8 @@ export const createTray = (actions: Actions) => {
   const render = (state: PhoneState | null) => {
     const language = state?.language ?? app.getLocale();
     const text = textIn(language);
-    const [status] = state ? callItems(state, actions) : [];
-
     tray.setImage(icon(state));
-    tray.setToolTip(status?.label ? `Frontline · ${status.label}` : 'Frontline');
+    tray.setToolTip(state ? `Frontline · ${statusOf(state)}` : 'Frontline');
     tray.setContextMenu(
       Menu.buildFromTemplate([
         ...(state

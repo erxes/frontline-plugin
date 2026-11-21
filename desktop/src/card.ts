@@ -10,6 +10,9 @@ const HEIGHT = 124;
 /** The gap between the card and the screen's edges. */
 const EDGE = 16;
 
+/** The clear margin around the card that call.html draws its shadow in. */
+const SHADOW = 12;
+
 type Actions = {
   send: (command: PhoneCommand) => void;
   /** Shows the Phone page in the app's window. */
@@ -29,12 +32,14 @@ export const createCard = (main: BrowserWindow, actions: Actions) => {
 
   const build = () => {
     const window = new BrowserWindow({
-      width: WIDTH,
-      height: HEIGHT,
+      width: WIDTH + 2 * SHADOW,
+      height: HEIGHT + 2 * SHADOW,
       show: false,
       frame: false,
-      // call.html draws the card's rounded face on a clear window.
+      // call.html draws the card's rounded face and its shadow on a clear window, which gets no
+      // shadow from the system.
       transparent: true,
+      hasShadow: false,
       resizable: false,
       minimizable: false,
       maximizable: false,
@@ -88,7 +93,10 @@ export const createCard = (main: BrowserWindow, actions: Actions) => {
 
     const { workArea } = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
 
-    card.setPosition(workArea.x + workArea.width - WIDTH - EDGE, workArea.y + EDGE);
+    card.setPosition(
+      workArea.x + workArea.width - WIDTH - EDGE - SHADOW,
+      workArea.y + EDGE - SHADOW,
+    );
     card.showInactive();
   };
 
