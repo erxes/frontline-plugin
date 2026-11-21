@@ -13,6 +13,7 @@ import { SentSurvey } from '~/modules/surveys/SurveyMessage.tsx';
 import { MemberLine, PersonAvatar } from '~/shared/Person.tsx';
 import { isChat } from '~/shared/kinds.tsx';
 import type { Message } from './queries.ts';
+import { AgentBlocks } from './AgentBlocks.tsx';
 import { useEditMessage, useRetryMessage } from './changes.ts';
 import { BubbleRow } from './BubbleRow.tsx';
 import { Attachments, LinkPreviews } from './MessageContent.tsx';
@@ -148,6 +149,19 @@ export const continues = (message: Message, previous: Message | undefined) =>
 export const quoteText = (message: Pick<Message, 'content' | 'attachments'>) =>
   message.content || message.attachments[0]?.name || '';
 
+/**
+ * What the message carries under its text: its files, what a core agent showed with its answer,
+ * previews of its links, and a survey.
+ */
+const Carried = ({ message }: { message: Message }) => (
+  <>
+    <Attachments files={message.attachments} />
+    <AgentBlocks blocks={message.blocks} />
+    <LinkPreviews message={message} />
+    {message.surveyId && <SentSurvey surveyId={message.surveyId} />}
+  </>
+);
+
 /** The message a reply answers, over the reply; a click goes to it in the thread. */
 export type QuoteLink = { text: string; onJump: () => void };
 
@@ -247,9 +261,7 @@ export const Bubble = ({
           />
         )}
         {!fromCustomer && !message.internal && <Delivery message={message} />}
-        <Attachments files={message.attachments} />
-        <LinkPreviews message={message} />
-        {message.surveyId && <SentSurvey surveyId={message.surveyId} />}
+        <Carried message={message} />
         <Reactions message={message} kind={kind} />
       </div>
     </article>
