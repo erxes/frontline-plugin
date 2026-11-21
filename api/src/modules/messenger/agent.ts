@@ -1,7 +1,7 @@
-import { AgentFailed, AgentFinished } from '@erxes/core-contract';
+import { AgentBlock, AgentFailed, AgentFinished } from '@erxes/core-contract';
 import type { DeliveredEvent } from '@erxes/plugin-sdk';
 import { and, eq } from 'drizzle-orm';
-import type { z } from 'zod';
+import { z } from 'zod';
 import { AGENT_EVENTS, core } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations, integrations } from '#/db/inbox.ts';
@@ -97,12 +97,25 @@ export const submitToAgent = async (
 };
 
 /**
- * Posts the agent's answer, with the blocks it showed below it, into its conversation as the bot,
- * and tells the inbox and the
- * visitor's messenger. A repeated delivery of `eventId` adds nothing, and so does an answer to a
- * conversation a person took meanwhile. Returns whether it posted.
+ * `core.agent.finished` as this build reads it. A block whose kind is newer than this build's
+ * contract is left out, so the answer and the other blocks still post.
  */
-const postAnswer = (orgId: string, eventId: string, finished: z.infer<typeof AgentFinished>) =>
+const Finished = AgentFinished.extend({
+  blocks: z.array(z.unknown()).transform((blocks) =>
+    blocks.flatMap((block) => {
+      const parsed = AgentBlock.safeParse(block);
+
+      return parsed.success ? [parsed.data] : [];
+    }),
+  ),
+});
+
+/**
+ * Posts the agent's answer, with the blocks it showed below it, into its conversation as the bot,
+ * and tells the inbox and the visitor's messenger. A repeated delivery of `eventId` adds nothing,
+ * and so does an answer to a conversation a person took meanwhile. Returns whether it posted.
+ */
+const postAnswer = (orgId: string, eventId: string, finished: z.output<typeof Finished>) =>
   withOrg(orgId, async (tx) => {
     const conversation = await answeredBy(tx, finished);
 
@@ -121,7 +134,7 @@ const postAnswer = (orgId: string, eventId: string, finished: z.infer<typeof Age
 /** Acts on what core says of a message the plugin gave an agent; other events pass by. */
 export const onAgentEvent = async ({ id, type, organizationId, data }: DeliveredEvent) => {
   if (type === AGENT_EVENTS.finished) {
-    const finished = AgentFinished.parse(data.payload);
+    const finished = Finished.parse(data.payload);
     const posted = await postAnswer(organizationId, id, finished);
 
     logger.info(

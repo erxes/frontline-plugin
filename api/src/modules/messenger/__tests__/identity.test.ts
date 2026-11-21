@@ -329,10 +329,12 @@ describe("a messenger's core agent", () => {
   it('posts its answer to the visitor as the bot, once, with what it showed', async () => {
     const { teammate, token } = await withAgent('org-id-agent-b');
     const id = await write(token, 'Do you ship daily?');
+    // A newer core may show a kind this build can't draw; it is left out.
+    const shown = [...blocks, { kind: 'booking', bookingId: 'b-1' }];
 
-    expect((await agentFinished('org-id-agent-b', 'ev-b', id, 'We do.', blocks)).status).toBe(204);
+    expect((await agentFinished('org-id-agent-b', 'ev-b', id, 'We do.', shown)).status).toBe(204);
     // Core may deliver an event again.
-    await agentFinished('org-id-agent-b', 'ev-b', id, 'We do.', blocks);
+    await agentFinished('org-id-agent-b', 'ev-b', id, 'We do.', shown);
 
     expect(await visitorReads(token, id)).toEqual([
       { content: 'Do you ship daily?', fromVisitor: true, blocks: [] },
