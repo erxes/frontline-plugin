@@ -179,6 +179,15 @@ export const SEND_ACTIONS = {
   },
 } as const;
 
+/**
+ * What core sends back to the plugin about a message it gave a core agent
+ * (`modules/messenger/agent.ts`): the answer, or why there is none.
+ */
+export const AGENT_EVENTS = {
+  finished: 'core.agent.finished',
+  failed: 'core.agent.failed',
+} as const;
+
 /** Tells whoever connected an account that the provider stopped accepting it. */
 export const INTEGRATION_BROKEN = 'frontline.integration.broken';
 

@@ -14,6 +14,7 @@ import { setOperatorOf } from '../inbox/operator.ts';
 import { receive } from '../inbox/receive.ts';
 import { typingTopic } from '../inbox/shared.ts';
 import { MessengerConfig, messenger } from './adapter.ts';
+import { submitToAgent } from './agent.ts';
 import { attachmentsOf, type Visitor, visitorOf } from './session.ts';
 
 /** What a visitor sees of a message: never an internal note or who on the team is who. */
@@ -193,7 +194,8 @@ const conversationMessages = asVisitor(async (visitor, req, res) => {
 
 /**
  * The visitor writes, in a conversation of theirs or a new one. A messenger that requires it
- * takes messages only from a visitor who left an email or phone.
+ * takes messages only from a visitor who left an email or phone. A messenger with a core agent
+ * gives it the message while the bot answers the conversation.
  */
 const send = asVisitor(async (visitor, req, res) => {
   const { files, ...input } = Send.parse(req.body);
@@ -213,6 +215,8 @@ const send = asVisitor(async (visitor, req, res) => {
     attachments,
     event: MESSAGE_RECEIVED.messenger.type,
   });
+
+  await submitToAgent(visitor, message);
 
   const reply: VisitorMessage = {
     id: message.id,

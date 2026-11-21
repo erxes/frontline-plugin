@@ -29,6 +29,7 @@ import { siteByHost, siteByKey } from '#/modules/helpcenter/site/routes.ts';
 import { runAction } from '#/modules/inbox/automations.ts';
 import { integrationChoices } from '#/modules/integrations/automationRecords.ts';
 import { webhookRoutes } from '#/modules/integrations/routes.ts';
+import { onAgentEvent } from '#/modules/messenger/agent.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';
 import { timelineRoutes } from '#/modules/timelines.ts';
@@ -246,7 +247,8 @@ export const createApp = () => {
   });
 
   // Core delivers the manifest's `subscriptions` here, signed over the raw body; anything but
-  // 2xx retries. A change to a branch or department refreshes the organisation's copy.
+  // 2xx retries. A change to a branch or department refreshes the organisation's copy; a core
+  // agent's answer goes into its messenger conversation.
   app.post('/api/events', express.text({ type: '*/*', limit: '1mb' }), async (req, res) => {
     const body: unknown = req.body;
 
@@ -268,6 +270,8 @@ export const createApp = () => {
         'units synced',
       );
     }
+
+    await onAgentEvent(event);
 
     res.sendStatus(204);
   });

@@ -1,6 +1,7 @@
 import type { PluginManifest } from '@erxes/core-contract';
 import { config } from '#/config.ts';
 import {
+  AGENT_EVENTS,
   CHANNEL_EVENTS,
   CHANNEL_TIMELINE,
   CONVERSATION_EVENTS,
@@ -79,8 +80,9 @@ export const manifest = {
     'units:read',
     'units:write',
   ],
-  // Any change to a unit refreshes the copy (`modules/teams/sync.ts`).
-  subscriptions: ['core.unit.*'],
+  // Any change to a unit refreshes the copy (`modules/teams/sync.ts`). A messenger's core agent
+  // answers through core's agent events (`modules/messenger/agent.ts`).
+  subscriptions: ['core.unit.*', ...Object.values(AGENT_EVENTS)],
   // Conversations, tickets and form submissions in core's customer filter (`relations.ts`).
   relations: RELATIONS,
   permissions: [
