@@ -345,3 +345,57 @@ describe("a messenger's core agent", () => {
     ]);
   });
 });
+
+const faq = [{ id: 'ship', question: 'Do you ship to Darkhan?', answer: 'Yes, in two days.' }];
+
+/** The agent set-up, with the messenger's one common question. */
+const withFaq = async (orgId: string) => {
+  const set = await withAgent(orgId);
+
+  await set.owner.integrations.update({ id: set.id, config: { faq } });
+
+  return set;
+};
+
+/** What core's agent was given in conversation `key`. */
+const agentGot = (key: string) => core.submitted.filter((each) => each.key === key);
+
+describe("a messenger's common questions", () => {
+  it('answers a tapped one as the bot at once, in the open conversation, without the agent', async () => {
+    const { teammate, token } = await withFaq('org-id-faq-a');
+    const tapped = Sent.parse((await messenger.post('/faq/ship', {}, token)).body);
+    const id = tapped.conversationId;
+
+    expect(await visitorReads(token, id)).toEqual([
+      { content: 'Do you ship to Darkhan?', fromVisitor: true },
+      { content: 'Yes, in two days.', fromVisitor: false },
+    ]);
+    expect(await teammate.conversations.get({ id })).toMatchObject({
+      operator: 'bot',
+      content: 'Yes, in two days.',
+    });
+    expect(agentGot(id)).toEqual([]);
+
+    // A second tap continues that conversation; an entry the messenger lacks is refused.
+    expect(Sent.parse((await messenger.post('/faq/ship', {}, token)).body).conversationId).toBe(id);
+    expect((await messenger.post('/faq/nope', {}, token)).status).toBe(404);
+
+    // A typed message goes to the agent as before.
+    await send(token, 'And to Erdenet?', id);
+    expect(agentGot(id).map(({ text }) => text)).toEqual(['And to Erdenet?']);
+  });
+
+  it('answers a typed message that asks one exactly, and nothing near it', async () => {
+    const { token } = await withFaq('org-id-faq-b');
+    const id = await write(token, '  do you SHIP to darkhan ?! ');
+
+    await send(token, 'Do you ship to Darkhan today?', id);
+
+    expect(await visitorReads(token, id)).toEqual([
+      { content: 'do you SHIP to darkhan ?!', fromVisitor: true },
+      { content: 'Yes, in two days.', fromVisitor: false },
+      { content: 'Do you ship to Darkhan today?', fromVisitor: true },
+    ]);
+    expect(agentGot(id).map(({ text }) => text)).toEqual(['Do you ship to Darkhan today?']);
+  });
+});
