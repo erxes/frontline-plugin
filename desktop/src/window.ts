@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { app, BrowserWindow, dialog, shell, type WebContents } from 'electron';
+import { app, BrowserWindow, dialog, nativeTheme, shell, type WebContents } from 'electron';
 import { saveSettings, settings } from './settings.ts';
 import { textIn } from './text.ts';
 
@@ -112,6 +112,10 @@ export const createWindow = ({ quitting, onStay, language, hidden, onDial }: Opt
     minHeight: 600,
     show: false,
     title: 'Frontline',
+    // The setup page's colour, so no white flashes before a page paints in dark mode.
+    backgroundColor: nativeTheme.shouldUseDarkColors ? '#141414' : '#fafafa',
+    // macOS and Windows take the icon from the app; Linux's window list asks the window.
+    ...(process.platform === 'linux' && { icon: join(app.getAppPath(), 'dist/icon.png') }),
     autoHideMenuBar: true,
     webPreferences: {
       preload: join(app.getAppPath(), 'dist/preload.cjs'),
