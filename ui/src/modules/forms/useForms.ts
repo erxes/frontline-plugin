@@ -1,4 +1,4 @@
-import type { InferClientOutputs } from '@orpc/client';
+import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
 import { useInfiniteQuery, useMutation, useQuery } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
 import { useListFilterParams } from 'erxes-ui';
@@ -14,6 +14,8 @@ import { useConfirmDelete } from '~/shared/Records.tsx';
 export const formTags = tagsOf('form');
 
 type Outputs = InferClientOutputs<Client>['forms'];
+
+type Inputs = InferClientInputs<Client>['forms'];
 
 export type Form = Outputs['get'];
 
@@ -100,7 +102,7 @@ export const useArrangeFields = (formId: string) => {
       scope: { id: `frontline-arrange-${formId}` },
       ...useOptimistic(
         [queryKey, orpc.forms.key()],
-        (queryClient, { pageNumber, ids }: { formId: string; pageNumber: number; ids: string[] }) =>
+        (queryClient, { pageNumber, ids }: Inputs['fields']['arrange']) =>
           queryClient.setQueryData(queryKey, (fields) =>
             fields
               ?.map((field) =>

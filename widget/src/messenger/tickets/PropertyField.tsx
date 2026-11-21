@@ -1,15 +1,18 @@
 import { openDatePicker } from '../../shared/picker.ts';
 import { useText } from '../../shared/text.ts';
-import type { Property } from '../api.ts';
+import type { NewTicket, Property } from '../api.ts';
 
 /** What every input of a property carries: whether it is required, and its error once refused. */
 type Aria = { 'aria-required': boolean; 'aria-invalid': boolean; 'aria-describedby'?: string };
+
+/** A property's value, as `/tickets` takes it. */
+export type PropertyValue = NewTicket['propertiesData'][string];
 
 type FieldProps = {
   property: Property;
   value: unknown;
   aria: Aria;
-  onChange: (value: unknown) => void;
+  onChange: (value: PropertyValue) => void;
 };
 
 const textOf = (value: unknown) => (typeof value === 'string' ? value : '');

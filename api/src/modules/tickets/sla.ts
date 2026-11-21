@@ -29,7 +29,10 @@ const CLOCKS = [
 
 type Clock = (typeof CLOCKS)[number];
 
-type Stage = 'warning' | 'breach';
+/** Told first a while before a clock runs out, then once it has. */
+const STAGES = ['warning', 'breach'] as const;
+
+type Stage = (typeof STAGES)[number];
 
 const warnBefore = sql`make_interval(mins => (${pipelines.slaPolicy} ->> 'warnBeforeMinutes')::int)`;
 
@@ -98,9 +101,7 @@ const notice = async (tx: Tx, clock: Clock, stage: Stage): Promise<TicketEvent[]
  */
 export const checkSla = (orgId: string) =>
   withOrg(orgId, async (tx) => {
-    const stages = CLOCKS.flatMap((clock) =>
-      (['warning', 'breach'] as const).map((stage) => ({ clock, stage })),
-    );
+    const stages = CLOCKS.flatMap((clock) => STAGES.map((stage) => ({ clock, stage })));
 
     const events = (await inOrder(stages, ({ clock, stage }) => notice(tx, clock, stage))).flat();
 

@@ -1,5 +1,7 @@
 import { PostLine } from './PostLine.tsx';
 import { memberQueries } from '@erxes/core-contract/client';
+import type { InferClientOutputs } from '@orpc/client';
+import type { Client } from '@frontline/api';
 import { memberName, useFormat, useMembersById } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { MemberLine } from '~/shared/Person.tsx';
@@ -14,8 +16,6 @@ export type Cell =
   | { member: string | null }
   | { postId: string; conversationId: string };
 
-type HeatCell = { weekday: number; hour: number; total: number; answered: number };
-
 /**
  * What a report card counts, before it is drawn: counts by day per series, a count per row
  * (a source, a tag, a status), a table, or calls by weekday and hour. Each draws in the visuals
@@ -29,7 +29,7 @@ export type Figures =
     }
   | { type: 'rows'; rows: BarRow[] }
   | { type: 'table'; heads: [string, ...string[]]; rows: { key: string; cells: Cell[] }[] }
-  | { type: 'heatmap'; cells: HeatCell[] };
+  | { type: 'heatmap'; cells: InferClientOutputs<Client>['reports']['calls']['hours'] };
 
 /** The visuals each kind of figures draws in, the first by default. */
 export const VISUALS = {

@@ -1,11 +1,10 @@
 import type * as CoreModule from '#/core.ts';
-
-type Kind = 'branch' | 'department';
+import type { TEAM_KINDS } from '#/db/teams.ts';
 
 /** A branch or department as a test puts it in core. */
 export type UnitInput = {
   id: string;
-  kind: Kind;
+  kind: (typeof TEAM_KINDS)[number];
   name: string;
   code?: string | null;
   parentId?: string | null;

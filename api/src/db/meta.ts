@@ -4,6 +4,11 @@ import { z } from 'zod';
 import { integrationAccounts } from './integrations.ts';
 import { id, stamps, table } from './table.ts';
 
+/** The providers whose accounts are Meta pages and Instagram accounts, run on a Meta app. */
+export const META_PROVIDERS = ['facebook', 'instagram'] as const;
+
+export type MetaProvider = (typeof META_PROVIDERS)[number];
+
 /** A persistent menu item: a button that comes back as the customer's message, or a link. */
 export const BotMenuItem = z.discriminatedUnion('type', [
   z.object({

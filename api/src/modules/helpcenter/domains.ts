@@ -6,12 +6,15 @@ import Cloudflare, { APIError, NotFoundError } from 'cloudflare';
 import { and, eq, gt, isNotNull, isNull, ne, or } from 'drizzle-orm';
 import { config } from '#/config.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
-import { type DomainRecord, HELP_CENTER_DOMAIN, helpCenters } from '#/db/helpcenter.ts';
+import {
+  type DOMAIN_STATUSES,
+  type DomainRecord,
+  HELP_CENTER_DOMAIN,
+  helpCenters,
+} from '#/db/helpcenter.ts';
 import { publicKeys } from '#/db/public.ts';
 import { logger } from '#/logger.ts';
 import { removeKeys } from '../public.ts';
-
-type Status = 'pending' | 'active';
 
 type Hostname = Awaited<ReturnType<Cloudflare['customHostnames']['get']>>;
 
@@ -70,7 +73,8 @@ export const parseHostname = (input: string) => {
   return hostname;
 };
 
-const statusOf = (value: string | undefined): Status => (value === 'active' ? 'active' : 'pending');
+const statusOf = (value: string | undefined): (typeof DOMAIN_STATUSES)[number] =>
+  value === 'active' ? 'active' : 'pending';
 
 /** Whether `hostname` CNAMEs to `target`; an apex domain served by flattening has none to read. */
 const pointsTo = async (hostname: string, target: string) => {
@@ -103,7 +107,7 @@ const owns = async (found: Hostname, target: string) => {
 const domainState = (found: Hostname, target: string, previous: DomainRecord[], owned: boolean) => {
   const domainStatus = statusOf(found.status);
   const sslStatus = statusOf(found.ssl?.status);
-  const dnsStatus: Status = owned ? 'active' : 'pending';
+  const dnsStatus: (typeof DOMAIN_STATUSES)[number] = owned ? 'active' : 'pending';
 
   const ssl = (found.ssl?.validation_records ?? []).flatMap((record) =>
     record.txt_name && record.txt_value

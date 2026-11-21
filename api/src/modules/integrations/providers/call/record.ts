@@ -5,13 +5,7 @@ import { z } from 'zod';
 import { PLUGIN } from '#/config.ts';
 import { core, JOBS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
-import {
-  type CALL_DIRECTIONS,
-  type CALL_STATUSES,
-  callLegs,
-  callOperators,
-  calls,
-} from '#/db/calls.ts';
+import { type CALL_STATUSES, callLegs, callOperators, calls } from '#/db/calls.ts';
 import { customerLinks, integrations } from '#/db/inbox.ts';
 import type { Adapter } from '../../../inbox/adapters.ts';
 import { receive } from '../../../inbox/receive.ts';
@@ -102,14 +96,10 @@ const integrationFor = async (tx: Tx, row: AccountRow, queue: string | null) => 
 };
 
 /** What frontline knows of a call when it first hears of it. */
-export interface NewCall {
-  callKey: string;
-  direction: (typeof CALL_DIRECTIONS)[number];
-  customerPhone: string;
-  number: string;
-  queue: string | null;
-  startedAt: Date;
-}
+export type NewCall = Pick<
+  typeof calls.$inferSelect,
+  'callKey' | 'direction' | 'customerPhone' | 'number' | 'queue' | 'startedAt'
+>;
 
 const callByKey = async (tx: Tx, accountId: string, callKey: string) => {
   const [found] = await tx

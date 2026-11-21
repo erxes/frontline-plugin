@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Button, Card, Form, Input, Skeleton, toast, useConfirm } from 'erxes-ui';
 import { useForm, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import type { InferClientOutputs } from '@orpc/client';
+import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
 import type { Client } from '@frontline/api';
 import { orpc } from '~/orpc.ts';
 import { InstallCode } from '~/shared/InstallCode.tsx';
@@ -11,7 +11,8 @@ import { SaveBar } from '~/shared/Settings.tsx';
 
 type Settings = InferClientOutputs<Client>['integrations']['meta']['app']['get'];
 
-type Values = { appId: string; appSecret: string; verifyToken: string };
+/** The form's fields: an empty secret keeps the saved one. */
+type Values = Required<InferClientInputs<Client>['integrations']['meta']['app']['save']>;
 
 const valuesOf = (settings: Settings): Values => ({
   appId: settings.appId ?? '',
