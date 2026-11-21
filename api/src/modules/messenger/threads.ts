@@ -24,6 +24,8 @@ const visitorMessage = {
   conversationId: messages.conversationId,
   content: messages.content,
   attachments: messages.attachments,
+  /** What a core agent showed below its answer. */
+  blocks: messages.blocks,
   /** A survey the visitor votes on, read from `/surveys/:messageId`. */
   surveyId: messages.surveyId,
   fromVisitor: isNotNull(messages.customerId),
@@ -235,6 +237,7 @@ const deliver = async (
     conversationId: message.conversationId,
     content: message.content,
     attachments: message.attachments,
+    blocks: message.blocks,
     surveyId: message.surveyId,
     fromVisitor: true,
     createdAt: message.createdAt,
