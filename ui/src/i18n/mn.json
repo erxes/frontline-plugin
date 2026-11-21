@@ -1075,6 +1075,7 @@
   "secret": "Нууц түлхүүр",
   "sees-every-ticket": "Бүх тикетийг харна",
   "select-all-conversations": "Бүх харилцан яриаг сонгох",
+  "select-all-in": "{{group}}-д байгааг бүгдийг сонгох",
   "select-name": "{{name}}-г сонгох",
   "send": "Илгээх",
   "send-again": "Дахин илгээх",

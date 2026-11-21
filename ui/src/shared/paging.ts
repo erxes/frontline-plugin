@@ -1,5 +1,5 @@
 import type { InfiniteData } from '@tanstack/react-query';
-import { useState } from 'react';
+import { type RefObject, useEffect, useRef, useState } from 'react';
 
 /**
  * Where a page starts: the cursor the API takes, and the cursors of the pages before it, so a
@@ -64,4 +64,34 @@ export const usePaged = <TPage extends { totalCount?: number | null }, TRow, TQu
     rows: pages.flatMap(rowsOf),
     totalCount: query.isPending ? undefined : totalCount,
   };
+};
+
+/**
+ * Loads the next page when the returned element comes within 300px of `root`'s view, the list's
+ * scroll box. It stops while a page loads or after one failed, which `LoadPage` then offers again.
+ */
+export const useLoadMore = (
+  { hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage }: Paging,
+  root: RefObject<Element | null>,
+) => {
+  const sentinel = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const node = sentinel.current;
+
+    if (!node || !hasNextPage || isFetchingNextPage || isFetchNextPageError) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry?.isIntersecting) void fetchNextPage();
+      },
+      { root: root.current, rootMargin: '300px' },
+    );
+
+    observer.observe(node);
+
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, isFetchNextPageError, fetchNextPage, root]);
+
+  return sentinel;
 };
