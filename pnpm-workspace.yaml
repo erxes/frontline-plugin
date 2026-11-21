@@ -17,6 +17,11 @@ overrides:
   # One copy, so drizzle-orm resolves once: react-doctor's Sentry asks for 1.9 and the
   # API's OpenTelemetry for 1.10, and two drizzle-orm copies don't share types.
   '@opentelemetry/api': 1.10.0
+  # Core's agents, unreleased: drop these two once 0.1.0-v2.32 and 0.1.0-v2.31 are on npm.
+  # `pnpm pack` of core's packages/contract and packages/plugin-sdk, so they export dist as
+  # published; a link exports core's src, whose extensionless imports nodenext refuses.
+  '@erxes/core-contract': 'file:/home/sevro/dev/scratchpad/frontline-plugin/core-packs/erxes-core-contract-0.1.0-v2.32.tgz'
+  '@erxes/plugin-sdk': 'file:/home/sevro/dev/scratchpad/frontline-plugin/core-packs/erxes-plugin-sdk-0.1.0-v2.31.tgz'
 # Install scripts nothing here needs: esbuild ships its binary as an optional
 # dependency, and the other two only print or check. Electron's downloads its binary, which
 # only `pnpm --filter @frontline/desktop start` needs, so CI's installs skip the 100 MB.

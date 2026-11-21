@@ -1,4 +1,4 @@
-import { eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
@@ -95,6 +95,16 @@ export const setOperatorOf = async (
 
   await signalConversations(tx, orgId, changed);
 };
+
+/**
+ * A member replied in the conversations or was assigned them, so the bot stops answering. The
+ * reply or the assignee speaks for itself: the customer gets no hand-off message.
+ */
+export const takeOver = (tx: Tx, ids: string[]) =>
+  tx
+    .update(conversations)
+    .set({ operator: 'person' })
+    .where(and(inArray(conversations.id, ids), eq(conversations.operator, 'bot')));
 
 /** A member hands conversations to a person, or lets the bot answer them again. */
 const setOperator = writes(PERMISSIONS.inboxView)
