@@ -41,8 +41,8 @@ test('the owner creates a channel with a teammate, who sees its settings read-on
   const row = page.getByRole('row', { name: new RegExp(name) });
 
   await expect(row).toBeVisible();
-  await expect(row.getByRole('link', { name: '1' })).toHaveCount(1);
-  await expect(row.getByRole('link', { name: '0' })).toHaveCount(3);
+  await expect(row.getByRole('link', { name: '1', exact: true })).toHaveCount(1);
+  await expect(row.getByRole('link', { name: '0', exact: true })).toHaveCount(3);
 
   // A second channel with the same name is refused, and the form keeps what was typed.
   await page.goto(recordPath(CHANNELS, 'frontline:channel'));

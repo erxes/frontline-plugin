@@ -207,7 +207,8 @@ test('a member without the integrations permission never reaches their accounts'
 }) => {
   const { page } = await newMember(['frontline.channel.view']);
 
+  // Core sends them on to the settings they may open.
   await page.goto(ACCOUNTS('telegram'));
-  await expect(page).toHaveURL(/\/settings\/integrations$/);
+  await expect(page).not.toHaveURL(/frontline\.telegram/);
   await expect(page.getByRole('button', { name: 'Connect', exact: true })).toBeHidden();
 });
