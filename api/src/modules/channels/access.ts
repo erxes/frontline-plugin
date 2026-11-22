@@ -27,6 +27,8 @@ export const askedMember = (orgId: string, userId: string, role = 'member') => {
     can: (action) => all || action === PERMISSIONS.channelView,
     tier: null,
     access: 'full',
+    saas: false,
+    bundles: [],
     canChange: () => true,
   } satisfies PluginMember;
 };

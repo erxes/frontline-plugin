@@ -17,6 +17,8 @@ export const memberOf = (
     can: (action) => permissions.includes(action),
     tier: 'pro',
     access: 'full',
+    saas: false,
+    bundles: [],
     canChange: () => true,
   }) satisfies PluginMember;
 
