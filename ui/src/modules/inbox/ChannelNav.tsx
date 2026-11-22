@@ -98,9 +98,10 @@ const ChannelActions = ({ channel }: { channel: Channel }) => {
 };
 
 /**
- * A channel the member works in, unfolding to its pages: its inbox with what waits unread, its
- * tickets (a link per pipeline when it has several) and its settings. Inside it, every page shows
- * only its work, so the member always knows which channel they are in.
+ * A channel the member works in, unfolding to its pages: its inbox with what waits unread and its
+ * tickets (a link per pipeline when it has several). Its settings are in its menu, as a team's
+ * are, and it lights up while they are open. Inside it, every page shows only its work, so the
+ * member always knows which channel they are in.
  */
 export const ChannelItem = ({ channel, icon }: { channel: Channel; icon: ReactNode }) => {
   const { t } = useTranslation('frontline');
@@ -113,7 +114,7 @@ export const ChannelItem = ({ channel, icon }: { channel: Channel; icon: ReactNo
   const picked = new URLSearchParams(search).get(PIPELINE_PARAM) ?? pipelines[0]?.id;
   const inbox = channelPath(channel.id, 'inbox');
   const tickets = channelPath(channel.id, 'tickets');
-  const settings = channelPath(channel.id, 'settings');
+  const inSettings = pathname.startsWith(channelPath(channel.id, 'settings'));
 
   return (
     <Collapsible
@@ -122,7 +123,9 @@ export const ChannelItem = ({ channel, icon }: { channel: Channel; icon: ReactNo
       onOpenChange={setToggled}
       render={<Sidebar.MenuItem />}
     >
-      <Collapsible.Trigger render={<Sidebar.MenuButton isActive={inside && !open} />}>
+      <Collapsible.Trigger
+        render={<Sidebar.MenuButton isActive={inside && (!open || inSettings)} />}
+      >
         {channel.icon ? <IconComponent name={channel.icon} /> : icon}
         <span className="min-w-0 flex-1 truncate">{channel.name}</span>
         {!open && <Count count={channel.unread} beforeAction />}
@@ -161,15 +164,6 @@ export const ChannelItem = ({ channel, icon }: { channel: Channel; icon: ReactNo
               </Sidebar.SubButton>
             </Sidebar.SubItem>
           )}
-          <Sidebar.SubItem>
-            <Sidebar.SubButton
-              isActive={pathname.startsWith(settings)}
-              render={<Link to={settings} />}
-            >
-              <IconSettings />
-              <span>{t('settings', 'Settings')}</span>
-            </Sidebar.SubButton>
-          </Sidebar.SubItem>
         </Sidebar.Sub>
       </Collapsible.Panel>
     </Collapsible>
@@ -231,8 +225,8 @@ const ChannelsMenu = ({ hasPersonal }: { hasPersonal: boolean }) => {
 };
 
 /**
- * The member's channels, their own inbox first: each unfolds to its inbox, tickets and settings.
- * Of the team channels, Those with something unread, and the open one, show first, up to
+ * The member's channels, their own inbox first: each unfolds to its inbox and tickets, its
+ * settings in its menu. Of the team channels, those with something unread, and the open one, show first, up to
  * `SHOWN`; the rest fold behind one row. A member in many channels gets a filter box that
  * searches all of them.
  */
