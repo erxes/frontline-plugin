@@ -9,11 +9,7 @@ import { withText } from '~/i18n/withText.ts';
 export const INTEGRATION_TILES: TPluginIntegration[] = [
   {
     key: 'meta',
-    name: 'Meta',
-    summary: 'Your own Meta app for Facebook and Instagram',
     icon: IconBrandMeta,
-    category: 'messaging',
-    permission: 'frontline.integration.manage',
     tabs: [
       {
         value: 'app',

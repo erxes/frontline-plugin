@@ -38,12 +38,17 @@ export const unique = () => randomBytes(3).toString('hex');
 export const recordPanel = (page: Page) => page.locator('aside[data-record-side-panel]');
 
 /**
- * Waits for the page called `name`: the last crumb of its header, its one heading. A link
- * keeps the page it leaves on screen until the next one renders, so text both pages show
- * proves nothing about where the browser is.
+ * Waits for the page called `name`: the last crumb of its header, the breadcrumb's link marked
+ * as the current page. A link keeps the page it leaves on screen until the next one renders, so
+ * text both pages show proves nothing about where the browser is.
  */
 export const expectPage = (page: Page, name: string) =>
-  expect(page.getByRole('heading', { level: 1, name, exact: true })).toBeVisible();
+  expect(
+    page
+      .getByRole('navigation', { name: 'Breadcrumb' })
+      .locator('[aria-current="page"]')
+      .getByRole('link', { name, exact: true }),
+  ).toBeVisible();
 
 /** A list page with record `id` of `contentType` open in core's side panel, or a new one drafted. */
 export const recordPath = (list: string, contentType: string, id = 'new') =>

@@ -1,7 +1,8 @@
 import { IconPhone } from '@tabler/icons-react';
+import type { Crumb } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { AppHeader, type Crumb } from '~/shared/Header.tsx';
+import { AppHeader } from '~/shared/Header.tsx';
 import { CALLS_PATH } from './queries.ts';
 
 /** The calls pages' header: Calls, then each level. `children` is the page's one action. */

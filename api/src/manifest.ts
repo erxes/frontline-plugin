@@ -162,6 +162,16 @@ export const manifest = {
       group: 'Frontline',
     },
   ],
+  // Tiles in core's Settings › Integrations; the UI config's `integrations` give their icon and tabs.
+  integrations: [
+    {
+      key: 'meta',
+      name: 'Meta',
+      summary: 'Your own Meta app for Facebook and Instagram',
+      category: 'messaging',
+      permission: PERMISSIONS.integrationManage,
+    },
+  ],
   // Tickets and form submissions in core's Import & export (`modules/transfer`).
   transfer: TRANSFERS,
   // What an owner adds to a role in one step, as the old plugin's default roles did.
