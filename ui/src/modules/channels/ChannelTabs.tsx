@@ -21,7 +21,7 @@ import { Link } from 'react-router-dom';
 import { useChoices } from '@/tickets/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { PIPELINE_TYPE, RESPONSE_TEMPLATE_TYPE } from '~/plugin.ts';
-import { ticketsPath } from '~/shared/listPath.ts';
+import { channelTicketsPath } from '~/shared/listPath.ts';
 import { MemberLine } from '~/shared/Person.tsx';
 import { templatesQuery } from '~/shared/reference.ts';
 import { ChannelIntegrations } from './ChannelIntegrations.tsx';
@@ -146,7 +146,7 @@ export const ChannelPipelinesTab = ({ contentId }: TRecordSlotProps) => {
                     <span className="truncate">{pipeline.name}</span>
                   </Button>
                   <Link
-                    to={ticketsPath(pipeline.id)}
+                    to={channelTicketsPath(pipeline.channelId, pipeline.id)}
                     className={buttonVariants({ variant: 'ghost', size: 'sm' })}
                   >
                     <IconTicket />

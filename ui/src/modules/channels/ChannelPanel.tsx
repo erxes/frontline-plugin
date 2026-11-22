@@ -29,7 +29,7 @@ import { orpc } from '~/orpc.ts';
 import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { channelPath } from '~/shared/channelScope.ts';
-import { ticketsPath } from '~/shared/listPath.ts';
+import { channelTicketsPath } from '~/shared/listPath.ts';
 import { useIntegrationCount } from './ChannelIntegrations.tsx';
 import { type Channel, useChannel, useChannelChange, useDeleteChannels } from './useChannels.ts';
 import { MemberChip } from '~/shared/Person.tsx';
@@ -100,7 +100,7 @@ const ChannelWork = ({ channel }: { channel: Channel }) => {
       <PanelField icon={IconTicket} label={t('tickets', 'Tickets')} cell={false}>
         {pipeline ? (
           <PageLink
-            to={ticketsPath(pipeline.id)}
+            to={channelTicketsPath(pipeline.channelId, pipeline.id)}
             label={t('open-tickets', 'Open tickets')}
             count={pipeline.name}
           />

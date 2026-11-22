@@ -34,7 +34,7 @@ import { orpc } from '~/orpc.ts';
 import { CHANNEL_TYPE, PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
 import { channelPath } from '~/shared/channelScope.ts';
-import { PIPELINE_PARAM } from '~/shared/listPath.ts';
+import { channelTicketsPath, PIPELINE_PARAM } from '~/shared/listPath.ts';
 import { Count, NavGroup, usePrefetchInbox } from './navLinks.tsx';
 import type { InboxCounts } from './queries.ts';
 
@@ -146,7 +146,7 @@ export const ChannelItem = ({ channel, icon }: { channel: Channel; icon: ReactNo
               <Sidebar.SubItem key={pipeline.id}>
                 <Sidebar.SubButton
                   isActive={pathname === tickets && picked === pipeline.id}
-                  render={<Link to={`${tickets}?${PIPELINE_PARAM}=${pipeline.id}`} />}
+                  render={<Link to={channelTicketsPath(channel.id, pipeline.id)} />}
                 >
                   <IconLayoutKanban />
                   <span className="min-w-0 truncate">{pipeline.name}</span>

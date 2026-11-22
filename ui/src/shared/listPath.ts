@@ -8,7 +8,7 @@ import {
 import { createLoader, createSerializer, parseAsString } from 'nuqs';
 import { useDeferredValue } from 'react';
 import { PLUGIN } from '~/plugin.ts';
-import { useChannelScope } from './channelScope.ts';
+import { channelPath, useChannelScope } from './channelScope.ts';
 
 /** The address parameter naming the pipeline the tickets page shows. */
 export const PIPELINE_PARAM = 'pipeline';
@@ -90,3 +90,7 @@ export const ticketsPath = (pipeline: string, rules: TConditionGroup['rules'] = 
     [PIPELINE_PARAM]: pipeline,
     advanced: rules.length ? { match: 'all', rules } : null,
   });
+
+/** The tickets of `pipeline` inside its channel `channelId`. */
+export const channelTicketsPath = (channelId: string, pipeline: string) =>
+  serialize(channelPath(channelId, 'tickets'), { [PIPELINE_PARAM]: pipeline });
