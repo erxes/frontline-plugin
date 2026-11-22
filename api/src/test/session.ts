@@ -40,7 +40,15 @@ export const fakeCoreSessions = async () => {
     session: (orgId: string, userId: string, permissions: string[]) =>
       sign(
         'erxes-plugin-session+jwt',
-        { org: orgId, role: 'member', permissions, tier: 'pro', access: 'full' },
+        {
+          org: orgId,
+          role: 'member',
+          permissions,
+          tier: 'pro',
+          access: 'full',
+          saas: false,
+          bundles: [],
+        },
         userId,
       ),
     /** An access token from "Sign in with erxes", as the desktop app sends: it names no plan. */
