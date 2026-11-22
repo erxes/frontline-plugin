@@ -16,6 +16,7 @@ import {
   Separator,
   Skeleton,
   stored,
+  useCurrentRecord,
   useMediaQuery,
   useOpenRecord,
 } from 'erxes-ui';
@@ -25,7 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
 import { useChannelScope } from '~/shared/channelScope.ts';
-import { MemberCell } from '~/shared/MemberPicker.tsx';
+import { MemberButton } from '~/shared/MemberPicker.tsx';
 import { PersonAvatar, useCustomer } from '~/shared/Person.tsx';
 import { ConversationMenu, VisitorPresence, VisitorTyping } from './ConversationPresence.tsx';
 import { ConversationTickets } from './ConversationTickets.tsx';
@@ -135,14 +136,24 @@ const narrowListShown = atom(false);
  * Whether the conversation list shows beside the open conversation, and the switch for it. On a
  * screen too narrow for both at a working width (a tablet, a laptop's split window) the
  * conversation takes the room and the list waits behind the header's toggle; on a wide one the
- * member's last choice holds.
+ * member's last choice holds. While core's panel shows a customer or a teammate beside it, the
+ * list gives up its room, so the thread and the reply box keep theirs; showing the list again
+ * closes the panel.
  */
 export const useListShown = () => {
   const wide = useMediaQuery('(min-width: 1024px)');
   const remembered = useAtom(listShown);
   const narrow = useAtom(narrowListShown);
+  const [shown, setShown] = wide ? remembered : narrow;
+  const record = useCurrentRecord();
+  const { dismiss } = useOpenRecord();
 
-  return wide ? remembered : narrow;
+  const show = (next: boolean) => {
+    if (next && record) dismiss(record);
+    setShown(next);
+  };
+
+  return [shown && !record, show] as const;
 };
 
 /** Hides the conversation list to give the open one the width, or shows it again. */
@@ -268,14 +279,11 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
       <ListToggle />
       <Identity conversation={conversation} />
       <Separator orientation="vertical" className="h-5" />
-      <MemberCell
-        variant="field"
+      <MemberButton
         value={conversation.assigneeId}
         onValueChange={(assigneeId) => assign.mutate({ ids: [conversation.id], assigneeId })}
         noneLabel={t('unassigned', 'Unassigned')}
         placeholder={t('assign', 'Assign')}
-        aria-label={conversation.assigneeId ? undefined : t('assign', 'Assign')}
-        className="w-auto max-w-40 min-w-0"
       />
       <span className="flex-1" />
       <span className="flex shrink-0 items-center gap-1.5">

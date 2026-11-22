@@ -1,5 +1,5 @@
 import { orpc as core, memberQueries } from '@erxes/core-contract/client';
-import { IconPlus } from '@tabler/icons-react';
+import { IconPlus, IconUserPlus } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -110,6 +110,39 @@ export const MemberCell = ({
         />
       </RecordTableInlineCell.Content>
     </PopoverScoped>
+  );
+};
+
+/**
+ * A member picker as a small outlined button, for a header: the member's avatar and name, or the
+ * `placeholder` beside an add-person icon until one is picked.
+ */
+export const MemberButton = ({ value, onValueChange, placeholder, noneLabel }: OneMember) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <Popover.Trigger render={<Button variant="outline" size="sm" className="max-w-48 min-w-0" />}>
+        {value ? (
+          <MemberLine id={value} />
+        ) : (
+          <>
+            <IconUserPlus />
+            {placeholder}
+          </>
+        )}
+      </Popover.Trigger>
+      <Combobox.Content align="start">
+        <MemberOptions
+          value={value ? [value] : []}
+          noneLabel={noneLabel}
+          onValueChange={([id]) => {
+            onValueChange(id ?? null);
+            setOpen(false);
+          }}
+        />
+      </Combobox.Content>
+    </Popover>
   );
 };
 
