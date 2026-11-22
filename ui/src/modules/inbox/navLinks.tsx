@@ -30,10 +30,10 @@ const groupOpen = storedFamily({
 });
 
 /** The inbox filtered by `rules`, as the filter bar keeps it in the address. */
-export const filterOf = (...rules: TConditionRule[]): TConditionGroup => ({ match: 'all', rules });
+const filterOf = (...rules: TConditionRule[]): TConditionGroup => ({ match: 'all', rules });
 
 /** The inbox filter in the address, to compare a link's rule with. */
-export const useOpenFilter = () => {
+const useOpenFilter = () => {
   const [{ advanced }] = useQueryStates(listFilterQuery);
 
   return JSON.stringify(advanced);
@@ -65,7 +65,7 @@ const loadInbox = (queryClient: QueryClient, to: string) =>
 export const usePrefetchInbox = () => usePrefetch(loadInbox);
 
 /** Whether the inbox shows `rules` now, and the link that turns them on, or off when they are. */
-export const useFilterLink = (...rules: TConditionRule[]) => {
+const useFilterLink = (...rules: TConditionRule[]) => {
   const { pathname } = useLocation();
   const open = useOpenFilter();
   const active = pathname === INBOX_PATH && open === JSON.stringify(filterOf(...rules));

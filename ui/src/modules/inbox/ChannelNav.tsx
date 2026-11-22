@@ -103,7 +103,7 @@ const ChannelActions = ({ channel }: { channel: Channel }) => {
  * are, and it lights up while they are open. Inside it, every page shows only its work, so the
  * member always knows which channel they are in.
  */
-export const ChannelItem = ({ channel, icon }: { channel: Channel; icon: ReactNode }) => {
+const ChannelItem = ({ channel, icon }: { channel: Channel; icon: ReactNode }) => {
   const { t } = useTranslation('frontline');
   const { pathname, search } = useLocation();
   const [toggled, setToggled] = useAtom(channelOpen(channel.id));
