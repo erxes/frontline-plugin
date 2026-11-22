@@ -52,8 +52,8 @@ export const VisitorTyping = ({ conversation }: { conversation: Conversation }) 
 
 /**
  * What the messenger knows of the visitor, as one line: online or last seen, how many visits,
- * and the page of the latest one. `compact`, for the conversation header, keeps online and the
- * visits and puts the rest in its tooltip. `className` places it.
+ * and the page of the latest one. `compact`, for the conversation header whose avatar marks online,
+ * keeps the visits and puts the rest in its tooltip. `className` places it.
  */
 export const VisitorPresence = ({
   conversation,
@@ -80,7 +80,7 @@ export const VisitorPresence = ({
       title={compact ? [lastSeen, visitor.browser.url].filter(Boolean).join(' · ') : undefined}
       className={cn('flex min-w-0 items-center gap-2 text-xs text-muted-foreground', className)}
     >
-      {visitor.isOnline ? (
+      {compact ? null : visitor.isOnline ? (
         <Badge variant="success" size="sm">
           {t('online', 'Online')}
         </Badge>
