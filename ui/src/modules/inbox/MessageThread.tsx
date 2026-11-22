@@ -1,5 +1,5 @@
 import { IconArrowDown, IconMessageCircle } from '@tabler/icons-react';
-import { Button, cn, Empty, ScrollArea, Skeleton, Spinner, toIsoDay, useFormat } from 'erxes-ui';
+import { Button, cn, Empty, ScrollArea, Skeleton, toIsoDay, useFormat } from 'erxes-ui';
 import { Fragment, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type CustomContainerComponentProps, Virtualizer } from 'virtua';
@@ -110,30 +110,6 @@ const LatestButton = ({
 };
 
 /**
- * The thread's top edge: a spinner while earlier messages load, else a button that loads them,
- * for a thread too short to scroll or a page that failed to load.
- */
-const EarlierMessages = ({ thread }: { thread: ReturnType<typeof useMessages> }) => {
-  const { t } = useTranslation('frontline');
-
-  return (
-    <div className="flex h-12 items-center justify-center">
-      {thread.isFetchingNextPage ? (
-        <Spinner aria-label={t('earlier-messages', 'Earlier messages')} />
-      ) : (
-        thread.hasNextPage && (
-          <Button variant="ghost" size="sm" onClick={() => void thread.fetchNextPage()}>
-            {thread.isFetchNextPageError
-              ? t('earlier-messages-failed', 'Earlier messages did not load. Try again')
-              : t('earlier-messages', 'Earlier messages')}
-          </Button>
-        )
-      )}
-    </div>
-  );
-};
-
-/**
  * Quotes in the thread: what each reply answers, from the messages loaded or else the API's copy
  * of its text, and Reply on each message, which puts it over the composer. A note, and a
  * conversation that takes notes only, take no reply.
@@ -235,7 +211,8 @@ export const MessageThread = ({ conversation, sending }: ThreadProps) => {
                 {(message, index) => (
                   <Fragment key={message.id}>
                     {/* The thread's edges sit inside its first and last rows, so virtua's offsets count them. */}
-                    {index === 0 && <EarlierMessages thread={thread} />}
+                    {/* Earlier messages load as the reader nears the top, and when the thread is too short to scroll. */}
+                    {index === 0 && <LoadPage paging={thread} />}
                     {toIsoDay(message.createdAt) !==
                       toIsoDay(messages[index - 1]?.createdAt ?? new Date(0)) && (
                       <DayDivider date={message.createdAt} />

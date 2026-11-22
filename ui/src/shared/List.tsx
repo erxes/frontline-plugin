@@ -6,10 +6,11 @@ import {
   Empty,
   Kbd,
   RelativeDateDisplay,
+  Spinner,
   useListFilterParams,
   usePageHotkey,
 } from 'erxes-ui';
-import type { ReactNode } from 'react';
+import { type ReactNode, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { Paging } from './paging.ts';
 
@@ -129,30 +130,54 @@ export const CreateButton = ({
   );
 };
 
+/** How far ahead of the list's end the next page starts loading, so scrolling never waits on it. */
+const AHEAD = '600px';
+
 /**
- * The button under a paged list that loads its next page, or with `newer`, the one above it that
- * loads back a page the list dropped, saying so when that page failed. Nothing when there is no
- * such page.
+ * The edge of a paged list: under it, the next page loads as the member scrolls near; with
+ * `newer`, above it, a page the list dropped loads back. A spinner shows while it loads, and
+ * Try again when it failed. Nothing when there is no such page.
  */
 export const LoadPage = ({ paging, newer = false }: { paging: Paging; newer?: boolean }) => {
   const { t } = useTranslation('frontline');
-
-  if (!(newer ? paging.hasPreviousPage : paging.hasNextPage)) return null;
-
+  const more = newer ? paging.hasPreviousPage : paging.hasNextPage;
+  const loading = newer ? paging.isFetchingPreviousPage : paging.isFetchingNextPage;
   const failed = newer ? paging.isFetchPreviousPageError : paging.isFetchNextPageError;
+  const load = newer ? paging.fetchPreviousPage : paging.fetchNextPage;
+
+  // The edge in view asks for its page; once that page is in, a new edge renders and asks again.
+  const edge = useCallback(
+    (element: HTMLDivElement | null) => {
+      if (!element || !more || loading || failed) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          if (!entries.some((entry) => entry.isIntersecting)) return;
+
+          observer.disconnect();
+          void load();
+        },
+        { rootMargin: `${AHEAD} 0px` },
+      );
+
+      observer.observe(element);
+
+      return () => observer.disconnect();
+    },
+    [more, loading, failed, load],
+  );
+
+  if (!more) return null;
 
   return (
-    <Button
-      variant="ghost"
-      className="m-3 self-center"
-      disabled={newer ? paging.isFetchingPreviousPage : paging.isFetchingNextPage}
-      onClick={() => void (newer ? paging.fetchPreviousPage() : paging.fetchNextPage())}
-    >
-      {failed
-        ? t('page-failed', 'That page did not load. Try again')
-        : newer
-          ? t('load-newer', 'Load newer')
-          : t('load-more', 'Load more')}
-    </Button>
+    <div ref={edge} className="flex h-12 shrink-0 items-center justify-center">
+      {failed ? (
+        <Button variant="ghost" size="sm" onClick={() => void load()}>
+          {t('page-failed', 'That page did not load. Try again')}
+        </Button>
+      ) : (
+        loading && <Spinner aria-label={t('loading', 'Loading')} />
+      )}
+    </div>
   );
 };

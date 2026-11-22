@@ -2,7 +2,6 @@ import {
   IconCheck,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
-  IconLayoutSidebarRightExpand,
   IconPlus,
   IconRefresh,
   IconTag,
@@ -24,10 +23,10 @@ import { atom, useAtom } from 'jotai';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { CONVERSATION_TYPE, PLUGIN } from '~/plugin.ts';
+import { PLUGIN } from '~/plugin.ts';
 import { MemberCell } from '~/shared/MemberPicker.tsx';
 import { PersonAvatar, useCustomer } from '~/shared/Person.tsx';
-import { ConversationMenu, VisitorTyping } from './ConversationPresence.tsx';
+import { ConversationMenu, VisitorPresence, VisitorTyping } from './ConversationPresence.tsx';
 import { ConversationTickets } from './ConversationTickets.tsx';
 import { KindIcon } from '~/shared/kinds.tsx';
 import { type Conversation, conversationTags, useCreateTag } from './queries.ts';
@@ -236,6 +235,7 @@ const Identity = ({ conversation }: { conversation: Conversation }) => {
           />
           <span className="truncate">{source}</span>
           <VisitorTyping conversation={conversation} />
+          <VisitorPresence conversation={conversation} className="hidden @xl:flex" />
         </span>
       </span>
     </span>
@@ -245,7 +245,7 @@ const Identity = ({ conversation }: { conversation: Conversation }) => {
 /**
  * The open conversation's controls on one row, as the old inbox had them: the list toggle, who
  * it is with and where it came from, and its assignee on the left; its tickets and Create ticket,
- * its tags and the details on the right, then after a rule Resolve or Reopen and the overflow
+ * and its tags on the right, then after a rule Resolve or Reopen and the overflow
  * menu, so the step that closes the work stands apart. Each change shows at once and saves behind it.
  */
 export const ConversationHeader = ({ conversation }: { conversation: Conversation }) => {
@@ -253,7 +253,6 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
   const assign = useAssign();
   const setStatus = useSetStatus();
   const resolved = conversation.status === 'resolved';
-  const { open } = useOpenRecord();
 
   return (
     <header className="@container flex h-14 shrink-0 items-center gap-2 border-b px-3">
@@ -284,16 +283,6 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         >
           {conversation.tagIds.length > 0 ? <TagSummary conversation={conversation} /> : undefined}
         </TagEditor>
-        <IconTip label={t('conversation-details', 'Details and properties')}>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t('conversation-details', 'Details and properties')}
-            onClick={() => open({ contentType: CONVERSATION_TYPE, contentId: conversation.id })}
-          >
-            <IconLayoutSidebarRightExpand />
-          </Button>
-        </IconTip>
       </span>
       <Separator orientation="vertical" className="h-5" />
       {/* A narrow header keeps the icon, named on hover, so the customer and the assignee keep their names. */}
