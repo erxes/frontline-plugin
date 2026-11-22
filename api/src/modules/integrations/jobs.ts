@@ -6,6 +6,7 @@ import { type Tx, withOrg } from '#/db/client.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { logger } from '#/logger.ts';
 import { checkAccount, recordCheck } from './accounts.ts';
+import { reportIntegrations } from './catalog.ts';
 import { deliverInbound } from './inbound.ts';
 import type { AccountRow } from './provider.ts';
 import { mail, pullMail } from './providers/mail.ts';
@@ -114,7 +115,11 @@ export const syncMail = async (job: PluginJobDelivery) => {
   );
 };
 
-/** Asks each provider whether the organisation's accounts still work, once a day. */
+/**
+ * Asks each provider whether the organisation's accounts still work, once a day, then tells core
+ * where each integration stands.
+ */
 export const checkAccounts = async (job: PluginJobDelivery) => {
   await eachAccount(await accountsOf(job.orgId), checkAccount);
+  await reportIntegrations(job.orgId);
 };

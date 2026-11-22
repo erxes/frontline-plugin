@@ -80,12 +80,6 @@ const MessengerSettingsPage = lazy(
   })),
 );
 
-const AccountsPage = lazy(
-  withText(async () => ({
-    default: (await import('@/integrations/AccountsPage.tsx')).AccountsPage,
-  })),
-);
-
 const ChannelsPage = lazy(
   withText(async () => ({ default: (await import('@/channels/pages.ts')).ChannelsPage })),
 );
@@ -202,18 +196,16 @@ const settingsRoutes = (
         <Route key={path} path={path} element={<Navigate to={`/${PLUGIN}/surveys`} replace />} />
       ))}
       <Route path=":id/surveys/:surveyId" element={<Redirect path="surveys" param="surveyId" />} />
-      {/* The old integration detail page, one per channel and kind, is now the accounts list. */}
+      {/* The old integration detail page, one per channel and kind: a channel's settings list its own now. */}
       <Route
         path="details/:id/:integrationType"
-        element={<Navigate to={`/${PLUGIN}/settings/accounts`} replace />}
+        element={<Redirect path="channels" rest="/settings/integrations" />}
       />
     </Route>
     <Route
       path="personal-channel/*"
       element={<Navigate to={`/${PLUGIN}/personal-channel`} replace />}
     />
-    {/* The old integrations config, Meta's app among it, is core's now; accounts stay here. */}
-    <Route path="config/*" element={<Navigate to={`/${PLUGIN}/settings/accounts`} replace />} />
     <Route path="pipelines/:id" element={<RecordRoute contentType={PIPELINE_TYPE} />} />
     <Route
       path="response-templates/:id"
@@ -222,9 +214,7 @@ const settingsRoutes = (
     <Route path="tags" element={<TagsPage />} />
     {/* Help centers moved out of settings. */}
     <Route path="help-centers/*" element={<Redirect path="help-centers" param="*" />} />
-    <Route path="accounts" element={<AccountsPage />} />
     <Route path="accounts/:id" element={<RecordRoute contentType={ACCOUNT_TYPE} />} />
-    <Route path="meta" element={<Navigate to="../accounts" replace />} />
     <Route path="meta/bots/:id" element={<RecordRoute contentType={META_BOT_TYPE} />} />
     {/*
       Any other settings address opens the channels: a record's list without its id, and old links
@@ -258,6 +248,7 @@ const channelRoutes = (
     <Route path="tickets" element={<TicketsPage />} />
     <Route path="settings" element={<ChannelSettingsPage />} />
     <Route path="settings/:section" element={<ChannelSettingsPage />} />
+    <Route path="settings/integrations/:kind" element={<ChannelSettingsPage />} />
   </Route>
 );
 

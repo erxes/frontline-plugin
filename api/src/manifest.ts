@@ -17,6 +17,7 @@ import {
   TICKET_TIMELINE,
 } from '#/core.ts';
 import { AUTOMATION_ACTIONS, AUTOMATION_EVENTS } from '#/automationContract.ts';
+import { MANIFEST_INTEGRATIONS } from '#/modules/integrations/catalog.ts';
 import { TRANSFERS } from '#/modules/transfer/routes.ts';
 import { RELATIONS } from '#/relations.ts';
 
@@ -162,16 +163,9 @@ export const manifest = {
       group: 'Frontline',
     },
   ],
-  // Tiles in core's Settings › Integrations; the UI config's `integrations` give their icon and tabs.
-  integrations: [
-    {
-      key: 'meta',
-      name: 'Meta',
-      summary: 'Your own Meta app for Facebook and Instagram',
-      category: 'messaging',
-      permission: PERMISSIONS.integrationManage,
-    },
-  ],
+  // Tiles in core's Settings › Integrations, where an organisation connects its accounts once for
+  // every channel; the UI config's `integrations` give their icon and tabs.
+  integrations: MANIFEST_INTEGRATIONS,
   // Tickets and form submissions in core's Import & export (`modules/transfer`).
   transfer: TRANSFERS,
   // What an owner adds to a role in one step, as the old plugin's default roles did.

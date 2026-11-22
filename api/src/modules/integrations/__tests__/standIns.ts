@@ -13,6 +13,8 @@ export const asked = {
   created: [] as unknown[],
   notifications: [] as unknown[],
   jobs: [] as unknown[],
+  /** Where each integration stood, as reported to core: `[orgId, key, state, count]`. */
+  reports: [] as [string, string, string, number | null | undefined][],
 };
 
 /** What was uploaded to core's storage, by file id. */
@@ -32,6 +34,9 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
   ...actual,
   core: {
     ...actual.core,
+    reportIntegration: async (orgId: string, key: string, state: string, count?: number | null) => {
+      asked.reports.push([orgId, key, state, count]);
+    },
     forOrg: () => ({
       ...ticketFieldCalls,
       customers: {

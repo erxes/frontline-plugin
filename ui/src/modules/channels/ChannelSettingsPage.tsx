@@ -1,8 +1,7 @@
-import { IconLink, IconSettings, IconTrash } from '@tabler/icons-react';
+import { IconSettings, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import {
   Button,
-  buttonVariants,
   Card,
   Form,
   IconPicker,
@@ -16,16 +15,18 @@ import {
 import type { ReactNode } from 'react';
 import { useForm, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ExistingAccountsMenu } from '@/integrations/ConnectMenu.tsx';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useKindTitles } from '@/integrations/kindText.ts';
 import { IntegrationCatalog } from '@/integrations/IntegrationCatalog.tsx';
 import { orpc } from '~/orpc.ts';
-import { CHANNEL_TYPE, PLUGIN } from '~/plugin.ts';
+import { CHANNEL_TYPE } from '~/plugin.ts';
 import { channelPath, useChannelScope } from '~/shared/channelScope.ts';
 import { AppHeader } from '~/shared/Header.tsx';
 import { CHANNEL_ICON } from '~/shared/icons.ts';
 import { ListError } from '~/shared/List.tsx';
 import { ChannelIntegrationList } from './ChannelIntegrations.tsx';
+import { ChannelKindPage } from './ChannelKindPage.tsx';
+import { ChannelSettingsNav } from './ChannelSettingsNav.tsx';
 import { ChannelMembersTab, ChannelPipelinesTab, ChannelTemplatesTab } from './ChannelTabs.tsx';
 import {
   type Channel,
@@ -191,8 +192,8 @@ const DeleteChannel = ({ channel }: { channel: Channel }) => {
 };
 
 /**
- * What brings conversations into the channel: its messengers, pages, bots and mailboxes, then for
- * its admins a card per kind to add one, as old erxes listed them; the accounts are a link away.
+ * What brings conversations into the channel: its messengers, pages, bots and mailboxes, then a
+ * card per kind, as old erxes listed them, each opening the kind to add one.
  */
 const IntegrationsSection = ({ channel }: { channel: Channel }) => {
   const { t } = useTranslation('frontline');
@@ -210,28 +211,15 @@ const IntegrationsSection = ({ channel }: { channel: Channel }) => {
           <ChannelIntegrationList channelId={channel.id} />
         </Frame>
       </Form.Section>
-      {channel.canManage && (
-        <Form.Section
-          title={t('add-an-integration', 'Add an integration')}
-          description={t(
-            'add-integration-hint',
-            'Pick where this channel’s conversations come from.',
-          )}
-        >
-          <IntegrationCatalog channelId={channel.id} />
-          <div className="flex flex-wrap items-center gap-2">
-            <ExistingAccountsMenu channelId={channel.id} />
-            <span className="flex-1" />
-            <Link
-              to={`/${PLUGIN}/settings/accounts`}
-              className={buttonVariants({ variant: 'ghost', tone: 'muted' })}
-            >
-              <IconLink />
-              {t('connected-accounts', 'Connected accounts')}
-            </Link>
-          </div>
-        </Form.Section>
-      )}
+      <Form.Section
+        title={t('kinds-of-integration', 'Kinds of integration')}
+        description={t(
+          'add-integration-hint',
+          'Pick where this channel’s conversations come from.',
+        )}
+      >
+        <IntegrationCatalog channelId={channel.id} />
+      </Form.Section>
     </>
   );
 };
@@ -273,16 +261,25 @@ const SectionBody = ({ section, channel }: { section: Section; channel: Channel 
   }
 };
 
+/** The open section's name, or the open kind's, for the breadcrumb. */
+const usePlace = (section: Section, kind: string | undefined) => {
+  const names = useSectionNames();
+  const titles = useKindTitles();
+
+  return kind ? (titles[kind] ?? kind) : names[section];
+};
+
 /**
- * A channel's settings, inside the channel: its name and icon, the integrations that bring
- * conversations in, its ticket pipelines, its members and their saved replies, one section each.
+ * A channel's settings, inside the channel, laid out as old erxes had them: a column with the
+ * channel, its members, pipelines and response templates, and each kind of integration it uses or
+ * could, then the open one beside it.
  */
 export const ChannelSettingsPage = () => {
   const { t } = useTranslation('frontline');
   const channelId = useChannelScope() ?? '';
-  const { section: param } = useParams();
-  const section = SECTIONS.find((one) => one === param) ?? 'general';
-  const names = useSectionNames();
+  const { section: param, kind } = useParams();
+  const section = kind ? 'integrations' : (SECTIONS.find((one) => one === param) ?? 'general');
+  const place = usePlace(section, kind);
   const channel = useChannel(channelId);
 
   return (
@@ -290,41 +287,29 @@ export const ChannelSettingsPage = () => {
       <AppHeader
         icon={IconSettings}
         app={{ label: t('settings', 'Settings'), to: channelPath(channelId, 'settings') }}
-        levels={[{ label: names[section] }]}
+        levels={[{ label: place }]}
       />
-      <ScrollArea className="flex-1">
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
-          <nav
-            aria-label={t('channel-sections', 'Channel settings')}
-            className="flex flex-wrap gap-1 border-b pb-2"
-          >
-            {SECTIONS.map((one) => (
-              <Link
-                key={one}
-                to={channelPath(channelId, 'settings', one)}
-                aria-current={section === one ? 'page' : undefined}
-                className={buttonVariants({
-                  size: 'sm',
-                  variant: section === one ? 'secondary' : 'ghost',
-                })}
-              >
-                {names[one]}
-              </Link>
-            ))}
-          </nav>
-          {channel.error ? (
-            <ListError error={channel.error} retry={() => void channel.refetch()} />
-          ) : !channel.data ? (
-            <div className="flex flex-col gap-4" aria-busy>
-              <Skeleton className="h-8 w-2/3" />
-              <Skeleton className="h-24 w-full" />
-              <Skeleton className="h-40 w-full" />
-            </div>
-          ) : (
-            <SectionBody section={section} channel={channel.data} />
-          )}
+      {channel.error ? (
+        <ListError error={channel.error} retry={() => void channel.refetch()} />
+      ) : !channel.data ? (
+        <div className="flex flex-col gap-4 p-6" aria-busy>
+          <Skeleton className="h-8 w-2/3" />
+          <Skeleton className="h-40 w-full" />
         </div>
-      </ScrollArea>
+      ) : (
+        <div className="flex min-h-0 flex-1">
+          <ChannelSettingsNav channel={channel.data} />
+          <ScrollArea className="min-w-0 flex-1">
+            <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
+              {kind ? (
+                <ChannelKindPage channel={channel.data} kind={kind} />
+              ) : (
+                <SectionBody section={section} channel={channel.data} />
+              )}
+            </div>
+          </ScrollArea>
+        </div>
+      )}
     </PageContainer>
   );
 };

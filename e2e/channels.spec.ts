@@ -51,11 +51,13 @@ test('the owner creates a channel with a teammate, who sees its settings read-on
   await expect(panel.getByText(`Another channel is already called ${name}.`)).toBeVisible();
   await expect(panel.getByLabel('Name')).toHaveValue(name);
 
-  // A kind's card opens the provider's form that connects straight into the channel.
+  // A kind's card opens it inside the channel; its accounts connect in core's Integrations.
   await page.goto(CHANNELS);
   await page.getByRole('link', { name, exact: true }).click();
   await channelSections(page).getByRole('link', { name: 'Integrations' }).click();
-  await cardOf(page, 'Telegram').getByRole('button', { name: 'Add' }).click();
+  await cardOf(page, 'Telegram').getByRole('link').click();
+  await page.getByRole('link', { name: 'Connect in Integrations' }).click();
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await expect(panel.getByLabel('Bot token')).toBeVisible();
 
   const theirs = teammate.page;
@@ -66,7 +68,10 @@ test('the owner creates a channel with a teammate, who sees its settings read-on
   await expect(theirs.getByLabel('Name')).toBeDisabled();
   await expect(theirs.getByRole('button', { name: 'Delete channel' })).toBeHidden();
   await channelSections(theirs).getByRole('link', { name: 'Integrations' }).click();
-  await expect(theirs.getByRole('list', { name: 'Add an integration' })).toBeHidden();
+  await channelSections(theirs)
+    .getByRole('link', { name: /^Telegram/ })
+    .click();
+  await expect(theirs.getByRole('link', { name: 'Connect in Integrations' })).toBeHidden();
 
   await channelSections(theirs).getByRole('link', { name: 'Members' }).click();
   await expect(theirs.getByRole('button', { name: 'Add members' })).toBeHidden();
@@ -115,7 +120,9 @@ test('the owner renames a channel, adds a member, removes them, and cannot remov
   await panel.getByRole('button', { name: 'Create channel' }).click();
 
   // Its settings rename it; the breadcrumb and the channel list follow.
-  await channelSections(page).getByRole('link', { name: 'General' }).click();
+  await channelSections(page)
+    .getByRole('link', { name: new RegExp(`^${name}`) })
+    .click();
   await page.getByLabel('Name').fill(renamed);
   await page.getByRole('button', { name: 'Save' }).click();
   await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText(renamed);

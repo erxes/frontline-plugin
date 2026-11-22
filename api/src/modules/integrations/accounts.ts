@@ -1,7 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
-import { PLUGIN } from '#/config.ts';
 import { INTEGRATION_BROKEN, PERMISSIONS } from '#/core.ts';
 import { withOrg } from '#/db/client.ts';
 import { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
@@ -11,6 +10,7 @@ import { notifyMembers } from '../notify.ts';
 import { AccountRefused, type AccountRow } from './provider.ts';
 import { providerOf } from './providers/index.ts';
 import { Account, accountColumns, accountRow, removeWebhookKeys, webhookKeyOf } from './store.ts';
+import { integrationPage, reportSoon } from './catalog.ts';
 
 /**
  * Asks the provider whether `row` still works and records the answer, after pointing its events
@@ -50,12 +50,14 @@ export const recordCheck = async (row: AccountRow, error: string | null) => {
 
   if (!checked) throw new ORPCError('NOT_FOUND', { message: 'No such integration account' });
 
+  reportSoon(row.orgId);
+
   if (error && wasHealthy)
     await notifyMembers(row.orgId, {
       kind: INTEGRATION_BROKEN,
       title: 'An integration stopped working',
       body: `${row.name}: ${error}`,
-      link: `/${PLUGIN}/settings/accounts`,
+      link: integrationPage(row.provider),
       userIds: [row.createdBy],
       dedupeKey: `integration-broken:${row.id}:${checked.checkedAt?.toISOString() ?? ''}`,
     });
@@ -153,6 +155,8 @@ const remove = writes(PERMISSIONS.integrationManage)
       .delete(integrationAccounts)
       .where(inArray(integrationAccounts.id, input.ids))
       .returning({ id: integrationAccounts.id });
+
+    reportSoon(member.orgId);
 
     return { ids: removed.map((row) => row.id) };
   });

@@ -10,6 +10,7 @@ import { Into, intoChannel, metaKey, saveAccount } from '../store.ts';
 import { GRAPH_VERSION, graph, subscribeToPage } from './meta.ts';
 import { type MetaApp, metaAppIn, metaAppOf, metaCallbackUrl } from './metaApp.ts';
 import { routeThroughRelay } from './metaRelay.ts';
+import { integrationPage } from '../catalog.ts';
 
 const STATE = 'meta login';
 
@@ -33,8 +34,8 @@ const SCOPES = [
 
 const State = z.object({ orgId: z.string(), userId: z.string(), ...Into });
 
-/** Where Meta's login returns the member: the Facebook and Instagram settings in web. */
-export const SETTINGS_URL = `${config.coreUiOrigin}/frontline/settings/accounts`;
+/** Where Meta's login returns the member: Facebook and Instagram's accounts in core's Integrations. */
+export const SETTINGS_URL = `${config.coreUiOrigin}${integrationPage('facebook')}`;
 
 /**
  * The address of Meta's login dialog, where the member picks the pages and Instagram accounts to

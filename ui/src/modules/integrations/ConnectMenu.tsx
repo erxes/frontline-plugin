@@ -1,9 +1,4 @@
-import {
-  IconChevronDown,
-  IconMessageCircle,
-  IconPlugConnected,
-  IconPlus,
-} from '@tabler/icons-react';
+import { IconChevronDown, IconMessageCircle, IconPlugConnected } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button, DropdownMenu, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
@@ -26,7 +21,7 @@ import {
  * The connected accounts that serve no channel yet, and adding one as an integration of
  * `channelId`. An account serves one channel, so one active in another stays out.
  */
-const useOutsideAccounts = (channelId: string) => {
+export const useOutsideAccounts = (channelId: string) => {
   const accounts = useAccounts().data?.accounts ?? [];
 
   const joined = new Set(
@@ -76,33 +71,6 @@ const AccountItems = ({ channelId, heading = false }: { channelId: string; headi
       <DropdownMenu.Label>{t('add-connected', 'Add a connected account')}</DropdownMenu.Label>
       {items}
     </>
-  );
-};
-
-/**
- * "Add a connected account": the accounts connected before that serve no channel, to add to
- * `channelId`. Nothing when there are none.
- */
-export const ExistingAccountsMenu = ({ channelId }: { channelId: string }) => {
-  const { t } = useTranslation('frontline');
-
-  if (useOutsideAccounts(channelId).outside.length === 0) return null;
-
-  return (
-    <DropdownMenu>
-      <DropdownMenu.Trigger
-        render={
-          <Button variant="ghost" tone="muted">
-            <IconPlus />
-            {t('add-connected', 'Add a connected account')}
-            <IconChevronDown />
-          </Button>
-        }
-      />
-      <DropdownMenu.Content align="start">
-        <AccountItems channelId={channelId} />
-      </DropdownMenu.Content>
-    </DropdownMenu>
   );
 };
 

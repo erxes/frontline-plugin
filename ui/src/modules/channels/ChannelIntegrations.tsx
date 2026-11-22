@@ -182,17 +182,28 @@ const IntegrationRow = ({ integration }: { integration: Integration }) => {
 };
 
 /**
- * Every integration of the channel, a row each with its mark, name, kind and state, opening it in
- * the side panel. A channel with none says so.
+ * Every integration of the channel, or of its one `kind`, a row each with its mark, name, kind and
+ * state, opening it in the side panel. A channel with none says so.
  */
-export const ChannelIntegrationList = ({ channelId }: { channelId: string }) => {
+export const ChannelIntegrationList = ({
+  channelId,
+  kind,
+}: {
+  channelId: string;
+  kind?: string;
+}) => {
   const { t } = useTranslation('frontline');
-  const integrations = [...useKinds(channelId).values()].flat();
+
+  const integrations = [...useKinds(channelId).values()]
+    .flat()
+    .filter((integration) => !kind || integration.kind === kind);
 
   if (integrations.length === 0) {
     return (
       <p className="px-4 py-8 text-center text-sm text-muted-foreground">
-        {t('no-channel-integrations', 'No conversations come into this channel yet.')}
+        {kind
+          ? t('no-kind-in-channel', 'None in this channel yet.')
+          : t('no-channel-integrations', 'No conversations come into this channel yet.')}
       </p>
     );
   }
