@@ -14,7 +14,8 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import {
-  Button,
+  buttonVariants,
+  cn,
   IconComponent,
   ListFilter,
   memberName,
@@ -28,10 +29,12 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { FORMS_PATH } from '@/forms/useForms.ts';
 import { MemberLine, PersonAvatar } from '~/shared/Person.tsx';
 import { CHANNEL_TYPE } from '~/plugin.ts';
-import { channelRule, INBOX_PATH, listPath } from '~/shared/listPath.ts';
+import { channelPath } from '~/shared/channelScope.ts';
+import { listPath } from '~/shared/listPath.ts';
 import { orpc } from '~/orpc.ts';
 import { FRESH_MS } from '~/shared/reference.ts';
 import { useQuery } from '@tanstack/react-query';
@@ -45,25 +48,20 @@ import { type Channel, CHANNELS_PATH, useChannels, useDeleteChannels } from './u
 const column = columnOf<Channel>;
 
 /**
- * The channel's icon and name, opening it in core's side panel as a customer's name does. A
- * channel without an icon of its own shows the channels icon, as the inbox's sidebar does.
+ * The channel's icon and name, opening its settings inside the channel. A channel without an
+ * icon of its own shows the channels icon, as the sidebar does.
  */
-const NameCell = ({ channel }: { channel: Channel }) => {
-  const { open } = useOpenRecord();
-
-  return (
-    <RecordTableInlineCell>
-      <Button
-        variant="ghost"
-        className="w-full justify-start"
-        onClick={() => open({ contentType: CHANNEL_TYPE, contentId: channel.id })}
-      >
-        {channel.icon ? <IconComponent name={channel.icon} /> : <IconCircles />}
-        <span className="truncate">{channel.name}</span>
-      </Button>
-    </RecordTableInlineCell>
-  );
-};
+const NameCell = ({ channel }: { channel: Channel }) => (
+  <RecordTableInlineCell>
+    <Link
+      to={channelPath(channel.id, 'settings')}
+      className={cn(buttonVariants({ variant: 'ghost' }), 'w-full justify-start')}
+    >
+      {channel.icon ? <IconComponent name={channel.icon} /> : <IconCircles />}
+      <span className="truncate">{channel.name}</span>
+    </Link>
+  </RecordTableInlineCell>
+);
 
 const MoreCell = ({ channel }: { channel: Channel }) => {
   const { t } = useTranslation('frontline');
@@ -138,10 +136,7 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
     )),
     // The inbox narrowed to the channel, where its unread conversations wait.
     column('unread', t('unread', 'Unread'), IconInbox, 90, (channel) => (
-      <CountCell
-        to={listPath(INBOX_PATH, channelRule(channel.id))}
-        count={unread.get(channel.id) ?? 0}
-      />
+      <CountCell to={channelPath(channel.id, 'inbox')} count={unread.get(channel.id) ?? 0} />
     )),
     column('integrations', t('integrations', 'Integrations'), IconPlugConnected, 220, (channel) => (
       <IntegrationBadges channelId={channel.id} />

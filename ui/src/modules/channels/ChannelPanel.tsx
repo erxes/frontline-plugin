@@ -28,7 +28,8 @@ import { useChoices } from '@/tickets/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
-import { channelRule, INBOX_PATH, listPath, ticketsPath } from '~/shared/listPath.ts';
+import { channelPath } from '~/shared/channelScope.ts';
+import { ticketsPath } from '~/shared/listPath.ts';
 import { useIntegrationCount } from './ChannelIntegrations.tsx';
 import { type Channel, useChannel, useChannelChange, useDeleteChannels } from './useChannels.ts';
 import { MemberChip } from '~/shared/Person.tsx';
@@ -91,7 +92,7 @@ const ChannelWork = ({ channel }: { channel: Channel }) => {
     <PanelSection title={t('channel-work', 'Work')}>
       <PanelField icon={IconInbox} label={t('conversations', 'Conversations')} cell={false}>
         <PageLink
-          to={listPath(INBOX_PATH, channelRule(channel.id))}
+          to={channelPath(channel.id, 'inbox')}
           label={t('open-in-inbox', 'Open in inbox')}
           count=""
         />

@@ -103,7 +103,7 @@ const IntegrationButton = ({
   const { open } = useOpenRecord();
 
   return (
-    <span className="flex items-center">
+    <span className="flex min-w-0 flex-1 items-center">
       <Button
         variant="ghost"
         size="sm"
@@ -132,6 +132,37 @@ const IntegrationButton = ({
         </Link>
       )}
     </span>
+  );
+};
+
+/**
+ * Every integration of the channel, a row each: its kind's icon, its name and whether it is
+ * archived, opening it in the side panel, then what kind it is. A channel with none says so.
+ */
+export const ChannelIntegrationList = ({ channelId }: { channelId: string }) => {
+  const { t } = useTranslation('frontline');
+  const names = useKindNames();
+  const integrations = [...useKinds(channelId).values()].flat();
+
+  if (integrations.length === 0) {
+    return (
+      <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+        {t('no-channel-integrations', 'No conversations come into this channel yet.')}
+      </p>
+    );
+  }
+
+  return (
+    <ul className="flex flex-col divide-y">
+      {integrations.map((integration) => (
+        <li key={integration.id} className="flex items-center gap-2 px-2 py-1">
+          <IntegrationButton integration={integration} />
+          <span className="shrink-0 pr-2 text-xs text-muted-foreground">
+            {names[integration.kind] ?? integration.kind}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 };
 

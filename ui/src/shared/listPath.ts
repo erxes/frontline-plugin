@@ -8,6 +8,7 @@ import {
 import { createLoader, createSerializer, parseAsString } from 'nuqs';
 import { useDeferredValue } from 'react';
 import { PLUGIN } from '~/plugin.ts';
+import { useChannelScope } from './channelScope.ts';
 
 /** The address parameter naming the pipeline the tickets page shows. */
 export const PIPELINE_PARAM = 'pipeline';
@@ -48,7 +49,22 @@ export const listParamsOf = (to: string) => {
 export const useListParams = () => {
   const { filter, search } = useListFilterParams();
 
-  return { filter: useDeferredValue(filter), search: useDeferredValue(search) };
+  return {
+    filter: useDeferredValue(inChannel(filter, useChannelScope())),
+    search: useDeferredValue(search),
+  };
+};
+
+/**
+ * The filter bar's `filter` narrowed to `channelId`, for a list inside a channel: the channel's
+ * rule beside the bar's own group, which keeps its "any" or "all".
+ */
+const inChannel = (filter: string | undefined, channelId: string | null) => {
+  if (!channelId) return filter;
+
+  const rule = JSON.stringify(channelRule(channelId));
+
+  return `{"match":"all","rules":[${rule}${filter ? `,${filter}` : ''}]}`;
 };
 
 /** The rules that keep a date field `path` within the days from `from` to `to`, both included. */

@@ -23,6 +23,8 @@ import {
 } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
+import { channelPath } from '~/shared/channelScope.ts';
 import { MemberLine } from '~/shared/Person.tsx';
 import { orpc } from '~/orpc.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
@@ -115,6 +117,19 @@ const useCreateChannel = (starters: Starters, onCreated: (id: string) => void) =
   );
 };
 
+/**
+ * Opens a new channel on its own settings, at the integrations that bring its work in, closing
+ * the draft it was made in.
+ */
+const useOpenChannel = (close: () => void) => {
+  const navigate = useNavigate();
+
+  return (id: string) => {
+    close();
+    void navigate(channelPath(id, 'settings', 'integrations'));
+  };
+};
+
 /** A starter the new channel can begin with, on until turned off. */
 const StarterRow = ({
   label,
@@ -144,12 +159,12 @@ const StarterRow = ({
  * its first members, and what it starts with, a website messenger and a ticket pipeline. Nothing
  * saves until Save; CHANNEL_NAME_TAKEN shows under the name, and the fields keep what was typed.
  */
-export const ChannelNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
+export const ChannelNew = ({ onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
   const [icon, setIcon] = useState<string | null>(CHANNEL_ICON);
   const [memberIds, setMemberIds] = useState<string[]>([]);
   const [starters, setStarters] = useState<Starters>({ messenger: true, pipeline: true });
-  const create = useCreateChannel(starters, onCreated);
+  const create = useCreateChannel(starters, useOpenChannel(onCancel));
 
   const takenName =
     isDefinedError(create.error) && create.error.code === 'CHANNEL_NAME_TAKEN'

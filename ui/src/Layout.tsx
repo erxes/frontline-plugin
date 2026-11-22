@@ -3,7 +3,6 @@ import {
   IconBrandFacebook,
   IconChartBar,
   IconChartHistogram,
-  IconPlugConnected,
   IconChecklist,
   IconChevronDown,
   IconChevronLeft,
@@ -12,7 +11,6 @@ import {
   IconHelpCircle,
   IconHistory,
   IconInbox,
-  IconLink,
   IconListDetails,
   IconPhone,
   IconSettings,
@@ -180,8 +178,6 @@ const SETTINGS_PAGES: NavLink[] = [
   // Core keeps them and ticket fields, at its own Settings › Structure and › Properties.
   ['/settings/structure', 'branches-and-departments', 'Branches and departments', IconSitemap],
   [`/settings/properties/${TICKET_FIELDS}`, 'ticket-properties', 'Ticket properties', IconForms],
-  [`${SETTINGS}/integrations`, 'integrations', 'Integrations', IconPlugConnected],
-  [`${SETTINGS}/accounts`, 'connected-accounts', 'Connected accounts', IconLink],
 ];
 
 /**

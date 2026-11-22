@@ -1,9 +1,8 @@
 import { addPluginStyles, IconsProvider, RecordPage } from 'erxes-ui';
 import { lazy } from 'react';
-import { Navigate, Route, Routes, useParams } from 'react-router-dom';
+import { Navigate, Outlet, Route, Routes, useParams } from 'react-router-dom';
 import {
   CALL_TYPE,
-  CHANNEL_TYPE,
   ACCOUNT_TYPE,
   FORM_SUBMISSION_TYPE,
   FORM_TYPE,
@@ -22,6 +21,7 @@ import {
 import { FrontlineLayout, SettingsLayout } from './Layout.tsx';
 import { withText } from '~/i18n/withText.ts';
 import { inboxPage, ticketsPage } from '~/pages.ts';
+import { ChannelScope } from '~/shared/channelScope.ts';
 import css from './styles.css?inline';
 
 addPluginStyles(PLUGIN, css);
@@ -86,18 +86,16 @@ const AccountsPage = lazy(
   })),
 );
 
-const IntegrationsPage = lazy(
-  withText(async () => ({
-    default: (await import('@/integrations/IntegrationsPage.tsx')).IntegrationsPage,
-  })),
-);
-
 const ChannelsPage = lazy(
   withText(async () => ({ default: (await import('@/channels/pages.ts')).ChannelsPage })),
 );
 
 const ChannelMembersPage = lazy(
   withText(async () => ({ default: (await import('@/channels/pages.ts')).ChannelMembersPage })),
+);
+
+const ChannelSettingsPage = lazy(
+  withText(async () => ({ default: (await import('@/channels/pages.ts')).ChannelSettingsPage })),
 );
 
 const PersonalChannel = lazy(
@@ -170,14 +168,14 @@ const QueuePage = lazy(
   withText(async () => ({ default: (await import('@/calls/pages.ts')).QueuePage })),
 );
 
-/** The page module web renders under `/frontline/*` (loaded as `frontline_ui/frontline`). */
 /** Frontline's settings, under `/frontline/settings`, in their own sidebar. */
 const settingsRoutes = (
   <Route path="settings" element={<SettingsLayout />}>
     <Route index element={<Navigate to="channels" replace />} />
     <Route path="channels">
       <Route index element={<ChannelsPage />} />
-      <Route path=":id" element={<RecordRoute contentType={CHANNEL_TYPE} />} />
+      {/* A channel's settings are a page inside it now. */}
+      <Route path=":id" element={<Redirect path="channels" rest="/settings" />} />
       <Route path=":id/members" element={<ChannelMembersPage />} />
       <Route path=":id/response" element={<ResponseTemplatesPage />} />
       {/* The old link opens that template on its own page. */}
@@ -224,7 +222,6 @@ const settingsRoutes = (
     <Route path="tags" element={<TagsPage />} />
     {/* Help centers moved out of settings. */}
     <Route path="help-centers/*" element={<Redirect path="help-centers" param="*" />} />
-    <Route path="integrations" element={<IntegrationsPage />} />
     <Route path="accounts" element={<AccountsPage />} />
     <Route path="accounts/:id" element={<RecordRoute contentType={ACCOUNT_TYPE} />} />
     <Route path="meta" element={<Navigate to="../accounts" replace />} />
@@ -236,6 +233,31 @@ const settingsRoutes = (
       leave again.
     */}
     <Route path="*" element={<Navigate to={`/${PLUGIN}/settings/channels`} replace />} />
+  </Route>
+);
+
+/**
+ * Inside a channel: its inbox, tickets and settings, each page narrowed to the channel. A new
+ * channel starts its pages afresh, with none of the last one's rows or form.
+ */
+const ChannelWorkspace = () => {
+  const { channelId = '' } = useParams();
+
+  return (
+    <ChannelScope value={channelId}>
+      <Outlet key={channelId} />
+    </ChannelScope>
+  );
+};
+
+/** A channel's own pages, each narrowed to it. */
+const channelRoutes = (
+  <Route path="channels/:channelId" element={<ChannelWorkspace />}>
+    <Route index element={<Navigate to="inbox" replace />} />
+    <Route path="inbox" element={<InboxPage />} />
+    <Route path="tickets" element={<TicketsPage />} />
+    <Route path="settings" element={<ChannelSettingsPage />} />
+    <Route path="settings/:section" element={<ChannelSettingsPage />} />
   </Route>
 );
 
@@ -257,6 +279,7 @@ export const Frontline = () => (
           />
           <Route path="messengers/:id" element={<MessengerSettingsPage />} />
         </Route>
+        {channelRoutes}
         <Route path="tickets">
           <Route index element={<TicketsPage />} />
           <Route path=":id" element={<RecordRoute contentType={TICKET_TYPE} />} />
