@@ -56,8 +56,6 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
 
   const settings = {
     Tags: `${SETTINGS}/tags`,
-    Integrations: `${SETTINGS}/integrations`,
-    'Connected accounts': `${SETTINGS}/accounts`,
     Channels: `${SETTINGS}/channels`,
   };
 

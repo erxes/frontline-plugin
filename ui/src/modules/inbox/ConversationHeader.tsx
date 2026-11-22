@@ -24,6 +24,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
+import { useChannelScope } from '~/shared/channelScope.ts';
 import { MemberCell } from '~/shared/MemberPicker.tsx';
 import { PersonAvatar, useCustomer } from '~/shared/Person.tsx';
 import { ConversationMenu, VisitorPresence, VisitorTyping } from './ConversationPresence.tsx';
@@ -201,7 +202,11 @@ const TagSummary = ({ conversation }: { conversation: Conversation }) => {
 const Identity = ({ conversation }: { conversation: Conversation }) => {
   const { open } = useOpenRecord();
   const customer = useCustomer(conversation.customerId);
-  const source = `${conversation.channelName} · ${conversation.integrationName}`;
+
+  // Inside a channel its name leads the page already; across channels it says where this came in.
+  const source = useChannelScope()
+    ? conversation.integrationName
+    : `${conversation.channelName} · ${conversation.integrationName}`;
 
   const name = customer.isPending ? (
     <Skeleton className="h-4 w-32" />
@@ -235,7 +240,11 @@ const Identity = ({ conversation }: { conversation: Conversation }) => {
           />
           <span className="truncate">{source}</span>
           <VisitorTyping conversation={conversation} />
-          <VisitorPresence conversation={conversation} className="hidden @xl:flex" />
+          <VisitorPresence
+            compact
+            conversation={conversation}
+            className="hidden shrink-0 @xl:flex"
+          />
         </span>
       </span>
     </span>

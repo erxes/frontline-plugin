@@ -52,13 +52,16 @@ export const VisitorTyping = ({ conversation }: { conversation: Conversation }) 
 
 /**
  * What the messenger knows of the visitor, as one line: online or last seen, how many visits,
- * and the page of the latest one. `className` places it, in the conversation header or a panel.
+ * and the page of the latest one. `compact`, for the conversation header, keeps online and the
+ * visits and puts the rest in its tooltip. `className` places it.
  */
 export const VisitorPresence = ({
   conversation,
+  compact = false,
   className,
 }: {
   conversation: Conversation;
+  compact?: boolean;
   className?: string;
 }) => {
   const { t } = useTranslation('frontline');
@@ -67,9 +70,14 @@ export const VisitorPresence = ({
 
   if (!visitor) return null;
 
+  const lastSeen = visitor.lastSeenAt
+    ? t('last-seen', 'Last seen {{when}}', { when: format.dateTime(visitor.lastSeenAt) })
+    : '';
+
   return (
     <p
       aria-label={t('visitor-presence', 'Visitor presence')}
+      title={compact ? [lastSeen, visitor.browser.url].filter(Boolean).join(' · ') : undefined}
       className={cn('flex min-w-0 items-center gap-2 text-xs text-muted-foreground', className)}
     >
       {visitor.isOnline ? (
@@ -77,11 +85,7 @@ export const VisitorPresence = ({
           {t('online', 'Online')}
         </Badge>
       ) : (
-        visitor.lastSeenAt && (
-          <span className="shrink-0">
-            {t('last-seen', 'Last seen {{when}}', { when: format.dateTime(visitor.lastSeenAt) })}
-          </span>
-        )
+        !compact && lastSeen && <span className="shrink-0">{lastSeen}</span>
       )}
       <span className="shrink-0">
         {t('visits', {
@@ -90,7 +94,7 @@ export const VisitorPresence = ({
           count: visitor.sessionCount,
         })}
       </span>
-      {visitor.browser.url && <span className="truncate">{visitor.browser.url}</span>}
+      {!compact && visitor.browser.url && <span className="truncate">{visitor.browser.url}</span>}
     </p>
   );
 };

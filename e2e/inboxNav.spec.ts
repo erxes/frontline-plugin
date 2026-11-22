@@ -38,21 +38,24 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   const conversations = member.getByRole('list', { name: 'Conversations' });
   const row = conversations.getByRole('button', { name: new RegExp(refund) });
 
-  const channelLink = member
-    .getByRole('list', { name: 'Channels' })
-    .getByRole('link', { name: new RegExp(`^${channel}`) });
+  const channels = member.getByRole('list', { name: 'Channels' });
+  const channelItem = channels.getByRole('button', { name: new RegExp(`^${channel}`) });
+  const channelInbox = channels.getByRole('link', { name: /^Inbox/ });
 
-  await expect(channelLink.getByLabel('1 unread')).toBeVisible();
+  await expect(channelItem.getByLabel('1 unread')).toBeVisible();
 
   // Another conversation in the channel raises its count without a reload.
   const parcelId = await visitor.write(`Where is my parcel ${unique()}`);
-  await expect(channelLink.getByLabel('2 unread')).toBeVisible();
+  await expect(channelItem.getByLabel('2 unread')).toBeVisible();
 
-  // The channel's link narrows the inbox to it, as the filter bar's channel rule does.
-  await channelLink.click();
-  await expect(member).toHaveURL(/advanced=.*channelId/);
+  // The channel unfolds to its own pages; its inbox shows only its conversations, under its name.
+  await channelItem.click();
+  await expect(channelInbox.getByLabel('2 unread')).toBeVisible();
+  await channelInbox.click();
+  await expect(member).toHaveURL(/\/frontline\/channels\/[^/]+\/inbox$/);
+  await expect(member.getByRole('navigation', { name: 'Breadcrumb' })).toContainText(channel);
   await expect(conversations.getByRole('listitem')).toHaveCount(2);
-  await expect(channelLink).toHaveAttribute('data-active', 'true');
+  await expect(channelInbox).toHaveAttribute('data-active', 'true');
 
   // A new conversation waits in Unassigned and Awaiting response.
   await queues.getByRole('link', { name: /^Unassigned/ }).click();
@@ -62,14 +65,14 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
 
   // Opening it reads it. Mentions filters by the member's mentions; a second click clears it.
   await row.click();
-  await expect(channelLink.getByLabel('1 unread')).toBeVisible();
+  await expect(channelInbox.getByLabel('1 unread')).toBeVisible();
   await queues.getByRole('link', { name: /^Mentions/ }).click();
   await expect(member).toHaveURL(/mentionedUserIds/);
   await queues.getByRole('link', { name: /^Mentions/ }).click();
   await expect(member).toHaveURL(new RegExp(`${INBOX}$`));
 
   // Once assigned to the member, it shows under Assigned to me.
-  await channelLink.click();
+  await channelInbox.click();
   await row.click();
   await member.getByRole('button', { name: 'Assign', exact: true }).click();
   await member.getByRole('option', { name: teammate.fullName }).click();
@@ -92,10 +95,10 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   await expect(member.getByRole('region', { name: 'Conversation' })).toContainText(
     'Where is my parcel',
   );
-  await expect(channelLink.getByLabel(/unread/)).toBeHidden();
+  await expect(channelInbox.getByLabel(/unread/)).toBeHidden();
 });
 
-test('My inbox and Channels split the member’s channels; quiet ones fold, a filter finds any, and a folded group stays folded', async ({
+test('Channels lists the member’s own inbox first; quiet channels fold, a filter finds any, and a folded group stays folded', async ({
   plugin,
   request,
   api,
@@ -126,20 +129,22 @@ test('My inbox and Channels split the member’s channels; quiet ones fold, a fi
   const first = quiet.at(0) ?? '';
   const last = quiet.at(-1) ?? '';
 
-  const mine = member.getByRole('list', { name: 'My inbox' });
+  const menu = member.getByRole('button', { name: 'Channel actions' });
 
-  // My inbox offers to make the member's personal inbox, then opens it.
+  // The Channels menu makes the member's personal inbox, then opens its settings.
   await member.goto(INBOX);
-  await mine.getByRole('button', { name: 'Create my inbox' }).click();
-  await expect(member).toHaveURL(/settings\/channels\/.+/);
+  await menu.click();
+  await member.getByRole('menuitem', { name: 'Create my inbox' }).click();
+  await expect(member).toHaveURL(/\/frontline\/channels\/[^/]+\/settings$/);
   await member.goto(INBOX);
-  await expect(mine.getByRole('button', { name: 'Create my inbox' })).toBeHidden();
+  await menu.click();
+  await expect(member.getByRole('menuitem', { name: 'Create my inbox' })).toBeHidden();
+  await member.keyboard.press('Escape');
 
   const team = member.getByRole('list', { name: 'Channels' });
-  const link = (name: string) => team.getByRole('link', { name: new RegExp(`^${name}`) });
+  const link = (name: string) => team.getByRole('button', { name: new RegExp(`^${name}`) });
 
-  await expect(mine.getByRole('link', { name: /^Personal inbox/ })).toBeVisible();
-  await expect(team.getByRole('link', { name: /^Personal inbox/ })).toBeHidden();
+  await expect(link('Personal inbox')).toBeVisible();
   await expect(link(busy).getByLabel('1 unread')).toBeVisible();
   await expect(link(first)).toBeHidden();
 
@@ -169,8 +174,9 @@ test('My inbox and Channels split the member’s channels; quiet ones fold, a fi
   await member.getByRole('button', { name: 'Channels', exact: true }).click();
   await expect(link(busy)).toBeVisible();
 
-  // Its gear opens the channel settings.
-  await member.getByRole('button', { name: 'Manage channels' }).click();
+  // Its menu opens the list of channels to manage them.
+  await menu.click();
+  await member.getByRole('menuitem', { name: 'Manage channels' }).click();
   await expect(member).toHaveURL(/\/frontline\/settings\/channels$/);
 });
 
@@ -182,6 +188,5 @@ test('a member without the inbox permission gets the Inbox link and none of its 
   await page.goto('/frontline/tickets');
   await expect(page.getByRole('link', { name: 'Inbox', exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Work queue' })).toBeHidden();
-  await expect(page.getByRole('list', { name: 'My inbox' })).toBeHidden();
   await expect(page.getByRole('list', { name: 'Channels' })).toBeHidden();
 });

@@ -1,4 +1,5 @@
 import {
+  channelSections,
   addMessenger,
   createChannel,
   expect,
@@ -12,7 +13,6 @@ import {
 } from './fixtures.ts';
 
 const ACCOUNTS = '/frontline/settings/accounts';
-const INTEGRATIONS = '/frontline/settings/integrations';
 
 // The stack has no Meta app and no real bots, so nothing connects here: the API tests feed each
 // provider's recorded payloads through connecting, comments, posts and bots.
@@ -98,11 +98,11 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   const settingsUrl = page.url();
   const panel = recordPanel(page);
 
-  // The channel's Integrations tab lists the messenger with a link to its settings.
+  // The channel's settings list the messenger under Integrations, with a link to its settings.
   await page.goto('/frontline/settings/channels');
-  await page.getByText(channel, { exact: true }).click();
-  await panel.getByRole('tab', { name: 'Integrations' }).click();
-  await panel.getByRole('link', { name: /^Settings of Website / }).click();
+  await page.getByRole('link', { name: channel, exact: true }).click();
+  await channelSections(page).getByRole('link', { name: 'Integrations' }).click();
+  await page.getByRole('link', { name: /^Settings of Website / }).click();
   await expect(page).toHaveURL(settingsUrl);
 
   // Archived, it takes no visitors until an admin unarchives it.
@@ -180,32 +180,32 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   });
 });
 
-test('the integrations list shows every integration with the channel it feeds', async ({
+test("a channel's settings list its integrations, and its admins add more there", async ({
   page,
 }) => {
   const channel = await createChannel(page);
-  const panel = recordPanel(page);
 
   await page.goto(INBOX);
   await addMessenger(page, channel);
 
-  await page.goto(INTEGRATIONS);
-  const row = page.getByRole('row', { name: new RegExp(channel) });
+  await page.goto('/frontline/settings/channels');
+  await page.getByRole('link', { name: channel, exact: true }).click();
+  await channelSections(page).getByRole('link', { name: 'Integrations' }).click();
 
-  await expect(row).toBeVisible();
-  await expect(row.getByText('Messenger', { exact: true })).toBeVisible();
-  await expect(row.getByText('Active', { exact: true })).toBeVisible();
-  await expectAccessible(page, row);
+  const messenger = page.getByRole('link', { name: /^Settings of Website / });
 
-  // Its channel opens the channel, whose Integrations tab lists it too.
-  await row.getByRole('button', { name: channel }).click();
-  await panel.getByRole('tab', { name: 'Integrations' }).click();
-  await expect(panel.getByRole('link', { name: /^Settings of Website / })).toBeVisible();
+  await expect(messenger).toBeVisible();
+  await expectAccessible(page, messenger);
 
-  // Add integration starts with a website messenger, then the providers to connect.
-  await page.getByRole('button', { name: 'Add integration' }).click();
-  await expect(page.getByRole('menuitem', { name: 'Website messenger' })).toBeVisible();
+  // A messenger or a provider's account comes into the channel from here.
+  await expect(page.getByRole('button', { name: 'Add messenger' })).toBeVisible();
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await expect(page.getByRole('menuitem', { name: 'Telegram bot' })).toBeVisible();
+  await page.keyboard.press('Escape');
+
+  // Frontline's settings hold no list of every integration: the old address opens the channels.
+  await page.goto('/frontline/settings/integrations');
+  await expect(page).toHaveURL(/\/frontline\/settings\/channels$/);
 });
 
 test('a member without the integrations permission is refused', async ({ newMember }) => {

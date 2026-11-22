@@ -323,6 +323,9 @@ test('a member without the inbox permission is refused the inbox', async ({ newM
 
   await page.goto(INBOX);
   await expect(page.getByText('You need the frontline.inbox.view permission')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Inbox', exact: true })).toBeVisible();
+  // The sidebar keeps its Inbox link; the breadcrumb names the page too.
+  const sidebar = page.getByRole('complementary').first();
+
+  await expect(sidebar.getByRole('link', { name: 'Inbox', exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Work queue' })).toBeHidden();
 });

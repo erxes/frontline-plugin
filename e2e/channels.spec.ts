@@ -1,8 +1,22 @@
-import { expect, recordPath, recordPanel, test, unique } from './fixtures.ts';
+import {
+  channelSections,
+  expect,
+  expectPage,
+  recordPath,
+  recordPanel,
+  test,
+  unique,
+} from './fixtures.ts';
 
 const CHANNELS = '/frontline/settings/channels';
 
-test('the owner creates a channel with a teammate, who sees it read-only', async ({
+/** A page inside a channel, as its address reads. */
+const CHANNEL_PAGE = (page: string) => new RegExp(`/frontline/channels/[^/]+/${page}$`);
+
+/** A section of a channel's settings, as its address reads. */
+const CHANNEL_SETTINGS = (section: string) => CHANNEL_PAGE(`settings/${section}`);
+
+test('the owner creates a channel with a teammate, who sees its settings read-only', async ({
   page,
   newMember,
 }) => {
@@ -19,25 +33,23 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
 
   await panel.getByRole('button', { name: 'Create channel' }).click();
 
-  // The draft becomes the channel, its name edited in place. It starts with a website messenger
-  // and a Support pipeline; it has no unread conversations, forms or response templates yet, and
-  // each count opens that list.
-  await expect(panel.getByRole('button', { name })).toBeEnabled();
+  // The new channel opens inside itself, on its settings' integrations: it starts with a website
+  // messenger and a Support pipeline. Its sections are its settings: no activity or notes.
+  await expect(page).toHaveURL(CHANNEL_SETTINGS('integrations'));
+  await expect(page.getByRole('link', { name: `Settings of ${name}` })).toBeVisible();
+  await channelSections(page).getByRole('link', { name: 'Pipelines' }).click();
+  await expect(page.getByRole('button', { name: 'Support', exact: true })).toBeVisible();
+  await channelSections(page).getByRole('link', { name: 'Members' }).click();
+  await expect(page.getByText(teammate.fullName)).toBeVisible();
+  await expect(page.getByRole('combobox', { name: 'Role: Admin' })).toBeVisible();
+
+  // The list counts what it holds: one messenger, no unread conversations, forms or templates.
+  await page.goto(CHANNELS);
   const row = page.getByRole('row', { name: new RegExp(name) });
 
   await expect(row).toBeVisible();
   await expect(row.getByRole('link', { name: '1' })).toHaveCount(1);
   await expect(row.getByRole('link', { name: '0' })).toHaveCount(3);
-
-  // Its tabs hold what it takes in and works with: no Activity tab or notes.
-  await expect(panel.getByRole('tab', { name: 'Activity' })).toBeHidden();
-  await panel.getByRole('tab', { name: 'Integrations' }).click();
-  await expect(panel.getByRole('button', { name, exact: true })).toBeVisible();
-  await panel.getByRole('tab', { name: 'Pipelines' }).click();
-  await expect(panel.getByRole('button', { name: 'Support', exact: true })).toBeVisible();
-  await panel.getByRole('tab', { name: 'Members' }).click();
-  await expect(panel.getByText(teammate.fullName)).toBeVisible();
-  await expect(panel.getByRole('combobox', { name: 'Role: Admin' })).toBeVisible();
 
   // A second channel with the same name is refused, and the form keeps what was typed.
   await page.goto(recordPath(CHANNELS, 'frontline:channel'));
@@ -48,29 +60,29 @@ test('the owner creates a channel with a teammate, who sees it read-only', async
 
   // Its Connect menu opens a provider's form that connects straight into the channel.
   await page.goto(CHANNELS);
-  await page.getByRole('button', { name, exact: true }).click();
-  await panel.getByRole('tab', { name: 'Integrations' }).click();
-  await panel.getByRole('button', { name: 'Connect', exact: true }).click();
+  await page.getByRole('link', { name, exact: true }).click();
+  await channelSections(page).getByRole('link', { name: 'Integrations' }).click();
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await page.getByRole('menuitem', { name: 'Telegram bot' }).click();
   await expect(panel.getByLabel('Bot token')).toBeVisible();
 
-  const theirPanel = recordPanel(teammate.page);
+  const theirs = teammate.page;
 
-  await teammate.page.goto(CHANNELS);
-  await expect(teammate.page.getByRole('button', { name: 'Create channel' })).toBeHidden();
-  await teammate.page.getByRole('button', { name, exact: true }).click();
-  await expect(theirPanel.getByRole('button', { name })).toBeDisabled();
-  await expect(theirPanel.getByRole('button', { name: 'Channel actions' })).toBeHidden();
-  await theirPanel.getByRole('tab', { name: 'Integrations' }).click();
-  await expect(theirPanel.getByRole('button', { name: 'Connect', exact: true })).toBeHidden();
+  await theirs.goto(CHANNELS);
+  await expect(theirs.getByRole('button', { name: 'Create channel' })).toBeHidden();
+  await theirs.getByRole('link', { name, exact: true }).click();
+  await expect(theirs.getByLabel('Name')).toBeDisabled();
+  await expect(theirs.getByRole('button', { name: 'Delete channel' })).toBeHidden();
+  await channelSections(theirs).getByRole('link', { name: 'Integrations' }).click();
+  await expect(theirs.getByRole('button', { name: 'Connect', exact: true })).toBeHidden();
 
-  await theirPanel.getByRole('tab', { name: 'Members' }).click();
-  await expect(theirPanel.getByRole('button', { name: 'Add members' })).toBeHidden();
-  await theirPanel.getByRole('link', { name: 'Manage channel members' }).click();
+  await channelSections(theirs).getByRole('link', { name: 'Members' }).click();
+  await expect(theirs.getByRole('button', { name: 'Add members' })).toBeHidden();
+  await theirs.getByRole('link', { name: 'Manage channel members' }).click();
   // Without core's team.view the teammate can't read names, but sees both members and their roles.
-  await expect(teammate.page.getByRole('row')).toHaveCount(3);
-  await expect(teammate.page.getByRole('cell', { name: 'Member', exact: true })).toBeVisible();
-  await expect(teammate.page.getByRole('button', { name: 'Add members' })).toBeHidden();
+  await expect(theirs.getByRole('row')).toHaveCount(3);
+  await expect(theirs.getByRole('cell', { name: 'Member', exact: true })).toBeVisible();
+  await expect(theirs.getByRole('button', { name: 'Add members' })).toBeHidden();
 });
 
 test('each member opens their own personal inbox, left out of the channel list', async ({
@@ -78,20 +90,22 @@ test('each member opens their own personal inbox, left out of the channel list',
   newMember,
 }) => {
   const teammate = await newMember(['frontline.channel.view']);
-  const panel = recordPanel(page);
 
   await page.goto('/frontline/personal-channel');
-  await expect(page).toHaveURL(new RegExp(`${CHANNELS}/[^/]+$`));
-  await expect(panel.getByRole('button', { name: 'Personal inbox' })).toBeVisible();
+  await expect(page).toHaveURL(CHANNEL_PAGE('inbox'));
+  await expectPage(page, 'Inbox');
+  await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText(
+    'Personal inbox',
+  );
   const mine = page.url();
 
   await page.goto('/frontline/personal-channel');
   await expect(page).toHaveURL(mine);
   await page.goto(CHANNELS);
-  await expect(page.getByRole('button', { name: 'Personal inbox', exact: true })).toBeHidden();
+  await expect(page.getByRole('link', { name: 'Personal inbox', exact: true })).toBeHidden();
 
   await teammate.page.goto('/frontline/personal-channel');
-  await expect(teammate.page).toHaveURL(new RegExp(`${CHANNELS}/[^/]+$`));
+  await expect(teammate.page).toHaveURL(CHANNEL_PAGE('inbox'));
   expect(teammate.page.url()).not.toBe(mine);
 });
 
@@ -108,13 +122,17 @@ test('the owner renames a channel, adds a member, removes them, and cannot remov
   await panel.getByLabel('Name').fill(name);
   await panel.getByRole('button', { name: 'Create channel' }).click();
 
-  await panel.getByRole('button', { name }).click();
-  await page.getByPlaceholder('Name').fill(renamed);
-  await page.keyboard.press('Enter');
+  // Its settings rename it; the breadcrumb and the channel list follow.
+  await channelSections(page).getByRole('link', { name: 'General' }).click();
+  await page.getByLabel('Name').fill(renamed);
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('navigation', { name: 'Breadcrumb' })).toContainText(renamed);
+  await page.goto(CHANNELS);
   await expect(page.getByRole('row', { name: new RegExp(renamed) })).toBeVisible();
 
-  await panel.getByRole('tab', { name: 'Members' }).click();
-  await panel.getByRole('link', { name: 'Manage channel members' }).click();
+  await page.getByRole('link', { name: renamed, exact: true }).click();
+  await channelSections(page).getByRole('link', { name: 'Members' }).click();
+  await page.getByRole('link', { name: 'Manage channel members' }).click();
   await page.getByRole('button', { name: 'Add members' }).click();
   const popover = page.getByRole('dialog');
 
