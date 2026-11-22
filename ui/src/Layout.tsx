@@ -54,7 +54,7 @@ const Page = () => (
   </Suspense>
 );
 
-/** A group of sidebar links under a heading that folds them away, open until the member does. */
+/** A group of sidebar links under a heading that folds them away, open while one of them is. */
 const NavGroup = ({
   icon: GroupIcon,
   name,
@@ -65,17 +65,17 @@ const NavGroup = ({
   items: { name: string; to: string; icon: Icon; exact?: boolean }[];
 }) => {
   const { pathname } = useLocation();
-  const [open, setOpen] = useState(true);
 
   const isAt = ({ to, exact }: { to: string; exact?: boolean }) =>
     pathname === to || (!exact && pathname.startsWith(`${to}/`));
 
+  // Folded until the member opens it or is on one of its pages, so the sidebar stays short.
+  const [toggled, setOpen] = useState<boolean | null>(null);
+  const open = toggled ?? items.some(isAt);
+
   return (
     <Sidebar.MenuItem>
-      <Sidebar.MenuButton
-        isActive={!open && items.some(isAt)}
-        onClick={() => setOpen((value) => !value)}
-      >
+      <Sidebar.MenuButton isActive={!open && items.some(isAt)} onClick={() => setOpen(!open)}>
         <GroupIcon />
         <span className="min-w-0 flex-1 truncate">{name}</span>
         <IconChevronDown

@@ -41,16 +41,17 @@ test('the owner adds, finds and deletes tags', async ({ page }) => {
 test('the sidebar opens every Frontline page, and Settings opens its own sidebar', async ({
   page,
 }) => {
-  // Each link, its page and the page's heading. Tickets is headed by its first pipeline.
-  const pages: [string, string, string?][] = [
+  // Each link, its page and the page's heading, and the group it folds under. Tickets is headed by
+  // its first pipeline.
+  const pages: [string, string, string?, string?][] = [
     ['Inbox', '/frontline/inbox', 'Inbox'],
     ['Tickets', '/frontline/tickets'],
     ['Forms', '/frontline/forms', 'Forms'],
     ['Surveys', '/frontline/surveys', 'Surveys'],
     ['Knowledge Base', '/frontline/knowledgebase', 'Knowledge Base'],
     ['Help centers', '/frontline/help-centers', 'Help centers'],
-    ['Overview', '/frontline/reports', 'Overview'],
-    ['History', '/frontline/calls/history', 'Call history'],
+    ['Overview', '/frontline/reports', 'Overview', 'Reports'],
+    ['History', '/frontline/calls/history', 'Call history', 'Calls'],
     ['Queues', '/frontline/calls/queues', 'Queues'],
   ];
 
@@ -61,7 +62,10 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
 
   await page.goto('/frontline/tickets');
 
-  for (const [name, path, heading] of pages) {
+  for (const [name, path, heading, group] of pages) {
+    // A folded group opens before its link shows; it stays open on its own pages.
+    if (group) await page.getByRole('button', { name: group, exact: true }).click();
+
     // A link with unread items says how many: "Inbox 12 unread".
     await page.getByRole('link', { name: new RegExp(`^${name}( \\d+ unread)?$`) }).click();
     await expect(page).toHaveURL(new RegExp(`${path}(/|\\?|$)`));
