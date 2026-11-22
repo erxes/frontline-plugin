@@ -12,6 +12,7 @@ import { useTranslation } from 'react-i18next';
 import { MemberAvatar, PersonAvatar } from '~/shared/Person.tsx';
 import { isChat, KindIcon } from '~/shared/kinds.tsx';
 import type { usePrefetch } from '~/shared/prefetch.ts';
+import { useManyChannels } from '~/shared/channelField.ts';
 import type { Conversation } from './queries.ts';
 import { TagDot, usePickedTags } from './TagDot.tsx';
 
@@ -126,6 +127,7 @@ const Summary = ({
   const waiting = isWaiting(conversation, now);
   const waitingLabel = t('waiting-answer', 'Waiting over 5 minutes for an answer');
   const preview = usePreview(conversation);
+  const manyChannels = useManyChannels();
 
   return (
     <>
@@ -176,8 +178,11 @@ const Summary = ({
           thread={conversation.externalId}
           className="size-3.5 shrink-0"
         />
-        <span className="sr-only">{conversation.integrationName}</span>
-        <span className="min-w-0 flex-1 truncate leading-4">{conversation.channelName}</span>
+        {/* A member in one channel sees the integration; in several, which channel it came through. */}
+        <span className="min-w-0 flex-1 truncate leading-4">
+          {manyChannels ? conversation.channelName : conversation.integrationName}
+        </span>
+        {manyChannels && <span className="sr-only">{conversation.integrationName}</span>}
         <RowTags tagIds={conversation.tagIds} />
         {conversation.assigneeId && (
           <MemberAvatar

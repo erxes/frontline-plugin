@@ -12,6 +12,7 @@ import { channelServing, insertIntegration } from '../inbox/insertIntegration.ts
 import { openedBy, removeKeys } from '../public.ts';
 import type { AccountRow, ProviderName, Routed } from './provider.ts';
 import { sealSecret } from './secrets.ts';
+import { reportSoon } from './catalog.ts';
 
 /** The row without `org_id`, which the caller knows, and the sealed secret, which nobody reads. */
 const { orgId, secret, ...columns } = getTableColumns(integrationAccounts);
@@ -142,6 +143,8 @@ export const saveAccount = async (
   }
 
   if (channelId) await joinChannel(tx, member, row, channelId);
+
+  reportSoon(member.orgId);
 
   return row;
 };

@@ -79,7 +79,7 @@ export const ReplyEditor = ({
         sideMenu={false}
         slashMenuOnTop
         additionalSlashMenuItems={slashItems}
-        className={cn('h-auto', tall ? 'max-h-120 min-h-64' : 'max-h-56 min-h-16')}
+        className={cn('h-auto', tall ? 'max-h-120 min-h-64' : 'max-h-64 min-h-20')}
         onChange={onChange}
       />
     </div>

@@ -4,15 +4,12 @@ import {
   IconBox,
   IconChartBar,
   IconChecklist,
-  IconCircleDot,
   IconCircles,
-  IconClockHour4,
   IconFolder,
   IconForms,
   IconSend,
   IconGitBranch,
   IconHelpCircle,
-  IconLock,
   IconMessageCircle,
   IconMessageReply,
   IconMessageShare,
@@ -27,6 +24,7 @@ import type { IUIConfig, TPropertyValue, TRecordDraftProps, TRecordSlotProps } f
 import { type ComponentType, lazy } from 'react';
 import { addConfigText } from '~/i18n/configText.ts';
 import { withText } from '~/i18n/withText.ts';
+import { CHANNEL_TABS, PIPELINE_TABS } from '~/recordTabs.ts';
 import { DASHBOARD_WIDGETS } from '~/dashboardWidgets.ts';
 import { INTEGRATION_TILES } from '~/integrationTiles.ts';
 import {
@@ -117,8 +115,8 @@ export const CONFIG: IUIConfig = {
       title: 'Channel',
       icon: IconCircles,
       detailPath: pageOf('settings/channels'),
-      activity: `${PLUGIN}.channel`,
       ...slots(() => import('@/channels/slots.ts')),
+      tabs: CHANNEL_TABS,
     },
     {
       contentType: RESPONSE_TEMPLATE_TYPE,
@@ -133,26 +131,7 @@ export const CONFIG: IUIConfig = {
       icon: IconGitBranch,
       detailPath: pageOf('settings/pipelines'),
       ...slots(pipeline),
-      tabs: [
-        {
-          value: 'statuses',
-          label: 'Ticket statuses',
-          icon: IconCircleDot,
-          component: lazy(async () => ({ default: (await pipeline()).PipelineStatuses })),
-        },
-        {
-          value: 'sla',
-          label: 'SLA',
-          icon: IconClockHour4,
-          component: lazy(async () => ({ default: (await pipeline()).PipelineSla })),
-        },
-        {
-          value: 'permissions',
-          label: 'Permissions',
-          icon: IconLock,
-          component: lazy(async () => ({ default: (await pipeline()).PipelinePermissions })),
-        },
-      ],
+      tabs: PIPELINE_TABS,
     },
     {
       contentType: KB_TOPIC_TYPE,
@@ -287,7 +266,7 @@ export const CONFIG: IUIConfig = {
       contentType: ACCOUNT_TYPE,
       title: 'Account',
       icon: IconPlugConnected,
-      detailPath: pageOf('settings/integrations'),
+      detailPath: pageOf('settings/accounts'),
       ...slots(() => import('@/integrations/accountSlots.ts')),
     },
     {

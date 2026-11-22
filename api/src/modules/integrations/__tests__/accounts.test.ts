@@ -166,8 +166,14 @@ describe('integration accounts', () => {
         kind: INTEGRATION_BROKEN,
         userIds: ['user-org-acc-c'],
         body: 'shop-bot: 401: Unauthorized',
+        link: '/settings/integrations/frontline.discord?tab=accounts',
       },
     ]);
+    // Core's Settings › Integrations hears the check: Discord needs attention, the rest wait.
+    const reported = asked.reports.filter(([orgId]) => orgId === 'org-acc-c');
+
+    expect(reported).toContainEqual(['org-acc-c', 'discord', 'attention', 1]);
+    expect(reported).toContainEqual(['org-acc-c', 'telegram', 'not-set-up', 0]);
   });
 
   it("reads a Discord bot's messages over its gateway, catches up, and lets go when Discord refuses the bot", async () => {

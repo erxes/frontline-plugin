@@ -3,7 +3,6 @@ import {
   IconBrandFacebook,
   IconChartBar,
   IconChartHistogram,
-  IconPlugConnected,
   IconChecklist,
   IconChevronDown,
   IconChevronLeft,
@@ -55,7 +54,7 @@ const Page = () => (
   </Suspense>
 );
 
-/** A group of sidebar links under a heading that folds them away, open until the member does. */
+/** A group of sidebar links under a heading that folds them away, open while one of them is. */
 const NavGroup = ({
   icon: GroupIcon,
   name,
@@ -66,17 +65,17 @@ const NavGroup = ({
   items: { name: string; to: string; icon: Icon; exact?: boolean }[];
 }) => {
   const { pathname } = useLocation();
-  const [open, setOpen] = useState(true);
 
   const isAt = ({ to, exact }: { to: string; exact?: boolean }) =>
     pathname === to || (!exact && pathname.startsWith(`${to}/`));
 
+  // Folded until the member opens it or is on one of its pages, so the sidebar stays short.
+  const [toggled, setOpen] = useState<boolean | null>(null);
+  const open = toggled ?? items.some(isAt);
+
   return (
     <Sidebar.MenuItem>
-      <Sidebar.MenuButton
-        isActive={!open && items.some(isAt)}
-        onClick={() => setOpen((value) => !value)}
-      >
+      <Sidebar.MenuButton isActive={!open && items.some(isAt)} onClick={() => setOpen(!open)}>
         <GroupIcon />
         <span className="min-w-0 flex-1 truncate">{name}</span>
         <IconChevronDown
@@ -179,10 +178,13 @@ const SETTINGS_PAGES: NavLink[] = [
   // Core keeps them and ticket fields, at its own Settings › Structure and › Properties.
   ['/settings/structure', 'branches-and-departments', 'Branches and departments', IconSitemap],
   [`/settings/properties/${TICKET_FIELDS}`, 'ticket-properties', 'Ticket properties', IconForms],
-  [`${SETTINGS}/integrations`, 'integrations', 'Integrations', IconPlugConnected],
 ];
 
-/** The app sidebar: the inbox and tickets with their counts, the other modules, and Calls. */
+/**
+ * The app sidebar, in the order a member works: the inbox and tickets with their counts, then the
+ * work queues, their own inbox and their channels, then the tools around them (forms, surveys,
+ * knowledge base, help centers, reports and calls).
+ */
 const FrontlineSidebar = () => {
   const { t } = useTranslation('frontline');
 
@@ -213,15 +215,22 @@ const FrontlineSidebar = () => {
             >
               <TicketsNav />
             </Suspense>
-            {links(t, MODULES)}
-            <ReportsGroup />
-            <CallsGroup />
           </Sidebar.Menu>
         </Sidebar.GroupContent>
       </Sidebar.Group>
       <Suspense fallback={<NavSkeleton />}>
         <InboxGroups />
       </Suspense>
+      <Sidebar.Group variant="compact">
+        <Sidebar.GroupLabel>{t('tools', 'Tools')}</Sidebar.GroupLabel>
+        <Sidebar.GroupContent>
+          <Sidebar.Menu aria-label={t('tools', 'Tools')}>
+            {links(t, MODULES)}
+            <ReportsGroup />
+            <CallsGroup />
+          </Sidebar.Menu>
+        </Sidebar.GroupContent>
+      </Sidebar.Group>
     </>
   );
 };

@@ -36,7 +36,7 @@ const Customer = ({ conversation }: { conversation: Conversation }) => {
   return (
     <PanelSection title={t('customer', 'Customer')} icon={IconUser}>
       <ContactChip contentId={customerId} placeholder={t('visitor', 'Visitor')} />
-      <VisitorPresence conversation={conversation} />
+      <VisitorPresence conversation={conversation} className="flex-wrap px-2" />
       {customer?.primaryEmail && (
         <InfoRow icon={IconMail} label={t('email', 'Email')}>
           <span className="truncate">{customer.primaryEmail}</span>

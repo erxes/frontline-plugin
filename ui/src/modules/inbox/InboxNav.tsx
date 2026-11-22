@@ -2,22 +2,16 @@ import {
   IconAt,
   IconClockExclamation,
   IconInbox,
-  IconPlus,
-  IconUser,
   IconUserCheck,
   IconUserOff,
 } from '@tabler/icons-react';
-import { useMutation } from '@tanstack/react-query';
 import { Sidebar, type TConditionRule } from 'erxes-ui';
 import type { ComponentType } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { orpc } from '~/orpc.ts';
-import { useChange } from '~/shared/hooks.ts';
+import { Link, useLocation } from 'react-router-dom';
 import { INBOX_PATH } from '~/shared/listPath.ts';
 import { NavSkeleton } from '~/shared/NavSkeleton.tsx';
-import { CHANNELS_PATH } from '@/channels/useChannels.ts';
-import { ChannelLink, TeamChannels } from './ChannelNav.tsx';
+import { Channels } from './ChannelNav.tsx';
 import { Count, FilterLink, NavGroup, usePrefetchInbox } from './navLinks.tsx';
 import { type InboxCounts as Counts, useInboxCounts, useInboxSignal } from './queries.ts';
 import { useArrivalSound } from './useArrivalSound.ts';
@@ -63,38 +57,6 @@ const Queues = ({ counts }: { counts: Counts }) => {
 };
 
 /**
- * Makes the member's personal inbox, as the old sidebar's Personal channel did, then opens it in
- * its channel page to add the pages, bots and mailboxes that come into it.
- */
-const CreatePersonal = () => {
-  const { t } = useTranslation('frontline');
-  const navigate = useNavigate();
-
-  const create = useMutation(
-    orpc.channels.personal.mutationOptions(
-      useChange(orpc.conversations.counts.key(), orpc.channels.key()),
-    ),
-  );
-
-  return (
-    <Sidebar.MenuItem>
-      <Sidebar.MenuButton
-        disabled={create.isPending}
-        onClick={() =>
-          create.mutate(undefined, {
-            onSuccess: (channel) =>
-              void navigate(`${CHANNELS_PATH}/${encodeURIComponent(channel.id)}`),
-          })
-        }
-      >
-        <IconPlus />
-        <span>{t('create-my-inbox', 'Create my inbox')}</span>
-      </Sidebar.MenuButton>
-    </Sidebar.MenuItem>
-  );
-};
-
-/**
  * Inbox in Frontline's sidebar, with the count of what waits unread for the member. It sits in
  * the layout on every page, so it keeps the inbox live for all of them.
  */
@@ -122,31 +84,25 @@ export const InboxNav = () => {
 };
 
 /**
- * The old inbox's groups under Frontline's pages: the work queues, My inbox (the member's
- * personal inbox) and Team inbox (their team channels). Each link sets the inbox's filter in the
- * address and shows how many conversations wait unread, kept live. A member who can't use the
+ * The groups under Inbox and Tickets: the member's channels first, their own inbox among them,
+ * each a place to work inside, then the work queues across every channel. Each shows how many
+ * conversations wait unread, kept live. A member who can't use the
  * inbox gets none of them, once the API refuses; until the counts come, the groups' outline shows.
  */
 export const InboxGroups = () => {
-  const { t } = useTranslation('frontline');
   const { data: counts, isPending } = useInboxCounts();
 
   if (isPending) return <NavSkeleton />;
 
   if (!counts) return null;
 
-  const personal = counts.channels.filter((channel) => channel.personal);
-
   return (
     <>
+      <Channels
+        channels={counts.channels.filter((channel) => !channel.personal)}
+        personal={counts.channels.find((channel) => channel.personal)}
+      />
       <Queues counts={counts} />
-      <NavGroup id="mine" label={t('my-inbox', 'My inbox')}>
-        {personal.map((channel) => (
-          <ChannelLink key={channel.id} channel={channel} icon={<IconUser />} />
-        ))}
-        {personal.length === 0 && <CreatePersonal />}
-      </NavGroup>
-      <TeamChannels channels={counts.channels.filter((channel) => !channel.personal)} />
     </>
   );
 };

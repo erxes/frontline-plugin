@@ -3,7 +3,6 @@ import {
   IconAddressBook,
   IconCalendarPlus,
   IconCalendarUp,
-  IconCircles,
   IconEye,
   IconForms,
   IconLetterCase,
@@ -22,7 +21,6 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { useChannels } from '@/channels/useChannels.ts';
 import { FORM_TYPE } from '~/plugin.ts';
 import { useManagedChannels } from '~/shared/ChannelSelect.tsx';
 import { ArchiveButtons } from '~/shared/ArchiveButtons.tsx';
@@ -40,6 +38,7 @@ import {
   useLoadTypeNames,
   useStatusNames,
 } from './useForms.ts';
+import { useChannelField } from '~/shared/channelField.ts';
 
 const LIST = 'frontline-forms';
 
@@ -71,7 +70,7 @@ const useFields = (): TListFilterField[] => {
   const { t } = useTranslation('frontline');
   const statuses = useStatusNames();
   const loadTypes = useLoadTypeNames();
-  const channels = useChannels().data?.channels ?? [];
+  const channelField = useChannelField();
 
   return [
     { path: 'subject.name', label: t('name', 'Name'), type: 'text', icon: IconLetterCase },
@@ -88,13 +87,7 @@ const useFields = (): TListFilterField[] => {
       icon: IconProgressCheck,
       options: FORM_STATUSES.map((status) => ({ value: status, label: statuses[status] })),
     },
-    {
-      path: 'subject.channelId',
-      label: t('channel', 'Channel'),
-      type: 'select',
-      icon: IconCircles,
-      options: channels.map((channel) => ({ value: channel.id, label: channel.name })),
-    },
+    ...channelField,
     {
       path: 'subject.loadType',
       label: t('form-load-type', 'Shows as'),

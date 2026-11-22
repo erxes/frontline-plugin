@@ -59,7 +59,7 @@ const TypeSelect = ({ field }: { field: FormField }) => {
           return (
             <Select.Item key={type} value={type}>
               <span className="flex items-center gap-2 truncate">
-                <TypeIcon className="size-4 shrink-0" />
+                <TypeIcon />
                 {names[type]}
               </span>
             </Select.Item>

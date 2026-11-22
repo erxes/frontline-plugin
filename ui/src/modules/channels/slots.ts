@@ -6,3 +6,10 @@ export {
   ChannelDetail as Detail,
   ChannelTitle as Title,
 } from './ChannelPanel.tsx';
+
+export {
+  ChannelIntegrationsTab as IntegrationsTab,
+  ChannelMembersTab as MembersTab,
+  ChannelPipelinesTab as PipelinesTab,
+  ChannelTemplatesTab as TemplatesTab,
+} from './ChannelTabs.tsx';

@@ -117,14 +117,12 @@ test('a conversation opens on its own page with its customer and status, resolve
   await page.getByRole('option', { name: 'Resolve' }).click();
   await expect(page.getByText('Resolved', { exact: true })).toBeVisible();
 
-  await page.getByRole('link', { name: /Open in the inbox/ }).click();
-  await expect(page).toHaveURL(new RegExp(`conversationId=${conversationId}`));
-
-  // The inbox opens the same record in core's panel, with the custom fields core keeps.
-  await page.getByRole('button', { name: 'Details and properties' }).click();
-  await expect(recordPanel(page).getByText(name).first()).toBeVisible();
+  // Its page has the custom fields core keeps; the inbox shows the customer in core's panel instead.
   await page.getByRole('tab', { name: 'Properties' }).click();
   await expect(page.getByRole('tabpanel', { name: 'Properties' })).toBeVisible();
+
+  await page.getByRole('link', { name: /Open in the inbox/ }).click();
+  await expect(page).toHaveURL(new RegExp(`conversationId=${conversationId}`));
 
   // A member without the inbox permission reads none of it.
   const outsider = await newMember(['frontline.channel.view']);

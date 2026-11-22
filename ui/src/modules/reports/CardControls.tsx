@@ -167,7 +167,7 @@ export const VisualPick = ({
 
           return (
             <Select.Item key={visual} value={visual}>
-              <VisualIcon className="size-4" />
+              <VisualIcon />
               {names[visual]}
             </Select.Item>
           );

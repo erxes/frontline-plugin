@@ -66,8 +66,9 @@ test('call, ticket and conversation tiles on the home dashboard count the period
   ).toBeVisible();
   await expect(tileOf(page, 'Ticket summary')).toBeVisible();
 
-  // The sidebar's Reports group opens the overview: its headline numbers, then a card per report.
+  // The sidebar's Reports group unfolds to the overview: its headline numbers, then a card per report.
   await page.goto('/frontline/inbox');
+  await page.getByRole('button', { name: 'Reports', exact: true }).click();
   await page.getByRole('link', { name: 'Overview', exact: true }).click();
   await expectPage(page, 'Overview');
   await expect(page.getByRole('region', { name: 'Summary' })).toContainText('Unresolved now');

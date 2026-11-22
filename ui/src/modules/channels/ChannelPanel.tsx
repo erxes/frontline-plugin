@@ -4,11 +4,11 @@ import {
   IconDots,
   IconIcons,
   IconLetterCase,
-  IconMessageReply,
-  IconSitemap,
+  IconInbox,
+  IconPlugConnected,
+  IconTicket,
   IconTrash,
   IconUser,
-  IconUsers,
 } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import { CHANNEL_ICON } from '~/shared/icons.ts';
@@ -24,19 +24,14 @@ import {
   useFormat,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { usePipelineCount } from '@/pipelines/usePipelines.ts';
-import { useTemplateCount } from '@/responseTemplates/useResponseTemplates.ts';
+import { useChoices } from '@/tickets/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { InfoRow, PageLink, ReadOnly } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
-import { ChannelIntegrations } from './ChannelIntegrations.tsx';
-import {
-  type Channel,
-  CHANNELS_PATH,
-  useChannel,
-  useChannelChange,
-  useDeleteChannels,
-} from './useChannels.ts';
+import { channelPath } from '~/shared/channelScope.ts';
+import { channelTicketsPath } from '~/shared/listPath.ts';
+import { useIntegrationCount } from './ChannelIntegrations.tsx';
+import { type Channel, useChannel, useChannelChange, useDeleteChannels } from './useChannels.ts';
 import { MemberChip } from '~/shared/Person.tsx';
 
 /** The panel header's title: the channel's name. */
@@ -83,58 +78,43 @@ const useEditChannel = (channel: Channel) => {
     update.mutate({ id: channel.id, name: channel.name, ...fields });
 };
 
-/** The channel's members, response templates and pipelines, each a page of its own. */
-const ChannelPages = ({ channel }: { channel: Channel }) => {
+/**
+ * Where the channel's work lands: its conversations in the inbox and the tickets of its first
+ * pipeline. Until it takes conversations in and turns them into tickets, the steps that are
+ * left show instead, each leading to the tab that does it.
+ */
+const ChannelWork = ({ channel }: { channel: Channel }) => {
   const { t } = useTranslation('frontline');
-  const templateCount = useTemplateCount(channel.id);
-  const pipelineCount = usePipelineCount(channel.id);
-
-  // A count still loading shows nothing rather than zero.
-  const counted = (key: string, one: string, other: string, count: number | undefined) =>
-    count === undefined ? '' : t(key, { defaultValue_one: one, defaultValue_other: other, count });
+  const integrations = useIntegrationCount(channel.id);
+  const pipeline = useChoices().pipelines.find((one) => one.channelId === channel.id);
 
   return (
-    <PanelSection title={t('channel-pages', 'Channel settings')}>
-      <PanelField icon={IconUsers} label={t('members', 'Members')} cell={false}>
+    <PanelSection title={t('channel-work', 'Work')}>
+      <PanelField icon={IconInbox} label={t('conversations', 'Conversations')} cell={false}>
         <PageLink
-          to={`${CHANNELS_PATH}/${channel.id}/members`}
-          label={t('manage-channel-members', 'Manage channel members')}
-          count={counted(
-            'member-count',
-            '{{count}} member',
-            '{{count}} members',
-            channel.memberIds.length,
-          )}
+          to={channelPath(channel.id, 'inbox')}
+          label={t('open-in-inbox', 'Open in inbox')}
+          count=""
         />
       </PanelField>
-      <PanelField
-        icon={IconMessageReply}
-        label={t('response-templates', 'Response templates')}
-        cell={false}
-      >
-        <PageLink
-          to={`${CHANNELS_PATH}/${channel.id}/response`}
-          label={t('manage-channel-response-templates', 'Manage channel response templates')}
-          count={counted(
-            'template-count',
-            '{{count}} template',
-            '{{count}} templates',
-            templateCount,
-          )}
-        />
+      <PanelField icon={IconTicket} label={t('tickets', 'Tickets')} cell={false}>
+        {pipeline ? (
+          <PageLink
+            to={channelTicketsPath(pipeline.channelId, pipeline.id)}
+            label={t('open-tickets', 'Open tickets')}
+            count={pipeline.name}
+          />
+        ) : (
+          <span className="px-2 text-xs text-muted-foreground">
+            {t('no-pipeline-short', 'No ticket pipeline yet')}
+          </span>
+        )}
       </PanelField>
-      <PanelField icon={IconSitemap} label={t('pipelines', 'Pipelines')} cell={false}>
-        <PageLink
-          to={`${CHANNELS_PATH}/${channel.id}/pipelines`}
-          label={t('manage-channel-pipelines', 'Manage channel pipelines')}
-          count={counted(
-            'pipeline-count',
-            '{{count}} pipeline',
-            '{{count}} pipelines',
-            pipelineCount,
-          )}
-        />
-      </PanelField>
+      {integrations === 0 && (
+        <InfoRow icon={IconPlugConnected} label={t('next-step', 'Next step')}>
+          {t('add-first-integration', 'Add a messenger or connect a page in the Integrations tab.')}
+        </InfoRow>
+      )}
     </PanelSection>
   );
 };
@@ -189,8 +169,8 @@ const ChannelFields = ({ channel }: { channel: Channel }) => {
 };
 
 /**
- * The Detail tab: the channel's fields, the integrations its conversations come through, then
- * links to its members, templates and pipelines.
+ * The Detail tab: the channel's fields, then where its work lands. Its integrations, pipelines,
+ * members and templates are the panel's other tabs.
  */
 export const ChannelDetail = ({ contentId }: TRecordSlotProps) => {
   const channel = useChannel(contentId);
@@ -208,8 +188,7 @@ export const ChannelDetail = ({ contentId }: TRecordSlotProps) => {
   return (
     <>
       <ChannelFields channel={channel.data} />
-      <ChannelIntegrations channel={channel.data} />
-      <ChannelPages channel={channel.data} />
+      <ChannelWork channel={channel.data} />
     </>
   );
 };

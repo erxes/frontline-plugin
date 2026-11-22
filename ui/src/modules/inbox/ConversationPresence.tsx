@@ -1,5 +1,5 @@
 import { IconDots, IconRobot, IconUser } from '@tabler/icons-react';
-import { Badge, Button, DropdownMenu, useFormat } from 'erxes-ui';
+import { Badge, Button, cn, DropdownMenu, useFormat } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { type Conversation, useVisitor, useVisitorTyping } from './queries.ts';
 import { useSetOperator } from './changes.ts';
@@ -51,38 +51,50 @@ export const VisitorTyping = ({ conversation }: { conversation: Conversation }) 
 };
 
 /**
- * What the messenger knows of the visitor, as a line in the customer panel: online or last seen,
- * how many visits, and the page of the latest one.
+ * What the messenger knows of the visitor, as one line: online or last seen, how many visits,
+ * and the page of the latest one. `compact`, for the conversation header whose avatar marks online,
+ * keeps the visits and puts the rest in its tooltip. `className` places it.
  */
-export const VisitorPresence = ({ conversation }: { conversation: Conversation }) => {
+export const VisitorPresence = ({
+  conversation,
+  compact = false,
+  className,
+}: {
+  conversation: Conversation;
+  compact?: boolean;
+  className?: string;
+}) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
   const visitor = useVisitor(conversation);
 
   if (!visitor) return null;
 
+  const lastSeen = visitor.lastSeenAt
+    ? t('last-seen', 'Last seen {{when}}', { when: format.dateTime(visitor.lastSeenAt) })
+    : '';
+
   return (
     <p
       aria-label={t('visitor-presence', 'Visitor presence')}
-      className="flex flex-wrap items-center gap-2 px-2 text-xs text-muted-foreground"
+      title={compact ? [lastSeen, visitor.browser.url].filter(Boolean).join(' · ') : undefined}
+      className={cn('flex min-w-0 items-center gap-2 text-xs text-muted-foreground', className)}
     >
-      {visitor.isOnline ? (
-        <Badge variant="success">{t('online', 'Online')}</Badge>
+      {compact ? null : visitor.isOnline ? (
+        <Badge variant="success" size="sm">
+          {t('online', 'Online')}
+        </Badge>
       ) : (
-        visitor.lastSeenAt && (
-          <span>
-            {t('last-seen', 'Last seen {{when}}', { when: format.dateTime(visitor.lastSeenAt) })}
-          </span>
-        )
+        !compact && lastSeen && <span className="shrink-0">{lastSeen}</span>
       )}
-      <span>
+      <span className="shrink-0">
         {t('visits', {
           defaultValue_one: '{{count}} visit',
           defaultValue_other: '{{count}} visits',
           count: visitor.sessionCount,
         })}
       </span>
-      {visitor.browser.url && <span className="truncate">{visitor.browser.url}</span>}
+      {!compact && visitor.browser.url && <span className="truncate">{visitor.browser.url}</span>}
     </p>
   );
 };

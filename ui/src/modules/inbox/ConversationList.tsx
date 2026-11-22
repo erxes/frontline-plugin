@@ -135,9 +135,6 @@ const RowList = ({ style, children, ref }: CustomContainerComponentProps) => {
   );
 };
 
-/** How near its end a scroll loads the list's next page, in pixels. */
-const NEXT_PX = 600;
-
 /** The time, moved on each minute, for the rows' waiting clocks. */
 const useMinute = () => {
   const [now, setNow] = useState(() => Date.now());
@@ -187,24 +184,7 @@ export const ConversationList = ({
         <ScrollArea.Viewport ref={viewport}>
           <LoadPage paging={paging} newer />
           <div aria-hidden className="h-1" />
-          <Virtualizer
-            ref={rows}
-            scrollRef={viewport}
-            data={conversations}
-            as={RowList}
-            item="li"
-            onScroll={(offset) => {
-              const handle = rows.current;
-
-              // A page that failed loads again from its button, not on every scroll.
-              if (!handle || !paging.hasNextPage) return;
-
-              if (paging.isFetchingNextPage || paging.isFetchNextPageError) return;
-
-              if (offset + handle.viewportSize > handle.scrollSize - NEXT_PX)
-                void paging.fetchNextPage();
-            }}
-          >
+          <Virtualizer ref={rows} scrollRef={viewport} data={conversations} as={RowList} item="li">
             {(conversation) => (
               <ConversationRow
                 key={conversation.id}

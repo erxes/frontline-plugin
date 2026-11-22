@@ -13,6 +13,7 @@ import {
   unique,
   visitorOf,
 } from './fixtures.ts';
+import { channelSections } from './channelSettings.ts';
 
 /*
  * The channels, pipelines, tickets and settings screens through axe, in light and dark, by
@@ -38,8 +39,10 @@ test('a channel and its members', async ({ page }) => {
   await page.goto(recordPath(`${SETTINGS}/channels`, 'frontline:channel'));
   await expectAccessible(page, panel.getByLabel('Name'));
   await createChannel(page);
-  await expectAccessible(page, panel.getByRole('link', { name: /Manage channel members/ }));
-  await panel.getByRole('link', { name: /Manage channel members/ }).click();
+  await expectAccessible(page, channelSections(page));
+  await channelSections(page).getByRole('link', { name: 'Members' }).click();
+  await expectAccessible(page, page.getByRole('link', { name: 'Manage channel members' }));
+  await page.getByRole('link', { name: 'Manage channel members' }).click();
   await expectAccessible(page, page.getByRole('combobox', { name: 'Role: Admin' }));
 });
 
@@ -167,10 +170,9 @@ test('tags and their sheet', async ({ page }) => {
   await expectAccessible(page, page.getByRole('row', { name: new RegExp(tag) }));
 });
 
-test('the integrations, and a Telegram bot drafted', async ({ page }) => {
-  await page.goto(`${SETTINGS}/integrations`);
-  await expectAccessible(page, page.getByRole('button', { name: 'Connect' }));
-  await page.getByRole('button', { name: 'Connect' }).click();
-  await page.getByRole('menuitem', { name: 'Telegram bot' }).click();
+test("Telegram's accounts in core's Integrations, and a Telegram bot drafted", async ({ page }) => {
+  await page.goto('/settings/integrations/frontline.telegram?tab=accounts');
+  await expectAccessible(page, page.getByRole('button', { name: 'Connect', exact: true }));
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await expectAccessible(page, recordPanel(page).getByLabel('Bot token'));
 });

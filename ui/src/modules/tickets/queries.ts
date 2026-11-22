@@ -18,6 +18,7 @@ import { orpc } from '~/orpc.ts';
 import { PLUGIN } from '~/plugin.ts';
 import { useChange, useOptimistic } from '~/shared/hooks.ts';
 import { listParamsOf, PIPELINE_PARAM, useListParams } from '~/shared/listPath.ts';
+import { useChannelScope } from '~/shared/channelScope.ts';
 import { useConfirmDelete } from '~/shared/Records.tsx';
 import { type PageParam, pageOptions, usePaged } from '~/shared/paging.ts';
 import { choicesQuery, FRESH_MS } from '~/shared/reference.ts';
@@ -47,9 +48,17 @@ export const useTicketSort = () =>
     direction: parseAsStringLiteral(['desc', 'asc'] as const).withDefault('desc'),
   });
 
-/** The pipeline the tickets page shows: the one picked into the address, else the first. */
-const shownOf = ({ pipelines }: Choices, picked: string | null) =>
-  pipelines.find((pipeline) => pipeline.id === picked) ?? pipelines[0];
+/**
+ * The pipeline the tickets page shows: the one picked into the address, else the first, of the
+ * channel the page is inside when it is.
+ */
+const shownOf = ({ pipelines }: Choices, picked: string | null, channelId: string | null) => {
+  const own = channelId
+    ? pipelines.filter((pipeline) => pipeline.channelId === channelId)
+    : pipelines;
+
+  return own.find((pipeline) => pipeline.id === picked) ?? own[0];
+};
 
 /** The pipelines and statuses of the member's channels: what a ticket is filed under. */
 export const useChoices = () => {
@@ -65,8 +74,9 @@ export const useChoices = () => {
 export const useTicketPipeline = () => {
   const [picked] = useQueryState(PIPELINE_PARAM);
   const { data } = useQuery(choicesQuery);
+  const channelId = useChannelScope();
 
-  return data && shownOf(data, picked);
+  return data && shownOf(data, picked, channelId);
 };
 
 /**
@@ -76,7 +86,8 @@ export const useTicketPipeline = () => {
 const useShownPick = () => useDeferredValue(useQueryState(PIPELINE_PARAM)[0]);
 
 /** The pipeline whose tickets show, suspending until the choices are in. */
-export const useShownPipeline = () => shownOf(useSuspenseQuery(choicesQuery).data, useShownPick());
+export const useShownPipeline = () =>
+  shownOf(useSuspenseQuery(choicesQuery).data, useShownPick(), useChannelScope());
 
 /**
  * The id of the pipeline whose tickets and statuses show. The pick asks at once, beside the
@@ -85,8 +96,9 @@ export const useShownPipeline = () => shownOf(useSuspenseQuery(choicesQuery).dat
 export const useShownPipelineId = () => {
   const picked = useShownPick();
   const { data } = useQuery(choicesQuery);
+  const channelId = useChannelScope();
 
-  return data ? shownOf(data, picked)?.id : (picked ?? undefined);
+  return data ? shownOf(data, picked, channelId)?.id : (picked ?? undefined);
 };
 
 /** The tickets `input` asks for, in pages. */
@@ -145,7 +157,7 @@ export const useTicketCount = () =>
  */
 export const prefetchTickets = async (queryClient: QueryClient, to: string) => {
   const { params, pipeline } = listParamsOf(to);
-  const pipelineId = shownOf(await queryClient.query(choicesQuery), pipeline)?.id;
+  const pipelineId = shownOf(await queryClient.query(choicesQuery), pipeline, null)?.id;
 
   if (pipelineId)
     await queryClient.infiniteQuery(

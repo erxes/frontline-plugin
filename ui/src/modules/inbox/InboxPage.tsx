@@ -18,6 +18,7 @@ import { useAtom } from 'jotai';
 import { type ReactNode, useEffect, useRef, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
+import { useChannelScope } from '~/shared/channelScope.ts';
 import { channelsQuery } from '~/shared/reference.ts';
 import { CONVERSATION_TYPE, INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
@@ -300,9 +301,15 @@ const InboxBody = ({ onConnect }: { onConnect?: () => void }) => {
 export const InboxPage = () => {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
-  const channels = useQuery(channelsQuery).data?.channels ?? [];
+  const channelId = useChannelScope();
+
+  const channels = (useQuery(channelsQuery).data?.channels ?? []).filter(
+    (channel) => !channelId || channel.id === channelId,
+  );
+
   const canConnect = channels.some((channel) => channel.canManage);
-  const connect = () => openNew(INTEGRATION_TYPE);
+  // Inside a channel the messenger joins it; across channels the panel asks which.
+  const connect = () => openNew(INTEGRATION_TYPE, channelId ? { channelId } : undefined);
 
   const mails = (useIntegrations().data ?? []).some(
     (integration) => integration.kind === 'mail' && integration.isActive,

@@ -2,7 +2,6 @@ import {
   IconCheck,
   IconLayoutSidebarLeftCollapse,
   IconLayoutSidebarLeftExpand,
-  IconLayoutSidebarRightExpand,
   IconPlus,
   IconRefresh,
   IconTag,
@@ -15,8 +14,8 @@ import {
   IconTip,
   Popover,
   Separator,
-  Skeleton,
   stored,
+  useCurrentRecord,
   useMediaQuery,
   useOpenRecord,
 } from 'erxes-ui';
@@ -24,13 +23,12 @@ import { atom, useAtom } from 'jotai';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
-import { CONVERSATION_TYPE, PLUGIN } from '~/plugin.ts';
-import { MemberCell } from '~/shared/MemberPicker.tsx';
-import { PersonAvatar, useCustomer } from '~/shared/Person.tsx';
-import { ConversationMenu, VisitorTyping } from './ConversationPresence.tsx';
-import { ConversationTickets } from './ConversationTickets.tsx';
-import { KindIcon } from '~/shared/kinds.tsx';
+import { PLUGIN } from '~/plugin.ts';
+import { MemberButton } from '~/shared/MemberPicker.tsx';
+import { ConversationIdentity } from './ConversationIdentity.tsx';
+import { ConversationMenu } from './ConversationPresence.tsx';
 import { type Conversation, conversationTags, useCreateTag } from './queries.ts';
+import { ConversationTickets } from './ConversationTickets.tsx';
 import { TagDot, usePickedTags } from './TagDot.tsx';
 import { useAssign, useSetStatus, useSetTags } from './changes.ts';
 
@@ -135,14 +133,24 @@ const narrowListShown = atom(false);
  * Whether the conversation list shows beside the open conversation, and the switch for it. On a
  * screen too narrow for both at a working width (a tablet, a laptop's split window) the
  * conversation takes the room and the list waits behind the header's toggle; on a wide one the
- * member's last choice holds.
+ * member's last choice holds. While core's panel shows a customer or a teammate beside it, the
+ * list gives up its room, so the thread and the reply box keep theirs; showing the list again
+ * closes the panel.
  */
 export const useListShown = () => {
   const wide = useMediaQuery('(min-width: 1024px)');
   const remembered = useAtom(listShown);
   const narrow = useAtom(narrowListShown);
+  const [shown, setShown] = wide ? remembered : narrow;
+  const record = useCurrentRecord();
+  const { dismiss } = useOpenRecord();
 
-  return wide ? remembered : narrow;
+  const show = (next: boolean) => {
+    if (next && record) dismiss(record);
+    setShown(next);
+  };
+
+  return [shown && !record, show] as const;
 };
 
 /** Hides the conversation list to give the open one the width, or shows it again. */
@@ -194,83 +202,29 @@ const TagSummary = ({ conversation }: { conversation: Conversation }) => {
 };
 
 /**
- * Who the conversation is with and where it came from, on two lines: the customer's avatar and
- * name, which opens them in core's side panel, and under it the integration's mark, the channel
- * and the integration, then "Typing…" while the visitor writes. A visitor core has no record of
- * reads "Visitor", as in the list, and opens nothing.
- */
-const Identity = ({ conversation }: { conversation: Conversation }) => {
-  const { open } = useOpenRecord();
-  const customer = useCustomer(conversation.customerId);
-  const source = `${conversation.channelName} · ${conversation.integrationName}`;
-
-  const name = customer.isPending ? (
-    <Skeleton className="h-4 w-32" />
-  ) : customer.found ? (
-    <button
-      type="button"
-      data-panel-inline=""
-      title={customer.name}
-      onClick={() => open({ contentType: 'core:customer', contentId: conversation.customerId })}
-      className="min-w-0 truncate rounded-sm text-left text-sm font-semibold hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-    >
-      {customer.name}
-    </button>
-  ) : (
-    <span className="min-w-0 truncate text-sm font-semibold">{customer.name}</span>
-  );
-
-  return (
-    <span className="flex min-w-0 items-center gap-2.5">
-      <PersonAvatar name={customer.name} src={customer.avatarUrl} />
-      <span className="flex min-w-0 flex-col">
-        {name}
-        <span
-          title={source}
-          className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
-        >
-          <KindIcon
-            kind={conversation.kind}
-            thread={conversation.externalId}
-            className="size-3.5 shrink-0"
-          />
-          <span className="truncate">{source}</span>
-          <VisitorTyping conversation={conversation} />
-        </span>
-      </span>
-    </span>
-  );
-};
-
-/**
- * The open conversation's controls on one row, as the old inbox had them: the list toggle, who
- * it is with and where it came from, and its assignee on the left; its tickets and Create ticket,
- * its tags and the details on the right, then after a rule Resolve or Reopen and the overflow
- * menu, so the step that closes the work stands apart. Each change shows at once and saves behind it.
+ * The open conversation's top bar: on the left the list toggle, then who it is with, what state
+ * it is in and where it came from; on the right what the member does with it (its assignee,
+ * tickets and tags), then after a rule Resolve or Reopen and the overflow menu, so the step that
+ * closes the work stands apart. Each change shows at once and saves behind it.
  */
 export const ConversationHeader = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const assign = useAssign();
   const setStatus = useSetStatus();
   const resolved = conversation.status === 'resolved';
-  const { open } = useOpenRecord();
 
   return (
     <header className="@container flex h-14 shrink-0 items-center gap-2 border-b px-3">
       <ListToggle />
-      <Identity conversation={conversation} />
-      <Separator orientation="vertical" className="h-5" />
-      <MemberCell
-        variant="field"
-        value={conversation.assigneeId}
-        onValueChange={(assigneeId) => assign.mutate({ ids: [conversation.id], assigneeId })}
-        noneLabel={t('unassigned', 'Unassigned')}
-        placeholder={t('assign', 'Assign')}
-        aria-label={conversation.assigneeId ? undefined : t('assign', 'Assign')}
-        className="w-auto max-w-40 min-w-0"
-      />
+      <ConversationIdentity conversation={conversation} />
       <span className="flex-1" />
       <span className="flex shrink-0 items-center gap-1.5">
+        <MemberButton
+          value={conversation.assigneeId}
+          onValueChange={(assigneeId) => assign.mutate({ ids: [conversation.id], assigneeId })}
+          noneLabel={t('unassigned', 'Unassigned')}
+          placeholder={t('assign', 'Assign')}
+        />
         <ConversationTickets conversation={conversation} />
         <TagEditor
           compact
@@ -284,16 +238,6 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
         >
           {conversation.tagIds.length > 0 ? <TagSummary conversation={conversation} /> : undefined}
         </TagEditor>
-        <IconTip label={t('conversation-details', 'Details and properties')}>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t('conversation-details', 'Details and properties')}
-            onClick={() => open({ contentType: CONVERSATION_TYPE, contentId: conversation.id })}
-          >
-            <IconLayoutSidebarRightExpand />
-          </Button>
-        </IconTip>
       </span>
       <Separator orientation="vertical" className="h-5" />
       {/* A narrow header keeps the icon, named on hover, so the customer and the assignee keep their names. */}

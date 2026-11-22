@@ -10,7 +10,6 @@ import {
 } from '@tabler/icons-react';
 import {
   Button,
-  PageContainer,
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
@@ -20,17 +19,16 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams } from 'react-router-dom';
 import { ACCOUNT_TYPE, INTEGRATION_TYPE, META_BOT_TYPE } from '~/plugin.ts';
-import { AppHeader } from '~/shared/Header.tsx';
 import { KindIcon } from '~/shared/kinds.tsx';
 import { AccountChannels } from './AccountChannels.tsx';
 import { ListEmpty } from '~/shared/List.tsx';
 import { RowActions, TextCell } from '~/shared/Records.tsx';
 import { DateCell, Rows } from '~/shared/Table.tsx';
-import { ConnectMenu, useCanConnect } from './ConnectMenu.tsx';
 import { StatusBadge } from './parts.tsx';
 import {
   type Account,
   type Bot,
+  type Provider,
   isMeta,
   useAccounts,
   useBots,
@@ -231,27 +229,26 @@ const LoginResult = () => {
 };
 
 /**
- * Every account the organisation connected: Facebook pages and Instagram accounts with the bot
- * each runs, Telegram and Discord bots, mailboxes and phone lines. A name opens the account; a
- * row's menu adds it to a channel, sets up a page's bot, repairs it or disconnects it.
+ * The organisation's connected accounts of `providers`: pages and Instagram accounts with the bot
+ * each runs, bots, mailboxes or phone lines. A name opens the account; a row's menu adds it to a
+ * channel, sets up a page's bot, repairs it or disconnects it. What Meta's login reported shows
+ * above them.
  */
-export const IntegrationsPage = () => {
+export const AccountsList = ({ providers }: { providers: Provider[] }) => {
   const { t } = useTranslation('frontline');
   const accounts = useAccounts();
   const bots = useBots();
   const columns = useColumns();
-  const canConnect = useCanConnect();
 
-  const rows = (accounts.data?.accounts ?? []).map((account) => ({
-    ...account,
-    bot: bots.data?.find((bot) => bot.accountId === account.id),
-  }));
+  const rows = (accounts.data?.accounts ?? [])
+    .filter((account) => providers.includes(account.provider))
+    .map((account) => ({
+      ...account,
+      bot: bots.data?.find((bot) => bot.accountId === account.id),
+    }));
 
   return (
-    <PageContainer>
-      <AppHeader icon={IconPlugConnected} app={{ label: t('integrations', 'Integrations') }}>
-        {canConnect && <ConnectMenu />}
-      </AppHeader>
+    <>
       <LoginResult />
       {accounts.error ? (
         <p role="alert" className="m-3 text-sm text-destructive-text">
@@ -277,6 +274,6 @@ export const IntegrationsPage = () => {
           <Rows isPending={accounts.isPending} skeletons={3} />
         </RecordTable.Provider>
       )}
-    </PageContainer>
+    </>
   );
 };

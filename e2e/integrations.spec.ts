@@ -10,57 +10,46 @@ import {
   test,
   unique,
 } from './fixtures.ts';
+import { cardOf, channelSections } from './channelSettings.ts';
 
-const INTEGRATIONS = '/frontline/settings/integrations';
+/** A frontline integration's accounts, on its page in core's Settings › Integrations. */
+const ACCOUNTS = (key: string) => `/settings/integrations/frontline.${key}?tab=accounts`;
 
 // The stack has no Meta app and no real bots, so nothing connects here: the API tests feed each
 // provider's recorded payloads through connecting, comments, posts and bots.
-test('the owner sees the accounts page, what Meta’s login reported, and a provider’s refusal', async ({
+test('each provider connects its accounts on its own Integrations page, where Meta’s login reports back', async ({
   page,
 }) => {
-  await page.goto(INTEGRATIONS);
-
-  // Other specs connect phone lines in the same organisation, so the list may not be empty.
-  await expect(page.getByRole('button', { name: 'Connect' })).toBeVisible();
-
-  // With no Meta app, Facebook and Instagram says so before the click and opens core's Meta tile.
-  await page.getByRole('button', { name: 'Connect' }).click();
-  await page
-    .getByRole('menuitem', { name: 'Facebook and Instagram Set up a Meta app in Settings first' })
-    .click();
-  await expect(page).toHaveURL(/\/settings\/integrations\/frontline\.meta$/);
-  await expect(page.getByText('Set a Meta app before you connect')).toBeVisible();
-  await page.goto(INTEGRATIONS);
+  // With no Meta app, Facebook and Instagram's Connect waits for one in its App tab.
+  await page.goto(ACCOUNTS('meta'));
+  await expect(page.getByRole('button', { name: 'Connect pages' })).toBeDisabled();
 
   // A Telegram bot connects by its token, which Telegram checks before anything is saved.
-  await page.getByRole('button', { name: 'Connect' }).click();
-  await page.getByRole('menuitem', { name: 'Telegram bot' }).click();
+  await page.goto(ACCOUNTS('telegram'));
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
 
   const panel = recordPanel(page);
 
   await panel.getByLabel('Bot token').fill('123456:not-a-real-token');
-
   await panel.getByRole('button', { name: 'Connect', exact: true }).click();
   await expect(panel.getByRole('alert')).toContainText('Telegram refused the token');
 
-  // The old Meta page and integration detail links land here.
-  await page.goto('/frontline/settings/meta?connected=2');
-  await expect(page).toHaveURL(new RegExp(`${INTEGRATIONS}$`));
-  await page.goto(`${INTEGRATIONS}?connected=2`);
+  // Meta's login comes back to Facebook and Instagram's accounts, saying what it did.
+  await page.goto(`${ACCOUNTS('meta')}&connected=2`);
   await expect(page.getByText('Connected 2 pages')).toBeVisible();
-
-  await page.goto(`${INTEGRATIONS}?error=Meta did not finish the login`);
+  await page.goto(`${ACCOUNTS('meta')}&error=Meta did not finish the login`);
   await expect(page.getByRole('alert').getByText('Meta did not finish the login')).toBeVisible();
 
-  await page.goto('/frontline/settings/channels/details/channel-1/telegram');
-  await expect(page).toHaveURL(new RegExp(`${INTEGRATIONS}$`));
+  // Frontline's old accounts page and integration links open its channels.
+  await page.goto('/frontline/settings/accounts');
+  await expect(page).toHaveURL(/\/frontline\/settings\/channels$/);
 });
 
 const META_TILE = '/settings/integrations/frontline.meta';
 
 // Saving an app would send every later Connect to Meta's real login, so this stops at the check.
 test("the Meta tile on core's Integrations asks for the organisation's app", async ({ page }) => {
-  await page.goto(META_TILE);
+  await page.goto(`${META_TILE}?tab=app`);
 
   await expect(page.getByText('Set a Meta app before you connect')).toBeVisible();
   await expect(page.getByText(/\/api\/public\/webhooks\/meta$/)).toBeVisible();
@@ -97,10 +86,11 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   const settingsUrl = page.url();
   const panel = recordPanel(page);
 
-  // The channel's panel lists the messenger with a link to its settings.
+  // The channel's settings list the messenger under Integrations, with a link to its settings.
   await page.goto('/frontline/settings/channels');
-  await page.getByText(channel, { exact: true }).click();
-  await panel.getByRole('link', { name: /^Settings of Website / }).click();
+  await page.getByRole('link', { name: channel, exact: true }).click();
+  await channelSections(page).getByRole('link', { name: 'Integrations' }).click();
+  await page.getByRole('link', { name: /^Settings of Website / }).click();
   await expect(page).toHaveURL(settingsUrl);
 
   // Archived, it takes no visitors until an admin unarchives it.
@@ -178,9 +168,47 @@ test('an admin sets up the messenger on its settings page and visitors get it', 
   });
 });
 
-test('a member without the integrations permission is refused', async ({ newMember }) => {
+test("a channel's settings list its integrations, and its admins add more there", async ({
+  page,
+}) => {
+  const channel = await createChannel(page);
+
+  await page.goto(INBOX);
+  await addMessenger(page, channel);
+
+  await page.goto('/frontline/settings/channels');
+  await page.getByRole('link', { name: channel, exact: true }).click();
+  await channelSections(page).getByRole('link', { name: 'Integrations' }).click();
+
+  const messenger = page.getByRole('link', { name: /^Settings of Website / });
+
+  await expect(messenger).toBeVisible();
+  await expectAccessible(page, messenger);
+
+  // A card per kind: the messenger counts the one the channel has, the rest have none. Telegram
+  // opens inside the channel, and its bots connect in core's Integrations.
+  const catalog = page.getByRole('list', { name: 'Kinds of integration' });
+
+  await expect(cardOf(page, 'Website messenger')).toContainText('1 in this channel');
+  await expect(cardOf(page, 'Telegram')).toContainText('None yet');
+  await expectAccessible(page, catalog);
+  await cardOf(page, 'Telegram').getByRole('link').click();
+  await expect(page).toHaveURL(/\/settings\/integrations\/telegram$/);
+  await page.getByRole('link', { name: 'Connect in Integrations' }).click();
+  await expect(page).toHaveURL(/\/settings\/integrations\/frontline\.telegram\?tab=accounts$/);
+
+  // Frontline's settings hold no list of every integration: the old address opens the channels.
+  await page.goto('/frontline/settings/integrations');
+  await expect(page).toHaveURL(/\/frontline\/settings\/channels$/);
+});
+
+test('a member without the integrations permission never reaches their accounts', async ({
+  newMember,
+}) => {
   const { page } = await newMember(['frontline.channel.view']);
 
-  await page.goto(INTEGRATIONS);
-  await expect(page.getByText('You need the frontline.integration.view permission')).toBeVisible();
+  // Core sends them on to the settings they may open.
+  await page.goto(ACCOUNTS('telegram'));
+  await expect(page).not.toHaveURL(/frontline\.telegram/);
+  await expect(page.getByRole('button', { name: 'Connect', exact: true })).toBeHidden();
 });

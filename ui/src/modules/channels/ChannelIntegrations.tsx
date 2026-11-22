@@ -1,6 +1,7 @@
 import { IconMessageCirclePlus, IconPlus, IconSettings } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
+  Badge,
   Button,
   buttonVariants,
   PanelField,
@@ -28,6 +29,13 @@ const useKinds = (channelId: string) => {
     integrations.filter((integration) => integration.channelId === channelId),
     (integration) => integration.kind,
   );
+};
+
+/** How many integrations bring conversations into the channel, once they load. */
+export const useIntegrationCount = (channelId: string) => {
+  const { data } = useQuery(integrationsQuery);
+
+  return data?.filter((integration) => integration.channelId === channelId).length;
 };
 
 /**
@@ -96,7 +104,7 @@ const IntegrationButton = ({
   const { open } = useOpenRecord();
 
   return (
-    <span className="flex items-center">
+    <span className="flex min-w-0 flex-1 items-center">
       <Button
         variant="ghost"
         size="sm"
@@ -125,6 +133,87 @@ const IntegrationButton = ({
         </Link>
       )}
     </span>
+  );
+};
+
+/**
+ * One integration of the channel's list: its kind's mark on a tile, its name over its kind,
+ * opening it in the side panel, whether it is active, and for a messenger its settings page.
+ */
+const IntegrationRow = ({ integration }: { integration: Integration }) => {
+  const { t } = useTranslation('frontline');
+  const names = useKindNames();
+  const { open } = useOpenRecord();
+
+  return (
+    <li className="flex items-center gap-3 px-3 py-2">
+      <span className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted">
+        <KindIcon kind={integration.kind} className="size-5" />
+      </span>
+      <button
+        type="button"
+        onClick={() => open({ contentType: INTEGRATION_TYPE, contentId: integration.id })}
+        className="flex min-w-0 flex-1 flex-col rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        <span className="truncate text-sm font-medium hover:underline">{integration.name}</span>
+        <span className="truncate text-xs text-muted-foreground">
+          {names[integration.kind] ?? integration.kind}
+        </span>
+      </button>
+      {integration.isActive ? (
+        <Badge variant="success">{t('active', 'Active')}</Badge>
+      ) : (
+        <Badge variant="secondary">{t('archived', 'Archived')}</Badge>
+      )}
+      {integration.kind === 'messenger' && (
+        <Link
+          to={messengerPath(integration.id)}
+          aria-label={t('messenger-settings-of', 'Settings of {{name}}', {
+            name: integration.name,
+          })}
+          title={t('messenger-settings', 'Messenger settings')}
+          className={buttonVariants({ variant: 'ghost', size: 'icon' })}
+        >
+          <IconSettings />
+        </Link>
+      )}
+    </li>
+  );
+};
+
+/**
+ * Every integration of the channel, or of its one `kind`, a row each with its mark, name, kind and
+ * state, opening it in the side panel. A channel with none says so.
+ */
+export const ChannelIntegrationList = ({
+  channelId,
+  kind,
+}: {
+  channelId: string;
+  kind?: string;
+}) => {
+  const { t } = useTranslation('frontline');
+
+  const integrations = [...useKinds(channelId).values()]
+    .flat()
+    .filter((integration) => !kind || integration.kind === kind);
+
+  if (integrations.length === 0) {
+    return (
+      <p className="px-4 py-8 text-center text-sm text-muted-foreground">
+        {kind
+          ? t('no-kind-in-channel', 'None in this channel yet.')
+          : t('no-channel-integrations', 'No conversations come into this channel yet.')}
+      </p>
+    );
+  }
+
+  return (
+    <ul className="flex flex-col divide-y">
+      {integrations.map((integration) => (
+        <IntegrationRow key={integration.id} integration={integration} />
+      ))}
+    </ul>
   );
 };
 

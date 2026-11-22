@@ -77,6 +77,40 @@ describe('integrations', () => {
     expect(await owner.integrations.list({})).toEqual([]);
   });
 
+  it('narrows the list by channel, kind, archived and name', async () => {
+    const { owner, channel, integration } = await setUp('org-in-filter');
+    const sales = await owner.channels.create({ name: 'Sales' });
+
+    const desk = await owner.integrations.create({
+      channelId: sales.id,
+      kind: 'messenger',
+      name: 'Sales desk',
+    });
+
+    await owner.integrations.update({ id: desk.id, isActive: false });
+
+    const ids = async (input: Parameters<typeof owner.integrations.list>[0]) =>
+      (await owner.integrations.list(input)).map(({ id }) => id);
+
+    expect(await ids({ filter: only('subject.channelId', channel.id) })).toEqual([integration.id]);
+    expect(await ids({ filter: only('subject.kind', 'messenger') })).toEqual([
+      integration.id,
+      desk.id,
+    ]);
+    expect(
+      await ids({
+        filter: JSON.stringify({
+          match: 'all',
+          rules: [{ path: 'subject.isActive', op: 'eq', value: false }],
+        }),
+      }),
+    ).toEqual([desk.id]);
+    expect(await ids({ search: 'desk' })).toEqual([desk.id]);
+    await expect(
+      owner.integrations.list({ filter: only('subject.config', 'x') }),
+    ).rejects.toMatchObject({ code: 'INVALID_FILTER', status: 400 });
+  });
+
   it('moves an integration with its conversations to another channel an admin picks', async () => {
     const { owner, teammate, integration, token } = await setUp('org-in-b');
 

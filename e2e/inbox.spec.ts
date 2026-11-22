@@ -12,7 +12,6 @@ import {
   openMessenger,
   OWNER,
   pluginApi,
-  recordPanel,
   test,
   unique,
   visitorOf,
@@ -273,13 +272,9 @@ test('a member takes over from the bot, sees the visitor typing and edits a repl
 
   const thread = page.getByRole('list', { name: 'Messages' });
   const header = page.getByRole('region', { name: 'Conversation' }).locator('header');
-  const presence = page.getByLabel('Visitor presence');
 
-  // The visitor's presence is a line in the conversation's details, which core's panel opens;
-  // typing shows beside their name.
-  await header.getByRole('button', { name: 'Details and properties' }).click();
-  await expect(presence).toContainText('1 visit');
-  await recordPanel(page).getByRole('button', { name: 'Close', exact: true }).click();
+  // The visitor's presence and their typing show under their name in the header.
+  await expect(header.getByLabel('Visitor presence')).toContainText('1 visit');
   await visitor.tell(conversationId, 'typing');
   await expect(header).toContainText('Typing…');
 
@@ -328,6 +323,9 @@ test('a member without the inbox permission is refused the inbox', async ({ newM
 
   await page.goto(INBOX);
   await expect(page.getByText('You need the frontline.inbox.view permission')).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Inbox', exact: true })).toBeVisible();
+  // The sidebar keeps its Inbox link; the breadcrumb names the page too.
+  const sidebar = page.getByRole('complementary').first();
+
+  await expect(sidebar.getByRole('link', { name: 'Inbox', exact: true })).toBeVisible();
   await expect(page.getByRole('list', { name: 'Work queue' })).toBeHidden();
 });

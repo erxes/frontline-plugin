@@ -14,6 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { z } from 'zod';
+import { channelSections } from './channelSettings.ts';
 import { trackRequests } from './accessible.ts';
 
 export { expectAccessible } from './accessible.ts';
@@ -38,12 +39,17 @@ export const unique = () => randomBytes(3).toString('hex');
 export const recordPanel = (page: Page) => page.locator('aside[data-record-side-panel]');
 
 /**
- * Waits for the page called `name`: the last crumb of its header, its one heading. A link
- * keeps the page it leaves on screen until the next one renders, so text both pages show
- * proves nothing about where the browser is.
+ * Waits for the page called `name`: the last crumb of its header, the breadcrumb's link marked
+ * as the current page. A link keeps the page it leaves on screen until the next one renders, so
+ * text both pages show proves nothing about where the browser is.
  */
 export const expectPage = (page: Page, name: string) =>
-  expect(page.getByRole('heading', { level: 1, name, exact: true })).toBeVisible();
+  expect(
+    page
+      .getByRole('navigation', { name: 'Breadcrumb' })
+      .locator('[aria-current="page"]')
+      .getByRole('link', { name, exact: true }),
+  ).toBeVisible();
 
 /** A list page with record `id` of `contentType` open in core's side panel, or a new one drafted. */
 export const recordPath = (list: string, contentType: string, id = 'new') =>
@@ -57,7 +63,10 @@ export const confirmDelete = async (page: Page) => {
   await confirm.getByRole('button', { name: 'Delete' }).click();
 };
 
-/** Creates a channel, with `memberName` in it when given, and leaves it open in the side panel. */
+/**
+ * Creates a channel without its starter messenger and pipeline, with `memberName` in it when
+ * given, and leaves its settings open inside it, at its integrations.
+ */
 export const createChannel = async (page: Page, memberName?: string) => {
   const channel = `Support ${unique()}`;
   const panel = recordPanel(page);
@@ -70,8 +79,10 @@ export const createChannel = async (page: Page, memberName?: string) => {
     await panel.getByRole('option', { name: memberName }).click();
   }
 
+  await panel.getByRole('switch', { name: 'Website messenger' }).click();
+  await panel.getByRole('switch', { name: 'Ticket pipeline' }).click();
   await panel.getByRole('button', { name: 'Create channel' }).click();
-  await expect(panel.getByRole('link', { name: /Manage channel pipelines/ })).toBeVisible();
+  await expect(page).toHaveURL(/\/frontline\/channels\/[^/]+\/settings\/integrations$/);
 
   return channel;
 };
@@ -80,9 +91,8 @@ export const createChannel = async (page: Page, memberName?: string) => {
 export const openChannelPipelines = async (page: Page, memberName?: string) => {
   const channel = await createChannel(page, memberName);
 
-  await recordPanel(page)
-    .getByRole('link', { name: /Manage channel pipelines/ })
-    .click();
+  await channelSections(page).getByRole('link', { name: 'Pipelines' }).click();
+  await page.getByRole('link', { name: 'Manage channel pipelines' }).click();
   await expect(page.getByText('No pipelines yet')).toBeVisible();
 
   return channel;

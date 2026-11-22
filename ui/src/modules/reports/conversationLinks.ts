@@ -1,5 +1,6 @@
 import type { TConditionRule } from 'erxes-ui';
 import { between, channelRule, INBOX_PATH, listPath } from '~/shared/listPath.ts';
+import { channelPath } from '~/shared/channelScope.ts';
 import type { Conversation } from '@/inbox/queries.ts';
 
 /** Every status a conversation takes; a status added to the API fails the build here. */
@@ -35,6 +36,6 @@ export const conversationLinks = (range: { from: Date; to: Date }, channelId: st
     resolved: () =>
       listPath(INBOX_PATH, ANY_STATUS, ...inChannel, ...between('subject.resolvedAt', range)),
     /** The inbox as it opens: every conversation not resolved. */
-    unresolved: () => (channelId ? listPath(INBOX_PATH, channelRule(channelId)) : INBOX_PATH),
+    unresolved: () => (channelId ? channelPath(channelId, 'inbox') : INBOX_PATH),
   };
 };
