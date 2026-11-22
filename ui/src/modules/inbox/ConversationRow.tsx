@@ -182,6 +182,7 @@ const Summary = ({
         <span className="min-w-0 flex-1 truncate leading-4">
           {manyChannels ? conversation.channelName : conversation.integrationName}
         </span>
+        {manyChannels && <span className="sr-only">{conversation.integrationName}</span>}
         <RowTags tagIds={conversation.tagIds} />
         {conversation.assigneeId && (
           <MemberAvatar

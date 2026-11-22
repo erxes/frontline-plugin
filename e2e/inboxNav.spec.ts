@@ -39,7 +39,11 @@ test('the sidebar’s queues and channels filter the inbox and count what waits 
   const row = conversations.getByRole('button', { name: new RegExp(refund) });
 
   const channels = member.getByRole('list', { name: 'Channels' });
-  const channelItem = channels.getByRole('button', { name: new RegExp(`^${channel}`) });
+
+  const channelItem = channels.getByRole('button', {
+    name: new RegExp(`^${channel}( \\d+ unread)?$`),
+  });
+
   const channelInbox = channels.getByRole('link', { name: /^Inbox/ });
 
   await expect(channelItem.getByLabel('1 unread')).toBeVisible();
@@ -142,7 +146,9 @@ test('Channels lists the member’s own inbox first; quiet channels fold, a filt
   await member.keyboard.press('Escape');
 
   const team = member.getByRole('list', { name: 'Channels' });
-  const link = (name: string) => team.getByRole('button', { name: new RegExp(`^${name}`) });
+
+  const link = (name: string) =>
+    team.getByRole('button', { name: new RegExp(`^${name}( \\d+ unread)?$`) });
 
   await expect(link('Personal inbox')).toBeVisible();
   await expect(link(busy).getByLabel('1 unread')).toBeVisible();

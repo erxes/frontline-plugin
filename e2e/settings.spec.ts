@@ -113,7 +113,9 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
     'channels/c-1/pipelines/p-1/statuses': `${SETTINGS}/pipelines/p-1`,
     'channels/c-1/forms/create': '/frontline/forms',
     'channels/c-1/surveys/s-1': '/frontline/surveys/s-1',
-    'config/meta': `${SETTINGS}/integrations`,
+    // Accounts live in core's Integrations now; frontline's old pages for them open the channels.
+    'config/meta': `${SETTINGS}/channels`,
+    accounts: `${SETTINGS}/channels`,
   };
 
   for (const [from, to] of Object.entries(old)) {

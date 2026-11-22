@@ -170,10 +170,9 @@ test('tags and their sheet', async ({ page }) => {
   await expectAccessible(page, page.getByRole('row', { name: new RegExp(tag) }));
 });
 
-test('the integrations, and a Telegram bot drafted', async ({ page }) => {
-  await page.goto(`${SETTINGS}/integrations`);
-  await expectAccessible(page, page.getByRole('button', { name: 'Connect' }));
-  await page.getByRole('button', { name: 'Connect' }).click();
-  await page.getByRole('menuitem', { name: 'Telegram bot' }).click();
+test("Telegram's accounts in core's Integrations, and a Telegram bot drafted", async ({ page }) => {
+  await page.goto('/settings/integrations/frontline.telegram?tab=accounts');
+  await expectAccessible(page, page.getByRole('button', { name: 'Connect', exact: true }));
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
   await expectAccessible(page, recordPanel(page).getByLabel('Bot token'));
 });
