@@ -4,13 +4,16 @@ import {
   IconCircles,
   IconDots,
   IconInbox,
+  IconGitBranch,
   IconLayoutKanban,
-  IconLink,
+  IconMessageReply,
   IconMinus,
+  IconPlugConnected,
   IconPlus,
   IconSettings,
   IconTicket,
   IconUser,
+  IconUsers,
 } from '@tabler/icons-react';
 import {
   Button,
@@ -19,7 +22,6 @@ import {
   IconComponent,
   Sidebar,
   storedFamily,
-  toast,
   useOpenRecord,
 } from 'erxes-ui';
 import { useMutation } from '@tanstack/react-query';
@@ -59,17 +61,18 @@ const channelOpen = storedFamily({
 /** The channel the open page is inside, from the address. */
 const useOpenChannelId = () => /^\/frontline\/channels\/([^/]+)/.exec(useLocation().pathname)?.[1];
 
-/** A channel's menu: its settings, and its inbox's address copied as a link. */
+/** A channel's menu: its settings, and each of their sections straight away. */
 const ChannelActions = ({ channel }: { channel: Channel }) => {
   const { t } = useTranslation('frontline');
   const navigate = useNavigate();
 
-  const copyLink = async () => {
-    await navigator.clipboard.writeText(
-      `${window.location.origin}${channelPath(channel.id, 'inbox')}`,
-    );
-    toast({ title: t('link-copied', 'Link copied') });
-  };
+  const sections = [
+    { section: undefined, label: t('channel-settings', 'Channel settings'), icon: IconSettings },
+    { section: 'integrations', label: t('integrations', 'Integrations'), icon: IconPlugConnected },
+    { section: 'pipelines', label: t('pipelines', 'Pipelines'), icon: IconGitBranch },
+    { section: 'members', label: t('members', 'Members'), icon: IconUsers },
+    { section: 'templates', label: t('templates', 'Templates'), icon: IconMessageReply },
+  ];
 
   return (
     <DropdownMenu>
@@ -84,14 +87,15 @@ const ChannelActions = ({ channel }: { channel: Channel }) => {
         <IconDots />
       </DropdownMenu.Trigger>
       <DropdownMenu.Content side="right" align="start" className="w-56">
-        <DropdownMenu.Item onClick={() => void navigate(channelPath(channel.id, 'settings'))}>
-          <IconSettings />
-          {t('channel-settings', 'Channel settings')}
-        </DropdownMenu.Item>
-        <DropdownMenu.Item onClick={() => void copyLink()}>
-          <IconLink />
-          {t('copy-link', 'Copy link')}
-        </DropdownMenu.Item>
+        {sections.map(({ section, label, icon: Icon }) => (
+          <DropdownMenu.Item
+            key={label}
+            onClick={() => void navigate(channelPath(channel.id, 'settings', section))}
+          >
+            <Icon />
+            {label}
+          </DropdownMenu.Item>
+        ))}
       </DropdownMenu.Content>
     </DropdownMenu>
   );
