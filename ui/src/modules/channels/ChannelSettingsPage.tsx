@@ -1,4 +1,4 @@
-import { IconLink, IconMessageCirclePlus, IconSettings, IconTrash } from '@tabler/icons-react';
+import { IconLink, IconSettings, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
 import {
   Button,
@@ -12,15 +12,15 @@ import {
   Skeleton,
   Textarea,
   toast,
-  useOpenRecord,
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useForm, useFormContext } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ConnectMenu, useCanConnect } from '@/integrations/ConnectMenu.tsx';
+import { ExistingAccountsMenu } from '@/integrations/ConnectMenu.tsx';
+import { IntegrationCatalog } from '@/integrations/IntegrationCatalog.tsx';
 import { orpc } from '~/orpc.ts';
-import { CHANNEL_TYPE, INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
+import { CHANNEL_TYPE, PLUGIN } from '~/plugin.ts';
 import { channelPath, useChannelScope } from '~/shared/channelScope.ts';
 import { AppHeader } from '~/shared/Header.tsx';
 import { CHANNEL_ICON } from '~/shared/icons.ts';
@@ -191,46 +191,48 @@ const DeleteChannel = ({ channel }: { channel: Channel }) => {
 };
 
 /**
- * What brings conversations into the channel: its messengers, pages, bots and mailboxes. Its
- * admins add a messenger or connect an account here; the accounts themselves are a link away.
+ * What brings conversations into the channel: its messengers, pages, bots and mailboxes, then for
+ * its admins a card per kind to add one, as old erxes listed them; the accounts are a link away.
  */
 const IntegrationsSection = ({ channel }: { channel: Channel }) => {
   const { t } = useTranslation('frontline');
-  const { openNew } = useOpenRecord();
-  const canConnect = useCanConnect();
 
   return (
-    <Form.Section
-      title={t('integrations', 'Integrations')}
-      description={t(
-        'channel-integrations-hint',
-        'Messengers, pages, bots and mailboxes that bring conversations into this channel.',
-      )}
-    >
+    <>
+      <Form.Section
+        title={t('integrations', 'Integrations')}
+        description={t(
+          'channel-integrations-hint',
+          'Messengers, pages, bots and mailboxes that bring conversations into this channel.',
+        )}
+      >
+        <Frame>
+          <ChannelIntegrationList channelId={channel.id} />
+        </Frame>
+      </Form.Section>
       {channel.canManage && (
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="secondary"
-            onClick={() => openNew(INTEGRATION_TYPE, { channelId: channel.id })}
-          >
-            <IconMessageCirclePlus />
-            {t('add-messenger', 'Add messenger')}
-          </Button>
-          {canConnect && <ConnectMenu channelId={channel.id} />}
-          <span className="flex-1" />
-          <Link
-            to={`/${PLUGIN}/settings/accounts`}
-            className={buttonVariants({ variant: 'ghost', tone: 'muted' })}
-          >
-            <IconLink />
-            {t('connected-accounts', 'Connected accounts')}
-          </Link>
-        </div>
+        <Form.Section
+          title={t('add-an-integration', 'Add an integration')}
+          description={t(
+            'add-integration-hint',
+            'Pick where this channel’s conversations come from.',
+          )}
+        >
+          <IntegrationCatalog channelId={channel.id} />
+          <div className="flex flex-wrap items-center gap-2">
+            <ExistingAccountsMenu channelId={channel.id} />
+            <span className="flex-1" />
+            <Link
+              to={`/${PLUGIN}/settings/accounts`}
+              className={buttonVariants({ variant: 'ghost', tone: 'muted' })}
+            >
+              <IconLink />
+              {t('connected-accounts', 'Connected accounts')}
+            </Link>
+          </div>
+        </Form.Section>
       )}
-      <Frame>
-        <ChannelIntegrationList channelId={channel.id} />
-      </Frame>
-    </Form.Section>
+    </>
   );
 };
 

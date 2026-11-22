@@ -1,5 +1,4 @@
 import {
-  channelSections,
   confirmDelete,
   expect,
   expectPage,
@@ -8,6 +7,7 @@ import {
   test,
   unique,
 } from './fixtures.ts';
+import { channelSections } from './channelSettings.ts';
 
 const CHANNELS = '/frontline/settings/channels';
 

@@ -1,5 +1,4 @@
 import {
-  channelSections,
   addMessenger,
   createChannel,
   expect,
@@ -11,6 +10,7 @@ import {
   test,
   unique,
 } from './fixtures.ts';
+import { cardOf, channelSections } from './channelSettings.ts';
 
 const ACCOUNTS = '/frontline/settings/accounts';
 
@@ -197,11 +197,14 @@ test("a channel's settings list its integrations, and its admins add more there"
   await expect(messenger).toBeVisible();
   await expectAccessible(page, messenger);
 
-  // A messenger or a provider's account comes into the channel from here.
-  await expect(page.getByRole('button', { name: 'Add messenger' })).toBeVisible();
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
-  await expect(page.getByRole('menuitem', { name: 'Telegram bot' })).toBeVisible();
-  await page.keyboard.press('Escape');
+  // A card per kind adds one: the messenger counts the one the channel has, the rest have none.
+  const catalog = page.getByRole('list', { name: 'Add an integration' });
+
+  await expect(cardOf(page, 'Website messenger')).toContainText('1 in this channel');
+  await expect(cardOf(page, 'Telegram')).toContainText('None yet');
+  await expectAccessible(page, catalog);
+  await cardOf(page, 'Telegram').getByRole('button', { name: 'Add' }).click();
+  await expect(recordPanel(page).getByLabel('Bot token')).toBeVisible();
 
   // Frontline's settings hold no list of every integration: the old address opens the channels.
   await page.goto('/frontline/settings/integrations');

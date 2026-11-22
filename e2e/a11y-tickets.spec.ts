@@ -1,5 +1,4 @@
 import {
-  channelSections,
   createChannel,
   expectAccessible,
   Id,
@@ -14,6 +13,7 @@ import {
   unique,
   visitorOf,
 } from './fixtures.ts';
+import { channelSections } from './channelSettings.ts';
 
 /*
  * The channels, pipelines, tickets and settings screens through axe, in light and dark, by

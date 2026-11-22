@@ -1,12 +1,5 @@
-import {
-  channelSections,
-  expect,
-  expectPage,
-  recordPath,
-  recordPanel,
-  test,
-  unique,
-} from './fixtures.ts';
+import { expect, expectPage, recordPath, recordPanel, test, unique } from './fixtures.ts';
+import { cardOf, channelSections } from './channelSettings.ts';
 
 const CHANNELS = '/frontline/settings/channels';
 
@@ -58,12 +51,11 @@ test('the owner creates a channel with a teammate, who sees its settings read-on
   await expect(panel.getByText(`Another channel is already called ${name}.`)).toBeVisible();
   await expect(panel.getByLabel('Name')).toHaveValue(name);
 
-  // Its Connect menu opens a provider's form that connects straight into the channel.
+  // A kind's card opens the provider's form that connects straight into the channel.
   await page.goto(CHANNELS);
   await page.getByRole('link', { name, exact: true }).click();
   await channelSections(page).getByRole('link', { name: 'Integrations' }).click();
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
-  await page.getByRole('menuitem', { name: 'Telegram bot' }).click();
+  await cardOf(page, 'Telegram').getByRole('button', { name: 'Add' }).click();
   await expect(panel.getByLabel('Bot token')).toBeVisible();
 
   const theirs = teammate.page;
@@ -74,7 +66,7 @@ test('the owner creates a channel with a teammate, who sees its settings read-on
   await expect(theirs.getByLabel('Name')).toBeDisabled();
   await expect(theirs.getByRole('button', { name: 'Delete channel' })).toBeHidden();
   await channelSections(theirs).getByRole('link', { name: 'Integrations' }).click();
-  await expect(theirs.getByRole('button', { name: 'Connect', exact: true })).toBeHidden();
+  await expect(theirs.getByRole('list', { name: 'Add an integration' })).toBeHidden();
 
   await channelSections(theirs).getByRole('link', { name: 'Members' }).click();
   await expect(theirs.getByRole('button', { name: 'Add members' })).toBeHidden();

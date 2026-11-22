@@ -1,4 +1,9 @@
-import { IconChevronDown, IconMessageCircle, IconPlugConnected } from '@tabler/icons-react';
+import {
+  IconChevronDown,
+  IconMessageCircle,
+  IconPlugConnected,
+  IconPlus,
+} from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button, DropdownMenu, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
@@ -18,11 +23,10 @@ import {
 } from './useIntegrations.ts';
 
 /**
- * The connected accounts that serve no channel yet; adding one makes it an integration of
+ * The connected accounts that serve no channel yet, and adding one as an integration of
  * `channelId`. An account serves one channel, so one active in another stays out.
  */
-const AccountItems = ({ channelId }: { channelId: string }) => {
-  const { t } = useTranslation('frontline');
+const useOutsideAccounts = (channelId: string) => {
   const accounts = useAccounts().data?.accounts ?? [];
 
   const joined = new Set(
@@ -32,32 +36,73 @@ const AccountItems = ({ channelId }: { channelId: string }) => {
   );
 
   const add = useMutation(orpc.integrations.create.mutationOptions(useIntegrationChange()));
-  const outside = accounts.filter((account) => !joined.has(account.id));
 
-  if (!outside.length) return null;
+  return { outside: accounts.filter((account) => !joined.has(account.id)), add };
+};
+
+/**
+ * The connected accounts that serve no channel yet, each a menu item adding it to `channelId`,
+ * under a heading after the menu's other items when `heading`. Nothing when there are none.
+ */
+const AccountItems = ({ channelId, heading = false }: { channelId: string; heading?: boolean }) => {
+  const { t } = useTranslation('frontline');
+  const { outside, add } = useOutsideAccounts(channelId);
+
+  if (outside.length === 0) return null;
+
+  const items = outside.map((account) => (
+    <DropdownMenu.Item
+      key={account.id}
+      disabled={add.isPending}
+      onClick={() =>
+        add.mutate({
+          channelId,
+          kind: account.provider,
+          name: account.name,
+          config: { accountId: account.id },
+        })
+      }
+    >
+      <KindIcon kind={account.provider} />
+      {account.name}
+    </DropdownMenu.Item>
+  ));
+
+  if (!heading) return items;
 
   return (
     <>
       <DropdownMenu.Separator />
       <DropdownMenu.Label>{t('add-connected', 'Add a connected account')}</DropdownMenu.Label>
-      {outside.map((account) => (
-        <DropdownMenu.Item
-          key={account.id}
-          disabled={add.isPending}
-          onClick={() =>
-            add.mutate({
-              channelId,
-              kind: account.provider,
-              name: account.name,
-              config: { accountId: account.id },
-            })
-          }
-        >
-          <KindIcon kind={account.provider} />
-          {account.name}
-        </DropdownMenu.Item>
-      ))}
+      {items}
     </>
+  );
+};
+
+/**
+ * "Add a connected account": the accounts connected before that serve no channel, to add to
+ * `channelId`. Nothing when there are none.
+ */
+export const ExistingAccountsMenu = ({ channelId }: { channelId: string }) => {
+  const { t } = useTranslation('frontline');
+
+  if (useOutsideAccounts(channelId).outside.length === 0) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenu.Trigger
+        render={
+          <Button variant="ghost" tone="muted">
+            <IconPlus />
+            {t('add-connected', 'Add a connected account')}
+            <IconChevronDown />
+          </Button>
+        }
+      />
+      <DropdownMenu.Content align="start">
+        <AccountItems channelId={channelId} />
+      </DropdownMenu.Content>
+    </DropdownMenu>
   );
 };
 
@@ -146,7 +191,7 @@ export const ConnectMenu = ({
             {names[provider]}
           </DropdownMenu.Item>
         ))}
-        {channelId && <AccountItems channelId={channelId} />}
+        {channelId && <AccountItems heading channelId={channelId} />}
       </DropdownMenu.Content>
     </DropdownMenu>
   );

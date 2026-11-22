@@ -14,6 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { z } from 'zod';
+import { channelSections } from './channelSettings.ts';
 import { trackRequests } from './accessible.ts';
 
 export { expectAccessible } from './accessible.ts';
@@ -85,10 +86,6 @@ export const createChannel = async (page: Page, memberName?: string) => {
 
   return channel;
 };
-
-/** The section links of the open channel's settings. */
-export const channelSections = (page: Page) =>
-  page.getByRole('navigation', { name: 'Channel settings' });
 
 /** Creates a channel, with `memberName` in it when given, and opens its pipelines list. */
 export const openChannelPipelines = async (page: Page, memberName?: string) => {
