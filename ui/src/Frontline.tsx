@@ -39,6 +39,16 @@ const ResponseTemplatesPage = lazy(
   })),
 );
 
+const PipelinesPage = lazy(
+  withText(async () => ({
+    default: (await import('@/pipelines/PipelinesPage.tsx')).PipelinesPage,
+  })),
+);
+
+const ChannelMembersPage = lazy(
+  withText(async () => ({ default: (await import('@/channels/pages.ts')).ChannelMembersPage })),
+);
+
 const TopicsPage = lazy(
   withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).TopicsPage })),
 );
@@ -53,12 +63,6 @@ const CategoriesPage = lazy(
 
 const TopicSettingsPage = lazy(
   withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).TopicSettingsPage })),
-);
-
-const PipelinesPage = lazy(
-  withText(async () => ({
-    default: (await import('@/pipelines/PipelinesPage.tsx')).PipelinesPage,
-  })),
 );
 
 const TagsPage = lazy(
@@ -82,10 +86,6 @@ const MessengerSettingsPage = lazy(
 
 const ChannelsPage = lazy(
   withText(async () => ({ default: (await import('@/channels/pages.ts')).ChannelsPage })),
-);
-
-const ChannelMembersPage = lazy(
-  withText(async () => ({ default: (await import('@/channels/pages.ts')).ChannelMembersPage })),
 );
 
 const ChannelSettingsPage = lazy(
@@ -168,18 +168,19 @@ const settingsRoutes = (
     <Route index element={<Navigate to="channels" replace />} />
     <Route path="channels">
       <Route index element={<ChannelsPage />} />
-      {/* A channel's settings are a page inside it now. */}
-      <Route path=":id" element={<Redirect path="channels" rest="/settings" />} />
-      <Route path=":id/members" element={<ChannelMembersPage />} />
-      <Route path=":id/response" element={<ResponseTemplatesPage />} />
-      {/* The old link opens that template on its own page. */}
+      {/* A channel's settings, as a team's are in Operation: its sections beside the sidebar. */}
+      <Route path=":id" element={<ChannelSettingsPage />} />
+      <Route path=":id/:section" element={<ChannelSettingsPage />} />
+      <Route path=":id/integrations/:kind" element={<ChannelSettingsPage />} />
+      {/* A section's whole list, filtered and paged, where its Manage link leads. */}
+      <Route path=":id/members/all" element={<ChannelMembersPage />} />
+      <Route path=":id/pipelines/all" element={<PipelinesPage />} />
+      <Route path=":id/templates/all" element={<ResponseTemplatesPage />} />
+      {/* The old channel pages' links open their record's new place. */}
       <Route
         path=":id/response/:responseId"
         element={<Redirect path="settings/response-templates" param="responseId" />}
       />
-      <Route path=":id/pipelines" element={<PipelinesPage />} />
-      {/* The old channel pages' links open their record's new place. */}
-      <Route path=":id/general" element={<Redirect path="settings/channels" />} />
       <Route
         path=":id/pipelines/:pipelineId/*"
         element={<Redirect path="settings/pipelines" param="pipelineId" />}
@@ -199,7 +200,7 @@ const settingsRoutes = (
       {/* The old integration detail page, one per channel and kind: a channel's settings list its own now. */}
       <Route
         path="details/:id/:integrationType"
-        element={<Redirect path="channels" rest="/settings/integrations" />}
+        element={<Redirect path="settings/channels" rest="/integrations" />}
       />
     </Route>
     <Route
@@ -227,8 +228,8 @@ const settingsRoutes = (
 );
 
 /**
- * Inside a channel: its inbox, tickets and settings, each page narrowed to the channel. A new
- * channel starts its pages afresh, with none of the last one's rows or form.
+ * Inside a channel: its inbox and tickets, each page narrowed to the channel. A new channel starts
+ * its pages afresh, with none of the last one's rows.
  */
 const ChannelWorkspace = () => {
   const { channelId = '' } = useParams();
@@ -246,9 +247,6 @@ const channelRoutes = (
     <Route index element={<Navigate to="inbox" replace />} />
     <Route path="inbox" element={<InboxPage />} />
     <Route path="tickets" element={<TicketsPage />} />
-    <Route path="settings" element={<ChannelSettingsPage />} />
-    <Route path="settings/:section" element={<ChannelSettingsPage />} />
-    <Route path="settings/integrations/:kind" element={<ChannelSettingsPage />} />
   </Route>
 );
 

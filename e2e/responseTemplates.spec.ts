@@ -88,6 +88,6 @@ test("a channel admin writes, edits and deletes the channel's response templates
 test('a member without frontline permissions is refused the templates', async ({ newMember }) => {
   const { page } = await newMember(['team.view']);
 
-  await page.goto(`${CHANNELS}/any/response`);
+  await page.goto(`${CHANNELS}/any/templates/all`);
   await expect(page.getByText('You need the frontline.channel.view permission')).toBeVisible();
 });

@@ -82,7 +82,7 @@ export const createChannel = async (page: Page, memberName?: string) => {
   await panel.getByRole('switch', { name: 'Website messenger' }).click();
   await panel.getByRole('switch', { name: 'Ticket pipeline' }).click();
   await panel.getByRole('button', { name: 'Create channel' }).click();
-  await expect(page).toHaveURL(/\/frontline\/channels\/[^/]+\/settings\/integrations$/);
+  await expect(page).toHaveURL(/\/frontline\/settings\/channels\/[^/]+\/integrations$/);
 
   return channel;
 };

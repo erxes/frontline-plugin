@@ -35,7 +35,7 @@ import { useChoices } from '@/tickets/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { CHANNEL_TYPE, PLUGIN } from '~/plugin.ts';
 import { useChange } from '~/shared/hooks.ts';
-import { channelPath } from '~/shared/channelScope.ts';
+import { channelPath, channelSettingsPath } from '~/shared/channelScope.ts';
 import { channelTicketsPath, PIPELINE_PARAM } from '~/shared/listPath.ts';
 import { Count, NavGroup, usePrefetchInbox } from './navLinks.tsx';
 import type { InboxCounts } from './queries.ts';
@@ -90,7 +90,7 @@ const ChannelActions = ({ channel }: { channel: Channel }) => {
         {sections.map(({ section, label, icon: Icon }) => (
           <DropdownMenu.Item
             key={label}
-            onClick={() => void navigate(channelPath(channel.id, 'settings', section))}
+            onClick={() => void navigate(channelSettingsPath(channel.id, section))}
           >
             <Icon />
             {label}
@@ -104,8 +104,8 @@ const ChannelActions = ({ channel }: { channel: Channel }) => {
 /**
  * A channel the member works in, unfolding to its pages: its inbox with what waits unread and its
  * tickets (a link per pipeline when it has several). Its settings are in its menu, as a team's
- * are, and it lights up while they are open. Inside it, every page shows only its work, so the
- * member always knows which channel they are in.
+ * are, and open in Frontline's settings. Inside it, every page shows only its work, so the member
+ * always knows which channel they are in.
  */
 const ChannelItem = ({ channel, icon }: { channel: Channel; icon: ReactNode }) => {
   const { t } = useTranslation('frontline');
@@ -118,7 +118,6 @@ const ChannelItem = ({ channel, icon }: { channel: Channel; icon: ReactNode }) =
   const picked = new URLSearchParams(search).get(PIPELINE_PARAM) ?? pipelines[0]?.id;
   const inbox = channelPath(channel.id, 'inbox');
   const tickets = channelPath(channel.id, 'tickets');
-  const inSettings = pathname.startsWith(channelPath(channel.id, 'settings'));
 
   return (
     <Collapsible
@@ -127,9 +126,7 @@ const ChannelItem = ({ channel, icon }: { channel: Channel; icon: ReactNode }) =
       onOpenChange={setToggled}
       render={<Sidebar.MenuItem />}
     >
-      <Collapsible.Trigger
-        render={<Sidebar.MenuButton isActive={inside && (!open || inSettings)} />}
-      >
+      <Collapsible.Trigger render={<Sidebar.MenuButton isActive={inside && !open} />}>
         {channel.icon ? <IconComponent name={channel.icon} /> : icon}
         <span className="min-w-0 flex-1 truncate">{channel.name}</span>
         {!open && <Count count={channel.unread} beforeAction />}
@@ -211,7 +208,7 @@ const ChannelsMenu = ({ hasPersonal }: { hasPersonal: boolean }) => {
             disabled={personal.isPending}
             onClick={() =>
               personal.mutate(undefined, {
-                onSuccess: (channel) => void navigate(channelPath(channel.id, 'settings')),
+                onSuccess: (channel) => void navigate(channelSettingsPath(channel.id)),
               })
             }
           >

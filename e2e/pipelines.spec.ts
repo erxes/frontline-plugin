@@ -220,6 +220,6 @@ test('a channel admin moves a pipeline to another channel and deletes it there',
 test('a member without frontline permissions is refused the pipelines', async ({ newMember }) => {
   const { page } = await newMember(['team.view']);
 
-  await page.goto('/frontline/settings/channels/missing/pipelines');
+  await page.goto('/frontline/settings/channels/missing/pipelines/all');
   await expect(page.getByText('You need the frontline.channel.view permission')).toBeVisible();
 });
