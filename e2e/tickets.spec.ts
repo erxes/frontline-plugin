@@ -34,7 +34,8 @@ const ticket = (page: Page, name: string) =>
 /** Opens one pipeline's tickets from its link under Tickets in the sidebar. */
 const openPipeline = async (page: Page, pipeline: string) => {
   await page.goto(TICKETS);
-  await page.getByRole('link', { name: pipeline, exact: true }).click();
+  const sidebar = page.getByRole('complementary').first();
+  await sidebar.getByRole('link', { name: pipeline, exact: true }).click();
   await expect(page).toHaveURL(/[?&]pipeline=/);
 };
 

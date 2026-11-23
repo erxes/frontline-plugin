@@ -24,6 +24,32 @@ export interface Refusal {
   deadToken?: boolean;
 }
 
+/** Why a connection failed, by the code Node gives it, in words a member can act on. */
+const UNREACHABLE: Record<string, string> = {
+  ENOTFOUND: 'its name does not resolve',
+  EAI_AGAIN: 'its name does not resolve',
+  ECONNREFUSED: 'it refused the connection',
+  ECONNRESET: 'it dropped the connection',
+  EHOSTUNREACH: 'no route reaches it',
+  ENETUNREACH: 'no route reaches it',
+  UNABLE_TO_VERIFY_LEAF_SIGNATURE:
+    'its certificate chain is incomplete; install the intermediate certificate with it',
+  UNABLE_TO_GET_ISSUER_CERT_LOCALLY:
+    'its certificate chain is incomplete; install the intermediate certificate with it',
+  DEPTH_ZERO_SELF_SIGNED_CERT: 'its certificate is self-signed',
+  SELF_SIGNED_CERT_IN_CHAIN: 'its certificate is self-signed',
+  CERT_HAS_EXPIRED: 'its certificate expired',
+  ERR_TLS_CERT_ALTNAME_INVALID: 'its certificate is for another name',
+};
+
+/** The first Node error code down `error`'s causes. */
+const codeOf = (error: unknown): string | undefined => {
+  for (let at: unknown = error; at instanceof Error; at = at.cause)
+    if ('code' in at && typeof at.code === 'string') return at.code;
+
+  return undefined;
+};
+
 /** A body that carries a file: it goes up in the one request, so it gets longer than a call. */
 const carriesFile = (body: unknown) =>
   body instanceof FormData || body instanceof Uint8Array || body instanceof Blob;
@@ -33,7 +59,8 @@ const carriesFile = (body: unknown) =>
  * with `body`, waits `config.outboundMs` for an answer, 4× for a file, and never tries twice: a
  * send that timed out may have gone. A refusal is `ProviderRefused` in the provider's words, read
  * by `readError` from its body; `AccountRefused` when `readError` says the token is dead. A
- * timeout or a dropped connection fails without the address, which may hold a token.
+ * timeout or a failed connection fails with its reason, such as an incomplete certificate chain,
+ * but without the address, which may hold a token.
  */
 export const providerApi = ({
   name,
@@ -77,8 +104,13 @@ export const providerApi = ({
 
           if (error instanceof TimeoutError) return new Error(`${name} did not answer in time`);
 
-          if (error instanceof NetworkError)
-            return new Error(`${name} did not answer`, { cause: error.cause });
+          if (error instanceof NetworkError) {
+            const why = UNREACHABLE[codeOf(error.cause) ?? ''];
+
+            return new Error(why ? `${name} is unreachable: ${why}` : `${name} did not answer`, {
+              cause: error.cause,
+            });
+          }
 
           return error;
         },
