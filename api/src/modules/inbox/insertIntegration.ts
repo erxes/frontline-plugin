@@ -2,13 +2,23 @@ import { randomBytes } from 'node:crypto';
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, eq, or, sql } from 'drizzle-orm';
+import { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
 import { integrations } from '#/db/inbox.ts';
 import { publicKeys } from '#/db/public.ts';
 import { channels } from '#/db/schema.ts';
+import { Title } from '../fields.ts';
 
 /** What a public key opens when it names an integration. */
 export const INTEGRATION_KEY = 'integration';
+
+/** A new integration of a channel. `config` is checked by the kind's adapter. */
+export const NewIntegration = z.object({
+  channelId: z.string(),
+  kind: z.string(),
+  name: Title,
+  config: z.record(z.string(), z.unknown()).default({}),
+});
 
 /**
  * Inserts an integration with the key its embed or webhook carries, once the caller checked its
@@ -17,7 +27,7 @@ export const INTEGRATION_KEY = 'integration';
 export const insertIntegration = async (
   tx: Tx,
   by: Pick<PluginMember, 'orgId' | 'userId'>,
-  input: { channelId: string; kind: string; name: string; config: Record<string, unknown> },
+  input: z.output<typeof NewIntegration>,
 ) => {
   const [created] = await tx
     .insert(integrations)

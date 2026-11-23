@@ -35,6 +35,9 @@ const Send = z.object({
   files: z.array(z.string().max(4000)).max(20).default([]),
 });
 
+/** What `/messages` takes from the visitor. */
+export type VisitorSend = z.input<typeof Send>;
+
 /** A route whose path names one record by `:id`. */
 export const Params = z.object({ id: z.string() });
 

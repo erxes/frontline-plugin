@@ -38,9 +38,14 @@ const Connect = VisitorData.extend({
 
 export type { Identity } from './identity.ts';
 
-export type { VisitorConversation, VisitorMessage, VisitorMessages } from './threads.ts';
+export type {
+  VisitorConversation,
+  VisitorMessage,
+  VisitorMessages,
+  VisitorSend,
+} from './threads.ts';
 
-export type { TicketForms, VisitorTicket } from './tickets.ts';
+export type { TicketForms, VisitorNewTicket, VisitorTicket } from './tickets.ts';
 
 export type { ArticleReactions } from '../knowledgebase/reactions.ts';
 

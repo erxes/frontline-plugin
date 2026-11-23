@@ -15,7 +15,12 @@ import { Title } from '../fields.ts';
 import { FilterInput, likeText } from '../filter.ts';
 import { integrationChanges } from '../messenger/adapter.ts';
 import { removeKeys } from '../public.ts';
-import { channelServing, INTEGRATION_KEY, insertIntegration } from './insertIntegration.ts';
+import {
+  channelServing,
+  INTEGRATION_KEY,
+  insertIntegration,
+  NewIntegration,
+} from './insertIntegration.ts';
 import { ADAPTERS } from './adapters.ts';
 
 /** The row without `org_id`, which the caller already knows. */
@@ -106,14 +111,7 @@ const ThroughAccount = z.object({ accountId: z.string() });
  * is refused (`channelServing`).
  */
 const create = writes(PERMISSIONS.channelView)
-  .input(
-    z.object({
-      channelId: z.string(),
-      kind: z.string(),
-      name: Title,
-      config: z.record(z.string(), z.unknown()).default({}),
-    }),
-  )
+  .input(NewIntegration)
   .output(Integration)
   .handler(async ({ input, context: { tx, member } }) => {
     await channelFor(tx, member, input.channelId, { change: true });

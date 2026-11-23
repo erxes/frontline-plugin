@@ -5,6 +5,8 @@ import type {
   VisitorConversation,
   VisitorMessage,
   VisitorMessages,
+  VisitorNewTicket as NewTicket,
+  VisitorSend,
   VisitorSurvey,
   VisitorTicket,
 } from '@frontline/api/messenger';
@@ -26,7 +28,7 @@ export type MessagePage = Jsonify<VisitorMessages>;
 
 export type Attachment = Message['attachments'][number];
 
-export type { Identity };
+export type { Identity, NewTicket };
 
 declare global {
   interface Window {
@@ -95,8 +97,7 @@ export const messengerApi = (base: URL, key: string) => {
           `conversations/${encodeURIComponent(id)}/messages${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
         )
         .json<MessagePage>(),
-    send: (token: string, body: { conversationId?: string; content: string; files: string[] }) =>
-      as(token).post(body, 'messages').json<Message>(),
+    send: (token: string, body: VisitorSend) => as(token).post(body, 'messages').json<Message>(),
     read: (token: string, id: string) => notify(token, id, 'read'),
     typing: (token: string, id: string) => notify(token, id, 'typing'),
     askForPerson: (token: string, id: string) => notify(token, id, 'person'),
@@ -137,16 +138,6 @@ export const messengerApi = (base: URL, key: string) => {
         .get(`knowledge-base/search?q=${encodeURIComponent(term)}`)
         .json<ArticleSummary[]>(),
   };
-};
-
-/** What a visitor fills in to file a ticket, as `/tickets` takes it. */
-export type NewTicket = {
-  pipelineId: string;
-  name: string;
-  description: string;
-  files: string[];
-  tagIds: string[];
-  propertiesData: Record<string, unknown>;
 };
 
 export type MessengerApi = ReturnType<typeof messengerApi>;

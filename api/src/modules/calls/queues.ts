@@ -5,7 +5,7 @@ import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
-import { callOperators, callQueues, OPERATOR_STATUSES } from '#/db/calls.ts';
+import { callOperators, callQueues, OPERATOR_STATUSES, QueueLive } from '#/db/calls.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { reads, writesWithCore } from '#/orpc.ts';
 import { managesAll } from '../channels/access.ts';
@@ -14,28 +14,6 @@ import { pbxAction, pbxFailed } from '../integrations/providers/call/pbx.ts';
 import { signalCalls } from '../integrations/providers/call/record.ts';
 
 const { orgId: _orgId, live: _live, ...queueColumns } = getTableColumns(callQueues);
-
-const QueueAgent = z.object({
-  extension: z.string(),
-  name: z.string(),
-  status: z.string(),
-  answered: z.number(),
-  abandoned: z.number(),
-  talkSeconds: z.number(),
-  pausedAt: z.string().nullable(),
-});
-
-const QueueLive = z.object({
-  agents: z.array(QueueAgent),
-  waiting: z.array(z.object({ callerId: z.string(), channel: z.string().nullable() })),
-  talking: z.array(
-    z.object({
-      callerId: z.string(),
-      calleeId: z.string().nullable(),
-      since: z.string().nullable(),
-    }),
-  ),
-});
 
 const Queue = createSelectSchema(callQueues)
   .omit({ orgId: true, live: true })

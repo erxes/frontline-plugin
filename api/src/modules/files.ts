@@ -37,6 +37,20 @@ export const downloadFile = (url: string, from: string) =>
 /** Core's storage, at the addresses core gives for a file's upload and download. */
 const storage = providerApi({ name: "Core's storage", baseUrl: config.coreUrl });
 
+/** A file to store: a signed-out visitor's upload, or what a provider or the PBX holds. */
+const Upload = z.object({
+  /** The file's name, URI-encoded, since a header carries only ASCII. */
+  name: z
+    .string()
+    .min(1)
+    .max(1500)
+    .transform((name) => decodeURIComponent(name).trim().slice(0, 500)),
+  contentType: z.string().min(1).max(200),
+  bytes: z
+    .custom<Uint8Array>((value) => value instanceof Uint8Array)
+    .refine((bytes) => bytes.length > 0, 'Send the file'),
+});
+
 /**
  * Stores `bytes` as a file of the organisation in core, and gives it as records keep their files
  * (`Attachment`). Core refuses a type or a size the organisation's file settings don't allow, as
@@ -44,7 +58,7 @@ const storage = providerApi({ name: "Core's storage", baseUrl: config.coreUrl })
  */
 export const storeFile = async (
   orgId: string,
-  { name, contentType, bytes }: { name: string; contentType: string; bytes: Uint8Array },
+  { name, contentType, bytes }: z.output<typeof Upload>,
 ) => {
   const files = core.forOrg(orgId).files;
 
@@ -140,17 +154,6 @@ const MAX_BYTES = 25 * 1024 * 1024;
 
 /** Reads a signed-out upload's body as bytes. */
 export const rawUpload = express.raw({ type: () => true, limit: MAX_BYTES });
-
-const Upload = z.object({
-  /** The file's name, URI-encoded, since a header carries only ASCII. */
-  name: z
-    .string()
-    .min(1)
-    .max(1500)
-    .transform((name) => decodeURIComponent(name).trim().slice(0, 500)),
-  contentType: z.string().min(1).max(200),
-  bytes: z.instanceof(Buffer).refine((bytes) => bytes.length > 0, 'Send the file'),
-});
 
 /** The file a signed-out visitor sends: its bytes, named in `x-file-name`. */
 export const uploadOf = (req: Request) => {
