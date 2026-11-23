@@ -6,7 +6,9 @@ form, and `static/call.html`, the call card, each in light and dark. Every
 feature is a web feature first.
 
 - One window loads `<server>/frontline`, where the member signs in to erxes as
-  in a browser. Closing it hides it to the tray, so the web softphone, which
+  in a browser. An address typed with a path, even a bare `/`, loads as typed,
+  for an older erxes that serves its app at the root; the fence still checks
+  only the origin. Closing it hides it to the tray, so the web softphone, which
   runs from core's floating widget, keeps the SIP line all day.
 - `src/preload.ts` gives the page `window.erxesDesktop` (`src/bridge.ts`). The
   web code checks for it: `ui/src/modules/calls/softphone/DesktopLink.tsx`

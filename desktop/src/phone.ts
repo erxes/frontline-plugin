@@ -1,7 +1,7 @@
 import { app, type BrowserWindow, type IpcMainEvent, ipcMain } from 'electron';
 import { type PhoneCommand, PhoneState } from './bridge.ts';
 import { CHANNELS } from './channels.ts';
-import { settings } from './settings.ts';
+import { onServer } from './settings.ts';
 import { telNumber } from './window.ts';
 
 /** Brings the window up, from the tray or behind other windows. */
@@ -75,7 +75,7 @@ export const connectPhone = (
 
   // Only erxes web, in the app's window, speaks for the phone.
   const fromErxes = (event: IpcMainEvent) =>
-    event.sender === window.webContents && event.senderFrame?.origin === settings().server;
+    event.sender === window.webContents && onServer(event.senderFrame?.url ?? '');
 
   ipcMain.on(CHANNELS.phone, (event, raw: unknown) => {
     const parsed = PhoneState.nullable().safeParse(raw);
