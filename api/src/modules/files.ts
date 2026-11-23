@@ -176,13 +176,22 @@ export const receiptOf = (owner: string, file: Attachment) =>
 
 const Receipt = z.object({ file: Attachment });
 
-/** The files `receipts` name for `owner`, or null when any is forged, expired or someone else's. */
-export const filesOf = async (owner: string, receipts: string[]) => {
-  const files = await Promise.all(
-    receipts.map(
-      async (receipt) => (await readToken('file receipts', receipt, Receipt, owner))?.file ?? null,
-    ),
-  );
+/**
+ * The files `receipts` name for `owner` (or any of several), or null when any is forged, expired
+ * or someone else's.
+ */
+export const filesOf = async (owner: string | string[], receipts: string[]) => {
+  const owners = [owner].flat();
+
+  const readAs = async (receipt: string) => {
+    const read = await Promise.all(
+      owners.map((each) => readToken('file receipts', receipt, Receipt, each)),
+    );
+
+    return read.find((found) => found !== null)?.file ?? null;
+  };
+
+  const files = await Promise.all(receipts.map(readAs));
 
   const good = files.filter((file) => file !== null);
 

@@ -210,8 +210,10 @@ const stream = async (req: Request, res: Response) => {
     }
 
     const stop = await subscribe(visitor.orgId, visitor.customerId, ({ id, event }) => {
+      // Merged into another customer: the browser opens the stream again, which follows the merge.
+      if (event === 'merged') res.end();
       // Until the stream opens, the messenger's first read covers what happens.
-      if (res.headersSent) res.write(`event: ${event}\ndata: ${JSON.stringify({ id })}\n\n`);
+      else if (res.headersSent) res.write(`event: ${event}\ndata: ${JSON.stringify({ id })}\n\n`);
     });
 
     const online = setOnline(visitor, true);

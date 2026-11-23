@@ -283,22 +283,27 @@ export const customerLinks = table(
   ],
 );
 
+export const CONTACT_KINDS = ['customer', 'company'] as const;
+
 /**
- * A core customer merged into another, which `customerId` names. A messenger visitor's token
- * still names the merged id, so a returning visitor reads here whom they are now.
+ * A core customer or company merged into another, which `keptId` names, always the latest kept
+ * one. A messenger visitor's token still names the merged id, so a returning visitor reads here
+ * whom they are now; the `frontline_follow_merge` trigger turns any row written with a merged id
+ * into the kept one (migration 0045).
  */
-export const customerMerges = table(
-  'customer_merges',
+export const contactMerges = table(
+  'contact_merges',
   {
     orgId: text().notNull(),
+    kind: text({ enum: CONTACT_KINDS }).notNull(),
     mergedId: text().notNull(),
-    /** The core customer it is now. */
-    customerId: text().notNull(),
+    keptId: text().notNull(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
-    primaryKey({ name: 'frontline_customer_merges_pkey', columns: [t.orgId, t.mergedId] }),
-    index('frontline_customer_merges_org_customer_idx').on(t.orgId, t.customerId),
+    primaryKey({ name: 'frontline_contact_merges_pkey', columns: [t.orgId, t.kind, t.mergedId] }),
+    index('frontline_contact_merges_org_kept_idx').on(t.orgId, t.kind, t.keptId),
+    check('frontline_contact_merges_kind_check', sql`${t.kind} in ('customer', 'company')`),
   ],
 );
 

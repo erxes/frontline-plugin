@@ -25,8 +25,8 @@ export type Visitor = z.output<typeof Visitor>;
 /** A signed token naming the visitor, which the messenger keeps and sends back. */
 export const tokenOf = (visitor: Visitor) => signToken('messenger visitors', visitor, '180d');
 
-/** Visitors whose token names a customer since merged into another. */
-const followed = new WeakSet<Visitor>();
+/** Visitors whose token names a customer since merged into another, with that customer's id. */
+const followed = new WeakMap<Visitor, string>();
 
 /**
  * The visitor a token names, or null when it is forged or expired. A customer core merged into
@@ -43,7 +43,7 @@ export const visitorOf = async (token: string | undefined) => {
 
   const now = { ...visitor, customerId };
 
-  followed.add(now);
+  followed.set(now, visitor.customerId);
 
   return now;
 };
@@ -56,9 +56,15 @@ export const tokenFor = (visitor: Visitor, token: string | undefined) =>
 export const visitorReceiptOwner = (visitor: Visitor) =>
   `messenger ${visitor.integrationId} ${visitor.customerId}`;
 
-/** The files the visitor's receipts name; a forged, expired or foreign one is refused. */
+/**
+ * The files the visitor's receipts name; a forged, expired or foreign one is refused. A receipt
+ * given before the visitor's customer was merged is theirs too.
+ */
 export const attachmentsOf = async (visitor: Visitor, receipts: string[]) => {
-  const files = await filesOf(visitorReceiptOwner(visitor), receipts);
+  const before = followed.get(visitor);
+  const owners = [visitor, ...(before ? [{ ...visitor, customerId: before }] : [])];
+
+  const files = await filesOf(owners.map(visitorReceiptOwner), receipts);
 
   if (!files) throw new ORPCError('BAD_REQUEST', { message: 'Attach the file again' });
 

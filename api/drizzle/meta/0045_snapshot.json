@@ -1,5 +1,5 @@
 {
-  "id": "226fcbd0-02a9-482d-b50f-d76bef5c2b34",
+  "id": "88a9fb0d-cadb-4b49-a654-b821a4e27c62",
   "prevId": "afd57b80-ccb4-4040-8513-d42fc75040f4",
   "version": "7",
   "dialect": "postgresql",
@@ -4205,6 +4205,92 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.frontline_contact_merges": {
+      "name": "frontline_contact_merges",
+      "schema": "",
+      "columns": {
+        "org_id": {
+          "name": "org_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "merged_id": {
+          "name": "merged_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "kept_id": {
+          "name": "kept_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "frontline_contact_merges_org_kept_idx": {
+          "name": "frontline_contact_merges_org_kept_idx",
+          "columns": [
+            {
+              "expression": "org_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kind",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "kept_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "frontline_contact_merges_pkey": {
+          "name": "frontline_contact_merges_pkey",
+          "columns": [
+            "org_id",
+            "kind",
+            "merged_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "frontline_contact_merges_kind_check": {
+          "name": "frontline_contact_merges_kind_check",
+          "value": "\"frontline_contact_merges\".\"kind\" in ('customer', 'company')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.frontline_conversation_tags": {
       "name": "frontline_conversation_tags",
       "schema": "",
@@ -4790,74 +4876,6 @@
             "org_id",
             "source",
             "external_id"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.frontline_customer_merges": {
-      "name": "frontline_customer_merges",
-      "schema": "",
-      "columns": {
-        "org_id": {
-          "name": "org_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "merged_id": {
-          "name": "merged_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "customer_id": {
-          "name": "customer_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "frontline_customer_merges_org_customer_idx": {
-          "name": "frontline_customer_merges_org_customer_idx",
-          "columns": [
-            {
-              "expression": "org_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "customer_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "frontline_customer_merges_pkey": {
-          "name": "frontline_customer_merges_pkey",
-          "columns": [
-            "org_id",
-            "merged_id"
           ]
         }
       },
