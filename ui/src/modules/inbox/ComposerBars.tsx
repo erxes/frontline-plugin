@@ -1,11 +1,12 @@
 import { IconEyeOff, IconLoader2, IconLock, IconMessage2, IconSend } from '@tabler/icons-react';
-import { Button, cn, Kbd, Separator, Tabs } from 'erxes-ui';
+import { Button, cn, Separator, Tabs } from 'erxes-ui';
+import { useAtom } from 'jotai';
 import { useTranslation } from 'react-i18next';
 import { SendSurvey } from '~/modules/surveys/SurveyMessage.tsx';
 import type { Attachment } from '~/shared/Files.tsx';
 import type { Conversation } from './queries.ts';
 import { AttachButton, AttachedFiles, type useComposerFiles } from './ComposerFiles.tsx';
-import { ExpandToggle } from './ComposerEditor.tsx';
+import { editorTall, ExpandToggle, focusComposer, ShortcutHint } from './ComposerEditor.tsx';
 import { TemplatePicker } from './TemplatePicker.tsx';
 
 export type Mode = 'reply' | 'note';
@@ -61,9 +62,6 @@ export const ModeBar = ({
   );
 };
 
-/** The send shortcut, as the member's keyboard labels it. */
-const SHORTCUT = navigator.userAgent.includes('Mac') ? '⌘↵' : 'Ctrl↵';
-
 /**
  * Send, or Add note in a note, so a note can't pass for a reply. It turns to a spinner while the
  * message goes or its files upload, and stays off until there is something to send.
@@ -117,6 +115,7 @@ export const Toolbar = ({
   onTemplate: (content: string) => void;
 }) => {
   const { t } = useTranslation('frontline');
+  const [tall, setTall] = useAtom(editorTall);
 
   return (
     <>
@@ -133,18 +132,17 @@ export const Toolbar = ({
         <AttachButton files={files} />
         {!note && <SendSurvey conversationId={conversation.id} />}
         <Separator orientation="vertical" className="mx-1 h-4" />
-        <ExpandToggle />
+        <ExpandToggle
+          tall={tall}
+          onToggle={() => {
+            setTall(!tall);
+            focusComposer();
+          }}
+        />
         <span className="flex-1" />
-        <span
-          aria-hidden
-          className="mr-2 hidden items-center gap-1.5 text-xs text-muted-foreground @md:flex"
-        >
-          {/* Kbd fades its text, so it takes the full text colour to stay readable. */}
-          <span className="text-foreground">
-            <Kbd variant="foreground">{SHORTCUT}</Kbd>
-          </span>
-          {note ? t('shortcut-add-note', 'to add') : t('shortcut-send', 'to send')}
-        </span>
+        <ShortcutHint
+          action={note ? t('shortcut-add-note', 'to add') : t('shortcut-send', 'to send')}
+        />
         <SendButton note={note} disabled={disabled} busy={busy} />
       </div>
     </>

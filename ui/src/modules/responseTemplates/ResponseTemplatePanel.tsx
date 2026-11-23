@@ -1,9 +1,12 @@
 import {
+  IconAlignLeft,
   IconCalendarPlus,
   IconCalendarUp,
   IconCircles,
+  IconDeviceFloppy,
   IconDots,
   IconLetterCase,
+  IconLoader2,
   IconTrash,
   IconUser,
 } from '@tabler/icons-react';
@@ -12,7 +15,6 @@ import { useMutation } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
 import {
   Button,
-  PanelDescriptionField,
   PanelField,
   PanelSection,
   Select,
@@ -22,8 +24,12 @@ import {
   type TRecordSlotProps,
   useFormat,
 } from 'erxes-ui';
+import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useChannel } from '@/channels/useChannels.ts';
+import { ShortcutHint } from '@/inbox/ComposerEditor.tsx';
+import { useSendShortcut } from '@/inbox/useSendShortcut.ts';
+import { TemplateEditor } from './TemplateEditor.tsx';
 import { orpc } from '~/orpc.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import {
@@ -153,14 +159,67 @@ const TemplateFields = ({ template }: { template: ResponseTemplate }) => {
       <InfoRow icon={IconCalendarUp} label={t('updated-at', 'Updated at')}>
         {format.dateTime(template.updatedAt)}
       </InfoRow>
-      <PanelDescriptionField
-        label={t('content', 'Content')}
-        scope={`${scope}.content`}
-        value={template.content}
-        readonly={!template.canManage}
-        onSave={(content) => content !== template.content && edit({ content })}
-      />
+      <ContentEditor template={template} />
     </PanelSection>
+  );
+};
+
+/**
+ * The template's content in the reply box's card. Its channel's admins save it with Save or Ctrl
+ * or ⌘ with Enter, as a reply sends; members read it.
+ */
+const ContentEditor = ({ template }: { template: ResponseTemplate }) => {
+  const { t } = useTranslation('frontline');
+  // What the member wrote since the last save; null while it matches the saved template.
+  const [draft, setDraft] = useState<string | null>(null);
+  const change = useTemplateChange();
+
+  // A refusal shows as the other edits' do, and the draft stays to try again.
+  const update = useMutation(
+    orpc.responseTemplates.update.mutationOptions({
+      ...change,
+      onSuccess: () => {
+        change.onSuccess();
+        setDraft(null);
+      },
+    }),
+  );
+
+  const changed = draft !== null && draft !== template.content;
+
+  const submit = (event?: SubmitEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+
+    if (draft !== null && changed && !update.isPending) {
+      update.mutate({ id: template.id, content: draft });
+    }
+  };
+
+  const shortcut = useSendShortcut({ send: submit });
+
+  return (
+    <form ref={shortcut} onSubmit={submit} className="flex flex-col gap-1.5 pt-2 pb-3">
+      <span className="flex items-center gap-1.5 text-xs font-medium text-accent-foreground">
+        <IconAlignLeft className="size-3.5 shrink-0" aria-hidden />
+        {t('content', 'Content')}
+      </span>
+      <TemplateEditor
+        id={template.id}
+        initialContent={template.content}
+        readonly={!template.canManage}
+        onChange={setDraft}
+      >
+        <ShortcutHint action={t('shortcut-save', 'to save')} />
+        <Button type="submit" disabled={!changed || update.isPending}>
+          {update.isPending ? (
+            <IconLoader2 aria-hidden className="animate-spin motion-reduce:animate-none" />
+          ) : (
+            <IconDeviceFloppy />
+          )}
+          {t('save', 'Save')}
+        </Button>
+      </TemplateEditor>
+    </form>
   );
 };
 
