@@ -24,19 +24,16 @@ describe('calls through a PBX', () => {
       message: 'The PBX refused: wrong API user or password',
     });
 
-    // A UCM that serves its certificate without the intermediate fails TLS, and says so.
+    // A PBX that refuses the connection says so.
     vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(
       new TypeError('fetch failed', {
-        cause: Object.assign(new Error('unable to verify the first certificate'), {
-          code: 'UNABLE_TO_VERIFY_LEAF_SIGNATURE',
-        }),
+        cause: Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' }),
       }),
     );
 
     await expect(clientAs('org-call-x').integrations.call.connect(PBX)).rejects.toMatchObject({
       code: 'BAD_REQUEST',
-      message:
-        'The PBX is unreachable: its certificate chain is incomplete; install the intermediate certificate with it',
+      message: 'The PBX is unreachable: it refused the connection',
     });
 
     // A PBX is never the API's own network, loopback or the metadata service.

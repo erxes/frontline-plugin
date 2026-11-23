@@ -3,7 +3,7 @@ import { ORPCError } from '@orpc/server';
 import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 import { config } from '#/config.ts';
-import { reachableOnly } from '#/modules/outbound.ts';
+import { reachableUnverified } from '#/modules/outbound.ts';
 import { providerApi, ProviderRefused } from '../../providerApi.ts';
 
 /** Where a Grandstream UCM's HTTPS API answers, and the API user frontline signs in as. */
@@ -60,8 +60,9 @@ const sessionOf = (pbx: Pbx) => {
 const pbxApi = providerApi({
   name: NAME,
   // A member names the host, so it may only be a public address, and a UCM's API never
-  // redirects, so neither does this.
-  dispatcher: reachableOnly,
+  // redirects, so neither does this. A UCM's certificate is often self-signed or lacks its
+  // intermediate, so its certificate isn't checked, as the old plugin didn't.
+  dispatcher: reachableUnverified,
   redirect: 'error',
 });
 
