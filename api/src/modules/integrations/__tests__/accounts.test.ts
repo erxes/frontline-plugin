@@ -64,7 +64,7 @@ vi.mock('@discordjs/ws', async (importOriginal) => {
   return { ...(await importOriginal<typeof DiscordWs>()), WebSocketManager };
 });
 
-const { get, deliver } = serve();
+const { deliver } = serve();
 
 describe('integration accounts', () => {
   it('shows accounts to their organisation and members allowed to see them', async () => {
@@ -330,9 +330,7 @@ describe('integration accounts', () => {
   it('repairs an Instagram account by subscribing the app to its page and routing it again', async () => {
     const calls = fakeProviders(graphApi);
     const owner = clientAs('org-acc-g');
-    const state = new URL((await owner.integrations.meta.loginUrl()).url).searchParams.get('state');
-
-    await get(`/meta/callback?code=login-code&state=${state ?? ''}`);
+    await owner.integrations.meta.connect({ connectionId: 'fb-conn' });
 
     const { accounts } = await owner.integrations.accounts.list({ provider: 'instagram' });
 
@@ -342,11 +340,13 @@ describe('integration accounts', () => {
       owner.integrations.accounts.repair({ id: accounts[0]?.id ?? '' }),
     ).resolves.toMatchObject({ status: 'healthy' });
     expect(calls.map((call) => `${call.method} ${call.url.pathname}`)).toEqual([
+      'GET /v23.0/app',
+      'GET /v23.0/page-1/subscribed_apps',
       'POST /v23.0/page-1/subscribed_apps',
       'PUT /v1/routes/instagram/ig-1',
       'GET /v23.0/me',
     ]);
-    expect(calls[0]?.authorization).toBe('Bearer page-token-1');
+    expect(calls[2]?.authorization).toBe('Bearer page-token-1');
   });
 
   it('removes an account, so its webhook stops leading anywhere', async () => {

@@ -29,6 +29,10 @@ import { siteByHost, siteByKey } from '#/modules/helpcenter/site/routes.ts';
 import { runAction } from '#/modules/inbox/automations.ts';
 import { integrationChoices } from '#/modules/integrations/automationRecords.ts';
 import { webhookRoutes } from '#/modules/integrations/routes.ts';
+import {
+  CONNECTION_CHANGED,
+  followConnection,
+} from '#/modules/integrations/providers/metaConnect.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
 import { applyMerge } from '#/modules/contacts/merges.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';
@@ -169,6 +173,49 @@ const desktopApi: express.RequestHandler = async (req, res) => {
   res.json({ apiUrl: manifest.api.url });
 };
 
+// Core delivers the manifest's `subscriptions` here, signed over the raw body; anything but
+// 2xx retries. A change to a branch or department refreshes the organisation's copy; a merge
+// of customers or companies moves frontline's rows to the kept one; a Facebook connection removed
+// or turned off stops its pages.
+const coreEvents: express.RequestHandler = async (req, res) => {
+  const body: unknown = req.body;
+
+  const event = await verifiedBy(res, 'event token', 'Only core delivers events', () =>
+    verifyCoreEvent(req.headers.authorization, typeof body === 'string' ? body : '', signedByCore),
+  );
+
+  if (!event) return;
+
+  if (event.type.startsWith('core.unit.')) {
+    const result = await syncUnits(event.organizationId);
+
+    logger.info(
+      { event: event.type, eventId: event.id, orgId: event.organizationId, result },
+      'units synced',
+    );
+  }
+
+  if (event.type === CONNECTION_CHANGED) {
+    const stopped = await followConnection(event);
+
+    logger.info(
+      { event: event.type, eventId: event.id, orgId: event.organizationId, stopped },
+      'Facebook connection followed',
+    );
+  }
+
+  if (event.type.endsWith('.merged')) {
+    const merged = await applyMerge(event);
+
+    logger.info(
+      { event: event.type, eventId: event.id, orgId: event.organizationId, merged },
+      'merged contacts followed',
+    );
+  }
+
+  res.sendStatus(204);
+};
+
 export const createApp = () => {
   const app = express();
 
@@ -246,42 +293,7 @@ export const createApp = () => {
     res.sendStatus(204);
   });
 
-  // Core delivers the manifest's `subscriptions` here, signed over the raw body; anything but
-  // 2xx retries. A change to a branch or department refreshes the organisation's copy; a merge
-  // of customers or companies moves frontline's rows to the kept one.
-  app.post('/api/events', express.text({ type: '*/*', limit: '1mb' }), async (req, res) => {
-    const body: unknown = req.body;
-
-    const event = await verifiedBy(res, 'event token', 'Only core delivers events', () =>
-      verifyCoreEvent(
-        req.headers.authorization,
-        typeof body === 'string' ? body : '',
-        signedByCore,
-      ),
-    );
-
-    if (!event) return;
-
-    if (event.type.startsWith('core.unit.')) {
-      const result = await syncUnits(event.organizationId);
-
-      logger.info(
-        { event: event.type, eventId: event.id, orgId: event.organizationId, result },
-        'units synced',
-      );
-    }
-
-    if (event.type.endsWith('.merged')) {
-      const merged = await applyMerge(event);
-
-      logger.info(
-        { event: event.type, eventId: event.id, orgId: event.organizationId, merged },
-        'merged contacts followed',
-      );
-    }
-
-    res.sendStatus(204);
-  });
+  app.post('/api/events', express.text({ type: '*/*', limit: '1mb' }), coreEvents);
 
   app.use('/api/automations', automationRoutes());
   app.use('/api/transfer', transferRoutes());

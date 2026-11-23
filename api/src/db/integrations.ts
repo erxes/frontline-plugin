@@ -39,6 +39,13 @@ export const integrationAccounts = table(
     config: jsonb().$type<Record<string, unknown>>().notNull().default({}),
     /** Tokens and passwords, sealed by `sealSecret` (`modules/integrations/secrets.ts`). */
     secret: text().notNull(),
+    /**
+     * The core connection the account came through (`integrations.usable`): a Facebook page or
+     * Instagram account connected with the organisation's Facebook connection. Its app's secret
+     * checks the account's webhook signatures. Null for other providers, and for pages connected
+     * before frontline used core's connection.
+     */
+    connectionId: text(),
     /** Where a pull left off, such as the last mail uid seen. */
     syncState: jsonb().$type<Record<string, unknown>>().notNull().default({}),
     status: text({ enum: ACCOUNT_STATUSES }).notNull().default('healthy'),

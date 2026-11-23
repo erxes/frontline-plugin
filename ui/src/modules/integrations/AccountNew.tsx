@@ -1,28 +1,24 @@
 import { useMutation } from '@tanstack/react-query';
-import {
-  Button,
-  buttonVariants,
-  jsonOf,
-  PanelFormLayout,
-  type TRecordDraftProps,
-  textOf,
-} from 'erxes-ui';
+import { Button, jsonOf, PanelFormLayout, type TRecordDraftProps, textOf } from 'erxes-ui';
 import { type ComponentType, type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
 import { z } from 'zod';
 import { useIntegrationChange } from '@/inbox/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { CallProFields, DiscordFields, PbxFields, TelegramFields } from './ConnectFields.tsx';
 import { MailFields } from './MailFields.tsx';
+import { MetaFields } from './MetaFields.tsx';
 import { queuesOf } from './PbxLines.tsx';
 import { KindIcon } from '~/shared/kinds.tsx';
-import { META_SETTINGS, useConnectMeta, useMetaApp, useProviderNames } from './useIntegrations.ts';
+import { useProviderNames } from './useIntegrations.ts';
 
-/** The providers connected with a form here; Facebook and Instagram connect through Meta's login. */
+/**
+ * The providers connected with a form here, each an account of its own. Facebook and Instagram
+ * (`meta`) connect together, through one of the organisation's Facebook connections.
+ */
 export const FORM_PROVIDERS = ['telegram', 'discord', 'mail', 'call', 'callpro'] as const;
 
-const FormProvider = z.enum(FORM_PROVIDERS);
+const FormProvider = z.enum(['meta', ...FORM_PROVIDERS]);
 
 type FormProvider = z.infer<typeof FormProvider>;
 
@@ -54,8 +50,20 @@ const Operators = jsonOf(
   ),
 );
 
-/** Each provider's call with the form's fields. */
+/** Each provider's call with the form's fields; Facebook's opens its first page. */
 const CONNECT = {
+  meta: async (form: FormData, into: Into) => {
+    const { accounts } = await orpc.integrations.meta.connect.call({
+      connectionId: textOf(form.get('connectionId')),
+      ...into,
+    });
+
+    const [first] = accounts;
+
+    if (!first) throw new Error('No page connected');
+
+    return first;
+  },
   telegram: (form: FormData, into: Into) =>
     orpc.integrations.telegram.connect.call({ token: textOf(form.get('token')), ...into }),
   discord: (form: FormData, into: Into) =>
@@ -86,6 +94,7 @@ const CONNECT = {
 } satisfies Record<FormProvider, (form: FormData, into: Into) => Promise<{ id: string }>>;
 
 const FIELDS: Record<FormProvider, ComponentType<{ channelId?: string }>> = {
+  meta: MetaFields,
   telegram: TelegramFields,
   discord: DiscordFields,
   mail: MailFields,
@@ -137,61 +146,35 @@ const ConnectForm = ({
 
 /**
  * What to connect, when the draft opened without a provider (core's New, or a reload): Facebook
- * and Instagram through Meta's login, as the Connect menu offers them, then each provider with a
- * form, whose form takes this list's place.
+ * and Instagram, as the Connect menu offers them, then each provider with a form, whose form
+ * takes this list's place.
  */
-const ProviderPicker = ({
-  channelId,
-  onPick,
-}: {
-  channelId?: string;
-  onPick: (provider: FormProvider) => void;
-}) => {
+const ProviderPicker = ({ onPick }: { onPick: (provider: FormProvider) => void }) => {
   const { t } = useTranslation('frontline');
   const names = useProviderNames();
-  const meta = useConnectMeta();
-  const metaApp = useMetaApp();
-  const row = buttonVariants({ variant: 'ghost', className: 'w-full justify-start' });
 
-  const metaName = (
-    <>
-      <KindIcon kind="facebook" />
-      {t('facebook-and-instagram', 'Facebook and Instagram')}
-    </>
-  );
+  const rows = [
+    {
+      provider: 'meta' as const,
+      icon: 'facebook' as const,
+      name: t('facebook-and-instagram', 'Facebook and Instagram'),
+    },
+    ...FORM_PROVIDERS.map((provider) => ({ provider, icon: provider, name: names[provider] })),
+  ];
 
   return (
     <div className="flex flex-col gap-2 p-3">
       <p className="text-sm text-muted-foreground">{t('pick-provider', 'Pick what to connect')}</p>
       <ul aria-label={t('pick-provider', 'Pick what to connect')} className="flex flex-col gap-0.5">
-        <li>
-          {metaApp === false ? (
-            <Link to={META_SETTINGS} className={row}>
-              {metaName}
-              <span className="text-xs text-muted-foreground">
-                {t('meta-app-missing', 'Set up a Meta app in Settings first')}
-              </span>
-            </Link>
-          ) : (
-            <Button
-              variant="ghost"
-              className="w-full justify-start"
-              disabled={metaApp === undefined || meta.isPending}
-              onClick={() => meta.mutate({ channelId })}
-            >
-              {metaName}
-            </Button>
-          )}
-        </li>
-        {FORM_PROVIDERS.map((provider) => (
+        {rows.map(({ provider, icon, name }) => (
           <li key={provider}>
             <Button
               variant="ghost"
               className="w-full justify-start"
               onClick={() => onPick(provider)}
             >
-              <KindIcon kind={provider} />
-              {names[provider]}
+              <KindIcon kind={icon} />
+              {name}
             </Button>
           </li>
         ))}
@@ -201,8 +184,9 @@ const ProviderPicker = ({
 };
 
 /**
- * A new connected account in core's side panel: a Telegram or Discord bot by its token, a mailbox
- * by its IMAP and SMTP login, a Grandstream PBX by its API user, or a CallPro line by its number.
+ * A new connected account in core's side panel: Facebook pages and Instagram accounts through a
+ * Facebook connection, a Telegram or Discord bot by its token, a mailbox by its IMAP and SMTP
+ * login, a Grandstream PBX by its API user, or a CallPro line by its number.
  * The Connect menu names the provider; a draft without one asks for it first. The provider checks
  * the account before it saves. Opened from a channel, the account joins it.
  */
@@ -212,7 +196,7 @@ export const AccountNew = ({ defaults, ...props }: TRecordDraftProps) => {
   const provider = named.success ? named.data : picked;
   const channelId = textOf(defaults.channelId) || undefined;
 
-  if (!provider) return <ProviderPicker channelId={channelId} onPick={setPicked} />;
+  if (!provider) return <ProviderPicker onPick={setPicked} />;
 
   return <ConnectForm provider={provider} into={{ channelId }} {...props} />;
 };

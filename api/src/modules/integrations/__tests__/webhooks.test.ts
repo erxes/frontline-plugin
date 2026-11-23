@@ -30,16 +30,9 @@ const subscriptionCheck = async (token: string) => {
   return [response.status, await response.text()];
 };
 
-const returnedTo = async (path: string) =>
-  new URL((await get(path)).headers.get('location') ?? '').searchParams;
-
-/** Goes through Meta's login as `orgId`'s member, and reads where it sent them back. */
-const loggedIn = async (orgId: string) => {
-  const { url } = await clientAs(orgId).integrations.meta.loginUrl();
-  const state = new URL(url).searchParams.get('state') ?? '';
-
-  return returnedTo(`/meta/callback?code=login-code&state=${state}`);
-};
+/** Connects `orgId`'s pages through its Facebook connection in core, and answers the accounts. */
+const connected = async (orgId: string) =>
+  (await clientAs(orgId).integrations.meta.connect({ connectionId: 'fb-conn' })).accounts;
 
 /** The Graph API, and meta-relay answering `status`. */
 const withRelay =
@@ -74,11 +67,21 @@ describe('meta', () => {
     expect((await subscriptionCheck('wrong'))[0]).toBe(403);
   });
 
-  it('connects the pages the login granted, takes their messages and replies', async () => {
+  it("connects the pages of the organisation's Facebook connection, takes their messages and replies", async () => {
     const calls = fakeProviders(graphApi);
     const owner = clientAs('org-meta-a');
 
-    expect((await loggedIn('org-meta-a')).get('connected')).toBe('1');
+    expect(await owner.integrations.meta.connections({})).toMatchObject({
+      data: [{ id: 'fb-conn' }, { id: 'fb-own' }],
+      settingsPath: '/settings/integrations/facebook',
+    });
+
+    await connected('org-meta-a');
+
+    // The connection's token lists the pages; each page's own token subscribes it.
+    expect(calls.find((call) => call.url.pathname.endsWith('me/accounts'))?.authorization).toBe(
+      'Bearer long-user-token',
+    );
     expect(
       calls.find((call) => call.url.pathname.endsWith('page-1/subscribed_apps'))?.authorization,
     ).toBe('Bearer page-token-1');
@@ -86,10 +89,15 @@ describe('meta', () => {
     const { accounts } = await owner.integrations.accounts.list({});
 
     expect(
-      accounts.map(({ provider, externalId, name }) => ({ provider, externalId, name })),
+      accounts.map(({ provider, externalId, name, connectionId }) => ({
+        provider,
+        externalId,
+        name,
+        connectionId,
+      })),
     ).toEqual([
-      { provider: 'facebook', externalId: 'page-1', name: 'Shop' },
-      { provider: 'instagram', externalId: 'ig-1', name: '@shop.mn' },
+      { provider: 'facebook', externalId: 'page-1', name: 'Shop', connectionId: 'fb-conn' },
+      { provider: 'instagram', externalId: 'ig-1', name: '@shop.mn', connectionId: 'fb-conn' },
     ]);
 
     const page = accounts.find((account) => account.provider === 'facebook');
@@ -167,7 +175,7 @@ describe('meta', () => {
     fakeProviders(graphApi);
     const owner = clientAs('org-meta-revoked');
 
-    await loggedIn('org-meta-revoked');
+    await connected('org-meta-revoked');
 
     const { accounts } = await owner.integrations.accounts.list({ provider: 'facebook' });
 
@@ -206,55 +214,15 @@ describe('meta', () => {
     ).toMatchObject([{ status: 'broken', error: 'Error validating access token' }]);
   });
 
-  it("connects through the organisation's own app, which signs its pages' deliveries", async () => {
-    const calls = fakeProviders(withRelay());
-    const owner = clientAs('org-meta-own');
-
-    const app = {
-      appId: '1234567890',
-      appSecret: 'own-app-secret-0123456789',
-      verifyToken: 'own-verify-token',
-    };
-
-    await owner.integrations.meta.app.save(app);
-
-    expect(await owner.integrations.meta.app.get()).toMatchObject({ appId: app.appId, own: true });
-    expect(await subscriptionCheck(app.verifyToken)).toEqual([200, '4711']);
-    await expect(
-      clientAs('org-meta-b').integrations.meta.app.save({ ...app, appId: '1234567891' }),
-    ).rejects.toMatchObject({ code: 'CONFLICT' });
-
-    expect((await loggedIn('org-meta-own')).get('connected')).toBe('1');
-
-    const exchange = calls.find((call) => call.url.pathname.endsWith('oauth/access_token'));
-
-    expect(exchange?.url.searchParams.get('client_secret')).toBe(app.appSecret);
-    expect(relayed(calls)).toEqual([]); // the relay forwards only the install's app
-
-    const { accounts } = await owner.integrations.accounts.list({});
-    const page = accounts.find((account) => account.provider === 'facebook');
-
-    await channelFor('org-meta-own', 'facebook', page?.id ?? '');
-
-    const raw = fixture('meta-delivery.json');
-
-    expect(await deliver('/meta', raw, signedByMeta(raw, 'a-stranger-app-secret'))).toBe(401);
-    expect(await deliver('/meta', raw, signedByMeta(raw, app.appSecret))).toBe(200);
-    expect(await deliver('/meta', raw, signedByMeta(raw))).toBe(200); // a page it had before
-    expect((await owner.conversations.list({})).totalCount).toBe(1);
-
-    await owner.integrations.meta.app.remove();
-
-    expect((await subscriptionCheck('own-verify-token'))[0]).toBe(403);
-    expect(await owner.integrations.meta.app.get()).toMatchObject({ own: false, appId: null });
-  });
-
-  it('refuses a login state it did not sign', async () => {
+  it('refuses a connection core does not give, and connects nothing', async () => {
     fakeProviders(graphApi);
 
-    expect((await returnedTo('/meta/callback?code=login-code&state=forged')).get('error')).toBe(
-      'The login expired: connect again',
-    );
+    const owner = clientAs('org-meta-gone');
+
+    await expect(
+      owner.integrations.meta.connect({ connectionId: 'fb-removed' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    expect((await owner.integrations.accounts.list({})).accounts).toEqual([]);
   });
 });
 
@@ -270,19 +238,22 @@ describe('meta-relay', () => {
   it('routes the page and its Instagram account here, and leaves the app subscribed when they go', async () => {
     const calls = fakeProviders(withRelay());
 
-    expect((await loggedIn('org-relay-a')).get('connected')).toBe('1');
+    await connected('org-relay-a');
     expect(relayed(calls)).toEqual([
       route('PUT', '/v1/routes/facebook/page-1'),
       route('PUT', '/v1/routes/instagram/ig-1'),
     ]);
 
-    // Every field frontline reads and every field the older installs on the same app read.
-    const subscribed = calls.find((call) => call.url.pathname.endsWith('page-1/subscribed_apps'));
+    // Every field frontline reads and every field the older installs on the same app read,
+    // added to the app's own: core's automations keep their lead forms.
+    const subscribed = calls.find(
+      (call) => call.method === 'POST' && call.url.pathname.endsWith('page-1/subscribed_apps'),
+    );
 
-    expect(subscribed?.method).toBe('POST');
     expect(subscribed?.url.searchParams.get('subscribed_fields')?.split(',').toSorted()).toEqual([
       'conversations',
       'feed',
+      'leadgen',
       'message_deliveries',
       'message_echoes',
       'message_reactions',
@@ -307,8 +278,8 @@ describe('meta-relay', () => {
   it('keeps the route while another organisation still takes the page', async () => {
     const calls = fakeProviders(withRelay());
 
-    await loggedIn('org-relay-b');
-    await loggedIn('org-relay-c');
+    await connected('org-relay-b');
+    await connected('org-relay-c');
     calls.length = 0;
 
     await removeAll('org-relay-b');
@@ -326,13 +297,13 @@ describe('meta-relay', () => {
   it('connects nothing meta-relay refuses, and removes accounts while it is down', async () => {
     fakeProviders(withRelay(401));
 
-    expect((await loggedIn('org-relay-d')).get('error')).toMatch(
-      /^The Meta relay refused: it answered 401$/,
-    );
+    await expect(connected('org-relay-d')).rejects.toMatchObject({
+      message: 'The Meta relay refused: it answered 401',
+    });
     expect((await clientAs('org-relay-d').integrations.accounts.list({})).accounts).toEqual([]);
 
     fakeProviders(withRelay());
-    await loggedIn('org-relay-d');
+    await connected('org-relay-d');
 
     const calls = fakeProviders(withRelay(500));
 

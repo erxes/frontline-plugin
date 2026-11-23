@@ -83,7 +83,10 @@ const Env = z.object({
   TURN_SERVER_URL: z.string().trim().min(1).optional(),
   TURN_SERVER_USERNAME: z.string().optional(),
   TURN_SERVER_CREDENTIAL: z.string().optional(),
-  /** The Meta app that Facebook pages and Instagram accounts connect through. */
+  /**
+   * The install's Meta app, the one core's Facebook connections sign in through unless an
+   * organisation sets its own there: meta-relay forwards its deliveries, which its secret checks.
+   */
   META_APP_ID: z.string().optional(),
   META_APP_SECRET: z.string().optional(),
   /** What Meta's webhook subscription sends back as `hub.verify_token`. */

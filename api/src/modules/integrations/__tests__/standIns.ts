@@ -15,7 +15,30 @@ export const asked = {
   jobs: [] as unknown[],
   /** Where each integration stood, as reported to core: `[orgId, key, state, count]`. */
   reports: [] as [string, string, string, number | null | undefined][],
+  /** The connections whose token frontline read, in order. */
+  credentials: [] as string[],
 };
+
+/**
+ * The organisation's Facebook connections in core: `fb-conn` signed in through the install's
+ * Meta app, `fb-own` through the organisation's own. Any other id is one core doesn't give.
+ */
+const CONNECTIONS = {
+  'fb-conn': {
+    name: 'Shop on Facebook',
+    accessToken: 'long-user-token',
+    appId: 'test-meta-app',
+    appSecret: 'test-meta-app-secret',
+  },
+  'fb-own': {
+    name: 'Shop through its own app',
+    accessToken: 'own-user-token',
+    appId: 'own-app',
+    appSecret: 'own-app-secret-0123456789',
+  },
+};
+
+const connectionOf = (id: string) => (id === 'fb-conn' || id === 'fb-own' ? CONNECTIONS[id] : null);
 
 /** What was uploaded to core's storage, by file id. */
 const uploads = new Map<string, { name: string; contentType: string; size: number }>();
@@ -108,6 +131,39 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
             .split(',')
             .map((id) => ({ id, role: id.startsWith('admin-') ? 'admin' : 'member' })),
         }),
+      },
+      // Core's Facebook connections, which the owner approved frontline to use.
+      integrations: {
+        usable: async ({ key }: { key: string }) => ({
+          data:
+            key === 'facebook'
+              ? Object.entries(CONNECTIONS).map(([id, { name }]) => ({
+                  id,
+                  key,
+                  name,
+                  settings: {},
+                  status: 'active',
+                  createdAt: '2026-11-20T00:00:00Z',
+                }))
+              : [],
+        }),
+        credentials: async ({ id }: { id: string }) => {
+          asked.credentials.push(id);
+
+          const connection = connectionOf(id);
+
+          if (!connection) throw new ORPCError('NOT_FOUND', { message: 'No such connection' });
+
+          return {
+            connectionId: id,
+            key: 'facebook',
+            accessToken: connection.accessToken,
+            expiresAt: null,
+            account: connection.name,
+            appId: connection.appId,
+            appSecret: connection.appSecret,
+          };
+        },
       },
       notifications: {
         create: async (input: unknown) => {

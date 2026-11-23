@@ -52,7 +52,10 @@ and call recording. Storage, wiring, auth and errors get rebuilt.
 Core owns members, roles and sign-in. It owns customers, companies and
 products, with their tags and custom fields. It also owns files,
 notifications, email sending, the timeline, audit, events, automations, live
-updates and payments.
+updates and payments. It owns the organisation's Facebook connection: the Meta
+sign-in and app pages connect through (`integrations.usable` and
+`credentials`). Frontline still calls the Graph API and takes Meta's webhooks
+itself.
 Frontline owns everything else it does, including tags and custom fields for
 its own records. Branches and departments are core's units; `frontline_teams`
 is a read-only copy for SQL. The API reaches core only through

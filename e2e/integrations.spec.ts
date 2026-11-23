@@ -15,30 +15,32 @@ import { cardOf, channelSections } from './channelSettings.ts';
 /** A frontline integration's accounts, on its page in core's Settings › Integrations. */
 const ACCOUNTS = (key: string) => `/settings/integrations/frontline.${key}?tab=accounts`;
 
-// The stack has no Meta app and no real bots, so nothing connects here: the API tests feed each
-// provider's recorded payloads through connecting, comments, posts and bots.
-test('each provider connects its accounts on its own Integrations page, where Meta’s login reports back', async ({
+// The stack has no Facebook connection and no real bots, so nothing connects here: the API tests
+// feed each provider's recorded payloads through connecting, comments, posts and bots.
+test('each provider connects its accounts on its own Integrations page, Facebook through core’s connection', async ({
   page,
 }) => {
-  // With no Meta app, Facebook and Instagram's Connect waits for one in its App tab.
+  const panel = recordPanel(page);
+
+  // With no Facebook connection in core, Facebook and Instagram's Connect leads to core's page.
   await page.goto(ACCOUNTS('meta'));
-  await expect(page.getByRole('button', { name: 'Connect pages' })).toBeDisabled();
+  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+
+  const toCore = panel.getByRole('link', {
+    name: 'Connect Facebook in Settings › Integrations › Facebook',
+  });
+
+  await expectAccessible(page, toCore);
+  await toCore.click();
+  await expect(page).toHaveURL(/\/settings\/integrations\/facebook$/);
 
   // A Telegram bot connects by its token, which Telegram checks before anything is saved.
   await page.goto(ACCOUNTS('telegram'));
   await page.getByRole('button', { name: 'Connect', exact: true }).click();
 
-  const panel = recordPanel(page);
-
   await panel.getByLabel('Bot token').fill('123456:not-a-real-token');
   await panel.getByRole('button', { name: 'Connect', exact: true }).click();
   await expect(panel.getByRole('alert')).toContainText('Telegram refused the token');
-
-  // Meta's login comes back to Facebook and Instagram's accounts, saying what it did.
-  await page.goto(`${ACCOUNTS('meta')}&connected=2`);
-  await expect(page.getByText('Connected 2 pages')).toBeVisible();
-  await page.goto(`${ACCOUNTS('meta')}&error=Meta did not finish the login`);
-  await expect(page.getByRole('alert').getByText('Meta did not finish the login')).toBeVisible();
 
   // Frontline's old accounts page and integration links open its channels.
   await page.goto('/frontline/settings/accounts');
@@ -47,21 +49,6 @@ test('each provider connects its accounts on its own Integrations page, where Me
 
 const META_TILE = '/settings/integrations/frontline.meta';
 
-// Saving an app would send every later Connect to Meta's real login, so this stops at the check.
-test("the Meta tile on core's Integrations asks for the organisation's app", async ({ page }) => {
-  await page.goto(`${META_TILE}?tab=app`);
-
-  await expect(page.getByText('Set a Meta app before you connect')).toBeVisible();
-  await expect(page.getByText(/\/api\/public\/webhooks\/meta$/)).toBeVisible();
-  await expect(page.getByText(/\/api\/public\/webhooks\/meta\/callback$/)).toBeVisible();
-
-  await page.getByRole('button', { name: 'Save' }).click();
-  await expect(page.getByText('Enter the app id')).toBeVisible();
-  await expect(page.getByText('Enter the app secret')).toBeVisible();
-  await expect(page.getByText('Enter a verify token')).toBeVisible();
-  await expectAccessible(page, page.getByLabel('Verify token'));
-});
-
 test('a member without integration management never reaches the Meta tile', async ({
   newMember,
 }) => {
@@ -69,7 +56,7 @@ test('a member without integration management never reaches the Meta tile', asyn
 
   await page.goto(META_TILE);
   await expect(page).toHaveURL(/\/settings\/integrations$/);
-  await expect(page.getByText('Set a Meta app before you connect')).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Connect', exact: true })).toBeHidden();
 });
 
 test('an admin sets up the messenger on its settings page and visitors get it', async ({

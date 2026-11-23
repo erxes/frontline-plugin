@@ -146,16 +146,14 @@ export const serve = () => {
 
   return {
     get,
-    /** Logs `orgId` in through Meta's dialog and gives a channel to the page or the account. */
-    connectMeta: async (orgId: string, provider: MetaProvider) => {
+    /**
+     * Connects `orgId`'s pages through its Facebook connection in core, and gives a channel to
+     * the page or the account.
+     */
+    connectMeta: async (orgId: string, provider: MetaProvider, connectionId = 'fb-conn') => {
       const owner = clientAs(orgId);
-      const { url } = await owner.integrations.meta.loginUrl();
-      const state = new URL(url).searchParams.get('state') ?? '';
-
-      await get(`/meta/callback?code=login-code&state=${state}`);
-
-      const { accounts } = await owner.integrations.accounts.list({ provider });
-      const account = accounts[0];
+      const { accounts } = await owner.integrations.meta.connect({ connectionId });
+      const account = accounts.find((connected) => connected.provider === provider);
 
       if (!account) throw new Error(`no ${provider} account`);
 
@@ -333,10 +331,8 @@ export const graphApi = (call: ProviderCall) => {
   if (path === 'page-1/published_posts')
     return { data: [POST], paging: { cursors: { after: 'cursor-2' }, next: 'https://next' } };
 
-  if (path === 'oauth/access_token')
-    return {
-      access_token: call.url.searchParams.get('code') ? 'short-user-token' : 'long-user-token',
-    };
+  // The organisation's own app's tokens, and the install's.
+  const own = call.authorization?.startsWith('Bearer own-') === true;
 
   if (path === 'me/accounts')
     return {
@@ -344,10 +340,19 @@ export const graphApi = (call: ProviderCall) => {
         {
           id: 'page-1',
           name: 'Shop',
-          access_token: 'page-token-1',
+          access_token: own ? 'own-page-token-1' : 'page-token-1',
           instagram_business_account: { id: 'ig-1', username: 'shop.mn' },
         },
       ],
+    };
+
+  // The app a token belongs to.
+  if (path === 'app') return { id: own ? 'own-app' : 'test-meta-app' };
+
+  // The apps the page sends its events to: the install's, for core's lead forms and posts.
+  if (path === 'page-1/subscribed_apps' && call.method === 'GET')
+    return {
+      data: [{ id: 'test-meta-app', name: 'erxes', subscribed_fields: ['leadgen', 'feed'] }],
     };
 
   // Each message Messenger takes gets an id of its own, as Meta gives one.
