@@ -1,5 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
+import { currentCustomer } from '../contacts/merges.ts';
 import { filesOf } from '../files.ts';
 import { INTEGRATION_KEY } from '../inbox/insertIntegration.ts';
 import { openedBy } from '../public.ts';
@@ -24,17 +25,46 @@ export type Visitor = z.output<typeof Visitor>;
 /** A signed token naming the visitor, which the messenger keeps and sends back. */
 export const tokenOf = (visitor: Visitor) => signToken('messenger visitors', visitor, '180d');
 
-/** The visitor a token names, or null when it is forged or expired. */
-export const visitorOf = async (token: string | undefined) =>
-  token ? readToken('messenger visitors', token, Visitor) : null;
+/** Visitors whose token names a customer since merged into another, with that customer's id. */
+const followed = new WeakMap<Visitor, string>();
+
+/**
+ * The visitor a token names, or null when it is forged or expired. A customer core merged into
+ * another since the token was signed is that other customer now; `connect` signs a new token.
+ */
+export const visitorOf = async (token: string | undefined) => {
+  const visitor = token ? await readToken('messenger visitors', token, Visitor) : null;
+
+  if (!visitor) return null;
+
+  const customerId = await currentCustomer(visitor.orgId, visitor.customerId);
+
+  if (customerId === visitor.customerId) return visitor;
+
+  const now = { ...visitor, customerId };
+
+  followed.set(now, visitor.customerId);
+
+  return now;
+};
+
+/** The token to hand back to a visitor who sent `token`: it, unless it names a merged customer. */
+export const tokenFor = (visitor: Visitor, token: string | undefined) =>
+  token && !followed.has(visitor) ? token : tokenOf(visitor);
 
 /** Whom a visitor's file receipts are for: that customer, on that messenger. */
 export const visitorReceiptOwner = (visitor: Visitor) =>
   `messenger ${visitor.integrationId} ${visitor.customerId}`;
 
-/** The files the visitor's receipts name; a forged, expired or foreign one is refused. */
+/**
+ * The files the visitor's receipts name; a forged, expired or foreign one is refused. A receipt
+ * given before the visitor's customer was merged is theirs too.
+ */
 export const attachmentsOf = async (visitor: Visitor, receipts: string[]) => {
-  const files = await filesOf(visitorReceiptOwner(visitor), receipts);
+  const before = followed.get(visitor);
+  const owners = [visitor, ...(before ? [{ ...visitor, customerId: before }] : [])];
+
+  const files = await filesOf(owners.map(visitorReceiptOwner), receipts);
 
   if (!files) throw new ORPCError('BAD_REQUEST', { message: 'Attach the file again' });
 

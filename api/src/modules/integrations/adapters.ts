@@ -1,5 +1,5 @@
 import { ORPCError } from '@orpc/server';
-import { and, desc, eq, isNotNull, or } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, or, sql } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
@@ -19,18 +19,34 @@ const AccountConfig = z.object({ accountId: z.string().min(1) });
 
 /**
  * What a reply answers: the customer's id at the provider and the last message it follows, the
- * customer's or one a member began the thread with, such as a new mail.
+ * customer's or one a member began the thread with, such as a new mail. A customer with several
+ * ids at the provider, as after a merge, is answered at the one the thread is with: a direct
+ * thread is the sender's id, a comment thread ends with it. Otherwise their latest id.
  */
 const replyContext = async (
   tx: Tx,
   provider: ProviderName,
-  conversationId: string,
-  customerId: string,
+  conversation: { id: string; externalId: string; customerId: string },
 ) => {
+  const thread = conversation.externalId;
+
   const [link] = await tx
     .select({ externalId: customerLinks.externalId })
     .from(customerLinks)
-    .where(and(eq(customerLinks.source, provider), eq(customerLinks.customerId, customerId)));
+    .where(
+      and(
+        eq(customerLinks.source, provider),
+        eq(customerLinks.customerId, conversation.customerId),
+      ),
+    )
+    .orderBy(
+      sql`${customerLinks.externalId} = ${thread} desc`,
+      sql`right(${thread}, length(${customerLinks.externalId}) + 1) = ':' || ${customerLinks.externalId} desc`,
+      desc(customerLinks.createdAt),
+    )
+    .limit(1);
+
+  const conversationId = conversation.id;
 
   const [last] = await tx
     .select({
@@ -92,7 +108,10 @@ const threadOf = async (
     row,
     account: providerOf(row.provider).open(row),
     threadId: conversation.externalId,
-    context: await replyContext(tx, provider, conversation.id, conversation.customerId),
+    context: await replyContext(tx, provider, {
+      ...conversation,
+      externalId: conversation.externalId,
+    }),
   };
 };
 

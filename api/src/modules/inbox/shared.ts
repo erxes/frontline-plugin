@@ -171,9 +171,10 @@ export const VISITOR_CHANNEL = 'frontline_visitors';
 
 /**
  * What a visitor's stream hears: a conversation changed or a member is typing in it, or one of
- * their tickets changed. Each names the conversation's or the ticket's id.
+ * their tickets changed. Each names the conversation's or the ticket's id. `merged` names the
+ * customer they were merged into: the stream closes, and the messenger opens it again as them.
  */
-export const VISITOR_EVENTS = ['changed', 'typing', 'ticket'] as const;
+export const VISITOR_EVENTS = ['changed', 'typing', 'ticket', 'merged'] as const;
 
 type Notified = { id: string; customerId: string };
 
