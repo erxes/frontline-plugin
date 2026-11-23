@@ -193,7 +193,7 @@ test("a channel's settings list its integrations, and its admins add more there"
   await expect(cardOf(page, 'Telegram')).toContainText('None yet');
   await expectAccessible(page, catalog);
   await cardOf(page, 'Telegram').getByRole('link').click();
-  await expect(page).toHaveURL(/\/settings\/integrations\/telegram$/);
+  await expect(page).toHaveURL(/\/frontline\/settings\/channels\/[^/]+\/integrations\/telegram$/);
   await page.getByRole('link', { name: 'Connect in Integrations' }).click();
   await expect(page).toHaveURL(/\/settings\/integrations\/frontline\.telegram\?tab=accounts$/);
 
