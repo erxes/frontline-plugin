@@ -12,7 +12,7 @@ import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import { CHANNEL_KINDS, useKindTitles } from '@/integrations/kindText.ts';
-import { channelPath } from '~/shared/channelScope.ts';
+import { channelSettingsPath } from '~/shared/channelScope.ts';
 import { KindIcon } from '~/shared/kinds.tsx';
 import { integrationsQuery } from '~/shared/reference.ts';
 import type { Channel } from './useChannels.ts';
@@ -124,7 +124,7 @@ const KindGroups = ({ channelId }: { channelId: string }) => {
   const { t } = useTranslation('frontline');
   const titles = useKindTitles();
   const { countOf, connected, available } = useChannelKinds(channelId);
-  const kindPath = (kind: string) => channelPath(channelId, 'settings', `integrations/${kind}`);
+  const kindPath = (kind: string) => channelSettingsPath(channelId, `integrations/${kind}`);
 
   return (
     <>
@@ -179,7 +179,7 @@ const KindsConnected = ({ channelId }: { channelId: string }) => {
 /** The channel at the column's top: its icon on a tile, its name and description, opening General. */
 const ChannelHead = ({ channel }: { channel: Channel }) => {
   const { pathname } = useLocation();
-  const to = channelPath(channel.id, 'settings', 'general');
+  const to = channelSettingsPath(channel.id, 'general');
   const current = pathname === to;
 
   return (
@@ -229,7 +229,7 @@ export const ChannelSettingsNav = ({ channel }: { channel: Channel }) => {
             {sections.map(({ section, label, icon: SectionIcon, count }) => (
               <NavRow
                 key={section}
-                to={channelPath(channel.id, 'settings', section)}
+                to={channelSettingsPath(channel.id, section)}
                 mark={<SectionIcon className="size-4" />}
                 label={label}
                 count={count}

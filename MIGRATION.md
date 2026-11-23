@@ -1117,7 +1117,7 @@ Procedures replace the 337 GraphQL types.
 
 ### Pages
 
-- [x] `/frontline/:id/pipelines` (ChannelPipelinesPage) → `ui/src/modules/pipelines/PipelinesPage.tsx` at `/frontline/settings/channels/:id/pipelines`, newest first, created in a side panel, moved to another channel or deleted `frontline_ui/src/modules/channels/components/settings/Settings.tsx:185`
+- [x] `/frontline/:id/pipelines` (ChannelPipelinesPage) → `ui/src/modules/pipelines/PipelinesPage.tsx` at `/frontline/settings/channels/:id/pipelines/all`, newest first, created in a side panel, moved to another channel or deleted `frontline_ui/src/modules/channels/components/settings/Settings.tsx:185`
 - [x] `/frontline/:id/pipelines/:pipelineId/sla` (PipelineSlaPage) → the pipeline panel's SLA tab (`ui/src/modules/pipelines/PipelineSla.tsx`): hours to first response and to resolution per priority, and how early to warn `frontline_ui/src/modules/channels/components/settings/Settings.tsx:214`
 
 ## report
@@ -1227,7 +1227,7 @@ Procedures replace the 337 GraphQL types.
 
 ### Pages
 
-- [x] `/frontline/:id/response` (ChannelResponsePage) → `ui/src/modules/responseTemplates/ResponseTemplatesPage.tsx` at `/frontline/settings/channels/:id/response`, with create and edit in a side panel `frontline_ui/src/modules/channels/components/settings/Settings.tsx:219`
+- [x] `/frontline/:id/response` (ChannelResponsePage) → `ui/src/modules/responseTemplates/ResponseTemplatesPage.tsx` at `/frontline/settings/channels/:id/templates/all`, with create and edit in a side panel `frontline_ui/src/modules/channels/components/settings/Settings.tsx:219`
 - [x] `/frontline/:id/response/:responseId` (ResponseDetailPage) → redirects to `/frontline/settings/response-templates/:id` (`ui/src/Frontline.tsx`), the template's panel expanded (`ui/src/modules/responseTemplates/ResponseTemplatePanel.tsx`) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:223`
 
 ## settings

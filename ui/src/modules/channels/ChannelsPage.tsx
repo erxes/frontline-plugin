@@ -33,7 +33,7 @@ import { Link } from 'react-router-dom';
 import { FORMS_PATH } from '@/forms/useForms.ts';
 import { MemberLine, PersonAvatar } from '~/shared/Person.tsx';
 import { CHANNEL_TYPE } from '~/plugin.ts';
-import { channelPath } from '~/shared/channelScope.ts';
+import { channelPath, channelSettingsPath } from '~/shared/channelScope.ts';
 import { listPath } from '~/shared/listPath.ts';
 import { orpc } from '~/orpc.ts';
 import { FRESH_MS } from '~/shared/reference.ts';
@@ -48,13 +48,13 @@ import { type Channel, CHANNELS_PATH, useChannels, useDeleteChannels } from './u
 const column = columnOf<Channel>;
 
 /**
- * The channel's icon and name, opening its settings inside the channel. A channel without an
+ * The channel's icon and name, opening its settings. A channel without an
  * icon of its own shows the channels icon, as the sidebar does.
  */
 const NameCell = ({ channel }: { channel: Channel }) => (
   <RecordTableInlineCell>
     <Link
-      to={channelPath(channel.id, 'settings')}
+      to={channelSettingsPath(channel.id)}
       className={cn(buttonVariants({ variant: 'ghost' }), 'w-full justify-start')}
     >
       {channel.icon ? <IconComponent name={channel.icon} /> : <IconCircles />}

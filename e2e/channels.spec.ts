@@ -6,8 +6,9 @@ const CHANNELS = '/frontline/settings/channels';
 /** A page inside a channel, as its address reads. */
 const CHANNEL_PAGE = (page: string) => new RegExp(`/frontline/channels/[^/]+/${page}$`);
 
-/** A section of a channel's settings, as its address reads. */
-const CHANNEL_SETTINGS = (section: string) => CHANNEL_PAGE(`settings/${section}`);
+/** A section of a channel's settings, in Frontline's settings, as its address reads. */
+const CHANNEL_SETTINGS = (section: string) =>
+  new RegExp(`/frontline/settings/channels/[^/]+/${section}$`);
 
 test('the owner creates a channel with a teammate, who sees its settings read-only', async ({
   page,
@@ -26,9 +27,11 @@ test('the owner creates a channel with a teammate, who sees its settings read-on
 
   await panel.getByRole('button', { name: 'Create channel' }).click();
 
-  // The new channel opens inside itself, on its settings' integrations: it starts with a website
-  // messenger and a Support pipeline. Its sections are its settings: no activity or notes.
+  // The new channel opens on its settings' integrations, beside the settings sidebar: it starts
+  // with a website messenger and a Support pipeline. Its sections are its settings: no activity or
+  // notes.
   await expect(page).toHaveURL(CHANNEL_SETTINGS('integrations'));
+  await expect(page.getByRole('link', { name: 'Exit settings' })).toBeVisible();
   await expect(page.getByRole('link', { name: `Settings of ${name}` })).toBeVisible();
   await channelSections(page).getByRole('link', { name: 'Pipelines' }).click();
   await expect(page.getByRole('button', { name: 'Support', exact: true })).toBeVisible();
