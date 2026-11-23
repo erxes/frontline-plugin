@@ -34,6 +34,8 @@ interface Connected {
    * (`metaKey`), or the random key in a Telegram webhook's address.
    */
   webhookKey?: string;
+  /** The core connection it came through: a Facebook page or Instagram account's. */
+  connectionId?: string;
 }
 
 /** A connect's channel: the one its form was opened from, which the account joins. */
@@ -90,6 +92,7 @@ export const saveAccount = async (
 ) => {
   const sealed = sealSecret(member.orgId, connected.secret);
   const syncState = connected.syncState ?? {};
+  const connectionId = connected.connectionId ?? null;
 
   const [row] = await tx
     .insert(integrationAccounts)
@@ -101,6 +104,7 @@ export const saveAccount = async (
       config: connected.config,
       secret: sealed,
       syncState,
+      connectionId,
       checkedAt: sql`now()`,
       createdBy: member.userId,
     })
@@ -115,6 +119,7 @@ export const saveAccount = async (
         config: connected.config,
         secret: sealed,
         syncState,
+        connectionId,
         status: 'healthy',
         error: null,
         checkedAt: sql`now()`,

@@ -19,7 +19,7 @@ export type BotSettings = Omit<
   'id'
 >;
 
-/** Whether the account came through Meta's login: a Facebook page or an Instagram account. */
+/** Whether the account is a Facebook page or an Instagram account, connected through Facebook. */
 export const isMeta = (account: Pick<Account, 'provider'>) =>
   account.provider === 'facebook' || account.provider === 'instagram';
 
@@ -89,31 +89,12 @@ export const useUpdateBot = (bot: Bot) => {
   };
 };
 
-/** Sends the member to Meta's login, where they pick the pages to connect. */
-export const useConnectMeta = () => {
-  const { onError } = useIntegrationChange();
-
-  return useMutation(
-    orpc.integrations.meta.loginUrl.mutationOptions({
-      onSuccess: ({ url }) => window.location.assign(url),
-      onError,
-    }),
-  );
-};
-
-/** Core's Settings › Integrations › Meta, where the organisation sets its Meta app. */
-export const META_SETTINGS = '/settings/integrations/frontline.meta';
-
 /**
- * Whether the organisation has a Meta app to log in with, its own or the install's: undefined
- * until the check answers, so nothing starts a login that has no app.
+ * The organisation's Facebook connections in core that pages connect through, and core's page
+ * that connects one when there is none.
  */
-export const useMetaApp = () =>
-  useQuery(
-    orpc.integrations.meta.app.get.queryOptions({
-      select: (settings) => settings.own || settings.installApp,
-    }),
-  ).data;
+export const useFacebookConnections = () =>
+  useQuery(orpc.integrations.meta.connections.queryOptions({ input: {} }));
 
 /** Points the provider's events at frontline again, then records whether the account works. */
 export const useRepairAccount = () =>

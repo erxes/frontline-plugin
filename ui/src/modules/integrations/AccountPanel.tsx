@@ -1,5 +1,6 @@
 import {
   IconAlertTriangle,
+  IconBrandFacebook,
   IconCalendarCheck,
   IconCircles,
   IconDots,
@@ -34,6 +35,7 @@ import { StatusBadge } from './parts.tsx';
 import { PbxSettings } from './PbxSettings.tsx';
 import {
   type Account,
+  isMeta,
   useAccount,
   useRepairAccount,
   useProviderNames,
@@ -232,6 +234,16 @@ export const AccountDetail = ({ contentId }: TRecordSlotProps) => {
         <InfoRow icon={IconCalendarCheck} label={t('checked-at', 'Checked at')}>
           {data.checkedAt ? format.dateTime(data.checkedAt) : t('never', 'Never')}
         </InfoRow>
+        {isMeta(data) && (
+          <InfoRow icon={IconBrandFacebook} label={t('connected-through', 'Connected through')}>
+            {data.connectionId
+              ? t('facebook-connection', "erxes's Facebook connection")
+              : t(
+                  'facebook-connection-before',
+                  "Frontline's own login: connect again to move it to erxes's Facebook connection",
+                )}
+          </InfoRow>
+        )}
       </PanelSection>
       {data.provider === 'telegram' && <TelegramWebhook account={data} />}
       {data.provider === 'discord' && <DiscordInvite account={data} />}

@@ -2,20 +2,13 @@ import { IconChevronDown, IconMessageCircle, IconPlugConnected } from '@tabler/i
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button, DropdownMenu, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router-dom';
 import { useIntegrationChange } from '@/inbox/queries.ts';
 import { orpc } from '~/orpc.ts';
 import { ACCOUNT_TYPE, INTEGRATION_TYPE } from '~/plugin.ts';
 import { KindIcon } from '~/shared/kinds.tsx';
 import { integrationsQuery } from '~/shared/reference.ts';
 import { FORM_PROVIDERS } from './AccountNew.tsx';
-import {
-  META_SETTINGS,
-  useAccounts,
-  useConnectMeta,
-  useMetaApp,
-  useProviderNames,
-} from './useIntegrations.ts';
+import { useAccounts, useProviderNames } from './useIntegrations.ts';
 
 /**
  * The connected accounts that serve no channel yet, and adding one as an integration of
@@ -75,45 +68,8 @@ const AccountItems = ({ channelId, heading = false }: { channelId: string; headi
 };
 
 /**
- * Facebook and Instagram, which connect through Meta's login. With no Meta app, the
- * organisation's own or the install's, the item says so and opens the settings that set one.
- */
-const MetaItem = ({ channelId }: { channelId?: string }) => {
-  const { t } = useTranslation('frontline');
-  const meta = useConnectMeta();
-  const app = useMetaApp();
-
-  const name = (
-    <>
-      <KindIcon kind="facebook" />
-      {t('facebook-and-instagram', 'Facebook and Instagram')}
-    </>
-  );
-
-  if (app === false)
-    return (
-      <DropdownMenu.Item render={<Link to={META_SETTINGS} />}>
-        {name}
-        <span className="text-xs text-muted-foreground">
-          {t('meta-app-missing', 'Set up a Meta app in Settings first')}
-        </span>
-      </DropdownMenu.Item>
-    );
-
-  // Off until the check answers, so a quick click never starts a login that has no app.
-  return (
-    <DropdownMenu.Item
-      disabled={app === undefined || meta.isPending}
-      onClick={() => meta.mutate({ channelId })}
-    >
-      {name}
-    </DropdownMenu.Item>
-  );
-};
-
-/**
- * Connect: Facebook and Instagram through Meta's login, every other provider with its form in
- * core's side panel. Opened from a channel, what it connects joins that channel, and the accounts
+ * Connect: Facebook and Instagram through one of the organisation's Facebook connections, every
+ * other provider with its form, in core's side panel. Opened from a channel, what it connects joins that channel, and the accounts
  * connected before are offered to add. `withMessenger` makes it Add integration, a website
  * messenger first.
  */
@@ -149,7 +105,10 @@ export const ConnectMenu = ({
             <DropdownMenu.Separator />
           </>
         )}
-        <MetaItem channelId={channelId} />
+        <DropdownMenu.Item onClick={() => openNew(ACCOUNT_TYPE, { provider: 'meta', channelId })}>
+          <KindIcon kind="facebook" />
+          {t('facebook-and-instagram', 'Facebook and Instagram')}
+        </DropdownMenu.Item>
         {FORM_PROVIDERS.map((provider) => (
           <DropdownMenu.Item
             key={provider}

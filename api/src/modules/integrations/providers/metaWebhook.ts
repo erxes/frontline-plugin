@@ -1,12 +1,19 @@
 import { createHmac } from 'node:crypto';
 import { z } from 'zod';
+import { config } from '#/config.ts';
 import { COMMENT_RECEIVED } from '#/core.ts';
 import type { StoredFile } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
-import type { InboundMessage, InboundReaction, ProviderName, WebhookSource } from '../provider.ts';
+import type {
+  InboundMessage,
+  InboundReaction,
+  ProviderName,
+  Routed,
+  WebhookSource,
+} from '../provider.ts';
 import { sameText } from '../secrets.ts';
-import { metaKey } from '../store.ts';
-import { knownVerifyToken, metaSecretsOf, signedByAnyMetaApp } from './metaApp.ts';
+import { accountOf, metaKey } from '../store.ts';
+import { knownVerifyToken, metaSecretsOf } from './metaConnection.ts';
 import { copiesOf } from './metaFiles.ts';
 
 /** How the external id of a comment thread starts, which the reports count apart from chats. */
@@ -94,13 +101,18 @@ const Delivery = z.object({
 
 /**
  * Meta signs the body it sent with the secret of the app the account connected through
- * (`X-Hub-Signature-256`): the organisation's own, or the install's.
+ * (`X-Hub-Signature-256`): the install's, or the organisation's own that its core connection
+ * signed in through.
  */
 const signedWith = (secret: string, raw: string, signature: unknown) =>
   sameText(`sha256=${createHmac('sha256', secret).update(raw).digest('hex')}`, signature);
 
-const signedByMeta = async (orgId: string, raw: string, signature: unknown) =>
-  (await metaSecretsOf(orgId)).some((secret) => signedWith(secret, raw, signature));
+/** Whether the account's apps signed the delivery: the install's, or its connection's. */
+const signedFor = async (
+  row: Parameters<typeof metaSecretsOf>[0],
+  raw: string,
+  signature: unknown,
+) => (await metaSecretsOf(row)).some((secret) => signedWith(secret, raw, signature));
 
 const filesOf = (attachments: z.infer<typeof Messaging>['message'] = { mid: '' }) =>
   (attachments.attachments ?? []).flatMap(({ type, payload }): StoredFile[] =>
@@ -205,49 +217,64 @@ const fromChange = (
 /** One event of an entry: a messaging event, or a change Meta posts for the account's feed. */
 const MetaEvent = z.union([Messaging, z.object({ change: Change })]);
 
+/** Each entry's account by its key, with its events: messages, and the changes frontline reads. */
+const routesOf = (delivery: z.infer<typeof Delivery>): Routed[] => {
+  const provider = delivery.object === 'page' ? 'facebook' : 'instagram';
+
+  return delivery.entry.map((entry) => ({
+    provider,
+    key: metaKey(provider, entry.id),
+    events: [
+      ...(entry.messaging ?? []),
+      ...(entry.changes ?? []).flatMap((change) =>
+        Change.safeParse(change).success ? [{ change }] : [],
+      ),
+    ],
+  }));
+};
+
 /**
  * Meta posts every page's and Instagram account's events to one address, signed with the app
- * secret, and names each account in its entries: each account's organisation's app checks the
- * signature. A delivery no known app signed is refused before its pages are looked up, so a
- * forged one learns nothing of which pages are connected. A change frontline doesn't read, such
- * as a like, is left out.
+ * secret, and names each account in its entries. A delivery the install's app didn't sign must
+ * be signed by the app of a connected account it names; any other is refused whether or not its
+ * pages are connected, so a forged one learns nothing of which are. Each account's own apps then
+ * check it again. A change frontline doesn't read, such as a like, is left out.
  */
 export const metaWebhook: WebhookSource = {
   confirm: async (query) =>
     query['hub.mode'] === 'subscribe' &&
     typeof query['hub.verify_token'] === 'string' &&
     typeof query['hub.challenge'] === 'string' &&
-    (await knownVerifyToken(query['hub.verify_token']))
+    knownVerifyToken(query['hub.verify_token'])
       ? query['hub.challenge']
       : null,
   route: async ({ raw, body, headers }) => {
     const signature = headers['x-hub-signature-256'];
 
-    if (
-      typeof signature !== 'string' ||
-      !(await signedByAnyMetaApp((secret) => signedWith(secret, raw, signature)))
-    )
-      return null;
+    if (typeof signature !== 'string') return null;
 
-    const delivery = Delivery.parse(body);
+    const install = config.meta.appSecret;
 
-    const provider = delivery.object === 'page' ? 'facebook' : 'instagram';
+    if (install !== undefined && signedWith(install, raw, signature))
+      return routesOf(Delivery.parse(body));
 
-    return delivery.entry.map((entry) => ({
-      provider,
-      key: metaKey(provider, entry.id),
-      events: [
-        ...(entry.messaging ?? []),
-        ...(entry.changes ?? []).flatMap((change) =>
-          Change.safeParse(change).success ? [{ change }] : [],
-        ),
-      ],
-    }));
+    const delivery = Delivery.safeParse(body);
+
+    if (!delivery.success) return null;
+
+    const routes = routesOf(delivery.data);
+    const rows = await Promise.all(routes.map(async (routed) => accountOf(routed)));
+
+    const signed = await Promise.all(
+      rows.map(async (row) => row !== null && signedFor(row, raw, signature)),
+    );
+
+    return signed.includes(true) ? routes : null;
   },
   // An event that isn't the shape frontline reads is logged and left out, so the messages Meta
   // batched with it are still kept.
   receive: async (row, events, { raw, headers }) => {
-    if (!(await signedByMeta(row.orgId, raw, headers['x-hub-signature-256']))) return null;
+    if (!(await signedFor(row, raw, headers['x-hub-signature-256']))) return null;
 
     const parsed = events.flatMap((event) => {
       const read = MetaEvent.safeParse(event);

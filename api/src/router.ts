@@ -25,9 +25,8 @@ import { integrationProcedures } from '#/modules/inbox/integrations.ts';
 import { accountProcedures } from '#/modules/integrations/accounts.ts';
 import { discordProcedures } from '#/modules/integrations/providers/discord.ts';
 import { mailProcedures } from '#/modules/integrations/providers/mailConnect.ts';
-import { metaAppProcedures } from '#/modules/integrations/providers/metaApp.ts';
 import { metaBotProcedures } from '#/modules/integrations/providers/metaBots.ts';
-import { metaProcedures } from '#/modules/integrations/providers/metaLogin.ts';
+import { metaConnectProcedures } from '#/modules/integrations/providers/metaConnect.ts';
 import { metaPostProcedures } from '#/modules/integrations/providers/metaPosts.ts';
 import { telegramProcedures } from '#/modules/integrations/providers/telegram.ts';
 import { callListProcedures } from '#/modules/calls/calls.ts';
@@ -87,8 +86,7 @@ export const router = {
     messenger: messengerProcedures,
     accounts: accountProcedures,
     meta: {
-      ...metaProcedures,
-      app: metaAppProcedures,
+      ...metaConnectProcedures,
       posts: metaPostProcedures,
       bots: metaBotProcedures,
     },

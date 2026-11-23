@@ -30,16 +30,7 @@ export const INTEGRATION_TILES: TPluginIntegration[] = [
   {
     key: 'meta',
     icon: IconBrandMeta,
-    tabs: [
-      accountsTab('MetaAccounts'),
-      {
-        value: 'app',
-        label: 'App',
-        component: lazy(async () => ({
-          default: (await withText(() => import('@/integrations/MetaApp.tsx'))()).MetaApp,
-        })),
-      },
-    ],
+    tabs: [accountsTab('MetaAccounts')],
   },
   { key: 'telegram', icon: IconBrandTelegram, tabs: [accountsTab('TelegramAccounts')] },
   { key: 'discord', icon: IconBrandDiscord, tabs: [accountsTab('DiscordAccounts')] },

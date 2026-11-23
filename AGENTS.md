@@ -43,8 +43,7 @@ without line-by-line review.
   Doctor hit.
 - Other gates: `vp run test` on real Postgres via `DATA_TEST_URL`, which
   runs `pnpm check:migration` (each `MIGRATION.md` tick names code that exists, each drop
-  its `DECISIONS.md` row), `pnpm check:rls`, `pnpm image` then `pnpm budgets`, and `pnpm e2e`. `vp run fix`
-  sorts mn.json, formats and fixes lint. CI's one required status is `Check`.
+  its `DECISIONS.md` row), `pnpm check:rls`, `pnpm image` then `pnpm budgets`, and `pnpm e2e`. CI's one required status is `Check`.
 - `pnpm e2e:stack up` runs core's released images and the plugin image on a
   fresh database, web on :8080. `pnpm e2e` drives Chromium; `a11y*.spec.ts`
   run axe, light and dark, at most three passes a test. A screen a member reaches gets a spec, its refusal, an axe stop.
@@ -65,7 +64,8 @@ without line-by-line review.
   does the quality section above. Change them in core.
 - The API reaches core through `@erxes/plugin-sdk` (`api/src/core.ts`), the UI
   through `@erxes/core-contract/client` with the member's session. Neither reads
-  `core_*` tables or imports core's app code.
+  `core_*` tables or imports core's app code. Meta pages connect through core's
+  Facebook connection.
 - Members are signed in by core: the UI sends a session token, the API checks it
   with `verifyPluginSession`. The same procedures are REST at `/api/v1`,
   documented at `/api/openapi/member.json`.

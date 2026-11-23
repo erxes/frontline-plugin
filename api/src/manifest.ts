@@ -19,6 +19,8 @@ import {
 import { AUTOMATION_ACTIONS, AUTOMATION_EVENTS } from '#/automationContract.ts';
 import { MERGE_EVENTS } from '#/modules/contacts/merges.ts';
 import { MANIFEST_INTEGRATIONS } from '#/modules/integrations/catalog.ts';
+import { CONNECTION_CHANGED } from '#/modules/integrations/providers/metaConnect.ts';
+import { FACEBOOK } from '#/modules/integrations/providers/metaConnection.ts';
 import { TRANSFERS } from '#/modules/transfer/routes.ts';
 import { RELATIONS } from '#/relations.ts';
 
@@ -81,9 +83,19 @@ export const manifest = {
     'units:read',
     'units:write',
   ],
+  // Facebook pages and Instagram accounts connect through the organisation's Facebook connection
+  // in core, which the owner approves like a scope (`providers/metaConnect.ts`).
+  connections: [
+    {
+      integration: FACEBOOK,
+      reason:
+        'Connect your Facebook pages and Instagram accounts to channels, and answer their messages and comments in the inbox',
+    },
+  ],
   // Any change to a unit refreshes the copy (`modules/teams/sync.ts`); a merge moves the merged
-  // contacts' rows to the kept one (`modules/contacts/merges.ts`).
-  subscriptions: ['core.unit.*', ...MERGE_EVENTS],
+  // contacts' rows to the kept one (`modules/contacts/merges.ts`); a Facebook connection removed
+  // or turned off stops its pages (`providers/metaConnect.ts`).
+  subscriptions: ['core.unit.*', ...MERGE_EVENTS, CONNECTION_CHANGED],
   // Conversations, tickets and form submissions in core's customer filter (`relations.ts`).
   relations: RELATIONS,
   permissions: [

@@ -69,22 +69,3 @@ export const metaBots = table(
     check('frontline_meta_bots_status_check', sql`${t.status} in ('healthy', 'broken')`),
   ],
 );
-
-/**
- * The organisation's own Meta app, which its pages and Instagram accounts connect through
- * instead of the install's (`META_APP_*`). The app secret is sealed like a page token; the verify
- * token is a `frontline_public_keys` row too, so Meta's address check finds the organisation.
- */
-export const metaApps = table(
-  'meta_apps',
-  {
-    id: id(),
-    orgId: text().notNull(),
-    appId: text().notNull(),
-    /** `{ appSecret }`, sealed by `sealSecret`. */
-    secret: text().notNull(),
-    verifyToken: text().notNull(),
-    ...stamps(),
-  },
-  (t) => [unique('frontline_meta_apps_org_key').on(t.orgId)],
-);

@@ -17,7 +17,6 @@ import {
 } from 'erxes-ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useSearchParams } from 'react-router-dom';
 import { ACCOUNT_TYPE, INTEGRATION_TYPE, META_BOT_TYPE } from '~/plugin.ts';
 import { KindIcon } from '~/shared/kinds.tsx';
 import { AccountChannels } from './AccountChannels.tsx';
@@ -201,38 +200,10 @@ const useColumns = (): RecordTableColumnDef<Row>[] => {
   ];
 };
 
-/** What Meta's login reported when it sent the member back here. */
-const LoginResult = () => {
-  const { t } = useTranslation('frontline');
-  const [params] = useSearchParams();
-  const error = params.get('error');
-  const connected = params.get('connected');
-
-  if (error)
-    return (
-      <p role="alert" className="mx-3 mt-3 text-sm text-destructive-text">
-        {error}
-      </p>
-    );
-
-  if (connected === null) return null;
-
-  return (
-    <output className="mx-3 mt-3 block text-sm text-muted-foreground">
-      {t('pages-connected', {
-        defaultValue_one: 'Connected {{count}} page',
-        defaultValue_other: 'Connected {{count}} pages',
-        count: Number(connected),
-      })}
-    </output>
-  );
-};
-
 /**
  * The organisation's connected accounts of `providers`: pages and Instagram accounts with the bot
  * each runs, bots, mailboxes or phone lines. A name opens the account; a row's menu adds it to a
- * channel, sets up a page's bot, repairs it or disconnects it. What Meta's login reported shows
- * above them.
+ * channel, sets up a page's bot, repairs it or disconnects it.
  */
 export const AccountsList = ({ providers }: { providers: Provider[] }) => {
   const { t } = useTranslation('frontline');
@@ -249,7 +220,6 @@ export const AccountsList = ({ providers }: { providers: Provider[] }) => {
 
   return (
     <>
-      <LoginResult />
       {accounts.error ? (
         <p role="alert" className="m-3 text-sm text-destructive-text">
           {accounts.error.message}

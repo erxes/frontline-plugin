@@ -1,5 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
+import { config } from '#/config.ts';
 import type { Tx } from '#/db/client.ts';
 import type { MetaProvider } from '#/db/meta.ts';
 import type { StoredFile } from '#/db/table.ts';
@@ -16,12 +17,12 @@ import {
   type OutboundReaction,
   type ProviderName,
 } from '../provider.ts';
-import { metaAppOf } from './metaApp.ts';
+import { forgetConnection } from './metaConnection.ts';
 import { routeThroughRelay, unrouteFromRelay } from './metaRelay.ts';
 import { postOfThread } from './metaWebhook.ts';
 
-/** The Graph API version frontline's calls and Meta's login dialog use. */
-export const GRAPH_VERSION = 'v23.0';
+/** The Graph API version frontline's calls use. */
+const GRAPH_VERSION = 'v23.0';
 
 const GraphFailure = z.object({
   error: z.object({ message: z.string(), code: z.number().optional() }),
@@ -93,6 +94,17 @@ export const askMeta = <T>(call: Promise<T>) =>
   });
 
 type MetaAccount = OpenAccount<unknown, z.infer<typeof Secret>>;
+
+/**
+ * `call` through the account's page token. When Meta refuses the token, the app of the core
+ * connection the page came through is read again on its next use.
+ */
+const watched = <T>({ row }: MetaAccount, call: Promise<T>) =>
+  call.catch((error: unknown) => {
+    if (error instanceof AccountRefused) forgetConnection(row.connectionId);
+
+    throw error;
+  });
 
 const Sent = z.object({ message_id: z.string() });
 
@@ -240,9 +252,12 @@ const replyToComment = async (
 };
 
 const sendThrough = (provider: ProviderName) => (account: MetaAccount, message: OutboundMessage) =>
-  postOfThread(message.threadId)
-    ? replyToComment(provider, account, message)
-    : sendMessage(account, message);
+  watched(
+    account,
+    postOfThread(message.threadId)
+      ? replyToComment(provider, account, message)
+      : sendMessage(account, message),
+  );
 
 /** The only reaction Messenger and Instagram take from a page. */
 const LOVE = '❤';
@@ -251,7 +266,8 @@ const LOVE = '❤';
  * Puts the page's ❤️ on the customer's message, or takes it back when no member has it. A
  * comment takes no reactions this way.
  */
-const reactThrough = async ({ secret }: MetaAccount, reaction: OutboundReaction) => {
+const reactThrough = async (account: MetaAccount, reaction: OutboundReaction) => {
+  const { secret } = account;
   const loved = reaction.emojis.some((emoji) => emoji.replaceAll('️', '') === LOVE);
 
   if (postOfThread(reaction.threadId) || reaction.emoji.replaceAll('️', '') !== LOVE)
@@ -259,23 +275,25 @@ const reactThrough = async ({ secret }: MetaAccount, reaction: OutboundReaction)
 
   // Not through askMeta: the inbox names the provider in its refusal, and the adapter needs a
   // refused token as it is to mark the page broken.
-  await graph('me/messages', secret.pageToken, {
-    method: 'POST',
-    body: {
-      recipient: { id: reaction.to },
-      sender_action: loved ? 'react' : 'unreact',
-      payload: loved
-        ? { message_id: reaction.message.externalId, reaction: 'love' }
-        : { message_id: reaction.message.externalId },
-    },
-  });
+  await watched(
+    account,
+    graph('me/messages', secret.pageToken, {
+      method: 'POST',
+      body: {
+        recipient: { id: reaction.to },
+        sender_action: loved ? 'react' : 'unreact',
+        payload: loved
+          ? { message_id: reaction.message.externalId, reaction: 'love' }
+          : { message_id: reaction.message.externalId },
+      },
+    }),
+  );
 };
 
 /**
- * The events the app gets for a connected page: frontline's own (messages, postbacks,
- * reactions, feed), and every field the older erxes installs that share the app subscribe. A
- * page's `subscribed_apps` POST replaces the app's fields, so a shorter list would stop events
- * those installs read. Fields frontline doesn't read are skipped when they arrive.
+ * The events frontline reads from a page: messages, postbacks, reactions and feed, and the fields
+ * the older erxes installs that share the app subscribe. Fields frontline doesn't read are
+ * skipped when they arrive.
  */
 const PAGE_FIELDS = [
   'conversations',
@@ -291,33 +309,58 @@ const PAGE_FIELDS = [
   'standby',
 ];
 
-/** Subscribes the app to the page's events, with the page's own token. */
-export const subscribeToPage = (pageId: string, pageToken: string) =>
-  graph(`${pageId}/subscribed_apps`, pageToken, {
+const TokenApp = z.object({ id: z.string() });
+
+const PageApps = z.object({
+  data: z.array(z.object({ id: z.string(), subscribed_fields: z.array(z.string()).default([]) })),
+});
+
+/**
+ * Subscribes the page token's app to the page's events. A POST replaces the app's fields, so
+ * frontline's join the ones it has, and core's automations on the same app (lead forms,
+ * mentions, reviews) keep theirs. Resolves to the app's id.
+ */
+export const subscribeToPage = async (pageId: string, pageToken: string) => {
+  const [app, apps] = await Promise.all([
+    graph('app', pageToken, { query: { fields: 'id' } }).then((body) => TokenApp.parse(body)),
+    graph(`${pageId}/subscribed_apps`, pageToken, {
+      query: { fields: 'id,subscribed_fields' },
+    }).then((body) => PageApps.parse(body)),
+  ]);
+
+  const had = apps.data.find((subscribed) => subscribed.id === app.id)?.subscribed_fields ?? [];
+
+  await graph(`${pageId}/subscribed_apps`, pageToken, {
     method: 'POST',
-    query: { subscribed_fields: PAGE_FIELDS.join(',') },
+    query: { subscribed_fields: [...new Set([...had, ...PAGE_FIELDS])].join(',') },
   });
+
+  return app.id;
+};
 
 /**
  * Repair, as the old plugin's did for a page or account whose events stopped: the app subscribes
- * to its page again, and meta-relay, when set, routes it here again. An organisation's own app
- * posts here directly, so the relay stays out of it.
+ * to its page again, and meta-relay routes it here again when the app is the install's. An
+ * account whose core connection went has no webhook key; it connects again instead.
  */
 const resubscribe = async (
   provider: MetaProvider,
   { row, secret }: MetaAccount,
   pageId: string,
+  webhookKey: string | null,
 ) => {
-  const app = await metaAppOf(row.orgId);
+  if (!webhookKey)
+    throw new Error(
+      "Its Facebook connection went: connect it again through erxes's Facebook connection",
+    );
 
-  await Promise.all([
-    subscribeToPage(pageId, secret.pageToken),
-    app?.own ? undefined : routeThroughRelay(provider, row.externalId),
-  ]);
+  const appId = await subscribeToPage(pageId, secret.pageToken);
+
+  if (appId === config.meta.appId) await routeThroughRelay(provider, row.externalId);
 };
 
-const checkToken = async ({ secret }: MetaAccount) =>
-  graph('me', secret.pageToken, { query: { fields: 'id' } }).then(
+const checkToken = async (account: MetaAccount) =>
+  watched(account, graph('me', account.secret.pageToken, { query: { fields: 'id' } })).then(
     () => null,
     (error: unknown) => (error instanceof Error ? error.message : 'Meta failed'),
   );
@@ -354,8 +397,8 @@ const whoIsOn =
   };
 
 /**
- * Removes the account's meta-relay route. The app stays subscribed to the page: another erxes
- * install sharing the app may still read it.
+ * Removes the account's meta-relay route. The app stays subscribed to the page: core's
+ * automations, or another erxes install sharing the app, may still read it.
  */
 const disconnectFrom =
   (provider: MetaProvider) =>
@@ -371,7 +414,8 @@ export const facebook = defineProvider({
   send: sendThrough('facebook'),
   react: reactThrough,
   disconnect: disconnectFrom('facebook'),
-  repair: (account) => resubscribe('facebook', account, account.row.externalId),
+  repair: (account, webhookKey) =>
+    resubscribe('facebook', account, account.row.externalId, webhookKey),
   whoIs: whoIsOn('facebook'),
 });
 
@@ -384,6 +428,7 @@ export const instagram = defineProvider({
   send: sendThrough('instagram'),
   react: reactThrough,
   disconnect: disconnectFrom('instagram'),
-  repair: (account) => resubscribe('instagram', account, account.config.pageId),
+  repair: (account, webhookKey) =>
+    resubscribe('instagram', account, account.config.pageId, webhookKey),
   whoIs: whoIsOn('instagram'),
 });
