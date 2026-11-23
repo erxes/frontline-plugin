@@ -30,6 +30,7 @@ import { runAction } from '#/modules/inbox/automations.ts';
 import { integrationChoices } from '#/modules/integrations/automationRecords.ts';
 import { webhookRoutes } from '#/modules/integrations/routes.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
+import { applyMerge } from '#/modules/contacts/merges.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';
 import { timelineRoutes } from '#/modules/timelines.ts';
 import { transferRoutes } from '#/modules/transfer/routes.ts';
@@ -246,7 +247,8 @@ export const createApp = () => {
   });
 
   // Core delivers the manifest's `subscriptions` here, signed over the raw body; anything but
-  // 2xx retries. A change to a branch or department refreshes the organisation's copy.
+  // 2xx retries. A change to a branch or department refreshes the organisation's copy; a merge
+  // of customers or companies moves frontline's rows to the kept one.
   app.post('/api/events', express.text({ type: '*/*', limit: '1mb' }), async (req, res) => {
     const body: unknown = req.body;
 
@@ -266,6 +268,15 @@ export const createApp = () => {
       logger.info(
         { event: event.type, eventId: event.id, orgId: event.organizationId, result },
         'units synced',
+      );
+    }
+
+    if (event.type.endsWith('.merged')) {
+      const merged = await applyMerge(event);
+
+      logger.info(
+        { event: event.type, eventId: event.id, orgId: event.organizationId, merged },
+        'merged contacts followed',
       );
     }
 

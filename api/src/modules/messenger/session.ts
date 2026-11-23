@@ -1,5 +1,6 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
+import { currentCustomer } from '../contacts/merges.ts';
 import { filesOf } from '../files.ts';
 import { INTEGRATION_KEY } from '../inbox/insertIntegration.ts';
 import { openedBy } from '../public.ts';
@@ -24,9 +25,32 @@ export type Visitor = z.output<typeof Visitor>;
 /** A signed token naming the visitor, which the messenger keeps and sends back. */
 export const tokenOf = (visitor: Visitor) => signToken('messenger visitors', visitor, '180d');
 
-/** The visitor a token names, or null when it is forged or expired. */
-export const visitorOf = async (token: string | undefined) =>
-  token ? readToken('messenger visitors', token, Visitor) : null;
+/** Visitors whose token names a customer since merged into another. */
+const followed = new WeakSet<Visitor>();
+
+/**
+ * The visitor a token names, or null when it is forged or expired. A customer core merged into
+ * another since the token was signed is that other customer now; `connect` signs a new token.
+ */
+export const visitorOf = async (token: string | undefined) => {
+  const visitor = token ? await readToken('messenger visitors', token, Visitor) : null;
+
+  if (!visitor) return null;
+
+  const customerId = await currentCustomer(visitor.orgId, visitor.customerId);
+
+  if (customerId === visitor.customerId) return visitor;
+
+  const now = { ...visitor, customerId };
+
+  followed.add(now);
+
+  return now;
+};
+
+/** The token to hand back to a visitor who sent `token`: it, unless it names a merged customer. */
+export const tokenFor = (visitor: Visitor, token: string | undefined) =>
+  token && !followed.has(visitor) ? token : tokenOf(visitor);
 
 /** Whom a visitor's file receipts are for: that customer, on that messenger. */
 export const visitorReceiptOwner = (visitor: Visitor) =>

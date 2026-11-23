@@ -283,6 +283,25 @@ export const customerLinks = table(
   ],
 );
 
+/**
+ * A core customer merged into another, which `customerId` names. A messenger visitor's token
+ * still names the merged id, so a returning visitor reads here whom they are now.
+ */
+export const customerMerges = table(
+  'customer_merges',
+  {
+    orgId: text().notNull(),
+    mergedId: text().notNull(),
+    /** The core customer it is now. */
+    customerId: text().notNull(),
+    createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: 'frontline_customer_merges_pkey', columns: [t.orgId, t.mergedId] }),
+    index('frontline_customer_merges_org_customer_idx').on(t.orgId, t.customerId),
+  ],
+);
+
 /** The tags on a conversation. Deleting either side deletes the row. */
 export const conversationTags = table(
   'conversation_tags',
