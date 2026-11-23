@@ -122,13 +122,6 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
     await page.goto(`${SETTINGS}/${from}`);
     await expect(page).toHaveURL(to);
   }
-
-  // A channel's settings sit in Frontline's settings: their old address inside it, and the old
-  // templates list, open them there.
-  await page.goto('/frontline/channels/c-1/settings/members');
-  await expect(page).toHaveURL(`${SETTINGS}/channels/c-1/members`);
-  await page.goto(`${SETTINGS}/channels/c-1/response`);
-  await expect(page).toHaveURL(`${SETTINGS}/channels/c-1/templates/all`);
 });
 
 test('a channel member reads the settings, and a member without frontline permissions is refused', async ({

@@ -21,7 +21,7 @@ import {
 import { FrontlineLayout, SettingsLayout } from './Layout.tsx';
 import { withText } from '~/i18n/withText.ts';
 import { inboxPage, ticketsPage } from '~/pages.ts';
-import { ChannelScope, channelSettingsPath } from '~/shared/channelScope.ts';
+import { ChannelScope } from '~/shared/channelScope.ts';
 import css from './styles.css?inline';
 
 addPluginStyles(PLUGIN, css);
@@ -178,10 +178,6 @@ const settingsRoutes = (
       <Route path=":id/templates/all" element={<ResponseTemplatesPage />} />
       {/* The old channel pages' links open their record's new place. */}
       <Route
-        path=":id/response"
-        element={<Redirect path="settings/channels" rest="/templates/all" />}
-      />
-      <Route
         path=":id/response/:responseId"
         element={<Redirect path="settings/response-templates" param="responseId" />}
       />
@@ -245,20 +241,12 @@ const ChannelWorkspace = () => {
   );
 };
 
-/** The channel's settings' old address inside it, which opens them in Frontline's settings. */
-const ToChannelSettings = () => {
-  const { channelId = '', '*': rest } = useParams();
-
-  return <Navigate to={channelSettingsPath(channelId, rest)} replace />;
-};
-
 /** A channel's own pages, each narrowed to it. */
 const channelRoutes = (
   <Route path="channels/:channelId" element={<ChannelWorkspace />}>
     <Route index element={<Navigate to="inbox" replace />} />
     <Route path="inbox" element={<InboxPage />} />
     <Route path="tickets" element={<TicketsPage />} />
-    <Route path="settings/*" element={<ToChannelSettings />} />
   </Route>
 );
 

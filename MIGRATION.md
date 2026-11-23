@@ -445,7 +445,7 @@ Procedures replace the 337 GraphQL types.
 
 ### Pages
 
-- [x] `/frontline/:id` (ChannelDetailsPage) → the channel's side panel (`ui/src/modules/channels/ChannelPanel.tsx`), expanded at `/frontline/settings/channels/:id`: its fields, the integrations its conversations come through, and links to its members, templates and pipelines with their counts. `frontline_ui/src/modules/channels/components/settings/Settings.tsx:173`
+- [x] `/frontline/:id` (ChannelDetailsPage) → the channel's settings page (`ui/src/modules/channels/ChannelSettingsPage.tsx`) at `/frontline/settings/channels/:id`, in Frontline's settings: its fields, the integrations its conversations come through, and its members, templates and pipelines with their counts, each with a Manage link to its full list. `frontline_ui/src/modules/channels/components/settings/Settings.tsx:173`
 - [x] `/frontline/:id/members` (ChannelMembersPage) → `ui/src/modules/channels/ChannelMembersPage.tsx`. Decision: the role select offers admin and member, since `lead` folds into admin. `frontline_ui/src/modules/channels/components/settings/Settings.tsx:177`
 - [x] `/frontline/:id/forms` (ChannelFormsPage) `frontline_ui/src/modules/channels/components/settings/Settings.tsx:227`. → `ui/src/modules/forms/FormsPage.tsx` at `/frontline/forms`, filtered by its Channel field. Decision: a channel's forms are the forms list with that filter
   - files: 84, 5 only here: `modules/channels/components/settings/channel-details/ChannelFormsSubHeader.tsx`, `modules/forms/components/actions/download-responses.tsx`, `modules/forms/components/actions/toggle-form.tsx`, `modules/forms/components/FormsList.tsx`, `pages/FormsPage.tsx`

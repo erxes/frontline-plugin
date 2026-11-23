@@ -43,7 +43,7 @@ import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Recor
 import { column as columnOf, CountCell, DateCell, Rows } from '~/shared/Table.tsx';
 import { IntegrationBadges } from './ChannelIntegrations.tsx';
 import { ChannelsHeader } from './ChannelsHeader.tsx';
-import { type Channel, CHANNELS_PATH, useChannels, useDeleteChannels } from './useChannels.ts';
+import { type Channel, useChannels, useDeleteChannels } from './useChannels.ts';
 
 const column = columnOf<Channel>;
 
@@ -144,7 +144,7 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
     // Each count leads to the list of what it counts, as the knowledge base's topics do.
     column('pipelineCount', t('pipelines', 'Pipelines'), IconSitemap, 110, (channel) => (
       <CountCell
-        to={`${CHANNELS_PATH}/${encodeURIComponent(channel.id)}/pipelines`}
+        to={channelSettingsPath(channel.id, 'pipelines/all')}
         count={channel.pipelineCount}
       />
     )),
@@ -161,7 +161,7 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
       110,
       (channel) => (
         <CountCell
-          to={`${CHANNELS_PATH}/${encodeURIComponent(channel.id)}/response`}
+          to={channelSettingsPath(channel.id, 'templates/all')}
           count={channel.templateCount}
         />
       ),
