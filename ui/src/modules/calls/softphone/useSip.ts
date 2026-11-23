@@ -33,6 +33,28 @@ export type PhoneCall = {
 
 const AUDIO_ONLY = { audio: true, video: false };
 
+/** How long after its last candidate the phone stops gathering, when no TURN relay has come. */
+const ICE_SETTLE_MS = 1000;
+
+/**
+ * Sends the SDP once a TURN relay candidate is in, or a second after the last candidate. Left
+ * alone, JsSIP waits for gathering to finish, and a PC with a VPN or Hyper-V adapter times out
+ * on it for about 40 s, so Answer seems dead and the caller hears ringing.
+ */
+const sendIceEarly = (session: RTCSession) => {
+  let settle: ReturnType<typeof setTimeout> | undefined;
+  const stop = () => clearTimeout(settle);
+
+  session.on('icecandidate', ({ candidate, ready }) => {
+    stop();
+
+    if (candidate.type === 'relay') ready();
+    else settle = setTimeout(ready, ICE_SETTLE_MS);
+  });
+  session.on('ended', stop);
+  session.on('failed', stop);
+};
+
 /** The remote side's audio, as soon as the peer connection carries it. */
 const playRemote = (session: RTCSession, audio: RefObject<HTMLAudioElement | null>) => {
   const listen = (connection: RTCPeerConnection) =>
@@ -80,6 +102,7 @@ const follow = (
     held: false,
   });
   playRemote(session, audio);
+  sendIceEarly(session);
   session.on('confirmed', () => update({ talking: true, since: new Date() }));
   session.on('ended', end);
   session.on('failed', (event) => {
