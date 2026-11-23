@@ -139,7 +139,7 @@ test('Channels lists the member’s own inbox first; quiet channels fold, a filt
   await member.goto(INBOX);
   await menu.click();
   await member.getByRole('menuitem', { name: 'Create my inbox' }).click();
-  await expect(member).toHaveURL(/\/frontline\/channels\/[^/]+\/settings$/);
+  await expect(member).toHaveURL(/\/frontline\/settings\/channels\/[^/]+$/);
   await member.goto(INBOX);
   await menu.click();
   await expect(member.getByRole('menuitem', { name: 'Create my inbox' })).toBeHidden();

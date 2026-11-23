@@ -33,7 +33,7 @@ import { Link } from 'react-router-dom';
 import { FORMS_PATH } from '@/forms/useForms.ts';
 import { MemberLine, PersonAvatar } from '~/shared/Person.tsx';
 import { CHANNEL_TYPE } from '~/plugin.ts';
-import { channelPath } from '~/shared/channelScope.ts';
+import { channelPath, channelSettingsPath } from '~/shared/channelScope.ts';
 import { listPath } from '~/shared/listPath.ts';
 import { orpc } from '~/orpc.ts';
 import { FRESH_MS } from '~/shared/reference.ts';
@@ -43,18 +43,18 @@ import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Recor
 import { column as columnOf, CountCell, DateCell, Rows } from '~/shared/Table.tsx';
 import { IntegrationBadges } from './ChannelIntegrations.tsx';
 import { ChannelsHeader } from './ChannelsHeader.tsx';
-import { type Channel, CHANNELS_PATH, useChannels, useDeleteChannels } from './useChannels.ts';
+import { type Channel, useChannels, useDeleteChannels } from './useChannels.ts';
 
 const column = columnOf<Channel>;
 
 /**
- * The channel's icon and name, opening its settings inside the channel. A channel without an
+ * The channel's icon and name, opening its settings. A channel without an
  * icon of its own shows the channels icon, as the sidebar does.
  */
 const NameCell = ({ channel }: { channel: Channel }) => (
   <RecordTableInlineCell>
     <Link
-      to={channelPath(channel.id, 'settings')}
+      to={channelSettingsPath(channel.id)}
       className={cn(buttonVariants({ variant: 'ghost' }), 'w-full justify-start')}
     >
       {channel.icon ? <IconComponent name={channel.icon} /> : <IconCircles />}
@@ -144,7 +144,7 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
     // Each count leads to the list of what it counts, as the knowledge base's topics do.
     column('pipelineCount', t('pipelines', 'Pipelines'), IconSitemap, 110, (channel) => (
       <CountCell
-        to={`${CHANNELS_PATH}/${encodeURIComponent(channel.id)}/pipelines`}
+        to={channelSettingsPath(channel.id, 'pipelines/all')}
         count={channel.pipelineCount}
       />
     )),
@@ -161,7 +161,7 @@ const useColumns = (): RecordTableColumnDef<Channel>[] => {
       110,
       (channel) => (
         <CountCell
-          to={`${CHANNELS_PATH}/${encodeURIComponent(channel.id)}/response`}
+          to={channelSettingsPath(channel.id, 'templates/all')}
           count={channel.templateCount}
         />
       ),

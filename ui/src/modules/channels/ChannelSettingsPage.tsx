@@ -20,7 +20,7 @@ import { useKindTitles } from '@/integrations/kindText.ts';
 import { IntegrationCatalog } from '@/integrations/IntegrationCatalog.tsx';
 import { orpc } from '~/orpc.ts';
 import { CHANNEL_TYPE } from '~/plugin.ts';
-import { channelPath, useChannelScope } from '~/shared/channelScope.ts';
+import { channelSettingsPath } from '~/shared/channelScope.ts';
 import { AppHeader } from '~/shared/Header.tsx';
 import { CHANNEL_ICON } from '~/shared/icons.ts';
 import { ListError } from '~/shared/List.tsx';
@@ -270,14 +270,13 @@ const usePlace = (section: Section, kind: string | undefined) => {
 };
 
 /**
- * A channel's settings, inside the channel, laid out as old erxes had them: a column with the
- * channel, its members, pipelines and response templates, and each kind of integration it uses or
- * could, then the open one beside it.
+ * A channel's settings in Frontline's settings, as a team's are in Operation's, laid out as old
+ * erxes had them: a column with the channel, its members, pipelines and response templates, and
+ * each kind of integration it uses or could, then the open one beside it.
  */
 export const ChannelSettingsPage = () => {
   const { t } = useTranslation('frontline');
-  const channelId = useChannelScope() ?? '';
-  const { section: param, kind } = useParams();
+  const { id: channelId = '', section: param, kind } = useParams();
   const section = kind ? 'integrations' : (SECTIONS.find((one) => one === param) ?? 'general');
   const place = usePlace(section, kind);
   const channel = useChannel(channelId);
@@ -286,8 +285,12 @@ export const ChannelSettingsPage = () => {
     <PageContainer>
       <AppHeader
         icon={IconSettings}
-        app={{ label: t('settings', 'Settings'), to: channelPath(channelId, 'settings') }}
-        levels={[{ label: place }]}
+        app={{ label: t('settings', 'Settings') }}
+        levels={[
+          { label: t('channels', 'Channels'), to: CHANNELS_PATH },
+          { label: channel.data?.name ?? '…', to: channelSettingsPath(channelId) },
+          { label: place },
+        ]}
       />
       {channel.error ? (
         <ListError error={channel.error} retry={() => void channel.refetch()} />

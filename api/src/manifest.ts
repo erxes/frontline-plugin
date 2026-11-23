@@ -17,6 +17,7 @@ import {
   TICKET_TIMELINE,
 } from '#/core.ts';
 import { AUTOMATION_ACTIONS, AUTOMATION_EVENTS } from '#/automationContract.ts';
+import { MERGE_EVENTS } from '#/modules/contacts/merges.ts';
 import { MANIFEST_INTEGRATIONS } from '#/modules/integrations/catalog.ts';
 import { TRANSFERS } from '#/modules/transfer/routes.ts';
 import { RELATIONS } from '#/relations.ts';
@@ -80,8 +81,9 @@ export const manifest = {
     'units:read',
     'units:write',
   ],
-  // Any change to a unit refreshes the copy (`modules/teams/sync.ts`).
-  subscriptions: ['core.unit.*'],
+  // Any change to a unit refreshes the copy (`modules/teams/sync.ts`); a merge moves the merged
+  // contacts' rows to the kept one (`modules/contacts/merges.ts`).
+  subscriptions: ['core.unit.*', ...MERGE_EVENTS],
   // Conversations, tickets and form submissions in core's customer filter (`relations.ts`).
   relations: RELATIONS,
   permissions: [

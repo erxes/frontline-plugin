@@ -25,10 +25,10 @@ import { channelTicketsPath } from '~/shared/listPath.ts';
 import { MemberLine } from '~/shared/Person.tsx';
 import { templatesQuery } from '~/shared/reference.ts';
 import { ChannelIntegrations } from './ChannelIntegrations.tsx';
+import { channelSettingsPath } from '~/shared/channelScope.ts';
 import { AddMembers, useRemoveMembers } from './ChannelMembersPage.tsx';
 import {
   type Channel,
-  CHANNELS_PATH,
   type ChannelMember,
   useChannel,
   useChannelChange,
@@ -109,7 +109,7 @@ export const ChannelPipelinesTab = ({ contentId }: TRecordSlotProps) => {
         <>
           <TabBar label={t('ticket-pipelines', 'Ticket pipelines')}>
             <FullPageLink
-              to={`${CHANNELS_PATH}/${encodeURIComponent(channel.id)}/pipelines`}
+              to={channelSettingsPath(channel.id, 'pipelines/all')}
               label={t('manage-channel-pipelines', 'Manage channel pipelines')}
             />
             {channel.canManage && (
@@ -225,7 +225,7 @@ const MemberRows = ({ channel }: { channel: Channel }) => {
     <>
       <TabBar label={t('members', 'Members')}>
         <FullPageLink
-          to={`${CHANNELS_PATH}/${encodeURIComponent(channel.id)}/members`}
+          to={channelSettingsPath(channel.id, 'members/all')}
           label={t('manage-channel-members', 'Manage channel members')}
         />
         <AddMembers channel={channel} />
@@ -265,7 +265,7 @@ const TemplateRows = ({ channel }: { channel: Channel }) => {
     <>
       <TabBar label={t('response-templates', 'Response templates')}>
         <FullPageLink
-          to={`${CHANNELS_PATH}/${encodeURIComponent(channel.id)}/response`}
+          to={channelSettingsPath(channel.id, 'templates/all')}
           label={t('manage-channel-response-templates', 'Manage channel response templates')}
         />
         {channel.canManage && (

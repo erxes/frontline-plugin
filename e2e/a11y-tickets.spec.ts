@@ -52,7 +52,7 @@ test("a channel's response templates", async ({ page, api, request }) => {
   const panel = recordPanel(page);
   const content = panel.getByRole('textbox', { name: 'Content' });
 
-  await page.goto(`${SETTINGS}/channels/${id}/response`);
+  await page.goto(`${SETTINGS}/channels/${id}/templates/all`);
   await page.getByRole('button', { name: 'Create response template' }).first().click();
   await panel.getByLabel('Name').fill('Greeting');
   await content.fill('Hello, thanks for writing to us.');
@@ -66,7 +66,7 @@ test("a pipeline's draft and the pipeline it saves", async ({ page, api, request
   const { id } = await rpc('channels/create', { name: `Support ${unique()}` }, Id);
   const panel = recordPanel(page);
 
-  await page.goto(`${SETTINGS}/channels/${id}/pipelines`);
+  await page.goto(`${SETTINGS}/channels/${id}/pipelines/all`);
   await page.getByRole('button', { name: 'Create pipeline' }).first().click();
   await panel.getByLabel('Name').fill(`Returns ${unique()}`);
   await expectAccessible(page, panel.getByLabel('Name'));
@@ -76,7 +76,7 @@ test("a pipeline's draft and the pipeline it saves", async ({ page, api, request
 
 test("a pipeline's statuses, SLA and permissions", async ({ page, api, request }) => {
   const pipeline = await pipelineIn(await pluginApi(api, request));
-  const list = `${SETTINGS}/channels/${pipeline.channelId}/pipelines`;
+  const list = `${SETTINGS}/channels/${pipeline.channelId}/pipelines/all`;
   const panel = recordPanel(page);
 
   await page.goto(recordPath(list, 'frontline:pipeline', pipeline.id));

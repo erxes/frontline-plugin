@@ -24,7 +24,7 @@ import {
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
-import { channelPath } from '~/shared/channelScope.ts';
+import { channelSettingsPath } from '~/shared/channelScope.ts';
 import { MemberLine } from '~/shared/Person.tsx';
 import { orpc } from '~/orpc.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
@@ -126,7 +126,7 @@ const useOpenChannel = (close: () => void) => {
 
   return (id: string) => {
     close();
-    void navigate(channelPath(id, 'settings', 'integrations'));
+    void navigate(channelSettingsPath(id, 'integrations'));
   };
 };
 

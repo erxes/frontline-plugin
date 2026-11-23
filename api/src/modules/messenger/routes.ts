@@ -11,7 +11,7 @@ import { voteRoutes } from '../surveys/votes.ts';
 import { integrationChanges } from './adapter.ts';
 import { articleRoutes } from './articles.ts';
 import { fileRoutes } from './files.ts';
-import { messengerOf, tokenOf, visitorOf } from './session.ts';
+import { messengerOf, tokenFor, tokenOf, visitorOf } from './session.ts';
 import { streaming, subscribe } from './stream.ts';
 import { ticketRoutes } from './tickets.ts';
 import { asVisitor, messengerIntegration, threadRoutes, visitorConversations } from './threads.ts';
@@ -144,7 +144,7 @@ const connect = async (req: Request, res: Response) => {
     await saveVisitorData(visitor, input);
 
     const reply: Connected = {
-      token: visitor === known && input.token ? input.token : await tokenOf(visitor),
+      token: visitor === known ? await tokenFor(visitor, input.token) : await tokenOf(visitor),
       identified: visitor.identified,
       messenger: messengerView(shown),
       conversations: await visitorConversations(visitor),
@@ -210,8 +210,10 @@ const stream = async (req: Request, res: Response) => {
     }
 
     const stop = await subscribe(visitor.orgId, visitor.customerId, ({ id, event }) => {
+      // Merged into another customer: the browser opens the stream again, which follows the merge.
+      if (event === 'merged') res.end();
       // Until the stream opens, the messenger's first read covers what happens.
-      if (res.headersSent) res.write(`event: ${event}\ndata: ${JSON.stringify({ id })}\n\n`);
+      else if (res.headersSent) res.write(`event: ${event}\ndata: ${JSON.stringify({ id })}\n\n`);
     });
 
     const online = setOnline(visitor, true);
