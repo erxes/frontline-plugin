@@ -22,9 +22,13 @@ test('each provider connects its accounts on its own Integrations page, Facebook
 }) => {
   const panel = recordPanel(page);
 
-  // With no Facebook connection in core, Facebook and Instagram's Connect leads to core's page.
+  // Facebook and Instagram has no tile: its old address opens its tab on core's Facebook page.
+  // With no Facebook connection there, Add pages leads to that page's own Connect.
   await page.goto(ACCOUNTS('meta'));
-  await page.getByRole('button', { name: 'Connect', exact: true }).click();
+  await expect(page).toHaveURL(
+    /\/settings\/integrations\/facebook\?tab=frontline\.meta\.accounts$/,
+  );
+  await page.getByRole('button', { name: 'Add pages', exact: true }).click();
 
   const toCore = panel.getByRole('link', {
     name: 'Connect Facebook in Settings › Integrations › Facebook',
@@ -47,9 +51,9 @@ test('each provider connects its accounts on its own Integrations page, Facebook
   await expect(page).toHaveURL(/\/frontline\/settings\/channels$/);
 });
 
-const META_TILE = '/settings/integrations/frontline.meta';
+const META_TILE = '/settings/integrations/facebook?tab=frontline.meta.accounts';
 
-test('a member without integration management never reaches the Meta tile', async ({
+test('a member without integration management never reaches the Facebook page', async ({
   newMember,
 }) => {
   const { page } = await newMember(['integrations.manage', 'frontline.integration.view']);

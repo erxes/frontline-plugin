@@ -32,12 +32,16 @@ const FormConnect = ({ provider }: { provider: Provider | 'meta' }) => {
   return (
     <Button onClick={() => openNew(ACCOUNT_TYPE, { provider })}>
       <IconPlugConnected />
-      {t('connect', 'Connect')}
+      {/* On core's Facebook page, whose own Connect signs in to Facebook. */}
+      {provider === 'meta' ? t('add-pages', 'Add pages') : t('connect', 'Connect')}
     </Button>
   );
 };
 
-/** Facebook and Instagram's Accounts tab: the pages and accounts Facebook connections connected. */
+/**
+ * Facebook and Instagram's tab on core's Facebook page: the pages and accounts in the inbox, and
+ * Add pages, which picks one of the organisation's Facebook connections.
+ */
 export const MetaAccounts = () => (
   <ProviderAccounts
     providers={['facebook', 'instagram']}

@@ -6,11 +6,13 @@ import { PLUGIN } from '#/config.ts';
 import { core, PERMISSIONS } from '#/core.ts';
 import { logger } from '#/logger.ts';
 import type { ProviderName } from './provider.ts';
+import { FACEBOOK } from './providers/metaConnection.ts';
 
 /**
  * Frontline's integrations in core's Settings › Integrations, one an organisation sets up once
  * for every channel: its accounts connect there, and each channel picks the ones that bring it
- * conversations. Meta's login connects Facebook pages and Instagram accounts alike.
+ * conversations. Facebook pages and Instagram accounts connect through core's Facebook
+ * connection, so `meta` has no tile: its Accounts tab shows on core's Facebook page.
  */
 /** One of frontline's integrations: its manifest listing and the account providers it covers. */
 type Listing = Omit<NonNullable<PluginManifest['integrations']>[number], 'permission'> & {
@@ -24,6 +26,7 @@ const INTEGRATIONS: Listing[] = [
     name: 'Facebook and Instagram',
     summary: 'Messenger chats, post comments and Instagram messages, answered in the inbox',
     category: 'social',
+    connection: FACEBOOK,
   },
   {
     key: 'telegram',
@@ -63,13 +66,15 @@ const INTEGRATIONS: Listing[] = [
   },
 ];
 
-/** The integration whose accounts `provider` connects: `meta` for Facebook and Instagram. */
-export const integrationKeyOf = (provider: ProviderName) =>
-  INTEGRATIONS.find((integration) => integration.providers.includes(provider))?.key ?? provider;
+/** The page of `provider`'s accounts in core's Settings › Integrations: on core's Facebook for Meta. */
+export const integrationPage = (provider: ProviderName) => {
+  const listing = INTEGRATIONS.find((integration) => integration.providers.includes(provider));
+  const key = listing?.key ?? provider;
 
-/** The page of `provider`'s integration in core's Settings › Integrations, on its accounts. */
-export const integrationPage = (provider: ProviderName) =>
-  `/settings/integrations/${PLUGIN}.${integrationKeyOf(provider)}?tab=accounts`;
+  return listing?.connection
+    ? `/settings/integrations/${listing.connection}?tab=${PLUGIN}.${key}.accounts`
+    : `/settings/integrations/${PLUGIN}.${key}?tab=accounts`;
+};
 
 /** The manifest's `integrations`, each managed with the integrations permission. */
 export const MANIFEST_INTEGRATIONS = INTEGRATIONS.map(({ providers, ...listing }) => ({
@@ -79,7 +84,8 @@ export const MANIFEST_INTEGRATIONS = INTEGRATIONS.map(({ providers, ...listing }
 
 /**
  * Tells core where each of the organisation's integrations stands: not set up without accounts,
- * attention while one is broken, else connected, with how many accounts it has.
+ * attention while one is broken or (for Meta) still on frontline's old login instead of core's
+ * connection, else connected, with how many accounts it has.
  */
 export const reportIntegrations = async (orgId: string) => {
   const rows = await withOrg(orgId, (tx) =>
@@ -88,16 +94,17 @@ export const reportIntegrations = async (orgId: string) => {
         provider: integrationAccounts.provider,
         total: count(),
         broken: sql<number>`count(*) filter (where ${integrationAccounts.status} = 'broken')::int`,
+        unlinked: sql<number>`count(*) filter (where ${integrationAccounts.connectionId} is null)::int`,
       })
       .from(integrationAccounts)
       .groupBy(integrationAccounts.provider),
   );
 
   await Promise.all(
-    INTEGRATIONS.map(({ key, providers }) => {
+    INTEGRATIONS.map(({ key, providers, connection }) => {
       const own = rows.filter((row) => providers.some((provider) => provider === row.provider));
       const total = own.reduce((sum, row) => sum + row.total, 0);
-      const broken = own.some((row) => row.broken > 0);
+      const broken = own.some((row) => row.broken > 0 || (connection && row.unlinked > 0));
       const state = total === 0 ? 'not-set-up' : broken ? 'attention' : 'connected';
 
       return core.reportIntegration(orgId, key, state, total);
