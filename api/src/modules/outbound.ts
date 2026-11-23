@@ -38,19 +38,31 @@ export const reachableLookup: LookupFunction = (hostname, options, callback) =>
     else callback(null, first.address, first.family);
   });
 
-const connector = buildConnector({ lookup: reachableLookup });
+/**
+ * An undici dispatcher whose sockets resolve names through `reachableLookup`, with `tls` for its
+ * TLS connections. A socket dials an IP without the lookup, so one the API may not dial is
+ * refused before it connects, on a redirect too.
+ */
+const reachableAgent = (tls: { rejectUnauthorized?: boolean } = {}) => {
+  const connector = buildConnector({ lookup: reachableLookup, ...tls });
+
+  return new Agent({
+    connect: (options, callback) => {
+      if (isBlockedIp(options.hostname))
+        callback(new Error(`${options.hostname} is not a public address`), null);
+      else connector(options, callback);
+    },
+  });
+};
+
+/** Dials only addresses the API may, and checks TLS. */
+export const reachableOnly = reachableAgent();
 
 /**
- * An undici dispatcher whose sockets resolve names through `reachableLookup`. A socket dials an IP
- * without the lookup, so one the API may not dial is refused before it connects, on a redirect too.
+ * Dials only addresses the API may, and takes any certificate. For a PBX alone: a UCM ships a
+ * self-signed certificate or one without its intermediate, as the old plugin accepted.
  */
-export const reachableOnly = new Agent({
-  connect: (options, callback) => {
-    if (isBlockedIp(options.hostname))
-      callback(new Error(`${options.hostname} is not a public address`), null);
-    else connector(options, callback);
-  },
-});
+export const reachableUnverified = reachableAgent({ rejectUnauthorized: false });
 
 /**
  * The address to dial for `host`, checked by `reachableLookup`, for a client that resolves names
