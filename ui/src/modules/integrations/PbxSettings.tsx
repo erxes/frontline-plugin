@@ -112,7 +112,7 @@ const SettingRow = ({
 
 /**
  * The PBX's name, number, time zone, queues and trunks, each edited in place, and its WebSocket
- * server. The softphones' TURN server is the install's, `TURN_SERVER_URL`.
+ * server. The softphones' TURN key is the install's, `CF_TURN_KEY_ID`.
  */
 const SystemSection = ({ pbx }: { pbx: Pbx & { config: PbxConfig } }) => {
   const { t } = useTranslation('frontline');

@@ -31,6 +31,29 @@ export const phoneLinesQuery = {
   staleTime: Infinity,
 };
 
+const HALF_HOUR_MS = 30 * 60_000;
+
+/**
+ * The TURN servers the softphone dials and answers through. Their credentials expire a day after
+ * the API asks Cloudflare and are renewed at half of that, so a page or the desktop app open for
+ * days asks again every half hour, hidden too, as it takes calls hidden.
+ */
+const phoneIceServersQuery = {
+  ...orpc.calls.phone.iceServers.queryOptions({ input: {} }),
+  staleTime: HALF_HOUR_MS,
+  refetchInterval: HALF_HOUR_MS,
+  refetchIntervalInBackground: true,
+};
+
+/** Keeps the TURN servers fresh, and reads the latest when a call is dialled or answered. */
+export const useIceServers = () => {
+  const queryClient = useQueryClient();
+
+  useQuery(phoneIceServersQuery);
+
+  return () => queryClient.getQueryData(phoneIceServersQuery.queryKey) ?? [];
+};
+
 /**
  * What a call changes: the history, each call, the queues' boards and the member's extensions.
  * Not the softphone's lines, whose refetch would sign the phone in again.

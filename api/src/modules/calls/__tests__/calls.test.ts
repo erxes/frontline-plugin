@@ -238,10 +238,7 @@ describe('calls through a PBX', () => {
       expect.objectContaining({ extension: '1002', hasSipPassword: true }),
     ]);
     expect(JSON.stringify(settings)).not.toContain('sip-1002');
-    expect(JSON.stringify(settings)).not.toContain('relay-secret');
-    expect(
-      JSON.stringify(await owner.integrations.accounts.list({})).includes('relay-secret'),
-    ).toBe(false);
+    expect(JSON.stringify(await owner.integrations.accounts.list({}))).not.toContain('sip-1002');
 
     const saraa = clientAs('org-call-e', [PERMISSIONS.callView], 'user-saraa');
 
@@ -252,10 +249,6 @@ describe('calls through a PBX', () => {
         extension: '1002',
         password: 'sip-1002',
         webSocketUrl: 'wss://pbx.test/ws',
-        // The install's TURN server, from TURN_SERVER_URL without its scheme, as the old setting was.
-        iceServers: [
-          { urls: 'turn:turn.pbx.test:3478', username: 'relay', credential: 'relay-secret' },
-        ],
       },
     ]);
     // Bold has an extension but no SIP password, so no softphone.
