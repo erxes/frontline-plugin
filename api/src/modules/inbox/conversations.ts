@@ -20,6 +20,7 @@ import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, filtersBy, likeText } from '../filter.ts';
 import { notifyMembers } from '../notify.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
+import { takeOver } from './operator.ts';
 import {
   Conversation,
   conversationById,
@@ -181,7 +182,10 @@ const notifyAssignee = (member: PluginMember, assigneeId: string, ids: string[])
     dedupeKey: `assigned:${assigneeId}:${ids.join(',')}`,
   });
 
-/** Assigns the conversations to a member, or unassigns them with null. */
+/**
+ * Assigns the conversations to a member, who takes them from the bot, or unassigns them with
+ * null.
+ */
 const assign = writes(PERMISSIONS.inboxView)
   .input(z.object({ ids: Ids, assigneeId: z.string().nullable() }))
   .output(z.array(Conversation))
@@ -210,6 +214,12 @@ const assign = writes(PERMISSIONS.inboxView)
           ),
         );
 
+      if (assigneeId)
+        await takeOver(
+          tx,
+          changed.map((row) => row.id),
+        );
+
       await publishConversationEvents(
         tx,
         member.orgId,
@@ -222,11 +232,8 @@ const assign = writes(PERMISSIONS.inboxView)
           payload: { from: row.assigneeId, to: input.assigneeId },
         })),
       );
-      await signalMembers(
-        tx,
-        member.orgId,
-        changed.map((row) => row.id),
-      );
+      // The visitor's messenger hears too: the bot no longer answers an assigned conversation.
+      await signalConversations(tx, member.orgId, changed);
     }
 
     return conversationRows(tx, member).where(inArray(conversations.id, input.ids));

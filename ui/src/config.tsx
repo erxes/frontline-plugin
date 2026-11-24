@@ -20,13 +20,14 @@ import {
   IconTicket,
   IconWorldWww,
 } from '@tabler/icons-react';
-import type { IUIConfig, TPropertyValue, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
-import { type ComponentType, lazy } from 'react';
+import type { IUIConfig } from 'erxes-ui';
+import { lazy } from 'react';
 import { addConfigText } from '~/i18n/configText.ts';
 import { withText } from '~/i18n/withText.ts';
 import { CHANNEL_TABS, PIPELINE_TABS } from '~/recordTabs.ts';
 import { DASHBOARD_WIDGETS } from '~/dashboardWidgets.ts';
 import { INTEGRATION_TILES } from '~/integrationTiles.ts';
+import { propertiesOf, readSlots, slots } from '~/recordSlots.ts';
 import {
   ACCOUNT_TYPE,
   CALL_TYPE,
@@ -48,56 +49,19 @@ import {
   TICKET_TYPE,
 } from '~/plugin.ts';
 
-// web loads this module on every page, so it imports only icons and names. Each record type's
-// slots come from one `slots.ts` that loads when the first of them shows: every import here
-// costs `./config` bytes.
-type Slot = ComponentType<TRecordSlotProps>;
-
-type ReadSlots = { Title: Slot; Actions: Slot; Detail: Slot };
-
-type Slots = ReadSlots & { New: ComponentType<TRecordDraftProps> };
-
+// web loads this module on every page, so it imports only icons and names, and lazy slots
+// (`recordSlots.ts`): every import here costs `./config` bytes.
 addConfigText();
-
-/** The slots of a record members read and change but never draft. */
-const readSlots = (loadSlots: () => Promise<ReadSlots>) => {
-  const load = withText(loadSlots);
-
-  return {
-    Title: lazy(async () => ({ default: (await load()).Title })),
-    Actions: lazy(async () => ({ default: (await load()).Actions })),
-    Detail: lazy(async () => ({ default: (await load()).Detail })),
-  };
-};
-
-const slots = (loadSlots: () => Promise<Slots>) => {
-  const load = withText(loadSlots);
-
-  return {
-    ...readSlots(load),
-    New: lazy(async () => ({ default: (await load()).New })),
-  };
-};
 
 const pipeline = withText(() => import('@/pipelines/slots.ts'));
 const ticket = withText(() => import('@/tickets/slots.ts'));
 const ticketComments = withText(() => import('@/ticketComments/TicketComments.tsx'));
 
-/** Custom fields core keeps; the API client loads only when the Properties tab does. */
-const propertiesOf = (records: 'tickets' | 'conversations') => ({
-  type: `${PLUGIN}.${records.slice(0, -1)}`,
-  values: (id: string) => ({
-    queryKey: [PLUGIN, records, 'properties', id],
-    queryFn: async () => (await import('~/orpc.ts')).orpc[records].properties.values.call({ id }),
-  }),
-  save: async (id: string, patch: Record<string, TPropertyValue | null>) =>
-    (await import('~/orpc.ts')).orpc[records].properties.save.call({ id, patch }),
-});
-
 const helpCenter = withText(() => import('@/helpcenter/slots.ts'));
 const kb = withText(() => import('@/knowledgebase/slots.ts'));
 const forms = withText(() => import('@/forms/slots.ts'));
 const surveys = withText(() => import('@/surveys/slots.ts'));
+const integration = withText(() => import('@/inbox/slots.ts'));
 
 /**
  * What web reads from `./config`: the app tab, the page module under `/frontline/*`, and the
@@ -253,7 +217,15 @@ export const CONFIG: IUIConfig = {
       title: 'Integration',
       icon: IconMessageCircle,
       detailPath: pageOf('inbox/integrations'),
-      ...slots(() => import('@/inbox/slots.ts')),
+      ...slots(integration),
+      tabs: [
+        {
+          value: 'bot',
+          label: 'Bot',
+          icon: IconRobot,
+          component: lazy(async () => ({ default: (await integration()).Bot })),
+        },
+      ],
     },
     {
       contentType: META_BOT_TYPE,

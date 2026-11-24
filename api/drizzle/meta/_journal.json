@@ -316,6 +316,13 @@
       "when": 1795430433998,
       "tag": "0046_core_facebook_connection",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1795498037361,
+      "tag": "0047_integration_agent",
+      "breakpoints": true
     }
   ]
 }
