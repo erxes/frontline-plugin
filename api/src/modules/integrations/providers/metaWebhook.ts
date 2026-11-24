@@ -119,7 +119,11 @@ const filesOf = (attachments: z.infer<typeof Messaging>['message'] = { mid: '' }
     payload?.url ? [{ url: payload.url, name: payload.title ?? type, type }] : [],
   );
 
-/** A chat message or a tapped button; it publishes its provider's `MESSAGE_RECEIVED`. */
+/**
+ * A chat message or a tapped button; it publishes its provider's `MESSAGE_RECEIVED`. Only typed
+ * text goes to the integration's agent: a postback or a quick reply belongs to the page's bot and
+ * the automations that answer it.
+ */
 const fromMessaging = (event: z.infer<typeof Messaging>) => {
   const { message, postback, sender } = event;
   const author = { externalId: sender.id };
@@ -155,6 +159,7 @@ const fromMessaging = (event: z.infer<typeof Messaging>) => {
       kept: copiesOf(attachments),
       providerData: message.quick_reply ? { payload: message.quick_reply.payload } : undefined,
       quotedId: message.reply_to?.mid,
+      forAgent: Boolean(message.text?.trim()) && !message.quick_reply,
     },
   ];
 };

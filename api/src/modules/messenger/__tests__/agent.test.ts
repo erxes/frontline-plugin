@@ -83,7 +83,7 @@ const visitorReads = async (token: string, id: string) =>
 const withAgent = async (orgId: string) => {
   const set = await setUp(orgId);
 
-  await set.owner.integrations.messenger.setAgent({ id: set.id, agentId: 'agent-1' });
+  await set.owner.integrations.setAgent({ id: set.id, agentId: 'agent-1' });
 
   return set;
 };
@@ -109,7 +109,7 @@ describe("a messenger's core agent", () => {
       customerId: 'customer-ann',
     });
 
-    await owner.integrations.messenger.setAgent({ id, agentId: null });
+    await owner.integrations.setAgent({ id, agentId: null });
     await send(token, 'Anyone there?', stranger.conversationId);
 
     expect(core.submitted.map(({ text }) => text)).not.toContain('Anyone there?');

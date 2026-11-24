@@ -11,7 +11,8 @@ import { recordCheck } from '../accounts.ts';
 import { inOrder } from '../provider.ts';
 import { providerOf } from './index.ts';
 import { Account, checkInto, Into, metaKey, removeWebhookKeys, saveAccount } from '../store.ts';
-import { askMeta, graph, subscribeToPage } from './meta.ts';
+import { subscribeToPage } from './meta.ts';
+import { askMeta, graph } from './metaGraph.ts';
 import { credentialsOf, FACEBOOK, FACEBOOK_SETTINGS, forgetConnection } from './metaConnection.ts';
 import { routeThroughRelay } from './metaRelay.ts';
 

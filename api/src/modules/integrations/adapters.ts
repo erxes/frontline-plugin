@@ -139,6 +139,7 @@ const adapterOf = (provider: ProviderName, label: string): Adapter => ({
           text: message.content,
           html: message.html,
           attachments: message.attachments,
+          blocks: message.blocks,
           providerData: message.providerData,
           parts: { sent: Parts.parse(message.providerData?.parts), record },
           quotedId,

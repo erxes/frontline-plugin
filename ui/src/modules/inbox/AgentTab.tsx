@@ -22,6 +22,9 @@ const OFF = 'off';
 /** Core's page where admins make agents. */
 const AGENTS_PATH = '/settings/agents';
 
+/** The kinds of integration a core agent answers. */
+const AGENT_KINDS = new Set(['messenger', 'facebook', 'instagram']);
+
 const MakeAgent = () => {
   const { t } = useTranslation('frontline');
 
@@ -36,18 +39,39 @@ const MakeAgent = () => {
   );
 };
 
-/** The picker of the messenger's agent, or Off; a pick saves at once. */
+const NoAgents = () => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <Empty variant="outline" className="m-3">
+      <Empty.Header>
+        <Empty.Media>
+          <IconRobot />
+        </Empty.Media>
+        <Empty.Title>{t('bot-agent-none', 'No agents yet')}</Empty.Title>
+        <Empty.Description>
+          {t('bot-agent-none-description', 'Make one in Settings › Agents, then pick it here.')}
+        </Empty.Description>
+      </Empty.Header>
+      <Empty.Content>
+        <MakeAgent />
+      </Empty.Content>
+    </Empty>
+  );
+};
+
+/** The picker of the integration's agent, or Off; a pick saves at once. */
 const AgentPicker = ({
   integration,
 }: {
-  integration: { id: string; agentId: string | null; canManage: boolean };
+  integration: { id: string; kind: string; agentId: string | null; canManage: boolean };
 }) => {
   const { t } = useTranslation('frontline');
   const agents = useQuery(core.agents.list.queryOptions());
   const change = useIntegrationChange();
 
   const setAgent = useMutation(
-    orpc.integrations.messenger.setAgent.mutationOptions({
+    orpc.integrations.setAgent.mutationOptions({
       ...change,
       onSuccess: () => {
         change.onSuccess();
@@ -65,23 +89,7 @@ const AgentPicker = ({
 
   if (!agents.data) return <PanelSkeleton rows={2} />;
 
-  if (agents.data.data.length === 0)
-    return (
-      <Empty variant="outline" className="m-3">
-        <Empty.Header>
-          <Empty.Media>
-            <IconRobot />
-          </Empty.Media>
-          <Empty.Title>{t('bot-agent-none', 'No agents yet')}</Empty.Title>
-          <Empty.Description>
-            {t('bot-agent-none-description', 'Make one in Settings › Agents, then pick it here.')}
-          </Empty.Description>
-        </Empty.Header>
-        <Empty.Content>
-          <MakeAgent />
-        </Empty.Content>
-      </Empty>
-    );
+  if (agents.data.data.length === 0) return <NoAgents />;
 
   return (
     <PanelSection title={t('bot-agent', 'Agent')} icon={IconRobot}>
@@ -111,16 +119,24 @@ const AgentPicker = ({
       </ReadOnly>
       <p className="px-3 text-sm text-muted-foreground">
         {t(
-          'agent-hint',
+          'bot-agent-hint',
           'It answers each conversation until a member replies or is assigned, or it has no answer.',
         )}
       </p>
+      {integration.kind !== 'messenger' && (
+        <p className="px-3 text-sm text-muted-foreground">
+          {t(
+            'bot-agent-meta-hint',
+            'It answers direct messages. Comments on posts, and taps on the page bot’s buttons, wait for a member or an automation.',
+          )}
+        </p>
+      )}
       <MakeAgent />
     </PanelSection>
   );
 };
 
-/** The Bot tab of a messenger: the core agent that answers its visitors. */
+/** The Bot tab of a messenger, Facebook page or Instagram account: the core agent that answers it. */
 export const AgentTab = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
   const integration = useIntegration(contentId);
@@ -134,10 +150,13 @@ export const AgentTab = ({ contentId }: TRecordSlotProps) => {
 
   if (!integration.data) return <PanelSkeleton rows={2} />;
 
-  if (integration.data.kind !== 'messenger')
+  if (!AGENT_KINDS.has(integration.data.kind))
     return (
       <p className="p-3 text-sm text-muted-foreground">
-        {t('bot-agent-messenger-only', 'An agent answers website messenger conversations only.')}
+        {t(
+          'bot-agent-kinds',
+          'An agent answers website messenger, Facebook and Instagram conversations only.',
+        )}
       </p>
     );
 

@@ -1,8 +1,6 @@
 import { ORPCError } from '@orpc/server';
-import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
-import { integrations } from '#/db/inbox.ts';
 import { reads, writes } from '#/orpc.ts';
 import { integrationById, integrationFor } from '../inbox/integrations.ts';
 import { widgetScript } from '../public.ts';
@@ -58,24 +56,4 @@ const rotateSecret = writes(PERMISSIONS.channelView)
     return { identitySecret: await rotateIdentitySecret(tx, member, input.id) };
   });
 
-/**
- * The core agent that answers the messenger's conversations while the bot has them, or none with
- * null, for a member who may change it. Core refuses messages to an agent it doesn't have.
- */
-const setAgent = writes(PERMISSIONS.channelView)
-  .input(z.object({ id: z.string(), agentId: z.string().min(1).nullable() }))
-  .output(z.object({ id: z.string(), agentId: z.string().nullable() }))
-  .handler(async ({ input, context: { tx, member } }) => {
-    const row = await integrationFor(tx, member, input.id);
-
-    if (row.kind !== messenger.kind) throw notFound();
-
-    await tx
-      .update(integrations)
-      .set({ agentId: input.agentId })
-      .where(eq(integrations.id, input.id));
-
-    return input;
-  });
-
-export const messengerProcedures = { settings, rotateSecret, setAgent };
+export const messengerProcedures = { settings, rotateSecret };

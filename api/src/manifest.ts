@@ -96,7 +96,7 @@ export const manifest = {
   // Any change to a unit refreshes the copy (`modules/teams/sync.ts`); a merge moves the merged
   // contacts' rows to the kept one (`modules/contacts/merges.ts`); a Facebook connection removed
   // or turned off stops its pages (`providers/metaConnect.ts`); a messenger's core agent answers
-  // through core's agent events (`modules/messenger/agent.ts`).
+  // through core's agent events (`modules/inbox/agent.ts`).
   subscriptions: [
     'core.unit.*',
     ...MERGE_EVENTS,

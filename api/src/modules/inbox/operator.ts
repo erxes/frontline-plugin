@@ -17,8 +17,8 @@ type Target = { id: string; customerId: string };
 
 /**
  * Adds a message from neither the customer nor a member (the bot) to a conversation and sends
- * it like a reply: queued for the adapter's `send`, or delivered on commit. `externalId` makes a
- * retried automation step add nothing. A message that `answers` the customer stops their wait; a
+ * it like a reply: queued for the adapter's `send`, or delivered on commit. An `id` or
+ * `externalId` the caller derives from what it answers makes a retry add nothing. A message that `answers` the customer stops their wait; a
  * hand-off doesn't, as they still wait for the person. A core agent's answer carries the `blocks`
  * it showed below it. Returns false when it is already there.
  */
@@ -28,10 +28,11 @@ export const addBotMessage = async (
   conversation: Target,
   content: string,
   {
+    id,
     externalId,
     answers = true,
     blocks = [],
-  }: { externalId?: string; answers?: boolean; blocks?: AgentBlock[] } = {},
+  }: { id?: string; externalId?: string; answers?: boolean; blocks?: AgentBlock[] } = {},
 ) => {
   const [integration] = await tx
     .select({ kind: integrations.kind })
@@ -44,6 +45,7 @@ export const addBotMessage = async (
   const [message] = await tx
     .insert(messages)
     .values({
+      id,
       orgId,
       conversationId: conversation.id,
       content,
