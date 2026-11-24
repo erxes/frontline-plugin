@@ -29,7 +29,7 @@ export const PhonePage = () => {
       ) : live ? (
         <PhonePanel live={live} />
       ) : lines.isPending || lines.data.length > 0 ? (
-        <Skeleton radius="lg" className="mx-auto mt-8 h-96 w-full max-w-sm" />
+        <Skeleton radius="lg" className="mx-auto mt-8 h-96 w-full max-w-md" />
       ) : (
         <Empty className="m-auto">
           <Empty.Header>

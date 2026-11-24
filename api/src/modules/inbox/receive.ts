@@ -167,7 +167,7 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
         and(
           match,
           eq(conversations.integrationId, incoming.integrationId),
-          eq(conversations.customerId, incoming.customerId),
+          incoming.conversationId ? eq(conversations.customerId, incoming.customerId) : undefined,
         ),
       )
       .for('update');
@@ -178,6 +178,8 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
       throw new ORPCError('NOT_FOUND', { message: 'No such conversation' });
   }
 
+  // Two messages of a new thread can arrive at once: the one that loses the insert waits for the
+  // winner to commit, then joins its conversation.
   const [created] = await tx
     .insert(conversations)
     .values({
@@ -187,13 +189,32 @@ const conversationOf = async (tx: Tx, orgId: string, incoming: Incoming) => {
       customerId: incoming.customerId,
       externalId: incoming.externalConversationId,
     })
+    .onConflictDoNothing({
+      target: [conversations.orgId, conversations.integrationId, conversations.externalId],
+    })
     .returning({
       id: conversations.id,
       customerId: conversations.customerId,
       operator: conversations.operator,
     });
 
-  if (!created) throw new ORPCError('INTERNAL_SERVER_ERROR');
+  if (!created) {
+    const [joined] = match
+      ? await tx
+          .select({
+            id: conversations.id,
+            customerId: conversations.customerId,
+            operator: conversations.operator,
+          })
+          .from(conversations)
+          .where(and(match, eq(conversations.integrationId, incoming.integrationId)))
+          .for('update')
+      : [];
+
+    if (!joined) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+    return { ...joined, kind: integration.kind, channelId: integration.channelId };
+  }
 
   await publishConversationEvents(tx, orgId, null, [
     {

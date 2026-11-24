@@ -7,9 +7,9 @@ const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '*', '0', '#'];
 
 /** The phone's twelve keys; on a call each sends its tone. */
 export const DialPad = ({ onPress }: { onPress: (key: string) => void }) => (
-  <div className="grid grid-cols-3 gap-1">
+  <div className="grid grid-cols-3 gap-2">
     {KEYS.map((key) => (
-      <Button key={key} variant="secondary" onClick={() => onPress(key)}>
+      <Button key={key} variant="secondary" size="lg" onClick={() => onPress(key)}>
         {key}
       </Button>
     ))}
@@ -24,14 +24,14 @@ export const Dialer = ({ ready, onDial }: { ready: boolean; onDial: (number: str
 
   return (
     <form
-      className="flex flex-col gap-2"
+      className="flex flex-col gap-3"
       onSubmit={(event) => {
         event.preventDefault();
 
         if (dialable) onDial(number.trim());
       }}
     >
-      <div className="flex gap-1">
+      <div className="flex gap-2">
         <Input
           value={number}
           inputMode="tel"
@@ -50,7 +50,7 @@ export const Dialer = ({ ready, onDial }: { ready: boolean; onDial: (number: str
         </Button>
       </div>
       <DialPad onPress={(key) => setNumber(number + key)} />
-      <Button type="submit" disabled={!dialable}>
+      <Button type="submit" size="lg" disabled={!dialable}>
         <IconPhone />
         {t('call', 'Call')}
       </Button>
