@@ -1059,6 +1059,7 @@
   "queue-feed": "Дарааллын мэдээ",
   "queue-feed-quiet": "Энэ PBX 10 минутын турш дарааллын статистик, шууд самбар илгээгээгүй",
   "queue-heard": "Статистик {{stats}}, шууд самбар {{live}}",
+  "queue-never": "хэзээ ч",
   "queues": "Дараалал",
   "quiet-channels": "{{count}} идэвхгүй суваг",
   "quiet-channels_one": "{{count}} идэвхгүй суваг",

@@ -190,7 +190,7 @@ const QueueFeed = ({ queues }: { queues: Settings['queues'] }) => {
     ...queues.flatMap((queue) => [queue.statsAt, queue.liveAt]).map((at) => at?.getTime() ?? 0),
   );
 
-  const when = (at: Date | null) => (at ? format.relative(at, now) : t('never', 'Never'));
+  const when = (at: Date | null) => (at ? format.relative(at, now) : t('queue-never', 'never'));
 
   return (
     <PanelSection title={t('queue-feed', 'Queue feed')} icon={IconHeartbeat}>
