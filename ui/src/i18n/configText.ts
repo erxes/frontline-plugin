@@ -13,6 +13,7 @@ const TEXT: Record<string, string> = {
   Call: 'Дуудлага',
   Category: 'Ангилал',
   Channel: 'Суваг',
+  Channels: 'Сувгууд',
   Comments: 'Сэтгэгдэл',
   Content: 'Агуулга',
   Conversation: 'Харилцан яриа',

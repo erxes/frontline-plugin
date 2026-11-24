@@ -21,43 +21,46 @@ export const IntegrationCatalog = ({ channelId }: { channelId: string }) => {
     (integration) => integration.channelId === channelId,
   );
 
+  // The columns follow the catalog's own width, which the channel's sections beside it narrow.
   return (
-    <ul
-      aria-label={t('kinds-of-integration', 'Kinds of integration')}
-      className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-    >
-      {CHANNEL_KINDS.map((kind) => {
-        const count = ours.filter((integration) => integration.kind === kind).length;
+    <div className="@container">
+      <ul
+        aria-label={t('kinds-of-integration', 'Kinds of integration')}
+        className="grid auto-rows-fr gap-3 @sm:grid-cols-2 @xl:grid-cols-3"
+      >
+        {CHANNEL_KINDS.map((kind) => {
+          const count = ours.filter((integration) => integration.kind === kind).length;
 
-        return (
-          <li key={kind}>
-            <Link
-              to={channelSettingsPath(channelId, `integrations/${kind}`)}
-              className="group flex h-full flex-col gap-3 rounded-lg border bg-background p-4 transition-colors hover:border-ring/60 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="flex items-start gap-3">
-                <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted">
-                  <KindIcon kind={kind} className="size-6" />
+          return (
+            <li key={kind}>
+              <Link
+                to={channelSettingsPath(channelId, `integrations/${kind}`)}
+                className="group flex h-full flex-col gap-3 rounded-lg border bg-background p-4 transition-colors hover:border-ring/60 hover:bg-accent/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <span className="flex items-start gap-3">
+                  <span className="grid size-10 shrink-0 place-items-center rounded-lg bg-muted">
+                    <KindIcon kind={kind} className="size-6" />
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span className="text-sm font-medium">{titles[kind] ?? kind}</span>
+                    <span className="text-xs text-muted-foreground">{hints[kind]}</span>
+                  </span>
                 </span>
-                <span className="flex min-w-0 flex-col gap-0.5">
-                  <span className="truncate text-sm font-medium">{titles[kind] ?? kind}</span>
-                  <span className="text-xs text-muted-foreground">{hints[kind]}</span>
+                <span className="mt-auto flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  {count > 0
+                    ? t('kind-connected', {
+                        defaultValue_one: '{{count}} in this channel',
+                        defaultValue_other: '{{count}} in this channel',
+                        count,
+                      })
+                    : t('kind-none', 'None yet')}
+                  <IconChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
                 </span>
-              </span>
-              <span className="mt-auto flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                {count > 0
-                  ? t('kind-connected', {
-                      defaultValue_one: '{{count}} in this channel',
-                      defaultValue_other: '{{count}} in this channel',
-                      count,
-                    })
-                  : t('kind-none', 'None yet')}
-                <IconChevronRight className="size-4 transition-transform group-hover:translate-x-0.5" />
-              </span>
-            </Link>
-          </li>
-        );
-      })}
-    </ul>
+              </Link>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
   );
 };

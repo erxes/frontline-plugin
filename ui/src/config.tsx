@@ -74,6 +74,9 @@ export const CONFIG: IUIConfig = {
   path: PLUGIN,
   icon: IconBox,
   modules: [{ name: PLUGIN, path: PLUGIN, icon: IconBox }],
+  // Core's Settings link the first page: channels, where an admin adds integrations. The rest
+  // are in Frontline's own settings sidebar (`Layout.tsx`).
+  settings: [{ path: `/${PLUGIN}/settings/channels`, label: 'Channels', icon: IconCircles }],
   recordTypes: [
     {
       contentType: CHANNEL_TYPE,
