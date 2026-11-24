@@ -8,7 +8,8 @@ import { logger } from '#/logger.ts';
 import type { AccountRow } from '../../provider.ts';
 import { sameText } from '../../secrets.ts';
 import { accountOf } from '../../store.ts';
-import { call, callpro, trunkKey } from './call.ts';
+import { call, callpro } from './call.ts';
+import { trunkKey } from './relay.ts';
 import { Cdr, callKeyOf, customerPhoneOf, isOutgoing, pbxTime, queueOf } from './cdr.ts';
 import type { CALL_STATUSES } from '#/db/calls.ts';
 import {
@@ -25,7 +26,7 @@ type CallStatus = (typeof CALL_STATUSES)[number];
 /** How far a signed post's timestamp may be from now. */
 const SIGNATURE_WINDOW_MS = 5 * 60 * 1000;
 
-/** Whether the bridge signed `raw` with the account's secret within the last five minutes. */
+/** Whether pbx-relay signed `raw` with the account's secret within the last five minutes. */
 const signedBy = (secret: string, req: Request, raw: string) => {
   const timestamp = Number(req.headers['x-erxes-timestamp']);
 
@@ -37,7 +38,7 @@ const signedBy = (secret: string, req: Request, raw: string) => {
   return sameText(expected, req.headers['x-erxes-signature']);
 };
 
-/** The UCM's own new-call payload, as its bridge forwards it: a ringing event. */
+/** The UCM's own new-call payload, as pbx-relay forwards it: a ringing event. */
 const UcmCall = z.object({
   type: z.enum(['incoming_call', 'outgoing_call']),
   caller: z.string(),
@@ -109,7 +110,7 @@ const QueueStats = z
         : posted.queue,
   );
 
-/** A queue's live board as the bridge posts it. */
+/** A queue's live board as pbx-relay posts it. */
 const QueueLive = z.object({
   queue: z.coerce.string(),
   state: z.object({
@@ -156,7 +157,7 @@ const setQueue = (
     await signalCalls(tx, row.orgId);
   });
 
-/** The kinds of post a PBX bridge makes, the last part of its webhook's address. */
+/** The kinds of post pbx-relay makes for a PBX, the last part of its webhook's address. */
 const PbxKind = z.enum(['cdr', 'event', 'receive-call', 'queue-stats', 'queue-live']);
 
 /** What one kind of post does with a PBX account's body. */
@@ -323,8 +324,9 @@ const handle =
   };
 
 /**
- * The phone webhooks under `/api/public/webhooks`: a PBX bridge posts each kind of event to
- * `call/<key>/<kind>`, signed; CallPro posts to `callpro/<key>`, where the key is the secret.
+ * The phone webhooks under `/api/public/webhooks`: pbx-relay, or a bridge run by hand, posts each
+ * kind of a PBX's event to `call/<key>/<kind>`, signed; CallPro posts to `callpro/<key>`, where
+ * the key is the secret.
  */
 export const callWebhooks = () => {
   const router = express.Router();

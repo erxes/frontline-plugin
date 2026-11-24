@@ -2,7 +2,7 @@ import { describe, expect, it, onTestFinished, vi } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
 import { clientAs } from '#/test/member.ts';
 import { fakeProviders } from '../../integrations/__tests__/fakes.ts';
-import { fakePbx, PBX, pbxServer } from './pbx.ts';
+import { fakePbx, PBX, pbxServer, relayed } from './pbx.ts';
 
 vi.mock('#/core.ts', async (importOriginal) =>
   (await import('../../integrations/__tests__/standIns.ts')).coreStandIn(await importOriginal()),
@@ -202,5 +202,119 @@ describe('softphones behind NAT', () => {
     expect(await iceServers()).toEqual([turn(3)]);
     expect(asked).toHaveLength(5);
     expect(JSON.stringify(await iceServers())).not.toContain('turn-token');
+  });
+});
+
+/** pbx-relay refusing every route with `status` and `body`, and taking every removal. */
+const relayRefuses = (status: number, body: unknown) => () => Response.json(body, { status });
+
+describe('a PBX routed through pbx-relay', () => {
+  it('routes its trunks and queues, again when they change, and removes its route with it', async () => {
+    const actions = fakePbx();
+    const owner = clientAs('org-pbx-relay');
+
+    const account = await owner.integrations.call.connect({
+      ...PBX,
+      srcTrunk: 'EMJJ-Tuv',
+      dstTrunk: 'emjj_tuv',
+      queues: [{ queue: '6500', name: 'Sales' }],
+    });
+
+    const settings = await owner.integrations.call.settings({ accountId: account.id });
+    const path = `/v1/routes/pbx/${account.id}`;
+
+    expect(settings.relayed).toBe(true);
+    // Both trunks are one by key, so the route holds it once.
+    expect(relayed(actions)).toEqual([
+      {
+        action: 'relay',
+        method: 'PUT',
+        path,
+        authorization: 'Bearer test-pbx-relay-key',
+        body: {
+          ucm: PBX.host,
+          url: settings.webhookUrl,
+          secret: settings.webhookSecret,
+          trunks: ['EMJJ-Tuv'],
+          queues: ['6500'],
+        },
+      },
+    ]);
+
+    const kept = {
+      accountId: account.id,
+      ...PBX,
+      name: '',
+      srcTrunk: 'EMJJ-Tuv',
+      dstTrunk: '',
+      queues: [{ queue: '6500', name: 'Sales' }],
+      operators: [],
+    };
+
+    const save = (change: Partial<typeof kept>) =>
+      owner.integrations.call.saveSettings({ ...kept, ...change });
+
+    // A new name, number or queue name routes nothing new.
+    await save({ name: 'Erkhet line', phone: '77001101', queues: [{ queue: '6500', name: 'S' }] });
+    expect(relayed(actions)).toHaveLength(1);
+
+    await save({ dstTrunk: 'mobicom', queues: [{ queue: '6501', name: '' }] });
+    expect(relayed(actions).at(-1)).toMatchObject({
+      method: 'PUT',
+      path,
+      body: { trunks: ['EMJJ-Tuv', 'mobicom'], queues: ['6501'] },
+    });
+
+    // Repair routes it again, as it stands.
+    await owner.integrations.accounts.repair({ id: account.id });
+    expect(relayed(actions).at(-1)).toMatchObject({ method: 'PUT', body: { queues: ['6501'] } });
+
+    await owner.integrations.accounts.remove({ ids: [account.id] });
+    expect(relayed(actions).at(-1)).toMatchObject({ method: 'DELETE', path });
+  });
+
+  it('refuses a trunk or queue another install routes, or a PBX the relay does not serve', async () => {
+    const owner = clientAs('org-pbx-relay-b');
+    const taken = { kind: 'queue', value: '6500' };
+
+    fakePbx({ relay: relayRefuses(409, { error: 'taken', conflicts: [taken] }) });
+
+    await expect(
+      owner.integrations.call.connect({ ...PBX, queues: [{ queue: '6500', name: 'Sales' }] }),
+    ).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message:
+        'pbx-relay refused: another erxes install or organisation routes queue 6500 on this PBX',
+    });
+    // Nothing is saved.
+    expect((await owner.integrations.accounts.list({})).accounts).toEqual([]);
+
+    fakePbx({ relay: relayRefuses(404, { error: 'unknown ucm' }) });
+
+    await expect(
+      owner.integrations.call.connect({ ...PBX, srcTrunk: 'mobicom' }),
+    ).rejects.toMatchObject({ message: 'pbx-relay refused: it does not serve this PBX' });
+
+    // An edit the relay refuses keeps the trunks it had.
+    fakePbx();
+    const account = await owner.integrations.call.connect({ ...PBX, srcTrunk: 'mobicom' });
+
+    fakePbx({ relay: relayRefuses(409, { error: 'taken', conflicts: [taken] }) });
+
+    await expect(
+      owner.integrations.call.saveSettings({
+        accountId: account.id,
+        ...PBX,
+        srcTrunk: 'mobicom',
+        queues: [{ queue: '6500', name: '' }],
+        operators: [],
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    expect((await owner.integrations.call.settings({ accountId: account.id })).queues).toEqual([]);
+
+    // Removing it removes it here, though the relay fails.
+    fakePbx({ relay: relayRefuses(500, {}) });
+    await owner.integrations.accounts.remove({ ids: [account.id] });
+    expect((await owner.integrations.accounts.list({})).accounts).toEqual([]);
   });
 });

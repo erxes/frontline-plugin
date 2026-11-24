@@ -1,8 +1,10 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { config as settings } from '#/config.ts';
+import { withOrg } from '#/db/client.ts';
 import { defineProvider, type OpenAccount } from '../../provider.ts';
 import { checkPbx } from './pbx.ts';
+import { followedQueues, routeCalls, unrouteCalls } from './relay.ts';
 
 /** A Grandstream UCM's settings, without secrets. */
 const PbxConfig = z.object({
@@ -20,14 +22,8 @@ const PbxConfig = z.object({
   timeZone: z.string(),
 });
 
-/**
- * The key two names of one trunk share: trimmed, lowercased, `-` read as `_`, so `EMJJ-Tuv` and
- * `emjj_tuv` are the same trunk, as pbx-relay keys them.
- */
-export const trunkKey = (name: string) => name.trim().toLowerCase().replaceAll('-', '_');
-
 const PbxSecret = z.object({
-  /** Signs what the PBX's bridge posts: `x-erxes-signature` over `<timestamp>.<body>`. */
+  /** Signs what pbx-relay, or a bridge run by hand, posts: `x-erxes-signature`. */
   webhookSecret: z.string(),
 });
 
@@ -57,13 +53,22 @@ export const pbxOf = ({
 const noReplies = () =>
   Promise.reject(new ORPCError('BAD_REQUEST', { message: 'A phone call takes no written reply' }));
 
-/** A Grandstream UCM: frontline reads its calls, queues, agents and recordings. */
+/**
+ * A Grandstream UCM: frontline reads its calls, queues, agents and recordings. With pbx-relay,
+ * repair routes its trunks and queues here again, and removing it removes its route.
+ */
 export const call = defineProvider({
   name: 'call',
   Config: PbxConfig,
   Secret: PbxSecret,
   check: (account) => checkPbx(pbxOf(account)),
   send: noReplies,
+  disconnect: ({ row }) => unrouteCalls(row.id),
+  repair: async ({ row, config, secret }, webhookKey) => {
+    const queues = await withOrg(row.orgId, (tx) => followedQueues(tx, row.id));
+
+    await routeCalls({ id: row.id, ...config, ...secret }, queues, webhookKey);
+  },
 });
 
 /** A CallPro line: CallPro posts each call's state to the line's webhook address. */

@@ -34,12 +34,34 @@ const ANSWERS: Record<string, unknown> = {
   },
 };
 
+/** A call frontline made to pbx-relay, as an action of the fake PBX's. */
+interface RelayCall {
+  action: 'relay';
+  method: string;
+  path: string;
+  authorization: string | null;
+  body: unknown;
+}
+
+/** pbx-relay taking every route: a PUT answers the route as stored, a DELETE 204. */
+const relayTakes = ({ method, path, body }: RelayCall) =>
+  method === 'DELETE'
+    ? new Response(null, { status: 204 })
+    : Response.json({ id: path.split('/').at(-1), ...z.object({}).loose().parse(body) });
+
+/** The calls frontline made to pbx-relay among the fake PBX's actions, oldest first. */
+export const relayed = (actions: Record<string, unknown>[]) =>
+  actions.filter((action) => action.action === 'relay');
+
 /**
  * A Grandstream UCM at `pbx.test` whose API user's password is `password`, `secret` as the tests'
- * `CALL_API_PASSWORD` has it, and core's storage. Returns the actions frontline asked of the PBX,
- * newest last.
+ * `CALL_API_PASSWORD` has it, core's storage, and pbx-relay answering as `relay` does. Returns the
+ * actions frontline asked of the PBX and the relay, newest last.
  */
-export const fakePbx = ({ password = 'secret' }: { password?: string } = {}) => {
+export const fakePbx = ({
+  password = 'secret',
+  relay = relayTakes,
+}: { password?: string; relay?: (call: RelayCall) => Response } = {}) => {
   const actions: Record<string, unknown>[] = [];
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -49,6 +71,22 @@ export const fakePbx = ({ password = 'secret' }: { password?: string } = {}) => 
     if (url.hostname === '127.0.0.1') return realFetch(request);
 
     if (url.hostname === 'files.core.test') return new Response(null, { status: 200 });
+
+    if (url.hostname === 'pbx-relay.example') {
+      const text = await request.text();
+
+      const call: RelayCall = {
+        action: 'relay',
+        method: request.method,
+        path: url.pathname,
+        authorization: request.headers.get('authorization'),
+        body: text ? z.json().parse(JSON.parse(text)) : null,
+      };
+
+      actions.push({ ...call });
+
+      return relay(call);
+    }
 
     const { request: asked } = Request.parse(await request.json());
 
@@ -112,7 +150,7 @@ export const pbxServer = () => {
     const path = new URL(settings.webhookUrl ?? '').pathname.replace('/api/public/webhooks', '');
     const secret = settings.webhookSecret ?? '';
 
-    /** Posts `raw` to the PBX's `kind` address, signed as its bridge signs. */
+    /** Posts `raw` to the PBX's `kind` address, signed as pbx-relay signs. */
     const post = (kind: string, raw: string, signedWith = secret) => {
       const timestamp = String(Date.now());
 

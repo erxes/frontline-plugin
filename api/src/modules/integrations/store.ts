@@ -23,6 +23,8 @@ export const Account = createSelectSchema(integrationAccounts).omit({ orgId: tru
 
 /** What a provider found when it connected an account. */
 interface Connected {
+  /** The id a new account gets, when the provider was told it before the account was saved. */
+  id?: string;
   provider: ProviderName;
   externalId: string;
   name: string;
@@ -97,6 +99,7 @@ export const saveAccount = async (
   const [row] = await tx
     .insert(integrationAccounts)
     .values({
+      id: connected.id,
       orgId: member.orgId,
       provider: connected.provider,
       externalId: connected.externalId,
