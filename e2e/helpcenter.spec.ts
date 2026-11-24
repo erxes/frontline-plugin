@@ -108,7 +108,9 @@ test('the owner creates a help center, edits it, sees its domain tab and deletes
   // The old address leads to the list, which the sidebar opens beside the knowledge base.
   await page.goto('/frontline/helpcenter');
   await expect(page).toHaveURL(new RegExp(`${HELP_CENTERS}$`));
-  await expect(page.getByRole('link', { name: 'Help centers' })).toBeVisible();
+  await expect(
+    page.getByRole('list', { name: 'Tools' }).getByRole('link', { name: 'Help centers' }),
+  ).toBeVisible();
   await page.getByRole('button', { name: 'Add help center' }).first().click();
   await panel.getByLabel('Title').fill(title);
 
