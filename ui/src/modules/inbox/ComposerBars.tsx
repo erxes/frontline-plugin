@@ -123,7 +123,10 @@ export const Toolbar = ({
       <AttachedFiles
         files={files}
         attachments={attachments}
-        onRemove={(file) => onAttachments((current) => current.filter((other) => other !== file))}
+        // The draft parses its files again on each read, so a file is found by its url.
+        onRemove={(file) =>
+          onAttachments((current) => current.filter((other) => other.url !== file.url))
+        }
       />
       <div className="flex min-w-0 items-center gap-0.5 px-2 pt-1 pb-2">
         {!note && <TemplatePicker channelId={conversation.channelId} onPick={onTemplate} />}
