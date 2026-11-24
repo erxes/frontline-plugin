@@ -1,4 +1,6 @@
+import { readsByPost } from '@erxes/core-contract/common';
 import type { PluginMember } from '@erxes/plugin-sdk';
+import { checksPermission } from '@erxes/plugin-sdk/openapi';
 import { type InferSchemaOutput, ORPCError, os } from '@orpc/server';
 import type { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
@@ -9,22 +11,27 @@ const base = os.$context<{ member: PluginMember }>();
 /** A permission, or a list of them any one of which lets the member in. */
 type Action = string | readonly string[];
 
-const allowed = (action: Action, change: boolean) =>
-  base.middleware(({ context: { member }, next }) => {
-    const actions = typeof action === 'string' ? [action] : action;
+/** The API document names the actions on each route, so the assistant offers it only to who holds one. */
+const allowed = (action: Action, change: boolean) => {
+  const actions = typeof action === 'string' ? [action] : action;
 
-    if (!actions.some((one) => member.can(one))) {
-      throw new ORPCError('FORBIDDEN', {
-        message: `You need the ${actions.join(' or ')} permission`,
-      });
-    }
+  return checksPermission(
+    base.middleware(({ context: { member }, next }) => {
+      if (!actions.some((one) => member.can(one))) {
+        throw new ORPCError('FORBIDDEN', {
+          message: `You need the ${actions.join(' or ')} permission`,
+        });
+      }
 
-    if (change && !member.canChange()) {
-      throw new ORPCError('FORBIDDEN', { message: 'Read-only: this plugin left your plan' });
-    }
+      if (change && !member.canChange()) {
+        throw new ORPCError('FORBIDDEN', { message: 'Read-only: this plugin left your plan' });
+      }
 
-    return next();
-  });
+      return next();
+    }),
+    actions,
+  );
+};
 
 const inOrg = base.middleware(async ({ context: { member }, next }) => {
   const later: (() => Promise<void>)[] = [];
@@ -39,8 +46,12 @@ const inOrg = base.middleware(async ({ context: { member }, next }) => {
   return result;
 });
 
-/** A read: the member holds `action`; `context.tx` is their organisation's transaction. */
-export const reads = (action: Action) => base.use(allowed(action, false)).use(inOrg);
+/**
+ * A read: the member holds `action`; `context.tx` is their organisation's transaction. The API
+ * document marks it a read (`readsByPost`), so agents and MCP clients run it without asking.
+ */
+export const reads = (action: Action) =>
+  base.route({ spec: readsByPost }).use(allowed(action, false)).use(inOrg);
 
 /** A change: like `reads`, and refused while the organisation is read-only. */
 export const writes = (action: string) => base.use(allowed(action, true)).use(inOrg);
@@ -57,7 +68,7 @@ const asksFirst =
     input: Schema,
     ask: (member: PluginMember, input: InferSchemaOutput<Schema>) => Promise<Answer>,
   ) =>
-    base
+    (change ? base : base.route({ spec: readsByPost }))
       .use(allowed(action, change))
       .input(input)
       .use(async ({ context: { member }, next }, parsed) =>
