@@ -247,6 +247,37 @@ describe('a page’s core agent', () => {
     ]);
   });
 
+  it('gives the conversation to a person when the agent hands off, telling the customer once', async () => {
+    const calls = fakeProviders(graphApi);
+    const owner = await withAgent('org-fb-agent-c', 'facebook');
+
+    await messaging('page', 'page-1', [said('psid-1', 'page-1', 'm_refund', { text: 'Refund?' })]);
+    await runQueued();
+
+    const id = await conversationWith('org-fb-agent-c', 'psid-1');
+
+    const handedOff = () =>
+      coreEvent('org-fb-agent-c', 'ev-fb-h2', 'core.agent.handed_off', {
+        agentId: 'agent-1',
+        plugin: 'frontline',
+        key: id,
+        reason: 'Refunds need a person',
+      });
+
+    await answered('org-fb-agent-c', 'ev-fb-h1', id, 'A person will answer you shortly.', []);
+    await handedOff();
+    await handedOff();
+    await runQueued();
+
+    expect(await owner.conversations.get({ id })).toMatchObject({ operator: 'person' });
+    expect(sentToMeta(calls)).toEqual([{ text: 'A person will answer you shortly.' }]);
+    expect(
+      (await owner.conversations.messages.list({ conversationId: id })).messages
+        .filter((message) => message.internal)
+        .map(({ content }) => content),
+    ).toEqual(['The agent handed this conversation to a person: Refunds need a person']);
+  });
+
   it('hands the conversation to a person when core refuses, the agent fails or Meta never takes the answer', async () => {
     let calls = fakeProviders(graphApi);
     const owner = await withAgent('org-fb-agent-b', 'facebook');

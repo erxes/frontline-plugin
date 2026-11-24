@@ -36,6 +36,9 @@ type Outputs = InferClientOutputs<Client>;
 
 export type Conversation = Outputs['conversations']['get'];
 
+/** One run of a conversation's core agent, with its API calls. */
+export type AgentRun = Outputs['conversations']['agentRuns']['runs'][number];
+
 export type Message = Outputs['conversations']['messages']['list']['messages'][number];
 
 export type Integration = Outputs['integrations']['get'];

@@ -1,8 +1,9 @@
 import { orpc as core } from '@erxes/core-contract/client';
-import { IconChevronRight, IconRobot } from '@tabler/icons-react';
+import { IconAlertTriangle, IconChevronRight, IconRobot } from '@tabler/icons-react';
 import { useIntegration, useIntegrationChange } from '@/inbox/queries.ts';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
+  Alert,
   buttonVariants,
   Empty,
   PanelField,
@@ -24,6 +25,28 @@ const AGENTS_PATH = '/settings/agents';
 
 /** The kinds of integration a core agent answers. */
 const AGENT_KINDS = new Set(['messenger', 'facebook', 'instagram']);
+
+/** The templates whose agents take orders or bookings, which they do through a portal. */
+const SELLING_TEMPLATES = new Set<string | null>(['shop', 'hotel', 'tours']);
+
+/** Says a selling agent can't take orders or bookings here without a portal, and links its settings. */
+const NoPortal = ({ agentId }: { agentId: string }) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <Alert variant="warning" className="mx-3 w-auto">
+      <IconAlertTriangle />
+      <Alert.Description>
+        <Link to={`${AGENTS_PATH}/${agentId}`} className="underline underline-offset-2">
+          {t(
+            'bot-agent-no-portal',
+            'This agent has no portal: it can’t take orders or bookings here.',
+          )}
+        </Link>
+      </Alert.Description>
+    </Alert>
+  );
+};
 
 const MakeAgent = () => {
   const { t } = useTranslation('frontline');
@@ -91,6 +114,8 @@ const AgentPicker = ({
 
   if (agents.data.data.length === 0) return <NoAgents />;
 
+  const chosen = agents.data.data.find((agent) => agent.id === integration.agentId);
+
   return (
     <PanelSection title={t('bot-agent', 'Agent')} icon={IconRobot}>
       <ReadOnly when={!integration.canManage}>
@@ -117,6 +142,9 @@ const AgentPicker = ({
           </Select>
         </PanelField>
       </ReadOnly>
+      {chosen && SELLING_TEMPLATES.has(chosen.template) && !chosen.portalId && (
+        <NoPortal agentId={chosen.id} />
+      )}
       <p className="px-3 text-sm text-muted-foreground">
         {t(
           'bot-agent-hint',
