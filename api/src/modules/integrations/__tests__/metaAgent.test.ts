@@ -277,7 +277,11 @@ describe('a page’s core agent', () => {
       { content: 'Yes, size 40 is in.', deliveryStatus: 'failed' },
       { content: 'Size 40?', deliveryStatus: null },
     ]);
-    // psid-2 hears that a person took over; Meta refused the answer to psid-3.
-    expect(sentToMeta(calls)).toEqual([handOff, { text: 'Yes, size 40 is in.' }]);
+    // psid-2 hears that a person took over; Meta refused the answer to psid-3. The two queued
+    // sends run at once, so their order varies.
+    const sent = sentToMeta(calls);
+
+    expect(sent).toHaveLength(2);
+    expect(sent).toEqual(expect.arrayContaining([handOff, { text: 'Yes, size 40 is in.' }]));
   });
 });
