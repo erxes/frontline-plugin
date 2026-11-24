@@ -137,6 +137,7 @@ const adapterOf = (provider: ProviderName, label: string): Adapter => ({
         account.send({
           threadId,
           text: message.content,
+          byBot: message.userId === null,
           html: message.html,
           attachments: message.attachments,
           blocks: message.blocks,
