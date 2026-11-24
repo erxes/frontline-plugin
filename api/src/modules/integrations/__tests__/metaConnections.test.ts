@@ -1,5 +1,9 @@
 import type * as Sdk from '@erxes/plugin-sdk';
+import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vite-plus/test';
+import { JOBS } from '#/core.ts';
+import { withOrg } from '#/db/client.ts';
+import { integrationAccounts } from '#/db/integrations.ts';
 import { serve as serveApi } from '#/test/http.ts';
 import { clientAs } from '#/test/member.ts';
 import {
@@ -8,6 +12,7 @@ import {
   fixture,
   graphApi,
   type ProviderCall,
+  runJob,
   serve,
   signedByMeta,
 } from './fakes.ts';
@@ -123,6 +128,41 @@ describe("the organisation's Facebook connection", () => {
     expect(await changed('org-conn-own', 'fb-own', 'active')).toBe(204);
     expect(await deliver('/meta', raw, signedByMeta(raw, 'own-app-secret-0123456789'))).toBe(200);
     expect(reads('fb-own')).toHaveLength(2);
+  });
+
+  it("tells core's Facebook tile that pages on frontline's old login need attention", async () => {
+    fakeProviders(withRelay);
+
+    const orgId = 'org-old-login';
+    const owner = clientAs(orgId);
+    const check = { orgId, name: JOBS.check.name, payload: {} };
+
+    const metaReports = () =>
+      asked.reports
+        .filter(([org, key]) => org === orgId && key === 'meta')
+        .map(([, , state]) => state);
+
+    await owner.integrations.meta.connect({ connectionId: 'fb-conn' });
+    await runJob(check);
+
+    expect(metaReports().at(-1)).toBe('connected');
+
+    // A page connected before core's connection existed has none.
+    await withOrg(orgId, (tx) =>
+      tx
+        .update(integrationAccounts)
+        .set({ connectionId: null })
+        .where(eq(integrationAccounts.provider, 'facebook')),
+    );
+    await runJob(check);
+
+    expect(metaReports().at(-1)).toBe('attention');
+
+    // Connecting it again through core's connection settles it.
+    await owner.integrations.meta.connect({ connectionId: 'fb-conn' });
+    await runJob(check);
+
+    expect(metaReports().at(-1)).toBe('connected');
   });
 
   it('stops the pages of a connection core removed, until a member connects them again', async () => {

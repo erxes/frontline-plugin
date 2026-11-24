@@ -1,12 +1,11 @@
 import { PLUGIN } from '~/plugin.ts';
 
 /**
- * The integration in core's Settings › Integrations whose accounts `provider` connects, as the
- * API's catalog declares them: Meta's login connects Facebook pages and Instagram accounts alike.
+ * The page of `provider`'s accounts in core's Settings › Integrations, as the API's catalog
+ * declares them. Facebook pages and Instagram accounts connect through core's Facebook
+ * connection, so their Accounts tab shows on core's Facebook page.
  */
-const integrationKeyOf = (provider: string) =>
-  provider === 'facebook' || provider === 'instagram' ? 'meta' : provider;
-
-/** The page of `provider`'s integration in core's Settings › Integrations, on its accounts. */
 export const integrationPage = (provider: string) =>
-  `/settings/integrations/${PLUGIN}.${integrationKeyOf(provider)}?tab=accounts`;
+  provider === 'facebook' || provider === 'instagram'
+    ? `/settings/integrations/facebook?tab=${PLUGIN}.meta.accounts`
+    : `/settings/integrations/${PLUGIN}.${provider}?tab=accounts`;
