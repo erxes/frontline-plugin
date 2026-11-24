@@ -22,6 +22,7 @@ import { memberOf } from '#/member.ts';
 import { fail, verifiedBy } from '#/modules/fail.ts';
 import { visitorIpLimit } from '#/modules/limits.ts';
 import { formsPublicRouter } from '#/modules/forms/embed.ts';
+import { formLinkPage } from '#/modules/forms/linkPage.ts';
 import { formChoices } from '#/modules/forms/links.ts';
 import { pipelineChoices } from '#/modules/tickets/automation.ts';
 import { publicRouter } from '#/modules/helpcenter/public.ts';
@@ -228,6 +229,9 @@ export const createApp = () => {
   // A help center's site: at its own host first, then at `/help/<key>` on frontline's address.
   app.use(siteByHost);
   app.use(siteByKey());
+  // A form link's page, `/forms/<key>/<code>?link=<token>` on the widgets domain (WIDGETS_DOMAIN),
+  // or any other host frontline serves that no help center opened.
+  app.get('/forms/:key/:code', formLinkPage);
   // Providers post webhooks signed out, from their own servers.
   app.use('/api/public/webhooks', webhookRoutes());
   // What websites load and call signed out answers any origin, and counts against the visitor's

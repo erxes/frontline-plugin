@@ -61,7 +61,7 @@ const embed = writes(PERMISSIONS.channelView)
 export const embedProcedures = { embed };
 
 /** An active form by its code, and its fields in order, as a visitor's transaction reads them. */
-const activeForm = async (tx: Tx, code: string) => {
+export const activeForm = async (tx: Tx, code: string) => {
   const [form] = await tx
     .select()
     .from(forms)
@@ -105,7 +105,7 @@ const visitorView = (
 /** A form as `GET /api/public/:key/forms/:code` answers it, for the form embed. */
 export type VisitorForm = ReturnType<typeof visitorView>;
 
-const Params = z.object({ key: z.string().max(100), code: z.string().max(100) });
+export const Params = z.object({ key: z.string().max(100), code: z.string().max(100) });
 
 /** The answers, and the signed token of the form link the visitor came by, if any. */
 const Submit = z.object({ answers: VisitorAnswers, link: z.string().min(1).max(4000).optional() });
@@ -143,7 +143,7 @@ const withFiles = async (
 };
 
 /** The organisation the request's key names, and the form code, or nothing for a bad key. */
-const keyed = async (req: Request) => {
+export const keyed = async (req: Request) => {
   const params = Params.safeParse(req.params);
   const organizationId = params.success ? await organizationOfKey(params.data.key) : undefined;
 

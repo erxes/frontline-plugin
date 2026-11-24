@@ -1,8 +1,9 @@
 // A website's form: `<script type="module" src=".../widget/form.js?key=KEY&code=CODE">`. The
 // script's own address names the organisation's key, the form and where frontline's API is. A
 // `<div data-frontline-form="CODE">` on the page draws the form in place, whatever its load type,
-// as a help center's form page does; without one the form opens as its load type says. Its own
-// words show in the script's `&language=`, else the form's language, else English.
+// as a help center's form page does; without one the form opens as its load type says. A form
+// link's page adds `&link=`, the token the answers send back with. Its own words show in the
+// script's `&language=`, else the form's language, else English.
 import { render } from 'preact';
 import { formApi } from './form/api.ts';
 import { FormEmbed } from './form/FormEmbed.tsx';
@@ -13,10 +14,11 @@ import { languageOf, TextProvider, textIn } from './shared/text.ts';
 const script = new URL(import.meta.url);
 const key = script.searchParams.get('key');
 const code = script.searchParams.get('code');
+const link = script.searchParams.get('link') ?? undefined;
 
 const start = async (organization: string, form: string) => {
   const path = `../api/public/${encodeURIComponent(organization)}/forms/${encodeURIComponent(form)}`;
-  const api = formApi(new URL(path, script));
+  const api = formApi(new URL(path, script), link);
   const found = await api.form();
   const language = languageOf(script.searchParams.get('language'), found.form.languageCode);
   const text = await textIn(language);

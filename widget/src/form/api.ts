@@ -27,8 +27,9 @@ const errorsOf = (body: unknown) =>
     ? body.errors.filter(isFieldError)
     : [];
 
-/** One form's signed-out API at `base`, `/api/public/<key>/forms/<code>`. */
-export const formApi = (base: URL) => {
+/** One form's signed-out API at `base`, `/api/public/<key>/forms/<code>`. `link` is the token of
+ * the form link the visitor came by, which the answers send back so the submission is its own. */
+export const formApi = (base: URL, link?: string) => {
   const http = publicApi(base);
 
   return {
@@ -37,7 +38,9 @@ export const formApi = (base: URL) => {
     /** Sends the answers: the submission, or the fields to fix. */
     submit: async (answers: Record<string, Answer>) => {
       try {
-        const { submissionId } = await http.post({ answers }).json<{ submissionId: string }>();
+        const { submissionId } = await http
+          .post(link ? { answers, link } : { answers })
+          .json<{ submissionId: string }>();
 
         return { submissionId, errors: [] };
       } catch (failure) {
