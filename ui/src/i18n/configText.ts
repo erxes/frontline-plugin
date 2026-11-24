@@ -31,7 +31,6 @@ const TEXT: Record<string, string> = {
   'Response template': 'Хариултын загвар',
   Results: 'Үр дүн',
   SLA: 'SLA',
-  Tags: 'Шошго',
   Submission: 'Илгээлт',
   Survey: 'Судалгаа',
   Ticket: 'Тикет',
