@@ -53,14 +53,20 @@ test('each provider connects its accounts on its own Integrations page, Facebook
 
 const META_TILE = '/settings/integrations/facebook?tab=frontline.meta.accounts';
 
-test('a member without integration management never reaches the Facebook page', async ({
+test('a member without Frontline’s integration management gets core’s Facebook page without its tab', async ({
   newMember,
 }) => {
   const { page } = await newMember(['integrations.manage', 'frontline.integration.view']);
 
-  await page.goto(META_TILE);
+  // The old address finds no integration of theirs, so it opens the catalog.
+  await page.goto(ACCOUNTS('meta'));
   await expect(page).toHaveURL(/\/settings\/integrations$/);
-  await expect(page.getByRole('button', { name: 'Connect', exact: true })).toBeHidden();
+
+  // Core's Facebook page is core's to show; Frontline's tab and Add pages are not there.
+  await page.goto(META_TILE);
+  await expect(page.getByRole('heading', { name: 'Facebook Pages', level: 1 })).toBeVisible();
+  await expect(page.getByRole('tab', { name: 'Frontline' })).toBeHidden();
+  await expect(page.getByRole('button', { name: 'Add pages', exact: true })).toBeHidden();
 });
 
 test('an admin sets up the messenger on its settings page and visitors get it', async ({
