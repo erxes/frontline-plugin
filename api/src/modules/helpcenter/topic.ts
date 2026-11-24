@@ -1,9 +1,9 @@
-import { and, asc, desc, eq, ilike, inArray, or } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray } from 'drizzle-orm';
 import { LRUCache } from 'lru-cache';
 import { z } from 'zod';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { kbArticles, kbCategories, kbTopics } from '#/db/schema.ts';
-import { likeText } from '../filter.ts';
+import { articleSearch } from '../knowledgebase/shared.ts';
 import { published } from '../shownFiles.ts';
 import { articlesOnPage } from './paging.ts';
 
@@ -17,33 +17,20 @@ const listed = {
   publishedAt: kbArticles.publishedAt,
 };
 
-/** What a visitor searches a topic with: a few words, matched as written. */
+/** What a visitor searches a topic with: a few words, each matched on its own. */
 export const SearchQuery = z.object({ q: z.string().trim().min(1).max(100) });
 
-/**
- * The topic's articles a visitor may read whose title, summary or text holds `term`, ignoring
- * case and the body's tags, newest first.
- */
+/** The topic's articles a visitor may read that hold the words of `term`, best first. */
 export const searchOf = (orgId: string, topicId: string, term: string) => {
-  const pattern = likeText(term);
+  const { matches, rank } = articleSearch(term);
 
   return withOrg(orgId, (tx) =>
     tx
       .select(listed)
       .from(kbArticles)
       .innerJoin(kbCategories, eq(kbCategories.id, kbArticles.categoryId))
-      .where(
-        and(
-          eq(kbCategories.topicId, topicId),
-          published,
-          or(
-            ilike(kbArticles.title, pattern),
-            ilike(kbArticles.summary, pattern),
-            ilike(kbArticles.plainText, pattern),
-          ),
-        ),
-      )
-      .orderBy(desc(kbArticles.publishedAt))
+      .where(and(eq(kbCategories.topicId, topicId), matches))
+      .orderBy(...rank)
       .limit(50),
   );
 };

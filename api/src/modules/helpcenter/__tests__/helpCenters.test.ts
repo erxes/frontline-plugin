@@ -75,9 +75,11 @@ describe('help centers', () => {
     const search = async (q: string) =>
       (await fetch(`${publicApi.url('')}/help-centers/${center.publicKey}/search?q=${q}`)).json();
 
-    await expect(search('fees%20%26%20REFUNDS')).resolves.toEqual([
-      expect.objectContaining({ id: article.id, title: 'Refunds' }),
-    ]);
+    // Each word matches on its own, in any order, and one is enough.
+    for (const found of ['fees%20%26%20REFUNDS', 'back%20money', 'money%20shipping'])
+      await expect(search(found)).resolves.toEqual([
+        expect.objectContaining({ id: article.id, title: 'Refunds' }),
+      ]);
 
     for (const missed of ['onclick', 'Draft', 'Internal', 'M_ney'])
       await expect(search(missed)).resolves.toEqual([]);

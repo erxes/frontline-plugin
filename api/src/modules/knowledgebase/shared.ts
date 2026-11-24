@@ -1,14 +1,17 @@
 import { ORPCError, type ORPCErrorConstructorMap } from '@orpc/server';
-import { eq, getTableColumns, inArray } from 'drizzle-orm';
+import { and, desc, eq, getTableColumns, ilike, inArray, or, type SQL, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { type Tx, uniqueViolation } from '#/db/client.ts';
 import {
   KB_CATEGORY_CODE_INDEX,
   KB_TOPIC_CODE_INDEX,
+  kbArticles,
   kbCategories,
   kbTopics,
 } from '#/db/schema.ts';
 import { Blank } from '../fields.ts';
+import { likeText } from '../filter.ts';
+import { published } from '../shownFiles.ts';
 
 const { orgId: topicOrg, ...topicColumns } = getTableColumns(kbTopics);
 const { orgId: categoryOrg, ...categoryColumns } = getTableColumns(kbCategories);
@@ -58,6 +61,45 @@ export const lockTopics = async (tx: Tx, ids: string[]) => {
     .where(inArray(kbTopics.id, ids))
     .orderBy(kbTopics.id)
     .for('update');
+};
+
+/** A search's words, each once and ignoring case, without the punctuation around them. */
+const wordsOf = (term: string) => [
+  ...new Set(
+    term
+      .toLowerCase()
+      .split(/\s+/)
+      .map((word) => word.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, ''))
+      .filter(Boolean),
+  ),
+];
+
+const inTitle = (pattern: string) => ilike(kbArticles.title, pattern);
+
+const anywhere = (pattern: string) =>
+  or(inTitle(pattern), ilike(kbArticles.summary, pattern), ilike(kbArticles.plainText, pattern));
+
+/**
+ * Which published public articles a search finds, and in what order. An article holds a word
+ * when its title, summary or text does, ignoring case and the body's tags, and it needs one of
+ * them. Articles with more words in the title come first, then those with more words anywhere,
+ * then the newest.
+ */
+export const articleSearch = (term: string) => {
+  const words = wordsOf(term).slice(0, 10).map(likeText);
+
+  const holding = (match: (pattern: string) => SQL | undefined) =>
+    sql.join(
+      words.map((pattern) => sql`(case when ${match(pattern)} then 1 else 0 end)`),
+      sql` + `,
+    );
+
+  return {
+    matches: words.length ? and(published, or(...words.map(anywhere))) : sql`false`,
+    rank: words.length
+      ? [desc(holding(inTitle)), desc(holding(anywhere)), desc(kbArticles.publishedAt)]
+      : [desc(kbArticles.publishedAt)],
+  };
 };
 
 /** The category, or NOT_FOUND. */
