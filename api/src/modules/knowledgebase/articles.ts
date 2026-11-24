@@ -11,7 +11,7 @@ import { Blank, Title } from '../fields.ts';
 import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, likeText } from '../filter.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
-import { categoryFor, topicFor } from './shared.ts';
+import { articleSearch, categoryFor, topicFor } from './shared.ts';
 
 const { orgId, content, reactionChoices, image, attachments, pdfAttachment, ...rowColumns } =
   getTableColumns(kbArticles);
@@ -203,6 +203,36 @@ const list = reads(PERMISSIONS.kbView)
     };
   });
 
+/**
+ * The published public articles that hold the words of `search`, best first: more words in the
+ * title, then more words anywhere, then newest. Searches every topic, or only `topicId`'s. For
+ * answering a question; `list` is the editor's list of every status.
+ */
+const search = reads(PERMISSIONS.kbView)
+  .input(
+    z.object({
+      search: z.string().trim().min(1).max(200),
+      topicId: z.string().optional(),
+      limit: z.number().int().min(1).max(50).default(10),
+    }),
+  )
+  .output(z.object({ articles: z.array(Article.extend({ topicId: z.string() })) }))
+  .handler(async ({ input, context: { tx } }) => {
+    if (input.topicId) await topicFor(tx, input.topicId);
+
+    const { matches, rank } = articleSearch(input.search);
+
+    const articles = await tx
+      .select({ ...rowColumns, topicId: kbCategories.topicId })
+      .from(kbArticles)
+      .innerJoin(kbCategories, eq(kbCategories.id, kbArticles.categoryId))
+      .where(and(matches, input.topicId ? eq(kbCategories.topicId, input.topicId) : undefined))
+      .orderBy(...rank)
+      .limit(input.limit);
+
+    return { articles };
+  });
+
 /** One article with its content and files. */
 const get = reads(PERMISSIONS.kbView)
   .input(z.object({ id: z.string() }))
@@ -321,4 +351,13 @@ const remove = writes(PERMISSIONS.kbArticleManage)
     return { ids: removed.map((row) => row.id) };
   });
 
-export const articleProcedures = { list, get, create, update, bulkUpdate, duplicate, remove };
+export const articleProcedures = {
+  list,
+  search,
+  get,
+  create,
+  update,
+  bulkUpdate,
+  duplicate,
+  remove,
+};

@@ -123,6 +123,67 @@ describe('knowledge base articles', () => {
     });
   });
 
+  it('searches published public articles by each word, best first, in every topic or one', async () => {
+    const { owner, topic, category } = await topicWithCategory('org-kba-s');
+    const guides = await owner.knowledgebase.topics.create({ title: 'Guides' });
+
+    const setup = await owner.knowledgebase.categories.create({
+      topicId: guides.id,
+      title: 'Setup',
+    });
+
+    const write = (categoryId: string, title: string, content: string, draft = false) =>
+      owner.knowledgebase.articles.create({
+        categoryId,
+        title,
+        content,
+        status: draft ? 'draft' : 'publish',
+      });
+
+    await write(category.id, 'Exports', '<p>Each contact goes in one file</p>');
+    await write(category.id, 'Spreadsheets', '<p>You can import every contact at once</p>');
+    await write(category.id, 'Import products', '<p>Upload a sheet</p>');
+    await write(setup.id, 'Import contacts', '<p>Upload a CSV file</p>');
+    await write(category.id, 'Import drafts', '<p>contact</p>', true);
+    await write(category.id, 'Цаг захиалга', '<p>Үйлчилгээний цагийг онлайнаар авна</p>');
+
+    await owner.knowledgebase.articles.create({
+      categoryId: category.id,
+      title: 'Import secrets',
+      status: 'publish',
+      isPrivate: true,
+    });
+
+    const found = async (input: { search: string; topicId?: string }) =>
+      (await owner.knowledgebase.articles.search(input)).articles.map((row) => row.title);
+
+    // Title hits come first, then more words, across topics; a draft or private article is left out.
+    await expect(found({ search: 'IMPORT  contact?' })).resolves.toEqual([
+      'Import contacts',
+      'Import products',
+      'Spreadsheets',
+      'Exports',
+    ]);
+    await expect(found({ search: 'import contact', topicId: topic.id })).resolves.toEqual([
+      'Import products',
+      'Spreadsheets',
+      'Exports',
+    ]);
+    await expect(found({ search: 'ЦАГ захиалга' })).resolves.toEqual(['Цаг захиалга']);
+    await expect(found({ search: '%' })).resolves.toEqual([]);
+
+    const [first] = (await owner.knowledgebase.articles.search({ search: 'csv' })).articles;
+
+    expect(first).toMatchObject({ title: 'Import contacts', topicId: guides.id });
+    expect(first).not.toHaveProperty('content');
+    await expect(
+      owner.knowledgebase.articles.search({ search: 'import', topicId: 'no-such-topic' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(
+      clientAs('org-kba-s2').knowledgebase.articles.search({ search: 'import' }),
+    ).resolves.toEqual({ articles: [] });
+  });
+
   it('stamps publishing, needs a future time to schedule and publishes when it comes', async () => {
     const { owner, category } = await topicWithCategory('org-kba-b');
 
