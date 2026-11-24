@@ -72,15 +72,17 @@ export const PREVIEW_READY = 'frontline:messenger-preview-ready';
 
 /**
  * What a visitor sees of the messenger: its settings with its team in place of the team's ids,
- * whether that team is online at `now`, and whether it takes tickets.
+ * whether that team is online at `now`, whether it takes tickets, and its common questions
+ * without their answers, which only a tap or a matching message gets.
  */
 export const visitorView = (
-  { supporterIds, ticketPipelineIds, ...shown }: MessengerConfig & { name: string },
+  { supporterIds, ticketPipelineIds, faq, ...shown }: MessengerConfig & { name: string },
   supporters: Supporter[],
   now: Date,
 ) => ({
   ...shown,
-  isOnline: isOnlineAt({ supporterIds, ticketPipelineIds, ...shown }, now),
+  isOnline: isOnlineAt({ supporterIds, ticketPipelineIds, faq, ...shown }, now),
   supporters,
   tickets: ticketPipelineIds.length > 0,
+  faq: faq.map(({ id, question }) => ({ id, question })),
 });

@@ -89,6 +89,7 @@ export const Preview = () => {
           settings={settings}
           conversations={[]}
           onOpen={() => setThread(true)}
+          onAsk={async () => setThread(true)}
           onTab={() => undefined}
         />
       )}

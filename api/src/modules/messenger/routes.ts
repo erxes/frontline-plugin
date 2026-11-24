@@ -267,6 +267,7 @@ export const messengerRoutes = () => {
   router.get('/conversations', threadRoutes.conversations);
   router.get('/conversations/:id/messages', threadRoutes.conversationMessages);
   router.post('/messages', sendIpLimit, threadRoutes.send);
+  router.post('/faq/:id', sendIpLimit, threadRoutes.ask);
   router.post('/conversations/:id/read', threadRoutes.markRead);
   router.post('/conversations/:id/typing', threadRoutes.typing);
   router.post('/conversations/:id/person', threadRoutes.askForPerson);
