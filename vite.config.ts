@@ -45,6 +45,22 @@ export default defineConfig({
   },
   test: {
     reporters: [...configDefaults.reporters, noSkips()],
+    // A pull request runs only the test files its changes reach through imports (`--changed`,
+    // plugin CI's integration job). A change to an input tests read without importing it reruns
+    // every file: the toolchain and CI, the test setup, and the files code reads at run time
+    // (migrations, SQL, JSON), which is anything in api/, ui/, widget/, desktop/ that isn't TypeScript.
+    forceRerunTriggers: [
+      ...configDefaults.forceRerunTriggers,
+      '**/.github/**',
+      '**/pnpm-lock.yaml',
+      '**/pnpm-workspace.yaml',
+      '**/.node-version',
+      '**/patches/**',
+      '**/tsconfig*.json',
+      '**/tools/test/**',
+      '**/api/src/test/**',
+      '**/{api,ui,widget,desktop}/**/!(*.ts|*.tsx)',
+    ],
     projects: [
       {
         root: 'api',

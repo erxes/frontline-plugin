@@ -1,3 +1,7 @@
+# erxes core's plugin CI runs the static checks, the tests on Postgres and the image with its
+# vulnerability scan. This file adds what only frontline has: the size budgets, and the daily
+# flows on core's released images (e2e/stack.sh) split across three runners. `Check` is the one
+# status branch protection requires.
 name: CI
 
 on:
@@ -6,40 +10,28 @@ on:
   pull_request:
     # labeled: the budget-increase label reruns the budget check.
     types: [opened, synchronize, reopened, labeled, unlabeled]
-  # The merge queue tests each pull request on top of main and the ones queued ahead of it.
-  # It runs the checks, the tests and budgets against their ceilings, and builds the image main
-  # publishes. It skips the e2e, which the pull request's own run already passed: a queue run
-  # catches what two pull requests break together in types and tests, in minutes, without
-  # dropping a pull request on a browser timing flake.
+  # The merge queue tests each pull request on top of main and the ones queued ahead of it. It
+  # skips the e2e, which the pull request's own run already passed: a queue run catches what two
+  # pull requests break together in types and tests, in minutes.
   merge_group:
+  workflow_dispatch:
 
-permissions: {}
+permissions:
+  contents: read
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Each job waits for one of the org's shared runners, so the checks and the tests share one:
-# together they still end before the build and the e2e shards do.
-# The merge queue fast-forwards main to the commit it tested, so a push to main runs only the
-# push job, which publishes the image the queue built and tested.
 jobs:
-  check:
-    if: github.event_name != 'push'
+  ci:
+    uses: erxes/erxes/.github/workflows/plugin-ci.yml@ci/reusable-plugin-workflow
+    secrets: inherit
+
+  # This change's sizes against its ceilings, and against the base branch built beside it.
+  budgets:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    services:
-      postgres:
-        image: postgres:18
-        env:
-          POSTGRES_USER: ci
-          POSTGRES_PASSWORD: ci-only-password
-          POSTGRES_DB: postgres
-        ports: ['5432:5432']
-        options: --health-cmd "pg_isready -U ci" --health-interval 5s --health-timeout 3s --health-retries 10
-    env:
-      DATA_TEST_URL: postgres://ci:ci-only-password@127.0.0.1:5432/postgres
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
@@ -47,11 +39,6 @@ jobs:
           # A pull request checks out its merge commit; the first parent is the base branch.
           fetch-depth: 2
       - uses: ./.github/actions/setup
-      - run: pnpm exec vp run check
-      - run: pnpm exec vp run test
-      # What lets queries rely on withOrg() instead of org filters (tools/check-rls.sql).
-      - run: pnpm check:rls
-      # This change's sizes against its ceilings, and against the base branch built beside it.
       - name: Budgets
         env:
           LABELED: ${{ contains(github.event.pull_request.labels.*.name, 'budget-increase') }}
@@ -66,81 +53,12 @@ jobs:
           [ "$LABELED" = true ] && args+=(--allow-increase)
           pnpm budgets "${args[@]}"
 
-  # One image build feeds the scan, the e2e shards and, from the merge queue, the push. A pull
-  # request that changes only Markdown builds no image and runs no e2e; one that changes no
-  # dependency, Dockerfile or workflow skips the scan, which the merge queue still runs.
-  build:
-    if: github.event_name != 'push'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      contents: read
-    outputs:
-      app: ${{ steps.changes.outputs.app }}
-      deps: ${{ steps.changes.outputs.deps }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          persist-credentials: false
-          # A pull request checks out its merge commit; the first parent is the base branch.
-          fetch-depth: 2
-      - name: What the pull request changes
-        id: changes
-        run: |
-          app=true deps=true
-          if [ "$GITHUB_EVENT_NAME" = pull_request ]; then
-            files=$(git diff --name-only HEAD^1 HEAD)
-            grep -qv '\.md$' <<< "$files" || app=false
-            grep -qE '^\.github/|(^|/)(Dockerfile|package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|\.node-version)$' <<< "$files" || deps=false
-          fi
-          # No image, nothing to scan.
-          [ "$app" = true ] || deps=false
-          echo "app=$app" >> "$GITHUB_OUTPUT"
-          echo "deps=$deps" >> "$GITHUB_OUTPUT"
-      - if: steps.changes.outputs.app == 'true'
-        uses: ./.github/actions/setup
-      - if: steps.changes.outputs.app == 'true'
-        run: pnpm image
-        env:
-          VERSION: ${{ github.sha }}
-      # gzip -1 and no zip on top: the upload and the shards' download wait on it.
-      - if: steps.changes.outputs.app == 'true'
-        run: docker save frontline-plugin:ci | gzip -1 > frontline-plugin.tar.gz
-      - if: steps.changes.outputs.app == 'true'
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: frontline-image
-          path: frontline-plugin.tar.gz
-          compression-level: 0
-          retention-days: 3
-
-  scan:
-    needs: build
-    if: needs.build.outputs.deps == 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions: {}
-    steps:
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: frontline-image
-      - run: gunzip -c frontline-plugin.tar.gz | docker load
-      - uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
-        with:
-          image-ref: frontline-plugin:ci
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: '1'
-
-  # The plugin in web: core's released images plus the built image (e2e/stack.sh), in
+  # The plugin in web: core's released images plus this commit's image (e2e/stack.sh), in
   # Chromium with axe, split across three runners that each start their own stack.
   e2e:
-    needs: build
-    if: needs.build.outputs.app == 'true' && github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    permissions:
-      contents: read
     strategy:
       fail-fast: false
       matrix:
@@ -149,18 +67,17 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: frontline-image
-      # Before setup: the script needs only docker, git and openssl.
+      - uses: ./.github/actions/setup
+      - run: pnpm image
+        env:
+          VERSION: ${{ github.sha }}
       - name: Start core and the plugin in the background
         run: |
           {
             status=0
-            { gunzip -c frontline-plugin.tar.gz | docker load && bash e2e/stack.sh up; } > "$RUNNER_TEMP/stack.log" 2>&1 || status=$?
+            bash e2e/stack.sh up > "$RUNNER_TEMP/stack.log" 2>&1 || status=$?
             echo "$status" > "$RUNNER_TEMP/stack.status"
-          } &
-      - uses: ./.github/actions/setup
+          } > /dev/null 2>&1 &
       - name: Playwright's version, which keys the browser cache
         id: playwright
         run: echo "version=$(pnpm exec playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
@@ -189,16 +106,13 @@ jobs:
         if: failure()
         run: pnpm e2e:stack logs
 
-  # The one status branch protection requires: green only when every job above passed or
-  # was skipped. A job skips only when the build said it needn't run, the build failed, or it
-  # is the e2e in the merge queue. A
-  # push to main gates nothing, so it runs none of them.
-  required:
+  # The status branch protection requires: green when every job above passed, or skipped as
+  # this file says (the e2e outside pull requests).
+  check:
     name: Check
-    if: always() && github.event_name != 'push'
-    needs: [check, build, scan, e2e]
+    needs: [ci, budgets, e2e]
+    if: always()
     runs-on: ubuntu-latest
-    permissions: {}
     steps:
       - env:
           RESULTS: ${{ join(needs.*.result, ' ') }}
@@ -208,46 +122,4 @@ jobs:
               success | skipped) ;;
               *) echo "A required job ended $result."; exit 1 ;;
             esac
-          done
-
-  # The image the merge queue built and scanned for this commit, as
-  # docker.io/erxes/frontline-plugin. A commit that skipped the queue or failed in it has no
-  # green queue run, so nothing is pushed.
-  push:
-    name: Push the image to Docker Hub
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    permissions:
-      actions: read
-    steps:
-      - name: The merge queue's green run of this commit
-        id: queue
-        env:
-          GH_TOKEN: ${{ github.token }}
-        # The queue merges once Check is green, which can be a few seconds before its run ends.
-        run: |
-          for _ in $(seq 20); do
-            id=$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/ci.yml/runs?head_sha=$GITHUB_SHA&event=merge_group&status=success" --jq '.workflow_runs[0].id // empty')
-            [ -n "$id" ] && break
-            sleep 15
-          done
-          [ -n "$id" ] || { echo "No green merge queue run of $GITHUB_SHA, so no image to push."; exit 1; }
-          echo "id=$id" >> "$GITHUB_OUTPUT"
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          name: frontline-image
-          run-id: ${{ steps.queue.outputs.id }}
-          github-token: ${{ github.token }}
-      - uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      - name: Tag and push sha-<12 chars> and main
-        run: |
-          gunzip -c frontline-plugin.tar.gz | docker load
-          image=docker.io/erxes/frontline-plugin
-          for tag in "sha-${GITHUB_SHA::12}" main; do
-            docker tag frontline-plugin:ci "$image:$tag"
-            docker push "$image:$tag"
           done
