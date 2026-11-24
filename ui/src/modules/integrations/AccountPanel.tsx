@@ -182,6 +182,15 @@ const PhoneSettings = ({ account }: { account: Account }) => {
 
   return (
     <>
+      {!settings.inChannel && (
+        <p role="alert" className="flex items-center gap-2 p-3 text-xs text-destructive-text">
+          <IconAlertTriangle className="size-4 shrink-0" />
+          {t(
+            'phone-in-no-channel',
+            'In no channel, so its calls are dropped: add it to a channel to keep them',
+          )}
+        </p>
+      )}
       <PanelSection title={t('webhook', 'Webhook')}>
         <InfoRow icon={IconLink} label={t('address', 'Address')}>
           {settings.webhookUrl ? (

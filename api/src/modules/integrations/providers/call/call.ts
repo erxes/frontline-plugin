@@ -20,6 +20,12 @@ const PbxConfig = z.object({
   timeZone: z.string(),
 });
 
+/**
+ * The key two names of one trunk share: trimmed, lowercased, `-` read as `_`, so `EMJJ-Tuv` and
+ * `emjj_tuv` are the same trunk, as pbx-relay keys them.
+ */
+export const trunkKey = (name: string) => name.trim().toLowerCase().replaceAll('-', '_');
+
 const PbxSecret = z.object({
   /** Signs what the PBX's bridge posts: `x-erxes-signature` over `<timestamp>.<body>`. */
   webhookSecret: z.string(),

@@ -9,9 +9,10 @@ import {
   Skeleton,
   usePageHotkey,
 } from 'erxes-ui';
-import { type KeyboardEvent, startTransition, useEffect, useRef, useState } from 'react';
+import { type KeyboardEvent, startTransition, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type CustomContainerComponentProps, Virtualizer, type VirtualizerHandle } from 'virtua';
+import { useMinute } from '~/shared/hooks.ts';
 import { LoadPage } from '~/shared/List.tsx';
 import type { Paging } from '~/shared/paging.ts';
 import { usePrefetch } from '~/shared/prefetch.ts';
@@ -133,19 +134,6 @@ const RowList = ({ style, children, ref }: CustomContainerComponentProps) => {
       {children}
     </ul>
   );
-};
-
-/** The time, moved on each minute, for the rows' waiting clocks. */
-const useMinute = () => {
-  const [now, setNow] = useState(() => Date.now());
-
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 60_000);
-
-    return () => clearInterval(timer);
-  }, []);
-
-  return now;
 };
 
 /**

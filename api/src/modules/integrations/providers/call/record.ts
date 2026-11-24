@@ -7,8 +7,10 @@ import { core, JOBS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { type CALL_STATUSES, callLegs, callOperators, calls } from '#/db/calls.ts';
 import { customerLinks, integrations } from '#/db/inbox.ts';
+import { logger } from '#/logger.ts';
 import type { Adapter } from '../../../inbox/adapters.ts';
-import { receive } from '../../../inbox/receive.ts';
+import { receiveIn } from '../../../inbox/receive.ts';
+import { signalConversations } from '../../../inbox/shared.ts';
 import type { AccountRow } from '../../provider.ts';
 import { Cdr, extensionsOf, isAnsweredLeg, pbxTime, recordingOf, statusOf } from './cdr.ts';
 
@@ -111,36 +113,66 @@ const callByKey = async (tx: Tx, accountId: string, callKey: string) => {
   return found;
 };
 
+/** Whether an active integration takes the account's calls, so they reach a channel. */
+export const takesCalls = async (tx: Tx, row: AccountRow) =>
+  (await integrationFor(tx, row, null)) !== undefined;
+
+/**
+ * The call already opened, or else the integration a new call goes to; a call no channel takes is
+ * logged and kept nowhere.
+ */
+const callOrIntegration = async (tx: Tx, row: AccountRow, init: NewCall) => {
+  const existing = await callByKey(tx, row.id, init.callKey);
+
+  if (existing) return { callId: existing.id };
+
+  const integrationId = await integrationFor(tx, row, init.queue);
+
+  if (!integrationId)
+    logger.warn(
+      { orgId: row.orgId, accountId: row.id, callKey: init.callKey },
+      'call dropped: the phone account is in no active channel',
+    );
+
+  return { integrationId };
+};
+
 /**
  * The call's id, opened first when it is new: its customer is found by number, and it starts
  * its own conversation in the inbox. Returns null for an account no channel uses, which keeps
  * nothing.
  */
 const openCall = async (row: AccountRow, init: NewCall) => {
-  const existing = await withOrg(row.orgId, (tx) => callByKey(tx, row.id, init.callKey));
+  const found = await withOrg(row.orgId, (tx) => callOrIntegration(tx, row, init));
 
-  if (existing) return existing.id;
-
-  const integrationId = await withOrg(row.orgId, (tx) => integrationFor(tx, row, init.queue));
-
-  if (!integrationId) return null;
+  if (!found.integrationId) return found.callId ?? null;
 
   const customerId = await customerByPhone(row.orgId, init.customerPhone);
 
-  const message = await receive(row.orgId, {
-    integrationId,
-    customerId,
-    externalConversationId: init.callKey,
-    externalId: init.callKey,
-    content:
-      init.direction === 'incoming'
-        ? `Incoming call from ${init.customerPhone}`
-        : `Outgoing call to ${init.customerPhone}`,
-    outgoing: init.direction !== 'incoming',
-  });
-
   return withOrg(row.orgId, async (tx) => {
-    await tx
+    // Two first posts of a call can come at once, such as two CDR legs: the second waits here for
+    // the first to commit, then finds its call, so the call has one conversation in one channel.
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${`frontline_calls:${row.id}:${init.callKey}`}, 0))`,
+    );
+
+    const { callId, integrationId } = await callOrIntegration(tx, row, init);
+
+    if (!integrationId) return callId ?? null;
+
+    const { message, changed } = await receiveIn(tx, row.orgId, {
+      integrationId,
+      customerId,
+      externalConversationId: init.callKey,
+      externalId: init.callKey,
+      content:
+        init.direction === 'incoming'
+          ? `Incoming call from ${init.customerPhone}`
+          : `Outgoing call to ${init.customerPhone}`,
+      outgoing: init.direction !== 'incoming',
+    });
+
+    const [opened] = await tx
       .insert(calls)
       .values({
         orgId: row.orgId,
@@ -149,11 +181,11 @@ const openCall = async (row: AccountRow, init: NewCall) => {
         customerId,
         ...init,
       })
-      .onConflictDoNothing();
-
-    const opened = await callByKey(tx, row.id, init.callKey);
+      .returning({ id: calls.id });
 
     if (!opened) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+    if (changed) await signalConversations(tx, row.orgId, [changed]);
 
     await signalCalls(tx, row.orgId);
 

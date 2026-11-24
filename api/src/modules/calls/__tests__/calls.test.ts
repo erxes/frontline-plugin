@@ -125,6 +125,48 @@ describe('calls through a PBX', () => {
     expect((await clientAs('org-call-b').calls.list({})).totalCount).toBe(0);
   });
 
+  it('makes one call of the first posts of a new call that come at once', async () => {
+    fakePbx();
+    const { owner, post } = await connectPbx('org-call-f');
+
+    // The ringing event names no queue, as when the UCM sends it before the queue answers.
+    const ringing = JSON.stringify({
+      type: 'incoming_call',
+      caller: '99112233',
+      uniqueid: '1763170000.10',
+    });
+
+    expect(
+      await Promise.all([
+        post('cdr', fixture('cdr-noanswer.json')),
+        post('cdr', fixture('cdr-answered.json')),
+        post('receive-call', ringing),
+        post('cdr', fixture('cdr-noanswer.json')),
+      ]),
+    ).toEqual([200, 200, 200, 200]);
+
+    expect((await owner.calls.list({})).calls).toMatchObject([
+      { status: 'answered', customerPhone: '99112233' },
+    ]);
+    expect((await owner.conversations.list({})).conversations).toHaveLength(1);
+  });
+
+  it('says a PBX in no active channel drops its calls', async () => {
+    fakePbx();
+    const { owner, account, post } = await connectPbx('org-call-g');
+    const settings = () => owner.integrations.call.settings({ accountId: account.id });
+
+    expect(await settings()).toMatchObject({ inChannel: true });
+
+    const [integration] = await owner.integrations.list({});
+
+    await owner.integrations.update({ id: integration?.id ?? '', isActive: false });
+
+    expect(await post('cdr', fixture('cdr-noanswer.json'))).toBe(200);
+    expect((await owner.calls.list({})).totalCount).toBe(0);
+    expect(await settings()).toMatchObject({ inChannel: false });
+  });
+
   it('follows a call live: ringing, then missed when it hangs up unanswered', async () => {
     fakePbx();
     const { owner, post } = await connectPbx('org-call-c');
