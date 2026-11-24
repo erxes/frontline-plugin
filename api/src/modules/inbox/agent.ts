@@ -1,15 +1,15 @@
-import { AgentBlock, AgentFailed, AgentFinished } from '@erxes/core-contract';
+import { AgentBlock, AgentFailed, AgentFinished, AgentHandedOff } from '@erxes/core-contract';
 import type { DeliveredEvent } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import { AGENT_EVENTS, core, PERMISSIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
-import { conversations, integrations } from '#/db/inbox.ts';
+import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
 import { writes } from '#/orpc.ts';
 import { integrationFor } from './integrations.ts';
-import { addBotMessage, setOperatorOf } from './operator.ts';
+import { addBotMessage, setOperatorOf, takeOver } from './operator.ts';
 import { signalConversations } from './shared.ts';
 
 /** The kinds of integration a core agent answers: the website messenger and Meta's direct messages. */
@@ -140,8 +140,46 @@ const postAnswer = (orgId: string, eventId: string, finished: z.output<typeof Fi
     return posted;
   });
 
+/**
+ * The agent gave the conversation to a person: a person takes it, and the team reads why in an
+ * internal note. The customer already read the agent's own line in its answer, so no hand-off
+ * message goes out. The note takes the event's id and the change needs the bot to still have the
+ * conversation, so a repeated delivery adds nothing. Returns whether it handed the conversation off.
+ */
+const handedOff = (orgId: string, eventId: string, event: z.output<typeof AgentHandedOff>) =>
+  withOrg(orgId, async (tx) => {
+    const conversation = await answeredBy(tx, event);
+
+    if (!conversation) return false;
+
+    await takeOver(tx, [conversation.id]);
+    await tx
+      .insert(messages)
+      .values({
+        id: eventId,
+        orgId,
+        conversationId: conversation.id,
+        content: `The agent handed this conversation to a person: ${event.reason}`,
+        internal: true,
+      })
+      .onConflictDoNothing();
+    await signalConversations(tx, orgId, [conversation]);
+
+    return true;
+  });
+
 /** Acts on what core says of a message the plugin gave an agent; other events pass by. */
 export const onAgentEvent = async ({ id, type, organizationId, data }: DeliveredEvent) => {
+  if (type === AGENT_EVENTS.handedOff) {
+    const event = AgentHandedOff.parse(data.payload);
+    const handed = await handedOff(organizationId, id, event);
+
+    logger.info(
+      { eventId: id, orgId: organizationId, conversationId: event.key, handed },
+      'core agent handed the conversation to a person',
+    );
+  }
+
   if (type === AGENT_EVENTS.finished) {
     const finished = Finished.parse(data.payload);
     const posted = await postAnswer(organizationId, id, finished);

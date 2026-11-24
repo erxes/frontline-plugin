@@ -20,6 +20,7 @@ import { chartProcedures } from '#/modules/reports/charts.ts';
 import { ticketPropertyReport, ticketReport } from '#/modules/reports/tickets.ts';
 import { responseTemplateProcedures } from '#/modules/responseTemplates/responseTemplates.ts';
 import { integrationAgentProcedures } from '#/modules/inbox/agent.ts';
+import { agentRunProcedures } from '#/modules/inbox/agentRuns.ts';
 import { conversationProcedures } from '#/modules/inbox/conversations.ts';
 import { countProcedures } from '#/modules/inbox/counts.ts';
 import { integrationProcedures } from '#/modules/inbox/integrations.ts';
@@ -108,6 +109,7 @@ export const router = {
     ...conversationProcedures,
     ...countProcedures,
     ...operatorProcedures,
+    ...agentRunProcedures,
     ...presenceProcedures,
     ...conversationPropertyProcedures,
     messages: { ...messageProcedures, ...reactionProcedures, ...linkPreviewProcedures },

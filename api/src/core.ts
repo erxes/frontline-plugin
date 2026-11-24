@@ -181,11 +181,13 @@ export const SEND_ACTIONS = {
 
 /**
  * What core sends back to the plugin about a message it gave a core agent
- * (`modules/inbox/agent.ts`): the answer, or why there is none.
+ * (`modules/inbox/agent.ts`): the answer, or why there is none, and that the agent gave the
+ * conversation to a person.
  */
 export const AGENT_EVENTS = {
   finished: 'core.agent.finished',
   failed: 'core.agent.failed',
+  handedOff: 'core.agent.handed_off',
 } as const;
 
 /** Tells whoever connected an account that the provider stopped accepting it. */

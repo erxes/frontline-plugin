@@ -59,6 +59,8 @@ export const Conversation = createSelectSchema(conversations)
     kind: z.string(),
     /** Its integration's name, which the list shows on hover of the kind's icon. */
     integrationName: z.string(),
+    /** The core agent that answers its integration's conversations, if one does. */
+    agentId: z.string().nullable(),
     /** Its channel's name, which the list shows beside the customer. */
     channelName: z.string(),
     tagIds: z.array(z.string()),
@@ -76,6 +78,7 @@ export const conversationRows = (tx: Tx, member: PluginMember) => {
       ...columns,
       kind: integrations.kind,
       integrationName: integrations.name,
+      agentId: integrations.agentId,
       channelName: channels.name,
       tagIds: tagIdsOf,
       isRead: readSql(member),
