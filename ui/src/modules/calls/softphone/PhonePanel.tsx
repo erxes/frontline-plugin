@@ -164,7 +164,7 @@ export const PhonePanel = ({
   return (
     <section
       aria-label={t('softphone', 'Phone')}
-      className="mx-auto mt-8 flex w-full max-w-sm flex-col gap-4 rounded-lg border bg-background p-4 shadow-xs"
+      className="mx-auto mt-8 flex w-full max-w-md flex-col gap-4 rounded-lg border bg-background p-5"
     >
       <div className="flex items-center justify-between gap-2">
         {lines.length > 1 ? (

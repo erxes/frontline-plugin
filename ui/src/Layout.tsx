@@ -7,6 +7,7 @@ import {
   IconChevronDown,
   IconChevronLeft,
   IconCircles,
+  IconDialpad,
   IconForms,
   IconHelpCircle,
   IconHistory,
@@ -98,7 +99,7 @@ const NavGroup = ({
   );
 };
 
-/** The Calls group: its history and its queues. */
+/** The Calls group: the member's phone, the call history and the queues. */
 const CallsGroup = () => {
   const { t } = useTranslation('frontline');
 
@@ -107,6 +108,7 @@ const CallsGroup = () => {
       icon={IconPhone}
       name={t('calls', 'Calls')}
       items={[
+        { name: t('softphone', 'Phone'), to: `${CALLS}/phone`, icon: IconDialpad },
         { name: t('history', 'History'), to: `${CALLS}/history`, icon: IconHistory },
         { name: t('queues', 'Queues'), to: `${CALLS}/queues`, icon: IconListDetails },
       ]}

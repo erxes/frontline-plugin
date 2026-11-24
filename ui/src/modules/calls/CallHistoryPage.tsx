@@ -49,7 +49,7 @@ const CallName = ({ call }: { call: Call }) => {
         <Skeleton className="h-4 w-24" />
       ) : (
         <>
-          <PersonAvatar name={name} src={customer.data?.avatarUrl} size="lg" />
+          {named && <PersonAvatar name={name} src={customer.data?.avatarUrl} size="lg" />}
           <span className="truncate">{name}</span>
         </>
       )}

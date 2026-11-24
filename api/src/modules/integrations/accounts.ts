@@ -17,10 +17,14 @@ import { integrationPage, reportSoon } from './catalog.ts';
  * at frontline again when `repair` names the account's webhook key.
  */
 export const checkAccount = async (row: AccountRow, repair?: { webhookKey: string | null }) => {
-  const provider = providerOf(row.provider).open(row);
+  const error = await Promise.resolve()
+    .then(async () => {
+      const provider = providerOf(row.provider).open(row);
 
-  const error = await (repair ? provider.repair(repair.webhookKey) : Promise.resolve())
-    .then(() => provider.check())
+      if (repair) await provider.repair(repair.webhookKey);
+
+      return provider.check();
+    })
     .catch((failure: unknown) => (failure instanceof Error ? failure.message : String(failure)));
 
   return recordCheck(row, error);
