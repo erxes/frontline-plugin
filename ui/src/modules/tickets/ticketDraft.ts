@@ -73,7 +73,10 @@ export const written = (draft: TicketDraft) =>
   /"text":"[^"]/.test(draft.description) ||
   contentOf(draft) !== contentOf({ ...NO_TICKET, ...draft.opened });
 
-/** What a draft starts from: "+" on a column gives its filing, a conversation its customer and name. */
+/**
+ * What a draft starts from: "+" on a column gives its filing, a conversation its customer and name,
+ * a customer's or order's Tickets tab its customer.
+ */
 type Opener = Pick<
   TicketDraft,
   'pipelineId' | 'statusId' | 'name' | 'customerId' | 'conversationId'
@@ -101,21 +104,32 @@ const useOpener = (draft: Draft, opener: Opener) => {
   const [starts, setStarts] = useState(0);
 
   const ask = useEffectEvent(
-    (pipelineId: string, statusId: string, conversationId: string | null) => {
+    (
+      pipelineId: string,
+      statusId: string,
+      conversationId: string | null,
+      customerId: string | null,
+    ) => {
       const held = draft.value;
 
-      const elsewhere =
-        conversationId !== held.conversationId ||
-        (conversationId === null &&
-          (pipelineId !== held.pipelineId || (statusId !== '' && statusId !== held.statusId)));
+      // A customer's panel opens a draft for them alone: it starts over for another customer.
+      const filedElsewhere = customerId
+        ? customerId !== held.customerId
+        : pipelineId !== held.pipelineId || (statusId !== '' && statusId !== held.statusId);
 
-      if ((!pipelineId && !conversationId) || !elsewhere) return;
+      const elsewhere =
+        conversationId !== held.conversationId || (conversationId === null && filedElsewhere);
+
+      if ((!pipelineId && !conversationId && !customerId) || !elsewhere) return;
 
       const start = () => {
         draft.save(() => ({
           ...NO_TICKET,
           ...opener,
-          opened: conversationId ? { name: opener.name, customerId: opener.customerId } : null,
+          opened:
+            conversationId || customerId
+              ? { name: opener.name, customerId: opener.customerId }
+              : null,
         }));
         setStarts((count) => count + 1);
       };
@@ -133,11 +147,11 @@ const useOpener = (draft: Draft, opener: Opener) => {
     },
   );
 
-  const { pipelineId, statusId, conversationId } = opener;
+  const { pipelineId, statusId, conversationId, customerId } = opener;
 
   useEffect(
-    () => ask(pipelineId, statusId, conversationId),
-    [pipelineId, statusId, conversationId],
+    () => ask(pipelineId, statusId, conversationId, customerId),
+    [pipelineId, statusId, conversationId, customerId],
   );
 
   return starts;

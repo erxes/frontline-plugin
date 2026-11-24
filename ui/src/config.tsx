@@ -270,7 +270,8 @@ export const CONFIG: IUIConfig = {
       name: 'tickets',
       title: 'Tickets',
       icon: IconTicket,
-      hosts: ['core:customer', 'core:company'],
+      // An ecommerce order's panel lists its customer's tickets.
+      hosts: ['core:customer', 'core:company', 'ecommerce:order'],
       component: lazy(async () => ({ default: (await ticket()).TicketRelations })),
     },
     {
