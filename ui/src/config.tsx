@@ -62,6 +62,7 @@ const kb = withText(() => import('@/knowledgebase/slots.ts'));
 const forms = withText(() => import('@/forms/slots.ts'));
 const surveys = withText(() => import('@/surveys/slots.ts'));
 const integration = withText(() => import('@/inbox/slots.ts'));
+const conversationRelations = withText(() => import('@/inbox/ConversationRelations.tsx'));
 
 /**
  * What web reads from `./config`: the app tab, the page module under `/frontline/*`, and the
@@ -271,6 +272,15 @@ export const CONFIG: IUIConfig = {
       icon: IconTicket,
       hosts: ['core:customer', 'core:company'],
       component: lazy(async () => ({ default: (await ticket()).TicketRelations })),
+    },
+    {
+      name: 'conversations',
+      title: 'Conversations',
+      icon: IconMessages,
+      hosts: ['core:customer'],
+      component: lazy(async () => ({
+        default: (await conversationRelations()).ConversationRelations,
+      })),
     },
   ],
   dashboardWidgets: DASHBOARD_WIDGETS,
