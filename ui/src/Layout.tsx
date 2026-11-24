@@ -178,7 +178,7 @@ const SETTINGS_PAGES: NavLink[] = [
   [`${SETTINGS}/channels`, 'channels', 'Channels', IconCircles],
   [`${SETTINGS}/tags`, 'tags', 'Tags', IconTag],
   // Core keeps them and ticket fields, at its own Settings › Structure and › Properties.
-  ['/settings/structure', 'branches-and-departments', 'Branches and departments', IconSitemap],
+  ['/settings/structure', 'structure', 'Structure', IconSitemap],
   [`/settings/properties/${TICKET_FIELDS}`, 'ticket-properties', 'Ticket properties', IconForms],
 ];
 

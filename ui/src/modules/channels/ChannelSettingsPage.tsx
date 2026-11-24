@@ -300,7 +300,8 @@ export const ChannelSettingsPage = () => {
           <Skeleton className="h-40 w-full" />
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1">
+        // On a phone the sections sit above the open one, which gets the full width.
+        <div className="flex min-h-0 flex-1 flex-col md:flex-row">
           <ChannelSettingsNav channel={channel.data} />
           <ScrollArea className="min-w-0 flex-1">
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">

@@ -16,6 +16,7 @@ import {
   IconMessages,
   IconRobot,
   IconPhone,
+  IconTag,
   IconPlugConnected,
   IconTicket,
   IconWorldWww,
@@ -74,6 +75,11 @@ export const CONFIG: IUIConfig = {
   path: PLUGIN,
   icon: IconBox,
   modules: [{ name: PLUGIN, path: PLUGIN, icon: IconBox }],
+  // Core's Settings link Frontline's first page: channels, where an admin adds integrations.
+  settings: [
+    { path: `/${PLUGIN}/settings/channels`, label: 'Channels', icon: IconCircles },
+    { path: `/${PLUGIN}/settings/tags`, label: 'Tags', icon: IconTag },
+  ],
   recordTypes: [
     {
       contentType: CHANNEL_TYPE,
