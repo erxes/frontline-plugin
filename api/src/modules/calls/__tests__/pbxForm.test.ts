@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vite-plus/test';
+import { describe, expect, it, onTestFinished, vi } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
 import { clientAs } from '#/test/member.ts';
+import { fakeProviders } from '../../integrations/__tests__/fakes.ts';
 import { fakePbx, PBX, pbxServer } from './pbx.ts';
 
 vi.mock('#/core.ts', async (importOriginal) =>
@@ -124,5 +125,81 @@ describe("a PBX set up with the old form's fields", () => {
         { customerPhone: '99887766', direction: 'outgoing' },
       ]),
     );
+  });
+});
+
+const HOUR = 3_600_000;
+
+const turn = (n: number) => ({
+  urls: ['turn:turn.cloudflare.com:3478?transport=udp', 'turns:turn.cloudflare.com:443'],
+  username: `user-${n}`,
+  credential: `credential-${n}`,
+});
+
+const stun = { urls: 'stun:stun.cloudflare.com:3478' };
+
+describe('softphones behind NAT', () => {
+  it("get Cloudflare's TURN credentials, renewed before they expire", async () => {
+    vi.useFakeTimers({ toFake: ['Date'] });
+    onTestFinished(() => {
+      vi.useRealTimers();
+    });
+
+    const start = Date.now();
+    const at = (hours: number, ms = 0) => vi.setSystemTime(start + hours * HOUR + ms);
+
+    // Cloudflare answers one server as an object, and a list of them as an array.
+    let answer: unknown = { iceServers: turn(1) };
+    const asked = fakeProviders(() => answer);
+    const saraa = clientAs('org-call-turn', [PERMISSIONS.callView], 'user-saraa');
+    const iceServers = () => saraa.calls.phone.iceServers({});
+
+    // Two softphones asking at once make one request, for credentials that live a day.
+    expect(await Promise.all([iceServers(), iceServers()])).toEqual([[turn(1)], [turn(1)]]);
+    expect(
+      asked.map(({ url, method, authorization, body }) => ({
+        url: url.href,
+        method,
+        authorization,
+        body,
+      })),
+    ).toEqual([
+      {
+        url: 'https://rtc.live.cloudflare.com/v1/turn/keys/turn-key/credentials/generate-ice-servers',
+        method: 'POST',
+        authorization: 'Bearer turn-token',
+        body: { ttl: 86_400 },
+      },
+    ]);
+
+    // With more than half their day left they are kept; with less they are renewed.
+    at(11);
+    expect(await iceServers()).toEqual([turn(1)]);
+    expect(asked).toHaveLength(1);
+
+    answer = { iceServers: [stun, turn(2)] };
+    at(13);
+    expect(await iceServers()).toEqual([stun, turn(2)]);
+    expect(asked).toHaveLength(2);
+
+    // A failed renewal keeps the credentials still valid and waits a minute to ask again.
+    answer = new Response('{"error":"down"}', { status: 503 });
+    at(26);
+    expect(await iceServers()).toEqual([stun, turn(2)]);
+    expect(await iceServers()).toEqual([stun, turn(2)]);
+    expect(asked).toHaveLength(3);
+
+    // Once they expire, a softphone goes without TURN until Cloudflare answers again.
+    answer = { iceServers: [] };
+    at(38);
+    expect(await iceServers()).toEqual([]);
+    expect(await iceServers()).toEqual([]);
+    expect(asked).toHaveLength(4);
+
+    answer = { iceServers: [turn(3)] };
+    at(38, 61_000);
+    expect(await iceServers()).toEqual([turn(3)]);
+    expect(asked).toHaveLength(5);
+    expect(JSON.stringify(await iceServers())).not.toContain('turn-token');
   });
 });

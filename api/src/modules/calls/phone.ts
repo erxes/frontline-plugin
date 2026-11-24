@@ -2,7 +2,6 @@ import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, desc, eq, inArray, isNotNull, or, type SQL } from 'drizzle-orm';
 import { z } from 'zod';
-import { config as settings } from '#/config.ts';
 import { core, PERMISSIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { callOperators, calls } from '#/db/calls.ts';
@@ -12,6 +11,7 @@ import { call, pbxOf } from '../integrations/providers/call/call.ts';
 import { pbxAction, pbxFailed } from '../integrations/providers/call/pbx.ts';
 import { openSecret } from '../integrations/secrets.ts';
 import { hasCallWith } from './calls.ts';
+import { IceServer, turnIceServers } from './turn.ts';
 
 /**
  * The softphone core mounts on every page (`floatingWidget`): the member's SIP lines, the
@@ -45,8 +45,7 @@ const lineFor = (member: PluginMember, accountId: string) =>
 
 /**
  * The lines the caller's softphone signs in to: each extension with a SIP password, on the PBX's
- * WebRTC socket (`wss://<host>/ws`, the UCM's HTTPS port), relayed through the install's TURN
- * server (`TURN_SERVER_URL`) when it has one, as the old calls settings gave every softphone.
+ * WebRTC socket (`wss://<host>/ws`, the UCM's HTTPS port).
  */
 const lines = reads(PERMISSIONS.callView)
   .input(z.object({}))
@@ -58,13 +57,6 @@ const lines = reads(PERMISSIONS.callView)
         extension: z.string(),
         password: z.string(),
         webSocketUrl: z.string(),
-        iceServers: z.array(
-          z.object({
-            urls: z.string(),
-            username: z.string().optional(),
-            credential: z.string().optional(),
-          }),
-        ),
       }),
     ),
   )
@@ -82,10 +74,18 @@ const lines = reads(PERMISSIONS.callView)
         extension: operator.extension,
         password: openSecret(member.orgId, operator.sipSecret, SipSecret).password,
         webSocketUrl: `wss://${config.host}/ws`,
-        iceServers: settings.turn ? [settings.turn] : [],
       };
     });
   });
+
+/**
+ * The ICE servers the softphone dials and answers through: the install's Cloudflare TURN
+ * credentials, which expire, so the softphone asks again well before they do. Apart from the
+ * lines, whose refetch would sign the phone in again.
+ */
+const iceServers = readsWithCore(PERMISSIONS.callView, z.object({}), turnIceServers)
+  .output(z.array(IceServer))
+  .handler(({ context: { fromCore } }) => fromCore);
 
 const PbxAccounts = z.object({
   account: z
@@ -244,4 +244,4 @@ const caller = readsWithCore(
     return { name: fromCore };
   });
 
-export const phoneProcedures = { lines, extensions, transfer, current, caller };
+export const phoneProcedures = { lines, iceServers, extensions, transfer, current, caller };

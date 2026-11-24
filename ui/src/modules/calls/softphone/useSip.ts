@@ -14,6 +14,7 @@ import {
   useRef,
   useState,
 } from 'react';
+import { useIceServers } from '@/calls/queries.ts';
 
 export type Line = InferClientOutputs<Client>['calls']['phone']['lines'][number];
 
@@ -103,7 +104,8 @@ const follow = (
 
 /**
  * A SIP phone signed in to the line's PBX over WebRTC (JsSIP), for as long as it is mounted. It
- * takes one call at a time: a second incoming call gets busy.
+ * takes one call at a time: a second incoming call gets busy. Each call goes through the TURN
+ * servers held when it is dialled or answered; renewing them leaves the sign-in alone.
  */
 export const useSip = (line: Line, audio: RefObject<HTMLAudioElement | null>) => {
   const [status, setStatus] = useState<PhoneStatus>('connecting');
@@ -113,7 +115,8 @@ export const useSip = (line: Line, audio: RefObject<HTMLAudioElement | null>) =>
   const agent = useRef<UA | null>(null);
   const busy = useRef(false);
   const host = new URL(line.webSocketUrl).hostname;
-  const pcConfig = { iceServers: line.iceServers };
+  const iceServers = useIceServers();
+  const pcConfig = () => ({ iceServers: iceServers() });
 
   useEffect(() => {
     const ua = new UA({
@@ -177,9 +180,12 @@ export const useSip = (line: Line, audio: RefObject<HTMLAudioElement | null>) =>
     call,
     callCount,
     dial: (number: string) => {
-      agent.current?.call(`sip:${number}@${host}`, { mediaConstraints: AUDIO_ONLY, pcConfig });
+      agent.current?.call(`sip:${number}@${host}`, {
+        mediaConstraints: AUDIO_ONLY,
+        pcConfig: pcConfig(),
+      });
     },
-    answer: () => call?.session.answer({ mediaConstraints: AUDIO_ONLY, pcConfig }),
+    answer: () => call?.session.answer({ mediaConstraints: AUDIO_ONLY, pcConfig: pcConfig() }),
     hangUp: () => call?.session.terminate(),
     press: (digit: string) => call?.session.sendDTMF(digit),
     toggleMute: () => {

@@ -107,8 +107,8 @@ const ZoneRow = () => {
 /**
  * A Grandstream PBX, in the old form's order: its name, phone number, WebSocket server (the UCM's
  * HTTPS address, which the softphones' `wss://<host>/ws` and the API share), channel, the queues
- * frontline follows in one field, its trunks and time zone, then the members who answer it. The API login and the softphones' TURN server are the install's (`CALL_API_USER`,
- * `TURN_SERVER_URL` and theirs), as before. The operators go with the form as JSON; the channel is the one it was opened from,
+ * frontline follows in one field, its trunks and time zone, then the members who answer it. The API login and the softphones' TURN key are the install's
+ * (`CALL_API_USER` and `CF_TURN_KEY_ID` with theirs). The operators go with the form as JSON; the channel is the one it was opened from,
  * else the member's first, as a new messenger's is.
  */
 export const PbxFields = ({ channelId = '' }: { channelId?: string }) => {

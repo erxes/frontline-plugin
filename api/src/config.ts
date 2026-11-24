@@ -76,13 +76,12 @@ const Env = z.object({
   CALL_API_USER: z.string().min(1).optional(),
   CALL_API_PASSWORD: z.string().min(1).optional(),
   /**
-   * The TURN server every softphone relays its audio through when it or the PBX is behind NAT,
-   * as the old calls settings named it: `turn.example.com:3478` or `turn:turn.example.com:3478`,
-   * and its login. Unset, softphones connect directly.
+   * The Cloudflare Realtime TURN key softphones relay their audio through when they or the PBX
+   * are behind NAT: its id and API token from the dashboard. Set both or neither; unset,
+   * softphones connect directly.
    */
-  TURN_SERVER_URL: z.string().trim().min(1).optional(),
-  TURN_SERVER_USERNAME: z.string().optional(),
-  TURN_SERVER_CREDENTIAL: z.string().optional(),
+  CF_TURN_KEY_ID: z.string().trim().min(1).optional(),
+  CF_TURN_API_TOKEN: z.string().trim().min(1).optional(),
   /**
    * The install's Meta app, the one core's Facebook connections sign in through unless an
    * organisation sets its own there: meta-relay forwards its deliveries, which its secret checks.
@@ -107,6 +106,10 @@ const env = Env.refine((vars) => !vars.META_RELAY_URL === !vars.META_RELAY_KEY, 
   .refine((vars) => !vars.CALL_API_USER === !vars.CALL_API_PASSWORD, {
     message: 'Set CALL_API_USER and CALL_API_PASSWORD together, or neither',
     path: ['CALL_API_PASSWORD'],
+  })
+  .refine((vars) => !vars.CF_TURN_KEY_ID === !vars.CF_TURN_API_TOKEN, {
+    message: 'Set CF_TURN_KEY_ID and CF_TURN_API_TOKEN together, or neither',
+    path: ['CF_TURN_API_TOKEN'],
   })
   .parse(process.env);
 
@@ -144,16 +147,11 @@ export const config = {
       : null,
   helpCenterDomainSuffix: env.HELPCENTER_DOMAIN_SUFFIX,
   secretsKey: Buffer.from(env.SECRETS_KEY, 'base64'),
-  /** The softphones' TURN server, as WebRTC's `iceServers` take it, or null when none is set. */
-  turn: env.TURN_SERVER_URL
-    ? {
-        urls: /^turns?:/.test(env.TURN_SERVER_URL)
-          ? env.TURN_SERVER_URL
-          : `turn:${env.TURN_SERVER_URL}`,
-        username: env.TURN_SERVER_USERNAME || undefined,
-        credential: env.TURN_SERVER_CREDENTIAL || undefined,
-      }
-    : null,
+  /** The softphones' Cloudflare TURN key, or null when none is set. */
+  turn:
+    env.CF_TURN_KEY_ID && env.CF_TURN_API_TOKEN
+      ? { keyId: env.CF_TURN_KEY_ID, apiToken: env.CF_TURN_API_TOKEN }
+      : null,
   /** The PBXes' API user, or null when none is set. */
   callApi:
     env.CALL_API_USER && env.CALL_API_PASSWORD
