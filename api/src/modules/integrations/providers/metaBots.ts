@@ -17,7 +17,7 @@ import {
 } from '#/db/meta.ts';
 import { logger } from '#/logger.ts';
 import { reads, writes, writesWithCore } from '#/orpc.ts';
-import { askMeta, metaAccount } from './meta.ts';
+import { askMeta, metaAccount } from './metaGraph.ts';
 import { clearProfile, pushProfile } from './metaProfile.ts';
 
 const { orgId, ...botColumns } = getTableColumns(metaBots);

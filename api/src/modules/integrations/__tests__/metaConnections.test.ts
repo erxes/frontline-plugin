@@ -1,4 +1,3 @@
-import type * as Sdk from '@erxes/plugin-sdk';
 import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { JOBS } from '#/core.ts';
@@ -22,20 +21,9 @@ vi.mock('#/core.ts', async (importOriginal) =>
   (await import('./standIns.ts')).coreStandIn(await importOriginal()),
 );
 
-// Core signs each event delivery; here the token `core-event` stands for its signature.
-vi.mock('@erxes/plugin-sdk', async (importOriginal) => {
-  const actual = await importOriginal<typeof Sdk>();
-  const { sdkStandIn } = await import('./standIns.ts');
-
-  return {
-    ...sdkStandIn(actual),
-    verifyCoreEvent: async (authorization: string | undefined, raw: string) => {
-      if (authorization !== 'Bearer core-event') throw new Error('not signed by core');
-
-      return actual.DeliveredEvent.parse(JSON.parse(raw));
-    },
-  };
-});
+vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
+  (await import('./standIns.ts')).sdkStandIn(await importOriginal()),
+);
 
 const { deliver } = serve();
 const api = serveApi('/api');

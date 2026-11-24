@@ -5,10 +5,13 @@ import { ticketFieldCalls } from '#/test/coreUnits.ts';
 
 /**
  * What frontline asked of core in a test: the customers senders become, the notifications
- * members get and the jobs it queued. `vi.mock` loads this module before the app, so it imports
- * nothing of the app's.
+ * members get, the messages given to core's agents and the jobs it queued. `vi.mock` loads this
+ * module before the app, so it imports nothing of the app's.
  */
 export const asked = {
+  // Core's agents refuse a message with this text, as when another server runs the conversation.
+  refusedByAgent: 'Is anyone there?',
+  submitted: [] as Record<string, unknown>[],
   customers: 0,
   created: [] as unknown[],
   notifications: [] as unknown[],
@@ -172,13 +175,22 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
           return { ok: true };
         },
       },
+      agents: {
+        submit: async (input: Record<string, unknown>) => {
+          if (input.text === asked.refusedByAgent) throw new Error('ASSISTANT_BUSY');
+
+          asked.submitted.push(input);
+
+          return { ok: true };
+        },
+      },
     }),
   },
 });
 
 /**
- * The SDK with core's job queue answered here, and core's automation calls signed with a token
- * `core-call:<orgId>:<userId>`.
+ * The SDK with core's job queue answered here, core's automation calls signed with a token
+ * `core-call:<orgId>:<userId>`, and core's event deliveries with the token `core-event`.
  */
 export const sdkStandIn = (actual: typeof Sdk) => ({
   ...actual,
@@ -191,5 +203,10 @@ export const sdkStandIn = (actual: typeof Sdk) => ({
     if (kind !== 'core-call' || !orgId || !userId) throw new Error('not signed by core');
 
     return { orgId, userId, automationId: 'automation-1', runId: 'run-1', stepId: 'step-1' };
+  },
+  verifyCoreEvent: async (authorization: string | undefined, raw: string) => {
+    if (authorization !== 'Bearer core-event') throw new Error('not signed by core');
+
+    return actual.DeliveredEvent.parse(JSON.parse(raw));
   },
 });

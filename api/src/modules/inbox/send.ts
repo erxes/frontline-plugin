@@ -7,6 +7,7 @@ import { conversations, type DELIVERY_STATUSES, integrations, messages } from '#
 import { logger } from '#/logger.ts';
 import { AccountRefused } from '../integrations/provider.ts';
 import { ADAPTERS } from './adapters.ts';
+import { setOperatorOf } from './operator.ts';
 import { overdue } from './post.ts';
 import { signalConversations } from './shared.ts';
 
@@ -21,6 +22,7 @@ const outgoingOf = (orgId: string, messageId: string) =>
           content: messages.content,
           html: messages.html,
           attachments: messages.attachments,
+          blocks: messages.blocks,
           userId: messages.userId,
           providerData: messages.providerData,
           deliveryStatus: messages.deliveryStatus,
@@ -97,11 +99,37 @@ const recordParts = (orgId: string, messageId: string) => (sent: string[]) =>
   });
 
 /**
+ * A bot message, such as a core agent's answer, that never reached the customer: a person takes
+ * the conversation, as when the agent gives no answer. One the bot no longer answers stays as it is.
+ */
+const handOffUnsent = (orgId: string, conversationId: string) =>
+  withOrg(orgId, async (tx) => {
+    const [conversation] = await tx
+      .select({
+        id: conversations.id,
+        customerId: conversations.customerId,
+        operator: conversations.operator,
+      })
+      .from(conversations)
+      .where(eq(conversations.id, conversationId))
+      .for('update');
+
+    if (conversation?.operator !== 'bot') return;
+
+    logger.warn(
+      { orgId, conversationId },
+      'bot message not delivered; a person takes the conversation',
+    );
+    await setOperatorOf(tx, orgId, [conversation], 'person');
+  });
+
+/**
  * Sends one queued reply through its integration's adapter, outside any transaction, and marks it
  * sent with the provider's id. Each attempt first claims the reply, so two attempts at once never
  * both send it. A send the provider refused goes back to the queue and throws, so core tries
  * again, sending only the parts the provider didn't take; after the last attempt, or once the
- * provider refused the account's token, the reply is marked failed.
+ * provider refused the account's token, the reply is marked failed, and a bot message's
+ * conversation goes to a person.
  *
  * An attempt that finds the reply claimed and unsettled can't know whether it reached the
  * customer: the earlier attempt died, or saved nothing after the provider took it. It marks the
@@ -131,7 +159,17 @@ export const sendReply = async (job: PluginJobDelivery) => {
 
     ({ externalId } = await deliver(recordParts(job.orgId, messageId)));
   } catch (error) {
-    logger.error({ err: error, messageId, attempt: job.attempt }, 'reply send failed');
+    logger.error(
+      {
+        err: error,
+        orgId: job.orgId,
+        conversationId: row.conversation.id,
+        messageId,
+        kind: row.integration.kind,
+        attempt: job.attempt,
+      },
+      'reply send failed',
+    );
 
     // The account is broken until a member repairs it, so another try would fail the same way.
     const refused = error instanceof AccountRefused;
@@ -144,6 +182,8 @@ export const sendReply = async (job: PluginJobDelivery) => {
       { deliveryStatus: last ? 'failed' : 'queued' },
       'sending',
     );
+
+    if (last && row.message.userId === null) await handOffUnsent(job.orgId, row.conversation.id);
 
     if (refused) return;
 

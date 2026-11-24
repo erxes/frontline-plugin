@@ -1,3 +1,4 @@
+import type { AgentBlock } from '@erxes/core-contract';
 import type { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
 import type { integrationAccounts, PROVIDERS } from '#/db/integrations.ts';
@@ -33,6 +34,11 @@ export interface InboundMessage {
   quotedId?: string;
   /** The manifest event automations start from, published with the message when it is new. */
   event?: string;
+  /**
+   * The customer's own words in a direct chat, which the integration's core agent answers when it
+   * has one: not a tap on a button, a quick reply, a file alone or a comment on a post.
+   */
+  forAgent?: boolean;
   /** Runs in the transaction that keeps the message when it is new, with the row it got. */
   kept?: (tx: Tx, message: { id: string; orgId: string }) => Promise<unknown>;
 }
@@ -84,6 +90,8 @@ export interface OutboundMessage {
   /** The member's rich text, for a provider that sends HTML; the others send `text`. */
   html: string | null;
   attachments: StoredFile[];
+  /** What a core agent showed below its answer; a provider without a form for them leaves them out. */
+  blocks: AgentBlock[];
   /** What the provider's own code stored on this message, such as a new mail's subject. */
   providerData: Record<string, unknown> | null;
   /**

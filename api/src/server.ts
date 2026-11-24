@@ -34,7 +34,7 @@ import {
   CONNECTION_CHANGED,
   followConnection,
 } from '#/modules/integrations/providers/metaConnect.ts';
-import { onAgentEvent } from '#/modules/messenger/agent.ts';
+import { onAgentEvent } from '#/modules/inbox/agent.ts';
 import { messengerRoutes } from '#/modules/messenger/routes.ts';
 import { applyMerge } from '#/modules/contacts/merges.ts';
 import { syncUnits } from '#/modules/teams/sync.ts';

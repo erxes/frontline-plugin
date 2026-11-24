@@ -14,7 +14,7 @@ import { setOperatorOf } from '../inbox/operator.ts';
 import { type Incoming, receive } from '../inbox/receive.ts';
 import { typingTopic } from '../inbox/shared.ts';
 import { MessengerConfig, messenger } from './adapter.ts';
-import { submitToAgent } from './agent.ts';
+import { submitToAgent } from '../inbox/agent.ts';
 import { faqAnswerTo, postFaqAnswer } from './faq.ts';
 import { attachmentsOf, type Visitor, visitorOf } from './session.ts';
 
@@ -229,7 +229,8 @@ const deliver = async (
     event: MESSAGE_RECEIVED.messenger.type,
   });
 
-  if (answer === undefined) await submitToAgent(visitor, message);
+  if (answer === undefined)
+    await submitToAgent(visitor.orgId, message, visitor.verified ? visitor.customerId : null);
   else await postFaqAnswer(visitor.orgId, { ...message, customerId: visitor.customerId }, answer);
 
   const reply: VisitorMessage = {

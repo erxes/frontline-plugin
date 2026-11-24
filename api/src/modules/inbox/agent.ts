@@ -1,18 +1,23 @@
 import { AgentBlock, AgentFailed, AgentFinished } from '@erxes/core-contract';
 import type { DeliveredEvent } from '@erxes/plugin-sdk';
+import { ORPCError } from '@orpc/server';
 import { and, eq } from 'drizzle-orm';
 import { z } from 'zod';
-import { AGENT_EVENTS, core } from '#/core.ts';
+import { AGENT_EVENTS, core, PERMISSIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations, integrations } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
-import { addBotMessage, setOperatorOf } from '../inbox/operator.ts';
-import { signalConversations } from '../inbox/shared.ts';
-import type { Visitor } from './session.ts';
+import { writes } from '#/orpc.ts';
+import { integrationFor } from './integrations.ts';
+import { addBotMessage, setOperatorOf } from './operator.ts';
+import { signalConversations } from './shared.ts';
+
+/** The kinds of integration a core agent answers: the website messenger and Meta's direct messages. */
+const AGENT_KINDS = new Set(['messenger', 'facebook', 'instagram']);
 
 /**
- * The conversation `key` names, locked, while its messenger's agent is `agentId` and the bot still
- * answers it; null once a person took it or the messenger's agent changed.
+ * The conversation `key` names, locked, while its integration's agent is `agentId` and the bot
+ * still answers it; null once a person took it or the integration's agent changed.
  */
 const answeredBy = async (tx: Tx, { agentId, key }: { agentId: string; key: string }) => {
   const [row] = await tx
@@ -35,7 +40,7 @@ const answeredBy = async (tx: Tx, { agentId, key }: { agentId: string; key: stri
   return row ?? null;
 };
 
-/** The agent of the conversation's messenger, while the bot still answers the conversation. */
+/** The agent of the conversation's integration, while the bot still answers the conversation. */
 const agentOf = (orgId: string, conversationId: string) =>
   withOrg(orgId, async (tx) => {
     const [row] = await tx
@@ -56,35 +61,37 @@ const handOff = (orgId: string, { agentId, key }: { agentId: string; key: string
   });
 
 /**
- * Gives a visitor's message to the messenger's core agent, after the message committed. The
- * conversation id is core's key for it and the message id makes a retry land once. Only a visitor
- * the website signed in goes as the customer, so the agent acts for them. The answer comes back as
+ * Gives a customer's message to the core agent of its conversation's integration, after the
+ * message committed. The conversation id is core's key for it and the message id makes a retry
+ * land once. `customerId` goes when the sender is known for sure, such as a visitor the website
+ * signed in or a Meta account, so the agent acts for them. The answer comes back as
  * `core.agent.finished`; when core refuses the message, a person takes the conversation.
  */
 export const submitToAgent = async (
-  visitor: Visitor,
+  orgId: string,
   message: { id: string; conversationId: string; content: string },
+  customerId: string | null,
 ) => {
   if (!message.content) return;
 
-  const agentId = await agentOf(visitor.orgId, message.conversationId);
+  const agentId = await agentOf(orgId, message.conversationId);
 
   if (!agentId) return;
 
   await core
-    .forOrg(visitor.orgId)
+    .forOrg(orgId)
     .agents.submit({
       id: agentId,
       key: message.conversationId,
       text: message.content,
       requestId: message.id,
-      ...(visitor.verified && { customerId: visitor.customerId }),
+      ...(customerId && { customerId }),
     })
     .catch((error: unknown) => {
       logger.error(
         {
           err: error,
-          orgId: visitor.orgId,
+          orgId,
           agentId,
           conversationId: message.conversationId,
           messageId: message.id,
@@ -92,7 +99,7 @@ export const submitToAgent = async (
         'core agent did not take the message; a person takes the conversation',
       );
 
-      return handOff(visitor.orgId, { agentId, key: message.conversationId });
+      return handOff(orgId, { agentId, key: message.conversationId });
     });
 };
 
@@ -112,8 +119,10 @@ const Finished = AgentFinished.extend({
 
 /**
  * Posts the agent's answer, with the blocks it showed below it, into its conversation as the bot,
- * and tells the inbox and the visitor's messenger. A repeated delivery of `eventId` adds nothing,
- * and so does an answer to a conversation a person took meanwhile. Returns whether it posted.
+ * and tells the inbox and the customer: the messenger's visitor reads it, and an integration
+ * that sends replies queues it for its adapter. The message takes the event's id, so a repeated
+ * delivery of the event adds nothing even after the send gave the message the provider's id.
+ * Nor does an answer to a conversation a person took meanwhile. Returns whether it posted.
  */
 const postAnswer = (orgId: string, eventId: string, finished: z.output<typeof Finished>) =>
   withOrg(orgId, async (tx) => {
@@ -122,7 +131,7 @@ const postAnswer = (orgId: string, eventId: string, finished: z.output<typeof Fi
     if (!conversation || (!finished.answer.trim() && finished.blocks.length === 0)) return false;
 
     const posted = await addBotMessage(tx, orgId, conversation, finished.answer, {
-      externalId: `agent:${eventId}`,
+      id: eventId,
       blocks: finished.blocks,
     });
 
@@ -159,3 +168,28 @@ export const onAgentEvent = async ({ id, type, organizationId, data }: Delivered
     await handOff(organizationId, failed);
   }
 };
+
+/**
+ * The core agent that answers the integration's conversations while the bot has them, or none
+ * with null, for a member who may change it. Core refuses messages to an agent it doesn't have.
+ */
+const setAgent = writes(PERMISSIONS.channelView)
+  .input(z.object({ id: z.string(), agentId: z.string().min(1).nullable() }))
+  .output(z.object({ id: z.string(), agentId: z.string().nullable() }))
+  .handler(async ({ input, context: { tx, member } }) => {
+    const row = await integrationFor(tx, member, input.id);
+
+    if (!AGENT_KINDS.has(row.kind))
+      throw new ORPCError('BAD_REQUEST', {
+        message: 'An agent answers website messenger, Facebook and Instagram conversations only',
+      });
+
+    await tx
+      .update(integrations)
+      .set({ agentId: input.agentId })
+      .where(eq(integrations.id, input.id));
+
+    return input;
+  });
+
+export const integrationAgentProcedures = { setAgent };

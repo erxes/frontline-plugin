@@ -1,6 +1,6 @@
 import type { metaBots } from '#/db/meta.ts';
 import type { ProviderName } from '../provider.ts';
-import { graph } from './meta.ts';
+import { graph } from './metaGraph.ts';
 
 type Bot = Pick<
   typeof metaBots.$inferSelect,

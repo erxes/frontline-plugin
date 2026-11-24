@@ -1,13 +1,10 @@
 import { ORPCError } from '@orpc/server';
 import { z } from 'zod';
 import { config } from '#/config.ts';
-import type { Tx } from '#/db/client.ts';
 import type { MetaProvider } from '#/db/meta.ts';
 import type { StoredFile } from '#/db/table.ts';
 import { attachedFile } from '#/modules/files.ts';
-import { providerApi, ProviderRefused } from '../providerApi.ts';
-import { openSecret } from '../secrets.ts';
-import { accountRow } from '../store.ts';
+import { ProviderRefused } from '../providerApi.ts';
 import {
   AccountRefused,
   defineProvider,
@@ -17,81 +14,11 @@ import {
   type OutboundReaction,
   type ProviderName,
 } from '../provider.ts';
+import { blockMessages } from './metaBlocks.ts';
 import { forgetConnection } from './metaConnection.ts';
+import { graph, Secret } from './metaGraph.ts';
 import { routeThroughRelay, unrouteFromRelay } from './metaRelay.ts';
 import { postOfThread } from './metaWebhook.ts';
-
-/** The Graph API version frontline's calls use. */
-const GRAPH_VERSION = 'v23.0';
-
-const GraphFailure = z.object({
-  error: z.object({ message: z.string(), code: z.number().optional() }),
-});
-
-/** Meta's code for an access token it no longer takes: expired, revoked or the password changed. */
-const TOKEN_REFUSED = 190;
-
-const graphApi = providerApi({
-  name: 'Meta',
-  prefix: `https://graph.facebook.com/${GRAPH_VERSION}`,
-  readError: (body) => {
-    const { data } = GraphFailure.safeParse(body);
-
-    return { why: data?.error.message, deadToken: data?.error.code === TOKEN_REFUSED };
-  },
-});
-
-/**
- * A Graph API call with `token` in the Authorization header, so tokens stay out of addresses
- * and logs. `body` goes as JSON, or as it is when it's a form with a file. Resolves to the parsed
- * body, or fails with Meta's message.
- */
-export const graph = (
-  path: string,
-  token: string | null,
-  options: {
-    method?: 'GET' | 'POST' | 'DELETE';
-    query?: Record<string, string>;
-    body?: unknown;
-  } = {},
-) => {
-  const { body } = options;
-
-  return graphApi(path, {
-    method: options.method ?? 'GET',
-    headers: token ? { authorization: `Bearer ${token}` } : {},
-    searchParams: options.query,
-    ...(body instanceof FormData ? { body } : body ? { json: body } : {}),
-  }).json();
-};
-
-const Secret = z.object({ pageToken: z.string() });
-
-/** A connected Facebook page or Instagram account by id, with its page token, or NOT_FOUND. */
-export const metaAccount = async (tx: Tx, id: string) => {
-  const row = await accountRow(tx, id);
-
-  if (row.provider !== 'facebook' && row.provider !== 'instagram')
-    throw new ORPCError('NOT_FOUND', { message: 'No such Facebook page or Instagram account' });
-
-  return {
-    row,
-    provider: row.provider,
-    token: openSecret(row.orgId, row.secret, Secret).pageToken,
-  };
-};
-
-/** `call`, with Meta's refusal as a BAD_REQUEST the member reads. */
-export const askMeta = <T>(call: Promise<T>) =>
-  call.catch((error: unknown) => {
-    if (error instanceof ProviderRefused)
-      throw new ORPCError('BAD_REQUEST', { message: error.message });
-
-    if (error instanceof AccountRefused)
-      throw new ORPCError('BAD_REQUEST', { message: `Meta refused: ${error.message}` });
-
-    throw error;
-  });
 
 type MetaAccount = OpenAccount<unknown, z.infer<typeof Secret>>;
 
@@ -161,9 +88,14 @@ const orElse = async <Target, T>(
   }
 };
 
+/** One message of a reply: a file, or Meta's message fields with the text a block falls back to. */
+type Part = { file: StoredFile } | { message: Record<string, unknown>; fallback?: string };
+
 /**
- * Sends the text, then each attachment as a message of its own, as Messenger takes them. Each
- * part is recorded as it goes, so an attempt after a failed attachment sends only what is left
+ * Sends the text, then each attachment, then what a core agent showed below its answer, each as
+ * a message of its own, as Messenger and Instagram take them (`metaBlocks.ts`). A block Meta
+ * refuses in its own form, such as a picture Instagram can't show, goes as text with its link.
+ * Each part is recorded as it goes, so an attempt after a failed part sends only what is left
  * and the customer never gets the text twice.
  */
 const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessage) => {
@@ -177,34 +109,46 @@ const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessag
       : { messaging_type: 'RESPONSE' }),
   };
 
-  // Messenger shows the messages in the order they reach it; null is the text.
-  const parts = [...(message.text ? [null] : []), ...message.attachments];
+  // Messenger shows the messages in the order they reach it.
+  const parts: Part[] = [
+    ...(message.text ? [{ message: { text: message.text } }] : []),
+    ...message.attachments.map((file) => ({ file })),
+    ...blockMessages(message.blocks),
+  ];
 
-  const send = async (file: (typeof parts)[number], mid: string | null) => {
+  const send = async (part: Part, mid: string | null) => {
     const quote = mid ? { reply_to: { mid } } : {};
 
     return Sent.parse(
       await graph('me/messages', secret.pageToken, {
         method: 'POST',
-        body: file
-          ? await withFile(row.orgId, file, 'filedata', {
-              ...fields,
-              message: {
-                ...quote,
-                attachment: {
-                  type: file.type?.startsWith('image/') ? 'image' : 'file',
-                  payload: { is_reusable: false },
+        body:
+          'file' in part
+            ? await withFile(row.orgId, part.file, 'filedata', {
+                ...fields,
+                message: {
+                  ...quote,
+                  attachment: {
+                    type: part.file.type?.startsWith('image/') ? 'image' : 'file',
+                    payload: { is_reusable: false },
+                  },
                 },
-              },
-            })
-          : { ...fields, message: { ...quote, text: message.text } },
+              })
+            : { ...fields, message: { ...quote, ...part.message } },
       }),
     ).message_id;
   };
 
+  const shown = (part: Part, mid: string | null) =>
+    'message' in part && part.fallback !== undefined
+      ? orElse<Part, string>(part, { message: { text: part.fallback } }, (each) => send(each, mid))
+      : send(part, mid);
+
   // The first one quotes the message the member answers.
-  const [first] = await sendInParts(message.parts, parts, (file) =>
-    file === parts[0] ? orElse(message.quotedId, null, (mid) => send(file, mid)) : send(file, null),
+  const [first] = await sendInParts(message.parts, parts, (part) =>
+    part === parts[0]
+      ? orElse(message.quotedId, null, (mid) => shown(part, mid))
+      : shown(part, null),
   );
 
   if (!first) throw new Error('Nothing to send');

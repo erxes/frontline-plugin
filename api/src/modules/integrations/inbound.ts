@@ -10,6 +10,7 @@ import {
   messages,
 } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
+import { submitToAgent } from '../inbox/agent.ts';
 import { customerFor, receiveIn } from '../inbox/receive.ts';
 import { signalConversations, signalMembers } from '../inbox/shared.ts';
 import { FileRefused, storeFile } from '../files.ts';
@@ -158,6 +159,7 @@ const withFiles = async (row: AccountRow, integrationId: string, message: Inboun
  * failure throws after the messages before it are kept, so the provider or the job delivers the
  * rest again; a message delivered twice adds nothing. A message Postgres refuses, or whose author
  * core refuses, would fail every time, so it is logged and skipped. An account no channel uses keeps nothing.
+ * A new message `forAgent` goes to the integration's core agent once it committed.
  */
 export const deliverInbound = async <T extends InboundMessage>(
   row: AccountRow,
@@ -194,7 +196,7 @@ export const deliverInbound = async <T extends InboundMessage>(
       // Core's storage is asked before the transaction opens.
       const { content, attachments } = await withFiles(row, integrationId, message);
 
-      await withOrg(row.orgId, async (tx) => {
+      const kept = await withOrg(row.orgId, async (tx) => {
         const received = await receiveIn(tx, row.orgId, {
           integrationId,
           customerId,
@@ -209,10 +211,12 @@ export const deliverInbound = async <T extends InboundMessage>(
 
         await saved?.(tx, message);
 
-        if (!received.changed) return;
+        if (!received.changed) return null;
 
         changed.push(received.changed);
         await message.kept?.(tx, received.message);
+
+        return received.message;
       }).catch(async (error: unknown) => {
         if (!refusedData(error)) throw error;
 
@@ -222,7 +226,12 @@ export const deliverInbound = async <T extends InboundMessage>(
           'inbound message the inbox cannot store, skipped',
         );
         await withOrg(row.orgId, async (tx) => saved?.(tx, message));
+
+        return null;
       });
+
+      // Once it committed, and only the first time it arrives.
+      if (kept && message.forAgent) await submitToAgent(row.orgId, kept, customerId);
     });
   } finally {
     if (changed.length > 0)

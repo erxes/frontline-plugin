@@ -181,7 +181,7 @@ export const SEND_ACTIONS = {
 
 /**
  * What core sends back to the plugin about a message it gave a core agent
- * (`modules/messenger/agent.ts`): the answer, or why there is none.
+ * (`modules/inbox/agent.ts`): the answer, or why there is none.
  */
 export const AGENT_EVENTS = {
   finished: 'core.agent.finished',

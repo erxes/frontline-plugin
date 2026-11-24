@@ -99,14 +99,19 @@ Frontline builds these in its own tables, with no core change:
   messages to messenger visitors itself. Members get `core.signal`.
 - Teams. Core's units, copied to `frontline_teams` by `modules/teams/sync.ts`.
 
-A messenger can be answered by an agent an admin made in core: its Bot tab saves the agent's id
-in `frontline_integrations.agent_id`. While a conversation's `operator` is `bot`, each visitor
-message goes to core's `agents.submit`, keyed by the conversation id, with the customer only when
-the website signed the visitor in. Core's `core.agent.finished` posts the answer as a bot message,
-and `core.agent.failed` hands the conversation to a person (`api/src/modules/messenger/agent.ts`).
-The answer's `blocks` (pictures, product cards, links and payment links) are stored in
-`frontline_messages.blocks` and drawn under the message in the widget and the inbox.
-A member's reply or an assignment stops the bot.
+A messenger, Facebook page or Instagram account can be answered by an agent an admin made in
+core: its Bot tab saves the agent's id in `frontline_integrations.agent_id`. While a
+conversation's `operator` is `bot`, each visitor message, and each direct text message on
+Facebook or Instagram, goes to core's `agents.submit`, keyed by the conversation id. The customer
+goes with it when the website signed the visitor in, and always on Meta, which names the sender.
+Comments, button taps and quick replies don't go: the page's Meta bots and automations answer
+those. Core's `core.agent.finished` posts the answer as a bot message, and `core.agent.failed`
+hands the conversation to a person (`api/src/modules/inbox/agent.ts`). The answer's `blocks`
+(pictures, product cards, links and payment links) are stored in `frontline_messages.blocks` and
+drawn under the message in the widget and the inbox. On Meta they go as Messenger's own image,
+generic template and button template, or as text with the link when Meta refuses one
+(`api/src/modules/integrations/providers/metaBlocks.ts`). A member's reply or an assignment
+stops the bot, and so does a bot message Meta never took.
 
 A messenger's FAQ answers before the agent does. Its settings keep up to 10 questions with saved
 answers in `config.faq`, and the widget's home screen shows the questions. A tap

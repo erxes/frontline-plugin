@@ -8,7 +8,7 @@ import { integrations } from '#/db/inbox.ts';
 import { readsWithCore, writesWithCore } from '#/orpc.ts';
 import { conversationById } from '../../inbox/shared.ts';
 import type { ProviderName } from '../provider.ts';
-import { askMeta, graph, metaAccount } from './meta.ts';
+import { askMeta, graph, metaAccount } from './metaGraph.ts';
 import { postOfThread } from './metaWebhook.ts';
 
 /** A page's post or an Instagram account's media, as Meta keeps it. */

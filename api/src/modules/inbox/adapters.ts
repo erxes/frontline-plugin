@@ -1,3 +1,4 @@
+import type { AgentBlock } from '@erxes/core-contract';
 import type { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
 import type { StoredFile } from '#/db/table.ts';
@@ -15,6 +16,8 @@ export type Outgoing = {
     /** The member's rich text, or null for plain text. */
     html: string | null;
     attachments: StoredFile[];
+    /** What a core agent showed below its answer, for a provider that can show them. */
+    blocks: AgentBlock[];
     userId: string | null;
     /** What the adapter keeps on its own messages, such as a new mail's subject. */
     providerData: Record<string, unknown> | null;

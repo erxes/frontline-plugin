@@ -157,12 +157,36 @@ export const serve = () => {
 
       if (!account) throw new Error(`no ${provider} account`);
 
-      await channelFor(orgId, provider, account.id);
+      const integration = await channelFor(orgId, provider, account.id);
 
-      return { owner, account };
+      return { owner, account, integration };
     },
     deliver: async (path: string, raw: string, headers: Record<string, string> = {}) =>
       (await post(`/public/webhooks${path}`, raw, headers)).status,
+    /** Core delivers its event `type` with `payload` to `/api/events`; answers the status. */
+    coreEvent: async (orgId: string, id: string, type: string, payload: unknown) => {
+      const at = new Date().toISOString();
+      const about = { subjectType: null, subjectId: null, entityType: null, entityId: null };
+      const data = { id, source: 'core', type, version: 1, payload, summary: null, link: null };
+
+      const event = {
+        id,
+        type,
+        organizationId: orgId,
+        createdAt: at,
+        data: {
+          ...data,
+          ...about,
+          actorType: 'system',
+          actorId: null,
+          occurredAt: at,
+          createdAt: at,
+        },
+      };
+
+      return (await post('/events', JSON.stringify(event), { authorization: 'Bearer core-event' }))
+        .status;
+    },
     /** POSTs `body` as JSON to `path` under `/api`, and answers its status. */
     send: async (path: string, body: unknown) =>
       (await post(path, JSON.stringify(body), {})).status,

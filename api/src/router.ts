@@ -19,6 +19,7 @@ import { metaReport } from '#/modules/reports/meta.ts';
 import { chartProcedures } from '#/modules/reports/charts.ts';
 import { ticketPropertyReport, ticketReport } from '#/modules/reports/tickets.ts';
 import { responseTemplateProcedures } from '#/modules/responseTemplates/responseTemplates.ts';
+import { integrationAgentProcedures } from '#/modules/inbox/agent.ts';
 import { conversationProcedures } from '#/modules/inbox/conversations.ts';
 import { countProcedures } from '#/modules/inbox/counts.ts';
 import { integrationProcedures } from '#/modules/inbox/integrations.ts';
@@ -83,6 +84,7 @@ export const router = {
   surveys: { ...surveyProcedures, ...surveyStatusProcedures, ...surveySendProcedures },
   integrations: {
     ...integrationProcedures,
+    ...integrationAgentProcedures,
     messenger: messengerProcedures,
     accounts: accountProcedures,
     meta: {
