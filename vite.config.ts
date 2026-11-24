@@ -67,6 +67,8 @@ export default defineConfig({
             META_VERIFY_TOKEN: 'test-meta-verify',
             META_RELAY_URL: 'https://relay.example/',
             META_RELAY_KEY: 'test-relay-key',
+            PBX_RELAY_URL: 'https://pbx-relay.example/',
+            PBX_RELAY_KEY: 'test-pbx-relay-key',
             WIDGETS_DOMAIN: 'https://widgets.e2e.test/',
             LOG_LEVEL: 'silent',
           },

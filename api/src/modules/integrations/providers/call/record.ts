@@ -305,7 +305,7 @@ export const recordStatus = async (
   }));
 };
 
-/** A live event from the PBX's bridge: a call rings, is answered, or ends. */
+/** A live event pbx-relay forwards from the PBX: a call rings, is answered, or ends. */
 export const CallEvent = z.object({
   type: z.enum(['ringing', 'answered', 'bridged', 'noanswer', 'hangup']),
   uniqueid: z.string().min(1),

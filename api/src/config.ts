@@ -97,12 +97,24 @@ const Env = z.object({
   META_RELAY_URL: z.url().optional(),
   /** This install's key at meta-relay. */
   META_RELAY_KEY: z.string().min(1).optional(),
+  /**
+   * pbx-relay, which holds each Grandstream UCM's CDR feed and API session and forwards a call or
+   * queue event to the install whose route holds its trunk or queue: each connected PBX is routed
+   * to this API. Off unless both are set; a PBX then needs a bridge run by hand.
+   */
+  PBX_RELAY_URL: z.url().optional(),
+  /** This install's key at pbx-relay. */
+  PBX_RELAY_KEY: z.string().min(1).optional(),
 });
 
 const env = Env.refine((vars) => !vars.META_RELAY_URL === !vars.META_RELAY_KEY, {
   message: 'Set META_RELAY_URL and META_RELAY_KEY together, or neither',
   path: ['META_RELAY_KEY'],
 })
+  .refine((vars) => !vars.PBX_RELAY_URL === !vars.PBX_RELAY_KEY, {
+    message: 'Set PBX_RELAY_URL and PBX_RELAY_KEY together, or neither',
+    path: ['PBX_RELAY_KEY'],
+  })
   .refine((vars) => !vars.CALL_API_USER === !vars.CALL_API_PASSWORD, {
     message: 'Set CALL_API_USER and CALL_API_PASSWORD together, or neither',
     path: ['CALL_API_PASSWORD'],
@@ -156,6 +168,11 @@ export const config = {
   callApi:
     env.CALL_API_USER && env.CALL_API_PASSWORD
       ? { user: env.CALL_API_USER, password: env.CALL_API_PASSWORD }
+      : null,
+  /** pbx-relay, or null when PBXes post through a bridge run by hand. */
+  pbxRelay:
+    env.PBX_RELAY_URL && env.PBX_RELAY_KEY
+      ? { url: env.PBX_RELAY_URL.replace(/\/+$/, ''), key: env.PBX_RELAY_KEY }
       : null,
   meta: {
     appId: env.META_APP_ID,

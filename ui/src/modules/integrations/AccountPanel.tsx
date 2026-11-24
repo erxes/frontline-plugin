@@ -168,7 +168,8 @@ const TelegramWebhook = ({ account }: { account: Account }) => {
 };
 
 /**
- * A phone account's webhook, where its bridge posts calls, and for a Grandstream PBX its settings,
+ * A phone account's webhook, where pbx-relay or a bridge run by hand posts its calls, a warning
+ * when no channel takes them, and for a Grandstream PBX its settings,
  * the queues frontline follows and the members who answer it by extension.
  */
 const PhoneSettings = ({ account }: { account: Account }) => {
@@ -192,22 +193,43 @@ const PhoneSettings = ({ account }: { account: Account }) => {
         </p>
       )}
       <PanelSection title={t('webhook', 'Webhook')}>
-        <InfoRow icon={IconLink} label={t('address', 'Address')}>
-          {settings.webhookUrl ? (
-            <span className="truncate">{settings.webhookUrl}</span>
-          ) : (
-            <span className="text-muted-foreground">
-              {t('webhook-missing', 'None yet: connect the line again for one')}
-            </span>
-          )}
-        </InfoRow>
-        {settings.webhookSecret && (
-          <InfoRow icon={IconKey} label={t('secret', 'Secret')}>
-            <span className="truncate font-mono">{settings.webhookSecret}</span>
+        {settings.relayed ? (
+          <InfoRow icon={IconLink} label={t('address', 'Address')}>
+            {t('pbx-relayed', 'pbx-relay forwards its calls and queues here')}
           </InfoRow>
+        ) : (
+          <PostAddress settings={settings} />
         )}
       </PanelSection>
       {account.provider === 'call' && <PbxSettings account={account} settings={settings} />}
+    </>
+  );
+};
+
+/** Where a bridge run by hand, or CallPro, posts a line's events, and the secret it signs with. */
+const PostAddress = ({
+  settings,
+}: {
+  settings: { webhookUrl: string | null; webhookSecret: string | null };
+}) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <>
+      <InfoRow icon={IconLink} label={t('address', 'Address')}>
+        {settings.webhookUrl ? (
+          <span className="truncate">{settings.webhookUrl}</span>
+        ) : (
+          <span className="text-muted-foreground">
+            {t('webhook-missing', 'None yet: connect the line again for one')}
+          </span>
+        )}
+      </InfoRow>
+      {settings.webhookSecret && (
+        <InfoRow icon={IconKey} label={t('secret', 'Secret')}>
+          <span className="truncate font-mono">{settings.webhookSecret}</span>
+        </InfoRow>
+      )}
     </>
   );
 };
