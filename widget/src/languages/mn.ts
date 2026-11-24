@@ -129,6 +129,7 @@ export const MN = {
   Updated: 'Шинэчилсэн',
   'Uploading…': 'Байршуулж байна…',
   'Use only letters and digits': 'Зөвхөн үсэг, тоо ашиглана уу',
+  'View product': 'Барааг үзэх',
   Vote: 'Санал өгөх',
   'Voting has closed.': 'Санал хураалт хаагдсан.',
   'Voting on this survey has closed': 'Энэ санал асуулгын санал хураалт хаагдсан',
