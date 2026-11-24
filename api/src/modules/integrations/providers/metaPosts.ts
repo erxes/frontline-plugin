@@ -89,6 +89,10 @@ const list = readsWithCore(
     };
   },
 )
+  .route({
+    summary: "List a Facebook page's or Instagram account's posts",
+    description: 'Newest first, 25 at a time; pass `next` as `after` for the next page.',
+  })
   .output(z.object({ posts: z.array(Post), next: z.string().nullable() }))
   .handler(({ context: { fromCore } }) => fromCore);
 
@@ -161,6 +165,11 @@ const create = writesWithCore(
     return { id: created.post_id ?? created.id };
   },
 )
+  .route({
+    summary: 'Publish a Facebook page post',
+    description:
+      'Posts text, with an optional link, on a connected Facebook page; with `imageUrl`, a photo with the text as its caption. `accountId` is a Facebook account from `integrations.accounts.list`.',
+  })
   .output(z.object({ id: z.string() }))
   .handler(({ context: { fromCore } }) => fromCore);
 
