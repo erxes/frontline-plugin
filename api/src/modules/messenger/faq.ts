@@ -3,12 +3,21 @@ import { addBotMessage } from '../inbox/operator.ts';
 import { signalConversations } from '../inbox/shared.ts';
 import type { MessengerConfig } from './adapter.ts';
 
-/** Text as a question compares: trimmed, case-folded, without the punctuation it ends with. */
-const comparable = (text: string) =>
-  text
-    .trim()
-    .toLowerCase()
-    .replace(/[\s\p{P}]+$/u, '');
+const TRAILING = /^[\s\p{P}]$/u;
+
+/**
+ * Text as a question compares: trimmed, case-folded, without the punctuation it ends with. It
+ * walks back from the end, since an anchored regex backtracks on every run of spaces a visitor
+ * types.
+ */
+const comparable = (text: string) => {
+  const folded = text.trim().toLowerCase();
+  let end = folded.length;
+
+  while (end > 0 && TRAILING.test(folded.charAt(end - 1))) end -= 1;
+
+  return folded.slice(0, end);
+};
 
 /** The saved answer to the common question `text` asks exactly, as `comparable` reads both. */
 export const faqAnswerTo = (faq: MessengerConfig['faq'], text: string) => {
