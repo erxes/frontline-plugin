@@ -106,11 +106,12 @@ describe("a PBX set up with the old form's fields", () => {
       callerIdNum: '88001122',
     };
 
+    // A trunk is the same however its name is cased or dashed: `02_MTC_out` is `02-mtc-OUT`.
     const outbound = {
       type: 'ringing',
       uniqueid: '1763173333.2',
       srcTrunkName: 'internal',
-      dstTrunkName: TRUNKS.dstTrunk,
+      dstTrunkName: ' 02-mtc-OUT',
       calleeIdNum: '99887766',
     };
 

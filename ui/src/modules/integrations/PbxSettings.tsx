@@ -1,9 +1,11 @@
 import {
   type Icon,
+  IconAlertTriangle,
   IconArrowDownLeft,
   IconArrowUpRight,
   IconTag,
   IconClock,
+  IconHeartbeat,
   IconListNumbers,
   IconPhone,
   IconServer,
@@ -11,11 +13,11 @@ import {
 import type { InferClientInputs, InferClientOutputs } from '@orpc/client';
 import { useMutation } from '@tanstack/react-query';
 import type { Client } from '@frontline/api';
-import { PanelField, PanelSection, TextField } from 'erxes-ui';
+import { PanelField, PanelSection, TextField, useFormat } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
-import { useChange } from '~/shared/hooks.ts';
+import { useChange, useMinute } from '~/shared/hooks.ts';
 import { ZonePicker } from './ConnectFields.tsx';
 import { OperatorList, queuesOf, queueText } from './PbxLines.tsx';
 import type { Account } from './useIntegrations.ts';
@@ -169,6 +171,55 @@ const SystemSection = ({ pbx }: { pbx: Pbx & { config: PbxConfig } }) => {
   );
 };
 
+/** How long a PBX with queues may send no queue stats or live board before the panel warns. */
+const FEED_QUIET_MS = 10 * 60_000;
+
+/**
+ * When the PBX last sent each followed queue's stats and live board, and a warning once it has
+ * sent neither for any queue in 10 minutes.
+ */
+const QueueFeed = ({ queues }: { queues: Settings['queues'] }) => {
+  const { t } = useTranslation('frontline');
+  const format = useFormat();
+  const now = useMinute();
+
+  if (queues.length === 0) return null;
+
+  const lastHeard = Math.max(
+    0,
+    ...queues.flatMap((queue) => [queue.statsAt, queue.liveAt]).map((at) => at?.getTime() ?? 0),
+  );
+
+  const when = (at: Date | null) => (at ? format.relative(at, now) : t('never', 'Never'));
+
+  return (
+    <PanelSection title={t('queue-feed', 'Queue feed')} icon={IconHeartbeat}>
+      {now - lastHeard > FEED_QUIET_MS && (
+        <p role="alert" className="flex items-center gap-2 px-2 py-1 text-xs text-destructive-text">
+          <IconAlertTriangle className="size-4 shrink-0" />
+          {t('queue-feed-quiet', 'No queue stats or live board from this PBX for 10 minutes')}
+        </p>
+      )}
+      <ul aria-label={t('queue-feed', 'Queue feed')}>
+        {queues.map((queue) => (
+          <li key={queue.id} className="flex items-center gap-2 px-2 py-1 text-xs">
+            <span className="flex-1 truncate">
+              {queue.queue}
+              {queue.name && <span className="ml-2 text-muted-foreground">{queue.name}</span>}
+            </span>
+            <span className="text-muted-foreground">
+              {t('queue-heard', 'Stats {{stats}}, live board {{live}}', {
+                stats: when(queue.statsAt),
+                live: when(queue.liveAt),
+              })}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </PanelSection>
+  );
+};
+
 /** A Grandstream PBX's settings, with the queues frontline follows, and the members who answer it. */
 export const PbxSettings = ({ account, settings }: { account: Account; settings: Settings }) => {
   const pbx = usePbx(account, settings);
@@ -177,6 +228,7 @@ export const PbxSettings = ({ account, settings }: { account: Account; settings:
   return (
     <>
       {config && <SystemSection pbx={{ ...pbx, config }} />}
+      <QueueFeed queues={settings.queues} />
       <OperatorList
         operators={pbx.operators}
         softphones={pbx.softphones}

@@ -1,6 +1,20 @@
 import { type QueryClient, type QueryKey, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'erxes-ui';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+
+/** The time, moved on each minute, for clocks such as how long a conversation has waited. */
+export const useMinute = () => {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 60_000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  return now;
+};
 
 /** Marks the queries under each key stale, refetching the ones on screen, without waiting. */
 const refetch = (queryClient: QueryClient, keys: QueryKey[]) => {

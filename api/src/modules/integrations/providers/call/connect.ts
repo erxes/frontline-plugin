@@ -22,6 +22,7 @@ import {
 import { call, callApi } from './call.ts';
 import { Lines, saveLines } from './lines.ts';
 import { checkPbx } from './pbx.ts';
+import { takesCalls } from './record.ts';
 
 const Host = z
   .string()
@@ -165,6 +166,8 @@ const settings = reads(PERMISSIONS.integrationManage)
       operators: z.array(Operator),
       webhookUrl: z.string().nullable(),
       webhookSecret: z.string().nullable(),
+      /** Whether an active integration takes its calls; without one they are dropped. */
+      inChannel: z.boolean(),
     }),
   )
   .handler(async ({ input, context: { tx } }) => {
@@ -188,6 +191,7 @@ const settings = reads(PERMISSIONS.integrationManage)
         .orderBy(callOperators.extension),
       webhookUrl: await webhookUrl(tx, row.id, row.provider),
       webhookSecret: row.provider === 'call' ? call.open(row).account.secret.webhookSecret : null,
+      inChannel: await takesCalls(tx, row),
     };
   });
 

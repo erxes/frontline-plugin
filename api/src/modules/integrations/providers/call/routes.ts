@@ -8,7 +8,7 @@ import { logger } from '#/logger.ts';
 import type { AccountRow } from '../../provider.ts';
 import { sameText } from '../../secrets.ts';
 import { accountOf } from '../../store.ts';
-import { call, callpro } from './call.ts';
+import { call, callpro, trunkKey } from './call.ts';
 import { Cdr, callKeyOf, customerPhoneOf, isOutgoing, pbxTime, queueOf } from './cdr.ts';
 import type { CALL_STATUSES } from '#/db/calls.ts';
 import {
@@ -220,6 +220,10 @@ const PBX_POSTS: Record<
   },
 };
 
+/** Whether the event's trunk is the account's, compared by `trunkKey`; a blank trunk is none. */
+const sameTrunk = (named: string | undefined, account: string) =>
+  trunkKey(account) !== '' && trunkKey(named ?? '') === trunkKey(account);
+
 /**
  * Whether a live event's call came in or went out: through the account's inbound trunk it came
  * in, on its outbound trunk it went out, as the old integration told them; else the event's own
@@ -229,9 +233,9 @@ const directionOf = (
   event: CallEvent,
   { srcTrunk, dstTrunk }: { srcTrunk: string; dstTrunk: string },
 ) => {
-  if (srcTrunk && event.srcTrunkName === srcTrunk) return 'incoming';
+  if (sameTrunk(event.srcTrunkName, srcTrunk)) return 'incoming';
 
-  if (dstTrunk && event.dstTrunkName === dstTrunk) return 'outgoing';
+  if (sameTrunk(event.dstTrunkName, dstTrunk)) return 'outgoing';
 
   return event.callType ?? (event.dstTrunkName && !event.srcTrunkName ? 'outgoing' : 'incoming');
 };
