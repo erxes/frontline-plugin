@@ -11,20 +11,16 @@ vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
   (await import('./standIns.ts')).sdkStandIn(await importOriginal()),
 );
 
-/**
- * Core delivers `core.agent.finished` with `agent-1`'s `answer`, and the `blocks` it showed below
- * it, in the conversation `key`.
- */
-const agentFinished = (
+/** Core delivers its event `type` about `agent-1`'s conversation `key`, with the rest of `payload`. */
+const agentEvent = (
   orgId: string,
   eventId: string,
+  type: string,
   key: string,
-  answer: string,
-  blocks: Record<string, unknown>[] = [],
+  rest: Record<string, unknown>,
 ) => {
   const at = new Date().toISOString();
-  const type = 'core.agent.finished';
-  const payload = { agentId: 'agent-1', plugin: 'frontline', key, answer, blocks };
+  const payload = { agentId: 'agent-1', plugin: 'frontline', key, ...rest };
 
   const data = {
     id: eventId,
@@ -51,6 +47,15 @@ const agentFinished = (
     'core-event',
   );
 };
+
+/** `agent-1`'s `answer`, and the `blocks` it showed below it, in the conversation `key`. */
+const agentFinished = (
+  orgId: string,
+  eventId: string,
+  key: string,
+  answer: string,
+  blocks: Record<string, unknown>[] = [],
+) => agentEvent(orgId, eventId, 'core.agent.finished', key, { answer, blocks });
 
 const Page = z.object({
   items: z.array(
@@ -148,6 +153,70 @@ describe("a messenger's core agent", () => {
     await expect
       .poll(async () => (await teammate.conversations.get({ id })).operator)
       .toBe('person');
+  });
+
+  it('hands the conversation to a person once, with a note to the team why, when it hands off', async () => {
+    const { teammate, token } = await withAgent('org-id-agent-e');
+    const id = await write(token, 'I want my money back');
+    const why = 'The customer asks for a refund';
+
+    // Core sends the agent's line to the customer as its answer, then the hand-off.
+    await agentFinished('org-id-agent-e', 'ev-e1', id, 'A person will answer you shortly.');
+
+    const handedOff = () =>
+      agentEvent('org-id-agent-e', 'ev-e2', 'core.agent.handed_off', id, { reason: why });
+
+    expect((await handedOff()).status).toBe(204);
+    // Core may deliver an event again.
+    await handedOff();
+
+    expect(await teammate.conversations.get({ id })).toMatchObject({ operator: 'person' });
+    expect(
+      (await teammate.conversations.messages.list({ conversationId: id })).messages.map(
+        ({ content, internal }) => ({ content, internal }),
+      ),
+    ).toEqual([
+      { content: `The agent handed this conversation to a person: ${why}`, internal: true },
+      { content: 'A person will answer you shortly.', internal: false },
+      { content: 'I want my money back', internal: false },
+    ]);
+    // The customer reads the agent's line, and no second hand-off message.
+    expect((await visitorReads(token, id)).map(({ content }) => content)).toEqual([
+      'I want my money back',
+      'A person will answer you shortly.',
+    ]);
+
+    await send(token, 'Hello?', id);
+    expect(core.submitted.map(({ text }) => text)).not.toContain('Hello?');
+  });
+
+  it("shows a member the agent's runs in a conversation, and restarts it", async () => {
+    const { owner, teammate, id: integrationId, hers, token } = await withAgent('org-id-agent-f');
+    const id = await write(token, 'Do you ship?');
+
+    await send(token, 'To Darkhan?', id);
+
+    const { agentId, runs } = await teammate.conversations.agentRuns({ id });
+
+    expect(agentId).toBe('agent-1');
+    expect(runs.map(({ text }) => text)).toEqual(['To Darkhan?', 'Do you ship?']);
+    expect(runs[0]?.calls).toEqual([
+      expect.objectContaining({ procedure: 'orders.list', ok: false, status: 403 }),
+    ]);
+    expect(await teammate.conversations.restartAgent({ id })).toEqual({ ok: true });
+    expect(core.restarted).toContainEqual({ id: 'agent-1', key: id });
+
+    // Ann wrote before the messenger had its agent, so it never ran there: no runs, no restart.
+    expect((await teammate.conversations.agentRuns({ id: hers })).runs).toEqual([]);
+    await expect(teammate.conversations.restartAgent({ id: hers })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+
+    // Without an agent on the messenger, there is none to ask.
+    await owner.integrations.setAgent({ id: integrationId, agentId: null });
+    await expect(teammate.conversations.agentRuns({ id })).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
   });
 
   it('stops answering once a member replies', async () => {
