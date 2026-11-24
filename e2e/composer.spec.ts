@@ -102,6 +102,9 @@ test('a member answers with a response template, formats it and attaches files',
   await page.keyboard.press('ControlOrMeta+b');
   await page.keyboard.type(' Sorry for the wait.');
   await attachFiles(page, reply);
+  // Remove takes a file off the reply before it goes.
+  await page.getByRole('button', { name: 'Remove dropped.txt' }).click();
+  await expect(page.getByRole('button', { name: 'Remove dropped.txt' })).toBeHidden();
   await page.getByRole('button', { name: 'Send', exact: true }).click();
 
   const sent = thread.getByRole('article', { name: 'Message' }).last();
@@ -110,6 +113,7 @@ test('a member answers with a response template, formats it and attaches files',
   await expect(sent.locator('strong')).toHaveText('Sorry for the wait.');
   // An attachment shows only in a thread that has one.
   await expectAccessible(page, sent.getByRole('link', { name: 'receipt.txt' }));
+  await expect(sent.getByRole('link', { name: 'dropped.txt' })).toHaveCount(0);
 
   // An image opens whole over the page.
   await sent.getByRole('button', { name: 'View parcel.png' }).click();
