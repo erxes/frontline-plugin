@@ -1,6 +1,6 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, dialog, nativeTheme, shell, type WebContents } from 'electron';
-import { saveSettings, settings } from './settings.ts';
+import { onServer, saveSettings, settings } from './settings.ts';
 import { textIn } from './text.ts';
 
 /** What the page may ask for, and only from erxes's own address. */
@@ -20,24 +20,22 @@ export const telNumber = (url: string) =>
         .replace(/[^\d+*#]/g, '')
     : null;
 
-/** Whether `url` is on erxes's saved address. */
-const onServer = (url: string) => {
-  const { server } = settings();
-
-  return Boolean(server) && URL.parse(url)?.origin === server;
-};
-
 /** The setup page: the address form, with why erxes didn't load when `error` says. */
 export const showSetup = (window: BrowserWindow, error?: string) =>
   window.loadFile(join(app.getAppPath(), 'dist/setup.html'), {
     query: { address: settings().server ?? '', error: error ?? '' },
   });
 
-/** erxes web at the saved address, on Frontline's pages, or the setup page when none is saved. */
+/**
+ * erxes web at the saved address, or the setup page when none is saved. A bare origin opens on
+ * Frontline's pages; an address with a path opens there.
+ */
 export const showServer = (window: BrowserWindow) => {
   const { server } = settings();
 
-  return server ? window.loadURL(`${server}/frontline`) : showSetup(window);
+  if (!server) return showSetup(window);
+
+  return window.loadURL(server === URL.parse(server)?.origin ? `${server}/frontline` : server);
 };
 
 /**

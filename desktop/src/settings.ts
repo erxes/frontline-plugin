@@ -4,7 +4,7 @@ import { app } from 'electron';
 import { z } from 'zod';
 
 const Settings = z.object({
-  /** erxes web's address, such as `https://erxes.example.mn`. */
+  /** erxes web's address: an origin such as `https://erxes.example.mn`, or the page to start on. */
   server: z.url({ protocol: /^https?$/ }).optional(),
   /** Where the window was when the member last closed it. */
   bounds: z
@@ -52,15 +52,26 @@ export const saveSettings = (patch: Partial<Settings>) => {
 };
 
 /**
- * What the member typed as erxes's address, as an origin: `erxes.example.mn` is
- * `https://erxes.example.mn`. Null for anything that isn't a web address.
+ * What the member typed as erxes's address: `erxes.example.mn` is the origin
+ * `https://erxes.example.mn`, and a path they typed stays, even a bare `/`, for an erxes that
+ * doesn't serve Frontline's pages at `/frontline`. Null for anything that isn't a web address.
  */
 export const parseServer = (typed: string) => {
   const text = typed.trim();
+  const address = /^https?:\/\//i.test(text) ? text : `https://${text}`;
 
-  const parsed = Settings.shape.server.safeParse(
-    /^https?:\/\//i.test(text) ? text : `https://${text}`,
-  );
+  const parsed = Settings.shape.server.safeParse(address);
 
-  return parsed.success && parsed.data ? new URL(parsed.data).origin : null;
+  if (!parsed.success || !parsed.data) return null;
+
+  const { origin, pathname } = new URL(parsed.data);
+
+  return /^https?:\/\/[^/]+\//i.test(address) ? `${origin}${pathname}` : origin;
+};
+
+/** Whether `url` is on erxes's saved address: the same origin, whatever its path. */
+export const onServer = (url: string) => {
+  const { server } = settings();
+
+  return Boolean(server) && URL.parse(url)?.origin === URL.parse(server ?? '')?.origin;
 };
