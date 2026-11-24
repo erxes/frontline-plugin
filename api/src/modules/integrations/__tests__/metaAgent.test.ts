@@ -192,7 +192,7 @@ describe('a page’s core agent', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
-  it('sends a block Instagram refuses as text with its link', async () => {
+  it('sends the answer’s markdown as plain text, and a block Instagram refuses as text with its link', async () => {
     // Instagram shows no WebP picture.
     const calls = fakeProviders((call) =>
       /"type":"image".*\.webp/.test(JSON.stringify(call.body))
@@ -200,7 +200,8 @@ describe('a page’s core agent', () => {
         : graphApi(call),
     );
 
-    await withAgent('org-ig-agent-a', 'instagram');
+    const owner = await withAgent('org-ig-agent-a', 'instagram');
+
     await messaging('instagram', 'ig-1', [said('igsid-6', 'ig-1', 'ig_m_ask', { text: 'Boots?' })]);
 
     const id = await conversationWith('org-ig-agent-a', 'igsid-6');
@@ -208,14 +209,34 @@ describe('a page’s core agent', () => {
 
     expect(agentGot(id).map(({ text }) => text)).toEqual(['Boots?']);
 
-    await answered('org-ig-agent-a', 'ev-ig-a', id, 'Yes:', [
+    const answer = [
+      '### Felt boots',
+      '**Yes**, in _two_ sizes:',
+      '- 39\n- 40',
+      '1. Pick a size\n2. Pay at [our shop](https://shop.example.com/pay)',
+      'Use `BOOTS10` at [https://shop.example.com](https://shop.example.com).',
+    ].join('\n\n');
+
+    await answered('org-ig-agent-a', 'ev-ig-a', id, answer, [
       { kind: 'image', url: picture, alt: 'Felt boots' },
       { kind: 'link', title: 'Size guide', url: 'https://shop.example.com/sizes' },
     ]);
     await runQueued();
 
+    // The inbox and the website messenger keep the markdown; Meta gets the text it reads as.
+    const { messages } = await owner.conversations.messages.list({ conversationId: id });
+
+    expect(messages.map(({ content }) => content)).toContain(answer);
     expect(sentToMeta(calls)).toEqual([
-      { text: 'Yes:' },
+      {
+        text: [
+          'Felt boots',
+          'Yes, in two sizes:',
+          '• 39\n• 40',
+          '1. Pick a size\n2. Pay at our shop: https://shop.example.com/pay',
+          'Use BOOTS10 at https://shop.example.com.',
+        ].join('\n\n'),
+      },
       { attachment: { type: 'image', payload: { url: picture } } },
       { text: `Felt boots\n${picture}` },
       template({

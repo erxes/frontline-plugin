@@ -17,6 +17,7 @@ import {
 import { blockMessages } from './metaBlocks.ts';
 import { forgetConnection } from './metaConnection.ts';
 import { graph, Secret } from './metaGraph.ts';
+import { metaText } from './metaText.ts';
 import { routeThroughRelay, unrouteFromRelay } from './metaRelay.ts';
 import { postOfThread } from './metaWebhook.ts';
 
@@ -109,9 +110,12 @@ const sendMessage = async ({ row, secret }: MetaAccount, message: OutboundMessag
       : { messaging_type: 'RESPONSE' }),
   };
 
+  // Messenger and Instagram show no markdown, so the bot's answer goes as the text it reads as.
+  const text = message.byBot ? metaText(message.text) : message.text;
+
   // Messenger shows the messages in the order they reach it.
   const parts: Part[] = [
-    ...(message.text ? [{ message: { text: message.text } }] : []),
+    ...(text ? [{ message: { text } }] : []),
     ...message.attachments.map((file) => ({ file })),
     ...blockMessages(message.blocks),
   ];

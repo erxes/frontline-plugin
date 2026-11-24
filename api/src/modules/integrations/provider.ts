@@ -87,6 +87,11 @@ export interface OutboundMessage {
   /** The customer's id at the provider: for mail, their address. */
   to: string;
   text: string;
+  /**
+   * The bot wrote it, such as a core agent's answer, whose `text` is markdown; a provider that
+   * shows plain text flattens it.
+   */
+  byBot: boolean;
   /** The member's rich text, for a provider that sends HTML; the others send `text`. */
   html: string | null;
   attachments: StoredFile[];
