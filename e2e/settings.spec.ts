@@ -38,6 +38,15 @@ test('the owner adds, finds and deletes tags', async ({ page }) => {
   await expect(page.getByRole('row', { name: new RegExp(tag) })).toBeHidden();
 });
 
+test('core’s Settings open Frontline’s at its channels, where an admin adds integrations', async ({
+  page,
+}) => {
+  await page.goto('/settings');
+  await page.getByRole('link', { name: 'Frontline', exact: true }).click();
+  await expect(page).toHaveURL(`${SETTINGS}/channels`);
+  await expect(page.getByRole('button', { name: 'Create channel' })).toBeVisible();
+});
+
 test('the sidebar opens every Frontline page, and Settings opens its own sidebar', async ({
   page,
 }) => {
@@ -84,11 +93,6 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
 
   await page.getByRole('link', { name: 'Exit settings' }).click();
   await expect(page).toHaveURL(/\/frontline\/inbox/);
-
-  // Core's Settings open Frontline's at its channels, where an admin adds integrations.
-  await page.goto('/settings');
-  await page.getByRole('link', { name: 'Frontline', exact: true }).click();
-  await expect(page).toHaveURL(`${SETTINGS}/channels`);
 
   // Branches, departments and ticket properties are core's, edited in its own settings. An old
   // link stays in frontline's settings, so the app's tab never keeps a page that leaves the app.
