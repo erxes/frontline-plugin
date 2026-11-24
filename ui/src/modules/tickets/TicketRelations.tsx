@@ -1,6 +1,6 @@
-import { IconTicket } from '@tabler/icons-react';
+import { IconPlus, IconTicket } from '@tabler/icons-react';
 import { type QueryClient, useQuery } from '@tanstack/react-query';
-import { Empty, Spinner, type TRecordContacts, useOpenRecord } from 'erxes-ui';
+import { Button, Empty, Spinner, type TRecordContacts, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { TICKET_TYPE } from '~/plugin.ts';
@@ -58,8 +58,27 @@ const useContactTickets = ({ customerIds, companyIds }: TRecordContacts) => {
   });
 };
 
+/** Opens a new ticket in core's side panel, for the record's first customer. */
+const CreateTicket = ({ customerIds }: TRecordContacts) => {
+  const { t } = useTranslation('frontline');
+  const { openNew } = useOpenRecord();
+
+  return (
+    <Button
+      variant="secondary"
+      size="sm"
+      onClick={() => openNew(TICKET_TYPE, { customerId: customerIds[0] ?? '' })}
+    >
+      <IconPlus />
+      {t('create-ticket', 'Create ticket')}
+    </Button>
+  );
+};
+
 /**
- * The Tickets tab on a customer's or company's panel: the member's tickets about them. One opens on top in core's side panel.
+ * The Tickets tab on a customer's, company's or ecommerce order's panel: the member's tickets
+ * about its customers and companies, and a button that starts one for its customer. One opens on
+ * top in core's side panel.
  */
 export const TicketRelations = (contacts: TRecordContacts) => {
   const { t } = useTranslation('frontline');
@@ -83,12 +102,18 @@ export const TicketRelations = (contacts: TRecordContacts) => {
           </Empty.Media>
           <Empty.Title>{t('no-tickets-yet', 'No tickets yet')}</Empty.Title>
         </Empty.Header>
+        <Empty.Content>
+          <CreateTicket {...contacts} />
+        </Empty.Content>
       </Empty>
     );
   }
 
   return (
     <ul className="flex flex-col gap-1 p-2">
+      <li className="flex justify-end">
+        <CreateTicket {...contacts} />
+      </li>
       {rows.map((ticket) => (
         <li key={ticket.id}>
           <button

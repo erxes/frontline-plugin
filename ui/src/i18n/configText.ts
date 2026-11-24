@@ -16,6 +16,7 @@ const TEXT: Record<string, string> = {
   Comments: 'Сэтгэгдэл',
   Content: 'Агуулга',
   Conversation: 'Харилцан яриа',
+  Conversations: 'Харилцан яриа',
   Domain: 'Домэйн',
   Form: 'Маягт',
   'Help center': 'Тусламжийн төв',
