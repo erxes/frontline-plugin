@@ -82,14 +82,16 @@ test('callers nobody talked to wait in Callbacks until someone does', async ({ p
   await page.goto(CALLBACKS);
   await expectPage(page, 'Callbacks');
 
-  const rowOf = (phone: string) => page.getByRole('row').filter({ hasText: phone });
+  // A row by its Call back button: the customer's cell shows the number once core answers.
+  const rowOf = (phone: string) =>
+    page.getByRole('row').filter({ has: page.getByRole('button', { name: `Call back ${phone}` }) });
 
   // One row a caller, with how often they rang; an answered caller has none.
   await expect(rowOf(caller)).toHaveCount(1);
   await expect(rowOf(caller)).toContainText('2');
   await expect(rowOf(reached)).toHaveCount(0);
   // Calling back needs a softphone on the line.
-  await expect(rowOf(caller).getByRole('button', { name: `Call ${caller} back` })).toBeDisabled();
+  await expect(rowOf(caller).getByRole('button', { name: `Call back ${caller}` })).toBeDisabled();
 
   // Someone talks to the caller: the row goes without a reload.
   await post(`d-${unique()}`, caller, 'ANSWERED');

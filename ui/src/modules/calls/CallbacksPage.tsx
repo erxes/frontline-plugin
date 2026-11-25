@@ -34,7 +34,7 @@ const CallBack = ({ callback }: { callback: Callback }) => {
       variant="secondary"
       size="sm"
       disabled={!onLine || Boolean(live?.phone.call)}
-      aria-label={t('call-back-number', 'Call {{number}} back', {
+      aria-label={t('call-back-number', 'Call back {{number}}', {
         number: callback.customerPhone,
       })}
       onClick={() => {

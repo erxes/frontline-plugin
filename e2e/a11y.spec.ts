@@ -292,7 +292,12 @@ test('the callbacks list', async ({ page, api }) => {
 
   await post(`a-${unique()}`, caller, 'NO ANSWER');
   await page.goto('/frontline/calls/callbacks');
-  await expectAccessible(page, page.getByRole('row').filter({ hasText: caller }));
+  await expectAccessible(
+    page,
+    page
+      .getByRole('row')
+      .filter({ has: page.getByRole('button', { name: `Call back ${caller}` }) }),
+  );
 });
 
 test("the home dashboard's tiles, the Reports page, and one refused", async ({ newMember }) => {

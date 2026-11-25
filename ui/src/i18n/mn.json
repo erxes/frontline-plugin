@@ -117,7 +117,7 @@
   "call-active": "Холбогдсон",
   "call-answered": "Хариулсан",
   "call-back": "Буцааж залгах",
-  "call-back-number": "{{number}} руу буцааж залгах",
+  "call-back-number": "Буцааж залгах {{number}}",
   "call-breaches": "Хэн ч үйлчлээгүй дуудлага",
   "call-busy": "Завгүй",
   "call-callbacks": "Эргэн залгалт",
