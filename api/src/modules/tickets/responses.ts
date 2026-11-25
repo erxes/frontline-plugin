@@ -22,6 +22,7 @@ const Response = z.object({
  * when they don't see the ticket.
  */
 const responses = reads(PERMISSIONS.channelView)
+  .route({ summary: 'List form answers sent about a ticket, such as ratings, newest first' })
   .input(z.object({ id: z.string() }))
   .output(z.array(Response))
   .handler(async ({ input, context: { tx, member } }) => {

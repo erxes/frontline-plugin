@@ -203,6 +203,9 @@ const list = readsWithCore(
     return { previews: previews.filter((preview) => preview != null) };
   },
 )
+  .route({
+    summary: "Preview each link in a message with its page's title, description, site and image",
+  })
   .output(z.object({ previews: z.array(LinkPreview) }))
   .handler(({ context: { fromCore } }) => fromCore);
 

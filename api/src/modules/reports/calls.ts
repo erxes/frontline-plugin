@@ -161,6 +161,10 @@ const breakdowns = async (tx: Tx, theirs: SQL, range: Range) => {
  * and talk time, by day and by hour of the week, and the busiest agents and numbers.
  */
 export const callReport = reads(PERMISSIONS.callView)
+  .route({
+    summary:
+      'Report calls, answers, waits and talk time from/to (ISO date-times) by day and hour in an IANA timeZone; times in seconds',
+  })
   .input(ReportInput)
   .output(CallReport)
   .handler(async ({ input: range, context: { tx, member } }) => {

@@ -12,6 +12,7 @@ import { signalTickets, Ticket, ticketById, ticketsFor } from './shared.ts';
  * doesn't apply.
  */
 const follow = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Follow or unfollow a ticket, to hear or stop hearing of its changes' })
   .input(z.object({ id: z.string(), following: z.boolean() }))
   .output(Ticket)
   .handler(async ({ input: { id, following }, context: { tx, member } }) => {

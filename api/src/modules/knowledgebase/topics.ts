@@ -91,6 +91,9 @@ const TOPIC_FILTER: FilterFields = {
  * would be refused.
  */
 const list = reads(PERMISSIONS.kbView)
+  .route({
+    summary: 'List knowledge base topics by title, filtered and searched, and what you may change',
+  })
   .input(z.object(FilterInput))
   .output(
     z.object({
@@ -121,11 +124,13 @@ const list = reads(PERMISSIONS.kbView)
 
 /** One topic. */
 const get = reads(PERMISSIONS.kbView)
+  .route({ summary: 'Get one knowledge base topic' })
   .input(z.object({ id: z.string() }))
   .output(Topic)
   .handler(({ input, context: { tx } }) => topicById(tx, input.id));
 
 const create = writes(PERMISSIONS.kbTopicManage)
+  .route({ summary: 'Create a knowledge base topic' })
   .errors(kbErrors)
   .input(Fields.required({ title: true }))
   .output(Topic)
@@ -143,6 +148,7 @@ const create = writes(PERMISSIONS.kbTopicManage)
 
 /** Changes the fields given. */
 const update = writes(PERMISSIONS.kbTopicManage)
+  .route({ summary: "Change a knowledge base topic's settings" })
   .errors(kbErrors)
   .input(Fields.extend({ id: z.string() }))
   .output(Topic)
@@ -158,6 +164,7 @@ const update = writes(PERMISSIONS.kbTopicManage)
 
 /** Deletes the topics with their categories and their articles. */
 const remove = writes(PERMISSIONS.kbTopicManage)
+  .route({ summary: 'Delete knowledge base topics with their categories and articles' })
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx } }) => {

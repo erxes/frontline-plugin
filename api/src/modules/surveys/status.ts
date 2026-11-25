@@ -32,6 +32,7 @@ const SUMMARIES: Record<Status, string> = {
  * move clears it.
  */
 const setStatus = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Move surveys to a status, all or none; a rejection keeps its reason' })
   .input(
     z.object({
       ids: Ids,

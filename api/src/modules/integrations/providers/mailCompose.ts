@@ -21,6 +21,10 @@ const AccountConfig = z.object({ accountId: z.string() });
  * any reply. An address that bounced or reported spam is refused.
  */
 const compose = writes(PERMISSIONS.inboxView)
+  .route({
+    summary:
+      "Send a new email from a channel's mailbox, opening a conversation; bounced or spam-reporting addresses are refused",
+  })
   .input(
     z.object({
       integrationId: z.string(),
@@ -118,6 +122,10 @@ const recipients = readsWithCore(
         .customers.list({ search: input.search || undefined, limit: 20 })
     ).data,
 )
+  .route({
+    summary:
+      'Search customers to email, one result per address, without bounced or spam-reporting ones',
+  })
   .output(
     z.array(
       z.object({

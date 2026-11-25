@@ -105,5 +105,6 @@ export const servers = readsWithCore(
   z.object({ address: z.email().max(320) }),
   async (_member, input) => mailServersOf(input.address),
 )
+  .route({ summary: 'Suggest the IMAP and SMTP servers for an email address' })
   .output(Servers)
   .handler(({ context: { fromCore } }) => fromCore);

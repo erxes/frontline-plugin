@@ -107,6 +107,10 @@ const reactAtProvider = async (member: PluginMember, input: z.output<typeof Reac
  * so its refusal changes nothing.
  */
 const react = writesWithCore(PERMISSIONS.inboxView, ReactInput, reactAtProvider)
+  .route({
+    summary:
+      "React to a customer's message with an emoji, or remove yours; shows at the provider too",
+  })
   .output(z.object({ reactions: z.array(Reaction) }))
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
     const mine = and(

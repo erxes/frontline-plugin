@@ -44,6 +44,9 @@ const askCore = <T>(call: Promise<T>) =>
 const connections = readsWithCore(PERMISSIONS.integrationManage, z.object({}), async (member) =>
   askCore(core.forOrg(member.orgId).integrations.usable({ key: FACEBOOK })),
 )
+  .route({
+    summary: "List your organization's active Facebook connections by name, without tokens",
+  })
   .output(
     z.object({
       data: z.array(z.object({ id: z.string(), name: z.string() })),
@@ -148,6 +151,10 @@ const connect = writesWithCore(
     return (await askMeta(Promise.all(pages.map(subscribe)))).flat();
   },
 )
+  .route({
+    summary:
+      'Connect every page a Facebook connection manages and their linked Instagram accounts, optionally to a channel',
+  })
   .output(z.object({ accounts: z.array(Account) }))
   .handler(async ({ input, context: { tx, member, fromCore } }) => ({
     accounts: await inOrder(fromCore, (account) =>

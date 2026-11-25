@@ -71,6 +71,9 @@ const order = orderOf(calls, calls.startedAt);
 
 /** The calls of the caller's channels, newest first, narrowed by the filter bar. */
 const list = reads(PERMISSIONS.callView)
+  .route({
+    summary: "List your channels' calls, newest first, searched by phone, filtered and paged",
+  })
   .input(z.object({ ...FilterInput, ...PageInput }))
   .output(z.object({ calls: z.array(Call), ...PageOutput }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -142,6 +145,7 @@ const callById = async (tx: Tx, member: PluginMember, id: string) => {
 
 /** One call of the caller's channels, or of the inbox conversation it lives in. */
 const get = reads(PERMISSIONS.callView)
+  .route({ summary: 'Get one call by its id or by the inbox conversation it belongs to' })
   .input(z.union([z.object({ id: z.string() }), z.object({ conversationId: z.string() })]))
   .output(Call)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -158,6 +162,7 @@ const get = reads(PERMISSIONS.callView)
 
 /** Asks the PBX for an answered call's recording again, for one it hadn't written yet. */
 const fetchRecording = writes(PERMISSIONS.callView)
+  .route({ summary: "Ask the PBX again for an answered call's recording, if it isn't saved yet" })
   .input(z.object({ id: z.string() }))
   .output(Call)
   .handler(async ({ input, context: { tx, member } }) => {

@@ -110,6 +110,7 @@ const connect = writesWithCore(
       });
     }),
 )
+  .route({ summary: "Connect a Discord bot by its token from Discord's developer portal" })
   .output(Account)
   .handler(
     async ({

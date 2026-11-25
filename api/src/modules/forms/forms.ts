@@ -39,6 +39,10 @@ const order = orderOf(forms);
  * bar; `search` matches the name or title, ignoring case.
  */
 const list = reads(PERMISSIONS.channelView)
+  .route({
+    summary:
+      'List the forms of your channels, newest first, filtered, searched by name or title, and paged',
+  })
   .input(z.object({ ...FilterInput, ...PageInput }))
   .output(z.object({ forms: z.array(Form), ...PageOutput }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -70,6 +74,7 @@ const list = reads(PERMISSIONS.channelView)
 
 /** One form of a channel the member belongs to. */
 const get = reads(PERMISSIONS.channelView)
+  .route({ summary: 'Get one form of a channel you belong to' })
   .input(z.object({ id: z.string() }))
   .output(Form)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -144,6 +149,7 @@ const NAMES: [keyof z.infer<typeof Form>, string][] = [
 
 /** A new form in a channel the caller is an admin of, with one step and an embed code. */
 const create = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Create a form with one step and an embed code in a channel you admin' })
   .input(FormFields.required({ name: true, channelId: true }))
   .output(Form)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -177,6 +183,7 @@ const create = writes(PERMISSIONS.channelView)
 
 /** Changes the given settings, or moves the form to another channel the caller is an admin of. */
 const update = writes(PERMISSIONS.channelView)
+  .route({ summary: "Change a form's settings, or move it to another channel you admin" })
   .input(FormFields.extend({ id: z.string() }))
   .output(Form)
   .handler(async ({ input: { id, ...fields }, context: { tx, member } }) => {

@@ -90,6 +90,10 @@ export const markRefused = async (row: AccountRow, error: unknown) => {
  * whether the caller may connect and change them.
  */
 const list = reads(PERMISSIONS.integrationView)
+  .route({
+    summary:
+      "List your organization's connected accounts, all or one provider's, and if you may manage them",
+  })
   .input(z.object({ provider: z.enum(PROVIDERS).optional() }))
   .output(z.object({ accounts: z.array(Account), canManage: z.boolean() }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -121,6 +125,10 @@ const repair = writesWithCore(
     return checkAccount(row, { webhookKey });
   },
 )
+  .route({
+    summary:
+      "Repair a connected account: point the provider's webhooks back here, then mark it healthy or broken",
+  })
   .output(Account)
   .handler(({ context: { fromCore } }) => fromCore);
 
@@ -129,6 +137,9 @@ const repair = writesWithCore(
  * provider that can't be reached doesn't keep an account: it is removed anyway and logged.
  */
 const remove = writes(PERMISSIONS.integrationManage)
+  .route({
+    summary: 'Disconnect accounts: delete their keys and stop the provider sending their events',
+  })
   .input(z.object({ ids: z.array(z.string()).min(1).max(100) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member, afterCommit } }) => {

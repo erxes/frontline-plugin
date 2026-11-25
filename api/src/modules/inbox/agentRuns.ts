@@ -41,6 +41,10 @@ const agentRuns = readsWithCore(PERMISSIONS.inboxView, Input, async (member, { i
 
   return { agentId, runs };
 })
+  .route({
+    summary:
+      "List the latest runs of a conversation's AI agent, newest first, with its answers, model and handoffs",
+  })
   // Core's client hands `at` over as the ISO string it sent, so it passes through as one.
   .output(
     z.object({ agentId: z.string(), runs: z.array(AgentRun.extend({ at: z.iso.datetime() })) }),
@@ -63,6 +67,10 @@ const restartAgent = writesWithCore(PERMISSIONS.inboxView, Input, async (member,
       throw error;
     });
 })
+  .route({
+    summary:
+      "Restart a conversation's AI agent, so the customer's next message starts a fresh exchange",
+  })
   .output(z.object({ ok: z.literal(true) }))
   .handler(({ context: { fromCore } }) => fromCore);
 

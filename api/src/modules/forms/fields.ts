@@ -98,6 +98,7 @@ const fieldFor = async (tx: Tx, member: PluginMember, id: string, change: boolea
 
 /** A form's fields, step by step, in order. */
 const list = reads(PERMISSIONS.channelView)
+  .route({ summary: "List a form's fields, step by step, in order" })
   .input(z.object({ formId: z.string() }))
   .output(z.array(FormField))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -108,6 +109,7 @@ const list = reads(PERMISSIONS.channelView)
 
 /** A new field at the end of a step, the first step unless `pageNumber` names another. */
 const add = writes(PERMISSIONS.channelView)
+  .route({ summary: "Add a field at the end of a form's step, the first step by default" })
   .input(
     FieldInput.required({ type: true }).extend({
       formId: z.string(),
@@ -142,6 +144,7 @@ const add = writes(PERMISSIONS.channelView)
 
 /** Changes the given settings of a field. */
 const update = writes(PERMISSIONS.channelView)
+  .route({ summary: "Change a form field's settings" })
   .input(FieldInput.extend({ id: z.string() }))
   .output(FormField)
   .handler(async ({ input: { id, ...fields }, context: { tx, member } }) => {
@@ -165,6 +168,10 @@ const update = writes(PERMISSIONS.channelView)
  * stay on the submissions.
  */
 const remove = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      'Delete fields of one form and the rules that named them; submissions keep their answers',
+  })
   .input(z.object({ ids: Ids }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -198,6 +205,7 @@ const remove = writes(PERMISSIONS.channelView)
 
 /** Puts the fields of `ids` on step `pageNumber` in that order, moving any from other steps. */
 const arrange = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Put form fields on a step in the given order, moving any from other steps' })
   .input(
     z.object({ formId: z.string(), pageNumber: z.number().int().min(1), ids: z.array(z.string()) }),
   )
@@ -225,6 +233,7 @@ const arrange = writes(PERMISSIONS.channelView)
 
 /** Deletes an empty step of the form; the steps after it move up one. */
 const removeStep = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Delete an empty step of a form; later steps move up one' })
   .input(z.object({ formId: z.string(), pageNumber: z.number().int().min(1) }))
   .output(z.object({ steps: z.number() }))
   .handler(async ({ input, context: { tx, member } }) => {

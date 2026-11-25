@@ -57,6 +57,9 @@ const quoted = alias(messages, 'quoted');
  * the message a reply answers, so a quote shows when that one isn't loaded.
  */
 const list = reads(PERMISSIONS.inboxView)
+  .route({
+    summary: "List a conversation's messages, newest first and paged, or only the pinned ones",
+  })
   .input(z.object({ conversationId: z.string(), pinned: z.boolean().default(false), ...PageInput }))
   .output(
     z.object({
@@ -144,6 +147,10 @@ const mentionable = async (tx: Tx, member: PluginMember, channelId: string, user
  * `replyToId`, whose text comes back as `quotedContent`.
  */
 const create = writes(PERMISSIONS.inboxView)
+  .route({
+    summary:
+      'Send a reply to the customer or an internal note in a conversation; mentioned members are notified',
+  })
   .input(
     z.object({
       conversationId: z.string(),
@@ -209,6 +216,7 @@ const create = writes(PERMISSIONS.inboxView)
 
 /** Changes the text of the caller's own message: plain `content`, or rich text as `html`. */
 const update = writes(PERMISSIONS.inboxView)
+  .route({ summary: 'Edit the text of a message you wrote' })
   .input(z.object({ id: z.string(), content: Content.default(''), html: Html.optional() }))
   .output(Message)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -246,6 +254,7 @@ const update = writes(PERMISSIONS.inboxView)
 
 /** Pins a message to the top of its conversation, or unpins it with `pinned: false`. */
 const pin = writes(PERMISSIONS.inboxView)
+  .route({ summary: 'Pin a message to the top of its conversation, or unpin it' })
   .input(z.object({ id: z.string(), pinned: z.boolean().default(true) }))
   .output(Message)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -273,6 +282,7 @@ const pin = writes(PERMISSIONS.inboxView)
  * its own attempts and deadline.
  */
 const retry = writes(PERMISSIONS.inboxView)
+  .route({ summary: 'Send a failed reply to the customer again' })
   .input(z.object({ id: z.string() }))
   .output(Message)
   .handler(async ({ input, context: { tx, member } }) => {

@@ -124,6 +124,7 @@ const order = orderOf(pipelines);
  * narrowed by the filter bar, and how many match: `search` matches the name or description, ignoring case.
  */
 const list = reads(PERMISSIONS.channelView)
+  .route({ summary: "List a channel's pipelines you see, newest first, filtered and paged" })
   .input(z.object({ channelId: z.string(), ...PageInput, ...FilterInput }))
   .output(
     z.object({
@@ -168,6 +169,7 @@ const list = reads(PERMISSIONS.channelView)
 
 /** One pipeline. */
 const get = reads(PERMISSIONS.channelView)
+  .route({ summary: 'Get one pipeline by id, with its settings' })
   .input(z.object({ id: z.string() }))
   .output(Pipeline)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -178,6 +180,9 @@ const get = reads(PERMISSIONS.channelView)
 
 /** A new pipeline in a channel the caller is an admin of, with one status per stage. */
 const create = writes(PERMISSIONS.channelView)
+  .route({
+    summary: 'Create a pipeline in a channel you admin, with one default status per stage',
+  })
   .input(
     createInsertSchema(pipelines, refine)
       .pick({ channelId: true, name: true, description: true })
@@ -208,6 +213,10 @@ const create = writes(PERMISSIONS.channelView)
 
 /** Changes what is given, or moves the pipeline to another channel the caller is an admin of. */
 const update = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      "Change a pipeline's settings, such as numbering, SLA and visibility, or move it to a channel you admin",
+  })
   .input(
     createUpdateSchema(pipelines, refine)
       .pick({
@@ -245,6 +254,9 @@ const update = writes(PERMISSIONS.channelView)
  * CONFLICT while one has tickets.
  */
 const remove = writes(PERMISSIONS.channelView)
+  .route({
+    summary: 'Delete pipelines and their statuses, all or none; refused while one has tickets',
+  })
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -288,6 +300,10 @@ const StatusChoice = createSelectSchema(pipelineStatuses)
  * pickers and filters.
  */
 const choices = reads(PERMISSIONS.channelView)
+  .route({
+    summary:
+      'List every pipeline and status you see, with whether you may edit or move tickets in each status',
+  })
   .output(z.object({ pipelines: z.array(Choice), statuses: z.array(StatusChoice) }))
   .handler(async ({ context: { tx, member } }) => {
     const seen = seenBy(member, pipelines.channelId);

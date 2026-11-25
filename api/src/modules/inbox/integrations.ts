@@ -82,6 +82,9 @@ const integrationFilter: FilterFields = {
  * filter bar: `search` matches the name, ignoring case.
  */
 const list = reads(PERMISSIONS.channelView)
+  .route({
+    summary: "List your channels' integrations, or one channel's, oldest first and filtered",
+  })
   .input(z.object({ channelId: z.string().optional(), ...FilterInput }))
   .output(z.array(Integration))
   .handler(({ input, context: { tx, member } }) =>
@@ -98,6 +101,7 @@ const list = reads(PERMISSIONS.channelView)
   );
 
 const get = reads(PERMISSIONS.channelView)
+  .route({ summary: 'Get one integration in a channel you see' })
   .input(z.object({ id: z.string() }))
   .output(Integration)
   .handler(({ input, context: { tx, member } }) => integrationById(tx, member, input.id));
@@ -111,6 +115,10 @@ const ThroughAccount = z.object({ accountId: z.string() });
  * is refused (`channelServing`).
  */
 const create = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      'Add an integration to a channel you administer; an account already serving another channel is refused',
+  })
   .input(NewIntegration)
   .output(Integration)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -150,6 +158,10 @@ export const integrationFor = async (tx: Tx, member: PluginMember, id: string) =
  * channel the caller is an admin of. A paused one takes no new messages.
  */
 const update = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      'Rename, pause or reconfigure an integration, or move it with its conversations to another channel',
+  })
   .input(
     z.object({
       id: z.string(),
@@ -181,6 +193,7 @@ const update = writes(PERMISSIONS.channelView)
 
 /** Deletes an integration, its conversations and its key. */
 const remove = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Delete an integration with all its conversations and its key' })
   .input(z.object({ id: z.string() }))
   .output(z.object({ id: z.string() }))
   .handler(async ({ input, context: { tx, member, afterCommit } }) => {

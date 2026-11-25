@@ -30,6 +30,10 @@ const votingConversation = async (tx: Tx, member: PluginMember, conversationId: 
  * None without the permission, or where the customer can't vote.
  */
 const sendable = reads(PERMISSIONS.inboxView)
+  .route({
+    summary:
+      "List the active surveys you can send into a conversation, oldest first; none if its customer can't vote",
+  })
   .input(z.object({ conversationId: z.string() }))
   .output(z.array(z.object({ id: z.string(), title: z.string() })))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -49,6 +53,9 @@ const sendable = reads(PERMISSIONS.inboxView)
  * votes on it. Only integrations whose customers can vote take one, such as the messenger.
  */
 const send = writes(PERMISSIONS.surveySend)
+  .route({
+    summary: 'Send an active survey into a conversation as a message its customer votes on',
+  })
   .input(z.object({ id: z.string(), conversationId: z.string() }))
   .output(Message)
   .handler(async ({ input, context: { tx, member } }) => {

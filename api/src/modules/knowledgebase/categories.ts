@@ -112,6 +112,9 @@ const CATEGORY_FILTER: FilterFields = {
  * narrowed by the filter bar: `search` matches the title or description, ignoring case.
  */
 const list = reads(PERMISSIONS.kbView)
+  .route({
+    summary: "List a topic's categories by title with their article counts, filtered and searched",
+  })
   .input(z.object({ topicId: z.string(), ...FilterInput }))
   .output(z.object({ categories: z.array(Category) }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -137,11 +140,15 @@ const list = reads(PERMISSIONS.kbView)
 
 /** One category. */
 const get = reads(PERMISSIONS.kbView)
+  .route({ summary: 'Get one knowledge base category' })
   .input(z.object({ id: z.string() }))
   .output(Category)
   .handler(({ input, context: { tx } }) => categoryById(tx, input.id));
 
 const create = writes(PERMISSIONS.kbCategoryManage)
+  .route({
+    summary: 'Create a category in a knowledge base topic, optionally under a parent category',
+  })
   .errors(kbErrors)
   .input(Fields.required({ topicId: true, title: true }))
   .output(Category)
@@ -166,6 +173,10 @@ const create = writes(PERMISSIONS.kbCategoryManage)
  * `parentId` names a category there.
  */
 const update = writes(PERMISSIONS.kbCategoryManage)
+  .route({
+    summary:
+      'Change a category; moving it to another topic takes its subcategories and articles along',
+  })
   .errors(kbErrors)
   .input(Fields.extend({ id: z.string() }))
   .output(Category)
@@ -198,6 +209,9 @@ const update = writes(PERMISSIONS.kbCategoryManage)
 
 /** Deletes the categories with their articles; their subcategories move to the top level. */
 const remove = writes(PERMISSIONS.kbCategoryManage)
+  .route({
+    summary: 'Delete categories with their articles; their subcategories move to the top level',
+  })
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx } }) => {

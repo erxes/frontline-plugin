@@ -14,6 +14,10 @@ import { readSql } from './shared.ts';
  * link filters the inbox by the same rule.
  */
 const counts = reads(PERMISSIONS.inboxView)
+  .route({
+    summary:
+      'Count your unread open conversations, in total and per inbox queue, channel and integration kind',
+  })
   .input(z.object({}))
   .output(
     z.object({

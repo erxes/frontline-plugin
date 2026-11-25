@@ -50,6 +50,7 @@ const statusFor = async (
 
 /** A pipeline's statuses, by stage, each stage's in its order. */
 const list = reads(PERMISSIONS.channelView)
+  .route({ summary: "List a pipeline's statuses by stage, each stage in its order" })
   .input(z.object({ pipelineId: z.string() }))
   .output(z.array(Status))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -71,6 +72,10 @@ const list = reads(PERMISSIONS.channelView)
  * two statuses added at once can't take the same place.
  */
 const create = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      'Add a status to a pipeline, last in its stage (type 1 new to 6 cancelled); channel admins only',
+  })
   .input(
     createInsertSchema(pipelineStatuses, refine)
       .pick({ pipelineId: true, type: true, name: true, description: true, color: true })
@@ -99,6 +104,10 @@ const create = writes(PERMISSIONS.channelView)
 
 /** Renames a status, or changes its description or colour. */
 const update = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      "Change a status's name, description, colour, or who may see, edit and move its tickets",
+  })
   .input(
     createUpdateSchema(pipelineStatuses, refine)
       .pick({
@@ -132,6 +141,10 @@ const update = writes(PERMISSIONS.channelView)
  * in one statement. CONFLICT when the stage changed since the caller read it.
  */
 const reorder = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      "Reorder a stage's statuses to the given ids, which list every one; conflicts if the stage changed",
+  })
   .input(
     z.object({
       pipelineId: z.string(),
@@ -175,6 +188,7 @@ const reorder = writes(PERMISSIONS.channelView)
  * tickets are in one.
  */
 const remove = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Delete statuses, all or none; refused while tickets are in one' })
   .input(z.object({ ids: z.array(z.string()).min(1).max(100) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {

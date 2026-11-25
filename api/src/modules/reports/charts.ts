@@ -34,6 +34,7 @@ const PERIOD_MESSAGE = 'A custom period needs a start before its end';
 
 /** The organisation's saved charts on one report page, the oldest first. */
 const list = reads(PERMISSIONS.channelView)
+  .route({ summary: 'List the saved charts on one report page, oldest first' })
   .input(z.object({ section: z.enum(REPORT_SECTIONS) }))
   .output(z.array(Chart))
   .handler(({ input, context: { tx } }) =>
@@ -46,6 +47,10 @@ const list = reads(PERMISSIONS.channelView)
 
 /** Saves a card as a chart every member sees on its page. */
 const create = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      'Save a report card as a chart every member sees on its page; a custom period needs from before to',
+  })
   .input(
     Look.extend({ name: Name, section: z.enum(REPORT_SECTIONS), kind: z.string().min(1) }).refine(
       boundedPeriod,
@@ -66,6 +71,7 @@ const create = writes(PERMISSIONS.channelView)
 
 /** Renames a chart or changes how it narrows and draws its card. */
 const update = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Rename a saved chart or change its period, filter or look' })
   .input(Look.partial().extend({ id: z.string(), name: Name.optional() }))
   .output(Chart)
   .handler(async ({ input: { id, ...patch }, context: { tx } }) => {
@@ -89,6 +95,7 @@ const update = writes(PERMISSIONS.channelView)
 
 /** Takes a chart off its page for everyone. */
 const remove = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Remove a saved chart from its report page for everyone' })
   .input(z.object({ id: z.string() }))
   .output(z.object({ id: z.string() }))
   .handler(async ({ input, context: { tx } }) => {

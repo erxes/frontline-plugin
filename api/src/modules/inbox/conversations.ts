@@ -122,6 +122,10 @@ const customersMatching = async (member: PluginMember, input: z.infer<typeof Lis
  * only when the filter asks for a status.
  */
 const list = readsWithCore(PERMISSIONS.inboxView, ListInput, customersMatching)
+  .route({
+    summary:
+      'List conversations in your channels, latest message first, searched by text or customer, filtered and paged',
+  })
   .output(
     z.object({
       conversations: z.array(Conversation),
@@ -164,6 +168,7 @@ const list = readsWithCore(PERMISSIONS.inboxView, ListInput, customersMatching)
 
 /** One conversation, for the members of its channel. */
 const get = reads(PERMISSIONS.inboxView)
+  .route({ summary: 'Get one conversation in a channel you belong to' })
   .input(z.object({ id: z.string() }))
   .output(Conversation)
   .handler(({ input, context: { tx, member } }) => conversationById(tx, member, input.id));
@@ -187,6 +192,10 @@ const notifyAssignee = (member: PluginMember, assigneeId: string, ids: string[])
  * null.
  */
 const assign = writes(PERMISSIONS.inboxView)
+  .route({
+    summary:
+      'Assign conversations to a member, who takes them over from the bot and is notified, or unassign them with null',
+  })
   .input(z.object({ ids: Ids, assigneeId: z.string().nullable() }))
   .output(z.array(Conversation))
   .handler(async ({ input, context: { tx, member, afterCommit } }) => {
@@ -241,6 +250,7 @@ const assign = writes(PERMISSIONS.inboxView)
 
 /** Moves the conversations to a status. Resolving stamps who and when; reopening clears it. */
 const setStatus = writes(PERMISSIONS.inboxView)
+  .route({ summary: 'Move conversations to a status; resolving records who and when' })
   .input(z.object({ ids: Ids, status: z.enum(CONVERSATION_STATUSES) }))
   .output(z.array(Conversation))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -285,6 +295,7 @@ const setStatus = writes(PERMISSIONS.inboxView)
 
 /** Marks the conversation read, or unread with `read: false`, for the caller only. */
 const markRead = writes(PERMISSIONS.inboxView)
+  .route({ summary: 'Mark a conversation read or unread, for you only' })
   .input(z.object({ id: z.string(), read: z.boolean().default(true) }))
   .output(Conversation)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -305,6 +316,7 @@ const markRead = writes(PERMISSIONS.inboxView)
 
 /** Sets each conversation's tags to `tagIds`, each a conversation tag. */
 const setTags = writes(PERMISSIONS.inboxView)
+  .route({ summary: 'Replace the tags on conversations with the given conversation tags' })
   .input(z.object({ ids: Ids, tagIds: z.array(z.string()).max(50) }))
   .output(z.array(Conversation))
   .handler(async ({ input, context: { tx, member } }) => {

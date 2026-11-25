@@ -89,6 +89,10 @@ const list = readsWithCore(
     };
   },
 )
+  .route({
+    summary:
+      "List a Facebook page's or Instagram account's posts from Meta, newest first, 25 at a time",
+  })
   .output(z.object({ posts: z.array(Post), next: z.string().nullable() }))
   .handler(({ context: { fromCore } }) => fromCore);
 
@@ -124,6 +128,9 @@ const get = readsWithCore(
     );
   },
 )
+  .route({
+    summary: 'Get the post a comment conversation belongs to, read from Meta; null for a chat',
+  })
   .output(Post.nullable())
   .handler(({ context: { fromCore } }) => fromCore);
 
@@ -161,6 +168,9 @@ const create = writesWithCore(
     return { id: created.post_id ?? created.id };
   },
 )
+  .route({
+    summary: 'Publish a post on a Facebook page: text with a link, or a photo with a caption',
+  })
   .output(z.object({ id: z.string() }))
   .handler(({ context: { fromCore } }) => fromCore);
 

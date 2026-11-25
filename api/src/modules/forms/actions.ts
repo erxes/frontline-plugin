@@ -9,6 +9,7 @@ import { Form, formById, formFor, formsFor, newCode, publishFormEvents } from '.
 
 /** Deletes the forms with their fields and submissions: all of them, or none when one is refused. */
 const remove = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Delete forms with their fields and submissions, all or none' })
   .input(z.object({ ids: Ids }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -24,6 +25,7 @@ const remove = writes(PERMISSIONS.channelView)
 
 /** Archives the forms, which stops their embeds, or makes them active again, in one statement. */
 const setStatus = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Archive forms, which stops their embeds, or make them active again' })
   .input(z.object({ ids: Ids, status: z.enum(FORM_STATUSES) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -61,6 +63,9 @@ const { id, orgId, formId, createdAt, updatedAt, ...fieldCopy } = getTableColumn
 
 /** A copy of the form and its fields, in the same channel, active, with a new code and no counts. */
 const duplicate = writes(PERMISSIONS.channelView)
+  .route({
+    summary: 'Copy a form and its fields into the same channel, active, with a new embed code',
+  })
   .input(z.object({ id: z.string() }))
   .output(Form)
   .handler(async ({ input, context: { tx, member } }) => {

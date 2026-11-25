@@ -183,6 +183,7 @@ const Suppression = createSelectSchema(emailSuppressions).omit({ orgId: true });
 
 /** The addresses frontline no longer mails, newest first. */
 const list = reads(PERMISSIONS.integrationView)
+  .route({ summary: 'List the email addresses mail is no longer sent to, newest first' })
   .input(z.object({}))
   .output(z.object({ suppressions: z.array(Suppression) }))
   .handler(async ({ context: { tx } }) => {
@@ -196,6 +197,7 @@ const list = reads(PERMISSIONS.integrationView)
 
 /** Lets mail reach the addresses again, all of them or none. */
 const remove = writes(PERMISSIONS.integrationManage)
+  .route({ summary: 'Let mail reach suppressed addresses again; fails unless all of them exist' })
   .input(z.object({ ids: z.array(z.string()).min(1).max(100) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx } }) => {

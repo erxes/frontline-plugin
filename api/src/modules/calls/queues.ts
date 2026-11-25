@@ -39,6 +39,7 @@ const queueRows = (tx: Tx, member: PluginMember) =>
 
 /** The queues of the PBXs the caller answers, with their counters for the day. */
 const list = reads(PERMISSIONS.callView)
+  .route({ summary: "List the call queues of the PBXes you answer, with today's counters" })
   .input(z.object({}))
   .output(z.array(Queue))
   .handler(({ context: { tx, member } }) =>
@@ -47,6 +48,7 @@ const list = reads(PERMISSIONS.callView)
 
 /** One queue, with its live board as the PBX last sent it. */
 const get = reads(PERMISSIONS.callView)
+  .route({ summary: 'Get one call queue with its live board as the PBX last sent it' })
   .input(z.object({ id: z.string() }))
   .output(Queue.extend({ live: QueueLive.nullable(), liveAt: z.date().nullable() }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -73,6 +75,7 @@ const {
 
 /** The caller's extensions on each PBX, with what they last told its queues. */
 const mine = reads(PERMISSIONS.callView)
+  .route({ summary: 'List your extensions on each PBX, with your queue status' })
   .input(z.object({}))
   .output(z.array(Agent))
   .handler(({ context: { tx, member } }) =>
@@ -122,6 +125,9 @@ const setStatus = writesWithCore(
     return { operatorId: found.operator.id, accountName: found.account.name };
   },
 )
+  .route({
+    summary: "Pause or resume yourself in a PBX's queues; while paused you get no queue calls",
+  })
   .output(Agent)
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
     const [saved] = await tx
