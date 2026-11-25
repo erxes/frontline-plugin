@@ -4,8 +4,7 @@ import {
   verifyCoreJob,
   verifyPublicCall,
 } from '@erxes/plugin-sdk';
-import { pluginOpenApi } from '@erxes/plugin-sdk/openapi';
-import { OpenAPIHandler } from '@orpc/openapi/node';
+import { pluginOpenApi, pluginRestHandler } from '@erxes/plugin-sdk/openapi';
 import { onError, ORPCError, ValidationError } from '@orpc/server';
 import { RPCHandler } from '@orpc/server/node';
 import { resolve, sep } from 'node:path';
@@ -75,7 +74,7 @@ const rpc = new RPCHandler(router, {
   ],
 });
 
-const rest = new OpenAPIHandler(router, {
+const rest = pluginRestHandler(router, {
   interceptors: [onError(logFailure)],
   clientInterceptors: [onError(explainInput((issues) => z.prettifyError({ issues })))],
 });
