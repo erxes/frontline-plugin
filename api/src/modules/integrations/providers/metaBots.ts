@@ -73,6 +73,7 @@ const botFor = (member: PluginMember, id: string) =>
 
 /** The organisation's bots, by name. */
 const list = reads(PERMISSIONS.integrationView)
+  .route({ summary: "List your organization's Facebook and Instagram bots by name" })
   .output(z.object({ bots: z.array(Bot) }))
   .handler(async ({ context: { tx } }) => ({
     bots: await botRows(tx).orderBy(metaBots.name, metaBots.id),
@@ -80,6 +81,7 @@ const list = reads(PERMISSIONS.integrationView)
 
 /** One bot. */
 const get = reads(PERMISSIONS.integrationView)
+  .route({ summary: 'Get one Facebook or Instagram bot' })
   .input(z.object({ id: z.string() }))
   .output(Bot)
   .handler(({ input, context: { tx } }) => botById(tx, input.id));
@@ -111,6 +113,10 @@ const create = writesWithCore(
     return { id };
   },
 )
+  .route({
+    summary:
+      'Set up a bot on a Facebook page or Instagram account; Meta saves its profile first, one bot per page',
+  })
   .output(Bot)
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
     await tx
@@ -144,6 +150,9 @@ const update = writesWithCore(
     await askMeta(pushProfile(bot.provider, token, { ...bot, ...settings }));
   },
 )
+  .route({
+    summary: "Change a bot's menu, ice breakers, button label or greeting; saved at Meta first",
+  })
   .output(Bot)
   .handler(async ({ input: { id, ...settings }, context: { tx } }) => {
     await tx
@@ -167,6 +176,7 @@ const sync = writesWithCore(
     );
   },
 )
+  .route({ summary: "Save a bot's profile at Meta again and mark it healthy or broken" })
   .output(Bot)
   .handler(async ({ input, context: { tx, fromCore: error } }) => {
     await tx
@@ -182,6 +192,7 @@ const sync = writesWithCore(
  * doesn't keep the bot: it is removed anyway and logged.
  */
 const remove = writes(PERMISSIONS.integrationManage)
+  .route({ summary: 'Remove a bot and clear its profile at Meta' })
   .input(z.object({ id: z.string() }))
   .output(z.object({ id: z.string() }))
   .handler(async ({ input, context: { tx, afterCommit } }) => {

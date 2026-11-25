@@ -52,6 +52,7 @@ export const assertTeam = async (
 
 /** The departments or branches, by name. Every member reads them. */
 const list = reads(PERMISSIONS.channelView)
+  .route({ summary: 'List the departments or the branches, by name' })
   .input(z.object({ kind: z.enum(TEAM_KINDS) }))
   .output(z.array(Team))
   .handler(({ input, context: { tx } }) =>
@@ -61,6 +62,7 @@ const list = reads(PERMISSIONS.channelView)
   );
 
 const get = reads(PERMISSIONS.channelView)
+  .route({ summary: 'Get one department or branch by id' })
   .input(z.object({ id: z.string() }))
   .output(Team)
   .handler(({ input, context: { tx } }) => teamById(tx, input.id));

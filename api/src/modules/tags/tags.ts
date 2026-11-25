@@ -73,6 +73,10 @@ const TAG_FILTER: FilterFields = {
 const TAG_READERS = [PERMISSIONS.channelView, PERMISSIONS.inboxView];
 
 const list = reads(TAG_READERS)
+  .route({
+    summary:
+      'List tags of one type (ticket, conversation or form) or all, by name, searched and filtered',
+  })
   .input(z.object({ type: z.enum(TAG_TYPES).optional(), ...FilterInput }))
   .output(z.object({ data: z.array(Tag) }))
   .handler(async ({ input, context: { tx, member } }) => ({
@@ -90,11 +94,13 @@ const list = reads(TAG_READERS)
   }));
 
 const get = reads(TAG_READERS)
+  .route({ summary: 'Get one tag by id' })
   .input(z.object({ id: z.string() }))
   .output(Tag)
   .handler(({ input, context: { tx } }) => tagById(tx, input.id));
 
 const create = writes(PERMISSIONS.settingsManage)
+  .route({ summary: 'Create a tag of a type with a name unique to it and an optional colour' })
   .errors(tagErrors)
   .input(
     createInsertSchema(tags, refine)
@@ -115,6 +121,7 @@ const create = writes(PERMISSIONS.settingsManage)
   });
 
 const update = writes(PERMISSIONS.settingsManage)
+  .route({ summary: 'Rename a tag or change its colour' })
   .errors(tagErrors)
   .input(
     createUpdateSchema(tags, refine)
@@ -131,6 +138,7 @@ const update = writes(PERMISSIONS.settingsManage)
 
 /** Deletes the tags and takes them off every ticket and form, in one transaction. */
 const remove = writes(PERMISSIONS.settingsManage)
+  .route({ summary: 'Delete tags and take them off every ticket and form' })
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx } }) => {

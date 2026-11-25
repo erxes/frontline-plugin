@@ -48,6 +48,10 @@ const lineFor = (member: PluginMember, accountId: string) =>
  * WebRTC socket (`wss://<host>/ws`, the UCM's HTTPS port).
  */
 const lines = reads(PERMISSIONS.callView)
+  .route({
+    summary:
+      'List your softphone lines: each PBX extension with its SIP password and WebSocket URL',
+  })
   .input(z.object({}))
   .output(
     z.array(
@@ -84,6 +88,7 @@ const lines = reads(PERMISSIONS.callView)
  * lines, whose refetch would sign the phone in again.
  */
 const iceServers = readsWithCore(PERMISSIONS.callView, z.object({}), turnIceServers)
+  .route({ summary: 'Get the TURN servers your softphone calls through; their credentials expire' })
   .output(z.array(IceServer))
   .handler(({ context: { fromCore } }) => fromCore);
 
@@ -123,6 +128,9 @@ const extensions = readsWithCore(
       }));
   },
 )
+  .route({
+    summary: "List the PBX's other extensions you can transfer a call to, with their status",
+  })
   .output(z.array(z.object({ extension: z.string(), name: z.string(), status: z.string() })))
   .handler(({ context: { fromCore } }) => fromCore);
 
@@ -168,6 +176,7 @@ const transfer = writesWithCore(
     return { extension: input.extension };
   },
 )
+  .route({ summary: 'Transfer the call you are on to another extension of the same PBX' })
   .output(z.object({ extension: z.string() }))
   .handler(({ context: { fromCore } }) => fromCore);
 
@@ -176,6 +185,10 @@ const transfer = writesWithCore(
  * conversation its notes go to. Null until the PBX reports it.
  */
 const current = reads(PERMISSIONS.callView)
+  .route({
+    summary:
+      'Get your call ringing or on at a PBX, with its conversation; null until the PBX reports it',
+  })
   .input(z.object({ accountId: z.string() }))
   .output(
     z
@@ -236,6 +249,9 @@ const caller = readsWithCore(
   z.object({ customerId: z.string() }),
   customerName,
 )
+  .route({
+    summary: "Get the name of a customer you have a call with; null when it's only a number",
+  })
   .output(z.object({ name: z.string().nullable() }))
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
     if (!(await hasCallWith(tx, member, input.customerId)))

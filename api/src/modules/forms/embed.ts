@@ -45,6 +45,9 @@ export const urlOf = (key: string, code: string) =>
  * and the script a website adds to show it.
  */
 const embed = writes(PERMISSIONS.channelView)
+  .route({
+    summary: "Get a form's public link and website embed script, making the link on first ask",
+  })
   .input(z.object({ id: z.string() }))
   .output(z.object({ code: z.string(), url: z.string(), scriptUrl: z.string() }))
   .handler(async ({ input, context: { tx, member } }) => {

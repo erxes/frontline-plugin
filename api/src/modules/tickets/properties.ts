@@ -43,6 +43,7 @@ export const checkProperties = async (
 
 /** The ticket's custom field values by core field id, for core's Properties tab. */
 const values = reads(PERMISSIONS.channelView)
+  .route({ summary: "Get a ticket's custom field values, keyed by field id" })
   .input(z.object({ id: z.string() }))
   .output(CustomFields)
   .handler(
@@ -72,6 +73,10 @@ const save = writesWithCore(
     };
   },
 )
+  .route({
+    summary:
+      "Save changes to a ticket's custom field values, null clears one; conflicts if someone saved meanwhile",
+  })
   .output(CustomFields)
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
     const rows = await ticketsFor(tx, member, [input.id]);

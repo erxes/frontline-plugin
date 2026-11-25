@@ -117,6 +117,7 @@ export const takeOver = (tx: Tx, ids: string[]) =>
 
 /** A member hands conversations to a person, or lets the bot answer them again. */
 const setOperator = writes(PERMISSIONS.inboxView)
+  .route({ summary: 'Hand conversations to a person, or let the bot answer them again' })
   .input(z.object({ ids: Ids, operator: z.enum(CONVERSATION_OPERATORS) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {

@@ -84,6 +84,7 @@ export const react = async (
 
 /** How readers reacted to the article, a count for each choice it offers; none for an unknown id. */
 const reactions = reads(PERMISSIONS.kbView)
+  .route({ summary: "Count readers' reactions to an article, one count per choice it offers" })
   .input(z.object({ id: z.string() }))
   .output(z.array(Reaction.omit({ mine: true })))
   .handler(({ input: { id }, context: { tx } }) => reactionsOf(tx, id, null));

@@ -116,6 +116,10 @@ const connect = writesWithCore(
     return pbx;
   },
 )
+  .route({
+    summary:
+      'Connect a Grandstream UCM phone system, routing its trunks and queues here; reconnecting replaces its settings',
+  })
   .output(Account)
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
     const { channelId, name, queues, operators, ...settings } = input;
@@ -142,6 +146,7 @@ const connect = writesWithCore(
 
 /** Connects a CallPro line by its number; CallPro posts its calls to the address frontline gives. */
 const connectCallPro = writes(PERMISSIONS.integrationManage)
+  .route({ summary: 'Connect a CallPro line by its phone number' })
   .input(z.object({ phone: Phone, ...Into }))
   .output(Account)
   .handler(async ({ input, context: { tx, member } }) =>
@@ -189,6 +194,10 @@ const phoneAccount = async (tx: Tx, id: string) => {
  * bridge run by hand; a CallPro address is its own secret.
  */
 const settings = reads(PERMISSIONS.integrationManage)
+  .route({
+    summary:
+      "Get a phone account's settings: queues, operators, webhook address and secret, and whether calls reach a channel",
+  })
   .input(z.object({ accountId: z.string() }))
   .output(
     z.object({
@@ -280,6 +289,9 @@ const saveSettings = writesWithCore(
     await routeCalls(pbx, wanted, key).catch(relayRefused);
   },
 )
+  .route({
+    summary: "Save a phone system's settings, name, followed queues and operators by extension",
+  })
   .output(Account)
   .handler(async ({ input, context: { tx, member } }) => {
     const { accountId, queues, operators, name, ...changes } = input;

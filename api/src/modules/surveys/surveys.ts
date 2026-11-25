@@ -42,6 +42,9 @@ const order = orderOf(surveys);
 
 /** The surveys of the member's channels, newest first, narrowed by the filter bar. */
 const list = reads(PERMISSIONS.channelView)
+  .route({
+    summary: 'List the surveys of your channels, newest first, filtered, searched and paged',
+  })
   .input(z.object({ ...FilterInput, ...PageInput }))
   .output(
     z.object({
@@ -77,6 +80,7 @@ const list = reads(PERMISSIONS.channelView)
   });
 
 const get = reads(PERMISSIONS.channelView)
+  .route({ summary: 'Get one survey of a channel you belong to' })
   .input(z.object({ id: z.string() }))
   .output(Survey)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -87,6 +91,7 @@ const get = reads(PERMISSIONS.channelView)
 
 /** How many voters a survey has, and how many of them picked each option, by option id. */
 const results = reads(PERMISSIONS.channelView)
+  .route({ summary: "Count a survey's voters and the voters who picked each option" })
   .input(z.object({ id: z.string() }))
   .output(z.object({ voterCount: z.number(), options: z.record(z.string(), z.number()) }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -146,6 +151,7 @@ const distinctIds = (steps: z.output<typeof SurveyStep>[]) => {
 
 /** A new active survey in a channel the caller is an admin of. */
 const create = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Create an active survey in a channel you admin' })
   .input(SurveyFields.partial({ durationHours: true }))
   .output(Survey)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -182,6 +188,7 @@ const create = writes(PERMISSIONS.channelView)
 
 /** Changes the given settings, the questions as a whole, or moves it to another channel. */
 const update = writes(PERMISSIONS.channelView)
+  .route({ summary: "Change a survey's settings or questions, or move it to another channel" })
   .input(SurveyFields.partial().extend({ id: z.string() }))
   .output(Survey)
   .handler(async ({ input: { id, ...fields }, context: { tx, member } }) => {
@@ -217,6 +224,7 @@ const update = writes(PERMISSIONS.channelView)
 
 /** Deletes the surveys with their votes: all of them, or none when one is refused. */
 const remove = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Delete surveys with their votes, all or none' })
   .input(z.object({ ids: Ids }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {

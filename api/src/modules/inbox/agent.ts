@@ -212,6 +212,10 @@ export const onAgentEvent = async ({ id, type, organizationId, data }: Delivered
  * with null, for a member who may change it. Core refuses messages to an agent it doesn't have.
  */
 const setAgent = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      "Pick the AI agent that answers an integration's conversations while the bot has them, or none",
+  })
   .input(z.object({ id: z.string(), agentId: z.string().min(1).nullable() }))
   .output(z.object({ id: z.string(), agentId: z.string().nullable() }))
   .handler(async ({ input, context: { tx, member } }) => {

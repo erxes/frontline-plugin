@@ -103,6 +103,9 @@ const order = orderOf(responseTemplates);
  * ignoring case.
  */
 const list = reads(PERMISSIONS.channelView)
+  .route({
+    summary: "List a channel's response templates, newest first, filtered, searched and paged",
+  })
   .input(z.object({ channelId: z.string(), ...FilterInput, ...PageInput }))
   .output(
     z.object({
@@ -140,6 +143,7 @@ const list = reads(PERMISSIONS.channelView)
 
 /** One template. */
 const get = reads(PERMISSIONS.channelView)
+  .route({ summary: 'Get one response template' })
   .input(z.object({ id: z.string() }))
   .output(Template)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -150,6 +154,7 @@ const get = reads(PERMISSIONS.channelView)
 
 /** A new template in a channel the caller is an admin of. */
 const create = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Create a response template in a channel you admin' })
   .input(z.object({ channelId: z.string(), name: Name, content: Content.default('') }))
   .output(Template)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -167,6 +172,10 @@ const create = writes(PERMISSIONS.channelView)
 
 /** Renames a template, changes its content, or moves it to another channel the caller is an admin of. */
 const update = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      'Rename a response template, change its content, or move it to another channel you admin',
+  })
   .input(
     z.object({
       id: z.string(),
@@ -189,6 +198,7 @@ const update = writes(PERMISSIONS.channelView)
 
 /** Deletes the templates, all of them or none when the caller may not delete one. */
 const remove = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Delete response templates, all or none' })
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {

@@ -25,6 +25,7 @@ const MEMBER_FILTER: FilterFields = {
  * core, so the page matches its search against the names it shows.
  */
 const members = reads(PERMISSIONS.channelView)
+  .route({ summary: "List a channel's members and roles, admins first, then the newest, filtered" })
   .input(z.object({ id: z.string(), filter: FilterInput.filter }))
   .output(
     z.array(createSelectSchema(channelMembers).pick({ userId: true, role: true, createdAt: true })),
@@ -71,6 +72,7 @@ const keepsAnAdmin = async (tx: Tx, channelId: string, userIds: string[]) =>
 
 /** Adds core users as members; a current member keeps their role. */
 const addMembers = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Add team members to a channel you admin; current members keep their role' })
   .input(Members)
   .output(z.array(Member))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -89,6 +91,7 @@ const addMembers = writes(PERMISSIONS.channelView)
 
 /** Removes members, refusing when no admin would be left. */
 const removeMembers = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Remove members from a channel you admin; refused if no admin would be left' })
   .errors(memberErrors)
   .input(Members)
   .output(z.array(Member.pick({ userId: true })))
@@ -116,6 +119,9 @@ const removeMembers = writes(PERMISSIONS.channelView)
   });
 
 const setRole = writes(PERMISSIONS.channelView)
+  .route({
+    summary: 'Make a channel member an admin or a member; refused if no admin would be left',
+  })
   .errors(memberErrors)
   .input(z.object({ id: z.string(), userId: z.string(), role: z.enum(CHANNEL_ROLES) }))
   .output(Member)

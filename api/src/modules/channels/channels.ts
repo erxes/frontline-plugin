@@ -134,6 +134,10 @@ const channelFilter = (member: PluginMember): FilterFields => ({
  * by the filter bar: `search` matches the name or description, ignoring case.
  */
 const list = reads(PERMISSIONS.channelView)
+  .route({
+    summary:
+      'List your team channels by name, searched and filtered, and whether you may create one',
+  })
   .input(z.object(FilterInput))
   .output(z.object({ channels: z.array(Channel), canCreate: z.boolean() }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -158,6 +162,7 @@ const list = reads(PERMISSIONS.channelView)
 
 /** One channel; `channels.members` lists its members. */
 const get = reads(PERMISSIONS.channelView)
+  .route({ summary: 'Get one channel by id, with its counts and your role in it' })
   .input(z.object({ id: z.string() }))
   .output(Channel)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -168,6 +173,7 @@ const get = reads(PERMISSIONS.channelView)
 
 /** A new channel, with its creator as its admin and `memberIds` as members. */
 const create = writes(PERMISSIONS.channelManage)
+  .route({ summary: 'Create a channel with you as its admin and the given members' })
   .errors(channelErrors)
   .input(
     z.object({
@@ -210,6 +216,7 @@ const NAMES: [keyof z.infer<typeof Channel>, string][] = [
 
 /** Renames a channel, or changes its description or icon. */
 const update = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Rename a channel you admin, or change its description or icon' })
   .errors(channelErrors)
   .input(
     z.object({
@@ -244,6 +251,7 @@ const update = writes(PERMISSIONS.channelView)
 
 /** Deletes the channels and their memberships, all of them or none when the caller may not delete one. */
 const remove = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Delete channels you admin and their memberships, all or none' })
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -264,6 +272,7 @@ const remove = writes(PERMISSIONS.channelView)
  * which the team list leaves out.
  */
 const personal = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Get your personal inbox channel, created on first call' })
   .output(Channel)
   .handler(async ({ context: { tx, member } }) => {
     const [made] = await tx

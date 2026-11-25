@@ -26,6 +26,7 @@ const valuesOf = async (tx: Tx, member: PluginMember, id: string, lock = false) 
 
 /** The conversation's custom field values by core field id, for core's Properties tab. */
 const values = reads(PERMISSIONS.inboxView)
+  .route({ summary: "Get a conversation's custom field values, keyed by field id" })
   .input(z.object({ id: z.string() }))
   .output(CustomFields)
   .handler(({ input, context: { tx, member } }) => valuesOf(tx, member, input.id));
@@ -50,6 +51,10 @@ const save = writesWithCore(
     return { current, checked };
   },
 )
+  .route({
+    summary:
+      "Save changes to a conversation's custom field values, null to clear one; conflicts if someone saved meanwhile",
+  })
   .output(CustomFields)
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
     const { current, checked } = fromCore;

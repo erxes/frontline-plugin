@@ -1,4 +1,5 @@
 import type { PluginMember } from '@erxes/plugin-sdk';
+import { checksPermission } from '@erxes/plugin-sdk/openapi';
 import { type InferSchemaOutput, ORPCError, os } from '@orpc/server';
 import type { z } from 'zod';
 import { withOrg } from '#/db/client.ts';
@@ -9,22 +10,27 @@ const base = os.$context<{ member: PluginMember }>();
 /** A permission, or a list of them any one of which lets the member in. */
 type Action = string | readonly string[];
 
-const allowed = (action: Action, change: boolean) =>
-  base.middleware(({ context: { member }, next }) => {
-    const actions = typeof action === 'string' ? [action] : action;
+const allowed = (action: Action, change: boolean) => {
+  const actions = typeof action === 'string' ? [action] : action;
 
-    if (!actions.some((one) => member.can(one))) {
-      throw new ORPCError('FORBIDDEN', {
-        message: `You need the ${actions.join(' or ')} permission`,
-      });
-    }
+  return checksPermission(
+    base.middleware(({ context: { member }, next }) => {
+      if (!actions.some((one) => member.can(one))) {
+        throw new ORPCError('FORBIDDEN', {
+          message: `You need the ${actions.join(' or ')} permission`,
+        });
+      }
 
-    if (change && !member.canChange()) {
-      throw new ORPCError('FORBIDDEN', { message: 'Read-only: this plugin left your plan' });
-    }
+      if (change && !member.canChange()) {
+        throw new ORPCError('FORBIDDEN', { message: 'Read-only: this plugin left your plan' });
+      }
 
-    return next();
-  });
+      return next();
+    }),
+    actions,
+    { reads: !change },
+  );
+};
 
 const inOrg = base.middleware(async ({ context: { member }, next }) => {
   const later: (() => Promise<void>)[] = [];

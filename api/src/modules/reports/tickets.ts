@@ -151,6 +151,10 @@ const ticketsOf = (
  * SLA state, and what is unresolved and overdue now, and whose it is.
  */
 export const ticketReport = readsWithCore(PERMISSIONS.channelView, ReportInput, askCore)
+  .route({
+    summary:
+      'Report tickets created and resolved from/to (ISO date-times, max 366 days) by day in an IANA timeZone; times in seconds',
+  })
   .output(TicketReport)
   .handler(async ({ input: range, context: { tx, member, fromCore } }) => {
     const mine = ticketsOf(tx, member, range, fromCore);
@@ -223,6 +227,10 @@ export const ticketPropertyReport = readsWithCore(
   ReportInput.and(z.object({ fieldId: z.string().min(1) })),
   askCore,
 )
+  .route({
+    summary:
+      'Count tickets created from/to (ISO date-times) by their values of one custom field (fieldId), top 10',
+  })
   .output(z.array(z.object({ value: z.string(), count: Count })))
   .handler(async ({ input: range, context: { tx, member, fromCore } }) => {
     const value = sql`${tickets.propertiesData} -> ${range.fieldId}`;

@@ -273,12 +273,20 @@ export const updateTicket = async (
 };
 
 const update = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      'Change fields of a ticket or move it to another status; notifies new assignees and followers',
+  })
   .input(TicketUpdate)
   .output(Ticket)
   .handler(({ input, context: { tx, member } }) => updateTicket(tx, member, input));
 
 /** Assigns, prioritises, moves or archives the selected tickets: all of them, or none. */
 const bulkUpdate = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      'Assign, prioritise, tag, archive or move several tickets at once, all or none; notifies assignees and followers',
+  })
   .input(
     Changes.pick({
       assigneeId: true,
@@ -306,6 +314,7 @@ const bulkUpdate = writes(PERMISSIONS.channelView)
 
 /** Deletes the selected tickets, all of them or none; their channels' admins may. */
 const bulkRemove = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Delete several tickets at once, all or none; only their channel admins may' })
   .input(z.object({ ids: Ids }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {

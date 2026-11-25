@@ -33,6 +33,7 @@ const changeable = async (tx: Tx, member: PluginMember, ticketId: string) => {
 
 /** The comments for the ticket's customer, oldest first. NOT_FOUND when the caller doesn't see it. */
 const comments = reads(PERMISSIONS.channelView)
+  .route({ summary: "List the comments written to a ticket's customer, oldest first" })
   .input(z.object({ ticketId: z.string() }))
   .output(z.array(Comment))
   .handler(async ({ input: { ticketId }, context: { tx, member } }) => {
@@ -53,6 +54,9 @@ const comments = reads(PERMISSIONS.channelView)
  * ticket tab shows it at once.
  */
 const addComment = writes(PERMISSIONS.channelView)
+  .route({
+    summary: "Write a comment to a ticket's customer, shown at once in their messenger ticket tab",
+  })
   .input(z.object({ ticketId: z.string(), body: z.string().trim().min(1).max(5000) }))
   .output(Comment)
   .handler(async ({ input: { ticketId, body }, context: { tx, member } }) => {
@@ -72,6 +76,7 @@ const addComment = writes(PERMISSIONS.channelView)
 
 /** Takes back a comment the caller wrote, from the customer's messenger too. */
 const removeComment = writes(PERMISSIONS.channelView)
+  .route({ summary: "Delete a comment you wrote, from the customer's messenger too" })
   .input(z.object({ id: z.string() }))
   .output(z.object({ id: z.string() }))
   .handler(async ({ input: { id }, context: { tx, member } }) => {

@@ -100,6 +100,10 @@ const order = orderOf(formSubmissions);
  * matches any answer's text, ignoring case.
  */
 const list = reads(PERMISSIONS.channelView)
+  .route({
+    summary:
+      "List a form's submissions, newest first, filtered, searched by answer text, and paged",
+  })
   .input(z.object({ formId: z.string(), ...FilterInput, ...PageInput }))
   .output(
     z.object({
@@ -132,6 +136,7 @@ const list = reads(PERMISSIONS.channelView)
 
 /** One submission with its answers. */
 const get = reads(PERMISSIONS.channelView)
+  .route({ summary: 'Get one form submission with its answers' })
   .input(z.object({ id: z.string() }))
   .output(Submission)
   .handler(async ({ input, context: { tx, member } }) =>
@@ -140,6 +145,9 @@ const get = reads(PERMISSIONS.channelView)
 
 /** Corrects one answer, checked against its field's type; `null` clears it. */
 const update = writes(PERMISSIONS.channelView)
+  .route({
+    summary: "Correct one answer of a submission, checked against its field's type; null clears it",
+  })
   .input(z.object({ id: z.string(), fieldId: z.string(), value: Answer.nullable() }))
   .output(Submission)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -183,6 +191,7 @@ const update = writes(PERMISSIONS.channelView)
 
 /** Deletes the submissions with their answers: all of them, or none when one is refused. */
 const remove = writes(PERMISSIONS.channelView)
+  .route({ summary: 'Delete form submissions with their answers, all or none' })
   .input(z.object({ ids: Ids }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member } }) => {

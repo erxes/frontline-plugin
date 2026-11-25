@@ -13,6 +13,7 @@ const Visitor = createSelectSchema(visitors, { browser: () => BrowserInfo }).omi
 
 /** The open conversation's visitor tells the messenger a member is typing an answer. */
 const typing = writes(PERMISSIONS.inboxView)
+  .route({ summary: "Show the conversation's visitor that you are typing a reply" })
   .input(z.object({ id: z.string() }))
   .output(z.object({ id: z.string() }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -28,6 +29,10 @@ const typing = writes(PERMISSIONS.inboxView)
  * the page and browser of the latest one. Null for a customer who never opened a messenger.
  */
 const visitor = reads(PERMISSIONS.inboxView)
+  .route({
+    summary:
+      "Get the messenger visitor of a conversation's customer: online status, last seen, visits and browser",
+  })
   .input(z.object({ id: z.string() }))
   .output(Visitor.nullable())
   .handler(async ({ input, context: { tx, member } }) => {

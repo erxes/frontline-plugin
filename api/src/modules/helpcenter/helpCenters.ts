@@ -144,6 +144,9 @@ const order = orderOf(helpCenters);
  * caller manages them.
  */
 const list = reads(PERMISSIONS.helpCenterView)
+  .route({
+    summary: 'List help centers, newest first, filtered and paged, and whether you can manage them',
+  })
   .input(z.object({ ...FilterInput, ...PageInput }))
   .output(z.object({ helpCenters: z.array(HelpCenter), ...PageOutput, canManage: z.boolean() }))
   .handler(async ({ input, context: { tx, member } }) => {
@@ -174,6 +177,7 @@ const list = reads(PERMISSIONS.helpCenterView)
   });
 
 const get = reads(PERMISSIONS.helpCenterView)
+  .route({ summary: 'Get one help center' })
   .input(z.object({ id: z.string() }))
   .output(HelpCenter)
   .handler(async ({ input, context: { tx } }) => withTarget(await centerById(tx, input.id)));
@@ -195,6 +199,7 @@ const FIELDS = {
 
 /** A new help center, with the public key signed-out visitors reach it by. */
 const create = writes(PERMISSIONS.helpCenterManage)
+  .route({ summary: 'Create a help center with the public key signed-out visitors reach it by' })
   .input(
     createInsertSchema(helpCenters, refine).pick(FIELDS).partial({
       description: true,
@@ -237,6 +242,7 @@ const create = writes(PERMISSIONS.helpCenterManage)
   });
 
 const update = writes(PERMISSIONS.helpCenterManage)
+  .route({ summary: "Change a help center's settings, topic, forms and look" })
   .input(createUpdateSchema(helpCenters, refine).pick(FIELDS).extend({ id: z.string() }))
   .output(HelpCenter)
   .handler(async ({ input: { id, ...fields }, context: { tx } }) => {
@@ -253,6 +259,7 @@ const update = writes(PERMISSIONS.helpCenterManage)
 
 /** Deletes the help centers, their domains on Cloudflare and their public addresses. */
 const remove = writes(PERMISSIONS.helpCenterManage)
+  .route({ summary: 'Delete help centers, their public addresses and their domains on Cloudflare' })
   .input(z.object({ ids: z.array(z.string()).min(1).max(100) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx, member, afterCommit } }) => {
@@ -286,6 +293,7 @@ const saveDomain = writesWithCore(
   z.object({ id: z.string(), hostname: z.string().max(300) }),
   (member, input) => connectDomain(member.orgId, input.id, input.hostname),
 )
+  .route({ summary: 'Connect a custom domain to a help center, or check the connected one again' })
   .output(HelpCenter)
   .handler(async ({ context: { tx, member, fromCore } }) => {
     await recordDomain(tx, member.orgId, fromCore, { restart: true });
@@ -298,6 +306,7 @@ const refreshDomain = writesWithCore(
   z.object({ id: z.string() }),
   (member, input) => recheckDomain(member.orgId, input.id),
 )
+  .route({ summary: "Check a help center's custom domain DNS and certificate again" })
   .output(HelpCenter)
   .handler(async ({ context: { tx, member, fromCore } }) => {
     await recordDomain(tx, member.orgId, fromCore, { restart: true });
@@ -306,6 +315,7 @@ const refreshDomain = writesWithCore(
   });
 
 const removeDomain = writes(PERMISSIONS.helpCenterManage)
+  .route({ summary: "Disconnect a help center's custom domain and remove it from Cloudflare" })
   .input(z.object({ id: z.string() }))
   .output(HelpCenter)
   .handler(async ({ input, context: { tx, member, afterCommit } }) => {

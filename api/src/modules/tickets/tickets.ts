@@ -116,6 +116,10 @@ const list = readsWithCore(
   }),
   (member, input) => propertyFilter(member.orgId, input.filter),
 )
+  .route({
+    summary:
+      'List tickets of your channels, optionally in one pipeline or status, searched, filtered, sorted and paged',
+  })
   .output(
     z.object({
       tickets: z.array(TicketRow),
@@ -147,6 +151,7 @@ const list = readsWithCore(
 
 /** One ticket, for the members of its channel. */
 const get = reads(PERMISSIONS.channelView)
+  .route({ summary: 'Get one ticket by id, if you are a member of its channel' })
   .input(z.object({ id: z.string() }))
   .output(Ticket)
   .handler(({ input, context: { tx, member } }) => seenTicket(tx, member, input.id));
@@ -263,6 +268,10 @@ const create = writesWithCore(
   (member, input) =>
     checkProperties(member.orgId, input.pipelineId, {}, input.propertiesData, { create: true }),
 )
+  .route({
+    summary:
+      'Create a ticket in a pipeline, in the given status or its first one; notifies its assignees',
+  })
   .output(Ticket)
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
     const pipeline = await pipelineFor(tx, member, input.pipelineId, { change: false });

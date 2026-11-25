@@ -230,6 +230,9 @@ const connect = writesWithCore(
     return { bot, key, webhookSecret };
   },
 )
+  .route({
+    summary: 'Connect a Telegram bot by its BotFather token; Telegram then posts its updates here',
+  })
   .output(Account)
   .handler(
     async ({
@@ -307,6 +310,9 @@ const webhookInfo = readsWithCore(
     });
   },
 )
+  .route({
+    summary: "Get a Telegram bot's webhook as Telegram sees it, to find why updates stopped",
+  })
   .output(Webhook)
   .handler(({ context: { fromCore } }) => fromCore);
 

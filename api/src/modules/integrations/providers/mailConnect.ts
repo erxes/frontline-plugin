@@ -43,6 +43,10 @@ const connect = writesWithCore(
     return { address, config, secret, syncState: state };
   },
 )
+  .route({
+    summary:
+      'Connect a mailbox by its IMAP and SMTP login; only mail arriving from now on reaches the inbox',
+  })
   .output(Account)
   .handler(async ({ input, context: { tx, member, fromCore } }) =>
     saveAccount(

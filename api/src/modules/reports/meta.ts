@@ -59,6 +59,10 @@ const sum = <Row>(rows: Row[], pick: (row: Row) => number) =>
  * comments under posts, in total and by day.
  */
 export const metaReport = reads(PERMISSIONS.inboxView)
+  .route({
+    summary:
+      'Report Facebook and Instagram chats, messages and post comments from/to (ISO date-times) by day in an IANA timeZone',
+  })
   .input(ReportInput)
   .output(MetaReport)
   .handler(async ({ input: range, context: { tx, member } }) => {

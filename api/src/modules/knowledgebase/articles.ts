@@ -156,6 +156,9 @@ const order = orderOf(kbArticles);
  * title, summary or content, ignoring case.
  */
 const list = reads(PERMISSIONS.kbView)
+  .route({
+    summary: "List a topic's articles of every status, newest first, filtered, searched and paged",
+  })
   .input(z.object({ topicId: z.string(), ...FilterInput, ...PageInput }))
   .output(
     z.object({
@@ -209,6 +212,9 @@ const list = reads(PERMISSIONS.kbView)
  * answering a question; `list` is the editor's list of every status.
  */
 const search = reads(PERMISSIONS.kbView)
+  .route({
+    summary: 'Search published public articles by words, best match first, in every topic or one',
+  })
   .input(
     z.object({
       search: z.string().trim().min(1).max(200),
@@ -235,11 +241,13 @@ const search = reads(PERMISSIONS.kbView)
 
 /** One article with its content and files. */
 const get = reads(PERMISSIONS.kbView)
+  .route({ summary: 'Get one knowledge base article with its content and files' })
   .input(z.object({ id: z.string() }))
   .output(Detail)
   .handler(({ input, context: { tx } }) => articleFor(tx, input.id));
 
 const create = writes(PERMISSIONS.kbArticleManage)
+  .route({ summary: 'Create an article in a category, a draft unless published or scheduled' })
   .input(Fields.required({ categoryId: true, title: true }))
   .output(Detail)
   .handler(
@@ -264,6 +272,7 @@ const create = writes(PERMISSIONS.kbArticleManage)
 
 /** Changes the fields given; a new status or schedule follows the publishing rules. */
 const update = writes(PERMISSIONS.kbArticleManage)
+  .route({ summary: 'Change an article, or publish, schedule or archive it' })
   .input(Fields.extend({ id: z.string() }))
   .output(Detail)
   .handler(async ({ input: { id, status, scheduledAt, ...fields }, context: { tx } }) => {
@@ -286,6 +295,9 @@ const update = writes(PERMISSIONS.kbArticleManage)
 
 /** Sets one status or category on many articles at once. Scheduling takes a time, so it's one at a time. */
 const bulkUpdate = writes(PERMISSIONS.kbArticleManage)
+  .route({
+    summary: 'Set one status or category on many articles at once; scheduling is one at a time',
+  })
   .input(
     z.object({
       ids: z.array(z.string()).min(1).max(500),
@@ -313,6 +325,7 @@ const bulkUpdate = writes(PERMISSIONS.kbArticleManage)
 
 /** A draft copy of an article under `title`, with no views. */
 const duplicate = writes(PERMISSIONS.kbArticleManage)
+  .route({ summary: 'Copy an article as a draft under a new title, with no views' })
   .input(z.object({ id: z.string(), title: Title }))
   .output(Detail)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -340,6 +353,7 @@ const duplicate = writes(PERMISSIONS.kbArticleManage)
 
 /** Deletes the articles. */
 const remove = writes(PERMISSIONS.kbArticleManage)
+  .route({ summary: 'Delete knowledge base articles' })
   .input(z.object({ ids: z.array(z.string()).min(1).max(500) }))
   .output(z.object({ ids: z.array(z.string()) }))
   .handler(async ({ input, context: { tx } }) => {

@@ -99,6 +99,10 @@ const breakdowns = async (tx: Tx, started: SQL | undefined, replied: SQL | undef
  * started and were resolved, how fast, by day, by source and tag, and who answered.
  */
 export const conversationReport = reads(PERMISSIONS.inboxView)
+  .route({
+    summary:
+      'Report conversations started, resolved and answered from/to (ISO date-times) by day in an IANA timeZone; times in seconds',
+  })
   .input(ReportInput)
   .output(ConversationReport)
   .handler(async ({ input: range, context: { tx, member } }) => {
