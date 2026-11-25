@@ -4,9 +4,12 @@ import { PLUGIN } from '#/config.ts';
 import { CONVERSATION_EVENTS, core, MESSAGE_RECEIVED_EVENT } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations, customerLinks, integrations, messages } from '#/db/inbox.ts';
+import { channels, ReplyPolicy } from '#/db/schema.ts';
 import type { StoredFile } from '#/db/table.ts';
 import { logger } from '#/logger.ts';
 import type { Person } from '../integrations/provider.ts';
+import { afterCustomerMessage } from './replies.ts';
+import { startWaiting } from './replyClock.ts';
 import {
   conversationLink,
   publishConversationEvents,
@@ -241,9 +244,58 @@ const messageWith = async (tx: Tx, conversationId: string, externalId: string | 
   return found?.id;
 };
 
+/** Whether the conversation's customer already waits on a reply, and its channel's rules. */
+const waitingOf = async (tx: Tx, conversationId: string) => {
+  const [row] = await tx
+    .select({
+      waitingSince: conversations.waitingSince,
+      firstRespondedAt: conversations.firstRespondedAt,
+      replyPolicy: channels.replyPolicy,
+    })
+    .from(conversations)
+    .innerJoin(channels, eq(channels.id, conversations.channelId))
+    .where(eq(conversations.id, conversationId));
+
+  if (!row) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+  return { ...row, replyPolicy: ReplyPolicy.parse(row.replyPolicy) };
+};
+
+/**
+ * The conversation after its customer's `message`: unread by everyone, reopened, and waiting on a
+ * reply unless a member started it. Returns whether the wait began now, and the channel's rules.
+ */
+const customerWrote = async (
+  tx: Tx,
+  conversationId: string,
+  message: { content: string; createdAt: Date },
+  incoming: Pick<Incoming, 'outgoing'>,
+) => {
+  const waiting = await waitingOf(tx, conversationId);
+  const waits = incoming.outgoing ? {} : startWaiting(waiting);
+
+  await tx
+    .update(conversations)
+    .set({
+      content: message.content,
+      messageCount: sql`${conversations.messageCount} + 1`,
+      lastMessageAt: message.createdAt,
+      customerRespondedLast: true,
+      readBy: sql`'{}'`,
+      status: statusFrom('resolved', 'open'),
+      resolvedAt: null,
+      resolvedBy: null,
+      ...waits,
+    })
+    .where(eq(conversations.id, conversationId));
+
+  return { started: 'waitingSince' in waits, replyPolicy: waiting.replyPolicy };
+};
+
 /**
  * Adds a customer's message to its conversation in `tx`, starting one when it has none: the
- * conversation waits on a reply again, unread by everyone, and a resolved one reopens. A new
+ * conversation waits on a reply again (`replies.ts`), unread by everyone, and a resolved one
+ * reopens; the channel's away message and auto-assignment follow. A new
  * message publishes `event` for automations. A message the provider sent before (`externalId`)
  * adds nothing. Returns the message, and its conversation when it changed, for the caller to
  * signal.
@@ -284,19 +336,7 @@ export const receiveIn = async (tx: Tx, orgId: string, incoming: Incoming) => {
     return { message: existing, changed: null };
   }
 
-  await tx
-    .update(conversations)
-    .set({
-      content: incoming.content,
-      messageCount: sql`${conversations.messageCount} + 1`,
-      lastMessageAt: message.createdAt,
-      customerRespondedLast: true,
-      readBy: sql`'{}'`,
-      status: statusFrom('resolved', 'open'),
-      resolvedAt: null,
-      resolvedBy: null,
-    })
-    .where(eq(conversations.id, conversation.id));
+  const { started, replyPolicy } = await customerWrote(tx, conversation.id, message, incoming);
 
   if (incoming.event)
     await publishConversationEvents(tx, orgId, null, [
@@ -325,7 +365,14 @@ export const receiveIn = async (tx: Tx, orgId: string, incoming: Incoming) => {
     content: message.content,
   });
 
-  if (!incoming.outgoing) await signalArrival(tx, orgId, conversation);
+  if (!incoming.outgoing) {
+    await afterCustomerMessage(tx, orgId, conversation, {
+      started,
+      policy: replyPolicy,
+      messageId: message.id,
+    });
+    await signalArrival(tx, orgId, conversation);
+  }
 
   return { message, changed: conversation };
 };

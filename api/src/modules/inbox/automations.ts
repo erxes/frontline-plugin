@@ -4,27 +4,17 @@ import { eq } from 'drizzle-orm';
 import type { Request, Response } from 'express';
 import { z } from 'zod';
 import { signedByCore } from '#/config.ts';
-import {
-  CONVERSATION_EVENTS,
-  FORM_ACTIONS,
-  INBOX_ACTIONS,
-  INBOX_NOTIFICATIONS,
-  TICKET_ACTIONS,
-} from '#/core.ts';
+import { FORM_ACTIONS, INBOX_ACTIONS, INBOX_NOTIFICATIONS, TICKET_ACTIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { conversations } from '#/db/inbox.ts';
 import { fail, verifiedBy } from '../fail.ts';
 import { createFormLink } from '../forms/links.ts';
 import { sendKindOf, sendMessage } from '../integrations/actions.ts';
 import { createTicket } from '../tickets/automation.ts';
-import { addBotMessage, setOperatorOf } from './operator.ts';
+import { assignConversations } from './assign.ts';
+import { addBotMessage, handToPerson, setOperatorOf } from './operator.ts';
 import { notifyMembers } from '../notify.ts';
-import {
-  conversationLink,
-  publishConversationEvents,
-  signalConversations,
-  signalMembers,
-} from './shared.ts';
+import { conversationLink, signalConversations } from './shared.ts';
 
 /** What core POSTs: the step's input, and the event that started the run. */
 const Body = z.object({
@@ -58,6 +48,7 @@ const conversationOf = async (tx: Tx, id: string) => {
       id: conversations.id,
       customerId: conversations.customerId,
       operator: conversations.operator,
+      assigneeId: conversations.assigneeId,
     })
     .from(conversations)
     .where(eq(conversations.id, id))
@@ -87,28 +78,23 @@ const reply = (call: CoreCall, body: Body, key: string) =>
     return { sent: true };
   });
 
-/** Stops automated replies and tells the customer; assigns the first member the step names. */
+/**
+ * Stops automated replies and tells the customer; assigns the first member the step names, else
+ * the channel's auto-assignment picks one.
+ */
 const handOff = async (call: CoreCall, body: Body) => {
   const [assigneeId] = z.array(z.string()).default([]).parse(body.input.assigneeIds);
 
   const conversation = await withOrg(call.orgId, async (tx) => {
     const row = await conversationOf(tx, conversationIdOf(body));
 
-    await setOperatorOf(tx, call.orgId, [row], 'person');
-
     if (assigneeId) {
-      await tx.update(conversations).set({ assigneeId }).where(eq(conversations.id, row.id));
-      await publishConversationEvents(tx, call.orgId, null, [
-        {
-          conversationId: row.id,
-          customerId: row.customerId,
-          type: CONVERSATION_EVENTS.assigned.type,
-          summary: 'An automation assigned the conversation',
-          payload: { assigneeId, automationId: call.automationId },
-        },
-      ]);
-      await signalMembers(tx, call.orgId, [row.id]);
-    }
+      await setOperatorOf(tx, call.orgId, [row], 'person');
+      await assignConversations(tx, call.orgId, null, [row], assigneeId, {
+        reason: 'automation',
+        payload: { automationId: call.automationId },
+      });
+    } else await handToPerson(tx, call.orgId, [row]);
 
     return row;
   });

@@ -13,12 +13,37 @@ import {
   unique,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
+import { z } from 'zod';
 import { id, type StoredFile, stamps, table } from './table.ts';
 
 // Pipelines, their statuses and tickets are in tickets.ts.
 
 /** Names are unique per organisation, ignoring case. A write that breaks it fails with 23505. */
 export const CHANNEL_NAME_INDEX = 'frontline_channels_org_name_key';
+
+const Minutes = z.number().int().positive().max(43_200).optional();
+
+/**
+ * How a channel answers its customers. A customer who writes waits for a reply: the first one
+ * within `firstReplyMinutes`, each later one within `nextReplyMinutes`; members hear
+ * `warnBeforeMinutes` before it is due, and the assignee and the channel's admins once it is
+ * overdue. An assignee who leaves the customer waiting `reassignAfterMinutes` loses the
+ * conversation to the next available member. With `autoAssign`, a waiting conversation goes to
+ * the available member with the fewest open ones, up to `maxOpenPerMember`. `awayMessage`
+ * answers a customer who starts waiting while every member is away. The column's type, and the
+ * schema its input and output parse with.
+ */
+export const ReplyPolicy = z.object({
+  firstReplyMinutes: Minutes,
+  nextReplyMinutes: Minutes,
+  warnBeforeMinutes: Minutes,
+  reassignAfterMinutes: Minutes,
+  autoAssign: z.boolean().default(false),
+  maxOpenPerMember: z.number().int().positive().max(500).optional(),
+  awayMessage: z.string().trim().max(1000).optional(),
+});
+
+export type ReplyPolicy = z.output<typeof ReplyPolicy>;
 
 /**
  * A team inbox: conversations arrive in a channel, and its members work them.
@@ -37,6 +62,7 @@ export const channels = table(
     icon: text(),
     /** The core user whose personal inbox this is; null for a team channel. */
     ownerId: text(),
+    replyPolicy: jsonb().$type<ReplyPolicy>().notNull().default({ autoAssign: false }),
     ...stamps(),
   },
   (t) => [

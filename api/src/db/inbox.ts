@@ -101,6 +101,17 @@ export const conversations = table(
     lastMessageAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     firstRespondedAt: timestamp({ withTimezone: true }),
     firstRespondedBy: text(),
+    /** When the assignee got it, which their `reassignAfterMinutes` counts from at the latest. */
+    assignedAt: timestamp({ withTimezone: true }),
+    /**
+     * Since when the customer waits on a reply: their first message no member or bot answered
+     * yet; null while nobody waits or once it is resolved.
+     */
+    waitingSince: timestamp({ withTimezone: true }),
+    /** When the waiting customer's reply is due by the channel's `replyPolicy`, if it keeps one. */
+    replyDueAt: timestamp({ withTimezone: true }),
+    replyWarnedAt: timestamp({ withTimezone: true }),
+    replyBreachedAt: timestamp({ withTimezone: true }),
     resolvedAt: timestamp({ withTimezone: true }),
     resolvedBy: text(),
     /** Values of the custom fields core keeps for `frontline.conversation`, by field id. */
@@ -139,6 +150,10 @@ export const conversations = table(
       .where(sql`${t.status} <> 'resolved'`),
     index('frontline_conversations_org_customer_idx').on(t.orgId, t.customerId),
     index('frontline_conversations_org_assignee_idx').on(t.orgId, t.assigneeId),
+    // The reply check reads the conversations that wait, a minute at a time.
+    index('frontline_conversations_org_waiting_idx')
+      .on(t.orgId, t.waitingSince)
+      .where(sql`${t.waitingSince} is not null`),
     // Reports count the conversations started in a period.
     index('frontline_conversations_org_created_idx').on(t.orgId, t.createdAt),
     index('frontline_conversations_mentioned_user_ids_idx').using('gin', t.mentionedUserIds),
@@ -192,6 +207,13 @@ export const messages = table(
     queuedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     providerData: jsonb().$type<Record<string, unknown>>(),
     customerReadAt: timestamp({ withTimezone: true }),
+    /**
+     * How long the customer had waited when this reply, a member's or the bot's, ended their
+     * wait, and whether it came by the channel's target; null for any other message, and
+     * `replyOnTime` null without a target.
+     */
+    waitedSeconds: integer(),
+    replyOnTime: boolean(),
     pinnedAt: timestamp({ withTimezone: true }),
     pinnedBy: text(),
     editedAt: timestamp({ withTimezone: true }),
@@ -338,5 +360,26 @@ export const conversationTags = table(
       foreignColumns: [tags.orgId, tags.id],
     }).onDelete('cascade'),
     index('frontline_conversation_tags_org_tag_idx').on(t.orgId, t.tagId),
+  ],
+);
+
+export const AVAILABILITIES = ['available', 'away'] as const;
+
+/**
+ * Whether a member takes conversations now. Auto-assignment and reassignment pass over one who
+ * is away; a member with no row is available.
+ */
+export const memberAvailability = table(
+  'member_availability',
+  {
+    orgId: text().notNull(),
+    /** A core user id. */
+    userId: text().notNull(),
+    status: text({ enum: AVAILABILITIES }).notNull(),
+    changedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ name: 'frontline_member_availability_pkey', columns: [t.orgId, t.userId] }),
+    check('frontline_member_availability_status_check', sql`${t.status} in ('available', 'away')`),
   ],
 );

@@ -46,13 +46,29 @@ const ConversationReport = z.object({
   firstResponseSeconds: z.number().nullable(),
   /** From start to resolution, over the conversations resolved in the period. */
   resolutionSeconds: z.number().nullable(),
+  /** How long customers waited for each reply, a member's or the bot's, sent in the period. */
+  replySeconds: z.number().nullable(),
+  /** The period's replies that ended a wait with a target, and those that came by it. */
+  replies: z.object({ withTarget: Count, onTime: Count }),
+  /** Conversations whose customer waits past the reply target now. */
+  overdue: Count,
   days: z.array(z.object({ day: z.string(), started: Count, resolved: Count })),
   /** The conversations that started in the period, by their integration's kind. */
   sources: z.array(z.object({ kind: z.string(), count: Count })),
   /** The conversations that started in the period, by tag. */
   tags: z.array(TagCount),
-  /** Each member's replies to customers in the period, and the conversations they went to. */
-  members: z.array(z.object({ userId: z.string(), replies: Count, conversations: Count })),
+  /**
+   * Each member's replies to customers in the period, the conversations they went to, and how
+   * long the customers they answered had waited.
+   */
+  members: z.array(
+    z.object({
+      userId: z.string(),
+      replies: Count,
+      conversations: Count,
+      replySeconds: z.number().nullable(),
+    }),
+  ),
 });
 
 /**
@@ -84,6 +100,7 @@ const breakdowns = async (tx: Tx, started: SQL | undefined, replied: SQL | undef
       userId: sql<string>`${messages.userId}`,
       replies: count(),
       conversations: countDistinct(messages.conversationId),
+      replySeconds: averageSeconds(messages.waitedSeconds),
     })
     .from(messages)
     .where(and(replied, isNotNull(messages.userId), eq(messages.internal, false)))
@@ -101,7 +118,7 @@ const breakdowns = async (tx: Tx, started: SQL | undefined, replied: SQL | undef
 export const conversationReport = reads(PERMISSIONS.inboxView)
   .route({
     summary:
-      'Report conversations started, resolved and answered from/to (ISO date-times) by day in an IANA timeZone; times in seconds',
+      'Report conversations started, resolved and answered from/to (ISO date-times) by day in an IANA timeZone, with reply waits and targets met; times in seconds',
   })
   .input(ReportInput)
   .output(ConversationReport)
@@ -139,6 +156,9 @@ export const conversationReport = reads(PERMISSIONS.inboxView)
         started: countWhere(started),
         resolved: countWhere(resolved),
         unresolved: countWhere(ne(conversations.status, 'resolved')),
+        overdue: countWhere(
+          and(isNotNull(conversations.waitingSince), isNotNull(conversations.replyBreachedAt)),
+        ),
         firstResponseSeconds: averageSeconds(
           secondsBetween(conversations.createdAt, conversations.firstRespondedAt),
           within(conversations.firstRespondedAt, range),
@@ -151,6 +171,15 @@ export const conversationReport = reads(PERMISSIONS.inboxView)
       .from(conversations)
       .where(mine);
 
+    const [answers] = await tx
+      .select({
+        replySeconds: averageSeconds(messages.waitedSeconds),
+        withTarget: countWhere(isNotNull(messages.replyOnTime)),
+        onTime: countWhere(eq(messages.replyOnTime, true)),
+      })
+      .from(messages)
+      .where(and(replied, isNotNull(messages.waitedSeconds)));
+
     const startedOn = countOn(await perDay(conversations.createdAt));
     const resolvedOn = countOn(await perDay(conversations.resolvedAt));
 
@@ -160,6 +189,9 @@ export const conversationReport = reads(PERMISSIONS.inboxView)
       unresolved: totals?.unresolved ?? 0,
       firstResponseSeconds: totals?.firstResponseSeconds ?? null,
       resolutionSeconds: totals?.resolutionSeconds ?? null,
+      replySeconds: answers?.replySeconds ?? null,
+      replies: { withTarget: answers?.withTarget ?? 0, onTime: answers?.onTime ?? 0 },
+      overdue: totals?.overdue ?? 0,
       days: everyDay(range).map((day) => ({
         day,
         started: startedOn(day),

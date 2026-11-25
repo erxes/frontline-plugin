@@ -1,4 +1,4 @@
-import { and, asc, count, eq, ne, sql } from 'drizzle-orm';
+import { and, asc, count, eq, isNotNull, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import { conversations, integrations } from '#/db/inbox.ts';
@@ -9,7 +9,8 @@ import { readSql } from './shared.ts';
 
 /**
  * How many open conversations wait unread by the caller: all they see, and each queue of the
- * inbox's sidebar (assigned to them, mentioning them, unassigned, awaiting a reply), and in each
+ * inbox's sidebar (assigned to them, mentioning them, unassigned, awaiting a reply), the overdue
+ * ones read or not, and in each
  * channel they belong to, by name, and in each kind of active integration the channel has. A queue's
  * link filters the inbox by the same rule.
  */
@@ -26,6 +27,8 @@ const counts = reads(PERMISSIONS.inboxView)
       mentioned: z.number(),
       unassigned: z.number(),
       awaitingResponse: z.number(),
+      /** Waiting past the channel's reply target, read or not. */
+      overdue: z.number(),
       channels: z.array(
         z.object({
           id: z.string(),
@@ -58,6 +61,20 @@ const counts = reads(PERMISSIONS.inboxView)
       .from(conversations)
       .leftJoin(channelMembers, membership(member, conversations.channelId))
       .where(and(seenBy(member, conversations.channelId), unread));
+
+    // An overdue reply stays counted once read: reading it answers nobody.
+    const [late] = await tx
+      .select({ overdue: count() })
+      .from(conversations)
+      .leftJoin(channelMembers, membership(member, conversations.channelId))
+      .where(
+        and(
+          seenBy(member, conversations.channelId),
+          ne(conversations.status, 'resolved'),
+          isNotNull(conversations.waitingSince),
+          isNotNull(conversations.replyBreachedAt),
+        ),
+      );
 
     const rows = await tx
       .select({
@@ -94,6 +111,7 @@ const counts = reads(PERMISSIONS.inboxView)
       mentioned: queues?.mentioned ?? 0,
       unassigned: queues?.unassigned ?? 0,
       awaitingResponse: queues?.awaitingResponse ?? 0,
+      overdue: late?.overdue ?? 0,
       channels: rows.map((row) => ({
         ...row,
         kinds: kinds

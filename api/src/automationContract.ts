@@ -56,6 +56,14 @@ const TICKET_SLA: Field[] = [
   { key: 'dueAt', label: 'Due at', type: 'date' },
 ];
 
+const REPLY_CLOCK: Field[] = [
+  text('conversationId', 'Conversation ID'),
+  text('channelId', 'Channel ID'),
+  member('assigneeId', 'Assignee'),
+  { key: 'waitingSince', label: 'Waiting since', type: 'date' },
+  { key: 'dueAt', label: 'Due at', type: 'date' },
+];
+
 const ticketEvents: Events = [
   {
     type: TICKET_EVENTS.created.type,
@@ -127,7 +135,11 @@ const conversationEvents: Events = [
     type: CONVERSATION_EVENTS.assigned.type,
     label: CONVERSATION_EVENTS.assigned.label,
     subject: 'customer',
-    fields: [member('from', 'Previous assignee'), member('to', 'Assignee')],
+    fields: [
+      member('from', 'Previous assignee'),
+      member('to', 'Assignee'),
+      text('reason', 'Assigned by (member, automation, auto or unanswered)'),
+    ],
   },
   {
     type: CONVERSATION_EVENTS.statusChanged.type,
@@ -135,6 +147,11 @@ const conversationEvents: Events = [
     subject: 'customer',
     fields: [text('from', 'Previous status'), text('to', 'Status')],
   },
+  ...[CONVERSATION_EVENTS.replyDueSoon, CONVERSATION_EVENTS.replyOverdue].map((event) => ({
+    ...event,
+    subject: 'customer' as const,
+    fields: REPLY_CLOCK,
+  })),
   {
     ...MESSAGE_RECEIVED_EVENT,
     fields: [
