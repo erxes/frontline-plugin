@@ -1,4 +1,5 @@
 import type { PluginManifest } from '@erxes/core-contract';
+import { ASSISTANT_SKILLS } from '#/assistant.ts';
 import { config } from '#/config.ts';
 import {
   AGENT_EVENTS,
@@ -262,4 +263,5 @@ export const manifest = {
     ...activityTypes(CONVERSATION_EVENTS, 'IconMessage'),
   ],
   actions: AUTOMATION_ACTIONS,
+  assistant: { skills: ASSISTANT_SKILLS },
 } satisfies PluginManifest;
