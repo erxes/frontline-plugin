@@ -11,6 +11,8 @@ type Outputs = InferClientOutputs<Client>['calls'];
 
 export type Call = Outputs['get'];
 
+export type Callback = Outputs['callbacks']['list']['calls'][number];
+
 export type Queue = Outputs['queues']['list'][number];
 
 export type QueueLive = NonNullable<Outputs['queues']['get']['live']>;
@@ -60,6 +62,7 @@ export const useIceServers = () => {
  */
 const CALL_KEYS = [
   orpc.calls.list.key(),
+  orpc.calls.callbacks.key(),
   orpc.calls.get.key(),
   orpc.calls.queues.key(),
   orpc.calls.agents.key(),
@@ -84,6 +87,21 @@ export const useCalls = () => {
     useInfiniteQuery(
       orpc.calls.list.infiniteOptions({
         input: ({ cursor }: PageParam) => ({ ...params, cursor }),
+        ...pageOptions,
+      }),
+    ),
+    (page) => page.calls,
+  );
+};
+
+/** The callers to call back, newest first, a page at a time. */
+export const useCallbacks = () => {
+  useCallsSignal();
+
+  return usePaged(
+    useInfiniteQuery(
+      orpc.calls.callbacks.list.infiniteOptions({
+        input: ({ cursor }: PageParam) => ({ cursor }),
         ...pageOptions,
       }),
     ),

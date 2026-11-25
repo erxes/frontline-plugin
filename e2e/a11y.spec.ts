@@ -286,6 +286,15 @@ test('the call history, a call in the panel, the queues and the phone', async ({
   await expectAccessible(page, page.getByText('You have no phone line'));
 });
 
+test('the callbacks list', async ({ page, api }) => {
+  const caller = `8813${String(Date.now()).slice(-4)}`;
+  const post = await callProLine(api, page.request, `7557${String(Date.now()).slice(-4)}`);
+
+  await post(`a-${unique()}`, caller, 'NO ANSWER');
+  await page.goto('/frontline/calls/callbacks');
+  await expectAccessible(page, page.getByRole('row').filter({ hasText: caller }));
+});
+
 test("the home dashboard's tiles, the Reports page, and one refused", async ({ newMember }) => {
   const agent = await newMember([
     'frontline.call.view',

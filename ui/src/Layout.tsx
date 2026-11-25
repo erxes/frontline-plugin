@@ -14,6 +14,7 @@ import {
   IconInbox,
   IconListDetails,
   IconPhone,
+  IconPhoneCall,
   IconSettings,
   IconSitemap,
   IconTag,
@@ -99,7 +100,7 @@ const NavGroup = ({
   );
 };
 
-/** The Calls group: the member's phone, the call history and the queues. */
+/** The Calls group: the member's phone, the call history, who to call back and the queues. */
 const CallsGroup = () => {
   const { t } = useTranslation('frontline');
 
@@ -110,6 +111,7 @@ const CallsGroup = () => {
       items={[
         { name: t('softphone', 'Phone'), to: `${CALLS}/phone`, icon: IconDialpad },
         { name: t('history', 'History'), to: `${CALLS}/history`, icon: IconHistory },
+        { name: t('callbacks', 'Callbacks'), to: `${CALLS}/callbacks`, icon: IconPhoneCall },
         { name: t('queues', 'Queues'), to: `${CALLS}/queues`, icon: IconListDetails },
       ]}
     />

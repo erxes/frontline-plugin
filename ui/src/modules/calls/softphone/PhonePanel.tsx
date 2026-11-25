@@ -13,7 +13,9 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { durationText } from '@/calls/queries.ts';
 import { PersonAvatar } from '~/shared/Person.tsx';
+import { CallerContext } from './CallerContext.tsx';
 import { CallNote, Transfer } from './CallTools.tsx';
+import type { CurrentCall } from './current.ts';
 import { DialPad, Dialer } from './DialPad.tsx';
 import type { LivePhone } from './live.ts';
 import type { Line, Phone, PhoneCall, PhoneStatus } from './useSip.ts';
@@ -56,17 +58,31 @@ export const useCallText = (call: PhoneCall) => {
     : t('calling', 'Calling');
 };
 
+/** Who the phone is on a call with, by name when core has one, and how long it has lasted. */
+const OnCallHeading = ({ call, caller }: { call: PhoneCall; caller: string | null }) => (
+  <div className="flex flex-col items-center py-4 text-center">
+    {caller && <PersonAvatar name={caller} className="mb-2" />}
+    <div className="max-w-full truncate text-2xl font-semibold tabular-nums">
+      {caller ?? call.number}
+    </div>
+    {caller && <div className="text-sm text-muted-foreground tabular-nums">{call.number}</div>}
+    <div className="text-sm text-muted-foreground tabular-nums">{useCallText(call)}</div>
+  </div>
+);
+
 /** The call the phone is on: who, how long, and what the member can do with it. */
 const OnCall = ({
   phone,
   call,
   line,
   caller,
+  current,
 }: {
   phone: Phone;
   call: PhoneCall;
   line: Line;
   caller: string | null;
+  current: CurrentCall;
 }) => {
   const { t } = useTranslation('frontline');
   const [tool, setTool] = useState<'keys' | 'transfer' | null>(null);
@@ -76,14 +92,8 @@ const OnCall = ({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-col items-center py-4 text-center">
-        {caller && <PersonAvatar name={caller} className="mb-2" />}
-        <div className="max-w-full truncate text-2xl font-semibold tabular-nums">
-          {caller ?? call.number}
-        </div>
-        {caller && <div className="text-sm text-muted-foreground tabular-nums">{call.number}</div>}
-        <div className="text-sm text-muted-foreground tabular-nums">{useCallText(call)}</div>
-      </div>
+      <OnCallHeading call={call} caller={caller} />
+      {current && <CallerContext call={current} />}
       {call.talking ? (
         <div className="grid grid-cols-4 gap-1">
           <Button
@@ -189,7 +199,7 @@ export const PhonePanel = ({
         </span>
       </div>
       {phone.call ? (
-        <OnCall phone={phone} call={phone.call} line={line} caller={caller} />
+        <OnCall phone={phone} call={phone.call} line={line} caller={caller} current={current} />
       ) : (
         <Dialer ready={phone.status === 'ready'} onDial={phone.dial} />
       )}
@@ -197,6 +207,8 @@ export const PhonePanel = ({
         <CallNote
           key={note.id}
           conversationId={note.conversationId}
+          customerId={note.customerId}
+          customerPhone={note.customerPhone}
           onClose={() => closeNote(note.id)}
         />
       )}

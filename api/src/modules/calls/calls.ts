@@ -19,8 +19,16 @@ import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
 
 const { orgId: _orgId, ...callColumns } = getTableColumns(calls);
 
+/** The row's columns, with the line it came through and its queue's name. */
+export const callFields = {
+  ...callColumns,
+  accountName: integrationAccounts.name,
+  provider: integrationAccounts.provider,
+  queueName: callQueues.name,
+};
+
 /** The row, with the line it came through. */
-const Call = createSelectSchema(calls, {
+export const Call = createSelectSchema(calls, {
   direction: z.enum(CALL_DIRECTIONS),
   status: z.enum(CALL_STATUSES),
   recording: () => StoredFile.nullable(),
@@ -32,14 +40,9 @@ const Call = createSelectSchema(calls, {
  * Calls as the caller sees them: their channels', or every channel's for one who manages all. Each
  * has the name its queue goes by in settings, or null for a queue no admin added.
  */
-const callRows = (tx: Tx, member: PluginMember) =>
+export const callRows = (tx: Tx, member: PluginMember) =>
   tx
-    .select({
-      ...callColumns,
-      accountName: integrationAccounts.name,
-      provider: integrationAccounts.provider,
-      queueName: callQueues.name,
-    })
+    .select(callFields)
     .from(calls)
     .innerJoin(conversations, eq(conversations.id, calls.conversationId))
     .innerJoin(integrationAccounts, eq(integrationAccounts.id, calls.accountId))
@@ -67,7 +70,7 @@ export const CALL_FILTER: FilterFields = {
   'subject.durationSec': { type: 'number', expr: calls.durationSec },
 };
 
-const order = orderOf(calls, calls.startedAt);
+export const callOrder = orderOf(calls, calls.startedAt);
 
 /** The calls of the caller's channels, newest first, narrowed by the filter bar. */
 const list = reads(PERMISSIONS.callView)
@@ -84,8 +87,8 @@ const list = reads(PERMISSIONS.callView)
     );
 
     const rows = await callRows(tx, member)
-      .where(and(matches, order.after(input.cursor)))
-      .orderBy(...order.orderBy)
+      .where(and(matches, callOrder.after(input.cursor)))
+      .orderBy(...callOrder.orderBy)
       .limit(input.limit + 1);
 
     const totalCount = await firstPageCount(input.cursor, () =>
@@ -97,7 +100,7 @@ const list = reads(PERMISSIONS.callView)
         .where(matches),
     );
 
-    const { items, nextCursor } = await order.page(tx, rows, input.limit);
+    const { items, nextCursor } = await callOrder.page(tx, rows, input.limit);
 
     return { calls: items, nextCursor, totalCount };
   });

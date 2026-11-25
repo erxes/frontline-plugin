@@ -31,6 +31,7 @@ import { metaBotProcedures } from '#/modules/integrations/providers/metaBots.ts'
 import { metaConnectProcedures } from '#/modules/integrations/providers/metaConnect.ts';
 import { metaPostProcedures } from '#/modules/integrations/providers/metaPosts.ts';
 import { telegramProcedures } from '#/modules/integrations/providers/telegram.ts';
+import { callbackProcedures } from '#/modules/calls/callbacks.ts';
 import { callListProcedures } from '#/modules/calls/calls.ts';
 import { phoneProcedures } from '#/modules/calls/phone.ts';
 import { agentProcedures, queueProcedures } from '#/modules/calls/queues.ts';
@@ -101,6 +102,7 @@ export const router = {
   },
   calls: {
     ...callListProcedures,
+    callbacks: callbackProcedures,
     queues: queueProcedures,
     agents: agentProcedures,
     phone: phoneProcedures,

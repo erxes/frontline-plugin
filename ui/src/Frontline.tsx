@@ -150,6 +150,10 @@ const CallHistoryPage = lazy(
   withText(async () => ({ default: (await import('@/calls/pages.ts')).CallHistoryPage })),
 );
 
+const CallbacksPage = lazy(
+  withText(async () => ({ default: (await import('@/calls/pages.ts')).CallbacksPage })),
+);
+
 const PhonePage = lazy(
   withText(async () => ({ default: (await import('@/calls/pages.ts')).PhonePage })),
 );
@@ -241,6 +245,25 @@ const ChannelWorkspace = () => {
   );
 };
 
+/** The calls pages, and the old dashboard's addresses that lead to the queues. */
+const callRoutes = (
+  <Route path="calls">
+    <Route index element={<Navigate to="history" replace />} />
+    <Route path="history" element={<CallHistoryPage />} />
+    <Route path="history/:id" element={<RecordRoute contentType={CALL_TYPE} />} />
+    <Route path="callbacks" element={<CallbacksPage />} />
+    <Route path="phone" element={<PhonePage />} />
+    <Route path="queues" element={<QueuesPage />} />
+    <Route path="queues/:id" element={<QueuePage />} />
+    <Route path="dashboard" element={<Navigate to="../queues" replace />} />
+    <Route path="statistics" element={<Navigate to="../queues" replace />} />
+    {/* The old dashboard's queue links open that queue's board. */}
+    <Route path="dashboard/:id" element={<Redirect path="calls/queues" />} />
+    <Route path="statistics/:id" element={<Redirect path="calls/queues" />} />
+    <Route path=":id" element={<Redirect path="calls/queues" />} />
+  </Route>
+);
+
 /** A channel's own pages, each narrowed to it. */
 const channelRoutes = (
   <Route path="channels/:channelId" element={<ChannelWorkspace />}>
@@ -301,20 +324,7 @@ export const Frontline = () => (
           <Route path="*" element={<Navigate to={`/${PLUGIN}/reports`} replace />} />
         </Route>
         <Route path="personal-channel" element={<PersonalChannel />} />
-        <Route path="calls">
-          <Route index element={<Navigate to="history" replace />} />
-          <Route path="history" element={<CallHistoryPage />} />
-          <Route path="history/:id" element={<RecordRoute contentType={CALL_TYPE} />} />
-          <Route path="phone" element={<PhonePage />} />
-          <Route path="queues" element={<QueuesPage />} />
-          <Route path="queues/:id" element={<QueuePage />} />
-          <Route path="dashboard" element={<Navigate to="../queues" replace />} />
-          <Route path="statistics" element={<Navigate to="../queues" replace />} />
-          {/* The old dashboard's queue links open that queue's board. */}
-          <Route path="dashboard/:id" element={<Redirect path="calls/queues" />} />
-          <Route path="statistics/:id" element={<Redirect path="calls/queues" />} />
-          <Route path=":id" element={<Redirect path="calls/queues" />} />
-        </Route>
+        {callRoutes}
         <Route path="knowledgebase">
           <Route index element={<TopicsPage />} />
           <Route path="category/:id" element={<RecordRoute contentType={KB_CATEGORY_TYPE} />} />

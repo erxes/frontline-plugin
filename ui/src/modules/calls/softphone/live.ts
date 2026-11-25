@@ -36,3 +36,41 @@ const subscribe = (listener: () => void) => {
 };
 
 export const useLivePhone = () => useSyncExternalStore(subscribe, () => live);
+
+/** A number to dial on a line as soon as the phone is signed in on it. */
+export type PendingDial = { accountId: string; number: string };
+
+let pending: PendingDial | null = null;
+const pendingListeners = new Set<() => void>();
+
+const setPending = (next: PendingDial | null) => {
+  pending = next;
+
+  for (const listener of pendingListeners) listener();
+};
+
+/**
+ * Dials `number` on the line `accountId` from any page: the phone switches to that line when it's
+ * on another, and dials once it's signed in there and free.
+ */
+export const dialOn = (dial: PendingDial) => {
+  setPending(dial);
+  live?.pickLine(dial.accountId);
+};
+
+/** Hands the pending number to the phone that dials it, once. */
+export const takePendingDial = () => {
+  const taken = pending;
+
+  setPending(null);
+
+  return taken;
+};
+
+const subscribePending = (listener: () => void) => {
+  pendingListeners.add(listener);
+
+  return () => void pendingListeners.delete(listener);
+};
+
+export const usePendingDial = () => useSyncExternalStore(subscribePending, () => pending);

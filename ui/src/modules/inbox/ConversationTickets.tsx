@@ -11,7 +11,7 @@ import { type Conversation, useMessages } from './queries.ts';
 const NAME_LENGTH = 80;
 
 /** The message's text on one line, cut to `NAME_LENGTH` at the last word that fits. */
-const nameOf = (text: string) => {
+export const nameOf = (text: string) => {
   const line = text.replaceAll(/\s+/g, ' ').trim();
 
   if (line.length <= NAME_LENGTH) return line;
@@ -27,7 +27,7 @@ const CHIPS = 2;
 type Ticket = { id: string; name: string; number: string | null };
 
 /** A ticket by its number, or its name when its pipeline doesn't number tickets; it opens in core's panel. */
-const TicketChip = ({ ticket }: { ticket: Ticket }) => {
+export const TicketChip = ({ ticket }: { ticket: Ticket }) => {
   const { t } = useTranslation('frontline');
   const { open } = useOpenRecord();
 
@@ -50,7 +50,7 @@ const TicketChip = ({ ticket }: { ticket: Ticket }) => {
 };
 
 /** The conversation's tickets, oldest first: the newest as chips, the rest under +N. */
-const TicketChips = ({ conversationId }: { conversationId: string }) => {
+export const TicketChips = ({ conversationId }: { conversationId: string }) => {
   const { t } = useTranslation('frontline');
 
   const filter = {
