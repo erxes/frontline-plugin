@@ -1,17 +1,11 @@
 import { IconAlignLeft, IconCircles, IconLetterCase } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import {
-  Editor,
-  PanelFormLayout,
-  PanelFormRow,
-  Select,
-  type TRecordDraftProps,
-  textOf,
-} from 'erxes-ui';
+import { PanelFormLayout, PanelFormRow, Select, type TRecordDraftProps, textOf } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
+import { TemplateEditor } from './TemplateEditor.tsx';
 import { useManagedChannels, useTemplateChange } from './useResponseTemplates.ts';
 
 /** The channel the list page passes the draft, or none for a draft opened without one. */
@@ -80,12 +74,7 @@ export const ResponseTemplateNew = ({ defaults, onCreated, onCancel }: TRecordDr
           placeholder={t('name', 'Name')}
         />
         <PanelFormRow label={t('content', 'Content')} icon={IconAlignLeft}>
-          <Editor
-            onChange={setContent}
-            label={t('content', 'Content')}
-            variant="outline"
-            className="min-h-40"
-          />
+          <TemplateEditor id="new" onChange={setContent} />
         </PanelFormRow>
         {create.error && (
           <p role="alert" className="text-xs text-destructive-text">
