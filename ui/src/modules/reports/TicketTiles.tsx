@@ -6,7 +6,8 @@ import { choicesQuery } from '~/shared/reference.ts';
 import { DayChart } from './Charts.tsx';
 import { useTicketReport } from './queries.ts';
 import { useTicketLinks } from './ticketLinks.ts';
-import { BarList, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
+import { useSpanText } from '~/shared/spanText.ts';
+import { BarList, Stat, Stats, Tile } from './Tile.tsx';
 
 type TicketReport = NonNullable<ReturnType<typeof useTicketReport>['query']['data']>;
 

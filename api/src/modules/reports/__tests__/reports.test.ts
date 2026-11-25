@@ -42,9 +42,24 @@ describe('conversation report', () => {
     await withOrg(orgId, async (tx) => {
       await tx.insert(conversationTags).values({ orgId, conversationId: first, tagId: refund.id });
       await tx.insert(messages).values([
-        { orgId, conversationId: first, userId: 'teammate', createdAt: seconds(firstStart, 120) },
+        // Replies that ended a customer's wait keep how long it was, and whether by the target.
+        {
+          orgId,
+          conversationId: first,
+          userId: 'teammate',
+          createdAt: seconds(firstStart, 120),
+          waitedSeconds: 120,
+          replyOnTime: true,
+        },
         { orgId, conversationId: first, userId: 'teammate', createdAt: seconds(firstStart, 600) },
-        { orgId, conversationId: second, userId: 'teammate', createdAt: seconds(secondStart, 60) },
+        {
+          orgId,
+          conversationId: second,
+          userId: 'teammate',
+          createdAt: seconds(secondStart, 60),
+          waitedSeconds: 60,
+          replyOnTime: false,
+        },
         {
           orgId,
           conversationId: second,
@@ -62,6 +77,9 @@ describe('conversation report', () => {
       unresolved: 2,
       firstResponseSeconds: 90,
       resolutionSeconds: 86_400,
+      replySeconds: 90,
+      replies: { withTarget: 2, onTime: 1 },
+      overdue: 0,
       days: [
         { day: '2026-03-01', started: 1, resolved: 0 },
         { day: '2026-03-02', started: 1, resolved: 1 },
@@ -69,7 +87,7 @@ describe('conversation report', () => {
       ],
       sources: [{ kind: 'messenger', count: 2 }],
       tags: [{ tagId: refund.id, name: 'Refund', colorCode: null, count: 1 }],
-      members: [{ userId: 'teammate', replies: 3, conversations: 2 }],
+      members: [{ userId: 'teammate', replies: 3, conversations: 2, replySeconds: 90 }],
     });
 
     // One who manages every channel sees the other channel's conversation too.

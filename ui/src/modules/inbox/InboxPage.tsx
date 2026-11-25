@@ -22,6 +22,7 @@ import { useChannelScope } from '~/shared/channelScope.ts';
 import { channelsQuery } from '~/shared/reference.ts';
 import { CONVERSATION_TYPE, INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
+import { AvailabilityToggle } from './Availability.tsx';
 import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
 import { useListParams } from '~/shared/listPath.ts';
 import { QueryBoundary } from '~/shared/QueryBoundary.tsx';
@@ -318,6 +319,7 @@ export const InboxPage = () => {
   return (
     <PageContainer>
       <AppHeader icon={IconInbox} app={{ label: t('inbox', 'Inbox') }}>
+        <AvailabilityToggle />
         {mails && (
           <Button variant="outline" onClick={() => openNew(CONVERSATION_TYPE)}>
             <IconMail />

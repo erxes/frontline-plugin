@@ -5,6 +5,7 @@ import { JOBS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { conversations, type DELIVERY_STATUSES, integrations, messages } from '#/db/inbox.ts';
 import { ADAPTERS } from './adapters.ts';
+import { ANSWERED, waitEnded } from './replyClock.ts';
 import { signalConversations, signalMembers, statusFrom } from './shared.ts';
 
 /** The row without `org_id`, which the caller already knows, and what only adapters read. */
@@ -32,7 +33,8 @@ type Message = typeof messages.$inferSelect;
 /**
  * Adds `written`, a message from a member or an automation acting as one, to `conversation` in
  * `tx`. A reply waits on its adapter's `send` as a queued job, or is sent once it commits when
- * the adapter has none; the conversation leaves `new` and stops waiting on a reply. A note only
+ * the adapter has none; the conversation leaves `new` and its customer stops waiting, the reply
+ * keeping how long they waited (`replies.ts`). A note only
  * adds the author to the conversation's participants. A caller that may write the same message
  * twice sets `id`: a message whose `id` exists already is returned as it is. `html` is sanitized
  * (`html.ts`).
@@ -67,6 +69,7 @@ export const postMessage = async (
       conversationId: conversation.id,
       userId: author.userId,
       deliveryStatus: written.internal ? null : queued ? 'queued' : 'sent',
+      ...(!written.internal && waitEnded(conversation.id)),
     })
     .onConflictDoNothing({ target: messages.id })
     .returning(messageColumns);
@@ -101,6 +104,7 @@ export const postMessage = async (
             status: statusFrom('new', 'open'),
             firstRespondedAt: sql`coalesce(${conversations.firstRespondedAt}, now())`,
             firstRespondedBy: sql`coalesce(${conversations.firstRespondedBy}, ${author.userId})`,
+            ...ANSWERED,
           },
     )
     .where(eq(conversations.id, conversation.id));

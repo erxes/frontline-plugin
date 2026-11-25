@@ -84,6 +84,8 @@ export const CONVERSATION_EVENTS = {
   started: { type: 'frontline.conversation.started', label: 'Conversation started' },
   assigned: { type: 'frontline.conversation.assigned', label: 'Conversation assigned' },
   statusChanged: { type: 'frontline.conversation.status_changed', label: 'Conversation status' },
+  replyDueSoon: { type: 'frontline.conversation.reply_due_soon', label: 'Reply due soon' },
+  replyOverdue: { type: 'frontline.conversation.reply_overdue', label: 'Reply overdue' },
 } as const;
 
 /**
@@ -238,6 +240,14 @@ export const TICKET_REMOVED = 'frontline.ticket.removed';
 export const JOBS = {
   /** Warns assignees before a ticket's SLA runs out, and when it has. */
   sla: { name: 'tickets.sla', cron: '*/5 * * * *' },
+  /**
+   * Keeps the channels' reply rules (`modules/inbox/replyCheck.ts`): warns before a reply is due
+   * and once it is overdue, reassigns what an assignee left unanswered, and assigns waiting
+   * conversations to available members.
+   */
+  replies: { name: 'inbox.replies', cron: '* * * * *' },
+  /** Sends a channel's away message to a customer who wrote while every member was away. */
+  awayReply: { name: 'inbox.away-reply', retry: { attempts: 3, delay: 10, maxDelay: 60 } },
   /** Re-reads pending help center domains from Cloudflare until they are served. */
   domains: { name: 'helpcenter.domains', cron: '*/10 * * * *' },
   /** Publishes the knowledge base articles scheduled for now or earlier. */

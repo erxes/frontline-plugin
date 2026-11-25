@@ -9,7 +9,7 @@ import { choicesQuery } from '~/shared/reference.ts';
 import type { Section } from './period.ts';
 import { live } from './queries.ts';
 import type { Figures } from './figures.tsx';
-import { useSpanText } from './Tile.tsx';
+import { useSpanText } from '~/shared/spanText.ts';
 
 /** What a card asks its report for: its period, its filter as JSON, and a property card's field. */
 export type CardInput = {

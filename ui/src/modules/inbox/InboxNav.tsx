@@ -1,4 +1,5 @@
 import {
+  IconAlarm,
   IconAt,
   IconClockExclamation,
   IconInbox,
@@ -16,7 +17,7 @@ import { Count, FilterLink, NavGroup, usePrefetchInbox } from './navLinks.tsx';
 import { type InboxCounts as Counts, useInboxCounts, useInboxSignal } from './queries.ts';
 import { useArrivalSound } from './useArrivalSound.ts';
 
-/** The work queues, as the old inbox's sidebar had them. */
+/** The work queues, as the old inbox's sidebar had them, and the replies past their target. */
 const Queues = ({ counts }: { counts: Counts }) => {
   const { t } = useTranslation('frontline');
 
@@ -44,6 +45,12 @@ const Queues = ({ counts }: { counts: Counts }) => {
       icon: IconClockExclamation,
       rule: { path: 'subject.customerRespondedLast', op: 'eq', value: true },
       count: counts.awaitingResponse,
+    },
+    {
+      name: t('reply-overdue', 'Reply overdue'),
+      icon: IconAlarm,
+      rule: { path: 'subject.replyOverdue', op: 'eq', value: true },
+      count: counts.overdue,
     },
   ];
 

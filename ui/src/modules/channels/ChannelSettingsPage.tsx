@@ -26,6 +26,7 @@ import { CHANNEL_ICON } from '~/shared/icons.ts';
 import { ListError } from '~/shared/List.tsx';
 import { ChannelIntegrationList } from './ChannelIntegrations.tsx';
 import { ChannelKindPage } from './ChannelKindPage.tsx';
+import { ChannelReplies } from './ChannelReplies.tsx';
 import { ChannelSettingsNav } from './ChannelSettingsNav.tsx';
 import { ChannelMembersTab, ChannelPipelinesTab, ChannelTemplatesTab } from './ChannelTabs.tsx';
 import {
@@ -37,7 +38,14 @@ import {
 } from './useChannels.ts';
 
 /** The channel settings' sections, one address each. */
-const SECTIONS = ['general', 'integrations', 'pipelines', 'members', 'templates'] as const;
+const SECTIONS = [
+  'general',
+  'integrations',
+  'replies',
+  'pipelines',
+  'members',
+  'templates',
+] as const;
 
 type Section = (typeof SECTIONS)[number];
 
@@ -48,6 +56,7 @@ const useSectionNames = (): Record<Section, string> => {
   return {
     general: t('general', 'General'),
     integrations: t('integrations', 'Integrations'),
+    replies: t('replies', 'Replies'),
     pipelines: t('pipelines', 'Pipelines'),
     members: t('members', 'Members'),
     templates: t('templates', 'Templates'),
@@ -240,6 +249,9 @@ const SectionBody = ({ section, channel }: { section: Section; channel: Channel 
       );
     case 'integrations':
       return <IntegrationsSection channel={channel} />;
+    case 'replies':
+      // A rule saved here or elsewhere starts the form again from it.
+      return <ChannelReplies key={JSON.stringify(channel.replyPolicy)} channel={channel} />;
     case 'pipelines':
       return (
         <Frame>

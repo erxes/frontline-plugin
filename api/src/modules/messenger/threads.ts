@@ -10,8 +10,8 @@ import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { fail } from '../fail.ts';
 import { underKeyLimit } from '../limits.ts';
 import { orderOf, PageInput } from '../paging.ts';
-import { setOperatorOf } from '../inbox/operator.ts';
 import { type Incoming, receive } from '../inbox/receive.ts';
+import { handToPerson } from '../inbox/operator.ts';
 import { typingTopic } from '../inbox/shared.ts';
 import { MessengerConfig, messenger } from './adapter.ts';
 import { submitToAgent } from '../inbox/agent.ts';
@@ -336,7 +336,7 @@ const askForPerson = asVisitor(async (visitor, req, res) => {
       .where(eq(conversations.id, id))
       .for('update');
 
-    await setOperatorOf(tx, visitor.orgId, rows, 'person');
+    await handToPerson(tx, visitor.orgId, rows);
   });
 
   res.status(204).end();

@@ -121,6 +121,7 @@ describe('inbox list', () => {
       mentioned: 0,
       unassigned: 2,
       awaitingResponse: 2,
+      overdue: 0,
       channels: [
         {
           id: channel.id,
@@ -171,6 +172,7 @@ describe('inbox list', () => {
       unread: 1,
       assignedToMe: 0,
       awaitingResponse: 1,
+      overdue: 0,
       channels: [
         expect.objectContaining({ personal: true }),
         expect.objectContaining({ unread: 1 }),

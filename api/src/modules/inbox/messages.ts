@@ -17,7 +17,7 @@ import { holdsEveryPermission } from '../channels/access.ts';
 import { notifyMembers } from '../notify.ts';
 import { orderOf, PageInput } from '../paging.ts';
 import { Content, Html, writtenText } from './html.ts';
-import { takeOver } from './operator.ts';
+import { takeOver } from './assign.ts';
 import { messageColumns, postMessage, queueSend } from './post.ts';
 import { Reaction, reactionsOf } from './reactions.ts';
 import { withoutParts } from './send.ts';
