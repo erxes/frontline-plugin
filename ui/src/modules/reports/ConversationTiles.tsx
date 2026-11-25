@@ -5,13 +5,15 @@ import { useKindNames } from '~/shared/kinds.tsx';
 import { DayChart } from './Charts.tsx';
 import { conversationLinks } from './conversationLinks.ts';
 import { useConversationReport } from './queries.ts';
-import { BarList, MiniTable, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
+import { useSpanText } from '~/shared/spanText.ts';
+import { BarList, MiniTable, shareOf, Stat, Stats, Tile } from './Tile.tsx';
 
 type ConversationReport = NonNullable<ReturnType<typeof useConversationReport>['query']['data']>;
 
 /**
- * Started, resolved and open conversations, each opening the inbox where `links` leads, and how
- * fast members answered and resolved them.
+ * Started, resolved and open conversations, each opening the inbox where `links` leads, how fast
+ * members answered and resolved them, how long customers waited for each reply and how many came
+ * by the channel's target, and how many wait past it now.
  */
 export const ConversationStats = ({
   report,
@@ -48,6 +50,19 @@ export const ConversationStats = ({
       <Stat
         label={t('average-resolution', 'Average resolution')}
         value={span(report.resolutionSeconds)}
+      />
+      <Stat
+        label={t('average-reply-wait', 'Average reply wait')}
+        value={span(report.replySeconds)}
+      />
+      <Stat
+        label={t('replies-on-time', 'Replies on time')}
+        value={shareOf(report.replies.onTime, report.replies.withTarget)}
+      />
+      <Stat
+        label={t('replies-overdue-now', 'Overdue now')}
+        value={format.number(report.overdue)}
+        to={links.overdue()}
       />
     </Stats>
   );
@@ -140,10 +155,14 @@ export const ConversationsByTag = () => {
   );
 };
 
-/** The members who replied to customers the most, and in how many conversations. */
+/**
+ * The members who replied to customers the most, in how many conversations, and how long the
+ * customers they answered had waited.
+ */
 export const ConversationResponders = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
+  const span = useSpanText();
   const { period, pick, query } = useConversationReport('conversation-responders');
 
   return (
@@ -154,11 +173,16 @@ export const ConversationResponders = () => {
             t('member', 'Member'),
             t('replies', 'Replies'),
             t('conversations', 'Conversations'),
+            t('average-wait', 'Average wait'),
           ]}
           rows={report.members.map((row) => ({
             key: row.userId,
             lead: <MemberLine id={row.userId} />,
-            numbers: [format.number(row.replies), format.number(row.conversations)],
+            numbers: [
+              format.number(row.replies),
+              format.number(row.conversations),
+              span(row.replySeconds),
+            ],
           }))}
           empty={t('no-replies-in-period', 'No member replied in this period.')}
         />

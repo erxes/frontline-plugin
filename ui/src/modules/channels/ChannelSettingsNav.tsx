@@ -2,6 +2,7 @@ import {
   type Icon,
   IconPlugConnected,
   IconCircles,
+  IconClockHour4,
   IconGitBranch,
   IconMessageReply,
   IconUsers,
@@ -69,7 +70,7 @@ const NavGroup = ({ label, children }: { label: string; children: ReactNode }) =
 /** The channel's own sections, its integrations first, each with how many it holds. */
 const useSections = (
   channel: Channel,
-): { section: string; label: string; icon: Icon; count: number }[] => {
+): { section: string; label: string; icon: Icon; count?: number }[] => {
   const { t } = useTranslation('frontline');
 
   const integrations = (useQuery(integrationsQuery).data ?? []).filter(
@@ -83,6 +84,7 @@ const useSections = (
       icon: IconPlugConnected,
       count: integrations,
     },
+    { section: 'replies', label: t('replies', 'Replies'), icon: IconClockHour4 },
     {
       section: 'members',
       label: t('members', 'Members'),
@@ -206,7 +208,7 @@ const ChannelHead = ({ channel }: { channel: Channel }) => {
 
 /**
  * A channel's settings column, as old erxes laid it out: the channel itself, opening its general
- * settings; its members, pipelines and response templates with how many; then each kind of
+ * settings; its reply rules; its members, pipelines and response templates with how many; then each kind of
  * integration, those bringing it conversations first with how many, then the rest it could add,
  * and how many of them it uses.
  */

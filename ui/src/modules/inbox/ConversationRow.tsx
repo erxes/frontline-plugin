@@ -6,14 +6,14 @@ import {
   type RecordList,
   RelativeDateDisplay,
 } from 'erxes-ui';
-import { IconClockExclamation } from '@tabler/icons-react';
 import type { KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MemberAvatar, PersonAvatar } from '~/shared/Person.tsx';
-import { isChat, KindIcon } from '~/shared/kinds.tsx';
+import { KindIcon } from '~/shared/kinds.tsx';
 import type { usePrefetch } from '~/shared/prefetch.ts';
 import { useManyChannels } from '~/shared/channelField.ts';
 import type { Conversation } from './queries.ts';
+import { ReplyStateIcon, replyStateOf, useReplyStateText } from './ReplyDue.tsx';
 import { TagDot, usePickedTags } from './TagDot.tsx';
 
 /** The list's row buttons carry the conversation's id, so the keys can move the focus between them. */
@@ -57,16 +57,6 @@ const Pick = ({
   );
 };
 
-/** How long a chat's customer waits for an answer before the row says so. */
-const WAIT_MS = 5 * 60_000;
-
-/** Whether the customer of an open chat wrote last and has waited five minutes or more. */
-const isWaiting = (conversation: Conversation, now: number) =>
-  conversation.customerRespondedLast &&
-  conversation.status !== 'resolved' &&
-  isChat(conversation.kind) &&
-  now - conversation.lastMessageAt.getTime() >= WAIT_MS;
-
 /** The last message's text, else what it sent, as the old list said: Photo, Video, Audio or File. */
 const usePreview = ({ content, attachmentType }: Conversation) => {
   const { t } = useTranslation('frontline');
@@ -109,7 +99,8 @@ const RowTags = ({ tagIds }: { tagIds: string[] }) => {
 
 /**
  * The row's text on three lines, each kept to one line however long: the customer's name, bold
- * while unread, with a clock while they wait and the time at the end; the last message, with the
+ * while unread, with a clock while they wait on a reply (red once it is overdue) and the time at
+ * the end; the last message, with the
  * unread dot; and where it came from, the integration's mark and the channel, with its tags and
  * assignee. A read row's name and preview step back, so the unread ones stand out in a long list.
  */
@@ -124,8 +115,8 @@ const Summary = ({
 }) => {
   const { t } = useTranslation('frontline');
   const unread = !conversation.isRead;
-  const waiting = isWaiting(conversation, now);
-  const waitingLabel = t('waiting-answer', 'Waiting over 5 minutes for an answer');
+  const state = replyStateOf(conversation, now);
+  const stateText = useReplyStateText();
   const preview = usePreview(conversation);
   const manyChannels = useManyChannels();
 
@@ -140,18 +131,14 @@ const Summary = ({
         >
           {name}
         </span>
-        {waiting && (
-          <span title={waitingLabel} className="flex shrink-0 text-warning-text">
-            <IconClockExclamation aria-hidden className="size-3.5" />
-            <span className="sr-only">{waitingLabel}</span>
-          </span>
-        )}
+        {state && <ReplyStateIcon state={state} label={stateText(state, conversation, now)} />}
         <span
           className={cn(
             'shrink-0 text-xs tabular-nums',
-            waiting && 'font-medium text-warning-text',
-            !waiting && unread && 'font-medium text-primary-text',
-            !waiting && !unread && 'text-muted-foreground',
+            state === 'overdue' && 'font-medium text-destructive',
+            state && state !== 'overdue' && 'font-medium text-warning-text',
+            !state && unread && 'font-medium text-primary-text',
+            !state && !unread && 'text-muted-foreground',
           )}
         >
           <RelativeDateDisplay.Value value={conversation.lastMessageAt.toISOString()} />
