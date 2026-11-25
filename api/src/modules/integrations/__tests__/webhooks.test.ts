@@ -297,8 +297,9 @@ describe('meta-relay', () => {
   it('connects nothing meta-relay refuses, and removes accounts while it is down', async () => {
     fakeProviders(withRelay(401));
 
+    // The page meta-relay refused, named with its reason.
     await expect(connected('org-relay-d')).rejects.toMatchObject({
-      message: 'The Meta relay refused: it answered 401',
+      message: 'Shop: The Meta relay refused: it answered 401',
     });
     expect((await clientAs('org-relay-d').integrations.accounts.list({})).accounts).toEqual([]);
 

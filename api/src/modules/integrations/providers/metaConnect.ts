@@ -11,8 +11,10 @@ import { recordCheck } from '../accounts.ts';
 import { inOrder } from '../provider.ts';
 import { providerOf } from './index.ts';
 import { Account, checkInto, Into, metaKey, removeWebhookKeys, saveAccount } from '../store.ts';
+import { logger } from '#/logger.ts';
 import { subscribeToPage } from './meta.ts';
-import { askMeta, graph } from './metaGraph.ts';
+import { askMeta } from './metaGraph.ts';
+import { type Page, pagesOf, reasonOf, type RefusedPage } from './metaPages.ts';
 import { credentialsOf, FACEBOOK, FACEBOOK_SETTINGS, forgetConnection } from './metaConnection.ts';
 import { routeThroughRelay } from './metaRelay.ts';
 
@@ -55,21 +57,6 @@ const connections = readsWithCore(PERMISSIONS.integrationManage, z.object({}), a
     }),
   )
   .handler(({ context: { fromCore } }) => ({ ...fromCore, settingsPath: FACEBOOK_SETTINGS }));
-
-const Pages = z.object({
-  data: z.array(
-    z.object({
-      id: z.string(),
-      name: z.string(),
-      access_token: z.string(),
-      instagram_business_account: z
-        .object({ id: z.string(), username: z.string().optional() })
-        .optional(),
-    }),
-  ),
-});
-
-type Page = z.infer<typeof Pages>['data'][number];
 
 /** The page's account, and its linked Instagram account's, both on the page's token. */
 const accountsOf = (page: Page) => {
@@ -117,12 +104,43 @@ const subscribe = async (page: Page) => {
   return accounts;
 };
 
+const NO_PAGES =
+  "Facebook gave erxes no pages: sign in again and tick your pages in Facebook's step that asks which pages erxes may use";
+
 /**
- * Connects every page the organisation's Facebook connection manages, with its own token, and
- * the Instagram account linked to each. Core gives the connection's token (`credentials`), used
- * once and never stored. Meta and meta-relay are asked before the transaction opens, so a
- * refusal saves nothing; each account records the connection, whose app checks its webhooks.
- * Pages connected before are refreshed and linked to it. Started from a channel, they join it.
+ * Subscribes each page on its own, so a page Meta refuses leaves the others connected. Every
+ * refusal is logged with Meta's reason and comes back with the page.
+ */
+const subscribeEach = async (orgId: string, pages: Page[], refused: RefusedPage[]) => {
+  const settled = await Promise.all(
+    pages.map((page) =>
+      subscribe(page).then(
+        (accounts) => ({ accounts }),
+        (error: unknown) => ({
+          refused: { pageId: page.id, name: page.name, reason: reasonOf(error) },
+        }),
+      ),
+    ),
+  );
+
+  const all = [...refused, ...settled.flatMap((each) => ('refused' in each ? [each.refused] : []))];
+
+  for (const page of all) logger.warn({ orgId, ...page }, 'Meta refused a Facebook page');
+
+  return {
+    accounts: settled.flatMap((each) => ('accounts' in each ? each.accounts : [])),
+    refused: all,
+  };
+};
+
+/**
+ * Connects every page the organisation's Facebook connection may use (`pagesOf`), with its own
+ * token, and the Instagram account linked to each. Core gives the connection's token
+ * (`credentials`), used once and never stored. Meta and meta-relay are asked before the
+ * transaction opens; a page Meta refuses is left out and named in `refused`, and only when no
+ * page connects does the call fail. Each account records the connection, whose app checks its
+ * webhooks. Pages connected before are refreshed and linked to it. Started from a channel, they
+ * join it.
  */
 const connect = writesWithCore(
   PERMISSIONS.integrationManage,
@@ -130,36 +148,40 @@ const connect = writesWithCore(
   async (member, input) => {
     await checkInto(member, input.channelId);
 
-    const { accessToken } = await askCore(credentialsOf(member.orgId, input.connectionId));
+    const { accessToken, appId, appSecret } = await askCore(
+      credentialsOf(member.orgId, input.connectionId),
+    );
 
-    const pages = Pages.parse(
-      await askMeta(
-        graph('me/accounts', accessToken, {
-          query: {
-            fields: 'id,name,access_token,instagram_business_account{id,username}',
-            limit: '100',
-          },
-        }),
-      ),
-    ).data;
+    const found = await askMeta(pagesOf(accessToken, { appId, appSecret }));
+    const done = await subscribeEach(member.orgId, found.pages, found.refused);
 
-    if (pages.length === 0)
+    if (done.accounts.length === 0)
       throw new ORPCError('BAD_REQUEST', {
-        message: 'The Facebook connection manages no pages: grant it a page in Facebook first',
+        message: done.refused.length
+          ? done.refused.map((page) => `${page.name ?? page.pageId}: ${page.reason}`).join('; ')
+          : NO_PAGES,
       });
 
-    return (await askMeta(Promise.all(pages.map(subscribe)))).flat();
+    return done;
   },
 )
   .route({
     summary:
-      'Connect every page a Facebook connection manages and their linked Instagram accounts, optionally to a channel',
+      'Connect every page a Facebook connection may use and their linked Instagram accounts, optionally to a channel; pages Meta refuses come back in refused',
   })
-  .output(z.object({ accounts: z.array(Account) }))
+  .output(
+    z.object({
+      accounts: z.array(Account),
+      refused: z.array(
+        z.object({ pageId: z.string(), name: z.string().nullable(), reason: z.string() }),
+      ),
+    }),
+  )
   .handler(async ({ input, context: { tx, member, fromCore } }) => ({
-    accounts: await inOrder(fromCore, (account) =>
+    accounts: await inOrder(fromCore.accounts, (account) =>
       saveAccount(tx, member, { ...account, connectionId: input.connectionId }, input.channelId),
     ),
+    refused: fromCore.refused,
   }));
 
 export const metaConnectProcedures = { connections, connect };

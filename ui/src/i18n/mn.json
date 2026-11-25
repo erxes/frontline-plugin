@@ -1009,6 +1009,7 @@
   "page": "Хуудас",
   "page-failed": "Энэ хуудас ачаалагдсангүй. Дахин оролдоно уу",
   "page-of": "{{page}} / {{pages}}",
+  "pages-not-connected": "{{count}} хуудас холбогдсонгүй",
   "participant": "Оролцогч",
   "password": "Нууц үг",
   "past-sla": "SLA хугацаа хэтэрсэн",
