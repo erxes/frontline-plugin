@@ -1,5 +1,5 @@
 import { useMutation } from '@tanstack/react-query';
-import { Button, jsonOf, PanelFormLayout, type TRecordDraftProps, textOf } from 'erxes-ui';
+import { Button, jsonOf, PanelFormLayout, type TRecordDraftProps, textOf, toast } from 'erxes-ui';
 import { type ComponentType, type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
@@ -50,10 +50,19 @@ const Operators = jsonOf(
   ),
 );
 
+/** Facebook pages Meta refused while the others connected, with its reason. */
+type RefusedPages = Awaited<ReturnType<typeof orpc.integrations.meta.connect.call>>['refused'];
+
+/** What a connect gives the form: the account to open, and Facebook's refused pages. */
+interface Connected {
+  id: string;
+  refused?: RefusedPages;
+}
+
 /** Each provider's call with the form's fields; Facebook's opens its first page. */
-const CONNECT = {
+const CONNECT: Record<FormProvider, (form: FormData, into: Into) => Promise<Connected>> = {
   meta: async (form: FormData, into: Into) => {
-    const { accounts } = await orpc.integrations.meta.connect.call({
+    const { accounts, refused } = await orpc.integrations.meta.connect.call({
       connectionId: textOf(form.get('connectionId')),
       ...into,
     });
@@ -62,7 +71,7 @@ const CONNECT = {
 
     if (!first) throw new Error('No page connected');
 
-    return first;
+    return { ...first, refused };
   },
   telegram: (form: FormData, into: Into) =>
     orpc.integrations.telegram.connect.call({ token: textOf(form.get('token')), ...into }),
@@ -91,7 +100,7 @@ const CONNECT = {
     }),
   callpro: (form: FormData, into: Into) =>
     orpc.integrations.callpro.connect.call({ phone: textOf(form.get('phone')), ...into }),
-} satisfies Record<FormProvider, (form: FormData, into: Into) => Promise<{ id: string }>>;
+};
 
 const FIELDS: Record<FormProvider, ComponentType<{ channelId?: string }>> = {
   meta: MetaFields,
@@ -117,6 +126,19 @@ const ConnectForm = ({
     mutationFn: (form: FormData) => CONNECT[provider](form, into),
     onSuccess: (account) => {
       onSuccess();
+
+      // Facebook: pages Meta refused, named with its reason; the others connected.
+      if (account.refused?.length)
+        toast({
+          variant: 'destructive',
+          title: t('pages-not-connected', '{{count}} pages not connected', {
+            count: account.refused.length,
+          }),
+          description: account.refused
+            .map((page) => `${page.name ?? page.pageId}: ${page.reason}`)
+            .join('\n'),
+        });
+
       onCreated(account.id);
     },
   });

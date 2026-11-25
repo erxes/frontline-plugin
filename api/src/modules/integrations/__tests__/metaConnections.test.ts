@@ -206,3 +206,113 @@ describe("the organisation's Facebook connection", () => {
     expect((await owner.conversations.list({})).totalCount).toBe(1);
   });
 });
+
+/** A path of the Graph API, without its version. */
+const graphPath = (call: ProviderCall) => call.url.pathname.replace('/v23.0/', '');
+
+/**
+ * Meta for someone who reaches page-2 and page-3 through a Business portfolio: `me/accounts`
+ * lists only page-1, the login granted all three, and Meta won't subscribe page-3.
+ */
+const portfolio = (call: ProviderCall) => {
+  const path = graphPath(call);
+
+  if (path === 'debug_token')
+    return {
+      data: {
+        granular_scopes: [
+          { scope: 'pages_show_list', target_ids: ['page-1', 'page-2', 'page-3'] },
+          { scope: 'pages_messaging', target_ids: ['page-1', 'page-2', 'page-3'] },
+        ],
+      },
+    };
+
+  if (path === 'page-2' || path === 'page-3')
+    return {
+      id: path,
+      name: path === 'page-2' ? 'Resort' : 'Closed shop',
+      access_token: `${path}-token`,
+    };
+
+  if (path === 'page-3/subscribed_apps' && call.method === 'POST')
+    return Response.json(
+      { error: { message: 'Requires pages_manage_metadata permission' } },
+      { status: 400 },
+    );
+
+  if (path === 'page-2/subscribed_apps' || path === 'page-3/subscribed_apps')
+    return call.method === 'GET' ? { data: [] } : { success: true };
+
+  return withRelay(call);
+};
+
+describe('the pages a Facebook connection connects', () => {
+  it('connects the pages the login granted that Meta leaves out of its list, and names the one it refuses', async () => {
+    const calls = fakeProviders(portfolio);
+
+    const { accounts, refused } = await clientAs('org-pages-portfolio').integrations.meta.connect({
+      connectionId: 'fb-conn',
+    });
+
+    expect(accounts.map((account) => account.externalId).toSorted()).toEqual([
+      'ig-1',
+      'page-1',
+      'page-2',
+    ]);
+    expect(refused).toEqual([
+      {
+        pageId: 'page-3',
+        name: 'Closed shop',
+        reason: 'Meta refused: Requires pages_manage_metadata permission',
+      },
+    ]);
+
+    // Meta is asked which pages the login granted with the connection's own app.
+    const debugged = calls.find((call) => graphPath(call) === 'debug_token');
+
+    expect(debugged?.authorization).toBe('Bearer test-meta-app|test-meta-app-secret');
+    expect(debugged?.url.searchParams.get('input_token')).toBe('long-user-token');
+    expect(relayed(calls)).toEqual([
+      'PUT /v1/routes/facebook/page-1',
+      'PUT /v1/routes/facebook/page-2',
+      'PUT /v1/routes/instagram/ig-1',
+    ]);
+  });
+
+  it('fails with what Meta said when no page connects', async () => {
+    fakeProviders((call) =>
+      graphPath(call) === 'me/accounts'
+        ? { data: [] }
+        : graphPath(call) === 'page-1'
+          ? Response.json({ error: { message: 'Unsupported get request' } }, { status: 400 })
+          : graphPath(call) === 'debug_token'
+            ? { data: { granular_scopes: [{ scope: 'pages_show_list', target_ids: ['page-1'] }] } }
+            : withRelay(call),
+    );
+
+    await expect(
+      clientAs('org-pages-refused').integrations.meta.connect({ connectionId: 'fb-conn' }),
+    ).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: 'page-1: Meta refused: Unsupported get request',
+    });
+  });
+
+  it('says how to give erxes a page when the login granted none', async () => {
+    fakeProviders((call) =>
+      graphPath(call) === 'me/accounts'
+        ? { data: [] }
+        : graphPath(call) === 'debug_token'
+          ? { data: { granular_scopes: [{ scope: 'pages_show_list' }] } }
+          : withRelay(call),
+    );
+
+    await expect(
+      clientAs('org-pages-none').integrations.meta.connect({ connectionId: 'fb-conn' }),
+    ).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message:
+        "Facebook gave erxes no pages: sign in again and tick your pages in Facebook's step that asks which pages erxes may use",
+    });
+  });
+});
