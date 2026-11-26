@@ -268,6 +268,8 @@ test('a reply answers one message, quoted over the composer and over the reply i
   await expect(quoted).toBeHidden();
   await asked.hover();
   await asked.getByRole('button', { name: 'Reply to this message' }).click();
+  // Reply puts the cursor in the reply box, a frame after the click.
+  await expect(page.getByRole('textbox', { name: 'Reply' })).toBeFocused();
   await page.keyboard.type('Yes, in two days');
   await page.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(quoted).toBeHidden();
