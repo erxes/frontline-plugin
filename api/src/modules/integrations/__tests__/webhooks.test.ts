@@ -150,6 +150,10 @@ describe('meta', () => {
     expect(asked.created).toContainEqual(
       expect.objectContaining({ firstName: 'Bat', lastName: 'Erdene', source: 'facebook' }),
     );
+    // Their profile picture, copied off Meta's CDN, is their avatar in core.
+    expect(asked.avatars.get(conversation?.customerId ?? '')).toBe(
+      '/core/v1/files/file-profile-jpeg/download',
+    );
 
     // A reply to the question quotes it, as Messenger's own reply does.
     const question = messages.at(-1);
@@ -169,6 +173,15 @@ describe('meta', () => {
         message: { reply_to: { mid: question?.externalId }, text: 'We do' },
       },
     });
+
+    // The picture is asked for once per person, not again with their next messages.
+    const again = raw.replaceAll('"m_', '"m_again_');
+
+    expect(await deliver('/meta', again, signedByMeta(again))).toBe(200);
+    await runQueued();
+    expect(
+      calls.filter((call) => call.url.searchParams.get('fields') === 'profile_pic'),
+    ).toHaveLength(1);
   });
 
   it('keeps the messages sent with an event it can’t read, and fails replies once Meta refuses the token', async () => {

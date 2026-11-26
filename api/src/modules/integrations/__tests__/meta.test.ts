@@ -195,6 +195,15 @@ describe('instagram comments', () => {
     expect(asked.created).toContainEqual(
       expect.objectContaining({ firstName: 'Saraa', source: 'instagram' }),
     );
+    // Their picture's link had expired too, so they keep no avatar, and the job doesn't retry.
+    await runQueued();
+    expect(asked.jobs).toEqual([]);
+
+    const story = (await owner.conversations.list({})).conversations.find(
+      (conversation) => conversation.id === storyId,
+    );
+
+    expect(asked.avatars.has(story?.customerId ?? '')).toBe(false);
     expect((await clientAs('org-ig-b').conversations.list({})).totalCount).toBe(0);
   });
 });

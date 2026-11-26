@@ -14,6 +14,8 @@ export const asked = {
   submitted: [] as Record<string, unknown>[],
   customers: 0,
   created: [] as unknown[],
+  /** The avatar each customer frontline made was given, by customer id. */
+  avatars: new Map<string, string>(),
   notifications: [] as unknown[],
   jobs: [] as unknown[],
   /** Where each integration stood, as reported to core: `[orgId, key, state, count]`. */
@@ -80,12 +82,22 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
             id: `customer-${input.primaryEmail ?? input.primaryPhone ?? 'without-contact'}`,
           },
         }),
-        // Core names the caller of 88001122 and has forgotten every other customer.
+        // Core names the caller of 88001122, keeps the customers frontline made, without a name
+        // until a test gives one, and has forgotten every other customer.
         get: async ({ id }: { id: string }) => {
-          if (id !== 'customer-88001122')
+          if (id === 'customer-88001122') return { id, firstName: 'Dulam', lastName: 'Dorj' };
+
+          const made = /^customer-(\d+)$/.exec(id)?.[1];
+
+          if (!made || Number(made) > asked.customers)
             throw new ORPCError('NOT_FOUND', { message: 'No such customer' });
 
-          return { id, firstName: 'Dulam', lastName: 'Dorj' };
+          return { id, firstName: null, lastName: null, avatarUrl: asked.avatars.get(id) ?? null };
+        },
+        update: async ({ id, avatarUrl }: { id: string; avatarUrl?: string }) => {
+          if (avatarUrl) asked.avatars.set(id, avatarUrl);
+
+          return { id };
         },
         // Every search finds Saraa, with her two addresses.
         list: async () => ({

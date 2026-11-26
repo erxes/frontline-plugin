@@ -15,6 +15,7 @@ import { customerFor, receiveIn } from '../inbox/receive.ts';
 import { signalConversations, signalMembers } from '../inbox/shared.ts';
 import { FileRefused, storeFile } from '../files.ts';
 import { markRefused } from './accounts.ts';
+import { askPictures } from './pictures.ts';
 import {
   type AccountRow,
   type InboundMessage,
@@ -51,8 +52,9 @@ const integrationOf = async (row: AccountRow) => {
 const AUTHORS_AT_ONCE = 4;
 
 /**
- * The core customer of each author of `inbound`, by their provider id, each asked for once. An
- * author core refuses, such as a name with a NUL byte, is logged and left out.
+ * The core customer of each author of `inbound`, by their provider id, each asked for once, with
+ * their profile picture asked for once too. An author core refuses, such as a name with a NUL
+ * byte, is logged and left out.
  */
 const customersOf = async (row: AccountRow, inbound: InboundMessage[]) => {
   const authors = [...new Map(inbound.map(({ author }) => [author.externalId, author])).values()];
@@ -84,9 +86,13 @@ const customersOf = async (row: AccountRow, inbound: InboundMessage[]) => {
     ),
   );
 
-  return new Map(
+  const customers = new Map(
     found.flatMap(([id, customerId]) => (customerId ? [[id, customerId] as const] : [])),
   );
+
+  await askPictures(row, [...customers.keys()]);
+
+  return customers;
 };
 
 /** Whether the inbox already has `message`, so a repeated delivery doesn't fetch its files again. */

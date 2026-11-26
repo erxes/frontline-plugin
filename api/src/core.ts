@@ -278,6 +278,11 @@ export const JOBS = {
     name: 'integrations.meta-files',
     retry: { attempts: 5, delay: 60, maxDelay: 1800 },
   },
+  /** Copies a provider's profile picture of a new customer to core, as their avatar. */
+  customerPicture: {
+    name: 'integrations.customer-picture',
+    retry: { attempts: 5, delay: 60, maxDelay: 1800 },
+  },
   /**
    * Brings the organisation's own teams to core once, then copies core's branches and
    * departments (`modules/teams/sync.ts`): on install, when the owner approves the units scopes,
