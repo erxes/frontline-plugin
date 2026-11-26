@@ -51,8 +51,7 @@ test('a messenger and its settings', async ({ page }) => {
   const channel = await createChannel(page);
   const panel = recordPanel(page);
 
-  await page.goto(INBOX);
-  await page.getByRole('button', { name: 'Add messenger' }).first().click();
+  await page.goto(recordPath(INBOX, 'frontline:integration'));
   await expectAccessible(page, panel.getByLabel('Welcome message'));
   await page.goto(INBOX);
 

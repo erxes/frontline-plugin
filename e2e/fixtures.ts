@@ -360,7 +360,8 @@ export const addMessenger = async (page: Page, channel: string) => {
   const panel = recordPanel(page);
   const name = `Website ${unique()}`;
 
-  await page.getByRole('button', { name: 'Add messenger' }).first().click();
+  // The inbox opens the new messenger's panel only when it is empty; the panel's own URL always does.
+  await page.goto(recordPath(INBOX, 'frontline:integration'));
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
   await panel.getByLabel('Name').fill(name);
   await panel.getByLabel('Welcome message').fill('Hi, how can we help?');
