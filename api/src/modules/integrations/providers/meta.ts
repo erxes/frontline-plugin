@@ -344,6 +344,16 @@ const whoIsOn =
     return person.first_name ? { firstName: person.first_name, lastName: person.last_name } : null;
   };
 
+const Picture = z.object({ profile_pic: z.string().optional() });
+
+/**
+ * The profile picture Meta shows for someone who messaged the page or the account, on Meta's CDN
+ * behind a link that expires.
+ */
+const pictureOn = async ({ secret }: MetaAccount, id: string) =>
+  Picture.parse(await graph(id, secret.pageToken, { query: { fields: 'profile_pic' } }))
+    .profile_pic ?? null;
+
 /**
  * Removes the account's meta-relay route. The app stays subscribed to the page: core's
  * automations, or another erxes install sharing the app, may still read it.
@@ -365,6 +375,7 @@ export const facebook = defineProvider({
   repair: (account, webhookKey) =>
     resubscribe('facebook', account, account.row.externalId, webhookKey),
   whoIs: whoIsOn('facebook'),
+  pictureOf: pictureOn,
 });
 
 /** An Instagram professional account, reached through its Facebook page's token. */
@@ -379,4 +390,5 @@ export const instagram = defineProvider({
   repair: (account, webhookKey) =>
     resubscribe('instagram', account, account.config.pageId, webhookKey),
   whoIs: whoIsOn('instagram'),
+  pictureOf: pictureOn,
 });

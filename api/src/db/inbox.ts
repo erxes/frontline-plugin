@@ -302,6 +302,8 @@ export const customerLinks = table(
     /** A core customer id. */
     customerId: text().notNull(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    /** When the provider was asked for the person's profile picture; null until it is. */
+    pictureAskedAt: timestamp({ withTimezone: true }),
   },
   (t) => [
     primaryKey({

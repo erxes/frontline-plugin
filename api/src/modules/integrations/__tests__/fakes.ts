@@ -382,11 +382,19 @@ export const graphApi = (call: ProviderCall) => {
   // Each message Messenger takes gets an id of its own, as Meta gives one.
   if (path === 'me/messages') return { recipient_id: 'psid-1', message_id: `m_${randomUUID()}` };
 
-  // The profile of the person behind psid-1, which Messenger's events leave out.
-  if (path === 'psid-1') return { id: 'psid-1', first_name: 'Bat', last_name: 'Erdene' };
+  const fields = call.url.searchParams.get('fields');
 
-  // Instagram's profile of igsid-6, who wrote with only their id.
-  if (path === 'igsid-6') return { id: 'igsid-6', name: 'Saraa', username: 'saraa.mn' };
+  // The profile of the person behind psid-1, which Messenger's events leave out, and its picture.
+  if (path === 'psid-1')
+    return fields === 'profile_pic'
+      ? { id: 'psid-1', profile_pic: 'https://scontent.xx.fbcdn.net/v/t1/psid-1.jpg?signature=ok' }
+      : { id: 'psid-1', first_name: 'Bat', last_name: 'Erdene' };
+
+  // Instagram's profile of igsid-6, who wrote with only their id; their picture's link expired.
+  if (path === 'igsid-6')
+    return fields === 'profile_pic'
+      ? { id: 'igsid-6', profile_pic: 'https://lookaside.fbsbx.com/p/igsid-6?signature=expired' }
+      : { id: 'igsid-6', name: 'Saraa', username: 'saraa.mn' };
 
   if (path.endsWith('/comments') || path.endsWith('/replies'))
     return call.method === 'POST' ? { id: `reply-to-${path.split('/')[0]}` } : { data: [] };

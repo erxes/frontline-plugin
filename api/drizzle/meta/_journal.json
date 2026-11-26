@@ -337,6 +337,13 @@
       "when": 1795618737900,
       "tag": "0049_reply_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1795688865145,
+      "tag": "0050_customer_pictures",
+      "breakpoints": true
     }
   ]
 }

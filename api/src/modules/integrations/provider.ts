@@ -137,6 +137,11 @@ interface ProviderSpec<Config, Secret> {
   repair?: (account: OpenAccount<Config, Secret>, webhookKey: string | null) => Promise<void>;
   /** The name of a person the provider's events give only by id, or null when it has none. */
   whoIs?: (account: OpenAccount<Config, Secret>, externalId: string) => Promise<Person | null>;
+  /**
+   * Where the provider shows the profile picture of a person its events give only by id, or null
+   * when they have none. The link may expire, so the inbox copies the picture to core.
+   */
+  pictureOf?: (account: OpenAccount<Config, Secret>, externalId: string) => Promise<string | null>;
 }
 
 /** A customer's name as a provider gives it. */
@@ -152,7 +157,7 @@ export interface Person {
 export const defineProvider = <Config, Secret>(spec: ProviderSpec<Config, Secret>) => ({
   name: spec.name,
   open: (row: AccountRow) => {
-    const { react, repair } = spec;
+    const { react, repair, pictureOf } = spec;
 
     const account: OpenAccount<Config, Secret> = {
       row,
@@ -172,6 +177,7 @@ export const defineProvider = <Config, Secret>(spec: ProviderSpec<Config, Secret
         await repair?.(account, webhookKey);
       },
       whoIs: async (externalId: string) => (await spec.whoIs?.(account, externalId)) ?? null,
+      pictureOf: pictureOf ? (externalId: string) => pictureOf(account, externalId) : null,
     };
   },
 });
