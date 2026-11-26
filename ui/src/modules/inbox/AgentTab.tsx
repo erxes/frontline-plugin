@@ -1,5 +1,5 @@
 import { orpc as core } from '@erxes/core-contract/client';
-import { IconAlertTriangle, IconChevronRight, IconRobot } from '@tabler/icons-react';
+import { IconAlertTriangle, IconChevronRight, IconClockPlay, IconRobot } from '@tabler/icons-react';
 import { useIntegration, useIntegrationChange } from '@/inbox/queries.ts';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
@@ -15,16 +15,15 @@ import {
 import { useTranslation } from 'react-i18next';
 import { Link } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
+import { takesNotesOnly } from '~/shared/kinds.tsx';
 import { PanelSkeleton, ReadOnly } from '~/shared/Panel.tsx';
+import { useSpanText } from '~/shared/spanText.ts';
 
 /** The Select's value for no agent. Agent ids are core's 17-character ids, never this. */
 const OFF = 'off';
 
 /** Core's page where admins make agents. */
 const AGENTS_PATH = '/settings/agents';
-
-/** The kinds of integration a core agent answers. */
-const AGENT_KINDS = new Set(['messenger', 'facebook', 'instagram']);
 
 /** The templates whose agents take orders or bookings, which they do through a portal. */
 const SELLING_TEMPLATES = new Set<string | null>(['shop', 'hotel', 'tours']);
@@ -83,11 +82,100 @@ const NoAgents = () => {
   );
 };
 
-/** The picker of the integration's agent, or Off; a pick saves at once. */
+/** The waits a member picks from before the agent answers again. */
+const TAKE_BACK_MINUTES = [15, 60, 240, 1440, 4320];
+
+/**
+ * How long a customer waits on a person before the agent answers again, or Never; a pick saves
+ * at once.
+ */
+const TakeBack = ({
+  minutes,
+  onChange,
+}: {
+  minutes: number | null;
+  onChange: (minutes: number | null) => void;
+}) => {
+  const { t } = useTranslation('frontline');
+  const span = useSpanText();
+  const label = t('bot-agent-take-back', 'Answers again after');
+
+  const options = [...new Set([...TAKE_BACK_MINUTES, ...(minutes ? [minutes] : [])])].toSorted(
+    (a, b) => a - b,
+  );
+
+  return (
+    <PanelField icon={IconClockPlay} label={label} cell={false}>
+      <Select
+        value={minutes ? String(minutes) : OFF}
+        onValueChange={(next) => {
+          if (typeof next === 'string') onChange(next === OFF ? null : Number(next));
+        }}
+      >
+        <Select.Trigger variant="flush" aria-label={label}>
+          <Select.Value />
+        </Select.Trigger>
+        <Select.Content>
+          <Select.Item value={OFF}>{t('bot-agent-take-back-never', 'Never')}</Select.Item>
+          {options.map((option) => (
+            <Select.Item key={option} value={String(option)}>
+              {span(option * 60)}
+            </Select.Item>
+          ))}
+        </Select.Content>
+      </Select>
+    </PanelField>
+  );
+};
+
+/** When the agent answers, and what each kind of integration leaves to people. */
+const AgentHints = ({ kind, agentId }: { kind: string; agentId: string | null }) => {
+  const { t } = useTranslation('frontline');
+
+  const kindHints: Record<string, string> = {
+    facebook: t(
+      'bot-agent-meta-hint',
+      'It answers direct messages. Comments on posts, and taps on the page bot’s buttons, wait for a member or an automation.',
+    ),
+    telegram: t('bot-agent-telegram-hint', 'It answers private chats, not groups.'),
+    discord: t('bot-agent-discord-hint', 'It answers direct messages and mentions of the bot.'),
+    mail: t('bot-agent-mail-hint', 'It skips auto-replies, mailing lists and bulk mail.'),
+  };
+
+  const kindHint = kindHints[kind === 'instagram' ? 'facebook' : kind];
+
+  return (
+    <>
+      <p className="px-3 text-sm text-muted-foreground">
+        {t(
+          'bot-agent-hint',
+          'It answers each conversation until a member replies or is assigned, or it has no answer.',
+        )}
+      </p>
+      {agentId && (
+        <p className="px-3 text-sm text-muted-foreground">
+          {t(
+            'bot-agent-take-back-hint',
+            'It answers again when a member lets it from the conversation’s bot button, when the conversation is resolved, or when the customer waits on a person this long.',
+          )}
+        </p>
+      )}
+      {kindHint && <p className="px-3 text-sm text-muted-foreground">{kindHint}</p>}
+    </>
+  );
+};
+
+/** The picker of the integration's agent, or Off, and its wait; a pick saves at once. */
 const AgentPicker = ({
   integration,
 }: {
-  integration: { id: string; kind: string; agentId: string | null; canManage: boolean };
+  integration: {
+    id: string;
+    kind: string;
+    agentId: string | null;
+    agentTakeBackMinutes: number | null;
+    canManage: boolean;
+  };
 }) => {
   const { t } = useTranslation('frontline');
   const agents = useQuery(core.agents.list.queryOptions());
@@ -141,30 +229,23 @@ const AgentPicker = ({
             </Select.Content>
           </Select>
         </PanelField>
+        {integration.agentId && (
+          <TakeBack
+            minutes={integration.agentTakeBackMinutes}
+            onChange={(takeBackMinutes) => setAgent.mutate({ id: integration.id, takeBackMinutes })}
+          />
+        )}
       </ReadOnly>
       {chosen && SELLING_TEMPLATES.has(chosen.template) && !chosen.portalId && (
         <NoPortal agentId={chosen.id} />
       )}
-      <p className="px-3 text-sm text-muted-foreground">
-        {t(
-          'bot-agent-hint',
-          'It answers each conversation until a member replies or is assigned, or it has no answer.',
-        )}
-      </p>
-      {integration.kind !== 'messenger' && (
-        <p className="px-3 text-sm text-muted-foreground">
-          {t(
-            'bot-agent-meta-hint',
-            'It answers direct messages. Comments on posts, and taps on the page bot’s buttons, wait for a member or an automation.',
-          )}
-        </p>
-      )}
+      <AgentHints kind={integration.kind} agentId={integration.agentId} />
       <MakeAgent />
     </PanelSection>
   );
 };
 
-/** The Bot tab of a messenger, Facebook page or Instagram account: the core agent that answers it. */
+/** The Bot tab of an integration that chats or mails: the core agent that answers it. */
 export const AgentTab = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
   const integration = useIntegration(contentId);
@@ -178,13 +259,10 @@ export const AgentTab = ({ contentId }: TRecordSlotProps) => {
 
   if (!integration.data) return <PanelSkeleton rows={2} />;
 
-  if (!AGENT_KINDS.has(integration.data.kind))
+  if (takesNotesOnly(integration.data.kind))
     return (
       <p className="p-3 text-sm text-muted-foreground">
-        {t(
-          'bot-agent-kinds',
-          'An agent answers website messenger, Facebook and Instagram conversations only.',
-        )}
+        {t('bot-agent-kinds', 'An agent answers chats and email, not calls.')}
       </p>
     );
 

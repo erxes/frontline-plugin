@@ -39,6 +39,11 @@ export const integrations = table(
      * `bot`, or null for none. Core refuses a submit to an agent since deleted.
      */
     agentId: text(),
+    /**
+     * How many minutes a customer waits on a person before the agent answers again, or null to
+     * leave it to the person.
+     */
+    agentTakeBackMinutes: integer(),
     ...stamps(),
   },
   (t) => [

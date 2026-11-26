@@ -22,6 +22,29 @@ describe('mail', () => {
     expect(read && 'message' in read ? read.message.text : '').toMatch(
       /^Thanks, the refund arrived\./,
     );
+    // A person wrote it, so an AI agent may answer it.
+    expect(read).toMatchObject({ message: { forAgent: true } });
+  });
+
+  it('gives an AI agent no auto-reply, mailing list or bulk mail', async () => {
+    const reply = fixture('mail-reply.eml').toString();
+
+    for (const header of [
+      'Auto-Submitted: auto-replied',
+      'Precedence: bulk',
+      'List-Id: <news.example.mn>',
+      'X-Autoreply: yes',
+    ])
+      await expect(
+        readMail(reply.replace('MIME-Version', `${header}\r\nMIME-Version`), 'support@shop.mn'),
+      ).resolves.toMatchObject({ message: { forAgent: false } });
+
+    await expect(
+      readMail(
+        reply.replace('MIME-Version', 'Auto-Submitted: no\r\nMIME-Version'),
+        'support@shop.mn',
+      ),
+    ).resolves.toMatchObject({ message: { forAgent: true } });
   });
 
   it('skips what the mailbox sent itself', async () => {
