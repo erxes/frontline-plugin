@@ -6,9 +6,11 @@ import { PLUGIN } from '#/config.ts';
 import { core, JOBS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { type CALL_STATUSES, callLegs, callOperators, calls } from '#/db/calls.ts';
-import { customerLinks, integrations } from '#/db/inbox.ts';
+import { integrationAccounts } from '#/db/integrations.ts';
+import { conversations, customerLinks, integrations } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
 import type { Adapter } from '../../../inbox/adapters.ts';
+import { assignConversations } from '../../../inbox/assign.ts';
 import { receiveIn } from '../../../inbox/receive.ts';
 import { signalConversations } from '../../../inbox/shared.ts';
 import type { AccountRow } from '../../provider.ts';
@@ -197,15 +199,34 @@ const openCall = async (row: AccountRow, init: NewCall) => {
 export const signalCalls = (tx: Tx, orgId: string) =>
   tx.execute(sql`select core_live_signal(${orgId}, ${PLUGIN}, 'calls')`);
 
-/** The member behind the first of `extensions` that is an operator's on the account. */
+/**
+ * The member behind the first of `extensions` that is an operator's on the account, or on another
+ * account of the same PBX: one PBX can have several accounts, and an operator is listed on one.
+ */
 const operatorOf = async (tx: Tx, accountId: string, extensions: string[]) => {
+  if (extensions.length === 0) return undefined;
+
+  const samePbx = sql`lower(${integrationAccounts.config} ->> 'host') = (
+    select lower(config ->> 'host') from ${integrationAccounts} where id = ${accountId}
+  )`;
+
   const found = await tx
-    .select({ userId: callOperators.userId, extension: callOperators.extension })
+    .select({
+      userId: callOperators.userId,
+      extension: callOperators.extension,
+      accountId: callOperators.accountId,
+    })
     .from(callOperators)
-    .where(eq(callOperators.accountId, accountId));
+    .innerJoin(integrationAccounts, eq(integrationAccounts.id, callOperators.accountId))
+    .where(and(eq(integrationAccounts.provider, 'call'), samePbx));
+
+  // The account's own operators come first, then the PBX's other accounts'.
+  const ranked = found.toSorted(
+    (one, other) => Number(other.accountId === accountId) - Number(one.accountId === accountId),
+  );
 
   return extensions
-    .map((extension) => found.find((operator) => operator.extension === extension))
+    .map((extension) => ranked.find((operator) => operator.extension === extension))
     .find((operator) => operator !== undefined);
 };
 
@@ -225,8 +246,32 @@ export const updateCall = (
     if (Object.keys(changed).length === 0) return;
 
     await tx.update(calls).set(changed).where(eq(calls.id, callId));
+
+    if (changed.answeredBy && changed.answeredBy !== call.answeredBy)
+      await assignToAnswerer(tx, row.orgId, call.conversationId, changed.answeredBy);
+
     await signalCalls(tx, row.orgId);
   });
+
+/** The call's conversation goes to the member who picked it up, as a member would assign it. */
+const assignToAnswerer = async (
+  tx: Tx,
+  orgId: string,
+  conversationId: string,
+  answeredBy: string,
+) => {
+  const [conversation] = await tx
+    .select({
+      id: conversations.id,
+      customerId: conversations.customerId,
+      assigneeId: conversations.assigneeId,
+    })
+    .from(conversations)
+    .where(eq(conversations.id, conversationId));
+
+  if (conversation)
+    await assignConversations(tx, orgId, null, [conversation], answeredBy, { reason: 'call' });
+};
 
 /** Queues the job that copies a call's recording from the PBX to core's storage. */
 export const queueRecording = (tx: Tx, orgId: string, callId: string) =>
@@ -268,7 +313,9 @@ export const recordCdr = async (row: AccountRow, cdr: Cdr, init: NewCall, timeZo
 
     const recordingFile = call.recording ? null : recordingOf(legs);
 
-    if (recordingFile) await queueRecording(tx, row.orgId, callId);
+    // The UCM often sends the CDR before it has written the recording, with no `recordfiles`:
+    // the job asks the PBX for it then.
+    if (answered && !call.recording) await queueRecording(tx, row.orgId, callId);
 
     return {
       status: statusOf(legs),

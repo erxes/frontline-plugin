@@ -3,7 +3,9 @@ import { ORPCError } from '@orpc/server';
 import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
+import type { PluginMember } from '@erxes/plugin-sdk';
 import { config } from '#/config.ts';
+import { logger } from '#/logger.ts';
 import { PERMISSIONS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { callOperators, callQueues } from '#/db/calls.ts';
@@ -23,7 +25,7 @@ import { call, callApi } from './call.ts';
 import { Lines, saveLines } from './lines.ts';
 import { checkPbx } from './pbx.ts';
 import { takesCalls } from './record.ts';
-import { callWebhookUrl, followedQueues, routeCalls, sameRoute } from './relay.ts';
+import { callWebhookUrl, followedQueues, routeCalls, sameRoute, unrouteCalls } from './relay.ts';
 
 const Host = z
   .string()
@@ -60,6 +62,46 @@ const relayRefused = (error: unknown) => {
   });
 };
 
+const ConnectInput = PbxInput.extend({
+  host: Host,
+  queues: Lines.queues.default([]),
+  operators: Lines.operators.default([]),
+  ...Into,
+});
+
+/** What connect sets up with the PBX and pbx-relay before it saves the account. */
+type Routed = { id: string; webhookSecret: string; webhookKey: string };
+
+/** Saves a connected PBX as an account in its channel, with its queues and operators. */
+const saveConnected = async (
+  tx: Tx,
+  member: PluginMember,
+  input: z.infer<typeof ConnectInput>,
+  routed: Routed,
+) => {
+  const { channelId, name, queues, operators, ...settings } = input;
+
+  const account = await saveAccount(
+    tx,
+    member,
+    {
+      id: routed.id,
+      provider: 'call',
+      // The account's own id: a PBX's accounts are told apart by their trunks and queues.
+      externalId: routed.id,
+      name: name || input.phone,
+      config: settings,
+      secret: { webhookSecret: routed.webhookSecret },
+      webhookKey: routed.webhookKey,
+    },
+    await intoChannel(tx, member, channelId),
+  );
+
+  await saveLines(tx, member.orgId, account.id, { queues, operators });
+
+  return account;
+};
+
 /**
  * Connects a Grandstream UCM: frontline signs in to it as the install's API user
  * (`CALL_API_USER`), then hands out the address and secret its events are signed with, and with
@@ -70,13 +112,8 @@ const relayRefused = (error: unknown) => {
  */
 const connect = writesWithCore(
   PERMISSIONS.integrationManage,
-  PbxInput.extend({
-    host: Host,
-    queues: Lines.queues.default([]),
-    operators: Lines.operators.default([]),
-    ...Into,
-  }),
-  async (member, input) => {
+  ConnectInput,
+  async (member, input): Promise<Routed> => {
     const refused = await checkPbx({
       orgId: member.orgId,
       host: input.host,
@@ -110,29 +147,16 @@ const connect = writesWithCore(
       'Connect a Grandstream UCM phone system as a new account, routing its trunks and queues here',
   })
   .output(Account)
-  .handler(async ({ input, context: { tx, member, fromCore } }) => {
-    const { channelId, name, queues, operators, ...settings } = input;
-
-    const account = await saveAccount(
-      tx,
-      member,
-      {
-        id: fromCore.id,
-        provider: 'call',
-        // The account's own id: a PBX's accounts are told apart by their trunks and queues.
-        externalId: fromCore.id,
-        name: name || input.phone,
-        config: settings,
-        secret: { webhookSecret: fromCore.webhookSecret },
-        webhookKey: fromCore.webhookKey,
-      },
-      await intoChannel(tx, member, channelId),
-    );
-
-    await saveLines(tx, member.orgId, account.id, { queues, operators });
-
-    return account;
-  });
+  .handler(({ input, context: { tx, member, fromCore } }) =>
+    // The route is already up: an account that isn't saved takes it down again, or its trunks and
+    // queues would stay held for an account that doesn't exist.
+    saveConnected(tx, member, input, fromCore).catch(async (error: unknown) => {
+      await unrouteCalls(fromCore.id).catch((cause: unknown) =>
+        logger.error({ err: cause, accountId: fromCore.id }, 'pbx-relay kept an unsaved route'),
+      );
+      throw error;
+    }),
+  );
 
 /** Connects a CallPro line by its number; CallPro posts its calls to the address frontline gives. */
 const connectCallPro = writes(PERMISSIONS.integrationManage)
