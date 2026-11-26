@@ -1,5 +1,8 @@
+import { eq } from 'drizzle-orm';
 import { describe, expect, it, vi } from 'vite-plus/test';
 import { PERMISSIONS } from '#/core.ts';
+import { callOperators } from '#/db/calls.ts';
+import { withOrg } from '#/db/client.ts';
 import { clientAs } from '#/test/member.ts';
 import { channelFor, runQueued } from '../../integrations/__tests__/fakes.ts';
 import { fakePbx, fixture, PBX, pbxServer } from './pbx.ts';
@@ -196,6 +199,39 @@ describe('calls through a PBX', () => {
       ),
     ).toBe(200);
     expect((await owner.calls.list({})).calls).toMatchObject([{ status: 'missed' }]);
+  });
+
+  it('takes only an extension number for an operator, and gives no line to one saved before', async () => {
+    fakePbx();
+    const { owner, account } = await connectPbx('org-call-ext');
+
+    const save = (extension: string) =>
+      owner.integrations.call.saveSettings({
+        accountId: account.id,
+        ...PBX,
+        queues: [],
+        operators: [{ userId: 'user-saraa', extension, sipPassword: 'sip-secret' }],
+      });
+
+    // An email in the extension made the softphone's SIP address `sip:a@b@host`, which broke
+    // every page of the plugin.
+    await expect(save('info@erxes.io')).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+
+    await save('3001');
+
+    const saraa = clientAs('org-call-ext', [PERMISSIONS.callView], 'user-saraa');
+
+    expect(await saraa.calls.phone.lines({})).toMatchObject([{ extension: '3001' }]);
+
+    // One saved before extensions were checked signs in nowhere, so the phone stays away.
+    await withOrg('org-call-ext', (tx) =>
+      tx
+        .update(callOperators)
+        .set({ extension: 'info@erxes.io' })
+        .where(eq(callOperators.accountId, account.id)),
+    );
+
+    expect(await saraa.calls.phone.lines({})).toEqual([]);
   });
 
   it("gives an operator's softphone its line, the call it is on, and transfers it", async () => {

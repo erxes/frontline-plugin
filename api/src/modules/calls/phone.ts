@@ -8,6 +8,7 @@ import { callOperators, calls } from '#/db/calls.ts';
 import { integrationAccounts } from '#/db/integrations.ts';
 import { reads, readsWithCore, writesWithCore } from '#/orpc.ts';
 import { call, pbxOf } from '../integrations/providers/call/call.ts';
+import { EXTENSION } from '../integrations/providers/call/lines.ts';
 import { pbxAction, pbxFailed } from '../integrations/providers/call/pbx.ts';
 import { openSecret } from '../integrations/secrets.ts';
 import { hasCallWith } from './calls.ts';
@@ -68,7 +69,8 @@ const lines = reads(PERMISSIONS.callView)
     const rows = await operatorLines(tx, member, isNotNull(callOperators.sipSecret));
 
     return rows.flatMap(({ operator, account }) => {
-      if (!operator.sipSecret) return [];
+      // An extension saved before extensions were checked can be anything; it can't sign in.
+      if (!operator.sipSecret || !EXTENSION.test(operator.extension)) return [];
 
       const { config } = call.open(account).account;
 
