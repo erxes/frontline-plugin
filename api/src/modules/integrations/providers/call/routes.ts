@@ -9,7 +9,7 @@ import type { AccountRow } from '../../provider.ts';
 import { sameText } from '../../secrets.ts';
 import { accountOf } from '../../store.ts';
 import { call, callpro } from './call.ts';
-import { followAgents } from './lines.ts';
+import { followAgents, pausedAtOf } from './lines.ts';
 import { trunkKey } from './relay.ts';
 import { Cdr, callKeyOf, customerPhoneOf, isOutgoing, pbxTime, queueOf } from './cdr.ts';
 import type { CALL_STATUSES } from '#/db/calls.ts';
@@ -208,7 +208,7 @@ const PBX_POSTS: Record<
         answered: agent.answer,
         abandoned: agent.abandon,
         talkSeconds: agent.talktime,
-        pausedAt: agent.pausetime || null,
+        pausedAt: pausedAtOf(agent.pausetime),
       })),
       waiting: state.waiting.map((caller) => ({
         callerId: caller.callerid,
