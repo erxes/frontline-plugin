@@ -61,7 +61,13 @@ export const relayed = (actions: Record<string, unknown>[]) =>
 export const fakePbx = ({
   password = 'secret',
   relay = relayTakes,
-}: { password?: string; relay?: (call: RelayCall) => Response } = {}) => {
+  answers = {},
+}: {
+  password?: string;
+  relay?: (call: RelayCall) => Response;
+  /** What the PBX answers an action with, over `ANSWERS`. */
+  answers?: Record<string, unknown>;
+} = {}) => {
   const actions: Record<string, unknown>[] = [];
 
   vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
@@ -110,7 +116,7 @@ export const fakePbx = ({
       default:
         return Response.json({
           status: 0,
-          response: ANSWERS[asked.action] ?? { need_apply: 'no' },
+          response: answers[asked.action] ?? ANSWERS[asked.action] ?? { need_apply: 'no' },
         });
     }
   });

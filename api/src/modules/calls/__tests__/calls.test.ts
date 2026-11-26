@@ -93,10 +93,12 @@ describe('calls through a PBX', () => {
     const { conversations } = await owner.conversations.list({});
 
     expect(conversations).toHaveLength(1);
+    // The member who answered takes the conversation.
     expect(conversations[0]).toMatchObject({
       kind: 'call',
       customerId: 'customer-99112233',
       content: 'Incoming call from 99112233',
+      assigneeId: 'user-saraa',
     });
 
     await runQueued();

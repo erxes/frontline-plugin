@@ -68,6 +68,11 @@ test('calls from a phone line show in the call history as they happen, and open 
   await expect(page).toHaveURL(/\/frontline\/inbox\?conversationId=/);
   await expectPage(page, 'Inbox');
   await expect(page.getByText(`Incoming call from ${answered}`).first()).toBeVisible();
+
+  // The conversation's header opens its call again, with the call's times and recording.
+  await page.getByRole('button', { name: 'Open the call' }).click();
+  await expect(recordPanel(page)).toContainText('Answered');
+  await expect(recordPanel(page)).toContainText('No recording');
 });
 
 test('callers nobody talked to wait in Callbacks until someone does', async ({ page, api }) => {

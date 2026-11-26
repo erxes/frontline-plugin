@@ -29,6 +29,7 @@ import { ConversationIdentity } from './ConversationIdentity.tsx';
 import { ConversationMenu } from './ConversationPresence.tsx';
 import { ReplyDue } from './ReplyDue.tsx';
 import { type Conversation, conversationTags, useCreateTag } from './queries.ts';
+import { ConversationCall } from './ConversationCall.tsx';
 import { ConversationTickets } from './ConversationTickets.tsx';
 import { TagDot, usePickedTags } from './TagDot.tsx';
 import { useAssign, useSetStatus, useSetTags } from './changes.ts';
@@ -221,6 +222,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
       <span className="flex-1" />
       <ReplyDue conversation={conversation} />
       <span className="flex shrink-0 items-center gap-1.5">
+        <ConversationCall conversation={conversation} />
         <MemberButton
           value={conversation.assigneeId}
           onValueChange={(assigneeId) => assign.mutate({ ids: [conversation.id], assigneeId })}
