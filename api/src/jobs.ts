@@ -1,6 +1,7 @@
 import type { PluginJobDelivery } from '@erxes/core-contract';
 import { JOBS } from '#/core.ts';
 import { checkDomains } from '#/modules/helpcenter/domains.ts';
+import { checkReplies, sendAwayReply } from '#/modules/inbox/replyCheck.ts';
 import { sendReply } from '#/modules/inbox/send.ts';
 import { publishScheduled } from '#/modules/knowledgebase/articles.ts';
 import { checkAccounts, syncMail } from '#/modules/integrations/jobs.ts';
@@ -13,6 +14,8 @@ import { checkSla } from '#/modules/tickets/sla.ts';
 /** What each job in the manifest's `jobs` does when core runs it at `/api/jobs/<name>`. */
 export const JOB_RUNS: Record<string, (job: PluginJobDelivery) => Promise<unknown>> = {
   [JOBS.sla.name]: (job) => checkSla(job.orgId),
+  [JOBS.replies.name]: (job) => checkReplies(job.orgId),
+  [JOBS.awayReply.name]: sendAwayReply,
   [JOBS.domains.name]: (job) => checkDomains(job.orgId),
   [JOBS.kbPublish.name]: (job) => publishScheduled(job.orgId),
   [JOBS.send.name]: sendReply,

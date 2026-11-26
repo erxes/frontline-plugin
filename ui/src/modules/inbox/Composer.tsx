@@ -1,5 +1,5 @@
 import { IconArrowBackUp, IconX } from '@tabler/icons-react';
-import { Button, cn, editorText } from 'erxes-ui';
+import { Button, editorText } from 'erxes-ui';
 import { type KeyboardEvent, type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Conversation, useSendTyping } from './queries.ts';
@@ -7,7 +7,7 @@ import { sendingTo, type useSendMessage } from './changes.ts';
 import { useComposerFiles } from './ComposerFiles.tsx';
 import { type Mode, ModeBar, Toolbar } from './ComposerBars.tsx';
 import { type Quote, useDraft } from './composerDraft.ts';
-import { focusComposer, ReplyEditor } from './ComposerEditor.tsx';
+import { cardLook, focusComposer, ReplyEditor } from './ComposerEditor.tsx';
 import { useSendShortcut } from './useSendShortcut.ts';
 
 /** The pane's send, which its thread shows while it goes. */
@@ -52,17 +52,6 @@ const paragraphs = (text: string) =>
         `<p>${line.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')}</p>`,
     )
     .join('');
-
-/**
- * The reply box's card: a raised panel on the thread's background that rings while the member
- * writes in it; a note turns it yellow, rule and ring with it.
- */
-const cardLook = (note: boolean) =>
-  cn(
-    '@container flex flex-col rounded-xl border bg-background shadow-sm transition-colors',
-    !note && 'focus-within:border-ring/60 focus-within:ring-2 focus-within:ring-ring/15',
-    note && 'border-warning/60 bg-warning/10 focus-within:ring-2 focus-within:ring-warning/20',
-  );
 
 /** The message the reply answers, over the editor, with a button that drops it. */
 const Quoted = ({ quote, onRemove }: { quote: Quote; onRemove: () => void }) => {

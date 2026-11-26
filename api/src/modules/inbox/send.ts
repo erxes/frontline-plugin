@@ -7,7 +7,7 @@ import { conversations, type DELIVERY_STATUSES, integrations, messages } from '#
 import { logger } from '#/logger.ts';
 import { AccountRefused } from '../integrations/provider.ts';
 import { ADAPTERS } from './adapters.ts';
-import { setOperatorOf } from './operator.ts';
+import { handToPerson } from './operator.ts';
 import { overdue } from './post.ts';
 import { signalConversations } from './shared.ts';
 
@@ -120,7 +120,7 @@ const handOffUnsent = (orgId: string, conversationId: string) =>
       { orgId, conversationId },
       'bot message not delivered; a person takes the conversation',
     );
-    await setOperatorOf(tx, orgId, [conversation], 'person');
+    await handToPerson(tx, orgId, [conversation]);
   });
 
 /**

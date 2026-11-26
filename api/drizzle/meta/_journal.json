@@ -330,6 +330,13 @@
       "when": 1795498163184,
       "tag": "0048_message_blocks",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1795618737900,
+      "tag": "0049_reply_policy",
+      "breakpoints": true
     }
   ]
 }

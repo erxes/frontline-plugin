@@ -20,7 +20,8 @@ import { compileFilter, type FilterFields } from '@erxes/plugin-sdk/filter';
 import { FilterInput, filtersBy, likeText } from '../filter.ts';
 import { notifyMembers } from '../notify.ts';
 import { firstPageCount, orderOf, PageInput, PageOutput } from '../paging.ts';
-import { takeOver } from './operator.ts';
+import { assignConversations } from './assign.ts';
+import { ANSWERED } from './replyClock.ts';
 import {
   Conversation,
   conversationById,
@@ -51,6 +52,12 @@ export const conversationFilter = (member: PluginMember): FilterFields => ({
   'subject.tagIds': { type: 'tags', expr: tagIdsOf },
   'subject.isRead': { type: 'boolean', expr: readSql(member) },
   'subject.customerRespondedLast': { type: 'boolean', expr: conversations.customerRespondedLast },
+  // The customer waits past the channel's reply target.
+  'subject.replyOverdue': {
+    type: 'boolean',
+    expr: sql<boolean>`(${conversations.waitingSince} is not null and ${conversations.replyBreachedAt} is not null)`,
+  },
+  'subject.waitingSince': { type: 'date', expr: conversations.waitingSince },
   // The old inbox's automation states: "Automation responded" is a message from neither the
   // customer nor a member, which only the bot writes; "Handed off to operator" is a person's.
   'subject.botReplied': {
@@ -200,8 +207,11 @@ const assign = writes(PERMISSIONS.inboxView)
   .output(z.array(Conversation))
   .handler(async ({ input, context: { tx, member, afterCommit } }) => {
     const rows = await conversationsFor(tx, member, input.ids);
-    const changed = rows.filter((row) => row.assigneeId !== input.assigneeId);
     const { assigneeId } = input;
+
+    const changed = await assignConversations(tx, member.orgId, member.userId, rows, assigneeId, {
+      reason: 'member',
+    });
 
     if (assigneeId && changed.length > 0)
       afterCommit(() =>
@@ -211,39 +221,6 @@ const assign = writes(PERMISSIONS.inboxView)
           changed.map((row) => row.id),
         ),
       );
-
-    if (changed.length > 0) {
-      await tx
-        .update(conversations)
-        .set({ assigneeId: input.assigneeId })
-        .where(
-          inArray(
-            conversations.id,
-            changed.map((row) => row.id),
-          ),
-        );
-
-      if (assigneeId)
-        await takeOver(
-          tx,
-          changed.map((row) => row.id),
-        );
-
-      await publishConversationEvents(
-        tx,
-        member.orgId,
-        member.userId,
-        changed.map((row) => ({
-          conversationId: row.id,
-          customerId: row.customerId,
-          type: CONVERSATION_EVENTS.assigned.type,
-          summary: input.assigneeId ? 'Assigned the conversation' : 'Unassigned the conversation',
-          payload: { from: row.assigneeId, to: input.assigneeId },
-        })),
-      );
-      // The visitor's messenger hears too: the bot no longer answers an assigned conversation.
-      await signalConversations(tx, member.orgId, changed);
-    }
 
     return conversationRows(tx, member).where(inArray(conversations.id, input.ids));
   });
@@ -265,6 +242,8 @@ const setStatus = writes(PERMISSIONS.inboxView)
           status: input.status,
           resolvedAt: resolved ? new Date() : null,
           resolvedBy: resolved ? member.userId : null,
+          // A resolved conversation keeps nobody waiting; the customer's next message starts again.
+          ...(resolved && ANSWERED),
         })
         .where(
           inArray(

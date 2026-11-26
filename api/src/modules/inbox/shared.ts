@@ -136,6 +136,8 @@ export type ConversationEvent = {
   /** What the timeline shows; an event without one, such as an automation trigger, isn't shown. */
   summary: string | null;
   payload: Record<string, unknown>;
+  /** The members core tells, with the notification's title; the kind is the event's type. */
+  notify?: { userIds: string[]; title: string };
 };
 
 /**

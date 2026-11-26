@@ -1,11 +1,13 @@
 import type { AgentBlock } from '@erxes/core-contract';
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { CONVERSATION_OPERATORS, conversations, integrations, messages } from '#/db/inbox.ts';
 import { writes } from '#/orpc.ts';
 import { ADAPTERS } from './adapters.ts';
+import { ANSWERED, waitEnded } from './replyClock.ts';
+import { autoAssign } from './replies.ts';
 import { queueSend } from './post.ts';
 import { inOrder } from '../integrations/provider.ts';
 import { conversationsFor, Ids, signalConversations } from './shared.ts';
@@ -52,6 +54,7 @@ export const addBotMessage = async (
       blocks,
       externalId,
       deliveryStatus: queued ? 'queued' : 'sent',
+      ...(answers && waitEnded(conversation.id)),
     })
     .onConflictDoNothing()
     .returning({ id: messages.id, createdAt: messages.createdAt });
@@ -64,7 +67,7 @@ export const addBotMessage = async (
       content,
       messageCount: sql`${conversations.messageCount} + 1`,
       lastMessageAt: message.createdAt,
-      ...(answers && { customerRespondedLast: false }),
+      ...(answers && { customerRespondedLast: false, ...ANSWERED }),
     })
     .where(eq(conversations.id, conversation.id));
 
@@ -106,14 +109,21 @@ export const setOperatorOf = async (
 };
 
 /**
- * A member replied in the conversations or was assigned them, so the bot stops answering. The
- * reply or the assignee speaks for itself: the customer gets no hand-off message.
+ * Hands the conversations to a person, as `setOperatorOf` does, and to an available member
+ * when their channel assigns automatically.
  */
-export const takeOver = (tx: Tx, ids: string[]) =>
-  tx
-    .update(conversations)
-    .set({ operator: 'person' })
-    .where(and(inArray(conversations.id, ids), eq(conversations.operator, 'bot')));
+export const handToPerson = async (
+  tx: Tx,
+  orgId: string,
+  rows: (Target & { operator: string })[],
+) => {
+  await setOperatorOf(tx, orgId, rows, 'person');
+  await autoAssign(
+    tx,
+    orgId,
+    rows.map((row) => row.id),
+  );
+};
 
 /** A member hands conversations to a person, or lets the bot answer them again. */
 const setOperator = writes(PERMISSIONS.inboxView)

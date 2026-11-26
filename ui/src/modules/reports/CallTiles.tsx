@@ -4,7 +4,8 @@ import { MemberLine } from '~/shared/Person.tsx';
 import { durationText } from '@/calls/queries.ts';
 import { DayChart, Heatmap } from './Charts.tsx';
 import { useCallReport } from './queries.ts';
-import { MiniTable, percentText, shareOf, Stat, Stats, Tile, useSpanText } from './Tile.tsx';
+import { useSpanText } from '~/shared/spanText.ts';
+import { MiniTable, percentText, shareOf, Stat, Stats, Tile } from './Tile.tsx';
 
 type CallReport = NonNullable<ReturnType<typeof useCallReport>['query']['data']>;
 

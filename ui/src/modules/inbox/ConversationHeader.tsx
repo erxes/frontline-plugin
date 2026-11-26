@@ -28,6 +28,7 @@ import { MemberButton } from '~/shared/MemberPicker.tsx';
 import { AgentActivity } from './AgentActivity.tsx';
 import { ConversationIdentity } from './ConversationIdentity.tsx';
 import { ConversationMenu } from './ConversationPresence.tsx';
+import { ReplyDue } from './ReplyDue.tsx';
 import { type Conversation, conversationTags, useCreateTag } from './queries.ts';
 import { ConversationTickets } from './ConversationTickets.tsx';
 import { TagDot, usePickedTags } from './TagDot.tsx';
@@ -219,6 +220,7 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
       <ListToggle />
       <ConversationIdentity conversation={conversation} />
       <span className="flex-1" />
+      <ReplyDue conversation={conversation} />
       <span className="flex shrink-0 items-center gap-1.5">
         <MemberButton
           value={conversation.assigneeId}

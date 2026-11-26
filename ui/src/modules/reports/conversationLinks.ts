@@ -37,5 +37,8 @@ export const conversationLinks = (range: { from: Date; to: Date }, channelId: st
       listPath(INBOX_PATH, ANY_STATUS, ...inChannel, ...between('subject.resolvedAt', range)),
     /** The inbox as it opens: every conversation not resolved. */
     unresolved: () => (channelId ? channelPath(channelId, 'inbox') : INBOX_PATH),
+    /** The conversations whose customer waits past the reply target now. */
+    overdue: () =>
+      listPath(INBOX_PATH, ...inChannel, { path: 'subject.replyOverdue', op: 'eq', value: true }),
   };
 };

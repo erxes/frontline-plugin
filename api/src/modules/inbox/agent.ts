@@ -9,7 +9,8 @@ import { conversations, integrations, messages } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
 import { writes } from '#/orpc.ts';
 import { integrationFor } from './integrations.ts';
-import { addBotMessage, setOperatorOf, takeOver } from './operator.ts';
+import { takeOver } from './assign.ts';
+import { addBotMessage, handToPerson } from './operator.ts';
 import { signalConversations } from './shared.ts';
 
 /** The kinds of integration a core agent answers: the website messenger and Meta's direct messages. */
@@ -57,7 +58,7 @@ const handOff = (orgId: string, { agentId, key }: { agentId: string; key: string
   withOrg(orgId, async (tx) => {
     const conversation = await answeredBy(tx, { agentId, key });
 
-    if (conversation) await setOperatorOf(tx, orgId, [conversation], 'person');
+    if (conversation) await handToPerson(tx, orgId, [conversation]);
   });
 
 /**

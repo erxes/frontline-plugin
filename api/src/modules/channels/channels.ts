@@ -11,6 +11,7 @@ import {
   CHANNEL_ROLES,
   channelMembers,
   channels,
+  ReplyPolicy,
   responseTemplates,
 } from '#/db/schema.ts';
 import { pipelines } from '#/db/tickets.ts';
@@ -39,7 +40,7 @@ const Icon = z.string().max(100).nullable();
 const { orgId, ...channelColumns } = getTableColumns(channels);
 
 /** The row, with its members and what the caller may do, which the query selects. */
-const Channel = createSelectSchema(channels)
+const Channel = createSelectSchema(channels, { replyPolicy: ReplyPolicy })
   .omit({ orgId: true })
   .extend({
     /** Its members' core user ids, admins first. */
@@ -249,6 +250,41 @@ const update = writes(PERMISSIONS.channelView)
     return changed;
   });
 
+/**
+ * Sets how the channel answers its customers (`ReplyPolicy`): its reply targets and warning,
+ * reassignment of what an assignee leaves unanswered, auto-assignment and its cap, and the away
+ * message. Its admins, or a member who manages every channel, may.
+ */
+const setReplyPolicy = writes(PERMISSIONS.channelView)
+  .route({
+    summary:
+      "Set a channel's reply rules: reply targets, warning, reassignment, auto-assignment and away message",
+  })
+  .input(z.object({ id: z.string(), replyPolicy: ReplyPolicy }))
+  .output(Channel)
+  .handler(async ({ input: { id, replyPolicy }, context: { tx, member } }) => {
+    await channelFor(tx, member, id, { change: true });
+
+    const before = await channelById(tx, member, id);
+
+    await tx.update(channels).set({ replyPolicy }).where(eq(channels.id, id));
+
+    const changed = await channelById(tx, member, id);
+
+    await publishChannelEvents(
+      tx,
+      member,
+      changedEvent(
+        CHANNEL_EVENTS.fieldsChanged.type,
+        [['replyPolicy', 'reply rules']],
+        before,
+        changed,
+      ),
+    );
+
+    return changed;
+  });
+
 /** Deletes the channels and their memberships, all of them or none when the caller may not delete one. */
 const remove = writes(PERMISSIONS.channelView)
   .route({ summary: 'Delete channels you admin and their memberships, all or none' })
@@ -305,4 +341,4 @@ const personal = writes(PERMISSIONS.channelView)
     return row;
   });
 
-export const channelProcedures = { list, get, create, update, remove, personal };
+export const channelProcedures = { list, get, create, update, setReplyPolicy, remove, personal };

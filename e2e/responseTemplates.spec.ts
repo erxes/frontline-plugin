@@ -49,6 +49,17 @@ test("a channel admin writes, edits and deletes the channel's response templates
   await page.keyboard.press('Enter');
   await expect(page.getByRole('row', { name: /Welcome/ })).toBeVisible();
 
+  // The content is written in the reply box's card: Save, or Ctrl+Enter as a reply sends.
+  const save = panel.getByRole('button', { name: 'Save', exact: true });
+
+  await expect(save).toBeDisabled();
+  await panel.getByRole('textbox', { name: 'Content' }).press('End');
+  await page.keyboard.type(' We reply within a day.');
+  await expect(save).toBeEnabled();
+  await page.keyboard.press('Control+Enter');
+  await expect(save).toBeDisabled();
+  await expect(page.getByRole('row', { name: /We reply within a day/ })).toBeVisible();
+
   // The filter bar's search lives in the address and matches the content's words.
   const list = new URL(page.url());
 
@@ -75,6 +86,7 @@ test("a channel admin writes, edits and deletes the channel's response templates
   await expect(
     recordPanel(teammate.page).getByRole('button', { name: 'Response template actions' }),
   ).toBeHidden();
+  await expect(recordPanel(teammate.page).getByRole('button', { name: 'Save' })).toBeHidden();
 
   await page
     .getByRole('row', { name: /Welcome/ })

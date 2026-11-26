@@ -41,6 +41,7 @@ import {
 } from '#/modules/integrations/providers/call/connect.ts';
 import { linkPreviewProcedures } from '#/modules/inbox/linkPreviews.ts';
 import { messageProcedures } from '#/modules/inbox/messages.ts';
+import { availabilityProcedures } from '#/modules/inbox/availability.ts';
 import { operatorProcedures } from '#/modules/inbox/operator.ts';
 import { presenceProcedures } from '#/modules/inbox/presence.ts';
 import { conversationPropertyProcedures } from '#/modules/inbox/properties.ts';
@@ -116,6 +117,7 @@ export const router = {
     ...conversationPropertyProcedures,
     messages: { ...messageProcedures, ...reactionProcedures, ...linkPreviewProcedures },
   },
+  availability: availabilityProcedures,
   knowledgebase: {
     topics: topicProcedures,
     categories: categoryProcedures,

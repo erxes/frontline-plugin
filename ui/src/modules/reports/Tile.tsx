@@ -232,26 +232,6 @@ export const percentText = (share: number | null) =>
 /** `part` as a percent of `whole`, "–" of none. */
 export const shareOf = (part: number, whole: number) => percentText(whole ? part / whole : null);
 
-const round = (value: number) => Math.round(value * 10) / 10;
-
-/** How long an average took, in the largest unit that reads well: "45 s", "12 min", "3.5 h", "2.1 d". */
-export const useSpanText = () => {
-  const { t } = useTranslation('frontline');
-
-  return (seconds: number | null) => {
-    if (seconds === null) return '–';
-
-    if (seconds < 60) return t('span-seconds', '{{count}} s', { count: Math.round(seconds) });
-
-    if (seconds < 3600)
-      return t('span-minutes', '{{count}} min', { count: Math.round(seconds / 60) });
-
-    if (seconds < 86_400) return t('span-hours', '{{count}} h', { count: round(seconds / 3600) });
-
-    return t('span-days', '{{count}} d', { count: round(seconds / 86_400) });
-  };
-};
-
 /** A small table of a tile's rows: who or what each row is, then its numbers on the right. */
 export const MiniTable = ({
   heads: [lead, ...numbers],
