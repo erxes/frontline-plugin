@@ -21,6 +21,7 @@ import { Link } from 'react-router-dom';
 import { conversationPath } from '~/plugin.ts';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { CALL_ICONS, CallStatus, queueLabel, useDirectionNames } from './CallFields.tsx';
+import { RecordingPlayer } from './RecordingPlayer.tsx';
 import { type Call, durationText, useCall, useFetchRecording } from './queries.ts';
 import { InfoRow, PanelSkeleton } from '~/shared/Panel.tsx';
 import { ContactChip, MemberChip } from '~/shared/Person.tsx';
@@ -129,22 +130,7 @@ const Recording = ({ call }: { call: Call }) => {
 
   return (
     <PanelSection title={t('recording', 'Recording')} icon={IconMicrophone}>
-      {call.recording ? (
-        <audio
-          controls
-          src={call.recording.url}
-          className="w-full px-2"
-          aria-label={call.recording.name}
-        >
-          <track kind="captions" />
-        </audio>
-      ) : (
-        <p className="px-2 text-xs text-muted-foreground">
-          {call.recordingFile
-            ? t('recording-copying', 'The PBX recorded this call; the copy is on its way.')
-            : t('no-recording', 'No recording')}
-        </p>
-      )}
+      <RecordingPlayer call={call} />
     </PanelSection>
   );
 };
