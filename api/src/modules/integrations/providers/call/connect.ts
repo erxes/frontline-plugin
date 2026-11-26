@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { ORPCError } from '@orpc/server';
-import { and, eq, getTableColumns, sql } from 'drizzle-orm';
+import { eq, getTableColumns, sql } from 'drizzle-orm';
 import { createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 import { config } from '#/config.ts';
@@ -65,7 +65,8 @@ const relayRefused = (error: unknown) => {
  * (`CALL_API_USER`), then hands out the address and secret its events are signed with, and with
  * pbx-relay routes its trunks and queues here, all before the transaction opens, so a refusal
  * saves nothing. Its queues and operators can come with it, as the old form took them.
- * Connecting the same PBX again keeps its id and replaces its settings, key and route.
+ * Each connect is a new account, so one PBX can have several, each with its own trunks and queues;
+ * pbx-relay refuses a trunk or queue another account already routes.
  */
 const connect = writesWithCore(
   PERMISSIONS.integrationManage,
@@ -84,22 +85,10 @@ const connect = writesWithCore(
 
     if (refused) throw new ORPCError('BAD_REQUEST', { message: refused });
 
-    const [connected] = await withOrg(member.orgId, async (tx) => {
-      await intoChannel(tx, member, input.channelId);
-
-      return tx
-        .select({ id: integrationAccounts.id })
-        .from(integrationAccounts)
-        .where(
-          and(
-            eq(integrationAccounts.provider, 'call'),
-            eq(integrationAccounts.externalId, input.host.toLowerCase()),
-          ),
-        );
-    });
+    await withOrg(member.orgId, (tx) => intoChannel(tx, member, input.channelId));
 
     const pbx = {
-      id: connected?.id ?? randomUUID(),
+      id: randomUUID(),
       host: input.host,
       srcTrunk: input.srcTrunk,
       dstTrunk: input.dstTrunk,
@@ -118,7 +107,7 @@ const connect = writesWithCore(
 )
   .route({
     summary:
-      'Connect a Grandstream UCM phone system, routing its trunks and queues here; reconnecting replaces its settings',
+      'Connect a Grandstream UCM phone system as a new account, routing its trunks and queues here',
   })
   .output(Account)
   .handler(async ({ input, context: { tx, member, fromCore } }) => {
@@ -130,7 +119,8 @@ const connect = writesWithCore(
       {
         id: fromCore.id,
         provider: 'call',
-        externalId: input.host.toLowerCase(),
+        // The account's own id: a PBX's accounts are told apart by their trunks and queues.
+        externalId: fromCore.id,
         name: name || input.phone,
         config: settings,
         secret: { webhookSecret: fromCore.webhookSecret },

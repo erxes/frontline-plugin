@@ -83,6 +83,30 @@ describe("a PBX set up with the old form's fields", () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
+  it('connects a second account on the same PBX without changing the first', async () => {
+    fakePbx();
+
+    const owner = clientAs('org-pbx-form-two');
+    const main = await owner.integrations.call.connect({ ...PBX, name: 'EMJJ-Main', ...TRUNKS });
+
+    const tuv = await owner.integrations.call.connect({
+      ...PBX,
+      name: 'EMJJ-Tuv',
+      srcTrunk: 'EMJJ-Tuv',
+      dstTrunk: 'EMJJ-Tuv',
+    });
+
+    expect(tuv.id).not.toBe(main.id);
+
+    const { accounts } = await owner.integrations.accounts.list({});
+
+    expect(accounts.map(({ name }) => name).toSorted()).toEqual(['EMJJ-Main', 'EMJJ-Tuv']);
+
+    const kept = await owner.integrations.call.settings({ accountId: main.id });
+
+    expect(kept.account).toMatchObject({ name: 'EMJJ-Main', config: TRUNKS });
+  });
+
   it("tells a live call's direction by the account's trunks", async () => {
     fakePbx();
 
