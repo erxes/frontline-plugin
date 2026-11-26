@@ -23,7 +23,7 @@ import { channelsQuery } from '~/shared/reference.ts';
 import { CONVERSATION_TYPE, INTEGRATION_TYPE, PLUGIN } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
 import { AvailabilityToggle } from './Availability.tsx';
-import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
+import { ListEmpty, ListError } from '~/shared/List.tsx';
 import { useListParams } from '~/shared/listPath.ts';
 import { QueryBoundary } from '~/shared/QueryBoundary.tsx';
 import { BulkBar } from './BulkBar.tsx';
@@ -297,7 +297,8 @@ const InboxBody = ({ onConnect }: { onConnect?: () => void }) => {
 /**
  * The inbox: every conversation of the member's channels under core's list bar, on the left,
  * filtered by channel, integration, status, assignee, tags and more, and the open one on the
- * right with its thread and reply box. A channel admin adds a website messenger from here.
+ * right with its thread and reply box. An empty inbox offers a channel admin a website messenger;
+ * otherwise messengers are added from the channel's settings.
  */
 export const InboxPage = () => {
   const { t } = useTranslation('frontline');
@@ -326,11 +327,6 @@ export const InboxPage = () => {
             {t('new-mail', 'New mail')}
           </Button>
         )}
-        <CreateButton
-          allowed={canConnect}
-          label={t('add-messenger', 'Add messenger')}
-          onClick={connect}
-        />
       </AppHeader>
       <ViewBar allLabel={t('all-conversations', 'All conversations')}>
         <ListFilter
