@@ -279,17 +279,17 @@ test('a member takes over from the bot, sees the visitor typing and edits a repl
   await expect(header).toContainText('Typing…');
 
   // The visitor asks for a person: the bot says one will answer, and the member can hand it back
-  // from the header's overflow menu.
-  const actions = header.getByRole('button', { name: 'Conversation actions' });
+  // from the header's bot button, which is named for who answers now.
+  const answeredBy = (name: string) => header.getByRole('button', { name, exact: true });
 
   await visitor.tell(conversationId, 'person');
   await expect(thread).toContainText('A person from the team will answer you here.');
   await expect(thread.getByRole('article', { name: 'Message' }).last()).toContainText('Bot');
-  await actions.click();
+  await answeredBy('A person answers').click();
   await page.getByRole('menuitem', { name: 'Let the bot answer' }).click();
-  await actions.click();
+  await answeredBy('The bot answers').click();
   await page.getByRole('menuitem', { name: 'Take over' }).click();
-  await actions.click();
+  await answeredBy('A person answers').click();
   await expect(page.getByRole('menuitem', { name: 'Let the bot answer' })).toBeVisible();
   await page.keyboard.press('Escape');
 

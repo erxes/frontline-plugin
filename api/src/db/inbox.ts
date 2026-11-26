@@ -39,6 +39,11 @@ export const integrations = table(
      * `bot`, or null for none. Core refuses a submit to an agent since deleted.
      */
     agentId: text(),
+    /**
+     * How many minutes a customer waits on a person before the agent answers again, or null to
+     * leave it to the person.
+     */
+    agentTakeBackMinutes: integer(),
     ...stamps(),
   },
   (t) => [
@@ -302,6 +307,8 @@ export const customerLinks = table(
     /** A core customer id. */
     customerId: text().notNull(),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+    /** When the provider was asked for the person's profile picture; null until it is. */
+    pictureAskedAt: timestamp({ withTimezone: true }),
   },
   (t) => [
     primaryKey({

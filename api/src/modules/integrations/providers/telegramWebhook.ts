@@ -132,6 +132,8 @@ const inboundOf = (token: string, message: z.infer<typeof Message>): InboundMess
       text: textOf(message),
       attachments: [],
       files: filesOf(token, message),
+      // An agent answers a private chat, not each message of a group.
+      forAgent: message.chat.type === 'private' && Boolean(textOf(message).trim()),
       quotedId:
         message.reply_to_message && `${message.chat.id}:${message.reply_to_message.message_id}`,
     },

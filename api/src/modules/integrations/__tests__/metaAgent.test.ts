@@ -13,6 +13,7 @@ import {
   serve,
   signedByMeta,
 } from './fakes.ts';
+import { messagingWith, said } from './metaMessaging.ts';
 
 vi.mock('#/core.ts', async (importOriginal) =>
   (await import('./standIns.ts')).coreStandIn(await importOriginal()),
@@ -24,25 +25,7 @@ vi.mock('@erxes/plugin-sdk', async (importOriginal) =>
 
 const { connectMeta, deliver, coreEvent } = serve();
 
-/** A delivery of Messenger's or Instagram's messaging `events` for the page or account `id`. */
-const messaging = (object: 'page' | 'instagram', id: string, events: unknown[]) => {
-  const raw = JSON.stringify({ object, entry: [{ id, time: 1763180000123, messaging: events }] });
-
-  return deliver('/meta', raw, signedByMeta(raw));
-};
-
-/** `sender`'s message `mid` to `recipient`, with what else Meta put in `message`. */
-const said = (
-  sender: string,
-  recipient: string,
-  mid: string,
-  message: Record<string, unknown>,
-) => ({
-  sender: { id: sender },
-  recipient: { id: recipient },
-  timestamp: 1763180000500,
-  message: { mid, ...message },
-});
+const messaging = messagingWith(deliver);
 
 /** `orgId`'s page or Instagram account, answered by core's `agent-1`. */
 const withAgent = async (orgId: string, provider: 'facebook' | 'instagram') => {
@@ -185,10 +168,13 @@ describe('a page’s core agent', () => {
       agentGot(await conversationWith('org-fb-agent-a', 'comment:page-1_post-9:asid-7')),
     ).toEqual([]);
 
+    // An agent answers any chat or mailbox, but no phone line.
     const telegram = await channelFor('org-fb-agent-a', 'telegram', 'account-tg');
+    const phone = await channelFor('org-fb-agent-a', 'call', 'account-call');
 
+    await owner.integrations.setAgent({ id: telegram.id, agentId: 'agent-1' });
     await expect(
-      owner.integrations.setAgent({ id: telegram.id, agentId: 'agent-1' }),
+      owner.integrations.setAgent({ id: phone.id, agentId: 'agent-1' }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 

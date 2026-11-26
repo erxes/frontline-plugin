@@ -246,6 +246,8 @@ export const JOBS = {
    * conversations to available members.
    */
   replies: { name: 'inbox.replies', cron: '* * * * *' },
+  /** Gives the agent back the conversations whose customer waited too long on a person. */
+  agentTakeBack: { name: 'inbox.agent-take-back', cron: '*/5 * * * *' },
   /** Sends a channel's away message to a customer who wrote while every member was away. */
   awayReply: { name: 'inbox.away-reply', retry: { attempts: 3, delay: 10, maxDelay: 60 } },
   /** Re-reads pending help center domains from Cloudflare until they are served. */
@@ -276,6 +278,11 @@ export const JOBS = {
   /** Copies a Facebook or Instagram message's files from Meta's CDN to core's storage. */
   metaFiles: {
     name: 'integrations.meta-files',
+    retry: { attempts: 5, delay: 60, maxDelay: 1800 },
+  },
+  /** Copies a provider's profile picture of a new customer to core, as their avatar. */
+  customerPicture: {
+    name: 'integrations.customer-picture',
     retry: { attempts: 5, delay: 60, maxDelay: 1800 },
   },
   /**

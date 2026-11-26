@@ -135,7 +135,7 @@ const Summary = ({
         <span
           className={cn(
             'shrink-0 text-xs tabular-nums',
-            state === 'overdue' && 'font-medium text-destructive',
+            state === 'overdue' && 'font-medium text-destructive-text',
             state && state !== 'overdue' && 'font-medium text-warning-text',
             !state && unread && 'font-medium text-primary-text',
             !state && !unread && 'text-muted-foreground',

@@ -1,19 +1,16 @@
 import type { AgentBlock } from '@erxes/core-contract';
 import { eq, inArray, sql } from 'drizzle-orm';
-import { z } from 'zod';
-import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
-import { CONVERSATION_OPERATORS, conversations, integrations, messages } from '#/db/inbox.ts';
-import { writes } from '#/orpc.ts';
+import { type CONVERSATION_OPERATORS, conversations, integrations, messages } from '#/db/inbox.ts';
 import { ADAPTERS } from './adapters.ts';
 import { ANSWERED, waitEnded } from './replyClock.ts';
 import { autoAssign } from './replies.ts';
 import { queueSend } from './post.ts';
 import { inOrder } from '../integrations/provider.ts';
-import { conversationsFor, Ids, signalConversations } from './shared.ts';
+import { signalConversations } from './shared.ts';
 
 /** What the customer reads when a person takes the conversation over from the bot. */
-export const HAND_OFF_MESSAGE = 'A person from the team will answer you here.';
+const HAND_OFF_MESSAGE = 'A person from the team will answer you here.';
 
 type Target = { id: string; customerId: string };
 
@@ -124,18 +121,3 @@ export const handToPerson = async (
     rows.map((row) => row.id),
   );
 };
-
-/** A member hands conversations to a person, or lets the bot answer them again. */
-const setOperator = writes(PERMISSIONS.inboxView)
-  .route({ summary: 'Hand conversations to a person, or let the bot answer them again' })
-  .input(z.object({ ids: Ids, operator: z.enum(CONVERSATION_OPERATORS) }))
-  .output(z.object({ ids: z.array(z.string()) }))
-  .handler(async ({ input, context: { tx, member } }) => {
-    const rows = await conversationsFor(tx, member, input.ids);
-
-    await setOperatorOf(tx, member.orgId, rows, input.operator);
-
-    return { ids: input.ids };
-  });
-
-export const operatorProcedures = { setOperator };

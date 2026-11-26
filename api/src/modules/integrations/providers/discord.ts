@@ -7,6 +7,7 @@ import { writesWithCore } from '#/orpc.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { AccountRefused, defineProvider } from '../provider.ts';
 import { providerApi } from '../providerApi.ts';
+import { botText } from './botText.ts';
 import { Account, Into, intoChannel, saveAccount } from '../store.ts';
 
 const Secret = z.object({ token: z.string() });
@@ -66,7 +67,8 @@ export const discord = defineProvider({
     body.set(
       'payload_json',
       JSON.stringify({
-        content: message.text,
+        // Discord shows markdown, so a bot's answer goes as written.
+        content: botText(message, { markdown: true }),
         attachments: files.map((file, id) => ({ id, filename: file.name })),
         ...(message.quotedId && {
           message_reference: { message_id: message.quotedId, fail_if_not_exists: false },

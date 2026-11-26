@@ -8,6 +8,7 @@ import { attachedFile } from '#/modules/files.ts';
 import { readsWithCore, writesWithCore } from '#/orpc.ts';
 import { AccountRefused, defineProvider, sendInParts } from '../provider.ts';
 import { providerApi } from '../providerApi.ts';
+import { botText } from './botText.ts';
 import { Account, accountRow, checkInto, Into, intoChannel, saveAccount } from '../store.ts';
 
 const Config = z.object({ username: z.string() });
@@ -139,10 +140,11 @@ export const telegram = defineProvider({
       message.attachments.map((file) => attachedFile(row.orgId, file)),
     );
 
-    const captioned = files.length > 0 && message.text.length <= CAPTION_CHARS;
+    const text = botText(message);
+    const captioned = files.length > 0 && text.length <= CAPTION_CHARS;
 
     // null is the text.
-    const parts = [...(message.text && !captioned ? [null] : []), ...files];
+    const parts = [...(text && !captioned ? [null] : []), ...files];
 
     const reply = message.quotedId && {
       message_id: messageIdOf(message.quotedId),
@@ -155,7 +157,7 @@ export const telegram = defineProvider({
       if (!file) {
         const sent = await call(secret.token, 'sendMessage', Message, {
           chat_id: message.threadId,
-          text: message.text,
+          text,
           ...(quote && { reply_parameters: quote }),
         });
 
@@ -168,7 +170,7 @@ export const telegram = defineProvider({
       form.set('chat_id', message.threadId);
       form.set(field, file);
 
-      if (captioned && file === files[0] && message.text) form.set('caption', message.text);
+      if (captioned && file === files[0] && text) form.set('caption', text);
 
       if (quote) form.set('reply_parameters', JSON.stringify(quote));
 

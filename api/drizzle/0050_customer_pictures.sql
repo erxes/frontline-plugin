@@ -1,0 +1,1 @@
+ALTER TABLE "frontline_customer_links" ADD COLUMN "picture_asked_at" timestamp with time zone;

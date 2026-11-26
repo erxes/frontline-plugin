@@ -1,16 +1,6 @@
 import { IconAlertTriangle, IconRefresh, IconRobot } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
-import {
-  Badge,
-  Button,
-  cn,
-  Empty,
-  IconTip,
-  RelativeDateDisplay,
-  Sheet,
-  Spinner,
-  toast,
-} from 'erxes-ui';
+import { Badge, Button, cn, Empty, RelativeDateDisplay, Sheet, Spinner, toast } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { PanelSkeleton } from '~/shared/Panel.tsx';
@@ -173,25 +163,23 @@ const Restart = ({ conversation }: { conversation: Conversation }) => {
   );
 };
 
-/** The header's button that opens what the conversation's core agent did, and Restart agent. */
-export const AgentActivity = ({ conversation }: { conversation: Conversation }) => {
+/** What the conversation's core agent did, with Restart agent, in a sheet the bot menu opens. */
+export const AgentActivity = ({
+  conversation,
+  open,
+  onOpenChange,
+}: {
+  conversation: Conversation;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) => {
   const { t } = useTranslation('frontline');
-  const title = t('agent-activity', 'Agent activity');
 
   return (
-    <Sheet>
-      <IconTip label={title}>
-        <Sheet.Trigger
-          render={
-            <Button variant="ghost" tone="muted" size="icon" aria-label={title}>
-              <IconRobot />
-            </Button>
-          }
-        />
-      </IconTip>
+    <Sheet open={open} onOpenChange={onOpenChange}>
       <Sheet.View size="lg">
         <Sheet.Header>
-          <Sheet.Title>{title}</Sheet.Title>
+          <Sheet.Title>{t('agent-activity', 'Agent activity')}</Sheet.Title>
           <Sheet.Description className="sr-only">
             {t('agent-activity-description', 'What the agent did in this conversation')}
           </Sheet.Description>
