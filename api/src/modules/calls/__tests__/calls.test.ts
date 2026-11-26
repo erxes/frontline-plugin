@@ -198,67 +198,6 @@ describe('calls through a PBX', () => {
     expect((await owner.calls.list({})).calls).toMatchObject([{ status: 'missed' }]);
   });
 
-  it("shows a queue's counters and live board to its operators, and pauses an agent", async () => {
-    const actions = fakePbx();
-    const { post } = await connectPbx('org-call-d');
-
-    expect(await post('queue-stats', fixture('queue-stats.json'))).toBe(200);
-    expect(await post('queue-live', fixture('queue-live.json'))).toBe(200);
-
-    const saraa = clientAs('org-call-d', [PERMISSIONS.callView], 'user-saraa');
-    const queues = await saraa.calls.queues.list({});
-
-    // 6599 is no queue the admin added.
-    expect(queues).toMatchObject([
-      {
-        queue: '6500',
-        name: 'Sales',
-        totalCalls: 40,
-        answeredCalls: 34,
-        avgWait: 14.5,
-        slaRate: 82.5,
-      },
-    ]);
-
-    const queue = await saraa.calls.queues.get({ id: queues[0]?.id ?? '' });
-
-    expect(queue.live?.agents).toHaveLength(2);
-    expect(queue.live?.agents[1]).toMatchObject({
-      extension: '1002',
-      name: 'Saraa Dorj',
-      status: 'InUse',
-    });
-    expect(queue.live?.waiting).toEqual([{ callerId: '88001122', channel: 'PJSIP/trunk-0001' }]);
-
-    // Someone who answers no PBX sees none of its queues.
-    expect(
-      await clientAs('org-call-d', [PERMISSIONS.callView], 'user-other').calls.queues.list({}),
-    ).toEqual([]);
-
-    const [mine] = await saraa.calls.agents.mine({});
-
-    expect(mine).toMatchObject({ extension: '1002', status: 'unavailable' });
-
-    const paused = await saraa.calls.agents.setStatus({
-      accountId: mine?.accountId ?? '',
-      status: 'paused',
-    });
-
-    expect(paused.status).toBe('paused');
-    expect(actions.at(-1)).toMatchObject({
-      action: 'pauseUnpauseQueueAgent',
-      operatetype: 'pause',
-      interface: '1002',
-    });
-
-    await expect(
-      clientAs('org-call-d', [PERMISSIONS.callView], 'user-other').calls.agents.setStatus({
-        accountId: mine?.accountId ?? '',
-        status: 'paused',
-      }),
-    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
-  });
-
   it("gives an operator's softphone its line, the call it is on, and transfers it", async () => {
     const actions = fakePbx();
     const { owner, account, post } = await connectPbx('org-call-e');

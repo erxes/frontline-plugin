@@ -1,7 +1,7 @@
-import { and, eq, notInArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, ne, notInArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import type { Tx } from '#/db/client.ts';
-import { callOperators, callQueues } from '#/db/calls.ts';
+import { callOperators, callQueues, type OPERATOR_STATUSES, type QueueLive } from '#/db/calls.ts';
 import { sealSecret } from '../../secrets.ts';
 
 /**
@@ -92,4 +92,58 @@ export const saveLines = async (
             eq(callOperators.extension, extension),
           ),
         );
+};
+
+type OperatorStatus = (typeof OPERATOR_STATUSES)[number];
+
+/**
+ * What a UCM queue agent's status means for its extension, by the status lowercased without
+ * spaces. A status not listed changes nothing.
+ */
+const AGENT_STATUS: Record<string, OperatorStatus | undefined> = {
+  paused: 'paused',
+  idle: 'available',
+  notinuse: 'available',
+  inuse: 'available',
+  busy: 'available',
+  ringing: 'available',
+  ringinuse: 'available',
+  onhold: 'available',
+  unavailable: 'unavailable',
+  invalid: 'unavailable',
+};
+
+const statusOf = (agent: z.infer<typeof QueueLive>['agents'][number]) =>
+  agent.pausedAt ? 'paused' : AGENT_STATUS[agent.status.toLowerCase().replaceAll(/\s/g, '')];
+
+/**
+ * Sets each operator of the account to what the PBX's live board says of its extension, so a
+ * pause made on a desk phone or in the PBX shows in frontline too.
+ */
+export const followAgents = async (
+  tx: Tx,
+  accountId: string,
+  agents: z.infer<typeof QueueLive>['agents'],
+) => {
+  const byStatus = [...Map.groupBy(agents, statusOf)].filter(
+    (entry): entry is [OperatorStatus, typeof agents] => entry[0] !== undefined,
+  );
+
+  await Promise.all(
+    byStatus.map(([status, those]) =>
+      tx
+        .update(callOperators)
+        .set({ status })
+        .where(
+          and(
+            eq(callOperators.accountId, accountId),
+            inArray(
+              callOperators.extension,
+              those.map((agent) => agent.extension),
+            ),
+            ne(callOperators.status, status),
+          ),
+        ),
+    ),
+  );
 };

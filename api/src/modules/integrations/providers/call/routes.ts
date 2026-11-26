@@ -2,13 +2,14 @@ import { createHmac } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import express, { type Request, type Response } from 'express';
 import { z } from 'zod';
-import { withOrg } from '#/db/client.ts';
+import { type Tx, withOrg } from '#/db/client.ts';
 import { callQueues } from '#/db/calls.ts';
 import { logger } from '#/logger.ts';
 import type { AccountRow } from '../../provider.ts';
 import { sameText } from '../../secrets.ts';
 import { accountOf } from '../../store.ts';
 import { call, callpro } from './call.ts';
+import { followAgents } from './lines.ts';
 import { trunkKey } from './relay.ts';
 import { Cdr, callKeyOf, customerPhoneOf, isOutgoing, pbxTime, queueOf } from './cdr.ts';
 import type { CALL_STATUSES } from '#/db/calls.ts';
@@ -143,19 +144,17 @@ const QueueLive = z.object({
   }),
 });
 
+/** Changes one of the account's queues; only the queues an admin added are kept. */
 const setQueue = (
+  tx: Tx,
   row: AccountRow,
   queue: string,
   change: Partial<typeof callQueues.$inferInsert>,
 ) =>
-  withOrg(row.orgId, async (tx) => {
-    // Only the queues an admin added are kept.
-    await tx
-      .update(callQueues)
-      .set(change)
-      .where(and(eq(callQueues.accountId, row.id), eq(callQueues.queue, queue)));
-    await signalCalls(tx, row.orgId);
-  });
+  tx
+    .update(callQueues)
+    .set(change)
+    .where(and(eq(callQueues.accountId, row.id), eq(callQueues.queue, queue)));
 
 /** The kinds of post pbx-relay makes for a PBX, the last part of its webhook's address. */
 const PbxKind = z.enum(['cdr', 'event', 'receive-call', 'queue-stats', 'queue-live']);
@@ -186,37 +185,46 @@ const PBX_POSTS: Record<
   event: (row, body) => onEvent(row, CallEvent.parse(body)),
   'receive-call': (row, body) => onEvent(row, ucmEvent(UcmCall.parse(body))),
   'queue-stats': async (row, body) => {
-    await Promise.all(
-      QueueStats.parse(body).map(({ queue, ...stats }) =>
-        setQueue(row, queue, { ...stats, statsAt: new Date() }),
-      ),
-    );
+    const queues = QueueStats.parse(body);
+
+    await withOrg(row.orgId, async (tx) => {
+      await Promise.all(
+        queues.map(({ queue, ...stats }) =>
+          setQueue(tx, row, queue, { ...stats, statsAt: new Date() }),
+        ),
+      );
+
+      await signalCalls(tx, row.orgId);
+    });
   },
   'queue-live': async (row, body) => {
     const { queue, state } = QueueLive.parse(body);
 
-    await setQueue(row, queue, {
-      live: {
-        agents: state.agents.map((agent) => ({
-          extension: agent.member_extension,
-          name: [agent.first_name, agent.last_name].filter(Boolean).join(' '),
-          status: agent.status,
-          answered: agent.answer,
-          abandoned: agent.abandon,
-          talkSeconds: agent.talktime,
-          pausedAt: agent.pausetime || null,
-        })),
-        waiting: state.waiting.map((caller) => ({
-          callerId: caller.callerid,
-          channel: caller.callerchannel ?? null,
-        })),
-        talking: state.talking.map((talk) => ({
-          callerId: talk.callerid,
-          calleeId: talk.calleeid ?? null,
-          since: talk.bridge_time ?? null,
-        })),
-      },
-      liveAt: new Date(),
+    const live = {
+      agents: state.agents.map((agent) => ({
+        extension: agent.member_extension,
+        name: [agent.first_name, agent.last_name].filter(Boolean).join(' '),
+        status: agent.status,
+        answered: agent.answer,
+        abandoned: agent.abandon,
+        talkSeconds: agent.talktime,
+        pausedAt: agent.pausetime || null,
+      })),
+      waiting: state.waiting.map((caller) => ({
+        callerId: caller.callerid,
+        channel: caller.callerchannel ?? null,
+      })),
+      talking: state.talking.map((talk) => ({
+        callerId: talk.callerid,
+        calleeId: talk.calleeid ?? null,
+        since: talk.bridge_time ?? null,
+      })),
+    };
+
+    await withOrg(row.orgId, async (tx) => {
+      await setQueue(tx, row, queue, { live, liveAt: new Date() });
+      await followAgents(tx, row.id, live.agents);
+      await signalCalls(tx, row.orgId);
     });
   },
 };

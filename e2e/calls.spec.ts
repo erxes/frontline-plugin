@@ -11,6 +11,7 @@ import {
 
 const HISTORY = '/frontline/calls/history';
 const PHONE = '/frontline/calls/phone';
+const CALLBACKS = '/frontline/calls/callbacks';
 
 test('calls from a phone line show in the call history as they happen, and open in the side panel', async ({
   page,
@@ -69,6 +70,34 @@ test('calls from a phone line show in the call history as they happen, and open 
   await expect(page.getByText(`Incoming call from ${answered}`).first()).toBeVisible();
 });
 
+test('callers nobody talked to wait in Callbacks until someone does', async ({ page, api }) => {
+  const caller = `8812${String(Date.now()).slice(-4)}`;
+  const reached = `9512${String(Date.now()).slice(-4)}`;
+  const post = await callProLine(api, page.request, `7558${String(Date.now()).slice(-4)}`);
+
+  await post(`a-${unique()}`, caller, 'NO ANSWER');
+  await post(`b-${unique()}`, caller, 'NO ANSWER');
+  await post(`c-${unique()}`, reached, 'ANSWERED');
+
+  await page.goto(CALLBACKS);
+  await expectPage(page, 'Callbacks');
+
+  // A row by its Call back button: the customer's cell shows the number once core answers.
+  const rowOf = (phone: string) =>
+    page.getByRole('row').filter({ has: page.getByRole('button', { name: `Call back ${phone}` }) });
+
+  // One row a caller, with how often they rang; an answered caller has none.
+  await expect(rowOf(caller)).toHaveCount(1);
+  await expect(rowOf(caller)).toContainText('2');
+  await expect(rowOf(reached)).toHaveCount(0);
+  // Calling back needs a softphone on the line.
+  await expect(rowOf(caller).getByRole('button', { name: `Call back ${caller}` })).toBeDisabled();
+
+  // Someone talks to the caller: the row goes without a reload.
+  await post(`d-${unique()}`, caller, 'ANSWERED');
+  await expect(rowOf(caller)).toHaveCount(0);
+});
+
 test('the queues dashboard lists the queues of the PBXs the member answers', async ({ page }) => {
   // The old dashboard's address opens the queues.
   await page.goto('/frontline/calls/dashboard');
@@ -109,6 +138,9 @@ test('a member without the call permission is refused the calls', async ({ newMe
   await expect(page.getByText('You need the frontline.call.view permission')).toBeVisible();
 
   await page.goto('/frontline/calls/queues');
+  await expect(page.getByText('You need the frontline.call.view permission')).toBeVisible();
+
+  await page.goto(CALLBACKS);
   await expect(page.getByText('You need the frontline.call.view permission')).toBeVisible();
 
   await page.goto(PHONE);

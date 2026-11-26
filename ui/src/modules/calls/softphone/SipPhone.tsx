@@ -11,9 +11,10 @@ import { useTranslation } from 'react-i18next';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { PHONE_PATH } from '@/calls/queries.ts';
 import { PLUGIN } from '~/plugin.ts';
-import { useCurrentCall } from './current.ts';
+import { CallerContext } from './CallerContext.tsx';
+import { type CurrentCall, useCurrentCall } from './current.ts';
 import { DesktopLink, desktop } from './DesktopLink.tsx';
-import { publishPhone } from './live.ts';
+import { publishPhone, takePendingDial, usePendingDial } from './live.ts';
 import { StatusDot, useCallText } from './PhonePanel.tsx';
 import css from './styles.css?inline';
 import { type Line, type Phone, type PhoneCall, useSip } from './useSip.ts';
@@ -23,8 +24,13 @@ addPluginStyles(`${PLUGIN}:softphone`, css);
 
 type OverPage = { phone: Phone; call: PhoneCall; caller: string | null };
 
-/** An incoming call over whatever page the member is on: who, and Answer or Decline. */
-const RingCard = ({ phone, call, caller }: OverPage) => {
+type Ringing = OverPage & { current: CurrentCall };
+
+/**
+ * An incoming call over whatever page the member is on: who, what they rang about before, and
+ * Answer or Decline.
+ */
+const RingCard = ({ phone, call, caller, current }: Ringing) => {
   const { t } = useTranslation('frontline');
 
   return (
@@ -43,6 +49,7 @@ const RingCard = ({ phone, call, caller }: OverPage) => {
           </div>
         </div>
       </div>
+      {current && <CallerContext call={current} />}
       <div className="flex gap-2">
         <Button className="flex-1" onClick={phone.answer}>
           <IconPhone />
@@ -120,12 +127,23 @@ const LinePhone = ({
   );
   useEffect(() => () => publishPhone(null), []);
 
+  // A callback asked for from another page dials once this line is signed in and free.
+  const dialing = usePendingDial();
+
+  useEffect(() => {
+    if (dialing?.accountId !== line.accountId || phone.status !== 'ready' || call) return;
+
+    const taken = takePendingDial();
+
+    if (taken) phone.dial(taken.number);
+  }, [dialing, line.accountId, phone, call]);
+
   return (
     <>
       {call &&
         !onPhonePage &&
         (call.direction === 'incoming' && !call.talking ? (
-          <RingCard phone={phone} call={call} caller={caller} />
+          <RingCard phone={phone} call={call} caller={caller} current={current} />
         ) : (
           <CallBar phone={phone} call={call} caller={caller} />
         ))}

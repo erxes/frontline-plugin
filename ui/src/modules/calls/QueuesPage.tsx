@@ -100,26 +100,45 @@ const useColumns = (): RecordTableColumnDef<Queue>[] => {
 export const AgentStatus = () => {
   const { t } = useTranslation('frontline');
   const { agents, setStatus } = useAgents();
+  const format = useFormat();
 
   return agents.map((agent) => {
     const paused = agent.status === 'paused';
     const line = agents.length > 1 ? ` · ${agent.accountName}` : '';
 
     return (
-      <Button
-        key={agent.id}
-        variant={paused ? 'default' : 'secondary'}
-        disabled={setStatus.isPending}
-        onClick={() =>
-          setStatus.mutate({ accountId: agent.accountId, status: paused ? 'available' : 'paused' })
-        }
-      >
-        {paused ? <IconClockPlay /> : <IconClockPause />}
-        {paused
-          ? t('resume-calls', 'Resume calls ({{extension}})', { extension: agent.extension })
-          : t('pause-calls', 'Pause calls ({{extension}})', { extension: agent.extension })}
-        {line}
-      </Button>
+      <div key={agent.id} className="flex items-center gap-2">
+        {agent.heardAt && (
+          <span
+            className="text-muted-foreground text-xs tabular-nums"
+            title={t('agent-heard-at', 'As the PBX counted at {{time}}', {
+              time: format.dateTime(agent.heardAt),
+            })}
+          >
+            {t('agent-today', 'Today {{answered}} answered · {{abandoned}} missed · {{talk}}', {
+              answered: agent.answered,
+              abandoned: agent.abandoned,
+              talk: durationText(agent.talkSeconds),
+            })}
+          </span>
+        )}
+        <Button
+          variant={paused ? 'default' : 'secondary'}
+          disabled={setStatus.isPending}
+          onClick={() =>
+            setStatus.mutate({
+              accountId: agent.accountId,
+              status: paused ? 'available' : 'paused',
+            })
+          }
+        >
+          {paused ? <IconClockPlay /> : <IconClockPause />}
+          {paused
+            ? t('resume-calls', 'Resume calls ({{extension}})', { extension: agent.extension })
+            : t('pause-calls', 'Pause calls ({{extension}})', { extension: agent.extension })}
+          {line}
+        </Button>
+      </div>
     );
   });
 };

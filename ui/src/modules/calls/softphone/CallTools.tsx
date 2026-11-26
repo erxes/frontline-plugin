@@ -1,10 +1,12 @@
-import { IconArrowForwardUp, IconExternalLink, IconX } from '@tabler/icons-react';
+import { IconArrowForwardUp, IconExternalLink, IconPlus, IconX } from '@tabler/icons-react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { Button, Select, Textarea, toast, useOpenRecord } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
-import { CONVERSATION_TYPE } from '~/plugin.ts';
+import { nameOf, TicketChips } from '@/inbox/ConversationTickets.tsx';
+import { CONVERSATION_TYPE, TICKET_TYPE } from '~/plugin.ts';
+import { choicesQuery } from '~/shared/reference.ts';
 
 const failed = (error: Error) => toast({ variant: 'destructive', title: error.message });
 
@@ -18,7 +20,7 @@ export const Transfer = ({ accountId, onDone }: { accountId: string; onDone: () 
     orpc.calls.phone.transfer.mutationOptions({ onSuccess: onDone, onError: failed }),
   );
 
-  const nameOf = (value: string) =>
+  const extensionName = (value: string) =>
     extensions.data?.find((row) => row.extension === value)?.name || value;
 
   return (
@@ -26,7 +28,7 @@ export const Transfer = ({ accountId, onDone }: { accountId: string; onDone: () 
       <Select value={extension} onValueChange={(next) => next && setExtension(next)}>
         <Select.Trigger variant="bordered" aria-label={t('transfer-to', 'Transfer to')}>
           <Select.Value placeholder={t('transfer-to', 'Transfer to')}>
-            {(value: string) => `${value} ${nameOf(value)}`}
+            {(value: string) => `${value} ${extensionName(value)}`}
           </Select.Value>
         </Select.Trigger>
         <Select.Content>
@@ -51,15 +53,51 @@ export const Transfer = ({ accountId, onDone }: { accountId: string; onDone: () 
 /** Each conversation's unsaved note, so leaving the Phone page mid-call keeps it. */
 const drafts = new Map<string, string>();
 
+/** The call's tickets, then Create ticket, drafted in core's panel; nothing without a pipeline. */
+const CallTickets = ({
+  conversationId,
+  customerId,
+  name,
+}: {
+  conversationId: string;
+  customerId: string;
+  name: string;
+}) => {
+  const { t } = useTranslation('frontline');
+  const { openNew } = useOpenRecord();
+  const pipelines = useQuery(choicesQuery).data?.pipelines ?? [];
+
+  if (pipelines.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-1">
+      <TicketChips conversationId={conversationId} />
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        onClick={() => openNew(TICKET_TYPE, { conversationId, customerId, name })}
+      >
+        <IconPlus />
+        {t('create-ticket', 'Create ticket')}
+      </Button>
+    </div>
+  );
+};
+
 /**
  * An internal note on the call's conversation, while the call lasts and after it, until the
- * member closes it.
+ * member closes it, with the call's tickets and a new one named from the note.
  */
 export const CallNote = ({
   conversationId,
+  customerId,
+  customerPhone,
   onClose,
 }: {
   conversationId: string;
+  customerId: string;
+  customerPhone: string;
   onClose: () => void;
 }) => {
   const { t } = useTranslation('frontline');
@@ -123,6 +161,11 @@ export const CallNote = ({
       <Button type="submit" variant="secondary" disabled={!content.trim() || save.isPending}>
         {t('save-note', 'Save note')}
       </Button>
+      <CallTickets
+        conversationId={conversationId}
+        customerId={customerId}
+        name={nameOf(content) || t('call-from', 'Call from {{number}}', { number: customerPhone })}
+      />
     </form>
   );
 };

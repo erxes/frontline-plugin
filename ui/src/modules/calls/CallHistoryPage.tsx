@@ -31,7 +31,7 @@ const column = columnOf<Call>;
  * Who called or was called, opening the call in core's side panel: the customer's name with
  * their phone after it, or the phone alone while core knows them by nothing more.
  */
-const CallName = ({ call }: { call: Call }) => {
+export const CallName = ({ call }: { call: Call }) => {
   const { open } = useOpenRecord();
   const customer = useQuery(contactQueries.customer(call.customerId));
   const title = customer.data ? customerTitle(customer.data) : '';

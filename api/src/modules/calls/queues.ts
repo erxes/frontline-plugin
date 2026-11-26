@@ -67,20 +67,56 @@ const Agent = createSelectSchema(callOperators)
   .omit({ orgId: true, sipSecret: true })
   .extend({ status: z.enum(OPERATOR_STATUSES), accountName: z.string() });
 
+/** The operator's rows on the live boards of its PBX's queues, for a subquery to add up. */
+const onBoards = sql`
+  from ${callQueues},
+    jsonb_array_elements(coalesce(${callQueues.live} -> 'agents', '[]'::jsonb)) as agent
+  where ${callQueues.accountId} = ${callOperators.accountId}
+    and agent ->> 'extension' = ${callOperators.extension}`;
+
+/** The day so far across the operator's queues, as the PBX's live boards last counted it. */
+const today = {
+  answered: sql<number>`(select coalesce(sum((agent ->> 'answered')::int), 0) ${onBoards})`.mapWith(
+    Number,
+  ),
+  abandoned:
+    sql<number>`(select coalesce(sum((agent ->> 'abandoned')::int), 0) ${onBoards})`.mapWith(
+      Number,
+    ),
+  talkSeconds:
+    sql<number>`(select coalesce(sum((agent ->> 'talkSeconds')::real), 0) ${onBoards})`.mapWith(
+      Number,
+    ),
+  heardAt: sql<Date | null>`(select max(${callQueues.liveAt}) ${onBoards})`.mapWith(
+    callQueues.liveAt,
+  ),
+};
+
+const AgentToday = Agent.extend({
+  answered: z.number(),
+  abandoned: z.number(),
+  talkSeconds: z.number(),
+  /** When a live board last named the extension; null before any did. */
+  heardAt: z.date().nullable(),
+});
+
 const {
   orgId: _operatorOrg,
   sipSecret: _sipSecret,
   ...operatorColumns
 } = getTableColumns(callOperators);
 
-/** The caller's extensions on each PBX, with what they last told its queues. */
+/**
+ * The caller's extensions on each PBX, with their queue status as the PBX or the caller last set
+ * it, and their day so far.
+ */
 const mine = reads(PERMISSIONS.callView)
-  .route({ summary: 'List your extensions on each PBX, with your queue status' })
+  .route({ summary: 'List your extensions on each PBX, with your queue status and day so far' })
   .input(z.object({}))
-  .output(z.array(Agent))
+  .output(z.array(AgentToday))
   .handler(({ context: { tx, member } }) =>
     tx
-      .select({ ...operatorColumns, accountName: integrationAccounts.name })
+      .select({ ...operatorColumns, accountName: integrationAccounts.name, ...today })
       .from(callOperators)
       .innerJoin(integrationAccounts, eq(integrationAccounts.id, callOperators.accountId))
       .where(eq(callOperators.userId, member.userId))
