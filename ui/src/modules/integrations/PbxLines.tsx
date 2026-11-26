@@ -28,7 +28,7 @@ export const queuesOf = (text: string, kept: Queue[] = []): Queue[] =>
   }));
 
 /**
- * The members who answer the PBX, each by its username on the PBX (its extension) and password
+ * The members who answer the PBX, each by its extension number on the PBX and password
  * (the SIP password); a member is picked before the extension. An extension in `softphones` has a saved
  * password, which gives its member the softphone on every page.
  */
@@ -84,7 +84,19 @@ export const OperatorList = ({
       {userId && (
         <AddRow
           fields={[
-            { name: 'extension', label: t('username', 'Username'), required: true },
+            {
+              name: 'extension',
+              label: t('extension', 'Extension'),
+              required: true,
+              inputMode: 'numeric',
+              pattern: {
+                test: /^\d{1,30}$/,
+                message: t(
+                  'extension-digits',
+                  'Enter the PBX extension number, such as 3001, not a username or email',
+                ),
+              },
+            },
             { name: 'sipPassword', label: t('password', 'Password'), type: 'password' },
           ]}
           onAdd={({ extension = '', sipPassword }) => {

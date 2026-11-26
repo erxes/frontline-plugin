@@ -1,6 +1,6 @@
 import { IconPlus, IconX } from '@tabler/icons-react';
 import { Badge, Button, Input } from 'erxes-ui';
-import { type KeyboardEvent, useRef } from 'react';
+import { type ChangeEvent, type KeyboardEvent, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 
 // What the integrations page and the account and bot panels share.
@@ -56,7 +56,16 @@ export const AddRow = ({
   fields,
   onAdd,
 }: {
-  fields: { name: string; label: string; maxLength?: number; required?: boolean; type?: string }[];
+  fields: {
+    name: string;
+    label: string;
+    maxLength?: number;
+    required?: boolean;
+    type?: string;
+    /** What the value must look like; a value that doesn't keeps the row and says why. */
+    pattern?: { test: RegExp; message: string };
+    inputMode?: 'numeric' | 'text';
+  }[];
   onAdd: (values: Record<string, string>) => void;
 }) => {
   const { t } = useTranslation('frontline');
@@ -70,6 +79,22 @@ export const AddRow = ({
     );
 
     if (empty !== -1) return inputs[empty]?.focus();
+
+    const wrong = fields.findIndex(
+      (field, index) =>
+        field.pattern &&
+        inputs[index]?.value.trim() &&
+        !field.pattern.test.test(inputs[index].value.trim()),
+    );
+
+    if (wrong !== -1) {
+      const input = inputs[wrong];
+
+      input?.setCustomValidity(fields[wrong]?.pattern?.message ?? '');
+      input?.reportValidity();
+
+      return;
+    }
 
     onAdd(
       Object.fromEntries(
@@ -90,6 +115,10 @@ export const AddRow = ({
           maxLength={field.maxLength}
           aria-label={field.label}
           placeholder={field.label}
+          inputMode={field.inputMode}
+          onChange={(event: ChangeEvent<HTMLInputElement>) =>
+            event.currentTarget.setCustomValidity('')
+          }
           variant="bordered"
           text="sm"
           onKeyDown={(event: KeyboardEvent<HTMLInputElement>) => {

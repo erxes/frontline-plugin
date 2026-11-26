@@ -2,7 +2,7 @@ import type { InferClientOutputs } from '@orpc/client';
 import type { Client } from '@frontline/api';
 import type { PhoneState } from '@frontline/desktop';
 import { toast } from 'erxes-ui';
-import { UA, WebSocketInterface } from 'jssip';
+import { UA, URI, WebSocketInterface } from 'jssip';
 import { getI18n } from 'react-i18next';
 import type { RTCSession } from 'jssip/lib/RTCSession';
 import type { RTCSessionEvent } from 'jssip/lib/UA';
@@ -102,6 +102,27 @@ const follow = (
   );
 };
 
+const sipAddress = (line: Line) => `sip:${line.extension}@${new URL(line.webSocketUrl).hostname}`;
+
+/**
+ * Whether the line makes a SIP address. One that doesn't (an email saved as the extension) would
+ * make JsSIP throw and take every page of the plugin down, so its phone just stays offline.
+ */
+const signsIn = (line: Line) => URI.parse(sipAddress(line)) !== undefined;
+
+/** Leaving or reloading the page ends the call, so the browser, or the desktop app, asks first. */
+const useAskBeforeLeaving = (onCall: boolean) => {
+  useEffect(() => {
+    if (!onCall) return;
+
+    const hold = (event: BeforeUnloadEvent) => event.preventDefault();
+
+    window.addEventListener('beforeunload', hold);
+
+    return () => window.removeEventListener('beforeunload', hold);
+  }, [onCall]);
+};
+
 /**
  * A SIP phone signed in to the line's PBX over WebRTC (JsSIP), for as long as it is mounted. It
  * takes one call at a time: a second incoming call gets busy. Each call goes through the TURN
@@ -109,6 +130,7 @@ const follow = (
  */
 export const useSip = (line: Line, audio: RefObject<HTMLAudioElement | null>) => {
   const [status, setStatus] = useState<PhoneStatus>('connecting');
+
   const [call, setCall] = useState<PhoneCall | null>(null);
   // How many calls the phone has had: what belongs to one call is kept under its number.
   const [callCount, setCallCount] = useState(0);
@@ -117,11 +139,14 @@ export const useSip = (line: Line, audio: RefObject<HTMLAudioElement | null>) =>
   const host = new URL(line.webSocketUrl).hostname;
   const iceServers = useIceServers();
   const pcConfig = () => ({ iceServers: iceServers() });
+  const address = signsIn(line) ? sipAddress(line) : null;
 
   useEffect(() => {
+    if (!address) return;
+
     const ua = new UA({
       sockets: [new WebSocketInterface(line.webSocketUrl)],
-      uri: `sip:${line.extension}@${new URL(line.webSocketUrl).hostname}`,
+      uri: address,
       password: line.password,
       session_timers: false,
     });
@@ -157,26 +182,15 @@ export const useSip = (line: Line, audio: RefObject<HTMLAudioElement | null>) =>
       agent.current = null;
       busy.current = false;
     };
-  }, [line.webSocketUrl, line.extension, line.password, audio]);
+  }, [line.webSocketUrl, address, line.password, audio]);
 
-  // Leaving or reloading the page ends the call, so the browser, or the desktop app, asks first.
-  const onCall = Boolean(call);
-
-  useEffect(() => {
-    if (!onCall) return;
-
-    const hold = (event: BeforeUnloadEvent) => event.preventDefault();
-
-    window.addEventListener('beforeunload', hold);
-
-    return () => window.removeEventListener('beforeunload', hold);
-  }, [onCall]);
+  useAskBeforeLeaving(Boolean(call));
 
   const update = (patch: Partial<PhoneCall>) =>
     setCall((current) => current && { ...current, ...patch });
 
   return {
-    status,
+    status: address ? status : 'offline',
     call,
     callCount,
     dial: (number: string) => {
