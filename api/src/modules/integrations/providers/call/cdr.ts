@@ -120,7 +120,14 @@ export const pbxTime = (value: string, timeZone: string) => {
  */
 export const recordingOf = (legs: Cdr[]) => {
   const leg = legs.find((candidate) => isAnsweredLeg(candidate) && candidate.recordfiles);
-  const file = leg?.recordfiles.split('/').at(-1)?.split('@')[0];
+
+  // `@` separates the files, and recapi takes the first one's bare name.
+  const first = leg?.recordfiles
+    .split('@')
+    .map((entry) => entry.trim())
+    .find(Boolean);
+
+  const file = first?.split('/').findLast(Boolean);
 
   if (!leg || !file) return null;
 

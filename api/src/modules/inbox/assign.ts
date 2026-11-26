@@ -14,8 +14,11 @@ export const takeOver = (tx: Tx, ids: string[]) =>
     .set({ operator: 'person' })
     .where(and(inArray(conversations.id, ids), eq(conversations.operator, 'bot')));
 
-/** Who assigned it: a member, an automation step, the channel's auto-assignment, or its reassignment of one the assignee left unanswered. */
-export const ASSIGN_REASONS = ['member', 'automation', 'auto', 'unanswered'] as const;
+/**
+ * Who assigned it: a member, an automation step, the channel's auto-assignment, its reassignment of
+ * one the assignee left unanswered, or the member who picked up its call.
+ */
+export const ASSIGN_REASONS = ['member', 'automation', 'auto', 'unanswered', 'call'] as const;
 
 type Row = { id: string; customerId: string; assigneeId: string | null };
 
@@ -30,6 +33,7 @@ const SUMMARIES: Record<(typeof ASSIGN_REASONS)[number], [assigned: string, unas
     'Reassigned the conversation: the assignee had not replied',
     'Unassigned the conversation: the assignee had not replied',
   ],
+  call: ['Assigned the conversation to who answered the call', 'Unassigned the conversation'],
 };
 
 /**
