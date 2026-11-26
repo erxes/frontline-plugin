@@ -1,6 +1,7 @@
 import { IconPlus, IconTicket } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import { Button, IconTip, Popover, useOpenRecord } from 'erxes-ui';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { TICKET_TYPE } from '~/plugin.ts';
@@ -49,10 +50,8 @@ export const TicketChip = ({ ticket }: { ticket: Ticket }) => {
   );
 };
 
-/** The conversation's tickets, oldest first: the newest as chips, the rest under +N. */
-export const TicketChips = ({ conversationId }: { conversationId: string }) => {
-  const { t } = useTranslation('frontline');
-
+/** The conversation's tickets, active and archived, oldest first. */
+const useConversationTickets = (conversationId: string) => {
   const filter = {
     match: 'all',
     rules: [
@@ -61,12 +60,19 @@ export const TicketChips = ({ conversationId }: { conversationId: string }) => {
     ],
   };
 
-  const tickets =
+  return (
     useQuery(
       orpc.tickets.list.queryOptions({
         input: { filter: JSON.stringify(filter), sort: 'createdAt', ascending: true, limit: 50 },
       }),
-    ).data?.tickets ?? [];
+    ).data?.tickets ?? []
+  );
+};
+
+/** The conversation's tickets, oldest first: the newest as chips, the rest under +N. */
+export const TicketChips = ({ conversationId }: { conversationId: string }) => {
+  const { t } = useTranslation('frontline');
+  const tickets = useConversationTickets(conversationId);
 
   const older = tickets.slice(0, -CHIPS);
 
@@ -102,18 +108,44 @@ export const TicketChips = ({ conversationId }: { conversationId: string }) => {
   );
 };
 
+/** A ticket in the header's list: its number, if its pipeline numbers them, and its name. */
+const TicketRow = ({ ticket, onOpen }: { ticket: Ticket; onOpen: () => void }) => {
+  const { t } = useTranslation('frontline');
+  const { open } = useOpenRecord();
+
+  return (
+    <Button
+      variant="ghost"
+      size="sm"
+      className="justify-start"
+      aria-label={t('open-ticket', 'Open ticket {{name}}', { name: ticket.number ?? ticket.name })}
+      onClick={() => {
+        onOpen();
+        open({ contentType: TICKET_TYPE, contentId: ticket.id });
+      }}
+    >
+      <IconTicket />
+      {ticket.number && <span className="shrink-0 text-muted-foreground">{ticket.number}</span>}
+      <span className="min-w-0 truncate">{ticket.name}</span>
+    </Button>
+  );
+};
+
 /**
- * The conversation's tickets, as the old inbox showed its `sourceConversationIds`, each opening
- * in core's side panel, then Create ticket, which drafts one there with the customer, a name from
- * their latest message and, when the conversation's channel has exactly one, its pipeline. It
- * waits for the messages, so the name is there. Only a member who may file tickets in some
- * pipeline sees them.
+ * The conversation's tickets, as the old inbox showed its `sourceConversationIds`, behind one
+ * header button: with none it is Create ticket; with some it counts them and lists them, each
+ * opening in core's side panel, above Create ticket. A new ticket is drafted there with the
+ * customer, a name from their latest message and, when the conversation's channel has exactly
+ * one, its pipeline. It waits for the messages, so the name is there. Only a member who may file
+ * tickets in some pipeline sees it.
  */
 export const ConversationTickets = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const { openNew } = useOpenRecord();
   const thread = useMessages(conversation.id);
   const pipelines = useQuery(choicesQuery).data?.pipelines ?? [];
+  const tickets = useConversationTickets(conversation.id);
+  const [listed, setListed] = useState(false);
 
   if (pipelines.length === 0) return null;
 
@@ -124,6 +156,7 @@ export const ConversationTickets = ({ conversation }: { conversation: Conversati
 
     const inChannel = pipelines.filter((row) => row.channelId === conversation.channelId);
 
+    setListed(false);
     openNew(TICKET_TYPE, {
       conversationId: conversation.id,
       customerId: conversation.customerId,
@@ -132,10 +165,8 @@ export const ConversationTickets = ({ conversation }: { conversation: Conversati
     });
   };
 
-  return (
-    <>
-      <TicketChips conversationId={conversation.id} />
-      {/* "Ticket" on the button leaves the crowded header room for the customer's name. */}
+  if (tickets.length === 0)
+    return (
       <IconTip label={t('create-ticket', 'Create ticket')}>
         <Button
           variant="outline"
@@ -152,6 +183,39 @@ export const ConversationTickets = ({ conversation }: { conversation: Conversati
           </span>
         </Button>
       </IconTip>
-    </>
+    );
+
+  const label = t('conversation-tickets', 'Tickets: {{count}}', { count: tickets.length });
+
+  return (
+    <Popover open={listed} onOpenChange={setListed}>
+      <IconTip label={label}>
+        <Popover.Trigger
+          render={
+            <Button variant="outline" size="sm" className="shrink-0" aria-label={label}>
+              <IconTicket />
+              {tickets.length}
+            </Button>
+          }
+        />
+      </IconTip>
+      <Popover.Content align="end" className="w-72">
+        <div className="flex flex-col gap-0.5">
+          {tickets.toReversed().map((ticket) => (
+            <TicketRow key={ticket.id} ticket={ticket} onOpen={() => setListed(false)} />
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="justify-start"
+            disabled={thread.isPending}
+            onClick={create}
+          >
+            <IconPlus />
+            {t('create-ticket', 'Create ticket')}
+          </Button>
+        </div>
+      </Popover.Content>
+    </Popover>
   );
 };

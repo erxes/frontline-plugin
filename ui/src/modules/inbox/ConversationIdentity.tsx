@@ -1,4 +1,4 @@
-import { IconCheck, IconRobot } from '@tabler/icons-react';
+import { IconCheck } from '@tabler/icons-react';
 import { Badge, Skeleton, useOpenRecord } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { useChannelScope } from '~/shared/channelScope.ts';
@@ -36,28 +36,18 @@ const OnlineAvatar = ({
 };
 
 /**
- * Beside the name, what the conversation is doing: the bot answering it, or resolved. An open
- * conversation a member answers needs no word.
+ * Beside the name, a resolved conversation says so. Who answers it shows on the header's bot
+ * button, and an open conversation needs no word.
  */
 const ConversationState = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
 
-  return (
-    <>
-      {conversation.kind === 'messenger' && conversation.operator === 'bot' && (
-        <Badge variant="info" size="sm">
-          <IconRobot />
-          {t('bot-answering', 'Bot answering')}
-        </Badge>
-      )}
-      {conversation.status === 'resolved' && (
-        <Badge variant="success" size="sm">
-          <IconCheck />
-          {t('resolved', 'Resolved')}
-        </Badge>
-      )}
-    </>
-  );
+  return conversation.status === 'resolved' ? (
+    <Badge variant="success" size="sm">
+      <IconCheck />
+      {t('resolved', 'Resolved')}
+    </Badge>
+  ) : null;
 };
 
 /**
