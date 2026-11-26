@@ -70,10 +70,12 @@ test('a member makes a ticket from the open conversation, which shows it and whi
   await panel.getByRole('button', { name: 'Create ticket' }).click();
   await expect(panel.getByRole('button', { name: `Name ${question}` })).toBeVisible();
 
-  // The header shows the conversation's ticket, which opens in core's panel and links back.
+  // The header counts the conversation's tickets and lists them; one opens in core's panel and
+  // links back.
   await panel.getByRole('button', { name: 'Close', exact: true }).click();
   await expect(panel).toBeHidden();
-  await header.getByRole('button', { name: `Open ticket ${question}` }).click();
+  await header.getByRole('button', { name: 'Tickets: 1' }).click();
+  await page.getByRole('button', { name: `Open ticket ${question}` }).click();
   await expect(panel.getByRole('button', { name: `Name ${question}` })).toBeVisible();
   await panel.getByRole('link', { name: 'Open in the inbox', exact: true }).click();
   await expect(page).toHaveURL(new RegExp(`conversationId=${conversationId}`));
