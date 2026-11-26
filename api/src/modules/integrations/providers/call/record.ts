@@ -1,17 +1,22 @@
 import { enqueueJob } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, eq, ne, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PLUGIN } from '#/config.ts';
 import { core, JOBS } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { type CALL_STATUSES, callLegs, callOperators, calls } from '#/db/calls.ts';
-import { customerLinks, integrations } from '#/db/inbox.ts';
+import { conversations, customerLinks } from '#/db/inbox.ts';
 import { logger } from '#/logger.ts';
 import type { Adapter } from '../../../inbox/adapters.ts';
 import { receiveIn } from '../../../inbox/receive.ts';
 import { signalConversations } from '../../../inbox/shared.ts';
 import type { AccountRow } from '../../provider.ts';
+import {
+  CallIntegrationConfig,
+  accountIntegrations,
+  integrationForQueue,
+} from './queueChannels.ts';
 import { Cdr, extensionsOf, isAnsweredLeg, pbxTime, recordingOf, statusOf } from './cdr.ts';
 
 type CallStatus = (typeof CALL_STATUSES)[number];
@@ -55,12 +60,6 @@ const customerByPhone = async (orgId: string, phone: string) => {
   return (await linkedCustomer(orgId, phone)) ?? customer.id;
 };
 
-/** A phone integration names its account and the queues whose calls come to its channel. */
-const CallIntegrationConfig = z.object({
-  accountId: z.string().min(1),
-  queues: z.array(z.string()).default([]),
-});
-
 /** The inbox's adapters for phone integrations. A call takes no written reply, so none sends. */
 export const CALL_ADAPTERS: Adapter[] = [
   {
@@ -74,27 +73,38 @@ export const CALL_ADAPTERS: Adapter[] = [
 
 /**
  * The active integration a call through `row` goes to: the one whose queues include the call's
- * queue, else the account's first.
+ * queue, else the account's own.
  */
-const integrationFor = async (tx: Tx, row: AccountRow, queue: string | null) => {
-  const found = await tx
-    .select({ id: integrations.id, config: integrations.config })
-    .from(integrations)
+const integrationFor = async (tx: Tx, row: AccountRow, queue: string | null) =>
+  integrationForQueue(await accountIntegrations(tx, row.id, true), queue)?.id;
+
+/**
+ * Moves a call into its queue's channel the first time it names a queue: it opens on its first
+ * ring, still in the phone menu, so in the account's own channel. Returns the queue to keep.
+ */
+const fileByQueue = async (
+  tx: Tx,
+  row: AccountRow,
+  call: typeof calls.$inferSelect,
+  queue: string | null,
+) => {
+  if (call.queue || !queue) return call.queue;
+
+  const target = integrationForQueue(await accountIntegrations(tx, row.id, true), queue);
+
+  if (!target || !call.conversationId) return queue;
+
+  const [moved] = await tx
+    .update(conversations)
+    .set({ integrationId: target.id, channelId: target.channelId })
     .where(
-      and(
-        eq(integrations.kind, row.provider),
-        sql`${integrations.config} ->> 'accountId' = ${row.id}`,
-        eq(integrations.isActive, true),
-      ),
+      and(eq(conversations.id, call.conversationId), ne(conversations.integrationId, target.id)),
     )
-    .orderBy(asc(integrations.createdAt), asc(integrations.id));
+    .returning({ id: conversations.id, customerId: conversations.customerId });
 
-  const byQueue = found.find(
-    (integration) =>
-      queue && CallIntegrationConfig.safeParse(integration.config).data?.queues.includes(queue),
-  );
+  if (moved) await signalConversations(tx, row.orgId, [moved]);
 
-  return (byQueue ?? found[0])?.id;
+  return queue;
 };
 
 /** What frontline knows of a call when it first hears of it. */
@@ -272,7 +282,7 @@ export const recordCdr = async (row: AccountRow, cdr: Cdr, init: NewCall, timeZo
 
     return {
       status: statusOf(legs),
-      queue: call.queue ?? init.queue,
+      queue: await fileByQueue(tx, row, call, init.queue),
       extension: operator?.extension ?? answered?.dstanswer ?? call.extension,
       answeredBy: operator?.userId ?? call.answeredBy,
       answeredAt: answered ? pbxTime(answered.answer, timeZone) : call.answeredAt,
@@ -341,10 +351,14 @@ export const recordEvent = async (
     // A CDR settled the call already: live events that come late change nothing.
     if (!isLive(call.status)) return {};
 
+    const queue = await fileByQueue(tx, row, call, init.queue);
+    const queued = queue === call.queue ? {} : { queue };
+
     if (event.type === 'answered' || event.type === 'bridged') {
       const operator = await operatorOf(tx, row.id, event.extension ? [event.extension] : []);
 
       return {
+        ...queued,
         status: 'active',
         extension: event.extension ?? call.extension,
         answeredBy: operator?.userId ?? call.answeredBy,
@@ -354,10 +368,11 @@ export const recordEvent = async (
 
     if (event.type === 'hangup')
       return {
+        ...queued,
         status: call.status === 'ringing' ? 'missed' : 'answered',
         endedAt: (event.endedAt && pbxTime(event.endedAt, timeZone)) || new Date(),
       };
 
-    return {};
+    return queued;
   });
 };

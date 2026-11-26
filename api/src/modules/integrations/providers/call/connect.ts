@@ -22,6 +22,7 @@ import {
 import { call, callApi } from './call.ts';
 import { Lines, saveLines } from './lines.ts';
 import { checkPbx } from './pbx.ts';
+import { queueChannelsOf, saveQueueChannels } from './queueChannels.ts';
 import { takesCalls } from './record.ts';
 import { callWebhookUrl, followedQueues, routeCalls, sameRoute } from './relay.ts';
 
@@ -130,6 +131,7 @@ const connect = writesWithCore(
     );
 
     await saveLines(tx, member.orgId, account.id, { queues, operators });
+    await saveQueueChannels(tx, member, account, queues);
 
     return account;
   });
@@ -155,7 +157,10 @@ const connectCallPro = writes(PERMISSIONS.integrationManage)
     ),
   );
 
-const Queue = createSelectSchema(callQueues).omit({ orgId: true, live: true });
+const Queue = createSelectSchema(callQueues).omit({ orgId: true, live: true }).extend({
+  /** The channel the queue's calls go to; null, the account's own channel. */
+  channelId: z.string().nullable(),
+});
 
 const Operator = createSelectSchema(callOperators)
   .omit({ orgId: true, sipSecret: true })
@@ -206,14 +211,17 @@ const settings = reads(PERMISSIONS.integrationManage)
     const row = await phoneAccount(tx, input.accountId);
     const { secret: _secret, orgId: _orgId, ...account } = row;
     const key = await webhookKeyOf(tx, row);
+    const channelOf = await queueChannelsOf(tx, row.id);
 
     return {
       account,
-      queues: await tx
-        .select(queueColumns)
-        .from(callQueues)
-        .where(eq(callQueues.accountId, row.id))
-        .orderBy(callQueues.queue),
+      queues: (
+        await tx
+          .select(queueColumns)
+          .from(callQueues)
+          .where(eq(callQueues.accountId, row.id))
+          .orderBy(callQueues.queue)
+      ).map((queue) => ({ ...queue, channelId: channelOf.get(queue.queue) ?? null })),
       operators: await tx
         .select({
           ...operatorColumns,
@@ -280,7 +288,8 @@ const saveSettings = writesWithCore(
   },
 )
   .route({
-    summary: "Save a phone system's settings, name, followed queues and operators by extension",
+    summary:
+      "Save a phone system's settings, name, followed queues with each queue's channel, and operators by extension",
   })
   .output(Account)
   .handler(async ({ input, context: { tx, member } }) => {
@@ -298,9 +307,10 @@ const saveSettings = writesWithCore(
       .where(eq(integrationAccounts.id, accountId))
       .returning(accountColumns);
 
-    await saveLines(tx, member.orgId, accountId, { queues, operators });
-
     if (!saved) throw new ORPCError('INTERNAL_SERVER_ERROR');
+
+    await saveLines(tx, member.orgId, accountId, { queues, operators });
+    await saveQueueChannels(tx, member, saved, queues);
 
     return saved;
   });

@@ -20,6 +20,7 @@ import { orpc } from '~/orpc.ts';
 import { useChange, useMinute } from '~/shared/hooks.ts';
 import { ZonePicker } from './ConnectFields.tsx';
 import { OperatorList, queuesOf, queueText } from './PbxLines.tsx';
+import { QueueChannels } from './QueueChannels.tsx';
 import type { Account } from './useIntegrations.ts';
 
 /**
@@ -52,7 +53,7 @@ const usePbx = (account: Account, settings: Settings) => {
   );
 
   const config = PbxConfig.safeParse(account.config);
-  const queues = settings.queues.map(({ queue, name }) => ({ queue, name }));
+  const queues = settings.queues.map(({ queue, name, channelId }) => ({ queue, name, channelId }));
 
   // A kept operator keeps its SIP password: the API only takes a new one.
   const operators: SaveInput['operators'] = settings.operators.map(({ userId, extension }) => ({
@@ -228,6 +229,7 @@ export const PbxSettings = ({ account, settings }: { account: Account; settings:
   return (
     <>
       {config && <SystemSection pbx={{ ...pbx, config }} />}
+      <QueueChannels queues={pbx.queues} onChange={(queues) => pbx.change({ queues })} />
       <QueueFeed queues={settings.queues} />
       <OperatorList
         operators={pbx.operators}
