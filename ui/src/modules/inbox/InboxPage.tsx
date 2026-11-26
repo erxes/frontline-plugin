@@ -40,6 +40,7 @@ import {
   useConversationCount,
   useConversationSignal,
   useConversations,
+  useRewindConversations,
   useIntegrations,
   useOpenConversation,
   useOpenedConversation,
@@ -263,6 +264,7 @@ const InboxBody = ({ onConnect }: { onConnect?: () => void }) => {
   // The header's toggle hides the list beside an open conversation only.
   const [shown] = useListShown();
   const list = useConversations();
+  const rewind = useRewindConversations();
   const { rows: conversations } = list;
   // A conversation the filters no longer match stays open beside the empty list.
   const empty = conversations.length === 0;
@@ -285,6 +287,7 @@ const InboxBody = ({ onConnect }: { onConnect?: () => void }) => {
               customers={list.customers}
               paging={list}
               refresh={() => void list.refetch()}
+              rewind={rewind}
             />
             <BulkBar conversations={conversations} />
           </RecordList.Provider>
