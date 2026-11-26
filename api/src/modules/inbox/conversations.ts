@@ -225,6 +225,12 @@ const assign = writes(PERMISSIONS.inboxView)
     return conversationRows(tx, member).where(inArray(conversations.id, input.ids));
   });
 
+/** The agent, when the conversation's integration has one; else whoever answers it now. */
+const agentAnswersNext = sql<string>`case when exists (
+    select 1 from ${integrations}
+    where ${integrations.id} = ${conversations.integrationId} and ${integrations.agentId} is not null
+  ) then 'bot' else ${conversations.operator} end`;
+
 /** Moves the conversations to a status. Resolving stamps who and when; reopening clears it. */
 const setStatus = writes(PERMISSIONS.inboxView)
   .route({ summary: 'Move conversations to a status; resolving records who and when' })
@@ -242,8 +248,9 @@ const setStatus = writes(PERMISSIONS.inboxView)
           status: input.status,
           resolvedAt: resolved ? new Date() : null,
           resolvedBy: resolved ? member.userId : null,
-          // A resolved conversation keeps nobody waiting; the customer's next message starts again.
-          ...(resolved && ANSWERED),
+          // A resolved conversation keeps nobody waiting; the customer's next message starts again,
+          // with the integration's agent answering it when it has one.
+          ...(resolved && { ...ANSWERED, operator: agentAnswersNext }),
         })
         .where(
           inArray(

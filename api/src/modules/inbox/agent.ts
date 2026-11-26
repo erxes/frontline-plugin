@@ -13,8 +13,8 @@ import { takeOver } from './assign.ts';
 import { addBotMessage, handToPerson } from './operator.ts';
 import { signalConversations } from './shared.ts';
 
-/** The kinds of integration a core agent answers: the website messenger and Meta's direct messages. */
-const AGENT_KINDS = new Set(['messenger', 'facebook', 'instagram']);
+/** The kinds of integration a core agent can't answer: calls, which a person takes notes of. */
+const NOT_FOR_AGENTS = new Set(['call', 'callpro']);
 
 /**
  * The conversation `key` names, locked, while its integration's agent is `agentId` and the bot
@@ -215,24 +215,49 @@ export const onAgentEvent = async ({ id, type, organizationId, data }: Delivered
 const setAgent = writes(PERMISSIONS.channelView)
   .route({
     summary:
-      "Pick the AI agent that answers an integration's conversations while the bot has them, or none",
+      "Pick the AI agent that answers an integration's conversations while the bot has them, or none, and how long a customer waits on a person before it answers again",
   })
-  .input(z.object({ id: z.string(), agentId: z.string().min(1).nullable() }))
-  .output(z.object({ id: z.string(), agentId: z.string().nullable() }))
+  .input(
+    z
+      .object({
+        id: z.string(),
+        agentId: z.string().min(1).nullable().optional(),
+        /** Minutes a customer waits on a person before the agent answers again; null never. */
+        takeBackMinutes: z.number().int().min(5).max(43_200).nullable().optional(),
+      })
+      .refine(
+        (input) => input.agentId !== undefined || input.takeBackMinutes !== undefined,
+        'Send agentId, takeBackMinutes or both',
+      ),
+  )
+  .output(
+    z.object({
+      id: z.string(),
+      agentId: z.string().nullable(),
+      takeBackMinutes: z.number().nullable(),
+    }),
+  )
   .handler(async ({ input, context: { tx, member } }) => {
     const row = await integrationFor(tx, member, input.id);
 
-    if (!AGENT_KINDS.has(row.kind))
+    if (NOT_FOR_AGENTS.has(row.kind))
       throw new ORPCError('BAD_REQUEST', {
-        message: 'An agent answers website messenger, Facebook and Instagram conversations only',
+        message: 'An agent answers chats and email, not calls',
       });
 
-    await tx
+    const [saved] = await tx
       .update(integrations)
-      .set({ agentId: input.agentId })
-      .where(eq(integrations.id, input.id));
+      .set({ agentId: input.agentId, agentTakeBackMinutes: input.takeBackMinutes })
+      .where(eq(integrations.id, input.id))
+      .returning({
+        id: integrations.id,
+        agentId: integrations.agentId,
+        takeBackMinutes: integrations.agentTakeBackMinutes,
+      });
 
-    return input;
+    if (!saved) throw new ORPCError('NOT_FOUND');
+
+    return saved;
   });
 
 export const integrationAgentProcedures = { setAgent };

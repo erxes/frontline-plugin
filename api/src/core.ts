@@ -246,6 +246,8 @@ export const JOBS = {
    * conversations to available members.
    */
   replies: { name: 'inbox.replies', cron: '* * * * *' },
+  /** Gives the agent back the conversations whose customer waited too long on a person. */
+  agentTakeBack: { name: 'inbox.agent-take-back', cron: '*/5 * * * *' },
   /** Sends a channel's away message to a customer who wrote while every member was away. */
   awayReply: { name: 'inbox.away-reply', retry: { attempts: 3, delay: 10, maxDelay: 60 } },
   /** Re-reads pending help center domains from Cloudflare until they are served. */

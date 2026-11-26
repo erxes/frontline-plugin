@@ -1,0 +1,1 @@
+ALTER TABLE "frontline_integrations" ADD COLUMN "agent_take_back_minutes" integer;

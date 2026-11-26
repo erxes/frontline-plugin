@@ -58,6 +58,7 @@ export const inboundOf = (
       name: message.author.global_name ?? message.author.username,
     },
     text,
+    forAgent: Boolean(text),
     attachments: [],
     files: message.attachments.map((file) => ({
       name: file.filename,

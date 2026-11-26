@@ -10,6 +10,8 @@ import { logger } from '#/logger.ts';
 import { attachedFile } from '#/modules/files.ts';
 import { isBlockedIp, reachableAddress, reachableLookup } from '#/modules/outbound.ts';
 import { defineProvider, type InboundMessage } from '../provider.ts';
+import { automated } from './mailAutomated.ts';
+import { botText } from './botText.ts';
 import { readReport, type Reported, sentId, suppressedAmong } from './mailSuppressions.ts';
 import { type SyncState, syncFailure } from './mailSync.ts';
 
@@ -111,14 +113,16 @@ export const readMail = async (
   if (!mail.messageId || !sender || sender === address.toLowerCase()) return null;
 
   const root = firstAddress(mail.references) ?? mail.inReplyTo ?? mail.messageId;
+  // mailparser leaves the text empty for an HTML part beside files, with no plain text part.
+  const text = mail.text || (mail.html ? convert(mail.html, { wordwrap: false }) : '');
 
   return {
     message: {
       threadId: `${sender} ${root}`,
       messageId: mail.messageId,
       author: { externalId: sender, name: from?.name || sender, email: sender },
-      // mailparser leaves the text empty for an HTML part beside files, with no plain text part.
-      text: mail.text || (mail.html ? convert(mail.html, { wordwrap: false }) : ''),
+      text,
+      forAgent: Boolean(text.trim()) && !automated(mail.headers),
       providerData: { subject: mail.subject, root } satisfies z.infer<typeof MailData>,
       attachments: [],
       files: mail.attachments.map((part) => ({
@@ -325,7 +329,7 @@ export const mail = defineProvider({
       to,
       subject: started ? (started.subject ?? '') : replySubject(subject),
       ...sentId(messageId),
-      text: message.text,
+      text: botText(message),
       html: message.html ?? undefined,
       inReplyTo: answered,
       references: [...new Set([root, answered].filter((id) => id !== undefined))],

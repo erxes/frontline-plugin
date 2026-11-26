@@ -25,7 +25,6 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { PLUGIN } from '~/plugin.ts';
 import { MemberButton } from '~/shared/MemberPicker.tsx';
-import { AgentActivity } from './AgentActivity.tsx';
 import { ConversationIdentity } from './ConversationIdentity.tsx';
 import { ConversationMenu } from './ConversationPresence.tsx';
 import { ReplyDue } from './ReplyDue.tsx';
@@ -259,8 +258,9 @@ export const ConversationHeader = ({ conversation }: { conversation: Conversatio
           </span>
         </Button>
       </IconTip>
-      {conversation.agentId && <AgentActivity conversation={conversation} />}
-      {conversation.kind === 'messenger' && <ConversationMenu conversation={conversation} />}
+      {(conversation.kind === 'messenger' || conversation.agentId) && (
+        <ConversationMenu conversation={conversation} />
+      )}
     </header>
   );
 };

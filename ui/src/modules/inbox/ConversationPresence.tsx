@@ -1,43 +1,73 @@
-import { IconDots, IconRobot, IconUser } from '@tabler/icons-react';
-import { Badge, Button, cn, DropdownMenu, useFormat } from 'erxes-ui';
+import { IconHistory, IconRobot, IconRobotOff, IconUser } from '@tabler/icons-react';
+import { Badge, Button, cn, DropdownMenu, IconTip, useFormat } from 'erxes-ui';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { type Conversation, useVisitor, useVisitorTyping } from './queries.ts';
+import { AgentActivity } from './AgentActivity.tsx';
 import { useSetOperator } from './changes.ts';
 
 /**
- * The header's overflow menu for a messenger conversation: who answers it, the bot through
- * automations until a member takes it over, and Let the bot answer gives it back.
+ * The header's bot button, for a messenger conversation or one its integration's AI agent
+ * answers. Its look says who answers now: the bot, through automations or the agent, until a
+ * member takes over, or a person until a member lets the bot answer again; an agent then answers
+ * at once what the customer wrote meanwhile. With an agent it also opens what the agent did.
  */
 export const ConversationMenu = ({ conversation }: { conversation: Conversation }) => {
   const { t } = useTranslation('frontline');
   const setOperator = useSetOperator();
+  const [activity, setActivity] = useState(false);
   const bot = conversation.operator === 'bot';
+  const agent = Boolean(conversation.agentId);
+
+  const label = bot
+    ? agent
+      ? t('agent-answering', 'The AI agent answers')
+      : t('bot-answering', 'The bot answers')
+    : t('person-answering', 'A person answers');
+
+  const giveBack = agent
+    ? t('let-agent-answer', 'Let the AI agent answer')
+    : t('let-bot-answer', 'Let the bot answer');
 
   return (
-    <DropdownMenu>
-      <DropdownMenu.Trigger
-        render={
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={t('conversation-actions', 'Conversation actions')}
+    <>
+      <DropdownMenu>
+        <IconTip label={label}>
+          <DropdownMenu.Trigger
+            render={
+              <Button
+                variant="ghost"
+                tone={bot ? undefined : 'muted'}
+                size="icon"
+                aria-label={label}
+              >
+                {bot ? <IconRobot className="text-primary" /> : <IconRobotOff />}
+              </Button>
+            }
+          />
+        </IconTip>
+        <DropdownMenu.Content align="end">
+          <DropdownMenu.Item
+            disabled={setOperator.isPending}
+            onClick={() =>
+              setOperator.mutate({ ids: [conversation.id], operator: bot ? 'person' : 'bot' })
+            }
           >
-            <IconDots />
-          </Button>
-        }
-      />
-      <DropdownMenu.Content align="end">
-        <DropdownMenu.Item
-          disabled={setOperator.isPending}
-          onClick={() =>
-            setOperator.mutate({ ids: [conversation.id], operator: bot ? 'person' : 'bot' })
-          }
-        >
-          {bot ? <IconUser /> : <IconRobot />}
-          {bot ? t('take-over', 'Take over') : t('let-bot-answer', 'Let the bot answer')}
-        </DropdownMenu.Item>
-      </DropdownMenu.Content>
-    </DropdownMenu>
+            {bot ? <IconUser /> : <IconRobot />}
+            {bot ? t('take-over', 'Take over') : giveBack}
+          </DropdownMenu.Item>
+          {agent && (
+            <DropdownMenu.Item onClick={() => setActivity(true)}>
+              <IconHistory />
+              {t('agent-activity', 'Agent activity')}
+            </DropdownMenu.Item>
+          )}
+        </DropdownMenu.Content>
+      </DropdownMenu>
+      {agent && (
+        <AgentActivity conversation={conversation} open={activity} onOpenChange={setActivity} />
+      )}
+    </>
   );
 };
 
