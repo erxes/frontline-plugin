@@ -75,6 +75,7 @@ export const QueueLive = z.object({
       answered: z.number(),
       abandoned: z.number(),
       talkSeconds: z.number(),
+      /** When the agent last paused, kept after they resume; whether they are paused is `status`. */
       pausedAt: z.string().nullable(),
     }),
   ),
