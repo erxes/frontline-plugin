@@ -297,6 +297,28 @@ describe('a PBX routed through pbx-relay', () => {
     expect(relayed(actions).at(-1)).toMatchObject({ method: 'DELETE', path });
   });
 
+  it('takes its route down again when the account fails to save', async () => {
+    const actions = fakePbx();
+    const owner = clientAs('org-pbx-relay-unsaved');
+
+    // One queue twice: saving its queues fails once the route is up.
+    await expect(
+      owner.integrations.call.connect({
+        ...PBX,
+        queues: [
+          { queue: '6526', name: '' },
+          { queue: '6526', name: 'Again' },
+        ],
+      }),
+    ).rejects.toBeTruthy();
+
+    const [put, taken] = relayed(actions);
+
+    expect(put).toMatchObject({ method: 'PUT' });
+    expect(taken).toMatchObject({ method: 'DELETE', path: put?.path });
+    expect((await owner.integrations.accounts.list({})).accounts).toEqual([]);
+  });
+
   it('refuses a trunk or queue another install routes, or a PBX the relay does not serve', async () => {
     const owner = clientAs('org-pbx-relay-b');
     const taken = { kind: 'queue', value: '6500' };
