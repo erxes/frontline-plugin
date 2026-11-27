@@ -45,6 +45,9 @@ test('a list row changes its ticket in place, as a task row of Operation', async
   await page.reload();
   await expect(page.getByRole('region', { name: 'Open' })).toContainText(name);
   await expect(page.getByRole('button', { name: `Priority of ${name}: Critical` })).toBeVisible();
+  await expect(
+    page.getByRole('button', { name: new RegExp(`^Assignee of ${name}: `) }),
+  ).toBeVisible();
 
   // j focuses the first row's name and x picks it, as in Operation's list; Escape clears it.
   await page.keyboard.press('j');

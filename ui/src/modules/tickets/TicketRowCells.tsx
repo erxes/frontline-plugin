@@ -74,6 +74,7 @@ export const PriorityRowPicker = ({
     <RowPicker
       label={t('priority-of', 'Priority of {{name}}', { name: ticket.name })}
       iconOnly
+      disabled={!ticket.canEdit}
       value={String(ticket.priority)}
       onChange={(next) =>
         act.edit(ticket.id, {
@@ -102,6 +103,7 @@ export const AssigneeRowPicker = ({
   return (
     <MemberAvatarPicker
       value={ticket.assigneeId}
+      disabled={!ticket.canEdit}
       onValueChange={(assigneeId) => act.edit(ticket.id, { assigneeId })}
       noneLabel={t('no-assignee', 'No assignee')}
       label={(name) =>
@@ -147,6 +149,7 @@ export const TargetDateRowPicker = ({
       <DateField
         aria-label={t('target-date-of', 'Target date of {{name}}', { name: ticket.name })}
         variant="field"
+        disabled={!ticket.canEdit}
         value={ticket.targetDate ? toIsoDay(ticket.targetDate) : null}
         min={ticket.startDate ? toIsoDay(ticket.startDate) : undefined}
         placeholder={t('target-date', 'Target date')}

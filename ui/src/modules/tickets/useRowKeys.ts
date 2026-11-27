@@ -18,10 +18,14 @@ const useTicketsScope = () => {
 /** Each row's name, in the order shown. */
 const rowNames = () => [...document.querySelectorAll<HTMLElement>('[data-ticket-row]')];
 
+/** The row that holds focus, by its name, from any of its controls. */
+const focusedRow = () =>
+  document.activeElement?.closest('[data-record-row]')?.querySelector('[data-ticket-row]');
+
 /** Focus moves `step` rows from the focused one, or to the first. */
 const moveFocus = (step: number) => {
   const all = rowNames();
-  const at = all.findIndex((name) => name === document.activeElement);
+  const at = all.findIndex((name) => name === focusedRow());
   const next = all[at === -1 ? 0 : Math.min(Math.max(at + step, 0), all.length - 1)];
 
   next?.focus();
@@ -41,8 +45,8 @@ export const useRowKeys = ({ toggle, clear }: ReturnType<typeof RecordList.useSe
   useScopedHotkeys(
     'x',
     () => {
-      const id =
-        document.activeElement?.closest<HTMLElement>('[data-ticket-row]')?.dataset.ticketRow;
+      const name = focusedRow();
+      const id = name instanceof HTMLElement ? name.dataset.ticketRow : undefined;
 
       if (id) toggle(id);
     },
