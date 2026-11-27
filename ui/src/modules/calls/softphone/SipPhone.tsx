@@ -16,6 +16,7 @@ import { type CurrentCall, useCurrentCall } from './current.ts';
 import { DesktopLink, desktop } from './DesktopLink.tsx';
 import { publishPhone, takePendingDial, usePendingDial } from './live.ts';
 import { StatusDot, useCallText } from './PhonePanel.tsx';
+import { useRingtone } from './ringtone.ts';
 import css from './styles.css?inline';
 import { type Line, type Phone, type PhoneCall, useSip } from './useSip.ts';
 
@@ -120,6 +121,8 @@ const LinePhone = ({
   const [closedNote, closeNote] = useState<string | null>(null);
   const { call } = phone;
   const { current, caller } = useCurrentCall(line, phone.callCount, Boolean(call));
+
+  useRingtone(call?.direction === 'incoming' && !call.talking);
 
   useEffect(
     () => publishPhone({ phone, line, lines, pickLine, current, caller, closedNote, closeNote }),
