@@ -6,13 +6,21 @@ import { useTranslation } from 'react-i18next';
 import { z } from 'zod';
 import { StageIcon } from '@/pipelines/StageIcon.tsx';
 import { PLUGIN, TICKET_TYPE } from '~/plugin.ts';
-import { LoadPage, RowDate } from '~/shared/List.tsx';
+import { LoadPage } from '~/shared/List.tsx';
 import { type Paging, useLoadMore } from '~/shared/paging.ts';
 import { ListSelectionBar } from '~/shared/Records.tsx';
-import { AssigneeCell, PriorityCell, TicketMenu, TicketName } from './TicketCells.tsx';
+import { TicketMenu } from './TicketCells.tsx';
+import {
+  AssigneeRowPicker,
+  PriorityRowPicker,
+  StatusRowPicker,
+  TargetDateRowPicker,
+  TicketRowName,
+} from './TicketRowCells.tsx';
 import { SlaBadge } from './SlaBadge.tsx';
 import { TicketBulkActions } from './TicketBulkActions.tsx';
 import { TicketTags } from './TicketLinks.tsx';
+import { useRowKeys } from './useRowKeys.ts';
 import {
   type TicketRow,
   type TicketRowActions,
@@ -24,25 +32,36 @@ import {
 } from './queries.ts';
 
 /**
- * One ticket: its number and name, tags, SLA, priority, assignee, last change, and its menu. The
- * tags show only on a row wide enough to keep the name readable beside them.
+ * One ticket, as a task row of Operation: its priority, number and status, each changed in
+ * place, its name (which opens it), tags, SLA, target date and assignee, then its menu. A narrow
+ * row keeps the status, name, a set priority and the assignee.
  */
 const TicketLine = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions }) => (
-  <div className="@container flex min-w-0 flex-1 items-center gap-3 text-xs">
-    <span className="flex min-w-0 flex-1">
-      <TicketName ticket={ticket} />
+  <div className="@container flex min-w-0 flex-1 items-center gap-1 text-xs">
+    <span className="hidden md:flex">
+      <PriorityRowPicker ticket={ticket} act={act} />
     </span>
+    <span
+      aria-hidden
+      className="hidden w-16 shrink-0 truncate text-muted-foreground tabular-nums md:block"
+    >
+      {ticket.number}
+    </span>
+    <StatusRowPicker ticket={ticket} act={act} />
+    <TicketRowName ticket={ticket} />
     <span className="hidden max-w-48 @3xl:flex">
       <TicketTags tagIds={ticket.tagIds} />
     </span>
     <SlaBadge ticket={ticket} />
-    <span className="w-32 shrink-0">
-      <PriorityCell ticket={ticket} act={act} />
+    {ticket.priority > 0 && (
+      <span className="flex md:hidden">
+        <PriorityRowPicker ticket={ticket} act={act} />
+      </span>
+    )}
+    <span className="hidden md:flex">
+      <TargetDateRowPicker ticket={ticket} act={act} />
     </span>
-    <span className="hidden w-44 shrink-0 md:block">
-      <AssigneeCell ticket={ticket} act={act} />
-    </span>
-    <RowDate date={ticket.updatedAt} />
+    <AssigneeRowPicker ticket={ticket} act={act} />
     <TicketMenu ticket={ticket} act={act} />
   </div>
 );
@@ -197,7 +216,10 @@ const StatusGroup = memo(function StatusGroup({
 
 /** The bulk bar for the picked tickets the status groups' lists hold. */
 const TicketSelection = () => {
-  const picked = usePickedTickets(RecordList.useSelection().ids);
+  const selection = RecordList.useSelection();
+  const picked = usePickedTickets(selection.ids);
+
+  useRowKeys(selection);
 
   return (
     <ListSelectionBar shown={picked.map((ticket) => ticket.id)}>

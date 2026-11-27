@@ -1,5 +1,5 @@
 import { orpc as core, memberQueries } from '@erxes/core-contract/client';
-import { IconPlus, IconUserPlus } from '@tabler/icons-react';
+import { IconPlus, IconUserCircle, IconUserPlus } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -15,7 +15,7 @@ import {
 } from 'erxes-ui';
 import { type ComponentProps, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MemberChip, MemberLine, PersonLine } from './Person.tsx';
+import { MemberAvatar, MemberChip, MemberLine, PersonLine } from './Person.tsx';
 
 // erxes-ui's `SelectMember` draws its members with grey one-letter avatars; these pickers draw
 // them as the rest of frontline does (`Person.tsx`).
@@ -133,6 +133,54 @@ export const MemberButton = ({ value, onValueChange, placeholder, noneLabel }: O
         )}
       </Popover.Trigger>
       <Combobox.Content align="start">
+        <MemberOptions
+          value={value ? [value] : []}
+          noneLabel={noneLabel}
+          onValueChange={([id]) => {
+            onValueChange(id ?? null);
+            setOpen(false);
+          }}
+        />
+      </Combobox.Content>
+    </Popover>
+  );
+};
+
+/**
+ * The member as their avatar alone, for a list row, as a task row of Operation draws its
+ * assignee: an empty circle without one. `label` names the button with the member's name.
+ */
+export const MemberAvatarPicker = ({
+  value,
+  onValueChange,
+  noneLabel,
+  label,
+  disabled,
+}: Omit<OneMember, 'placeholder'> & {
+  label: (name?: string) => string;
+  disabled?: boolean;
+}) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <Combobox.Trigger
+        variant="ghost"
+        hideChevron
+        size="icon"
+        disabled={disabled}
+        className="w-7 shrink-0"
+      >
+        {value ? (
+          <MemberAvatar id={value} label={label} />
+        ) : (
+          <>
+            <IconUserCircle aria-hidden className="size-4 text-muted-foreground" />
+            <span className="sr-only">{label()}</span>
+          </>
+        )}
+      </Combobox.Trigger>
+      <Combobox.Content align="end">
         <MemberOptions
           value={value ? [value] : []}
           noneLabel={noneLabel}

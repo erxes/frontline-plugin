@@ -1,6 +1,14 @@
-import { Badge, EntityPicker, Popover, RecordTableInlineCell, Tooltip } from 'erxes-ui';
+import {
+  Badge,
+  Combobox,
+  cn,
+  EntityPicker,
+  Popover,
+  RecordTableInlineCell,
+  Tooltip,
+} from 'erxes-ui';
 import { useQuery } from '@tanstack/react-query';
-import type { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { tagsOf } from '~/shared/reference.ts';
 
@@ -62,6 +70,88 @@ export const PickerField = ({
     </RecordTableInlineCell.Content>
   </Popover>
 );
+
+type RowOption<V extends string> = { value: V; label: string; icon: ReactNode };
+
+/**
+ * One value of a list row, picked in place as on a task row of Operation: a quiet button that
+ * shows the value's icon (`iconOnly`) or icon and name, and opens a searchable list. Its name
+ * is `label`, then the value, for screen readers.
+ */
+export const RowPicker = <V extends string>({
+  label,
+  options,
+  value,
+  onChange,
+  iconOnly,
+  display,
+  disabled,
+  className,
+}: {
+  label: string;
+  options: RowOption<V>[];
+  value: V;
+  onChange: (value: V) => void;
+  iconOnly?: boolean;
+  /** What the closed button shows instead of the value's icon and name. */
+  display?: ReactNode;
+  disabled?: boolean;
+  className?: string;
+}) => {
+  const [open, setOpen] = useState(false);
+  const current = options.find((option) => option.value === value);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <Combobox.Trigger
+        variant="ghost"
+        hideChevron
+        size={iconOnly ? 'icon' : undefined}
+        disabled={disabled}
+        className={cn(iconOnly ? 'w-7 shrink-0' : 'min-w-0', className)}
+      >
+        <span className="flex min-w-0 items-center gap-2">
+          <span className="sr-only">
+            {label}
+            {current && `: ${current.label}`}
+          </span>
+          {display ?? (
+            <>
+              <span aria-hidden className="inline-flex shrink-0">
+                {current?.icon}
+              </span>
+              {!iconOnly && (
+                <span aria-hidden className="truncate">
+                  {current?.label}
+                </span>
+              )}
+            </>
+          )}
+        </span>
+      </Combobox.Trigger>
+      <Combobox.Content className="w-56">
+        <EntityPicker<RowOption<V>, V>
+          items={options}
+          itemKey={(option) => ({ id: option.value, label: option.label })}
+          renderItem={(option) => (
+            <span className="flex min-w-0 items-center gap-2">
+              {option.icon}
+              <span className="truncate">{option.label}</span>
+            </span>
+          )}
+          value={[value]}
+          keepOrder
+          searchPlaceholder={label}
+          onValueChange={([next]) => {
+            if (next !== undefined && next !== value) onChange(next);
+
+            setOpen(false);
+          }}
+        />
+      </Combobox.Content>
+    </Popover>
+  );
+};
 
 /** Labels as badges; past `max`, one more badge counts the rest and names them on hover. */
 export const Badges = ({ labels, max = labels.length }: { labels: string[]; max?: number }) => {

@@ -94,7 +94,7 @@ const PRIORITY_ICONS: Record<Priority, typeof IconAntennaBarsOff> = {
 };
 
 /** A priority as the old ticket list drew it: signal bars, critical as a filled alert. */
-const PriorityIcon = ({ priority }: { priority: Priority }) => {
+export const PriorityIcon = ({ priority }: { priority: Priority }) => {
   const Icon = PRIORITY_ICONS[priority];
 
   return (
