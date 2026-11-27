@@ -69,7 +69,7 @@ test('a member files, changes and filters tickets in the list', async ({ page })
   await panel.getByRole('button', { name: 'Create ticket' }).click();
   await expect(panel.getByRole('button', { name: `Name ${refund}` })).toBeVisible();
   await pick(page, panel.getByRole('combobox', { name: 'Priority' }), 'High');
-  await expect(page.getByRole('combobox', { name: `Priority of ${refund}` })).toHaveText('High');
+  await expect(page.getByRole('button', { name: `Priority of ${refund}: High` })).toBeVisible();
   await expect(panel.getByText('Status changed')).toBeVisible();
 
   // An attached image shows as its thumbnail, which opens the file.
@@ -161,7 +161,7 @@ test('a member changes tickets in one go, sees them on the board and deletes the
   await pick(page, page.getByRole('button', { name: 'Priority', exact: true }), 'Medium');
 
   for (const name of names) {
-    await expect(page.getByRole('combobox', { name: `Priority of ${name}` })).toHaveText('Medium');
+    await expect(page.getByRole('button', { name: `Priority of ${name}: Medium` })).toBeVisible();
   }
 
   // The board lays the pipeline's statuses out as columns, each counting its own; Space picks a

@@ -144,14 +144,19 @@ test('a ticket tile number opens the tickets it counts', async ({ page, api, req
   // Open now leads to the pipeline's tickets in an open status: only the first.
   await tile.getByRole('link', { name: 'Open now: 1' }).click();
   await expect(page).toHaveURL(/\/frontline\/tickets\?/);
-  await expect(page.getByText(open)).toBeVisible();
-  await expect(page.getByText(resolved)).toHaveCount(0);
+
+  // A ticket by its name, which opens it; its row's pickers name it too.
+  const ticket = (name: string) =>
+    page.getByRole('button', { name: new RegExp(`^\\S*\\s?${name}$`) });
+
+  await expect(ticket(open)).toBeVisible();
+  await expect(ticket(resolved)).toHaveCount(0);
 
   // Created leads to both.
   await page.goBack();
   await tileOf(page, 'Ticket summary').getByRole('link', { name: 'Created: 2' }).click();
-  await expect(page.getByText(open)).toBeVisible();
-  await expect(page.getByText(resolved)).toBeVisible();
+  await expect(ticket(open)).toBeVisible();
+  await expect(ticket(resolved)).toBeVisible();
 });
 
 test('a conversation tile number opens the conversations it counts in the inbox', async ({
