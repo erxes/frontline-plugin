@@ -172,7 +172,7 @@ export const MemberAvatarPicker = ({
         className="w-7 shrink-0"
       >
         {value ? (
-          <MemberAvatar id={value} label={label} />
+          <MemberAvatar id={value} label={label} size="lg" />
         ) : (
           <>
             <IconUserCircle aria-hidden className="size-4 text-muted-foreground" />

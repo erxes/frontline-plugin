@@ -1,4 +1,19 @@
-import { type RecordList, usePageHotkey } from 'erxes-ui';
+import { type RecordList, usePreviousHotkeyScope, useScopedHotkeys } from 'erxes-ui';
+import { useEffect } from 'react';
+
+/** The list's keys work while it is shown, the bulk bar too, until a dialog takes over. */
+const TICKETS_SCOPE = 'frontline-tickets';
+
+const useTicketsScope = () => {
+  const { setHotkeyScopeAndMemorizePreviousScope, goBackToPreviousHotkeyScope } =
+    usePreviousHotkeyScope();
+
+  useEffect(() => {
+    setHotkeyScopeAndMemorizePreviousScope(TICKETS_SCOPE);
+
+    return goBackToPreviousHotkeyScope;
+  }, [setHotkeyScopeAndMemorizePreviousScope, goBackToPreviousHotkeyScope]);
+};
 
 /** Each row's name, in the order shown. */
 const rowNames = () => [...document.querySelectorAll<HTMLElement>('[data-ticket-row]')];
@@ -17,13 +32,21 @@ const moveFocus = (step: number) => {
  * The list's keys, as Operation's task list and Linear: `j`/`k` the next and previous row, `x`
  * picks the focused one, Escape clears the picks.
  */
-export const useRowKeys = (selection: ReturnType<typeof RecordList.useSelection>) => {
-  usePageHotkey('j', () => moveFocus(1));
-  usePageHotkey('k', () => moveFocus(-1));
-  usePageHotkey('escape', selection.clear, { when: () => selection.ids.length > 0 });
-  usePageHotkey('x', () => {
-    const id = document.activeElement?.closest<HTMLElement>('[data-ticket-row]')?.dataset.ticketRow;
+export const useRowKeys = ({ toggle, clear }: ReturnType<typeof RecordList.useSelection>) => {
+  useTicketsScope();
+  useScopedHotkeys('j', () => moveFocus(1), TICKETS_SCOPE);
+  useScopedHotkeys('k', () => moveFocus(-1), TICKETS_SCOPE);
+  useScopedHotkeys('escape', clear, TICKETS_SCOPE, [clear], { preventDefault: false });
 
-    if (id) selection.toggle(id);
-  });
+  useScopedHotkeys(
+    'x',
+    () => {
+      const id =
+        document.activeElement?.closest<HTMLElement>('[data-ticket-row]')?.dataset.ticketRow;
+
+      if (id) toggle(id);
+    },
+    TICKETS_SCOPE,
+    [toggle],
+  );
 };

@@ -268,14 +268,25 @@ export const MemberChip = ({ id }: { id: string | null | undefined }) => {
 };
 
 /** A member's avatar alone, `label` with their name on hover and for screen readers. */
-export const MemberAvatar = ({ id, label }: { id: string; label: (name: string) => string }) => {
+export const MemberAvatar = ({
+  id,
+  label,
+  size = 'sm',
+}: {
+  id: string;
+  label: (name: string) => string;
+  size?: AvatarProps['size'];
+}) => {
   const { member, name } = useMember(id);
 
   if (!member) return null;
 
   return (
     <span title={label(name)} className="flex-none">
-      <PersonAvatar name={name} src={member.avatarUrl} size="sm" />
+      {/* The label names them; the initials would only repeat it first. */}
+      <span aria-hidden className="flex">
+        <PersonAvatar name={name} src={member.avatarUrl} size={size} />
+      </span>
       <span className="sr-only">{label(name)}</span>
     </span>
   );

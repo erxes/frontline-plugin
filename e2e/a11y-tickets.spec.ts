@@ -148,7 +148,13 @@ test('tickets in the list, the board and the table', async ({ page, api, request
   await rpc('pipelines/create', { channelId: pipeline.channelId, name: unique() }, Id);
   await rpc('tickets/create', { pipelineId: pipeline.id, name }, Id);
   await page.goto(`/frontline/tickets?pipeline=${pipeline.id}`);
-  await expectAccessible(page, page.getByRole('region', { name: 'New' }).getByText(name));
+
+  // The row's name: its pickers' screen-reader names hold it too.
+  const row = page.getByRole('region', { name: 'New' }).getByRole('button', {
+    name: new RegExp(`^\\S*\\s?${name}$`),
+  });
+
+  await expectAccessible(page, row);
 
   for (const display of ['Board', 'Table']) {
     await page.getByRole('button', { name: 'Display' }).click();

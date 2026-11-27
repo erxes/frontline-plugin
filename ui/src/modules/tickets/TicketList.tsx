@@ -32,8 +32,8 @@ import {
 } from './queries.ts';
 
 /**
- * One ticket, as a task row of Operation: its priority, number and status, each changed in
- * place, its name (which opens it), tags, SLA, target date and assignee, then its menu. A narrow
+ * One ticket, as a task row of Operation: its priority, number (in a pipeline that numbers
+ * tickets) and status, each changed in place, its name (which opens it), tags, SLA, target date and assignee, then its menu. A narrow
  * row keeps the status, name, a set priority and the assignee.
  */
 const TicketLine = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions }) => (
@@ -41,12 +41,14 @@ const TicketLine = ({ ticket, act }: { ticket: TicketRow; act: TicketRowActions 
     <span className="hidden md:flex">
       <PriorityRowPicker ticket={ticket} act={act} />
     </span>
-    <span
-      aria-hidden
-      className="hidden w-16 shrink-0 truncate text-muted-foreground tabular-nums md:block"
-    >
-      {ticket.number}
-    </span>
+    {ticket.number && (
+      <span
+        aria-hidden
+        className="hidden w-16 shrink-0 truncate text-muted-foreground tabular-nums md:block"
+      >
+        {ticket.number}
+      </span>
+    )}
     <StatusRowPicker ticket={ticket} act={act} />
     <TicketRowName ticket={ticket} />
     <span className="hidden max-w-48 @3xl:flex">
