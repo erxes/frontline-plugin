@@ -222,7 +222,7 @@ test("a survey's results and questions", async ({ page, api, request }) => {
   await expectAccessible(page, page.getByRole('region', { name: 'How did we do?', exact: true }));
 });
 
-test("a form's draft and the form it saves", async ({ page, api, request }) => {
+test("a form's draft, and the settings of the form it saves", async ({ page, api, request }) => {
   const channel = `Support ${unique()}`;
   const panel = recordPanel(page);
   const name = `Demo request ${unique()}`;
@@ -237,10 +237,13 @@ test("a form's draft and the form it saves", async ({ page, api, request }) => {
   await panel.getByLabel('Form title').fill('Book a demo');
   await expectAccessible(page, panel.getByLabel('Form title'));
   await panel.getByRole('button', { name: 'Create form' }).click();
-  await expectAccessible(
-    page,
-    page.getByRole('region', { name: 'Active' }).getByRole('button', { name, exact: true }),
-  );
+  // The form opens on its own page, at its fields; its settings are the page's form.
+  await expect(page).toHaveURL(new RegExp(`${FORMS}/[^/?]+$`));
+  await page
+    .getByRole('navigation', { name: 'Form' })
+    .getByRole('link', { name: 'Settings' })
+    .click();
+  await expectAccessible(page, page.getByRole('textbox', { name: 'Form title' }));
 });
 
 test("a form's builder, embed and submissions", async ({ page, api, request }) => {
