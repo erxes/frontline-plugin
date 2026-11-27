@@ -147,6 +147,11 @@ export const RowPicker = <V extends string>({
 
             setOpen(false);
           }}
+        />
+      </Combobox.Content>
+    </Popover>
+  );
+};
 
 /**
  * A value of a settings page's form picked from `options`: one, closing on the pick, or several
