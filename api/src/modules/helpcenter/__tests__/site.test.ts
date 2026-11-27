@@ -39,6 +39,8 @@ describe("a help center's site", () => {
     const read = await pageAt(`${site}/articles/${article.id}`);
 
     expect(read.body).toContain('<title>Refunds · Acme help</title>');
+    // Beside the article, the topic's top categories, the one it sits under marked.
+    expect(read.body).toMatch(/\/categories\/[^"]+"\s+aria-current="page"/);
     expect(read.body).toContain(SANITIZED);
     expect(read.body).not.toContain('steal()');
 

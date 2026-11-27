@@ -13,7 +13,7 @@ import {
   IconUser,
 } from '@tabler/icons-react';
 import {
-  Button,
+  buttonVariants,
   DisplayMenu,
   ListFilter,
   PageContainer,
@@ -26,6 +26,7 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { MemberLine } from '~/shared/Person.tsx';
 import { KB_TOPIC_TYPE } from '~/plugin.ts';
 import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
@@ -44,22 +45,17 @@ import {
   useTopics,
 } from './useKnowledgeBase.ts';
 
-/** The title opens the topic in core's side panel, as a customer's name does. */
-const TitleCell = ({ topic }: { topic: Topic }) => {
-  const { open } = useOpenRecord();
-
-  return (
-    <RecordTableInlineCell>
-      <Button
-        variant="ghost"
-        className="w-full justify-start"
-        onClick={() => open({ contentType: KB_TOPIC_TYPE, contentId: topic.id })}
-      >
-        {topic.title}
-      </Button>
-    </RecordTableInlineCell>
-  );
-};
+/** The title opens the topic's own page. */
+const TitleCell = ({ topic }: { topic: Topic }) => (
+  <RecordTableInlineCell>
+    <Link
+      to={topicPath(topic.id)}
+      className={buttonVariants({ variant: 'ghost', className: 'w-full justify-start' })}
+    >
+      <span className="truncate">{topic.title}</span>
+    </Link>
+  </RecordTableInlineCell>
+);
 
 const MoreCell = ({ topic }: { topic: Topic }) => {
   const { t } = useTranslation('frontline');

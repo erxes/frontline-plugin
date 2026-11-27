@@ -3,13 +3,14 @@ import { useMutation } from '@tanstack/react-query';
 import { PanelFormLayout, PanelFormRow, type TRecordDraftProps, textOf } from 'erxes-ui';
 import type { SubmitEvent } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { orpc } from '~/orpc.ts';
 import { ChannelRow, useNewRecordChannel } from '~/shared/ChannelSelect.tsx';
 import { draftsOf, useDiscard, useDraft } from '~/shared/drafts.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { LoadTypeSelect } from './FormSettings.tsx';
-import { LOAD_TYPES, useFormChange } from './useForms.ts';
+import { formPath, LOAD_TYPES, useFormChange } from './useForms.ts';
 
 /** The new form being set up, kept until it is created or thrown away. */
 const formDrafts = draftsOf(
@@ -24,11 +25,11 @@ const formDrafts = draftsOf(
 
 /**
  * A new form in core's side panel: its channel, name, the title visitors read and how it shows.
- * Nothing saves until Save; the form then takes the draft's place, and its fields are built on
- * its Builder page.
+ * Nothing saves until Save; the form then opens on its own page, at its fields.
  */
-export const FormNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
+export const FormNew = ({ defaults, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
+  const navigate = useNavigate();
 
   const draft = useDraft(formDrafts, 'new', {
     channelId: textOf(defaults.channelId),
@@ -46,7 +47,7 @@ export const FormNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) =>
       onSuccess: (form) => {
         draft.clear();
         onSuccess();
-        onCreated(form.id);
+        void navigate(formPath(form.id));
       },
     }),
   );

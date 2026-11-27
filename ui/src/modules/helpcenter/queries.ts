@@ -18,9 +18,14 @@ export type HelpCenterFields = Omit<InferClientInputs<Client>['helpCenters']['up
 
 export const HELP_CENTERS_PATH = `/${PLUGIN}/help-centers`;
 
-/** A help center's own page, or with `appearance`, the page that edits its look. */
-export const helpCenterPath = (id: string, appearance?: boolean) =>
-  `${HELP_CENTERS_PATH}/${encodeURIComponent(id)}${appearance ? '/appearance' : ''}`;
+/** A help center page's sections, one address each; General is the page's own. */
+export const HELP_CENTER_SECTIONS = ['general', 'install', 'domain', 'appearance'] as const;
+
+export type HelpCenterSection = (typeof HELP_CENTER_SECTIONS)[number];
+
+/** A help center's own page, open at `section`. */
+export const helpCenterPath = (id: string, section: HelpCenterSection = 'general') =>
+  `${HELP_CENTERS_PATH}/${encodeURIComponent(id)}${section === 'general' ? '' : `/${section}`}`;
 
 /** The help centers, newest first and a page at a time, narrowed by the filter bar. */
 export const useHelpCenters = () => {

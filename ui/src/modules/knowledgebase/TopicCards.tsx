@@ -1,28 +1,32 @@
-import { IconDots, IconArticle, IconFolders, IconInfoCircle, IconTrash } from '@tabler/icons-react';
-import { Button, Skeleton, useOpenRecord } from 'erxes-ui';
+import { IconDots, IconArticle, IconFolders, IconSettings, IconTrash } from '@tabler/icons-react';
+import { Button, buttonVariants, Skeleton } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link, useNavigate } from 'react-router-dom';
-import { KB_ARTICLE_TYPE, KB_TOPIC_TYPE } from '~/plugin.ts';
 import { ActionsMenu, type RowAction } from '~/shared/Records.tsx';
 import { useDeleteTopics } from './useKbDeletes.ts';
-import { type Topic, topicPath, useKbAccess, useLanguageName } from './useKnowledgeBase.ts';
+import {
+  articlePath,
+  type Topic,
+  topicPath,
+  useKbAccess,
+  useLanguageName,
+} from './useKnowledgeBase.ts';
 
 const GRID = 'grid grid-cols-1 gap-3 p-3 sm:grid-cols-2 lg:grid-cols-3';
 
-/** The topic's details in core's side panel, its categories, and delete for who manages topics. */
+/** The topic's settings, its categories, and delete for who manages topics. */
 const TopicMenu = ({ topic }: { topic: Topic }) => {
   const { t } = useTranslation('frontline');
-  const { open } = useOpenRecord();
   const navigate = useNavigate();
   const can = useKbAccess();
   const { deleteTopics } = useDeleteTopics();
 
   const actions: RowAction[] = [
     {
-      value: 'details',
-      icon: <IconInfoCircle />,
-      label: t('kb-topic-details', 'Topic details'),
-      onSelect: () => open({ contentType: KB_TOPIC_TYPE, contentId: topic.id }),
+      value: 'settings',
+      icon: <IconSettings />,
+      label: t('settings', 'Settings'),
+      onSelect: () => void navigate(topicPath(topic.id, 'settings')),
     },
     {
       value: 'categories',
@@ -104,7 +108,6 @@ const TopicCard = ({ topic }: { topic: Topic }) => {
  */
 const LatestArticles = ({ topic }: { topic: Topic }) => {
   const { t } = useTranslation('frontline');
-  const { open } = useOpenRecord();
 
   if (topic.latestArticles.length === 0)
     return (
@@ -120,15 +123,17 @@ const LatestArticles = ({ topic }: { topic: Topic }) => {
     >
       {topic.latestArticles.map((article) => (
         <li key={article.id} className="flex min-w-0">
-          <Button
-            variant="ghost"
-            size="sm"
-            className="relative min-w-0 justify-start"
-            onClick={() => open({ contentType: KB_ARTICLE_TYPE, contentId: article.id })}
+          <Link
+            to={articlePath(article.id)}
+            className={buttonVariants({
+              variant: 'ghost',
+              size: 'sm',
+              className: 'relative min-w-0 justify-start',
+            })}
           >
             <IconArticle className="text-muted-foreground" />
             <span className="truncate">{article.title}</span>
-          </Button>
+          </Link>
         </li>
       ))}
     </ul>

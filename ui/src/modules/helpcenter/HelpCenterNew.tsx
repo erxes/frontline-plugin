@@ -3,14 +3,19 @@ import { useMutation } from '@tanstack/react-query';
 import { PanelFormLayout, PanelFormRow, type TRecordDraftProps, textOf } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { PickerField } from '~/shared/Pickers.tsx';
-import { useHelpCenterChange, useTopicOptions } from './queries.ts';
+import { helpCenterPath, useHelpCenterChange, useTopicOptions } from './queries.ts';
 
-/** A new help center in core's side panel: its title, description and topic. */
-export const HelpCenterNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
+/**
+ * A new help center in core's side panel: its title, description and topic. Once created it
+ * opens on its own page, where the rest of it is set.
+ */
+export const HelpCenterNew = ({ onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
+  const navigate = useNavigate();
   const topics = useTopicOptions();
   const [kbTopicId, setTopicId] = useState<string | null>(null);
   const { onSuccess } = useHelpCenterChange();
@@ -19,7 +24,7 @@ export const HelpCenterNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
     orpc.helpCenters.create.mutationOptions({
       onSuccess: (center) => {
         onSuccess();
-        onCreated(center.id);
+        void navigate(helpCenterPath(center.id));
       },
     }),
   );

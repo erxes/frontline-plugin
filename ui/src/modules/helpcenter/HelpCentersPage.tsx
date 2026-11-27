@@ -14,6 +14,7 @@ import {
 import {
   Badge,
   Button,
+  buttonVariants,
   ListFilter,
   PageContainer,
   RecordTable,
@@ -24,7 +25,7 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { HELP_CENTER_TYPE } from '~/plugin.ts';
 import { AppHeader } from '~/shared/Header.tsx';
 import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
@@ -46,22 +47,17 @@ const LIST = 'frontline-help-centers';
 
 const column = columnOf<HelpCenter>;
 
-/** The title opens the help center in core's side panel. */
-const TitleCell = ({ center }: { center: HelpCenter }) => {
-  const { open } = useOpenRecord();
-
-  return (
-    <RecordTableInlineCell>
-      <Button
-        variant="ghost"
-        className="w-full justify-start"
-        onClick={() => open({ contentType: HELP_CENTER_TYPE, contentId: center.id })}
-      >
-        <span className="truncate">{center.title}</span>
-      </Button>
-    </RecordTableInlineCell>
-  );
-};
+/** The title opens the help center's own page. */
+const TitleCell = ({ center }: { center: HelpCenter }) => (
+  <RecordTableInlineCell>
+    <Link
+      to={helpCenterPath(center.id)}
+      className={buttonVariants({ variant: 'ghost', className: 'w-full justify-start' })}
+    >
+      <span className="truncate">{center.title}</span>
+    </Link>
+  </RecordTableInlineCell>
+);
 
 /** The topic the help center shows, picked in place by a manager. */
 const TopicCell = ({ center, manage }: { center: HelpCenter; manage: boolean }) => {
@@ -118,7 +114,7 @@ const MoreCell = ({ center, manage }: { center: HelpCenter; manage: boolean }) =
       value: 'appearance',
       icon: <IconBrush />,
       label: t('appearance', 'Appearance'),
-      onSelect: () => void navigate(helpCenterPath(center.id, true)),
+      onSelect: () => void navigate(helpCenterPath(center.id, 'appearance')),
     },
     ...(manage
       ? [

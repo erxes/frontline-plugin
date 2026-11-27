@@ -8,64 +8,15 @@ import {
   IconUsers,
 } from '@tabler/icons-react';
 import { useQuery } from '@tanstack/react-query';
-import { cn, IconComponent, ScrollArea, useFormat } from 'erxes-ui';
-import type { ReactNode } from 'react';
+import { cn, IconComponent, ScrollArea } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { Link, useLocation } from 'react-router-dom';
 import { CHANNEL_KINDS, useKindTitles } from '@/integrations/kindText.ts';
 import { channelSettingsPath } from '~/shared/channelScope.ts';
 import { KindIcon } from '~/shared/kinds.tsx';
 import { integrationsQuery } from '~/shared/reference.ts';
+import { NavGroup, NavRow } from '~/shared/RecordWorkspace.tsx';
 import type { Channel } from './useChannels.ts';
-
-/** One row of the column: its mark, its name and how many, lit while its page is open. */
-const NavRow = ({
-  to,
-  mark,
-  label,
-  count,
-  muted = false,
-}: {
-  to: string;
-  mark: ReactNode;
-  label: string;
-  count?: number;
-  muted?: boolean;
-}) => {
-  const { pathname } = useLocation();
-  const format = useFormat();
-  const current = pathname === to;
-
-  return (
-    <li>
-      <Link
-        to={to}
-        aria-current={current ? 'page' : undefined}
-        className={cn(
-          'flex h-8 items-center gap-2.5 rounded-md px-2 text-sm transition-colors hover:bg-accent',
-          current && 'bg-primary/10 font-medium text-primary-text hover:bg-primary/10',
-          muted && !current && 'text-muted-foreground',
-        )}
-      >
-        <span className="grid size-5 shrink-0 place-items-center">{mark}</span>
-        <span className="min-w-0 flex-1 truncate">{label}</span>
-        {count !== undefined && (
-          <span className="text-xs text-muted-foreground tabular-nums">{format.number(count)}</span>
-        )}
-      </Link>
-    </li>
-  );
-};
-
-/** A group of rows under a small caps heading. */
-const NavGroup = ({ label, children }: { label: string; children: ReactNode }) => (
-  <section aria-label={label} className="flex flex-col gap-1">
-    <h3 className="px-2 text-2xs font-medium tracking-wide text-muted-foreground uppercase">
-      {label}
-    </h3>
-    <ul className="flex flex-col gap-0.5">{children}</ul>
-  </section>
-);
 
 /** The channel's own sections, its integrations first, each with how many it holds. */
 const useSections = (

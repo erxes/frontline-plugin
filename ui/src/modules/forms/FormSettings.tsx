@@ -1,120 +1,22 @@
-import {
-  IconAlignLeft,
-  IconCircles,
-  IconClick,
-  IconColorSwatch,
-  IconEyeOff,
-  IconHeartHandshake,
-  IconLanguage,
-  IconLayoutBottombar,
-  IconLetterCase,
-  IconMessage,
-  IconPhoto,
-  IconUserCheck,
-} from '@tabler/icons-react';
-import { ColorPicker, PanelField, PanelSection, Select, Switch, TextField } from 'erxes-ui';
-import type { ComponentProps } from 'react';
+import { useMutation } from '@tanstack/react-query';
+import { ColorPicker, Form as FormRoot, Input, Select, Textarea, toast } from 'erxes-ui';
+import { useForm, useWatch } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { LanguageSelect } from '@/knowledgebase/LanguageSelect.tsx';
+import { orpc } from '~/orpc.ts';
 import { ChannelSelect } from '~/shared/ChannelSelect.tsx';
+import { DevicePreview } from '~/shared/DevicePreview.tsx';
 import { ImageField } from '~/shared/Files.tsx';
-import { type Form, LOAD_TYPES, type LoadType, useEditForm, useLoadTypeNames } from './useForms.ts';
-
-type TextKey =
-  | 'name'
-  | 'title'
-  | 'description'
-  | 'buttonText'
-  | 'calloutTitle'
-  | 'calloutBody'
-  | 'calloutButtonText'
-  | 'thankTitle'
-  | 'thankContent';
-
-/** One text setting, saved when it loses focus; the name can't be left empty. */
-const TextSetting = ({
-  form,
-  name,
-  label,
-  icon,
-}: {
-  form: Form;
-  name: TextKey;
-  label: string;
-  icon: ComponentProps<typeof PanelField>['icon'];
-}) => {
-  const edit = useEditForm(form.id);
-  const value = form[name] ?? '';
-
-  return (
-    <PanelField icon={icon} label={label}>
-      <TextField
-        scope={`frontline-form.${form.id}.${name}`}
-        value={value}
-        placeholder={label}
-        onSave={(text) => {
-          const next = text.trim();
-
-          if (next !== value && (next || name !== 'name')) edit({ [name]: next });
-        }}
-      />
-    </PanelField>
-  );
-};
-
-/** The picture above the callout or the thank-you, uploaded through core's files. */
-const ImageSetting = ({
-  form,
-  name,
-  label,
-}: {
-  form: Form;
-  name: 'calloutImage' | 'thankImage';
-  label: string;
-}) => {
-  const edit = useEditForm(form.id);
-
-  return (
-    <PanelField icon={IconPhoto} label={label} cell={false}>
-      <div className="p-2">
-        <ImageField value={form[name]?.url ?? ''} onChange={(file) => edit({ [name]: file })} />
-      </div>
-    </PanelField>
-  );
-};
-
-/** What the team calls the form, where it lives, and what visitors read on it. */
-export const General = ({ form }: { form: Form }) => {
-  const { t } = useTranslation('frontline');
-  const edit = useEditForm(form.id);
-
-  return (
-    <PanelSection title={t('form', 'Form')}>
-      <TextSetting form={form} name="name" label={t('name', 'Name')} icon={IconLetterCase} />
-      <PanelField icon={IconCircles} label={t('channel', 'Channel')}>
-        <ChannelSelect value={form.channelId} onChange={(channelId) => edit({ channelId })} />
-      </PanelField>
-      <TextSetting
-        form={form}
-        name="title"
-        label={t('form-title', 'Form title')}
-        icon={IconLetterCase}
-      />
-      <TextSetting
-        form={form}
-        name="description"
-        label={t('description', 'Description')}
-        icon={IconAlignLeft}
-      />
-      <TextSetting
-        form={form}
-        name="buttonText"
-        label={t('form-button-text', 'Button text')}
-        icon={IconClick}
-      />
-    </PanelSection>
-  );
-};
+import { SaveBar, SettingField, SettingsCard, SwitchField } from '~/shared/Settings.tsx';
+import { FormScreens } from './FormScreens.tsx';
+import {
+  type Form,
+  type FormField,
+  LOAD_TYPES,
+  type LoadType,
+  useFormChange,
+  useLoadTypeNames,
+} from './useForms.ts';
 
 /** A pick of how the embed opens. */
 export const LoadTypeSelect = ({
@@ -152,120 +54,259 @@ export const LoadTypeSelect = ({
   );
 };
 
-/** How the embed opens and looks, and whether a sender becomes a customer or a lead. */
-export const Appearance = ({ form }: { form: Form }) => {
+/** What the page's form edits: the form's words, look, callout and thank-you. */
+type Values = Pick<
+  Form,
+  | 'channelId'
+  | 'loadType'
+  | 'saveAsCustomer'
+  | 'calloutSkip'
+  | 'calloutImage'
+  | 'thankImage'
+  | 'languageCode'
+> & {
+  name: string;
+  title: string;
+  description: string;
+  buttonText: string;
+  primaryColor: string;
+  calloutTitle: string;
+  calloutBody: string;
+  calloutButtonText: string;
+  thankTitle: string;
+  thankContent: string;
+};
+
+const valuesOf = (form: Form): Values => ({
+  name: form.name,
+  channelId: form.channelId,
+  title: form.title ?? '',
+  description: form.description ?? '',
+  buttonText: form.buttonText ?? '',
+  loadType: form.loadType,
+  primaryColor: form.primaryColor ?? '',
+  languageCode: form.languageCode,
+  saveAsCustomer: form.saveAsCustomer,
+  calloutSkip: form.calloutSkip,
+  calloutTitle: form.calloutTitle ?? '',
+  calloutBody: form.calloutBody ?? '',
+  calloutButtonText: form.calloutButtonText ?? '',
+  calloutImage: form.calloutImage,
+  thankTitle: form.thankTitle ?? '',
+  thankContent: form.thankContent ?? '',
+  thankImage: form.thankImage,
+});
+
+type TextKey = {
+  [K in keyof Values]: Values[K] extends string ? K : never;
+}[keyof Values];
+
+/** A text setting; `long` makes it a full-width text box. */
+const TextSetting = ({ name, label, long }: { name: TextKey; label: string; long?: boolean }) => (
+  <SettingField<Values, TextKey> name={name} label={label} wide={long}>
+    {(field) => (long ? <Textarea {...field} rows={3} /> : <Input {...field} />)}
+  </SettingField>
+);
+
+/** A picture of the callout or the thank-you, uploaded through core's files. */
+const ImageSetting = ({ name, label }: { name: 'calloutImage' | 'thankImage'; label: string }) => (
+  <SettingField<Values, typeof name> name={name} label={label} wide bare>
+    {(field) => <ImageField value={field.value?.url ?? ''} onChange={field.onChange} />}
+  </SettingField>
+);
+
+/** What the team calls the form, where it lives, and what visitors read on it. */
+const GeneralCard = () => {
   const { t } = useTranslation('frontline');
-  const edit = useEditForm(form.id);
 
   return (
-    <PanelSection title={t('form-appearance', 'Appearance')}>
-      <PanelField icon={IconLayoutBottombar} label={t('form-load-type', 'Shows as')}>
-        <LoadTypeSelect
-          value={form.loadType}
-          onChange={(loadType) => edit({ loadType })}
-          variant="flush"
-        />
-      </PanelField>
-      <PanelField icon={IconColorSwatch} label={t('form-color', 'Colour')} cell={false}>
-        <ColorPicker
-          aria-label={t('form-color', 'Colour')}
-          value={form.primaryColor ?? ''}
-          onValueChange={(primaryColor) => edit({ primaryColor: primaryColor || null })}
-          className="mx-2 w-12"
-        />
-      </PanelField>
-      <PanelField icon={IconLanguage} label={t('language', 'Language')}>
-        <LanguageSelect
-          value={form.languageCode}
-          onChange={(languageCode) => edit({ languageCode })}
-          variant="flush"
-        />
-      </PanelField>
-      <PanelField
-        icon={IconUserCheck}
-        label={t('form-save-as-customer', 'Save as customer')}
-        cell={false}
+    <SettingsCard
+      title={t('form', 'Form')}
+      description={t('form-general-description', 'Its name and channel, and what visitors read.')}
+    >
+      <SettingField<Values, 'name'>
+        name="name"
+        label={t('name', 'Name')}
+        required
+        rules={{ validate: (name) => Boolean(name.trim()) || t('name-required', 'Enter a name') }}
       >
-        <Switch
-          aria-label={t('form-save-as-customer', 'Save as customer')}
-          checked={form.saveAsCustomer}
-          onCheckedChange={(saveAsCustomer) => edit({ saveAsCustomer })}
-          className="mx-2"
-        />
-      </PanelField>
-    </PanelSection>
+        {(field) => <Input {...field} maxLength={200} />}
+      </SettingField>
+      <SettingField<Values, 'channelId'> name="channelId" label={t('channel', 'Channel')} bare>
+        {(field) => <ChannelSelect value={field.value} onChange={field.onChange} />}
+      </SettingField>
+      <TextSetting name="title" label={t('form-title', 'Form title')} />
+      <TextSetting name="buttonText" label={t('form-button-text', 'Button text')} />
+      <TextSetting name="description" label={t('description', 'Description')} long />
+    </SettingsCard>
+  );
+};
+
+/** How the embed opens and looks, and whether a sender becomes a customer or a lead. */
+const AppearanceCard = () => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <SettingsCard
+      title={t('form-appearance', 'Appearance')}
+      description={t('form-appearance-description', 'How it opens on a website, and its colour.')}
+    >
+      <SettingField<Values, 'loadType'> name="loadType" label={t('form-load-type', 'Shows as')}>
+        {(field) => <LoadTypeSelect value={field.value} onChange={field.onChange} />}
+      </SettingField>
+      <SettingField<Values, 'languageCode'> name="languageCode" label={t('language', 'Language')}>
+        {(field) => <LanguageSelect value={field.value} onChange={field.onChange} />}
+      </SettingField>
+      <SettingField<Values, 'primaryColor'> name="primaryColor" label={t('form-color', 'Colour')}>
+        {(field) => (
+          <ColorPicker
+            aria-label={t('form-color', 'Colour')}
+            value={field.value || undefined}
+            onValueChange={field.onChange}
+            className="w-16"
+          />
+        )}
+      </SettingField>
+      <SwitchField<Values>
+        name="saveAsCustomer"
+        label={t('form-save-as-customer', 'Save as customer')}
+        hint={t(
+          'form-save-as-customer-hint',
+          'A sender becomes a customer; otherwise a lead until they are qualified.',
+        )}
+      />
+    </SettingsCard>
   );
 };
 
 /** The callout a popup or shoutbox shows before the form, unless it is skipped. */
-export const Callout = ({ form }: { form: Form }) => {
+const CalloutCard = () => {
   const { t } = useTranslation('frontline');
-  const edit = useEditForm(form.id);
+  const skip = useWatch<Values, 'calloutSkip'>({ name: 'calloutSkip' });
 
   return (
-    <PanelSection title={t('form-callout', 'Callout')}>
-      <PanelField icon={IconEyeOff} label={t('form-callout-skip', 'Skip callout')} cell={false}>
-        <Switch
-          aria-label={t('form-callout-skip', 'Skip callout')}
-          checked={form.calloutSkip}
-          onCheckedChange={(calloutSkip) => edit({ calloutSkip })}
-          className="mx-2"
-        />
-      </PanelField>
-      {!form.calloutSkip && (
+    <SettingsCard
+      title={t('form-callout', 'Callout')}
+      description={t(
+        'form-callout-description',
+        'What a pop-up or shoutbox shows before the form opens.',
+      )}
+    >
+      <SwitchField<Values>
+        name="calloutSkip"
+        label={t('form-callout-skip', 'Skip callout')}
+        hint={t('form-callout-skip-hint', 'Open the form at once, with no callout first.')}
+      />
+      {!skip && (
         <>
+          <TextSetting name="calloutTitle" label={t('form-callout-title', 'Callout title')} />
           <TextSetting
-            form={form}
-            name="calloutTitle"
-            label={t('form-callout-title', 'Callout title')}
-            icon={IconLetterCase}
-          />
-          <TextSetting
-            form={form}
-            name="calloutBody"
-            label={t('form-callout-body', 'Callout text')}
-            icon={IconMessage}
-          />
-          <TextSetting
-            form={form}
             name="calloutButtonText"
             label={t('form-callout-button', 'Callout button')}
-            icon={IconClick}
           />
-          <ImageSetting
-            form={form}
-            name="calloutImage"
-            label={t('form-callout-image', 'Callout image')}
-          />
+          <TextSetting name="calloutBody" label={t('form-callout-body', 'Callout text')} long />
+          <ImageSetting name="calloutImage" label={t('form-callout-image', 'Callout image')} />
         </>
       )}
-    </PanelSection>
+    </SettingsCard>
   );
 };
 
 /** What a visitor reads after sending the form. */
-export const ThankYou = ({ form }: { form: Form }) => {
+const ThankYouCard = () => {
   const { t } = useTranslation('frontline');
 
   return (
-    <PanelSection title={t('form-thank-you', 'Thank you')}>
-      <TextSetting
-        form={form}
-        name="thankTitle"
-        label={t('form-thank-title', 'Thank-you title')}
-        icon={IconHeartHandshake}
-      />
-      <TextSetting
-        form={form}
-        name="thankContent"
-        label={t('form-thank-content', 'Thank-you text')}
-        icon={IconMessage}
-      />
-      <ImageSetting
-        form={form}
-        name="thankImage"
-        label={t('form-thank-image', 'Thank-you image')}
-      />
-    </PanelSection>
+    <SettingsCard
+      title={t('form-thank-you', 'Thank you')}
+      description={t('form-thank-you-description', 'What a visitor reads after sending it.')}
+    >
+      <TextSetting name="thankTitle" label={t('form-thank-title', 'Thank-you title')} long />
+      <TextSetting name="thankContent" label={t('form-thank-content', 'Thank-you text')} long />
+      <ImageSetting name="thankImage" label={t('form-thank-image', 'Thank-you image')} />
+    </SettingsCard>
+  );
+};
+
+/** The form as visitors get it, with the changes not saved yet. */
+const LivePreview = ({ form, fields }: { form: Form; fields: FormField[] }) => {
+  const { primaryColor, ...values } = useWatch<Values>();
+
+  // The pictures are whole files or none: one being uploaded shows once it is in.
+  const [callout, thanks] = useWatch<Values, ['calloutImage', 'thankImage']>({
+    name: ['calloutImage', 'thankImage'],
+  });
+
+  return (
+    <div className="min-w-0 lg:sticky lg:top-0 lg:col-span-2 lg:self-start">
+      <DevicePreview>
+        <FormScreens
+          form={{
+            ...form,
+            ...values,
+            calloutImage: callout,
+            thankImage: thanks,
+            primaryColor: primaryColor || null,
+          }}
+          fields={fields}
+        />
+      </DevicePreview>
+    </div>
+  );
+};
+
+/**
+ * The form's settings in one form with one Save, its cards beside a live preview that shows each
+ * change before it is saved. Members who can't manage the form read them.
+ */
+export const FormSettings = ({ form, fields }: { form: Form; fields: FormField[] }) => {
+  const { t } = useTranslation('frontline');
+  const change = useFormChange();
+  const values = useForm({ defaultValues: valuesOf(form) });
+
+  const update = useMutation(
+    orpc.forms.update.mutationOptions({
+      ...change,
+      onSuccess: (saved) => {
+        values.reset(valuesOf(saved));
+        change.onSuccess();
+        toast({ title: t('form-saved', 'Form saved') });
+      },
+    }),
+  );
+
+  const save = values.handleSubmit((next) =>
+    update.mutate({
+      id: form.id,
+      ...next,
+      name: next.name.trim(),
+      primaryColor: next.primaryColor || null,
+    }),
+  );
+
+  return (
+    <FormRoot {...values}>
+      <form
+        onSubmit={(event) => void save(event)}
+        className="grid grid-cols-1 gap-4 lg:grid-cols-5"
+      >
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-3">
+          <fieldset disabled={!form.canManage} className="contents">
+            <GeneralCard />
+            <AppearanceCard />
+            <CalloutCard />
+            <ThankYouCard />
+          </fieldset>
+          {form.canManage && (
+            <SaveBar
+              dirty={values.formState.isDirty}
+              saving={update.isPending}
+              onDiscard={() => values.reset()}
+            />
+          )}
+        </div>
+        <LivePreview form={form} fields={fields} />
+      </form>
+    </FormRoot>
   );
 };

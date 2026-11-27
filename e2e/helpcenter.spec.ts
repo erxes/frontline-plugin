@@ -44,12 +44,12 @@ test('a visitor reads the knowledge base from its script on a website and in the
   );
   await rpc('helpCenters/create', { title, kbTopicId }, Id);
 
-  // The help center's panel gives the script line; the website shows a launcher with its topic.
+  // The help center's page gives the script line; the website shows a launcher with its topic.
   await page.goto(HELP_CENTERS);
-  await page.getByRole('button', { name: title, exact: true }).click();
+  await page.getByRole('link', { name: title, exact: true }).click();
+  await page.getByRole('link', { name: 'Site and install' }).click();
 
-  const installCode =
-    (await recordPanel(page).getByLabel('Knowledge base install code').textContent()) ?? '';
+  const installCode = (await page.getByLabel('Knowledge base install code').textContent()) ?? '';
 
   {
     await using site = await openShop(page.context(), installCode);
@@ -97,13 +97,14 @@ test('a visitor reads the knowledge base from its script on a website and in the
   await expect(site.panel.getByRole('button', { name: 'Next' })).toBeDisabled();
 });
 
-test('the owner creates a help center, edits it, sees its domain tab and deletes it', async ({
+test('the owner creates a help center, edits it on its page, sees its domain and deletes it', async ({
   page,
   plugin,
 }) => {
   const title = `Help ${unique()}`;
   const renamed = `${title} desk`;
   const panel = recordPanel(page);
+  const sections = page.getByRole('navigation', { name: 'Help center settings' });
 
   // The old address leads to the list, which the sidebar opens beside the knowledge base.
   await page.goto('/frontline/helpcenter');
@@ -113,27 +114,30 @@ test('the owner creates a help center, edits it, sees its domain tab and deletes
   ).toBeVisible();
   await page.getByRole('button', { name: 'Add help center' }).first().click();
   await panel.getByLabel('Title').fill(title);
-
   await panel.getByRole('button', { name: 'Create help center' }).click();
 
-  // It opens edited in place, with the public key its site is found by.
-  await expect(panel.getByText('Public key')).toBeVisible();
-  await expect(page.getByRole('row', { name: new RegExp(title) })).toBeVisible();
-  await panel.getByRole('button', { name: title }).first().click();
-  await page.getByPlaceholder('Title').fill(renamed);
-  await page.keyboard.press('Enter');
-  await expect(page.getByRole('row', { name: new RegExp(renamed) })).toBeVisible();
-  await expect(panel.getByText('Look')).toBeVisible();
+  // It opens on its own page, its settings in one form saved once.
+  await expect(page).toHaveURL(new RegExp(`${HELP_CENTERS}/[^/]+$`));
+  await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(title);
+  await page.getByRole('textbox', { name: 'Title' }).fill(renamed);
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Help center saved')).toBeVisible();
+  await expect(sections.getByText(renamed)).toBeVisible();
 
-  // The e2e stack has no Cloudflare settings, so the domain tab says so.
-  await panel.getByRole('tab', { name: 'Domain' }).click();
+  // Its install code is a section of its own.
+  await sections.getByRole('link', { name: 'Site and install' }).click();
+  await expect(page.getByLabel('Knowledge base install code')).toBeVisible();
+
+  // The e2e stack has no Cloudflare settings, so the domain section says so.
+  await sections.getByRole('link', { name: 'Domain' }).click();
   await expect(
-    panel.getByText('Custom domains are not available on this installation.'),
+    page.getByText('Custom domains are not available on this installation.'),
   ).toBeVisible();
 
-  await panel.getByRole('button', { name: 'Help center actions' }).click();
-  await page.getByRole('option', { name: 'Delete' }).click();
+  await sections.getByRole('link', { name: 'General' }).click();
+  await page.getByRole('button', { name: 'Delete help center' }).click();
   await confirmDelete(page);
+  await expect(page).toHaveURL(new RegExp(`${HELP_CENTERS}$`));
   await expect(page.getByRole('row', { name: new RegExp(renamed) })).toBeHidden();
 
   // A site address with no help center gets a page that says so.
@@ -149,7 +153,6 @@ test('the owner picks its forms, changes its look and deletes help centers toget
   request,
 }) => {
   const rpc = await pluginApi(api, request);
-  const panel = recordPanel(page);
   const title = `Portal ${unique()}`;
   const other = `Desk ${unique()}`;
   const form = `Quote ${unique()}`;
@@ -159,19 +162,25 @@ test('the owner picks its forms, changes its look and deletes help centers toget
   await rpc('helpCenters/create', { title }, Id);
   await rpc('helpCenters/create', { title: other }, Id);
 
-  // The old settings address leads to the list.
+  // The old settings address leads to the list; a title opens the help center's page.
   await page.goto('/frontline/settings/help-centers');
   await expect(page).toHaveURL(new RegExp(`${HELP_CENTERS}/?$`));
-  await page.getByRole('button', { name: title, exact: true }).click();
+  await page.getByRole('link', { name: title, exact: true }).click();
 
-  await panel.getByText('No forms').click();
+  await page.getByRole('button', { name: 'Forms', exact: true }).click();
   await page.getByPlaceholder('Forms', { exact: true }).fill(form);
   await page.getByRole('option', { name: form, exact: true }).click();
   await page.keyboard.press('Escape');
-  await expect(panel.getByText(form)).toBeVisible();
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Help center saved')).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('button', { name: 'Forms', exact: true })).toContainText(form);
 
-  // The look is a page of its own, saved once.
-  await panel.getByRole('link', { name: 'Edit appearance' }).click();
+  // The look is a section of its own, saved once.
+  await page
+    .getByRole('navigation', { name: 'Help center settings' })
+    .getByRole('link', { name: 'Appearance' })
+    .click();
   await expect(page).toHaveURL(/\/appearance$/);
   await page.getByRole('textbox', { name: 'Wordmark' }).fill('Acme');
   await page.getByRole('button', { name: 'Add column' }).click();
@@ -217,15 +226,16 @@ test('a reader sees help centers read-only, and a member without the permission 
   await page.getByRole('button', { name: 'Add help center' }).first().click();
   await panel.getByLabel('Title').fill(title);
   await panel.getByRole('button', { name: 'Create help center' }).click();
-  await expect(page.getByRole('row', { name: new RegExp(title) })).toBeVisible();
+  await expect(page).toHaveURL(new RegExp(`${HELP_CENTERS}/[^/?]+$`));
+  await expect(page.getByRole('textbox', { name: 'Title' })).toHaveValue(title);
 
-  const theirPanel = recordPanel(reader.page);
-
+  // A reader opens its page and changes nothing: no Save, no Delete.
   await reader.page.goto(HELP_CENTERS);
   await expect(reader.page.getByRole('button', { name: 'Add help center' })).toBeHidden();
-  await reader.page.getByRole('button', { name: title, exact: true }).click();
-  await expect(theirPanel.getByRole('button', { name: title }).first()).toBeDisabled();
-  await expect(theirPanel.getByRole('button', { name: 'Help center actions' })).toBeHidden();
+  await reader.page.getByRole('link', { name: title, exact: true }).click();
+  await expect(reader.page.getByRole('textbox', { name: 'Title' })).toBeDisabled();
+  await expect(reader.page.getByRole('button', { name: 'Save', exact: true })).toBeHidden();
+  await expect(reader.page.getByRole('button', { name: 'Delete help center' })).toBeHidden();
 
   await stranger.page.goto(HELP_CENTERS);
   await expect(

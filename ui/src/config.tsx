@@ -18,7 +18,6 @@ import {
   IconPhone,
   IconPlugConnected,
   IconTicket,
-  IconWorldWww,
 } from '@tabler/icons-react';
 import type { IUIConfig } from 'erxes-ui';
 import { lazy } from 'react';
@@ -176,14 +175,6 @@ export const CONFIG: IUIConfig = {
       icon: IconHelpCircle,
       detailPath: pageOf('help-centers'),
       ...slots(helpCenter),
-      tabs: [
-        {
-          value: 'domain',
-          label: 'Domain',
-          icon: IconWorldWww,
-          component: lazy(async () => ({ default: (await helpCenter()).HelpCenterDomain })),
-        },
-      ],
     },
     {
       contentType: FORM_TYPE,

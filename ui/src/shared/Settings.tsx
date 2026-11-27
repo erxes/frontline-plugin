@@ -1,5 +1,13 @@
-import { Button, Card, useConfirm } from 'erxes-ui';
-import { type ReactNode, useEffect } from 'react';
+import { IconTrash } from '@tabler/icons-react';
+import { Button, Card, Form, Switch, useConfirm } from 'erxes-ui';
+import { type ReactElement, type ReactNode, useEffect } from 'react';
+import {
+  type ControllerRenderProps,
+  type FieldPath,
+  type FieldValues,
+  type RegisterOptions,
+  useFormContext,
+} from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,6 +28,108 @@ export const SettingsCard = ({
     </Card.Header>
     <Card.Content>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">{children}</div>
+    </Card.Content>
+  </Card>
+);
+
+/**
+ * One field of a settings page's form: its label above the control `children` draws, a hint and
+ * the field's error under it. `wide` spans the card's two columns; `bare` leaves out
+ * `Form.Control`, for a control that is more than one element, such as a picker.
+ */
+export const SettingField = <T extends FieldValues, N extends FieldPath<T>>({
+  name,
+  label,
+  required,
+  rules,
+  hint,
+  wide,
+  bare,
+  children,
+}: {
+  name: N;
+  label: string;
+  required?: boolean;
+  rules?: Omit<RegisterOptions<T, N>, 'valueAsNumber' | 'valueAsDate' | 'setValueAs'>;
+  hint?: string;
+  wide?: boolean;
+  bare?: boolean;
+  children: (field: ControllerRenderProps<T, N>) => ReactElement;
+}) => {
+  const { control } = useFormContext<T>();
+
+  return (
+    <Form.Field
+      control={control}
+      name={name}
+      rules={rules}
+      render={({ field }) => (
+        <Form.Item className={wide ? 'sm:col-span-2' : undefined}>
+          <Form.Label required={required}>{label}</Form.Label>
+          {bare ? children(field) : <Form.Control>{children(field)}</Form.Control>}
+          {hint && <Form.Description>{hint}</Form.Description>}
+          <Form.Message />
+        </Form.Item>
+      )}
+    />
+  );
+};
+
+/** An on/off setting of a settings page's form: the switch, its label and a hint beside it. */
+export const SwitchField = <T extends FieldValues>({
+  name,
+  label,
+  hint,
+}: {
+  name: FieldPath<T>;
+  label: string;
+  hint: string;
+}) => {
+  const { control } = useFormContext<T>();
+
+  return (
+    <Form.Field
+      control={control}
+      name={name}
+      render={({ field }) => (
+        <Form.Item className="sm:col-span-2">
+          <div className="flex items-start gap-3">
+            <Form.Control>
+              <Switch checked={Boolean(field.value)} onCheckedChange={field.onChange} />
+            </Form.Control>
+            <div className="flex flex-col gap-1">
+              <Form.Label>{label}</Form.Label>
+              <Form.Description>{hint}</Form.Description>
+            </div>
+          </div>
+        </Form.Item>
+      )}
+    />
+  );
+};
+
+/** The last card of a record's settings: what deleting it takes with it, and the button. */
+export const DangerCard = ({
+  title,
+  description,
+  disabled,
+  onDelete,
+}: {
+  title: string;
+  description: string;
+  disabled: boolean;
+  onDelete: () => void;
+}) => (
+  <Card>
+    <Card.Header>
+      <Card.Title>{title}</Card.Title>
+      <Card.Description>{description}</Card.Description>
+    </Card.Header>
+    <Card.Content>
+      <Button variant="destructive" disabled={disabled} onClick={onDelete}>
+        <IconTrash />
+        {title}
+      </Button>
     </Card.Content>
   </Card>
 );

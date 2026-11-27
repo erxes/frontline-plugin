@@ -75,8 +75,11 @@ export const createChannel = async (page: Page, memberName?: string) => {
   await panel.getByLabel('Name').fill(channel);
 
   if (memberName) {
-    await panel.getByPlaceholder('Search members').fill(memberName);
-    await panel.getByRole('option', { name: memberName }).click();
+    // Members are picked from the list behind Add; a click back in the draft closes it.
+    await panel.getByRole('button', { name: 'Add', exact: true }).click();
+    await page.getByPlaceholder('Members', { exact: true }).fill(memberName);
+    await page.getByRole('option', { name: memberName }).click();
+    await panel.getByLabel('Name').click();
   }
 
   await panel.getByRole('switch', { name: 'Website messenger' }).click();

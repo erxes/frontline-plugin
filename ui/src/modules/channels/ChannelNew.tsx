@@ -26,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { channelSettingsPath } from '~/shared/channelScope.ts';
 import { MemberLine } from '~/shared/Person.tsx';
+import { MembersField } from '~/shared/MemberPicker.tsx';
 import { orpc } from '~/orpc.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { useChange } from '~/shared/hooks.ts';
@@ -56,6 +57,23 @@ export const MemberPicker = ({
       error={team.error}
       searchPlaceholder={t('search-members', 'Search members')}
     />
+  );
+};
+
+/** The draft's first members as chips, the list behind Add, so the row stays one line high. */
+const MembersRow = ({
+  value,
+  onValueChange,
+}: {
+  value: string[];
+  onValueChange: (ids: string[]) => void;
+}) => {
+  const { t } = useTranslation('frontline');
+
+  return (
+    <PanelFormRow label={t('members', 'Members')} icon={IconUsers}>
+      <MembersField label={t('members', 'Members')} value={value} onValueChange={onValueChange} />
+    </PanelFormRow>
   );
 };
 
@@ -217,9 +235,7 @@ export const ChannelNew = ({ onCancel }: TRecordDraftProps) => {
           name="description"
           multiline
         />
-        <PanelFormRow label={t('members', 'Members')} icon={IconUsers}>
-          <MemberPicker value={memberIds} onValueChange={setMemberIds} />
-        </PanelFormRow>
+        <MembersRow value={memberIds} onValueChange={setMemberIds} />
         <StarterRow
           label={t('website-messenger', 'Website messenger')}
           hint={t('starter-messenger-hint', 'A chat widget for your site, set up after Save')}

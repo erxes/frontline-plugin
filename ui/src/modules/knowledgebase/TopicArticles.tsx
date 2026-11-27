@@ -18,22 +18,18 @@ import {
   Button,
   DisplayMenu,
   ListFilter,
-  PageContainer,
   RecordList,
   type TListFilterField,
   useListDisplay,
-  useOpenRecord,
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { KB_ARTICLE_TYPE } from '~/plugin.ts';
-import { CreateButton, ListEmpty, ListError, LoadPage } from '~/shared/List.tsx';
+import { ListEmpty, ListError, LoadPage } from '~/shared/List.tsx';
 import { ActionsMenu, DeleteButton, ListSelectionBar, SelectionBar } from '~/shared/Records.tsx';
 import { ArticleList } from './ArticleList.tsx';
 import { ArticlesTable } from './ArticlesTable.tsx';
-import { KbHeader } from './KbHeader.tsx';
 import { OldLink } from './OldLink.tsx';
 import { useDeleteArticles } from './useKbDeletes.ts';
 import {
@@ -164,14 +160,11 @@ const useFields = (topicId: string): TListFilterField[] => {
 
 /**
  * A topic's articles under core's list bar, grouped by status or as a table (the Display menu),
- * newest first and a page at a time. An article opens in core's side panel, and New article
- * drafts one there.
+ * newest first and a page at a time. An article opens on its own page.
  */
-export const ArticlesPage = () => {
+export const TopicArticles = ({ topicId }: { topicId: string }) => {
   const { t } = useTranslation('frontline');
-  const topicId = useParams().topicId ?? '';
   const can = useKbAccess();
-  const { openNew } = useOpenRecord();
   const [display] = useListDisplay(LIST, DISPLAYS);
 
   const list = useArticles(topicId);
@@ -182,15 +175,8 @@ export const ArticlesPage = () => {
   );
 
   return (
-    <PageContainer>
+    <>
       <OldLink param="editId" contentType={KB_ARTICLE_TYPE} />
-      <KbHeader topicId={topicId} label={t('articles', 'Articles')}>
-        <CreateButton
-          allowed={can.articles}
-          label={t('kb-new-article', 'New article')}
-          onClick={() => openNew(KB_ARTICLE_TYPE, { topicId })}
-        />
-      </KbHeader>
       <ViewBar allLabel={t('kb-all-articles', 'All articles')}>
         <ListFilter
           id={LIST}
@@ -228,6 +214,6 @@ export const ArticlesPage = () => {
           )}
         </RecordList.Provider>
       )}
-    </PageContainer>
+    </>
   );
 };

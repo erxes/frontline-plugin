@@ -140,7 +140,7 @@ const TopicPages = ({ topic }: { topic: Topic }) => {
       </PanelField>
       <PanelField icon={IconSettings} label={t('settings', 'Settings')} cell={false}>
         <PageLink
-          to={topicPath(topic.id, 'kbsettings')}
+          to={topicPath(topic.id, 'settings')}
           label={t('kb-help-center-settings', 'Help center settings')}
           count=""
         />

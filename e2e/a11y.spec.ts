@@ -95,7 +95,11 @@ test('the messenger on a website', async ({ page, api, plugin, request }) => {
   await expectAccessible(site.shop, site.panel.getByRole('textbox', { name: 'Message' }));
 });
 
-test("a help center's draft, its install code and its domain", async ({ page, api, request }) => {
+test("a help center's draft, and its page's install code and domain", async ({
+  page,
+  api,
+  request,
+}) => {
   const rpc = await pluginApi(api, request);
   const panel = recordPanel(page);
   const title = `Acme ${unique()}`;
@@ -105,12 +109,13 @@ test("a help center's draft, its install code and its domain", async ({ page, ap
   // The header's button; an empty list offers a second.
   await page.getByRole('button', { name: 'Add help center' }).first().click();
   await expectAccessible(page, panel.getByLabel('Title'));
-  await rpc('helpCenters/create', { title, kbTopicId }, Id);
-  await page.goto(HELP_CENTERS);
-  await page.getByRole('button', { name: title, exact: true }).click();
-  await expectAccessible(page, panel.getByLabel('Knowledge base install code'));
-  await panel.getByRole('tab', { name: 'Domain' }).click();
-  await expectAccessible(page, panel.getByText('Custom domains are not available'));
+  const center = await rpc('helpCenters/create', { title, kbTopicId }, Id);
+
+  // Its page: the settings form, then its install code and its domain.
+  await page.goto(`${HELP_CENTERS}/${center.id}/install`);
+  await expectAccessible(page, page.getByLabel('Knowledge base install code'));
+  await page.goto(`${HELP_CENTERS}/${center.id}/domain`);
+  await expectAccessible(page, page.getByText('Custom domains are not available'));
 });
 
 test("a help center's look, and its articles on a website", async ({
@@ -123,9 +128,9 @@ test("a help center's look, and its articles on a website", async ({
   const answers = `Answers ${unique()}`;
   const kbTopicId = await knowledgeBase(rpc, answers);
   const center = await rpc('helpCenters/create', { title: `Acme ${unique()}`, kbTopicId }, Id);
-  const code = recordPanel(page).getByLabel('Knowledge base install code');
+  const code = page.getByLabel('Knowledge base install code');
 
-  await page.goto(recordPath(HELP_CENTERS, 'frontline:help-center', center.id));
+  await page.goto(`${HELP_CENTERS}/${center.id}/install`);
   await expect(code).toBeVisible();
   const installCode = (await code.textContent()) ?? '';
 
@@ -161,9 +166,9 @@ test('the topics, and an article in a topic', async ({ page, api, request }) => 
   await page.goto(recordPath(KB, 'frontline:kb-topic'));
   await expect(panel.getByRole('textbox', { name: 'Title', exact: true })).toBeVisible();
   await expectAccessible(page, page.getByRole('link', { name: title, exact: true }));
-  await page.goto(`${topic}/articles`);
-  await page.getByRole('button', { name: 'Refunds', exact: true }).click();
-  await expectAccessible(page, panel.getByRole('button', { name: 'Title Refunds', exact: true }));
+  await page.goto(topic);
+  await page.getByRole('link', { name: 'Refunds', exact: true }).click();
+  await expectAccessible(page, page.getByRole('textbox', { name: 'Title', exact: true }));
 });
 
 test("a topic's categories and settings", async ({ page, api, request }) => {
@@ -171,7 +176,7 @@ test("a topic's categories and settings", async ({ page, api, request }) => {
 
   await page.goto(`${topic}/categories`);
   await expectAccessible(page, page.getByRole('row', { name: /Cards/ }));
-  await page.goto(`${topic}/kbsettings`);
+  await page.goto(`${topic}/settings`);
   await expectAccessible(page, page.getByRole('combobox', { name: 'Language' }));
 });
 
@@ -217,7 +222,7 @@ test("a survey's results and questions", async ({ page, api, request }) => {
   await expectAccessible(page, page.getByRole('region', { name: 'How did we do?', exact: true }));
 });
 
-test("a form's draft and the form it saves", async ({ page, api, request }) => {
+test("a form's draft, and the settings of the form it saves", async ({ page, api, request }) => {
   const channel = `Support ${unique()}`;
   const panel = recordPanel(page);
   const name = `Demo request ${unique()}`;
@@ -232,10 +237,13 @@ test("a form's draft and the form it saves", async ({ page, api, request }) => {
   await panel.getByLabel('Form title').fill('Book a demo');
   await expectAccessible(page, panel.getByLabel('Form title'));
   await panel.getByRole('button', { name: 'Create form' }).click();
-  await expectAccessible(
-    page,
-    page.getByRole('region', { name: 'Active' }).getByRole('button', { name, exact: true }),
-  );
+  // The form opens on its own page, at its fields; its settings are the page's form.
+  await expect(page).toHaveURL(new RegExp(`${FORMS}/[^/?]+$`));
+  await page
+    .getByRole('navigation', { name: 'Form' })
+    .getByRole('link', { name: 'Settings' })
+    .click();
+  await expectAccessible(page, page.getByRole('textbox', { name: 'Form title' }));
 });
 
 test("a form's builder, embed and submissions", async ({ page, api, request }) => {
@@ -245,10 +253,10 @@ test("a form's builder, embed and submissions", async ({ page, api, request }) =
   const formId = form.id;
   const { code, url, scriptUrl } = await rpc('forms/embed', { id: formId }, Embed);
   const field = await rpc('forms/fields/add', { formId, type: 'text', label: 'Company' }, Id);
-  // The install code the form's panel offers for an embedded form.
+  // The install code the form's page offers for an embedded form.
   const installCode = `<div data-frontline-form="${code}"></div><script type="module" src="${scriptUrl}"></script>`;
 
-  await page.goto(`${FORMS}/${formId}/builder`);
+  await page.goto(`${FORMS}/${formId}`);
   await expectAccessible(page, page.getByRole('region', { name: 'Preview' }).getByLabel('Company'));
 
   {

@@ -31,7 +31,7 @@ import { type ArticleDetail, useArticle, useKbAccess, useKbChange } from './useK
 import { MemberChip } from '~/shared/Person.tsx';
 
 /** Saves one change to the article at a time, refetching the lists after it. */
-const useEditArticle = (article: ArticleDetail) => {
+export const useEditArticle = (article: ArticleDetail) => {
   const update = useMutation(orpc.knowledgebase.articles.update.mutationOptions(useKbChange()));
 
   return (fields: ArticleEdit) => update.mutate({ id: article.id, ...fields });
@@ -46,7 +46,7 @@ export const ArticleTitleSlot = ({ contentId }: TRecordSlotProps) => {
   return <span className="truncate">{article.data?.title ?? article.error?.message}</span>;
 };
 
-const ArticleMenu = ({ article }: { article: ArticleDetail }) => {
+export const ArticleMenu = ({ article }: { article: ArticleDetail }) => {
   const { t } = useTranslation('frontline');
   const actions = useArticleActions(article);
 
@@ -113,7 +113,7 @@ const General = ({ article }: { article: ArticleDetail }) => {
 };
 
 /** Who wrote it, when it changed and went live, and how often it was read. */
-const History = ({ article }: { article: ArticleDetail }) => {
+export const History = ({ article }: { article: ArticleDetail }) => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
 

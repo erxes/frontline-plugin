@@ -39,7 +39,7 @@ import {
 import { Forms, Tickets } from './SiteOffers.tsx';
 
 /** A slot's help center: a spinner while it loads, the refusal when the API gives one. */
-export const WithHelpCenter = ({
+const WithHelpCenter = ({
   id,
   children,
 }: {
@@ -233,7 +233,7 @@ const Look = ({ center }: { center: HelpCenter }) => {
     <PanelSection title={t('look', 'Look')}>
       <PanelField icon={IconBrush} label={t('appearance', 'Appearance')} cell={false}>
         <PageLink
-          to={helpCenterPath(center.id, true)}
+          to={helpCenterPath(center.id, 'appearance')}
           label={t('edit-appearance', 'Edit appearance')}
           count=""
         />

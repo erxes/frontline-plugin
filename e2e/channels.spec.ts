@@ -22,8 +22,11 @@ test('the owner creates a channel with a teammate, who sees its settings read-on
   await page.getByRole('button', { name: 'Create channel' }).click();
 
   await panel.getByLabel('Name').fill(name);
-  await panel.getByPlaceholder('Search members').fill(teammate.fullName);
-  await panel.getByRole('option', { name: teammate.fullName }).click();
+  await panel.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByPlaceholder('Members', { exact: true }).fill(teammate.fullName);
+  await page.getByRole('option', { name: teammate.fullName }).click();
+  await panel.getByLabel('Name').click();
+  await expect(panel.getByText(teammate.fullName)).toBeVisible();
 
   await panel.getByRole('button', { name: 'Create channel' }).click();
 
