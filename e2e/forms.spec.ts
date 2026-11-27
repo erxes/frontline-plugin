@@ -41,6 +41,8 @@ const newForm = async (page: Page, channel: string, name: string) => {
   await panel.getByRole('button', { name: 'Create form' }).click();
   await expect(page.getByRole('navigation', { name: 'Form' }).getByText(name)).toBeVisible();
   await page.goto(FORMS);
+  // The pointer, left where Create form was, would hover a row of the list.
+  await page.mouse.move(0, 0);
 };
 
 /** Adds a field of `type` to the first step and names it `label`. */

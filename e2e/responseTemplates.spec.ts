@@ -21,8 +21,10 @@ test("a channel admin writes, edits and deletes the channel's response templates
 
   await page.goto(recordPath(CHANNELS, 'frontline:channel'));
   await panel.getByLabel('Name').fill(channel);
-  await panel.getByPlaceholder('Search members').fill(teammate.fullName);
-  await panel.getByRole('option', { name: teammate.fullName }).click();
+  await panel.getByRole('button', { name: 'Add', exact: true }).click();
+  await page.getByPlaceholder('Members', { exact: true }).fill(teammate.fullName);
+  await page.getByRole('option', { name: teammate.fullName }).click();
+  await panel.getByLabel('Name').click();
   await panel.getByRole('button', { name: 'Create channel' }).click();
   await channelSections(page).getByRole('link', { name: 'Templates' }).click();
   await page.getByRole('link', { name: 'Manage channel response templates' }).click();
