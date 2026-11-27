@@ -19,6 +19,7 @@ import { ContactChip, MemberChip, useCustomer } from '~/shared/Person.tsx';
 import { InfoRow, PageLink, PanelSkeleton } from '~/shared/Panel.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import { KindIcon } from '~/shared/kinds.tsx';
+import { ConversationCallSection } from './ConversationCall.tsx';
 import { VisitorPresence } from './ConversationPresence.tsx';
 import { useStatusNames } from './InboxFilter.tsx';
 import { type Conversation, useConversation, useConversationSignal } from './queries.ts';
@@ -106,7 +107,10 @@ export const ConversationActions = ({ contentId }: TRecordSlotProps) => {
   );
 };
 
-/** The Detail tab: the customer, the conversation's channel, status and assignee, and the inbox link. */
+/**
+ * The Detail tab: the customer, the conversation's channel, status and assignee, the inbox link
+ * and, for a call, the call with its recording to listen to.
+ */
 export const ConversationDetail = ({ contentId }: TRecordSlotProps) => {
   const { t } = useTranslation('frontline');
   const { data: conversation, error } = useConversation(contentId);
@@ -140,6 +144,7 @@ export const ConversationDetail = ({ contentId }: TRecordSlotProps) => {
           count={conversation.messageCount}
         />
       </PanelSection>
+      <ConversationCallSection conversation={conversation} />
     </>
   );
 };

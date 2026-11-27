@@ -10,7 +10,7 @@
         "answer": "12",
         "abandon": "1",
         "talktime": "1800",
-        "pausetime": ""
+        "pausetime": "0000-00-00 00:00:00"
       },
       {
         "member_extension": "1002",
@@ -20,7 +20,7 @@
         "answer": "9",
         "abandon": "0",
         "talktime": "2400",
-        "pausetime": ""
+        "pausetime": "2026-11-14 09:12:00"
       }
     ],
     "waiting": [{ "callerid": "88001122", "callerchannel": "PJSIP/trunk-0001" }],

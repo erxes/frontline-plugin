@@ -69,7 +69,7 @@ const CALL_KEYS = [
 ];
 
 /** Refetches the call queries when a PBX, CallPro or another member changes a call. */
-const useCallsSignal = () => {
+export const useCallsSignal = () => {
   const queryClient = useQueryClient();
 
   useLiveSignal(PLUGIN, 'calls', () => {

@@ -5,6 +5,7 @@ import {
   expectPage,
   filterBy,
   recordPanel,
+  recordPath,
   test,
   unique,
 } from './fixtures.ts';
@@ -73,6 +74,19 @@ test('calls from a phone line show in the call history as they happen, and open 
   await page.getByRole('button', { name: 'Open the call' }).click();
   await expect(recordPanel(page)).toContainText('Answered');
   await expect(recordPanel(page)).toContainText('No recording');
+
+  // The conversation's own panel, which the customer's opens, shows the call and its recording.
+  const conversationId = new URL(page.url()).searchParams.get('conversationId') ?? '';
+
+  await page.goto(recordPath(HISTORY, 'frontline:conversation', conversationId));
+
+  const conversationPanel = recordPanel(page);
+
+  await expect(conversationPanel.getByRole('heading', { name: 'Call', exact: true })).toBeVisible();
+  await expect(conversationPanel).toContainText('Answered');
+  await expect(conversationPanel).toContainText('No recording');
+  await conversationPanel.getByRole('button', { name: 'Open the call' }).click();
+  await expect(recordPanel(page)).toContainText('Incoming');
 });
 
 test('callers nobody talked to wait in Callbacks until someone does', async ({ page, api }) => {

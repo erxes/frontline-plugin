@@ -19,13 +19,14 @@ export const queueText = (queues: Queue[]) => queues.map((queue) => queue.queue)
 
 /**
  * The queues in `text`, split on commas and spaces as the old form's were, each once; a queue
- * already in `kept` keeps its name.
+ * already in `kept` keeps its name and channel.
  */
 export const queuesOf = (text: string, kept: Queue[] = []): Queue[] =>
-  [...new Set(text.split(/[\s,]+/).filter(Boolean))].map((queue) => ({
-    queue,
-    name: kept.find((each) => each.queue === queue)?.name ?? '',
-  }));
+  [...new Set(text.split(/[\s,]+/).filter(Boolean))].map((queue) => {
+    const found = kept.find((each) => each.queue === queue);
+
+    return { queue, name: found?.name ?? '', channelId: found?.channelId ?? null };
+  });
 
 /**
  * The members who answer the PBX, each by its extension number on the PBX and password

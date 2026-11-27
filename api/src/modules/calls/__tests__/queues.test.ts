@@ -39,10 +39,12 @@ describe('call queues', () => {
     const queue = await saraa.calls.queues.get({ id: queues[0]?.id ?? '' });
 
     expect(queue.live?.agents).toHaveLength(2);
+    expect(queue.live?.agents[0]).toMatchObject({ extension: '1001', pausedAt: null });
     expect(queue.live?.agents[1]).toMatchObject({
       extension: '1002',
       name: 'Saraa Dorj',
       status: 'InUse',
+      pausedAt: '2026-11-14 09:12:00',
     });
     expect(queue.live?.waiting).toEqual([{ callerId: '88001122', channel: 'PJSIP/trunk-0001' }]);
 
@@ -51,7 +53,8 @@ describe('call queues', () => {
       await clientAs('org-call-d', [PERMISSIONS.callView], 'user-other').calls.queues.list({}),
     ).toEqual([]);
 
-    // The live board says 1002 is on a call, so Saraa takes queue calls, with her day so far.
+    // The live board says 1002 is on a call, so Saraa takes queue calls, with her day so far; her
+    // pausetime is only when she last paused.
     const [mine] = await saraa.calls.agents.mine({});
 
     expect(mine).toMatchObject({

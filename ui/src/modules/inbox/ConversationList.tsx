@@ -1,4 +1,4 @@
-import { IconRefresh } from '@tabler/icons-react';
+import { IconArrowUp, IconRefresh } from '@tabler/icons-react';
 import {
   Button,
   Checkbox,
@@ -9,7 +9,14 @@ import {
   Skeleton,
   usePageHotkey,
 } from 'erxes-ui';
-import { type KeyboardEvent, startTransition, useRef } from 'react';
+import {
+  type KeyboardEvent,
+  type RefObject,
+  startTransition,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { type CustomContainerComponentProps, Virtualizer, type VirtualizerHandle } from 'virtua';
 import { useMinute } from '~/shared/hooks.ts';
@@ -117,6 +124,59 @@ const useListKeys = (conversations: Conversation[], reveal: (index: number) => v
   };
 };
 
+/** How far down the list scrolls before it offers the way back up. */
+const FAR = 600;
+
+/**
+ * Back to the newest conversations, once the list is scrolled far or its newest pages dropped
+ * off: it scrolls to the top, and when those pages are gone loads the first page again at once
+ * instead of paging back up through each.
+ */
+const BackToTop = ({
+  viewport,
+  paging,
+  rewind,
+}: {
+  viewport: RefObject<HTMLDivElement | null>;
+  paging: Paging;
+  rewind: () => unknown;
+}) => {
+  const { t } = useTranslation('frontline');
+  const [far, setFar] = useState(false);
+
+  useEffect(() => {
+    const node = viewport.current;
+
+    if (!node) return;
+
+    const onScroll = () => setFar(node.scrollTop > FAR);
+
+    node.addEventListener('scroll', onScroll, { passive: true });
+
+    return () => node.removeEventListener('scroll', onScroll);
+  }, [viewport]);
+
+  if (!far && !paging.hasPreviousPage) return null;
+
+  const label = t('back-to-top', 'Back to top');
+
+  return (
+    <div className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2">
+      <Button
+        size="sm"
+        onClick={() => {
+          viewport.current?.scrollTo({ top: 0 });
+
+          if (paging.hasPreviousPage) void rewind();
+        }}
+      >
+        <IconArrowUp />
+        {label}
+      </Button>
+    </div>
+  );
+};
+
 /** The list the window renders the rows into, named for screen readers. */
 const RowList = ({ style, children, ref }: CustomContainerComponentProps) => {
   const { t } = useTranslation('frontline');
@@ -138,7 +198,8 @@ const RowList = ({ style, children, ref }: CustomContainerComponentProps) => {
 
 /**
  * The conversations on the left of the inbox under their toolbar, the open one marked; the older
- * ones load as the list scrolls near its end, or from the button under it. Only the rows in view and a few around them render, and they read what is
+ * ones load as the list scrolls near its end, or from the button under it, and Back to top returns
+ * to the newest. Only the rows in view and a few around them render, and they read what is
  * open and picked from here, once, instead of each subscribing for itself.
  */
 export const ConversationList = ({
@@ -146,11 +207,13 @@ export const ConversationList = ({
   customers,
   paging,
   refresh,
+  rewind,
 }: {
   conversations: Conversation[];
   customers: ReadonlyMap<string, CustomerContact>;
   paging: Paging;
   refresh: () => void;
+  rewind: () => unknown;
 }) => {
   const viewport = useRef<HTMLDivElement>(null);
   const rows = useRef<VirtualizerHandle>(null);
@@ -168,7 +231,7 @@ export const ConversationList = ({
   return (
     <div className="flex h-full flex-col">
       <Toolbar conversations={conversations} refresh={refresh} />
-      <ScrollArea.Root className="min-h-0 flex-1">
+      <ScrollArea.Root className="relative min-h-0 flex-1">
         <ScrollArea.Viewport ref={viewport}>
           <LoadPage paging={paging} newer />
           <div aria-hidden className="h-1" />
@@ -185,6 +248,7 @@ export const ConversationList = ({
           <LoadPage paging={paging} />
         </ScrollArea.Viewport>
         <ScrollArea.Bar />
+        <BackToTop viewport={viewport} paging={paging} rewind={rewind} />
       </ScrollArea.Root>
     </div>
   );

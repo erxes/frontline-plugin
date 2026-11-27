@@ -75,19 +75,23 @@ const LiveBoard = ({ live }: { live: QueueLive }) => {
           t('abandoned-calls', 'Abandoned'),
           t('talk-time', 'Talk time'),
         ]}
-        rows={live.agents.map((agent) => ({
-          key: agent.extension,
-          cells: [
-            agent.extension,
-            agent.name,
-            <Badge key="status" variant={agent.pausedAt ? 'warning' : 'secondary'}>
-              {agent.pausedAt ? t('agent-paused', 'Paused') : agent.status}
-            </Badge>,
-            format.number(agent.answered),
-            format.number(agent.abandoned),
-            durationText(agent.talkSeconds),
-          ],
-        }))}
+        rows={live.agents.map((agent) => {
+          const paused = agent.status.toLowerCase() === 'paused';
+
+          return {
+            key: agent.extension,
+            cells: [
+              agent.extension,
+              agent.name,
+              <Badge key="status" variant={paused ? 'warning' : 'secondary'}>
+                {paused ? t('agent-paused', 'Paused') : agent.status}
+              </Badge>,
+              format.number(agent.answered),
+              format.number(agent.abandoned),
+              durationText(agent.talkSeconds),
+            ],
+          };
+        })}
         empty={t('no-agents', 'No agent is in this queue.')}
       />
       <TableSection

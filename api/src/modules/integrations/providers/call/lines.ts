@@ -16,7 +16,14 @@ export const EXTENSION = /^\d{1,30}$/;
  */
 export const Lines = {
   queues: z
-    .array(z.object({ queue: z.string().trim().min(1).max(30), name: z.string().trim().max(100) }))
+    .array(
+      z.object({
+        queue: z.string().trim().min(1).max(30),
+        name: z.string().trim().max(100),
+        /** The channel the queue's calls go to; none, the account's own channel. */
+        channelId: z.string().min(1).nullish(),
+      }),
+    )
     .max(100),
   operators: z
     .array(
@@ -59,7 +66,7 @@ export const saveLines = async (
   if (queues.length)
     await tx
       .insert(callQueues)
-      .values(queues.map((queue) => ({ ...queue, orgId: orgId, accountId })))
+      .values(queues.map(({ queue, name }) => ({ queue, name, orgId: orgId, accountId })))
       .onConflictDoUpdate({
         target: [callQueues.orgId, callQueues.accountId, callQueues.queue],
         set: { name: sql`excluded.name` },
@@ -122,8 +129,13 @@ const AGENT_STATUS: Record<string, OperatorStatus | undefined> = {
   invalid: 'unavailable',
 };
 
+/** When the agent last paused; the UCM sends zeros, or nothing, for one who never has. */
+export const pausedAtOf = (pausetime: string | null | undefined) =>
+  pausetime && !/^[0\s:-]*$/.test(pausetime) ? pausetime : null;
+
+/** By the agent's status alone: `pausedAt` is when they last paused, kept after they resume. */
 const statusOf = (agent: z.infer<typeof QueueLive>['agents'][number]) =>
-  agent.pausedAt ? 'paused' : AGENT_STATUS[agent.status.toLowerCase().replaceAll(/\s/g, '')];
+  AGENT_STATUS[agent.status.toLowerCase().replaceAll(/\s/g, '')];
 
 /**
  * Sets each operator of the account to what the PBX's live board says of its extension, so a

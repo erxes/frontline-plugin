@@ -178,6 +178,17 @@ export const useConversations = () => {
 };
 
 /**
+ * Takes the list back to its first page, as it opened: a long scroll dropped the newest pages,
+ * and paging back up to them one page at a time is slow.
+ */
+export const useRewindConversations = () => {
+  const queryClient = useQueryClient();
+  const { queryKey } = conversationsOptions(useListParams());
+
+  return () => queryClient.resetQueries({ queryKey });
+};
+
+/**
  * How many conversations match the filter bar, for its count: read from the query the list
  * suspends on, without asking it again.
  */
