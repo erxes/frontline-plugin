@@ -2,6 +2,9 @@
 # its production node_modules (.runtime), the UI remote, served at /ui, and
 # the embeds websites load, served at /widget.
 FROM node:26-bookworm-slim
+# Debian's security fixes land before the next node image does; the scan refuses a fixed one
+# left out (libpam-modules, CVE-2025-6020).
+RUN apt-get update && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 # The runtime only runs node; npm and corepack bring their own dependencies (and advisories).
 RUN rm -rf /usr/local/lib/node_modules /usr/local/bin/npm /usr/local/bin/npx /usr/local/bin/corepack
 ARG VERSION=0.1.0
