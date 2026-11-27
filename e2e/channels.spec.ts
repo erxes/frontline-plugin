@@ -1,5 +1,5 @@
 import { expect, expectPage, recordPath, recordPanel, test, unique } from './fixtures.ts';
-import { cardOf, channelSections } from './channelSettings.ts';
+import { addChannelMember, cardOf, channelSections } from './channelSettings.ts';
 
 const CHANNELS = '/frontline/settings/channels';
 
@@ -22,8 +22,7 @@ test('the owner creates a channel with a teammate, who sees its settings read-on
   await page.getByRole('button', { name: 'Create channel' }).click();
 
   await panel.getByLabel('Name').fill(name);
-  await panel.getByPlaceholder('Search members').fill(teammate.fullName);
-  await panel.getByRole('option', { name: teammate.fullName }).click();
+  await addChannelMember(panel, teammate.fullName);
 
   await panel.getByRole('button', { name: 'Create channel' }).click();
 
