@@ -358,6 +358,8 @@ test('an admin tags a form and narrows the forms by its tag', async ({ page }) =
   await row.getByText('No tags').click();
   await page.getByRole('option', { name: tag, exact: true }).click();
   await page.keyboard.press('Escape');
+  // The tagged form moves to the top, so the pointer would hover whichever row took its place.
+  await page.mouse.move(0, 0);
   // The table display, with a tag on a row.
   await expectAccessible(page, row.getByText(tag));
 
