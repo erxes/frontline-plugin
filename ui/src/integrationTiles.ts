@@ -2,13 +2,13 @@ import {
   IconBrandDiscord,
   IconBrandMeta,
   IconBrandTelegram,
-  IconMail,
   IconPhone,
   IconPhoneCall,
 } from '@tabler/icons-react';
 import type { TIntegrationTab, TPluginIntegration } from 'erxes-ui';
 import { lazy } from 'react';
 import { withText } from '~/i18n/withText.ts';
+import { MailboxLogo } from '~/MailboxLogo.tsx';
 
 // `./config` imports this, so like it, it holds only icons, names and lazy slots.
 
@@ -34,7 +34,7 @@ export const INTEGRATION_TILES: TPluginIntegration[] = [
   },
   { key: 'telegram', icon: IconBrandTelegram, tabs: [accountsTab('TelegramAccounts')] },
   { key: 'discord', icon: IconBrandDiscord, tabs: [accountsTab('DiscordAccounts')] },
-  { key: 'mail', icon: IconMail, tabs: [accountsTab('MailAccounts')] },
+  { key: 'mail', icon: MailboxLogo, tabs: [accountsTab('MailAccounts')] },
   { key: 'call', icon: IconPhone, tabs: [accountsTab('CallAccounts')] },
   { key: 'callpro', icon: IconPhoneCall, tabs: [accountsTab('CallProAccounts')] },
 ];
