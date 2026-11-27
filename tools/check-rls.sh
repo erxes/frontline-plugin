@@ -10,6 +10,9 @@ name="frontline_rls_check_$$"
 # The same server and options, another database (a dbname option would override the path).
 url=$(node -e 'const u = new URL(process.argv[1]); u.pathname = `/${process.argv[2]}`; u.searchParams.delete("dbname"); process.stdout.write(u.href)' "$server" "$name")
 
+# Core's role for plugins' views, which migrations grant to; core's own stack has it.
+psql "$server" -qX -v ON_ERROR_STOP=1 -c 'DO $$ BEGIN CREATE ROLE erxes_core_reader NOLOGIN NOBYPASSRLS;
+  EXCEPTION WHEN duplicate_object OR unique_violation THEN NULL; END $$'
 psql "$server" -qX -v ON_ERROR_STOP=1 -c "CREATE DATABASE $name"
 trap 'psql "$server" -qX -c "DROP DATABASE IF EXISTS $name WITH (FORCE)"' EXIT
 
