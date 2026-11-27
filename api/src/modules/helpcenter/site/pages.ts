@@ -181,7 +181,10 @@ export const categoryPage = (site: Site, id: string, page: number): Drawn => {
   };
 };
 
-/** One article: its cover, body and attachments, and the others in its category beside it. */
+/**
+ * One article: its summary, cover, body and attachments, and beside it the others in its category
+ * and every top category, the article's marked.
+ */
 export const articlePage = (site: Site, article: VisitorArticle): Drawn => {
   const { copy } = site;
   const category = site.categories.find((item) => item.id === article.categoryId);
@@ -189,6 +192,13 @@ export const articlePage = (site: Site, article: VisitorArticle): Drawn => {
   const related = site.articles
     .filter((item) => item.categoryId === article.categoryId && item.id !== article.id)
     .slice(0, 8);
+
+  // Every top category beside the article, the one it sits under marked.
+  const top = site.categories.filter((item) => item.parentId === null);
+  let trailTop = category;
+
+  while (trailTop?.parentId)
+    trailTop = site.categories.find((item) => item.id === trailTop?.parentId);
 
   return {
     title: article.title,
@@ -198,6 +208,7 @@ export const articlePage = (site: Site, article: VisitorArticle): Drawn => {
       <div class="hc-article-grid">
         <article class="hc-article">
           <h1 class="hc-page-title">${article.title}</h1>
+          ${article.summary && html`<p class="hc-lede">${article.summary}</p>`}
           <p class="hc-meta">
             ${article.publishedAt && html`<span>${dateOf(site, article.publishedAt)}</span>`}
             <span>${copy.views(article.viewCount)}</span>
@@ -216,14 +227,34 @@ export const articlePage = (site: Site, article: VisitorArticle): Drawn => {
             </section>`
           }
         </article>
-        ${
-          category &&
-          related.length > 0 &&
-          html`<aside class="hc-aside">
-            <h2>${copy.moreIn(category.title)}</h2>
-            ${ArticleList(site, related)}
-          </aside>`
-        }
+        <aside class="hc-aside">
+          ${
+            category &&
+            related.length > 0 &&
+            html`<section>
+              <h2>${copy.moreIn(category.title)}</h2>
+              ${ArticleList(site, related)}
+            </section>`
+          }
+          ${
+            top.length > 0 &&
+            html`<nav aria-label="${site.helpCenter.kbLabel || copy.categories}">
+              <h2>${site.helpCenter.kbLabel || copy.categories}</h2>
+              <ul class="hc-list">
+                ${top.map(
+                  (item) =>
+                    html`<li>
+                      <a
+                        href="${href(site, `/categories/${item.id}`)}"
+                        ${item.id === trailTop?.id && raw('aria-current="page"')}
+                        >${item.title}<small>${copy.articles(item.articleCount)}</small></a
+                      >
+                    </li>`,
+                )}
+              </ul>
+            </nav>`
+          }
+        </aside>
       </div>
     </div>`,
   };

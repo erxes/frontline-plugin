@@ -1,19 +1,12 @@
-import { RecordPage } from 'erxes-ui';
-import { Route, Routes, useParams } from 'react-router-dom';
-import { HELP_CENTER_TYPE } from '~/plugin.ts';
-import { HelpCenterAppearancePage } from './HelpCenterAppearancePage.tsx';
+import { Route, Routes } from 'react-router-dom';
+import { HelpCenterPage } from './HelpCenterPage.tsx';
 import { HelpCentersPage } from './HelpCentersPage.tsx';
 
-/** A help center expanded from core's side panel, full size. */
-const HelpCenterRecord = () => (
-  <RecordPage contentType={HELP_CENTER_TYPE} contentId={useParams().id ?? ''} />
-);
-
-/** `/frontline/help-centers/*`: the list, a help center's own page and its appearance page. */
+/** `/frontline/help-centers/*`: the list, and each help center's page open at a section. */
 export const HelpCenterRoutes = () => (
   <Routes>
     <Route index element={<HelpCentersPage />} />
-    <Route path=":id" element={<HelpCenterRecord />} />
-    <Route path=":id/appearance" element={<HelpCenterAppearancePage />} />
+    <Route path=":id" element={<HelpCenterPage />} />
+    <Route path=":id/:section" element={<HelpCenterPage />} />
   </Routes>
 );

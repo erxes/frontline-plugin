@@ -3,6 +3,7 @@ import { useMutation } from '@tanstack/react-query';
 import { PanelFormLayout, PanelFormRow, Select, type TRecordDraftProps, textOf } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { CategorySelect } from './CategoryTree.tsx';
@@ -12,6 +13,7 @@ import {
   useCategories,
   useKbChange,
   useStatusNames,
+  articlePath,
 } from './useKnowledgeBase.ts';
 
 /** A new article's status; scheduling needs a time, so it is set on the article. */
@@ -48,11 +50,11 @@ const NewStatusSelect = ({
 
 /**
  * A new article in core's side panel: its title, category, summary and status. Nothing saves
- * until Save; the article then takes the draft's place, and its body is written in its Content
- * tab. Scheduling needs a time, so it is set on the article.
+ * until Save; the article then opens on its own page, where its body is written. Scheduling needs a time, so it is set on the article.
  */
-export const ArticleNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps) => {
+export const ArticleNew = ({ defaults, onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
+  const navigate = useNavigate();
   // The topic the opener writes in: `openNew(KB_ARTICLE_TYPE, { topicId })`.
   const topicId = textOf(defaults.topicId);
   const categories = useCategories(topicId).data;
@@ -66,7 +68,7 @@ export const ArticleNew = ({ defaults, onCreated, onCancel }: TRecordDraftProps)
     orpc.knowledgebase.articles.create.mutationOptions({
       onSuccess: (article) => {
         onSuccess();
-        onCreated(article.id);
+        void navigate(articlePath(article.id));
       },
     }),
   );

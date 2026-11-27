@@ -16,7 +16,6 @@ import {
   Button,
   IconComponent,
   ListFilter,
-  PageContainer,
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
@@ -27,13 +26,12 @@ import {
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
 import { MemberLine } from '~/shared/Person.tsx';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { KB_CATEGORY_TYPE } from '~/plugin.ts';
-import { CreateButton, ListEmpty, ListError } from '~/shared/List.tsx';
+import { ListEmpty, ListError } from '~/shared/List.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
 import { DateCell, Rows } from '~/shared/Table.tsx';
 import { Indent } from './CategoryTree.tsx';
-import { KbHeader } from './KbHeader.tsx';
 import { OldLink } from './OldLink.tsx';
 import { useDeleteCategories } from './useKbDeletes.ts';
 import {
@@ -225,24 +223,15 @@ const useFields = (topicId: string): TListFilterField[] => {
  * A topic's categories as a tree under core's list bar, each counting the articles in it and
  * under it. A filtered list keeps the tree of what matches.
  */
-export const CategoriesPage = () => {
+export const TopicCategories = ({ topicId }: { topicId: string }) => {
   const { t } = useTranslation('frontline');
-  const topicId = useParams().topicId ?? '';
   const can = useKbAccess();
-  const { openNew } = useOpenRecord();
   const { data: rows = [], isPending, error } = useCategories(topicId, useListFilterParams());
   const columns = useColumns();
 
   return (
-    <PageContainer>
+    <>
       <OldLink param="editId" contentType={KB_CATEGORY_TYPE} />
-      <KbHeader topicId={topicId} label={t('kb-categories', 'Categories')}>
-        <CreateButton
-          allowed={can.categories}
-          label={t('kb-new-category', 'New category')}
-          onClick={() => openNew(KB_CATEGORY_TYPE, { topicId })}
-        />
-      </KbHeader>
       <ViewBar allLabel={t('kb-all-categories', 'All categories')}>
         <ListFilter
           id="frontline-kb-categories"
@@ -274,6 +263,6 @@ export const CategoriesPage = () => {
           {can.categories && <CategoriesCommandBar />}
         </RecordTable.Provider>
       )}
-    </PageContainer>
+    </>
   );
 };

@@ -10,7 +10,6 @@ import {
   openChannelPipelines,
   pluginApi,
   recordPanel,
-  recordPath,
   test,
   unique,
 } from './fixtures.ts';
@@ -31,7 +30,7 @@ const retype = async (page: Page, button: Locator, placeholder: string, value: s
   await page.keyboard.press('Enter');
 };
 
-/** Creates the form `name` in `channel` from New form, then shows it in the panel. */
+/** Creates the form `name` in `channel` from New form, which opens its page, then goes back to the list. */
 const newForm = async (page: Page, channel: string, name: string) => {
   const panel = recordPanel(page);
 
@@ -40,7 +39,8 @@ const newForm = async (page: Page, channel: string, name: string) => {
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
   await panel.getByRole('textbox', { name: 'Name', exact: true }).fill(name);
   await panel.getByRole('button', { name: 'Create form' }).click();
-  await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Form' }).getByText(name)).toBeVisible();
+  await page.goto(FORMS);
 };
 
 /** Adds a field of `type` to the first step and names it `label`. */
@@ -96,7 +96,7 @@ test('an admin builds a form and a visitor sends it from a website and its addre
   const panel = recordPanel(page);
   const name = `Demo request ${unique()}`;
 
-  // New form drafts one in core's side panel; it then opens there, edited in place.
+  // New form drafts one in core's side panel; the form then opens on its own page.
   await page.goto(FORMS);
   await page.getByRole('button', { name: 'New form' }).first().click();
   await pick(page, panel.getByRole('combobox', { name: 'Channel' }), channel);
@@ -104,27 +104,28 @@ test('an admin builds a form and a visitor sends it from a website and its addre
   await panel.getByLabel('Form title').fill('Book a demo');
 
   await panel.getByRole('button', { name: 'Create form' }).click();
-  await expect(panel.getByRole('button', { name: `Name ${name}`, exact: true })).toBeVisible();
-  await retype(page, panel.getByRole('button', { name: /^Button text/ }), 'Button text', 'Ask');
-  await expect(panel.getByRole('button', { name: 'Button text Ask' })).toBeVisible();
-  await expect(
-    page.getByRole('region', { name: 'Active' }).getByRole('button', { name, exact: true }),
-  ).toBeVisible();
 
-  await panel.getByRole('tab', { name: 'Activity' }).click();
-  await expect(panel.getByText(`Created ${name}`)).toBeVisible();
-  await panel.getByRole('tab', { name: 'Detail' }).click();
+  // It opens on its own page; its settings are one form, saved once.
+  const sections = page.getByRole('navigation', { name: 'Form' });
+
+  await expect(page).toHaveURL(new RegExp(`${FORMS}/[^/?]+$`));
+  await sections.getByRole('link', { name: 'Settings' }).click();
+  await page.getByRole('textbox', { name: 'Button text' }).fill('Ask');
+  await page.getByRole('button', { name: 'Save', exact: true }).click();
+  await expect(page.getByText('Form saved')).toBeVisible();
+
+  await sections.getByRole('link', { name: 'Activity' }).click();
+  await expect(page.getByText(`Created ${name}`)).toBeVisible();
 
   // The builder edits fields in place; its preview applies their show rules as it is filled in.
-  await panel.getByRole('link', { name: /^Fields/ }).click();
-  await expect(page).toHaveURL(/\/builder$/);
+  await sections.getByRole('link', { name: /^Fields/ }).click();
   await buildFields(page);
 
   // A visitor reads the form from its public address and sends it.
   await sendAsVisitor(page, request, name);
   // The shop's and the address's answers both count; Gold was refused.
   await page.reload();
-  await expect(panel.getByRole('link', { name: /^Submissions/ })).toContainText('2');
+  await expect(sections.getByRole('link', { name: /^Submissions/ })).toContainText('2');
 });
 
 test('an admin narrows, corrects and deletes the answers a form got', async ({
@@ -157,9 +158,12 @@ test('an admin narrows, corrects and deletes the answers a form got', async ({
   expect(await answer(request, url, { [plan.id]: 'Team', [seats.id]: 5 })).toBe(201);
   expect(await answer(request, url, { [plan.id]: 'Free', [seats.id]: 9 })).toBe(201);
 
-  // The form's panel links to its submissions: a column per field, and a filter per field.
-  await page.goto(recordPath(FORMS, 'frontline:form', form.id));
-  await panel.getByRole('link', { name: /^Submissions/ }).click();
+  // The form's page lists its submissions: a column per field, and a filter per field.
+  await page.goto(`${FORMS}/${form.id}`);
+  await page
+    .getByRole('navigation', { name: 'Form' })
+    .getByRole('link', { name: /^Submissions/ })
+    .click();
   await expect(page).toHaveURL(/\/submissions$/);
 
   const team = page.getByRole('row', { name: /Team/ });
@@ -203,7 +207,7 @@ test('the builder previews a phone and the thank-you screen, and drags fields by
 
   await rpc('forms/fields/add', { formId: form.id, type: 'text', label: 'Company' }, Id);
   await rpc('forms/fields/add', { formId: form.id, type: 'number', label: 'Seats' }, Id);
-  await page.goto(`${FORMS}/${form.id}/builder`);
+  await page.goto(`${FORMS}/${form.id}`);
 
   const preview = page.getByRole('region', { name: 'Preview' });
   const mobile = page.getByRole('button', { name: 'Mobile', exact: true });
@@ -270,11 +274,15 @@ test('a channel member reads a form and its submissions but changes neither', as
   await expect(teammate.page.getByRole('option', { name: 'Submissions' })).toBeVisible();
   await expect(teammate.page.getByRole('option', { name: 'Delete' })).toBeHidden();
   await teammate.page.keyboard.press('Escape');
-  await teammate.page.getByRole('button', { name, exact: true }).click();
-  const theirs = recordPanel(teammate.page);
+  await teammate.page.getByRole('link', { name, exact: true }).click();
+  await teammate.page
+    .getByRole('navigation', { name: 'Form' })
+    .getByRole('link', { name: 'Settings' })
+    .click();
 
-  await expect(theirs.getByRole('button', { name: `Name ${name}`, exact: true })).toBeDisabled();
-  await expect(theirs.getByRole('combobox', { name: 'Channel' })).toHaveText(channel);
+  await expect(teammate.page.getByRole('textbox', { name: 'Name', exact: true })).toBeDisabled();
+  await expect(teammate.page.getByRole('combobox', { name: 'Channel' })).toHaveText(channel);
+  await expect(teammate.page.getByRole('button', { name: 'Save', exact: true })).toBeHidden();
 });
 
 test('an admin drafts, duplicates, archives and deletes forms', async ({ page }) => {
@@ -298,13 +306,13 @@ test('an admin drafts, duplicates, archives and deletes forms', async ({ page })
   await page.getByRole('button', { name: `Actions for ${name}` }).click();
   await page.getByRole('option', { name: 'Duplicate' }).click();
   await expect(page.getByRole('option', { name: 'Duplicate' })).toBeHidden();
-  await expect(page.getByRole('button', { name: `${name} (copy)`, exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: `${name} (copy)`, exact: true })).toBeVisible();
   await page.getByRole('button', { name: `Actions for ${name} (copy)` }).click();
   await page.getByRole('option', { name: 'Archive' }).click();
   await expect(
     page
       .getByRole('region', { name: 'Archived' })
-      .getByRole('button', { name: `${name} (copy)`, exact: true }),
+      .getByRole('link', { name: `${name} (copy)`, exact: true }),
   ).toBeVisible();
 
   // Narrowed to its channel, the table's bar deletes both.

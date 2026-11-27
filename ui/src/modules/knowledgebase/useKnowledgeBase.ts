@@ -30,9 +30,17 @@ export type ArticleStatus = Article['status'];
 /** Where the knowledge base lives, as the old plugin had it. */
 export const KB_PATH = '/frontline/knowledgebase';
 
-/** A topic's pages, by the path segment after its id. */
-export const topicPath = (topicId: string, page: 'articles' | 'categories' | 'kbsettings') =>
-  `${KB_PATH}/${encodeURIComponent(topicId)}/${page}`;
+/** A topic page's sections, one address each; its articles are the page's own. */
+export const TOPIC_SECTIONS = ['articles', 'categories', 'settings'] as const;
+
+export type TopicSection = (typeof TOPIC_SECTIONS)[number];
+
+/** A topic's own page, open at `section`. */
+export const topicPath = (topicId: string, section: TopicSection = 'articles') =>
+  `${KB_PATH}/${encodeURIComponent(topicId)}${section === 'articles' ? '' : `/${section}`}`;
+
+/** An article on its own page, where it is written. */
+export const articlePath = (id: string) => `${KB_PATH}/article/${encodeURIComponent(id)}`;
 
 /** The topic's articles, narrowed to a category and the ones under it, as the filter bar holds it. */
 export const categoryArticlesPath = (topicId: string, categoryId: string) =>

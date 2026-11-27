@@ -1,43 +1,16 @@
 import { DndContext, useDroppable } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { IconForms, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconPlus, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Button, DropdownMenu, PageContainer, ScrollArea, Skeleton, TextField } from 'erxes-ui';
+import { Button, DropdownMenu, TextField } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { DevicePreview } from '~/shared/DevicePreview.tsx';
-import { AppHeader } from '~/shared/Header.tsx';
-import { ListError } from '~/shared/List.tsx';
 import { FieldEditor } from './FieldEditor.tsx';
 import { stepZone, useFieldDrag } from './fieldDrag.ts';
 import { CUSTOMER_TYPES, FIELD_ICONS, INPUT_TYPES, useFieldTypeNames } from './fieldTypes.ts';
 import { FormScreens } from './FormScreens.tsx';
-import {
-  FORMS_PATH,
-  type Form,
-  type FormField,
-  useEditForm,
-  useForm,
-  useFormChange,
-  useFormFields,
-} from './useForms.ts';
-
-/** Forms, then the form, then `label`, as core's breadcrumb draws it. */
-export const FormHeader = ({ form, label }: { form?: Form; label: string }) => {
-  const { t } = useTranslation('frontline');
-
-  return (
-    <AppHeader
-      icon={IconForms}
-      app={{ label: t('forms', 'Forms'), to: FORMS_PATH }}
-      levels={[
-        { label: form?.name ?? '…', to: `${FORMS_PATH}/${encodeURIComponent(form?.id ?? '')}` },
-        { label },
-      ]}
-    />
-  );
-};
+import { type Form, type FormField, useEditForm, useFormChange } from './useForms.ts';
 
 /**
  * A menu of every field type at once, inputs beside the customer fields they fill; picking one
@@ -181,13 +154,18 @@ const StepCard = ({
   );
 };
 
-const Builder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
+/**
+ * A form's fields, step by step, with a live preview beside them. Unlike its settings, each
+ * change saves as it is made, the way core's panel fields do, so the preview always shows what
+ * visitors get.
+ */
+export const FormBuilder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
   const { t } = useTranslation('frontline');
   const edit = useEditForm(form.id);
   const { layout, context } = useFieldDrag(form.id, fields, Math.max(form.steps.length, 1));
 
   return (
-    <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:grid-cols-5">
+    <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
       <fieldset disabled={!form.canManage} className="contents">
         <div className="flex min-w-0 flex-col gap-4 lg:col-span-3">
           <DndContext {...context}>
@@ -223,36 +201,5 @@ const Builder = ({ form, fields }: { form: Form; fields: FormField[] }) => {
         </DevicePreview>
       </div>
     </div>
-  );
-};
-
-/**
- * A form's fields, step by step, with a live preview beside them. Unlike a settings page, each
- * change saves as it is made, the way core's panel fields do, so the preview always shows what
- * visitors get.
- */
-export const FormBuilderPage = () => {
-  const { t } = useTranslation('frontline');
-  const id = useParams().id ?? '';
-  const form = useForm(id);
-  const fields = useFormFields(id);
-  const error = form.error ?? fields.error;
-
-  return (
-    <PageContainer>
-      <FormHeader form={form.data} label={t('form-builder', 'Builder')} />
-      <ScrollArea>
-        {error ? (
-          <ListError error={error} />
-        ) : form.data && fields.data ? (
-          <Builder form={form.data} fields={fields.data} />
-        ) : (
-          <div className="mx-auto grid w-full max-w-6xl grid-cols-1 gap-4 p-6 lg:grid-cols-5">
-            <Skeleton className="h-80 lg:col-span-3" />
-            <Skeleton className="h-80 lg:col-span-2" />
-          </div>
-        )}
-      </ScrollArea>
-    </PageContainer>
   );
 };

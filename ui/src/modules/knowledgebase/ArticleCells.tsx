@@ -1,9 +1,9 @@
 import { IconCopy, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Badge, Button, Select, toast, useOpenRecord } from 'erxes-ui';
+import { Badge, buttonVariants, Select, toast } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
+import { Link } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
-import { KB_ARTICLE_TYPE } from '~/plugin.ts';
 import type { RowAction } from '~/shared/Records.tsx';
 import { CategorySelect } from './CategoryTree.tsx';
 import { useDeleteArticles } from './useKbDeletes.ts';
@@ -14,6 +14,7 @@ import {
   useKbAccess,
   useKbChange,
   useStatusNames,
+  articlePath,
 } from './useKnowledgeBase.ts';
 
 /** What a row and the panel show of an article: enough to name it, file it and move it. */
@@ -70,24 +71,19 @@ export const useArticleActions = (article: ArticleRef): RowAction[] => {
   ];
 };
 
-/** The title opens the article in core's side panel. */
-export const ArticleTitle = ({ article }: { article: ArticleRef }) => {
-  const { open } = useOpenRecord();
-
-  return (
-    <Button
-      variant="ghost"
-      className="min-w-0 justify-start"
-      onClick={() => open({ contentType: KB_ARTICLE_TYPE, contentId: article.id })}
-    >
-      <span className="truncate">{article.title}</span>
-    </Button>
-  );
-};
+/** The title opens the article on its own page, where it is written. */
+export const ArticleTitle = ({ article }: { article: ArticleRef }) => (
+  <Link
+    to={articlePath(article.id)}
+    className={buttonVariants({ variant: 'ghost', className: 'min-w-0 justify-start' })}
+  >
+    <span className="truncate">{article.title}</span>
+  </Link>
+);
 
 /**
  * The status, which article managers change in place. Scheduling needs a time, so it is set in
- * the article's panel.
+ * the article's page.
  */
 export const StatusPicker = ({ article }: { article: ArticleRef }) => {
   const { t } = useTranslation('frontline');

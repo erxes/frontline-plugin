@@ -30,9 +30,14 @@ export type Submission = Outputs['submissions']['get'];
 /** Where the forms live, as the old plugin had them. */
 export const FORMS_PATH = `/${PLUGIN}/forms`;
 
-/** A form's own pages, by the path segment after its id. */
-export const formPath = (id: string, page: 'builder' | 'submissions') =>
-  `${FORMS_PATH}/${encodeURIComponent(id)}/${page}`;
+/** A form page's sections, one address each; its fields are the page's own. */
+export const FORM_SECTIONS = ['builder', 'settings', 'install', 'submissions', 'activity'] as const;
+
+export type FormSection = (typeof FORM_SECTIONS)[number];
+
+/** A form's own page, open at `section`. */
+export const formPath = (id: string, section: FormSection = 'builder') =>
+  `${FORMS_PATH}/${encodeURIComponent(id)}${section === 'builder' ? '' : `/${section}`}`;
 
 /** The statuses in the order the list groups them. */
 export const FORM_STATUSES = ['active', 'archived'] as const satisfies readonly FormStatus[];

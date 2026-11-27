@@ -1,20 +1,10 @@
 import { IconRefresh, IconTrash } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import {
-  Badge,
-  Button,
-  CopyText,
-  Input,
-  PanelSection,
-  Table,
-  type TRecordSlotProps,
-  textOf,
-} from 'erxes-ui';
+import { Badge, Button, CopyText, Input, Table, textOf } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { orpc } from '~/orpc.ts';
 import { type HelpCenter, useCanManageHelpCenters, useHelpCenterChange } from './queries.ts';
-import { WithHelpCenter } from './HelpCenterPanel.tsx';
 
 const StatusBadge = ({ status }: { status: 'pending' | 'active' | null }) => {
   const { t } = useTranslation('frontline');
@@ -127,7 +117,8 @@ const Connected = ({
   );
 };
 
-const DomainForm = ({ center }: { center: HelpCenter }) => {
+/** The help center on the member's own domain: connect one, then the records to add. */
+export const DomainForm = ({ center }: { center: HelpCenter }) => {
   const { t } = useTranslation('frontline');
   const canManage = useCanManageHelpCenters();
   const actions = useDomainActions();
@@ -142,14 +133,14 @@ const DomainForm = ({ center }: { center: HelpCenter }) => {
 
   if (!center.domainsAvailable) {
     return (
-      <p className="p-3 text-sm text-muted-foreground">
+      <p className="text-sm text-muted-foreground">
         {t('domains-off', 'Custom domains are not available on this installation.')}
       </p>
     );
   }
 
   return (
-    <div className="flex flex-col gap-3 p-3">
+    <div className="flex flex-col gap-3">
       <form onSubmit={submit} className="flex gap-2">
         <Input
           name="hostname"
@@ -171,23 +162,5 @@ const DomainForm = ({ center }: { center: HelpCenter }) => {
         </p>
       )}
     </div>
-  );
-};
-
-/**
- * The Domain tab: the help center on the member's own domain. Cloudflare issues its certificate
- * once the CNAME and TXT records are in; a background job checks for a week.
- */
-export const HelpCenterDomain = ({ contentId }: TRecordSlotProps) => {
-  const { t } = useTranslation('frontline');
-
-  return (
-    <WithHelpCenter id={contentId}>
-      {(center) => (
-        <PanelSection title={t('domain', 'Domain')}>
-          <DomainForm center={center} />
-        </PanelSection>
-      )}
-    </WithHelpCenter>
   );
 };

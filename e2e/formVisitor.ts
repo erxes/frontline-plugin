@@ -1,6 +1,6 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { z } from 'zod';
-import { expect, expectClickOpensCalendar, openShop, recordPanel } from './fixtures.ts';
+import { expect, expectClickOpensCalendar, openShop } from './fixtures.ts';
 
 export const FORMS = '/frontline/forms';
 
@@ -15,19 +15,20 @@ export const answer = async (
 ) => (await request.post(url, { data: { answers } })).status();
 
 /**
- * Sends the form twice: from a shop with the install code the panel gives, where a click in Start
+ * Sends the form twice: from a shop with the install code its page gives, where a click in Start
  * opens its calendar and Seats shows once Team is picked, and from its public address, which
  * drops a hidden field's answer.
  */
 export const sendAsVisitor = async (page: Page, request: APIRequestContext, name: string) => {
-  const panel = recordPanel(page);
-
   await page.goto(FORMS);
-  await page.getByRole('button', { name, exact: true }).click();
-  await panel.getByRole('button', { name: 'Show install code' }).click();
+  await page.getByRole('link', { name, exact: true }).click();
+  await page
+    .getByRole('navigation', { name: 'Form' })
+    .getByRole('link', { name: 'Install' })
+    .click();
 
-  const installCode = (await panel.getByLabel('Install code').textContent()) ?? '';
-  const url = (await panel.getByText(/\/api\/public\//).textContent()) ?? '';
+  const installCode = (await page.getByLabel('Install code').textContent()) ?? '';
+  const url = (await page.getByText(/\/api\/public\//).textContent()) ?? '';
 
   {
     await using site = await openShop(page.context(), installCode);

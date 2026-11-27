@@ -111,24 +111,31 @@ const Footer = (site: Site) => {
   const { footer } = helpCenter;
   const year = String(new Date().getFullYear());
 
+  const about = footer.description || helpCenter.description;
+  const columns = footer.columns ?? [];
+
+  // A footer with nothing set shows only its copyright line, not an empty band above it.
   return html`<footer class="hc-footer">
-    <div class="hc-wrap hc-footer-grid">
-      <div>
-        ${footer.logo && html`<img class="hc-footer-logo" src="${footer.logo}" alt="" />`}
-        <p>${footer.description || helpCenter.description}</p>
-      </div>
-      ${(footer.columns ?? []).map(
-        (column) =>
-          html`<div>
-            <h2>${column.heading}</h2>
-            <ul>
-              ${column.links
-                .filter((link) => outward(link.url))
-                .map((link) => html`<li><a href="${link.url}">${link.label}</a></li>`)}
-            </ul>
-          </div>`,
-      )}
-    </div>
+    ${
+      (footer.logo || about || columns.length > 0) &&
+      html`<div class="hc-wrap hc-footer-grid">
+        <div>
+          ${footer.logo && html`<img class="hc-footer-logo" src="${footer.logo}" alt="" />`}
+          ${about && html`<p>${about}</p>`}
+        </div>
+        ${columns.map(
+          (column) =>
+            html`<div>
+              <h2>${column.heading}</h2>
+              <ul>
+                ${column.links
+                  .filter((link) => outward(link.url))
+                  .map((link) => html`<li><a href="${link.url}">${link.label}</a></li>`)}
+              </ul>
+            </div>`,
+        )}
+      </div>`
+    }
     <p class="hc-wrap hc-copyright">
       ${
         footer.copyright

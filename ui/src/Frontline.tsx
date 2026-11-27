@@ -5,12 +5,9 @@ import {
   CALL_TYPE,
   ACCOUNT_TYPE,
   FORM_SUBMISSION_TYPE,
-  FORM_TYPE,
   CONVERSATION_TYPE,
   INTEGRATION_TYPE,
-  KB_ARTICLE_TYPE,
   KB_CATEGORY_TYPE,
-  KB_TOPIC_TYPE,
   META_BOT_TYPE,
   PIPELINE_TYPE,
   PLUGIN,
@@ -53,16 +50,12 @@ const TopicsPage = lazy(
   withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).TopicsPage })),
 );
 
-const ArticlesPage = lazy(
-  withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).ArticlesPage })),
+const TopicPage = lazy(
+  withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).TopicPage })),
 );
 
-const CategoriesPage = lazy(
-  withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).CategoriesPage })),
-);
-
-const TopicSettingsPage = lazy(
-  withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).TopicSettingsPage })),
+const ArticlePage = lazy(
+  withText(async () => ({ default: (await import('@/knowledgebase/pages.ts')).ArticlePage })),
 );
 
 const TagsPage = lazy(
@@ -102,16 +95,8 @@ const FormsPage = lazy(
   withText(async () => ({ default: (await import('@/forms/FormsPage.tsx')).FormsPage })),
 );
 
-const FormBuilderPage = lazy(
-  withText(async () => ({
-    default: (await import('@/forms/FormBuilderPage.tsx')).FormBuilderPage,
-  })),
-);
-
-const SubmissionsPage = lazy(
-  withText(async () => ({
-    default: (await import('@/forms/SubmissionsPage.tsx')).SubmissionsPage,
-  })),
+const FormPage = lazy(
+  withText(async () => ({ default: (await import('@/forms/FormPage.tsx')).FormPage })),
 );
 
 const ReportsPage = lazy(
@@ -307,9 +292,10 @@ export const Frontline = () => (
             path="submission/:id"
             element={<RecordRoute contentType={FORM_SUBMISSION_TYPE} />}
           />
-          <Route path=":id" element={<RecordRoute contentType={FORM_TYPE} />} />
-          <Route path=":id/builder" element={<FormBuilderPage />} />
-          <Route path=":id/submissions" element={<SubmissionsPage />} />
+          <Route path=":id" element={<FormPage />} />
+          {/* The builder had its own address; it is the page's Fields now. */}
+          <Route path=":id/builder" element={<Redirect path="forms" />} />
+          <Route path=":id/:section" element={<FormPage />} />
         </Route>
         <Route path="surveys">
           <Route index element={<SurveysPage />} />
@@ -328,11 +314,14 @@ export const Frontline = () => (
         <Route path="knowledgebase">
           <Route index element={<TopicsPage />} />
           <Route path="category/:id" element={<RecordRoute contentType={KB_CATEGORY_TYPE} />} />
-          <Route path="article/:id" element={<RecordRoute contentType={KB_ARTICLE_TYPE} />} />
-          <Route path=":id" element={<RecordRoute contentType={KB_TOPIC_TYPE} />} />
-          <Route path=":topicId/articles" element={<ArticlesPage />} />
-          <Route path=":topicId/categories" element={<CategoriesPage />} />
-          <Route path=":topicId/kbsettings" element={<TopicSettingsPage />} />
+          <Route path="article/:id" element={<ArticlePage />} />
+          <Route path=":topicId" element={<TopicPage />} />
+          {/* A topic's settings had their own address; they are the page's Settings now. */}
+          <Route
+            path=":topicId/kbsettings"
+            element={<Redirect path="knowledgebase" param="topicId" rest="/settings" />}
+          />
+          <Route path=":topicId/:section" element={<TopicPage />} />
         </Route>
         <Route path="help-centers/*" element={<HelpCenterRoutes />} />
         <Route path="knowledge-base/*" element={<Redirect path="knowledgebase" param="*" />} />

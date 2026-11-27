@@ -1,22 +1,11 @@
-import { IconHelpCircle } from '@tabler/icons-react';
 import { useMutation } from '@tanstack/react-query';
-import { Form, PageContainer, ScrollArea, Skeleton, toast } from 'erxes-ui';
+import { Form, toast } from 'erxes-ui';
 import { useForm } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
-import { AppHeader } from '~/shared/Header.tsx';
-import { ListError } from '~/shared/List.tsx';
 import { SaveBar, SettingsCard } from '~/shared/Settings.tsx';
 import { ColorRow, FontRow, FooterColumns, ImageRow, type Look, TextRow } from './LookFields.tsx';
-import {
-  type HelpCenter,
-  HELP_CENTERS_PATH,
-  helpCenterPath,
-  useCanManageHelpCenters,
-  useHelpCenter,
-  useHelpCenterChange,
-} from './queries.ts';
+import { type HelpCenter, useHelpCenterChange } from './queries.ts';
 
 const valuesOf = (center: HelpCenter): Look => ({
   color: center.color ?? '',
@@ -127,8 +116,17 @@ const ContentCards = () => {
   );
 };
 
-/** The page's one form; members who can't manage help centers read it. */
-const LookForm = ({ center, editable }: { center: HelpCenter; editable: boolean }) => {
+/**
+ * A help center's look, laid out like core's settings pages: its logo, colours, fonts, header and
+ * footer in cards, and one Save. Members who can't manage help centers read it.
+ */
+export const HelpCenterAppearance = ({
+  center,
+  editable,
+}: {
+  center: HelpCenter;
+  editable: boolean;
+}) => {
   const { t } = useTranslation('frontline');
   const change = useHelpCenterChange();
   const form = useForm({ defaultValues: valuesOf(center) });
@@ -178,40 +176,5 @@ const LookForm = ({ center, editable }: { center: HelpCenter; editable: boolean 
         )}
       </form>
     </Form>
-  );
-};
-
-/**
- * A help center's look on a page of its own, laid out like core's settings pages: its logo,
- * colours, fonts, header and footer in one centered column of cards, and one Save.
- */
-export const HelpCenterAppearancePage = () => {
-  const { t } = useTranslation('frontline');
-  const id = useParams().id ?? '';
-  const editable = useCanManageHelpCenters();
-  const { data, error } = useHelpCenter(id);
-
-  return (
-    <PageContainer>
-      <AppHeader
-        icon={IconHelpCircle}
-        app={{ label: t('help-centers', 'Help centers'), to: HELP_CENTERS_PATH }}
-        levels={[
-          { label: data?.title ?? '…', to: helpCenterPath(id) },
-          { label: t('appearance', 'Appearance') },
-        ]}
-      />
-      <ScrollArea>
-        <div className="mx-auto flex w-full max-w-3xl flex-col gap-4 p-6">
-          {error ? (
-            <ListError error={error} />
-          ) : data ? (
-            <LookForm key={data.id} center={data} editable={editable} />
-          ) : (
-            <Skeleton className="h-60" />
-          )}
-        </div>
-      </ScrollArea>
-    </PageContainer>
   );
 };

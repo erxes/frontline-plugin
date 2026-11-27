@@ -147,6 +147,67 @@ export const RowPicker = <V extends string>({
 
             setOpen(false);
           }}
+
+/**
+ * A value of a settings page's form picked from `options`: one, closing on the pick, or several
+ * with `multiple`. The bordered button shows `display`, or `placeholder` while nothing is picked.
+ */
+export const PickerSelect = ({
+  id,
+  label,
+  display,
+  placeholder,
+  options,
+  value,
+  onValueChange,
+  multiple,
+  noneLabel,
+  loading,
+  error,
+  onSearchChange,
+  disabled,
+}: {
+  id?: string;
+  label: string;
+  display: ReactNode;
+  placeholder: string;
+  options: Option[];
+  value: string[];
+  onValueChange: (ids: string[]) => void;
+  multiple?: boolean;
+  noneLabel?: string;
+  loading?: boolean;
+  error?: Error | null;
+  onSearchChange?: (search: string) => void;
+  disabled?: boolean;
+}) => {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <Combobox.Trigger id={id} variant="bordered" disabled={disabled} aria-label={label}>
+        {value.length === 0 ? (
+          <span className="truncate text-muted-foreground">{placeholder}</span>
+        ) : (
+          <span className="flex min-w-0 flex-1">{display}</span>
+        )}
+      </Combobox.Trigger>
+      <Combobox.Content align="start">
+        <EntityPicker
+          items={options}
+          itemKey={(option) => ({ id: option.value, label: option.label })}
+          value={value}
+          onValueChange={(ids) => {
+            onValueChange(ids);
+
+            if (!multiple) setOpen(false);
+          }}
+          multiple={multiple}
+          noneLabel={noneLabel}
+          loading={loading}
+          error={error}
+          onSearchChange={onSearchChange}
+          searchPlaceholder={label}
         />
       </Combobox.Content>
     </Popover>

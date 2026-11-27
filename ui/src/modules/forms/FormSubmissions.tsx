@@ -2,7 +2,6 @@ import { IconCalendarPlus, IconMessage, IconSend, IconTrash, IconUser } from '@t
 import {
   Button,
   ListFilter,
-  PageContainer,
   RecordTable,
   type RecordTableColumnDef,
   RecordTableInlineCell,
@@ -12,22 +11,14 @@ import {
   ViewBar,
 } from 'erxes-ui';
 import { useTranslation } from 'react-i18next';
-import { useParams } from 'react-router-dom';
 import { FORM_SUBMISSION_TYPE } from '~/plugin.ts';
 import { ListEmpty, ListError } from '~/shared/List.tsx';
 import { ContactChip } from '~/shared/Person.tsx';
 import { DeleteButton, RowActions, SelectionBar, TextCell } from '~/shared/Records.tsx';
 import { column as columnOf, PagedRows } from '~/shared/Table.tsx';
 import { useAnswerText } from './answers.ts';
-import { FormHeader } from './FormBuilderPage.tsx';
 import { useDeleteSubmissions } from './SubmissionPanel.tsx';
-import {
-  type FormField,
-  type Submission,
-  useForm,
-  useFormFields,
-  useSubmissions,
-} from './useForms.ts';
+import { type Form, type FormField, type Submission, useSubmissions } from './useForms.ts';
 
 const LIST = 'frontline-form-submissions';
 
@@ -134,22 +125,18 @@ const useFields = (fields: FormField[]): TListFilterField[] => {
  * A form's submissions under core's list bar, newest first and a page at a time, with a column
  * and a filter per field. A submission opens in core's side panel, where its answers are corrected.
  */
-export const SubmissionsPage = () => {
+export const FormSubmissions = ({ form, fields }: { form: Form; fields: FormField[] }) => {
   const { t } = useTranslation('frontline');
-  const formId = useParams().id ?? '';
-  const form = useForm(formId).data;
-  const fields = useFormFields(formId).data ?? [];
-  const manage = form?.canManage ?? false;
+  const manage = form.canManage;
   const { deleteSubmissions, isPending: deleting } = useDeleteSubmissions();
 
-  const list = useSubmissions(formId);
+  const list = useSubmissions(form.id);
   const { rows: submissions, totalCount, isPending, error } = list;
 
   const columns = useColumns(fields, manage);
 
   return (
-    <PageContainer>
-      <FormHeader form={form} label={t('form-submissions', 'Submissions')} />
+    <>
       <ViewBar allLabel={t('all-submissions', 'All submissions')}>
         <ListFilter id={LIST} fields={useFields(fields)} totalCount={totalCount} />
       </ViewBar>
@@ -185,6 +172,6 @@ export const SubmissionsPage = () => {
           )}
         </RecordTable.Provider>
       )}
-    </PageContainer>
+    </>
   );
 };

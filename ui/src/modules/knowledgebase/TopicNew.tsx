@@ -4,10 +4,11 @@ import { useMutation } from '@tanstack/react-query';
 import { PanelFormLayout, PanelFormRow, type TRecordDraftProps, textOf } from 'erxes-ui';
 import { type SubmitEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { orpc } from '~/orpc.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { LanguageSelect } from './LanguageSelect.tsx';
-import { useKbChange } from './useKnowledgeBase.ts';
+import { topicPath, useKbChange } from './useKnowledgeBase.ts';
 
 /** Why a topic or category save failed: CODE_TAKEN names the code another record has. */
 export const useTakenCode = (error: ORPCError<'CODE_TAKEN', { code: string }> | Error | null) => {
@@ -23,10 +24,11 @@ export const useTakenCode = (error: ORPCError<'CODE_TAKEN', { code: string }> | 
 /**
  * A new topic in core's side panel, under its "New topic" header: title, description, code and
  * language. Nothing saves until Save; CODE_TAKEN shows under the code, and the fields keep what
- * was typed. Its look and help center settings are on its settings page.
+ * was typed. Its look and help center settings are on its page's Settings; it opens there on its articles.
  */
-export const TopicNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
+export const TopicNew = ({ onCancel }: TRecordDraftProps) => {
   const { t } = useTranslation('frontline');
+  const navigate = useNavigate();
   const [languageCode, setLanguageCode] = useState<string | null>(null);
   const { onSuccess } = useKbChange();
 
@@ -34,7 +36,7 @@ export const TopicNew = ({ onCreated, onCancel }: TRecordDraftProps) => {
     orpc.knowledgebase.topics.create.mutationOptions({
       onSuccess: (topic) => {
         onSuccess();
-        onCreated(topic.id);
+        void navigate(topicPath(topic.id));
       },
     }),
   );

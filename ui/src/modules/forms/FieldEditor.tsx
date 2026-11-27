@@ -47,7 +47,7 @@ const TypeSelect = ({ field }: { field: FormField }) => {
       }}
     >
       <Select.Trigger
-        className="w-44 shrink-0"
+        className="w-36 shrink-0"
         aria-label={t('field-type', 'Type of {{label}}', { label: field.label })}
       >
         <Select.Value />
@@ -94,10 +94,14 @@ const FieldRowEnd = ({ field, canManage }: { field: FormField; canManage: boolea
       <div className="flex shrink-0 items-center gap-2 px-1">
         <Switch
           id={requiredId}
+          aria-label={t('field-required', 'Required')}
           checked={field.isRequired}
           onCheckedChange={(isRequired) => update.mutate({ id: field.id, isRequired })}
         />
-        <Label htmlFor={requiredId}>{t('field-required', 'Required')}</Label>
+        {/* A narrow row leaves the label its room; the switch keeps its name. */}
+        <Label htmlFor={requiredId} className="hidden @xl:inline">
+          {t('field-required', 'Required')}
+        </Label>
       </div>
       {canManage && (
         <Button
@@ -149,7 +153,7 @@ export const FieldEditor = ({
       )}
     >
       <Collapsible open={open} onOpenChange={setOpen}>
-        <div className="flex items-center gap-1 p-1.5">
+        <div className="@container flex items-center gap-1 p-1.5">
           {canManage && (
             <DragHandle
               aria-label={t('field-move', 'Move {{label}}', { label: field.label })}
