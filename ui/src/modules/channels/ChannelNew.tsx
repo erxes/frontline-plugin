@@ -26,6 +26,7 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { channelSettingsPath } from '~/shared/channelScope.ts';
 import { MemberLine } from '~/shared/Person.tsx';
+import { MembersField } from '~/shared/MemberPicker.tsx';
 import { orpc } from '~/orpc.ts';
 import { TextRow } from '~/shared/TextRow.tsx';
 import { useChange } from '~/shared/hooks.ts';
@@ -154,6 +155,24 @@ const StarterRow = ({
   </PanelFormRow>
 );
 
+/** The new channel's first members, as chips with an "Add" button that opens the team. */
+const MembersRow = ({
+  value,
+  onValueChange,
+}: {
+  value: string[];
+  onValueChange: (ids: string[]) => void;
+}) => {
+  const { t } = useTranslation('frontline');
+  const label = t('members', 'Members');
+
+  return (
+    <PanelFormRow label={label} icon={IconUsers}>
+      <MembersField label={label} value={value} onValueChange={onValueChange} />
+    </PanelFormRow>
+  );
+};
+
 /**
  * A new channel in core's side panel, under its "New channel" header: icon, name, description,
  * its first members, and what it starts with, a website messenger and a ticket pipeline. Nothing
@@ -217,9 +236,7 @@ export const ChannelNew = ({ onCancel }: TRecordDraftProps) => {
           name="description"
           multiline
         />
-        <PanelFormRow label={t('members', 'Members')} icon={IconUsers}>
-          <MemberPicker value={memberIds} onValueChange={setMemberIds} />
-        </PanelFormRow>
+        <MembersRow value={memberIds} onValueChange={setMemberIds} />
         <StarterRow
           label={t('website-messenger', 'Website messenger')}
           hint={t('starter-messenger-hint', 'A chat widget for your site, set up after Save')}

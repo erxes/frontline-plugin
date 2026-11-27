@@ -14,7 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { channelSections } from './channelSettings.ts';
+import { addChannelMember, channelSections } from './channelSettings.ts';
 import { trackRequests } from './accessible.ts';
 
 export { expectAccessible } from './accessible.ts';
@@ -75,8 +75,7 @@ export const createChannel = async (page: Page, memberName?: string) => {
   await panel.getByLabel('Name').fill(channel);
 
   if (memberName) {
-    await panel.getByPlaceholder('Search members').fill(memberName);
-    await panel.getByRole('option', { name: memberName }).click();
+    await addChannelMember(panel, memberName);
   }
 
   await panel.getByRole('switch', { name: 'Website messenger' }).click();
