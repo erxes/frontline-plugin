@@ -19,6 +19,7 @@ import {
   TICKET_TIMELINE,
 } from '#/core.ts';
 import { AUTOMATION_ACTIONS, AUTOMATION_EVENTS } from '#/automationContract.ts';
+import { OBJECTS } from '#/fields.ts';
 import { MERGE_EVENTS } from '#/modules/contacts/merges.ts';
 import { MANIFEST_INTEGRATIONS } from '#/modules/integrations/catalog.ts';
 import { CONNECTION_CHANGED } from '#/modules/integrations/providers/metaConnect.ts';
@@ -108,6 +109,8 @@ export const manifest = {
   ],
   // Conversations, tickets and form submissions in core's customer filter (`relations.ts`).
   relations: RELATIONS,
+  // Tickets and conversations take Data Extensions fields (`fields.ts`).
+  objects: OBJECTS,
   permissions: [
     {
       action: PERMISSIONS.channelView,

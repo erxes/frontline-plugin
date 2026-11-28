@@ -46,3 +46,14 @@ export type StoredFile = z.infer<typeof StoredFile>;
 export const Attachment = StoredFile.extend({ url: z.string().regex(CORE_FILE) });
 
 export type Attachment = z.infer<typeof Attachment>;
+
+/**
+ * A record's Data Extensions values by core field id, as a ticket or conversation keeps them
+ * (`dataFields.list` names the fields) and core reads them from the record's view.
+ */
+export const FieldValues = z.record(z.string(), z.json());
+
+export type FieldValues = z.infer<typeof FieldValues>;
+
+/** Changes to a record's values by field id; null clears one. */
+export const FieldValuesPatch = z.record(z.string(), z.json().nullable());

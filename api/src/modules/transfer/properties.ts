@@ -1,10 +1,11 @@
-import { type CustomValue, type Field, groupApplies } from '@erxes/core-contract';
+import { type DataExtensionField, groupApplies } from '@erxes/core-contract';
+import type { JSONType } from 'zod';
 import { core, TICKET_TIMELINE } from '#/core.ts';
 import { labelledOf, refuse, tickOf } from './shared.ts';
 
 /**
- * Core's ticket fields, in their order, each with the pipelines its group applies to, asked for
- * only when the file has a Properties column. Fields are each organisation's own, so they share
+ * Core's Data Extensions ticket fields, in their order, each with the pipelines its group applies
+ * to, asked for only when the file has a Properties column. Fields are each organisation's own, so they share
  * one column, as a form's answers do.
  */
 export const ticketFieldsFor = async (orgId: string, wanted: boolean) => {
@@ -13,8 +14,8 @@ export const ticketFieldsFor = async (orgId: string, wanted: boolean) => {
   const client = core.forOrg(orgId);
 
   const [fields, groups] = await Promise.all([
-    client.fields.list({ contentType: TICKET_TIMELINE }),
-    client.fieldGroups.list({ contentType: TICKET_TIMELINE }),
+    client.dataFields.list({ recordType: TICKET_TIMELINE }),
+    client.dataFieldGroups.list({ recordType: TICKET_TIMELINE }),
   ]);
 
   const appliesTo = new Map(groups.data.map((group) => [group.id, group.appliesTo]));
@@ -27,29 +28,31 @@ export const ticketFieldsFor = async (orgId: string, wanted: boolean) => {
 
 type TicketField = Awaited<ReturnType<typeof ticketFieldsFor>>[number];
 
-const textOf = (value: CustomValue) => {
-  if (Array.isArray(value)) return value.join(', ');
+const textOf = (value: JSONType): string => {
+  if (Array.isArray(value)) return value.map(textOf).join(', ');
 
   if (typeof value === 'boolean') return value ? 'yes' : 'no';
 
-  return String(value);
+  return typeof value === 'object' && value !== null ? JSON.stringify(value) : String(value);
 };
 
 /** A ticket's field values as `Label: value` items. */
-export const propertyCells = (fields: Field[], values: Record<string, CustomValue>) =>
+export const propertyCells = (fields: DataExtensionField[], values: Record<string, JSONType>) =>
   fields.flatMap((field) => {
     const value = values[field.id];
 
-    return value === undefined ? [] : [`${field.label}: ${textOf(value)}`];
+    return value === undefined || value === null ? [] : [`${field.label}: ${textOf(value)}`];
   });
 
-const LIST_TYPES: ReadonlySet<string> = new Set(['multiselect', 'check', 'list']);
+const LIST_TYPES: ReadonlySet<string> = new Set(['multiSelect', 'textList']);
 
-/** One field's value from its text, by the field's type; empty clears it. */
-const valueOf = (field: Field, text: string): CustomValue | null => {
+const NUMBER_TYPES: ReadonlySet<string> = new Set(['number', 'percent', 'rating']);
+
+/** One field's value from its text, by the field's type; empty clears it. Core checks the rest. */
+const valueOf = (field: DataExtensionField, text: string): JSONType => {
   if (!text) return null;
 
-  if (field.type === 'number') {
+  if (NUMBER_TYPES.has(field.type)) {
     const number = Number(text);
 
     if (Number.isNaN(number)) throw refuse(`${field.label} is a number, not ${text}`);
@@ -64,7 +67,7 @@ const valueOf = (field: Field, text: string): CustomValue | null => {
 
 /**
  * A Properties cell as a patch of the values of the fields `pipelineId` shows, for core's
- * `fields.check`, so two pipelines' fields with one label don't mix.
+ * `dataValues.check`, so two pipelines' fields with one label don't mix.
  */
 export const propertyPatchOf = (cell: string, fields: TicketField[], pipelineId: string) =>
   Object.fromEntries(

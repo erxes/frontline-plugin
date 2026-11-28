@@ -11,7 +11,7 @@ export const core = {
   // Core refuses a message with this text, as when another server runs the conversation.
   refused: 'Is anyone there?',
   customers: 0,
-  updates: [] as { id: string; primaryEmail?: string; customFields?: Record<string, unknown> }[],
+  updates: [] as { id: string; primaryEmail?: string; values?: Record<string, unknown> }[],
   submitted: [] as Record<string, unknown>[],
   restarted: [] as Record<string, unknown>[],
 };
@@ -42,7 +42,7 @@ export const coreStandIn = (actual: typeof CoreModule) => ({
             : { customer: { id: `lead-${primaryEmail}` }, created: true },
         get: async ({ id }: { id: string }) => ({
           id,
-          customFields: id === 'customer-ann' ? { plan: 'silver' } : {},
+          values: id === 'customer-ann' ? { plan: 'silver' } : {},
         }),
         update: async (change: (typeof core.updates)[number]) => {
           core.updates.push(change);

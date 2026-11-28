@@ -78,16 +78,14 @@ describe('messenger identity', () => {
     const { key, signed } = await setUp('org-mi-d');
 
     core.updates.length = 0;
-    await connect({ key, identity: signed(), customFields: { plan: 'free', city: 'Darkhan' } });
+    await connect({ key, identity: signed(), values: { plan: 'free', city: 'Darkhan' } });
 
-    expect(core.updates).toEqual([{ id: 'customer-ann', customFields: { city: 'Darkhan' } }]);
+    expect(core.updates).toEqual([{ id: 'customer-ann', values: { city: 'Darkhan' } }]);
 
     // A visitor's own lead takes every value.
     core.updates.length = 0;
-    await connect({ key, customFields: { plan: 'free' } });
+    await connect({ key, values: { plan: 'free' } });
 
-    expect(core.updates).toEqual([
-      { id: `customer-${core.customers}`, customFields: { plan: 'free' } },
-    ]);
+    expect(core.updates).toEqual([{ id: `customer-${core.customers}`, values: { plan: 'free' } }]);
   });
 });

@@ -1,4 +1,3 @@
-import { CustomFieldsPatch } from '@erxes/core-contract';
 import { textOf, useConfirm } from 'erxes-ui';
 import { useEffect, useEffectEvent, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +26,8 @@ const ticketDrafts = draftsOf(
     startDate: z.coerce.date().nullable(),
     targetDate: z.coerce.date().nullable(),
     tagIds: z.array(z.string()),
-    propertiesData: CustomFieldsPatch,
+    /** Field values by Data Extensions field id; null clears one. */
+    propertiesData: z.record(z.string(), z.json().nullable()),
   }),
 );
 

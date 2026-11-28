@@ -21,7 +21,7 @@ import { membership, seenBy } from '../channels/access.ts';
 import { publishEvents } from '../events.ts';
 
 /** The row without `org_id`, which the caller already knows. */
-// The custom field values load with the record's Properties tab, not with every row.
+// The field values load with the record's Fields tab, not with every row.
 const {
   orgId: _orgId,
   propertiesData: _propertiesData,

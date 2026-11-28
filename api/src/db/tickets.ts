@@ -1,4 +1,3 @@
-import type { CustomValue } from '@erxes/core-contract';
 import { sql } from 'drizzle-orm';
 import {
   bigint,
@@ -15,7 +14,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { z } from 'zod';
 import { channels } from './schema.ts';
-import { type StoredFile, id, stamps, table } from './table.ts';
+import { type FieldValues, type StoredFile, id, stamps, table } from './table.ts';
 
 /** A span in working minutes, up to a year; left out, the clock isn't kept. */
 const Minutes = z.number().int().positive().max(525_600).optional();
@@ -234,8 +233,8 @@ export const tickets = table(
       .array()
       .notNull()
       .default(sql`'{}'`),
-    /** Values of the ticket's custom fields, by core field id (`frontline.ticket`). */
-    propertiesData: jsonb().$type<Record<string, CustomValue>>().notNull().default({}),
+    /** Values of the ticket's Data Extensions fields, by field id (`frontline.ticket`). */
+    propertiesData: jsonb().$type<FieldValues>().notNull().default({}),
     /** `frontline_teams` of each kind, core's units; a unit deleted in core clears them. */
     branchId: text(),
     departmentId: text(),
@@ -340,9 +339,9 @@ export const PROPERTY_TYPES = [
 ] as const;
 
 /**
- * Retired: ticket fields are core's custom fields on `frontline.ticket` now. Only
- * `scripts/move-ticket-properties.ts` reads these rows, to make them in core; the table stays
- * until every organisation's are moved.
+ * Retired: ticket fields are core's Data Extensions fields on `frontline.ticket` now, and no code
+ * reads these rows (the "`/frontline/settings/ticket-properties` and
+ * `frontline_ticket_properties`" row in DECISIONS.md).
  */
 export const ticketProperties = table(
   'ticket_properties',

@@ -103,8 +103,8 @@ test('the sidebar opens every Frontline page, and Settings opens its own sidebar
 
   await page.goto(`${SETTINGS}/ticket-properties`);
   await expect(page).toHaveURL(`${SETTINGS}/channels`);
-  await page.getByRole('link', { name: 'Ticket properties', exact: true }).click();
-  await expect(page).toHaveURL('/settings/properties/frontline.ticket');
+  await page.getByRole('link', { name: 'Ticket fields', exact: true }).click();
+  await expect(page).toHaveURL('/settings/data-model/fields/frontline.ticket');
 
   // A record's address without its id opens the channels, not a blank page.
   await page.goto(`${SETTINGS}/response-templates`);

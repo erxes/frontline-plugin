@@ -179,9 +179,9 @@ const MODULES: NavLink[] = [
 const SETTINGS_PAGES: NavLink[] = [
   [`${SETTINGS}/channels`, 'channels', 'Channels', IconCircles],
   [`${SETTINGS}/tags`, 'tags', 'Tags', IconTag],
-  // Core keeps them and ticket fields, at its own Settings › Structure and › Properties.
+  // Core keeps them and ticket fields, at its own Settings › Structure and › Data model.
   ['/settings/structure', 'structure', 'Structure', IconSitemap],
-  [`/settings/properties/${TICKET_FIELDS}`, 'ticket-properties', 'Ticket properties', IconForms],
+  [`/settings/data-model/fields/${TICKET_FIELDS}`, 'ticket-fields', 'Ticket fields', IconForms],
 ];
 
 /**

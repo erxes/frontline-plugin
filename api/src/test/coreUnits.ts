@@ -130,26 +130,30 @@ const importUnits = (orgId: string, units: Required<UnitInput>[]) => {
 };
 
 /**
- * Core's fields of `frontline.ticket` in a test: Size and Labels in a group on every pipeline,
- * Seats in one on `seatsPipelineIds`. The fields of `required` are required on the create form.
+ * Core's Data Extensions fields of `frontline.ticket` in a test: Size and Labels in a group on
+ * every pipeline, Seats in one on `seatsPipelineIds`. The fields of `required` are required on
+ * the create form. Each field's key is its id.
  */
 export const coreTicketFields = { seatsPipelineIds: [] as string[], required: [] as string[] };
 
 const ticketField = (id: string, label: string, type: string, groupId: string) => ({
   id,
+  key: id,
   label,
   type,
   groupId,
-  isVisible: true,
-  isVisibleToCreate: true,
   description: null,
-  options: type === 'number' ? [] : ['S', 'M', 'vip'],
+  settings: {},
+  options:
+    type === 'number'
+      ? []
+      : ['S', 'M', 'vip'].map((value) => ({ value, label: value, color: 'gray' })),
 });
 
 const ticketFields = [
   ticketField('size', 'Size', 'select', 'every'),
   ticketField('seats', 'Seats', 'number', 'some'),
-  ticketField('labels', 'Labels', 'multiselect', 'every'),
+  ticketField('labels', 'Labels', 'multiSelect', 'every'),
 ];
 
 const ticketGroups = () => [
@@ -160,13 +164,13 @@ const ticketGroups = () => [
 type Values = Record<string, unknown>;
 
 /**
- * Core's check: each field's group applies to the ticket's pipeline; null clears a value. On
- * `create`, each required field that applies needs one.
+ * Core's `dataValues.check`: each field's group applies to the ticket's pipeline; null clears a
+ * value. On `create`, each required field that applies needs one.
  */
 const checkFields = async (input: {
   current: Values;
   patch: Values;
-  appliesTo: { pipeline: string[] };
+  appliesTo: { pipeline?: string[] };
   create?: boolean;
 }) => {
   const { ORPCError } = await import('@orpc/server');
@@ -174,7 +178,7 @@ const checkFields = async (input: {
   const applies = (field: (typeof ticketFields)[number]) => {
     const pipelines = ticketGroups().find((one) => one.id === field.groupId)?.appliesTo.pipeline;
 
-    return !pipelines || pipelines.some((one) => input.appliesTo.pipeline.includes(one));
+    return !pipelines || pipelines.some((one) => input.appliesTo.pipeline?.includes(one));
   };
 
   for (const id of Object.keys(input.patch)) {
@@ -203,8 +207,9 @@ const checkFields = async (input: {
 
 /** Core's calls for ticket fields, answered by `coreTicketFields`, for any stand-in of core. */
 export const ticketFieldCalls = {
-  fields: { list: async () => ({ data: ticketFields }), check: checkFields },
-  fieldGroups: { list: async () => ({ data: ticketGroups() }) },
+  dataFields: { list: async () => ({ data: ticketFields }) },
+  dataFieldGroups: { list: async () => ({ data: ticketGroups() }) },
+  dataValues: { check: checkFields },
 };
 
 /** Core's roles of the users a test names; anyone else is a `member`. */

@@ -26,7 +26,7 @@ import { withText } from '~/i18n/withText.ts';
 import { CHANNEL_TABS, PIPELINE_TABS } from '~/recordTabs.ts';
 import { DASHBOARD_WIDGETS } from '~/dashboardWidgets.ts';
 import { INTEGRATION_TILES } from '~/integrationTiles.ts';
-import { propertiesOf, readSlots, slots } from '~/recordSlots.ts';
+import { dataFieldsOf, readSlots, slots } from '~/recordSlots.ts';
 import {
   ACCOUNT_TYPE,
   CALL_TYPE,
@@ -151,8 +151,8 @@ export const CONFIG: IUIConfig = {
         },
       ],
       // Its field groups can be limited to pipelines.
-      properties: {
-        ...propertiesOf('tickets'),
+      dataFields: {
+        ...dataFieldsOf('tickets'),
         limits: [
           {
             key: 'pipeline',
@@ -252,7 +252,7 @@ export const CONFIG: IUIConfig = {
       detailPath: pageOf('inbox/conversations'),
       ...slots(() => import('@/inbox/conversationSlots.ts')),
       activity: `${PLUGIN}.conversation`,
-      properties: propertiesOf('conversations'),
+      dataFields: dataFieldsOf('conversations'),
     },
   ],
   // The softphone on every page, for a member with a SIP line.

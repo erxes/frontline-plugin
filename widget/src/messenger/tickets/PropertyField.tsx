@@ -33,9 +33,9 @@ const Choices = ({ property, value, aria, onChange }: FieldProps) => {
         onChange={(event) => onChange(event.currentTarget.value || null)}
       >
         <option value="">{t('Pick one')}</option>
-        {property.options.map((option) => (
+        {property.options.map(({ value: option, label }) => (
           <option key={option} value={option}>
-            {option}
+            {label}
           </option>
         ))}
       </select>
@@ -45,7 +45,7 @@ const Choices = ({ property, value, aria, onChange }: FieldProps) => {
 
   return (
     <span class="fl-options">
-      {property.options.map((option) => (
+      {property.options.map(({ value: option, label }) => (
         <label key={option} class="fl-check">
           <input
             {...aria}
@@ -53,7 +53,7 @@ const Choices = ({ property, value, aria, onChange }: FieldProps) => {
             checked={picked.includes(option)}
             onChange={(event) => onChange(toggled(picked, option, event.currentTarget.checked))}
           />
-          {option}
+          {label}
         </label>
       ))}
     </span>
@@ -121,14 +121,15 @@ const Input = ({ property, value, aria, onChange }: FieldProps) => {
  */
 export const PropertyField = ({
   property,
+  required,
   missing,
   ...props
-}: Omit<FieldProps, 'aria'> & { missing: boolean }) => {
+}: Omit<FieldProps, 'aria'> & { required: boolean; missing: boolean }) => {
   const { t } = useText();
   const error = `${property.id}-error`;
 
   const aria = {
-    'aria-required': property.isRequired,
+    'aria-required': required,
     'aria-invalid': missing,
     'aria-describedby': missing ? error : undefined,
   };
@@ -138,7 +139,7 @@ export const PropertyField = ({
       <label class={property.type === 'boolean' ? 'fl-field fl-check' : 'fl-field'}>
         <span>
           {property.label}
-          {property.isRequired && ' *'}
+          {required && ' *'}
         </span>
         <Input property={property} aria={aria} {...props} />
         {property.description && <small>{property.description}</small>}
