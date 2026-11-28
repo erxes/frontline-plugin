@@ -1,4 +1,5 @@
-import { shownFields, unanswered } from '@frontline/api/logic';
+import { requiredByConditions, shownByConditions } from '@frontline/api/conditions';
+import { unanswered } from '@frontline/api/logic';
 import { type Dispatch, type StateUpdater, useEffect, useState } from 'preact/hooks';
 import type { MessengerApi, NewTicket, Ticket, TicketForms } from '../api.ts';
 import type { Uploaded } from '../../shared/http.ts';
@@ -70,8 +71,9 @@ type Draft = Omit<NewTicket, 'files'>;
 const drafts = new Map<string, { draft: Draft; files: Uploaded[] }>();
 
 /**
- * The draft topic's properties that their Logic shows, their values to send, setting one, and the
- * shown required ones still empty once the visitor tried to send in this topic. A box the visitor
+ * The draft topic's properties that their show rules show, which of them need an answer, their
+ * values to send, setting one, and the shown required ones still empty once the visitor tried to
+ * send in this topic. A box the visitor
  * never ticked is unticked, as core keeps it.
  */
 const useProperties = (
@@ -89,7 +91,11 @@ const useProperties = (
     ]),
   );
 
-  const shown = shownFields(properties, values);
+  const shown = shownByConditions(properties, values);
+
+  const required = new Set(
+    shown.flatMap((field) => (requiredByConditions(field, shown, values) ? [field.id] : [])),
+  );
 
   const sent = Object.fromEntries(
     shown.flatMap(({ id }) => {
@@ -99,7 +105,7 @@ const useProperties = (
     }),
   );
 
-  const empty = shown.filter(({ id, isRequired }) => isRequired && !(id in sent));
+  const empty = shown.filter(({ id }) => required.has(id) && !(id in sent));
   const missing = refusedIn === draft.pipelineId ? empty.map(({ id }) => id) : [];
 
   const answer = (id: string, value: PropertyValue) =>
@@ -115,7 +121,7 @@ const useProperties = (
     return empty.length === 0;
   };
 
-  return { shown, sent, missing, answer, answered };
+  return { shown, required, sent, missing, answer, answered };
 };
 
 /**
@@ -239,6 +245,7 @@ export const TicketForm = ({
         <PropertyField
           key={property.id}
           property={property}
+          required={properties.required.has(property.id)}
           value={draft.propertiesData[property.id] ?? null}
           missing={properties.missing.includes(property.id)}
           onChange={(value) => properties.answer(property.id, value)}

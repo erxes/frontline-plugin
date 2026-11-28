@@ -1,4 +1,4 @@
-import type { TPropertyValue, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
+import type { TDataValue, TRecordDraftProps, TRecordSlotProps } from 'erxes-ui';
 import { type ComponentType, lazy } from 'react';
 import { withText } from '~/i18n/withText.ts';
 import { PLUGIN } from '~/plugin.ts';
@@ -31,13 +31,13 @@ export const slots = (loadSlots: () => Promise<Slots>) => {
   };
 };
 
-/** Custom fields core keeps; the API client loads only when the Properties tab does. */
-export const propertiesOf = (records: 'tickets' | 'conversations') => ({
+/** Data Extensions fields core keeps; the API client loads only when the Fields tab does. */
+export const dataFieldsOf = (records: 'tickets' | 'conversations') => ({
   type: `${PLUGIN}.${records.slice(0, -1)}`,
   values: (id: string) => ({
     queryKey: [PLUGIN, records, 'properties', id],
     queryFn: async () => (await import('~/orpc.ts')).orpc[records].properties.values.call({ id }),
   }),
-  save: async (id: string, patch: Record<string, TPropertyValue | null>) =>
+  save: async (id: string, patch: Record<string, TDataValue>) =>
     (await import('~/orpc.ts')).orpc[records].properties.save.call({ id, patch }),
 });

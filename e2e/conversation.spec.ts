@@ -119,9 +119,10 @@ test('a conversation opens on its own page with its customer and status, resolve
   await page.getByRole('option', { name: 'Resolve' }).click();
   await expect(page.getByText('Resolved', { exact: true })).toBeVisible();
 
-  // Its page has the custom fields core keeps; the inbox shows the customer in core's panel instead.
-  await page.getByRole('tab', { name: 'Properties' }).click();
-  await expect(page.getByRole('tabpanel', { name: 'Properties' })).toBeVisible();
+  // Its page has the Data Extensions fields core keeps; the inbox shows the customer in core's
+  // panel instead.
+  await page.getByRole('tab', { name: 'Fields' }).click();
+  await expect(page.getByRole('tabpanel', { name: 'Fields' })).toBeVisible();
 
   await page.getByRole('link', { name: /Open in the inbox/ }).click();
   await expect(page).toHaveURL(new RegExp(`conversationId=${conversationId}`));

@@ -1,4 +1,4 @@
-import { CustomFieldsPatch, type FieldLogic, groupApplies } from '@erxes/core-contract';
+import { type DataExtensionField, groupApplies } from '@erxes/core-contract';
 import { ORPCError } from '@orpc/server';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
@@ -6,9 +6,9 @@ import { core, TICKET_TIMELINE } from '#/core.ts';
 import { type Tx, withOrg } from '#/db/client.ts';
 import { tags } from '#/db/tags.ts';
 import { ticketComments } from '#/db/ticketComments.ts';
+import { FieldValuesPatch } from '#/db/table.ts';
 import { pipelineStatuses, pipelines, tickets } from '#/db/tickets.ts';
 import { logger } from '#/logger.ts';
-import type { LogicOperator } from '../forms/logic.ts';
 import { checkProperties } from '../tickets/properties.ts';
 import { fileTicket } from '../tickets/tickets.ts';
 import { attachmentsOf, type Visitor } from './session.ts';
@@ -39,70 +39,65 @@ const offered = (tx: Tx, settings: Settings) =>
     )
     .orderBy(asc(pipelines.name));
 
-/** How the messenger draws each type of core's fields; it offers no other. */
+/** How the messenger draws each type of core's Data Extensions fields; it offers no other. */
 const WIDGET_TYPES = {
   text: 'text',
+  email: 'text',
   phone: 'text',
-  textarea: 'textarea',
+  url: 'text',
+  longText: 'textarea',
   number: 'number',
+  percent: 'number',
+  rating: 'number',
   date: 'date',
   boolean: 'boolean',
   select: 'select',
-  radio: 'select',
-  multiselect: 'multiselect',
-  check: 'multiselect',
+  multiSelect: 'multiselect',
 } as const;
 
 const isWidgetType = (type: string): type is keyof typeof WIDGET_TYPES => type in WIDGET_TYPES;
 
-/** Each of core's Logic operators, as the form embed's rules (`../forms/logic.ts`) name it. */
-const OPERATORS = {
-  is: 'is',
-  isNot: 'isNot',
-  contains: 'contains',
-  greaterThan: 'greaterThan',
-  lessThan: 'lessThan',
-  isEmpty: 'isUnknown',
-  hasValue: 'hasAnyValue',
-} as const satisfies Record<FieldLogic['rules'][number]['operator'], LogicOperator>;
-
-/** A core field's Logic as a form field's, so the widget shows both with one `isShown`. */
-const logicOf = (logic: FieldLogic | null) => ({
-  logicAction: logic?.action ?? null,
-  logics: (logic?.rules ?? []).map(({ fieldId, operator, value }) => ({
-    fieldId,
-    operator: OPERATORS[operator],
-    value: value ?? undefined,
-  })),
-});
+/**
+ * Whether a visitor fills the field in: it shows on create forms, and no role or data-model
+ * right guards its value.
+ */
+const visitorFills = ({ settings }: DataExtensionField) =>
+  !settings.hidden &&
+  settings.showInCreate !== false &&
+  !settings.readOnly &&
+  !settings.visibleTo?.length &&
+  !settings.editableBy?.length;
 
 /**
  * The ticket fields core shows on a new ticket, each with the groups that say which pipelines
- * show it, and its Required and Logic rules. A visitor can still file a ticket while core can't
- * answer, with no fields to fill in.
+ * show it, and its required and show rules (`../tickets/conditions.ts`). A visitor can still
+ * file a ticket while core can't answer, with no fields to fill in.
  */
 const ticketFields = async (orgId: string) => {
   const client = core.forOrg(orgId);
 
   try {
     const [fields, groups] = await Promise.all([
-      client.fields.list({ contentType: TICKET_TIMELINE }),
-      client.fieldGroups.list({ contentType: TICKET_TIMELINE }),
+      client.dataFields.list({ recordType: TICKET_TIMELINE }),
+      client.dataFieldGroups.list({ recordType: TICKET_TIMELINE }),
     ]);
 
     const appliesTo = new Map(groups.data.map((group) => [group.id, group.appliesTo]));
 
     return fields.data.flatMap((field) =>
-      field.isVisible && field.isVisibleToCreate && isWidgetType(field.type)
+      isWidgetType(field.type) && visitorFills(field)
         ? [
             {
               id: field.id,
+              key: field.key,
               label: field.label,
               description: field.description,
               type: WIDGET_TYPES[field.type],
-              options: field.options,
-              isRequired: field.isRequired,
-              ...logicOf(field.logic),
+              options: field.options.map(({ value, label }) => ({ value, label })),
+              required: field.settings.required ?? false,
+              visibleWhen: field.settings.visibleWhen ?? null,
+              hiddenWhen: field.settings.hiddenWhen ?? null,
+              requiredWhen: field.settings.requiredWhen ?? null,
               appliesTo: appliesTo.get(field.groupId ?? '') ?? {},
             },
           ]
@@ -205,7 +200,7 @@ const File = z.object({
   /** The receipts `/files` gave for the visitor's uploads. */
   files: z.array(z.string().max(4000)).max(20).default([]),
   tagIds: z.array(z.string()).max(20).default([]),
-  propertiesData: CustomFieldsPatch.default({}),
+  propertiesData: FieldValuesPatch.default({}),
 });
 
 /** A ticket the visitor files, with every field `/tickets` defaults filled in. */

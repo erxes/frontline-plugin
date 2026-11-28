@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { CustomFieldsPatch } from '@erxes/core-contract';
+import { DataExtensionValuesInput } from '@erxes/core-contract';
 import { and, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { PLUGIN } from '#/config.ts';
@@ -75,14 +75,15 @@ export const fillIn = async (visitor: Visitor, identity: Identity) => {
 
 /** What the website tells about the visitor beside who they are. */
 export const VisitorData = z.object({
-  /** Values of the customer's custom fields, by core field id. */
-  customFields: CustomFieldsPatch.optional(),
+  /** Values of the customer's Data Extensions fields, by field key. */
+  values: DataExtensionValuesInput.optional(),
   /** The company they are with: found by its name, else made with the rest. */
   company: z
     .object({
       name: z.string().trim().min(1).max(200),
       website: z.url().max(500).optional(),
-      customFields: CustomFieldsPatch.optional(),
+      /** Values of the company's Data Extensions fields, by field key. */
+      values: DataExtensionValuesInput.optional(),
     })
     .optional(),
 });
@@ -92,7 +93,7 @@ type VisitorData = z.infer<typeof VisitorData>;
 /** The organisation's company named `name`, any case, or a new one with the website's data. */
 const companyFor = async (
   orgId: string,
-  { name, website, customFields }: NonNullable<VisitorData['company']>,
+  { name, website, values }: NonNullable<VisitorData['company']>,
 ) => {
   const client = core.forOrg(orgId);
   const { data } = await client.companies.list({ search: name, limit: 20 });
@@ -104,13 +105,13 @@ const companyFor = async (
       primaryName: name,
       names: [name],
       website,
-      customFields,
+      values,
       source: messenger.kind,
     }))
   );
 };
 
-/** Whether a custom field holds nothing yet. */
+/** Whether a field holds nothing yet. */
 const unset = (value: unknown) =>
   value === undefined ||
   value === null ||
@@ -118,21 +119,20 @@ const unset = (value: unknown) =>
   (Array.isArray(value) && value.length === 0);
 
 /**
- * The visitor's custom fields, and the company they work at, found or made. A signed-in
+ * The visitor's field values, and the company they work at, found or made. A signed-in
  * customer's hash sits in the website's page, where anyone may read it and send other values, so
  * on that customer the website's values only fill fields left blank, never replace them. The
  * visitor's own lead takes them all.
  */
-const saveOn = async (visitor: Visitor, { customFields, company }: VisitorData) => {
+const saveOn = async (visitor: Visitor, { values, company }: VisitorData) => {
   const client = core.forOrg(visitor.orgId);
   const id = visitor.customerId;
 
-  if (customFields) {
-    const held = visitor.verified ? (await client.customers.get({ id })).customFields : {};
-    const fill = Object.entries(customFields).filter(([field]) => unset(held[field]));
+  if (values) {
+    const held = visitor.verified ? (await client.customers.get({ id })).values : {};
+    const fill = Object.entries(values).filter(([key]) => unset(held[key]));
 
-    if (fill.length > 0)
-      await client.customers.update({ id, customFields: Object.fromEntries(fill) });
+    if (fill.length > 0) await client.customers.update({ id, values: Object.fromEntries(fill) });
   }
 
   if (company)

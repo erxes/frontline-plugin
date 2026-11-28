@@ -1,4 +1,9 @@
-import { type CustomValue, type Field, groupApplies, logicShows } from '@erxes/core-contract';
+import {
+  type DataExtensionField,
+  fieldRequired,
+  fieldShows,
+  groupApplies,
+} from '@erxes/core-contract';
 import { orpc as core } from '@erxes/core-contract/client';
 import {
   IconAlignLeft,
@@ -16,6 +21,7 @@ import {
   PanelFormRow,
   Switch,
   TextField,
+  type TDataValue,
   type TListFilterField,
   textOf,
   useFormat,
@@ -25,19 +31,23 @@ import { TICKET_FIELDS } from '~/plugin.ts';
 import { Badges, PickerField } from '~/shared/Pickers.tsx';
 import type { TicketRow } from './queries.ts';
 
-/** How the ticket screens draw each type of core's fields; they draw no other. */
+/** How the ticket screens draw each type of core's Data Extensions fields; they draw no other. */
 const KINDS = {
   text: 'text',
+  email: 'text',
   phone: 'text',
-  textarea: 'textarea',
+  url: 'text',
+  longText: 'textarea',
   number: 'number',
+  percent: 'number',
+  rating: 'number',
   date: 'date',
   boolean: 'boolean',
   select: 'select',
-  radio: 'select',
-  multiselect: 'multiselect',
-  check: 'multiselect',
+  multiSelect: 'multiselect',
 } as const;
+
+type Field = DataExtensionField;
 
 type Kind = (typeof KINDS)[keyof typeof KINDS];
 
@@ -57,17 +67,23 @@ const ICONS = {
 
 const iconOf = (field: Field) => ICONS[kindOf(field) ?? 'text'];
 
-/** The visible ticket fields core keeps, in order, with the pipelines each one's group shows on. */
-const useTicketFields = () => {
-  const input = { contentType: TICKET_FIELDS };
-  const fields = useQuery(core.fields.list.queryOptions({ input })).data?.data ?? [];
-  const groups = useQuery(core.fieldGroups.list.queryOptions({ input })).data?.data ?? [];
+/** The shown ticket fields core keeps, in order, with the pipelines each one's group shows on. */
+export const useTicketFields = () => {
+  const input = { recordType: TICKET_FIELDS };
+  const fields = useQuery(core.dataFields.list.queryOptions({ input })).data?.data ?? [];
+  const groups = useQuery(core.dataFieldGroups.list.queryOptions({ input })).data?.data ?? [];
   const appliesTo = new Map(groups.map((group) => [group.id, group.appliesTo]));
 
   return fields
-    .filter((field) => field.isVisible && kindOf(field))
+    .filter((field) => !field.settings.hidden && kindOf(field))
     .map((field) => ({ field, appliesTo: appliesTo.get(field.groupId ?? '') ?? {} }));
 };
+
+type Values = Record<string, TDataValue>;
+
+/** Values by field id as core's conditions read them, by field key. */
+const byKey = (fields: Field[], values: Values) =>
+  Object.fromEntries(fields.map((field) => [field.key, values[field.id] ?? null]));
 
 /** The fields a ticket of `pipelineId` shows. */
 const usePipelineFields = (pipelineId: string) =>
@@ -77,6 +93,10 @@ const usePipelineFields = (pipelineId: string) =>
 
 const textsOf = (value: unknown) =>
   Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+
+/** A select option's label, by the value the ticket keeps. */
+const optionLabel = (field: Field, option: string) =>
+  field.options.find((item) => item.value === option)?.label ?? option;
 
 /** A day as core stores a date value, `YYYY-MM-DD`. */
 const dayText = (day: Date) =>
@@ -91,11 +111,11 @@ const FieldInput = ({
   onChange,
 }: {
   field: Field;
-  value: CustomValue | undefined;
-  onChange: (value: CustomValue | null) => void;
+  value: TDataValue | undefined;
+  onChange: (value: TDataValue) => void;
 }) => {
   const { t } = useTranslation('frontline');
-  const options = field.options.map((option) => ({ value: option, label: option }));
+  const options = field.options.map(({ value: option, label }) => ({ value: option, label }));
   const empty = t('empty', 'Empty');
   const scope = `frontline-ticket-new.fields.${field.id}`;
 
@@ -123,7 +143,7 @@ const FieldInput = ({
         <PickerField
           label={field.label}
           placeholder={empty}
-          display={<span className="truncate">{textOf(value)}</span>}
+          display={<span className="truncate">{optionLabel(field, textOf(value))}</span>}
           options={options}
           value={textOf(value) ? [textOf(value)] : []}
           onValueChange={([next]) => onChange(next ?? null)}
@@ -135,7 +155,7 @@ const FieldInput = ({
         <PickerField
           label={field.label}
           placeholder={empty}
-          display={<Badges labels={textsOf(value)} />}
+          display={<Badges labels={textsOf(value).map((option) => optionLabel(field, option))} />}
           options={options}
           value={textsOf(value)}
           onValueChange={(next) => onChange(next.length > 0 ? next : null)}
@@ -168,14 +188,18 @@ const useValueText = () => {
   const { t } = useTranslation('frontline');
   const format = useFormat();
 
-  return (field: Field, value: CustomValue | undefined) => {
+  return (field: Field, value: TDataValue | undefined) => {
     switch (kindOf(field)) {
       case 'number':
         return typeof value === 'number' ? String(value) : '';
       case 'date':
         return typeof value === 'string' ? format.date(new Date(`${value}T00:00`)) : '';
+      case 'select':
+        return textOf(value) ? optionLabel(field, textOf(value)) : '';
       case 'multiselect':
-        return textsOf(value).join(', ');
+        return textsOf(value)
+          .map((option) => optionLabel(field, option))
+          .join(', ');
       case 'boolean':
         return typeof value === 'boolean' ? (value ? t('yes', 'Yes') : t('no', 'No')) : '';
       default:
@@ -189,8 +213,10 @@ export const TicketPropertyBadges = ({ ticket }: { ticket: TicketRow }) => {
   const fields = usePipelineFields(ticket.pipelineId);
   const valueText = useValueText();
 
+  const values = byKey(fields, ticket.propertiesData);
+
   const labels = fields.flatMap((field) => {
-    const text = logicShows(field.logic, ticket.propertiesData)
+    const text = fieldShows(field.settings, values)
       ? valueText(field, ticket.propertiesData[field.id])
       : '';
 
@@ -200,16 +226,9 @@ export const TicketPropertyBadges = ({ ticket }: { ticket: TicketRow }) => {
   return labels.length > 0 ? <Badges labels={labels} max={3} /> : null;
 };
 
-type Values = Record<string, CustomValue | null>;
-
-const filledOf = (values: Values) =>
-  Object.fromEntries(
-    Object.entries(values).flatMap(([id, value]) => (value === null ? [] : [[id, value]])),
-  );
-
 /**
  * A new ticket's rows for the fields its pipeline shows and the create form asks for, each while
- * its logic shows it by the values filled in so far. A change that hides a field drops its value,
+ * its `visibleWhen` and `hiddenWhen` show it by the values filled in so far. A change that hides a field drops its value,
  * and so on down the fields that read it, so a ticket keeps only what its form showed. Core
  * refuses a required one left empty.
  */
@@ -222,10 +241,12 @@ export const PropertyRows = ({
   values: Values;
   onChange: (values: Values) => void;
 }) => {
-  const asked = usePipelineFields(pipelineId).filter((field) => field.isVisibleToCreate);
+  const asked = usePipelineFields(pipelineId).filter(
+    (field) => field.settings.showInCreate !== false,
+  );
 
   const shownBy = (next: Values) =>
-    asked.filter((field) => logicShows(field.logic, filledOf(next)));
+    asked.filter((field) => fieldShows(field.settings, byKey(asked, next)));
 
   const keptOf = (next: Values) => {
     const shown = new Set(shownBy(next).map((field) => field.id));
@@ -233,7 +254,7 @@ export const PropertyRows = ({
     return Object.fromEntries(Object.entries(next).filter(([key]) => shown.has(key)));
   };
 
-  const set = (id: string, value: CustomValue | null) => {
+  const set = (id: string, value: TDataValue) => {
     let next: Values = { ...values, [id]: value };
     let kept = keptOf(next);
 
@@ -251,7 +272,7 @@ export const PropertyRows = ({
       key={field.id}
       label={field.label}
       icon={iconOf(field)}
-      required={field.isRequired}
+      required={fieldRequired(field.settings, byKey(asked, values))}
     >
       <FieldInput
         field={field}
@@ -278,12 +299,12 @@ export const usePropertyFilterFields = (): TListFilterField[] =>
     const kind = kindOf(field) ?? 'text';
 
     return {
-      path: `subject.customFields.${field.id}`,
+      path: `subject.data.${field.key}`,
       label: field.label,
       type: FILTER_TYPES[kind],
       icon: ICONS[kind],
       ...(FILTER_TYPES[kind] === 'select'
-        ? { options: field.options.map((option) => ({ value: option, label: option })) }
+        ? { options: field.options.map(({ value, label }) => ({ value, label })) }
         : {}),
     };
   });

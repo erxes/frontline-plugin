@@ -18,7 +18,7 @@ import { useInboxFields } from '@/inbox/InboxFilter.tsx';
 import { conversationTags } from '@/inbox/queries.ts';
 import { useTicketReportFields } from '@/tickets/TicketFilter.tsx';
 import { ticketTags } from '@/tickets/TicketLinks.tsx';
-import { usePropertyFilterFields } from '@/tickets/TicketProperties.tsx';
+import { useTicketFields } from '@/tickets/TicketProperties.tsx';
 import { ActionsMenu } from '~/shared/Records.tsx';
 import type { Records } from './cards.ts';
 import type { TableFile } from './figures.tsx';
@@ -177,7 +177,7 @@ export const VisualPick = ({
   );
 };
 
-/** The custom field a "Tickets by property" card counts by. */
+/** The ticket field a "Tickets by property" card counts by. */
 export const FieldPick = ({
   look,
   change,
@@ -187,10 +187,7 @@ export const FieldPick = ({
 }) => {
   const { t } = useTranslation('frontline');
 
-  const fields = usePropertyFilterFields().map((field) => ({
-    id: field.path.slice('subject.customFields.'.length),
-    label: field.label,
-  }));
+  const fields = useTicketFields().map(({ field }) => ({ id: field.id, label: field.label }));
 
   return (
     <Select

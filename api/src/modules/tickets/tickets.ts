@@ -1,4 +1,4 @@
-import { type ConditionGroup, CustomFieldsPatch } from '@erxes/core-contract';
+import type { ConditionGroup } from '@erxes/core-contract';
 import type { PluginMember } from '@erxes/plugin-sdk';
 import { ORPCError } from '@orpc/server';
 import { and, asc, count, eq, ilike, or, sql } from 'drizzle-orm';
@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { PERMISSIONS } from '#/core.ts';
 import type { Tx } from '#/db/client.ts';
 import { channelMembers } from '#/db/schema.ts';
+import { FieldValuesPatch } from '#/db/table.ts';
 import { pipelineStatuses, tickets } from '#/db/tickets.ts';
 import { reads, readsWithCore, writesWithCore } from '#/orpc.ts';
 import { membership } from '../channels/access.ts';
@@ -264,9 +265,12 @@ const create = writesWithCore(
       tagIds: true,
       attachments: true,
     })
-    .extend({ propertiesData: CustomFieldsPatch.default({}) }),
+    .extend({ propertiesData: FieldValuesPatch.default({}) }),
   (member, input) =>
-    checkProperties(member.orgId, input.pipelineId, {}, input.propertiesData, { create: true }),
+    checkProperties(member.orgId, input.pipelineId, {}, input.propertiesData, {
+      create: true,
+      userId: member.userId,
+    }),
 )
   .route({
     summary:

@@ -1,4 +1,4 @@
-import { orpc as core } from '@erxes/core-contract/client';
+import { contactSearchQueries } from '@erxes/core-contract/client';
 import {
   IconBuilding,
   IconBuildingStore,
@@ -10,16 +10,15 @@ import {
   IconUserCircle,
   IconUsers,
 } from '@tabler/icons-react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   Button,
-  companyTitle,
-  customerTitle,
   EntityPicker,
   PanelField,
   PanelSection,
   Popover,
   type TContactContentType,
+  useContactOptions,
 } from 'erxes-ui';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -72,42 +71,6 @@ export const TicketPeople = ({ ticket }: { ticket: Ticket }) => {
   );
 };
 
-/** Core's customers or companies matching a search, asked for once typing pauses, as picker options. */
-const useContactOptions = (contentType: TContactContentType, search: string) => {
-  const [asked] = useDebounce(search, SEARCH_PAUSE_MS);
-  const input = { search: asked || undefined, limit: 20 };
-
-  const customers = useQuery({
-    ...core.customers.list.queryOptions({ input }),
-    enabled: contentType === 'core:customer',
-    placeholderData: keepPreviousData,
-  });
-
-  const companies = useQuery({
-    ...core.companies.list.queryOptions({ input }),
-    enabled: contentType === 'core:company',
-    placeholderData: keepPreviousData,
-  });
-
-  return contentType === 'core:customer'
-    ? {
-        options: (customers.data?.data ?? []).map((row) => ({
-          value: row.id,
-          label: customerTitle(row),
-        })),
-        loading: customers.isPending,
-        error: customers.error,
-      }
-    : {
-        options: (companies.data?.data ?? []).map((row) => ({
-          value: row.id,
-          label: companyTitle(row),
-        })),
-        loading: companies.isPending,
-        error: companies.error,
-      };
-};
-
 /**
  * A customer or company of a ticket or its draft: core's link that opens it beside the page, and
  * a button that picks another from core's list.
@@ -126,7 +89,14 @@ export const ContactField = ({
   const { t } = useTranslation('frontline');
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
-  const contacts = useContactOptions(contentType, search);
+  const [asked] = useDebounce(search, SEARCH_PAUSE_MS);
+
+  const contacts = useContactOptions(
+    contactSearchQueries,
+    contentType === 'core:customer' ? 'customer' : 'company',
+    value ? [value] : [],
+    asked,
+  );
 
   return (
     <span className="flex min-w-0 flex-1 items-center gap-1 px-2">

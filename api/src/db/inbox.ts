@@ -1,4 +1,4 @@
-import type { AgentBlock, CustomValue } from '@erxes/core-contract';
+import type { AgentBlock } from '@erxes/core-contract';
 import { sql } from 'drizzle-orm';
 import {
   boolean,
@@ -15,7 +15,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import { channels } from './schema.ts';
 import { tags } from './tags.ts';
-import { type StoredFile, id, stamps, table } from './table.ts';
+import { type FieldValues, type StoredFile, id, stamps, table } from './table.ts';
 
 /**
  * Where a channel's conversations come from: a messenger on a website, a Facebook page, a
@@ -119,8 +119,8 @@ export const conversations = table(
     replyBreachedAt: timestamp({ withTimezone: true }),
     resolvedAt: timestamp({ withTimezone: true }),
     resolvedBy: text(),
-    /** Values of the custom fields core keeps for `frontline.conversation`, by field id. */
-    propertiesData: jsonb().$type<Record<string, CustomValue>>().notNull().default({}),
+    /** Values of `frontline.conversation`'s Data Extensions fields, by field id. */
+    propertiesData: jsonb().$type<FieldValues>().notNull().default({}),
     createdAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp({ withTimezone: true })
       .notNull()

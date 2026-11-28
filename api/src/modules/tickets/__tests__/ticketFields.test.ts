@@ -165,7 +165,7 @@ describe('ticket fields', () => {
     ).resolves.toMatchObject({ status: 201 });
 
     const matching = async (path: string, op: string, value: unknown) =>
-      (await owner.tickets.list({ filter: rule(`customFields.${path}`, op, value) })).tickets.map(
+      (await owner.tickets.list({ filter: rule(`data.${path}`, op, value) })).tickets.map(
         (row) => row.name,
       );
 

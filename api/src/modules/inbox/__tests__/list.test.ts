@@ -14,8 +14,8 @@ type Values = Record<string, unknown>;
 const created = vi.hoisted(() => ({
   customers: 0,
   searches: new Map<string, string[]>(),
-  updates: [] as { id: string; primaryEmail?: string; customFields?: Values }[],
-  companies: [] as { primaryName: string; customFields?: Values }[],
+  updates: [] as { id: string; primaryEmail?: string; values?: Values }[],
+  companies: [] as { primaryName: string; values?: Values }[],
   links: [] as { id: string; companyId: string }[],
 }));
 
@@ -47,7 +47,7 @@ vi.mock('#/core.ts', async (importOriginal) => {
             primaryEmail === 'ada@e2e.test'
               ? { customer: { id: 'customer-ada' }, created: false }
               : { customer: { id: `lead-${primaryEmail}` }, created: true },
-          update: async (input: { id: string; primaryEmail?: string; customFields?: Values }) => {
+          update: async (input: { id: string; primaryEmail?: string; values?: Values }) => {
             created.updates.push(input);
 
             return { id: input.id };
@@ -60,13 +60,13 @@ vi.mock('#/core.ts', async (importOriginal) => {
         },
         companies: {
           list: async () => ({ data: [{ id: 'company-acme', primaryName: 'Acme' }] }),
-          create: async (input: { primaryName: string; customFields?: Values }) => {
+          create: async (input: { primaryName: string; values?: Values }) => {
             created.companies.push(input);
 
             return { id: `company-${input.primaryName}`, primaryName: input.primaryName };
           },
         },
-        fields: {
+        dataValues: {
           check: async ({ current, patch }: { current: Values; patch: Values }) => ({
             values: Object.fromEntries(
               Object.entries({ ...current, ...patch }).filter(([, value]) => value !== null),
@@ -261,7 +261,7 @@ describe('inbox list', () => {
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
-  it("keeps a conversation's custom field values as core checks them", async () => {
+  it("keeps a conversation's field values as core checks them", async () => {
     const { owner, teammate, ids } = await setUp('org-ib-fields', ['I need ten seats']);
     const id = ids[0] ?? '';
 
@@ -284,41 +284,41 @@ describe('inbox list', () => {
     });
   });
 
-  it("saves a visitor's contact, custom fields and company on their own lead", async () => {
+  it("saves a visitor's contact, field values and company on their own lead", async () => {
     const { key } = await setUp('org-ib-visitor', []);
 
     created.updates.length = 0;
     created.companies.length = 0;
     created.links.length = 0;
 
-    await post('/connect', { key, customFields: { plan: 'pro' }, company: { name: 'acme' } });
+    await post('/connect', { key, values: { plan: 'pro' }, company: { name: 'acme' } });
     await post('/connect', {
       key,
       identity: { email: 'new@e2e.test' },
-      customFields: { plan: 'team' },
-      company: { name: 'Globex', customFields: { size: 'small' } },
+      values: { plan: 'team' },
+      company: { name: 'Globex', values: { size: 'small' } },
     });
     // An email anyone can type fills in the visitor's own lead and never finds Ada, who has it.
     await post('/connect', {
       key,
       identity: { email: 'ada@e2e.test' },
-      customFields: { plan: 'free' },
+      values: { plan: 'free' },
       company: { name: 'Initech' },
     });
 
     const [, typedNew, , typedAda] = created.updates;
 
     expect(created.updates).toMatchObject([
-      { customFields: { plan: 'pro' } },
+      { values: { plan: 'pro' } },
       { primaryEmail: 'new@e2e.test' },
-      { id: typedNew?.id, customFields: { plan: 'team' } },
+      { id: typedNew?.id, values: { plan: 'team' } },
       { primaryEmail: 'ada@e2e.test' },
-      { id: typedAda?.id, customFields: { plan: 'free' } },
+      { id: typedAda?.id, values: { plan: 'free' } },
     ]);
     expect(created.updates.map(({ id }) => id)).not.toContain('customer-ada');
     // Acme is found by its name in any case; Globex is made with the website's fields.
     expect(created.companies).toMatchObject([
-      { primaryName: 'Globex', customFields: { size: 'small' } },
+      { primaryName: 'Globex', values: { size: 'small' } },
       { primaryName: 'Initech' },
     ]);
     expect(created.links).toEqual([

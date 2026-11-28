@@ -351,6 +351,13 @@
       "when": 1795691048787,
       "tag": "0051_agent_take_back",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1795850664168,
+      "tag": "0052_record_fields",
+      "breakpoints": true
     }
   ]
 }
